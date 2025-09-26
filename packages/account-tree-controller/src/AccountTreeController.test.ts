@@ -1656,24 +1656,6 @@ describe('AccountTreeController', () => {
       expect(controller.getSelectedAccountGroup()).not.toBe('');
     });
 
-    it('updates selectedAccountGroup when AccountsController selected account changes', () => {
-      const { controller, messenger } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
-        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
-      });
-
-      controller.init();
-      const initialGroup = controller.getSelectedAccountGroup();
-
-      messenger.publish(
-        'AccountsController:selectedAccountChange',
-        MOCK_HD_ACCOUNT_2,
-      );
-
-      const newGroup = controller.getSelectedAccountGroup();
-      expect(newGroup).not.toBe(initialGroup);
-    });
-
     it('updates AccountsController selected account (with EVM account) when selectedAccountGroup changes', () => {
       const { controller, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
@@ -1817,28 +1799,6 @@ describe('AccountTreeController', () => {
           'non-existent-group-id' as AccountGroupId,
         );
       }).toThrow('No accounts found in group: non-existent-group-id');
-    });
-
-    it('handles AccountsController selectedAccountChange for account not in tree gracefully', () => {
-      const { controller, messenger } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-        keyrings: [MOCK_HD_KEYRING_1],
-      });
-
-      controller.init();
-      const initialGroup = controller.getSelectedAccountGroup();
-
-      const unknownAccount: InternalAccount = {
-        ...MOCK_HD_ACCOUNT_2,
-        id: 'unknown-account-id',
-      };
-
-      messenger.publish(
-        'AccountsController:selectedAccountChange',
-        unknownAccount,
-      );
-
-      expect(controller.getSelectedAccountGroup()).toBe(initialGroup);
     });
 
     it('falls back to first wallet first group when AccountsController returns EMPTY_ACCOUNT', () => {
@@ -3661,41 +3621,6 @@ describe('AccountTreeController', () => {
 
       expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
         targetGroupId,
-        initialSelectedGroup,
-      );
-      expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
-    });
-
-    it('emits selectedAccountGroupChange when selected account changes via AccountsController', () => {
-      // Use different keyring types to ensure different groups
-      const { controller, messenger } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SNAP_ACCOUNT_1],
-        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
-      });
-
-      const selectedAccountGroupChangeListener = jest.fn();
-      messenger.subscribe(
-        'AccountTreeController:selectedAccountGroupChange',
-        selectedAccountGroupChangeListener,
-      );
-
-      controller.init();
-
-      const initialSelectedGroup =
-        controller.state.accountTree.selectedAccountGroup;
-
-      jest.clearAllMocks();
-
-      messenger.publish(
-        'AccountsController:selectedAccountChange',
-        MOCK_SNAP_ACCOUNT_1,
-      );
-
-      const newSelectedGroup =
-        controller.state.accountTree.selectedAccountGroup;
-
-      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
-        newSelectedGroup,
         initialSelectedGroup,
       );
       expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
