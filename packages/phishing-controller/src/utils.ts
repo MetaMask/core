@@ -106,7 +106,7 @@ export const applyDiffs = (
   };
 
   // deep copy of blocklistPaths to avoid mutating the original
-  const blocklistPaths = deepCopyPathTrie(listState.blocklistPaths);
+  const newBlocklistPaths = deepCopyPathTrie(listState.blocklistPaths);
 
   for (const { isRemoval, targetList, url, timestamp } of diffsToApply) {
     const targetListType = splitStringByPeriod(targetList)[1];
@@ -116,7 +116,7 @@ export const applyDiffs = (
 
     if (isRemoval) {
       if (targetListType === 'blocklistPaths') {
-        deleteFromTrie(url, blocklistPaths);
+        deleteFromTrie(url, newBlocklistPaths);
       } else {
         listSets[targetListType].delete(url);
       }
@@ -124,7 +124,7 @@ export const applyDiffs = (
     }
 
     if (targetListType === 'blocklistPaths') {
-      insertToTrie(url, blocklistPaths);
+      insertToTrie(url, newBlocklistPaths);
     } else {
       listSets[targetListType].add(url);
     }
@@ -144,7 +144,7 @@ export const applyDiffs = (
     allowlist: Array.from(listSets.allowlist),
     blocklist: Array.from(listSets.blocklist),
     fuzzylist: Array.from(listSets.fuzzylist),
-    blocklistPaths: blocklistPaths,
+    blocklistPaths: newBlocklistPaths,
     version: listState.version,
     name: phishingListKeyNameMap[listKey],
     tolerance: listState.tolerance,
