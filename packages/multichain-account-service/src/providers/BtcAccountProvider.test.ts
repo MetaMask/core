@@ -242,6 +242,27 @@ describe('BtcAccountProvider', () => {
     expect(newAccounts[0]).toStrictEqual(MOCK_BTC_P2TR_ACCOUNT_1);
   });
 
+  it('throws if the account creation process takes too long', async () => {
+    const { provider, mocks } = setup({
+      accounts: [],
+    });
+
+    mocks.keyring.createAccount.mockImplementation(() => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(MOCK_BTC_P2TR_ACCOUNT_1);
+        }, 4000);
+      });
+    });
+
+    await expect(
+      provider.createAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).rejects.toThrow('Timed out');
+  });
+
   // Skip this test for now, since we manually inject those options upon
   // account creation, so it cannot fails (until the Bitcoin Snap starts
   // using the new typed options).
