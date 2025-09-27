@@ -302,7 +302,7 @@ describe('MultichainAccountWallet', () => {
       );
 
       await expect(wallet.createMultichainAccountGroup(0)).rejects.toThrow(
-        'Unable to create multichain account group for index: 0 due to provider failures:\n- Error: Unable to create accounts\n- Error: Unable to create accounts',
+        'Unable to create multichain account group for index: 0 due to provider failures:\n- Mocked Provider 0: Unable to create accounts\n- Mocked Provider 1: Unable to create accounts',
       );
 
       expect(wallet.getAccountGroups()).toHaveLength(0);

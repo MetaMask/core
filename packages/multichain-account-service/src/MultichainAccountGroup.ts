@@ -251,11 +251,19 @@ export class MultichainAccountGroup<
       }),
     );
 
+    let failureMessage = '';
+    let failureCount = 0;
     const groupState = results.reduce<GroupState>((state, result, idx) => {
       if (result.status === 'fulfilled') {
         state[this.#providers[idx].getName()] = result.value.map(
           (account) => account.id,
         );
+      } else if (
+        result.status === 'rejected' &&
+        result.reason.message !== 'Already aligned'
+      ) {
+        failureCount += 1;
+        failureMessage += `\n- ${this.#providers[idx].getName()}: ${result.reason.message}`;
       }
       return state;
     }, {});
@@ -263,17 +271,9 @@ export class MultichainAccountGroup<
     // Update group state
     this.init(groupState);
 
-    if (results.some((result) => result.status === 'rejected')) {
-      const rejectedResults = results.filter(
-        (result) =>
-          result.status === 'rejected' &&
-          result.reason.message !== 'Already aligned',
-      ) as PromiseRejectedResult[];
-      const errors = rejectedResults
-        .map((result) => `- ${result.reason}`)
-        .join('\n');
-      const hasMultipleFailures = rejectedResults.length > 1;
-      const message = `Failed to fully align multichain account group for entropy ID: ${this.wallet.entropySource} and group index: ${this.groupIndex}, some accounts might be missing. ${hasMultipleFailures ? 'Providers' : 'Provider'} threw the following ${hasMultipleFailures ? 'errors' : 'error'}:\n${errors}`;
+    if (failureCount > 0) {
+      const hasMultipleFailures = failureCount > 1;
+      const message = `Failed to fully align multichain account group for entropy ID: ${this.wallet.entropySource} and group index: ${this.groupIndex}, some accounts might be missing. ${hasMultipleFailures ? 'Providers' : 'Provider'} threw the following ${hasMultipleFailures ? 'errors' : 'error'}:${failureMessage}`;
 
       this.#log(`${WARNING_PREFIX} ${message}`);
       console.warn(message);

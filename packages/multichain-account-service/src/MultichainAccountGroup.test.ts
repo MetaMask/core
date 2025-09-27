@@ -237,7 +237,7 @@ describe('MultichainAccount', () => {
 
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       providers[1].createAccounts.mockRejectedValueOnce(
-        new Error('Provider 2: Unable to create accounts'),
+        new Error('Unable to create accounts'),
       );
 
       await group.alignAccounts();
@@ -248,7 +248,7 @@ describe('MultichainAccount', () => {
         groupIndex,
       });
       expect(consoleSpy).toHaveBeenCalledWith(
-        `Failed to fully align multichain account group for entropy ID: ${wallet.entropySource} and group index: ${groupIndex}, some accounts might be missing. Provider threw the following error:\n- Error: Provider 2: Unable to create accounts`,
+        `Failed to fully align multichain account group for entropy ID: ${wallet.entropySource} and group index: ${groupIndex}, some accounts might be missing. Provider threw the following error:\n- Provider 2: Unable to create accounts`,
       );
     });
 
@@ -261,11 +261,11 @@ describe('MultichainAccount', () => {
 
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       providers[1].createAccounts.mockRejectedValueOnce(
-        new Error('Provider 2: Unable to create accounts'),
+        new Error('Unable to create accounts'),
       );
 
       providers[2].createAccounts.mockRejectedValueOnce(
-        new Error('Provider 3: Unable to create accounts'),
+        new Error('Unable to create accounts'),
       );
 
       await group.alignAccounts();
@@ -280,7 +280,7 @@ describe('MultichainAccount', () => {
         groupIndex,
       });
       expect(consoleSpy).toHaveBeenCalledWith(
-        `Failed to fully align multichain account group for entropy ID: ${wallet.entropySource} and group index: ${groupIndex}, some accounts might be missing. Providers threw the following errors:\n- Error: Provider 2: Unable to create accounts\n- Error: Provider 3: Unable to create accounts`,
+        `Failed to fully align multichain account group for entropy ID: ${wallet.entropySource} and group index: ${groupIndex}, some accounts might be missing. Providers threw the following errors:\n- Provider 2: Unable to create accounts\n- Provider 3: Unable to create accounts`,
       );
     });
   });

@@ -306,16 +306,17 @@ export class MultichainAccountWallet<
         ),
       );
 
-      const everyProviderFailed = results.every(
-        (result) => result.status === 'rejected',
-      );
+      let failureCount = 0;
 
-      const providerFailures = results.reduce((acc, result) => {
+      const providerFailures = results.reduce((acc, result, idx) => {
         if (result.status === 'rejected') {
-          acc += `\n- ${result.reason}`;
+          failureCount += 1;
+          acc += `\n- ${this.#providers[idx].getName()}: ${result.reason.message}`;
         }
         return acc;
       }, '');
+
+      const everyProviderFailed = failureCount === this.#providers.length;
 
       if (everyProviderFailed) {
         // We throw an error if there's a failure on every provider
