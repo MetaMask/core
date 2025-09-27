@@ -280,7 +280,7 @@ export type HasPermission = {
 };
 
 /**
- * Directly grants given permissions for a specificed origin without requesting user approval
+ * Directly grants given permissions for a specified origin without requesting user approval
  */
 export type GrantPermissions = {
   type: `${typeof controllerName}:grantPermissions`;
@@ -288,7 +288,7 @@ export type GrantPermissions = {
 };
 
 /**
- * Directly grants given permissions for a specificed origin without requesting user approval
+ * Directly grants given permissions for a specified origin without requesting user approval
  */
 export type GrantPermissionsIncremental = {
   type: `${typeof controllerName}:grantPermissionsIncremental`;
