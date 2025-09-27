@@ -15,7 +15,7 @@ type IsAccountControllerState<Type extends AccountsControllerState> = Type;
  */
 export type StrictInternalAccount = Omit<InternalAccount, 'options'> & {
   // Use stricter options, which are relying on `Json` (which sometimes
-  // cause compiler errors because of instanciation "too deep".
+  // cause compiler errors because of instantiation "too deep".
   // In anyway, we should rarely have to use those "untyped" options.
   options: {
     entropy?: KeyringAccountEntropyOptions;
