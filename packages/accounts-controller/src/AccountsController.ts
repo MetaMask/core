@@ -1322,6 +1322,11 @@ export class AccountsController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
+      `AccountsController:getAccounts`,
+      this.getAccounts.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       `AccountsController:updateAccountMetadata`,
       this.updateAccountMetadata.bind(this),
     );
