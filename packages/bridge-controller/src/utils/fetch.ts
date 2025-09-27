@@ -7,6 +7,7 @@ import {
   formatAddressToCaipReference,
   formatChainIdToDec,
 } from './caip-formatters';
+import type { FeatureId } from './validators';
 import {
   validateQuoteResponse,
   validateBitcoinQuoteResponse,
@@ -71,6 +72,7 @@ export async function fetchBridgeTokens(
  * @param clientId - The client ID for metrics
  * @param fetchFn - The fetch function to use
  * @param bridgeApiBaseUrl - The base URL for the bridge API
+ * @param featureId - The feature ID to append to each quote
  * @returns A list of bridge tx quotes
  */
 export async function fetchBridgeQuotes(
@@ -79,6 +81,7 @@ export async function fetchBridgeQuotes(
   clientId: string,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
+  featureId: FeatureId | null,
 ): Promise<{
   quotes: QuoteResponse[];
   validationFailures: string[];
@@ -124,8 +127,8 @@ export async function fetchBridgeQuotes(
   });
 
   const uniqueValidationFailures: Set<string> = new Set<string>([]);
-  const filteredQuotes = quotes.filter(
-    (quoteResponse: unknown): quoteResponse is QuoteResponse => {
+  const filteredQuotes = quotes
+    .filter((quoteResponse: unknown): quoteResponse is QuoteResponse => {
       try {
         const isBitcoinQuote = isBitcoinChainId(request.srcChainId);
 
@@ -148,8 +151,11 @@ export async function fetchBridgeQuotes(
         }
         return false;
       }
-    },
-  );
+    })
+    .map((quote) => ({
+      ...quote,
+      featureId: featureId ?? undefined,
+    }));
 
   const validationFailures = Array.from(uniqueValidationFailures);
   if (uniqueValidationFailures.size > 0) {
