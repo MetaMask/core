@@ -103,7 +103,7 @@ export class MultichainAccountWallet<
    */
   init(walletState: WalletState) {
     this.#log('Initializing wallet state...');
-    for (const groupIndex of Object.keys(walletState)) {
+    for (const [groupIndex, groupState] of Object.entries(walletState)) {
       // Have to convert to number because the state keys become strings when we construct the state object in the service
       const indexAsNumber = Number(groupIndex);
       const group = new MultichainAccountGroup({
@@ -115,7 +115,7 @@ export class MultichainAccountWallet<
 
       this.#log(`Creating new group for index ${indexAsNumber}...`);
 
-      group.init(walletState[groupIndex]);
+      group.init(groupState);
 
       this.#accountGroups.set(indexAsNumber, group);
     }
