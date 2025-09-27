@@ -2777,6 +2777,26 @@ describe('AccountsController', () => {
     });
   });
 
+  describe('getAccounts', () => {
+    it('returns a list of accounts based on the given account IDs', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      const result = accountsController.getAccounts([mockAccount.id]);
+
+      expect(result).toStrictEqual([mockAccount]);
+    });
+  });
+
   describe('getSelectedAccount', () => {
     it.each([
       {
