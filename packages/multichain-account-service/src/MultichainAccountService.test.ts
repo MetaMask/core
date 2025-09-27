@@ -49,7 +49,6 @@ import type {
   MultichainAccountServiceMessenger,
 } from './types';
 
-
 // Mock providers.
 jest.mock('./providers/EvmAccountProvider', () => {
   return {
