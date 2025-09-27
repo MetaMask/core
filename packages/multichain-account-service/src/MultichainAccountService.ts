@@ -448,7 +448,7 @@ export class MultichainAccountService {
    * creating a new vault and keychain, or restoring a vault and keyring.
    *
    * NOTE: This method should only be called in client code where a mutex lock is acquired.
-   * `discoverAndCreateAccounts` should be called after this method to discover and create accounts.
+   * `discoverAccounts` should be called after this method to discover and create accounts.
    *
    * @param options - Options.
    * @param options.mnemonic - The mnemonic to use to create the new wallet.
