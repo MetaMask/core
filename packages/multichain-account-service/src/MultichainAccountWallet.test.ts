@@ -279,7 +279,9 @@ describe('MultichainAccountWallet', () => {
       const group = await wallet.createMultichainAccountGroup(groupIndex);
 
       // Should warn about partial failure but still create the group
-      expect(consoleSpy).toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        `Unable to create some accounts for group index: ${groupIndex}. Providers threw the following errors:\n- Mocked Provider 0: Unable to create accounts`,
+      );
       expect(group.groupIndex).toBe(groupIndex);
       const internalAccounts = group.getAccounts();
       expect(internalAccounts).toHaveLength(1);
