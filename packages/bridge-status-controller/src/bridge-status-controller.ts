@@ -641,6 +641,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.stopPollingByPollingToken(pollingToken);
         delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
 
+        // Skip tracking events when featureId is set (i.e. PERPS)
+        if (historyItem.featureId) {
+          return;
+        }
+
         if (status.status === StatusTypes.COMPLETE) {
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
@@ -1037,11 +1042,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       isHardwareAccount,
     );
     // Emit Submitted event after submit button is clicked
-    this.#trackUnifiedSwapBridgeEvent(
-      UnifiedSwapBridgeEventName.Submitted,
-      undefined,
-      preConfirmationProperties,
-    );
+    !quoteResponse.featureId &&
+      this.#trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.Submitted,
+        undefined,
+        preConfirmationProperties,
+      );
 
     let txMeta: TransactionMeta & Partial<SolanaTransactionMeta>;
     let approvalTxId: string | undefined;
@@ -1081,14 +1087,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               selectedAccount,
             );
           } catch (error) {
-            this.#trackUnifiedSwapBridgeEvent(
-              UnifiedSwapBridgeEventName.Failed,
-              txMeta?.id,
-              {
-                error_message: (error as Error)?.message,
-                ...preConfirmationProperties,
-              },
-            );
+            !quoteResponse.featureId &&
+              this.#trackUnifiedSwapBridgeEvent(
+                UnifiedSwapBridgeEventName.Failed,
+                txMeta?.id,
+                {
+                  error_message: (error as Error)?.message,
+                  ...preConfirmationProperties,
+                },
+              );
             throw error;
           }
         },
@@ -1227,21 +1234,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getAccountByAddress',
-      historyItem.account,
-    );
-
-    const { transactions } = this.messagingSystem.call(
-      'TransactionController:getState',
-    );
-    const txMeta = transactions?.find(({ id }) => id === txMetaId);
-    const approvalTxMeta = transactions?.find(
-      ({ id }) => id === historyItem.approvalTxId,
-    );
-
     const requestParamProperties = getRequestParamFromHistory(historyItem);
-
+    // Always publish StatusValidationFailed event, regardless of featureId
     if (eventName === UnifiedSwapBridgeEventName.StatusValidationFailed) {
       const {
         chain_id_source,
@@ -1263,6 +1257,24 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
       return;
     }
+
+    // Skip tracking all other events when featureId is set (i.e. PERPS)
+    if (historyItem.featureId) {
+      return;
+    }
+
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getAccountByAddress',
+      historyItem.account,
+    );
+
+    const { transactions } = this.messagingSystem.call(
+      'TransactionController:getState',
+    );
+    const txMeta = transactions?.find(({ id }) => id === txMetaId);
+    const approvalTxMeta = transactions?.find(
+      ({ id }) => id === historyItem.approvalTxId,
+    );
 
     const requiredEventProperties = {
       ...baseProperties,
