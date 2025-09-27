@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add a `getAccounts` method (and its associated action) that is the plural version of `getAccount` ([#6654](https://github.com/MetaMask/core/pull/6708))
+  - This method is added to primarily be consumed in the `MultichainAccountService`.
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.1` ([#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
