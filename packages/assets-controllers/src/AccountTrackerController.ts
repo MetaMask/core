@@ -716,8 +716,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         }
 
         // Check if the address exists for this chain
-        const accountExists = Boolean(state.accountsByChainId[chainId][checksumAddress]);
-        
+        const accountExists = Boolean(
+          state.accountsByChainId[chainId][checksumAddress],
+        );
+
         // Ensure the address exists for this chain
         if (!accountExists) {
           state.accountsByChainId[chainId][checksumAddress] = {
@@ -770,8 +772,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         }
 
         // Check if the address exists for this chain
-        const accountExists = Boolean(state.accountsByChainId[chainId][checksumAddress]);
-        
+        const accountExists = Boolean(
+          state.accountsByChainId[chainId][checksumAddress],
+        );
+
         // Ensure the address exists for this chain
         if (!accountExists) {
           state.accountsByChainId[chainId][checksumAddress] = {
