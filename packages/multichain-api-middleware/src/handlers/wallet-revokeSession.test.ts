@@ -1,4 +1,7 @@
-import { Caip25EndowmentPermissionName } from '@metamask/chain-agnostic-permission';
+import {
+  Caip25CaveatType,
+  Caip25EndowmentPermissionName,
+} from '@metamask/chain-agnostic-permission';
 import {
   PermissionDoesNotExistError,
   UnrecognizedSubjectError,
@@ -8,7 +11,10 @@ import type { JsonRpcRequest } from '@metamask/utils';
 
 import { walletRevokeSession } from './wallet-revokeSession';
 
-const baseRequest: JsonRpcRequest & { origin: string } = {
+const baseRequest: JsonRpcRequest & {
+  origin: string;
+  params: { scopes?: string[] };
+} = {
   origin: 'http://test.com',
   params: {},
   jsonrpc: '2.0' as const,
@@ -20,14 +26,23 @@ const createMockedHandler = () => {
   const next = jest.fn();
   const end = jest.fn();
   const revokePermissionForOrigin = jest.fn();
+  const updateCaveat = jest.fn();
+  const getCaveatForOrigin = jest.fn();
   const response = {
     result: true,
     id: 1,
     jsonrpc: '2.0' as const,
   };
-  const handler = (request: JsonRpcRequest & { origin: string }) =>
+  const handler = (
+    request: JsonRpcRequest & {
+      origin: string;
+      params: { scopes?: string[] };
+    },
+  ) =>
     walletRevokeSession.implementation(request, response, next, end, {
       revokePermissionForOrigin,
+      updateCaveat,
+      getCaveatForOrigin,
     });
 
   return {
@@ -35,15 +50,98 @@ const createMockedHandler = () => {
     response,
     end,
     revokePermissionForOrigin,
+    updateCaveat,
+    getCaveatForOrigin,
     handler,
   };
 };
 
 describe('wallet_revokeSession', () => {
-  it('revokes the the CAIP-25 endowment permission', async () => {
+  it('revokes the CAIP-25 endowment permission', async () => {
     const { handler, revokePermissionForOrigin } = createMockedHandler();
 
     await handler(baseRequest);
+    expect(revokePermissionForOrigin).toHaveBeenCalledWith(
+      Caip25EndowmentPermissionName,
+    );
+  });
+
+  it('partially revokes the CAIP-25 endowment permission if `scopes` param is passed in', async () => {
+    const { handler, getCaveatForOrigin, updateCaveat } = createMockedHandler();
+    getCaveatForOrigin.mockImplementation(() => ({
+      value: {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdeadbeef'],
+          },
+          'eip155:5': {
+            accounts: ['eip155:5:0xdeadbeef'],
+          },
+          'eip155:10': {
+            accounts: ['eip155:10:0xdeadbeef'],
+          },
+        },
+        requiredScopes: {},
+      },
+    }));
+
+    await handler({ ...baseRequest, params: { scopes: ['eip155:1'] } });
+    expect(updateCaveat).toHaveBeenCalledWith(
+      Caip25EndowmentPermissionName,
+      Caip25CaveatType,
+      {
+        optionalScopes: {
+          'eip155:5': { accounts: ['eip155:5:0xdeadbeef'] },
+          'eip155:10': { accounts: ['eip155:10:0xdeadbeef'] },
+        },
+        requiredScopes: {},
+      },
+    );
+  });
+
+  it('not call `updateCaveat` if `scopes` param is passed in with non existing permitted scope', async () => {
+    const { handler, getCaveatForOrigin, updateCaveat } = createMockedHandler();
+    getCaveatForOrigin.mockImplementation(() => ({
+      value: {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: [],
+          },
+        },
+        requiredScopes: {},
+      },
+    }));
+
+    await handler({ ...baseRequest, params: { scopes: ['eip155:5'] } });
+    expect(updateCaveat).not.toHaveBeenCalled();
+  });
+
+  it('fully revokes permission when all accounts are removed after scope removal', async () => {
+    const {
+      handler,
+      getCaveatForOrigin,
+      updateCaveat,
+      revokePermissionForOrigin,
+    } = createMockedHandler();
+    getCaveatForOrigin.mockImplementation(() => ({
+      value: {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdeadbeef'],
+          },
+          'eip155:5': {
+            accounts: ['eip155:5:0xdeadbeef'],
+          },
+        },
+        requiredScopes: {},
+      },
+    }));
+
+    await handler({
+      ...baseRequest,
+      params: { scopes: ['eip155:1', 'eip155:5'] },
+    });
+    expect(updateCaveat).not.toHaveBeenCalled();
     expect(revokePermissionForOrigin).toHaveBeenCalledWith(
       Caip25EndowmentPermissionName,
     );

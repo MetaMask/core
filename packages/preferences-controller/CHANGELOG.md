@@ -7,15 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.0.1]
+
+### Changed
+
+- Change default for `showMultiRpcModal` to `false` ([#6723](https://github.com/MetaMask/core/pull/6723))
+
+## [20.0.0]
+
 ### Added
 
+- Add a new controller state property: `tokenNetworkFilter` ([#6707](https://github.com/MetaMask/core/pull/6707))
+- Add a new controller method: `setTokenNetworkFilter` ([#6707](https://github.com/MetaMask/core/pull/6707))
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
 
 ### Changed
 
+- **BREAKING:** Rename controller state property from `useMultiRpcMigration` to `showMultiRpcModal` ([#6707](https://github.com/MetaMask/core/pull/6707))
+- **BREAKING:** Rename controller method from `setUseMultiRpcMigration` to `setShowMultiRpcModal` ([#6707](https://github.com/MetaMask/core/pull/6707))
+- **BREAKING:** Rename controller state property from `openSeaEnabled` to `displayNftMedia` ([#4774](https://github.com/MetaMask/core/pull/4774))
+- **BREAKING:** Rename controller method from `setOpenSeaEnabled` to `setDisplayNftMedia` ([#4774](https://github.com/MetaMask/core/pull/4774))
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.4.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
-- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
 ## [19.0.0]
 
@@ -423,7 +436,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.1...HEAD
+[20.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.0...@metamask/preferences-controller@20.0.1
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@19.0.0...@metamask/preferences-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.1...@metamask/preferences-controller@19.0.0
 [18.4.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.0...@metamask/preferences-controller@18.4.1
 [18.4.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.3.0...@metamask/preferences-controller@18.4.0
