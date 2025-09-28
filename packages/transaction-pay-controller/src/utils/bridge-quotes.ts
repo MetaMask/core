@@ -57,9 +57,9 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
       const token = tokens[i];
 
       return {
-        attemptsMax: 2,
-        bufferStep: 0.025,
-        bufferInitial: 0.025,
+        attemptsMax: 5,
+        bufferStep: 0.04,
+        bufferInitial: 0.04,
         bufferSubsequent: 0.05,
         from: transaction.txParams.from as Hex,
         slippage: 0.005,

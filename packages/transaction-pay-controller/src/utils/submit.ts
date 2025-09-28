@@ -1,5 +1,6 @@
 import type { Messenger } from '@metamask/base-controller';
 import { StatusTypes } from '@metamask/bridge-controller';
+import type { QuoteMetadata } from '@metamask/bridge-controller';
 import type { BridgeHistoryItem } from '@metamask/bridge-status-controller';
 import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
 import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
@@ -95,9 +96,31 @@ async function submitBridgeTransaction(
       }),
   );
 
+  const tokenAmountValues = {
+    amount: '0',
+    valueInCurrency: null,
+    usd: null,
+  };
+
+  const metadata: QuoteMetadata = {
+    gasFee: {
+      effective: tokenAmountValues,
+      max: tokenAmountValues,
+      total: tokenAmountValues,
+    },
+    totalNetworkFee: tokenAmountValues,
+    totalMaxNetworkFee: tokenAmountValues,
+    toTokenAmount: tokenAmountValues,
+    minToTokenAmount: tokenAmountValues,
+    adjustedReturn: tokenAmountValues,
+    sentAmount: tokenAmountValues,
+    swapRate: '0',
+    cost: tokenAmountValues,
+  };
+
   const result = await messenger.call(
     'BridgeStatusController:submitTx',
-    quote as never,
+    { ...quote, ...metadata },
     isSmartTransaction,
   );
 
