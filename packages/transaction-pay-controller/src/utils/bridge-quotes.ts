@@ -266,8 +266,6 @@ async function getSingleBridgeQuote(
   const quotes = await messenger.call(
     'BridgeController:fetchQuotes',
     quoteRequest,
-    undefined,
-    FeatureId.PERPS,
   );
 
   if (!quotes.length) {
