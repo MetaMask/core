@@ -117,6 +117,7 @@ import type {
   TransactionContainerType,
   GetSimulationConfig,
   AddTransactionOptions,
+  RequiredAsset,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -1205,6 +1206,7 @@ export class TransactionController extends BaseController<
       origin,
       publishHook,
       requireApproval,
+      requiredAssets,
       securityAlertResponse,
       sendFlowHistory,
       swaps = {},
@@ -1302,6 +1304,7 @@ export class TransactionController extends BaseController<
           nestedTransactions,
           networkClientId,
           origin,
+          requiredAssets,
           securityAlertResponse,
           status: TransactionStatus.unapproved as const,
           time: Date.now(),

@@ -292,6 +292,7 @@ async function addTransactionBatchWith7702(
     networkClientId,
     origin,
     requireApproval,
+    requiredAssets,
     securityAlertId,
     transactions,
     validateSecurity,
@@ -401,6 +402,7 @@ async function addTransactionBatchWith7702(
     networkClientId,
     origin,
     requireApproval,
+    requiredAssets,
     securityAlertResponse,
     type: TransactionType.batch,
   });

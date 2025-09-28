@@ -376,6 +376,8 @@ export type TransactionMeta = {
    */
   replacedById?: string;
 
+  requiredAssets?: RequiredAsset[];
+
   /**
    * IDs of any transactions that must be confirmed before this one is submitted.
    * Unlike a transaction batch, these transactions can be on alternate chains.
@@ -1720,6 +1722,8 @@ export type TransactionBatchRequest = {
   /** Whether an approval request should be created to require confirmation from the user. */
   requireApproval?: boolean;
 
+  requiredAssets?: RequiredAsset[];
+
   /** Security alert ID to persist on the transaction. */
   securityAlertId?: string;
 
@@ -2079,4 +2083,9 @@ export type AddTransactionOptions = {
 
   /** Type of transaction to add, such as 'cancel' or 'swap'. */
   type?: TransactionType;
+};
+
+export type RequiredAsset = {
+  address: Hex;
+  amount: Hex;
 };
