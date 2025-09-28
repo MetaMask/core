@@ -9,8 +9,8 @@ import type {
 } from '../types';
 import {
   getTokenBalance,
-  getTokenDecimals,
   getTokenFiatRate,
+  getTokenInfo,
 } from '../utils/token';
 import { getTransaction } from '../utils/transaction';
 
@@ -85,9 +85,10 @@ function getPaymentToken({
   messenger: TransactionPayControllerMessenger;
   tokenAddress: Hex;
 }): TransactionPaymentToken | undefined {
-  const decimals = getTokenDecimals(messenger, tokenAddress, chainId);
+  const { decimals, symbol } =
+    getTokenInfo(messenger, tokenAddress, chainId) ?? {};
 
-  if (decimals === undefined) {
+  if (decimals === undefined || !symbol) {
     return undefined;
   }
 
@@ -119,5 +120,6 @@ function getPaymentToken({
     balanceUsd,
     chainId,
     decimals,
+    symbol,
   };
 }

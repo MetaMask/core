@@ -5,7 +5,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getTokenBalance, getTokenDecimals } from './token';
+import { getTokenBalance, getTokenInfo } from './token';
 import type {
   TransactionPayControllerMessenger,
   TransactionTokenRequired,
@@ -22,9 +22,10 @@ export function parseRequiredTokens(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
 ): TransactionTokenRequired[] {
-  return [parseTokenTransfer(transaction, messenger)].filter(
-    Boolean,
-  ) as TransactionTokenRequired[];
+  return [
+    parseTokenTransfer(transaction, messenger),
+    ...parseRequiredAssets(transaction, messenger),
+  ].filter(Boolean) as TransactionTokenRequired[];
 }
 
 /**
@@ -38,9 +39,8 @@ function parseTokenTransfer(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
 ): TransactionTokenRequired | undefined {
-  const { chainId, txParams } = transaction;
+  const { txParams } = transaction;
   const { data } = txParams;
-  const from = txParams.from as Hex;
   const to = txParams.to as Hex | undefined;
 
   if (!to || !data) {
@@ -56,10 +56,53 @@ function parseTokenTransfer(
     // Intentionally empty
   }
 
-  const tokenDecimals = getTokenDecimals(messenger, to, chainId);
-  const tokenBalance = getTokenBalance(messenger, from, chainId, to);
+  if (transferAmount === undefined) {
+    return undefined;
+  }
 
-  if (!transferAmount || tokenDecimals === undefined) {
+  return getTokenProperties(transaction, to, transferAmount, messenger);
+}
+
+/**
+ * Generate required tokens from the transaction's required assets.
+ *
+ * @param transaction - Transaction metadata.
+ * @param messenger - Controller messenger.
+ * @returns An array of required tokens, with undefined entries filtered out.
+ */
+function parseRequiredAssets(
+  transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
+): (TransactionTokenRequired | undefined)[] {
+  return (transaction.requiredAssets ?? []).map((asset) =>
+    getTokenProperties(transaction, asset.address, asset.amount, messenger),
+  );
+}
+
+/**
+ * Get the full token properties for a specific token and amount.
+ *
+ * @param transaction - Transaction metadata.
+ * @param tokenAddress - Token address.
+ * @param amount - Token amount in hexadecimal format.
+ * @param messenger - Controller messenger.
+ * @returns The full token properties or undefined if the token data could not be retrieved.
+ */
+function getTokenProperties(
+  transaction: TransactionMeta,
+  tokenAddress: Hex,
+  amount: Hex,
+  messenger: TransactionPayControllerMessenger,
+): TransactionTokenRequired | undefined {
+  const { chainId, txParams } = transaction;
+  const from = txParams.from as Hex;
+
+  const { decimals: tokenDecimals, symbol } =
+    getTokenInfo(messenger, tokenAddress, chainId) ?? {};
+
+  const tokenBalance = getTokenBalance(messenger, from, chainId, tokenAddress);
+
+  if (!amount || tokenDecimals === undefined || !symbol) {
     return undefined;
   }
 
@@ -68,13 +111,10 @@ function parseTokenTransfer(
     tokenDecimals,
   );
 
-  const { amountHuman, amountRaw } = calculateAmounts(
-    transferAmount,
-    tokenDecimals,
-  );
+  const { amountHuman, amountRaw } = calculateAmounts(amount, tokenDecimals);
 
   return {
-    address: to,
+    address: tokenAddress,
     allowUnderMinimum: false,
     amountHuman,
     amountRaw,
@@ -83,6 +123,7 @@ function parseTokenTransfer(
     chainId,
     decimals: tokenDecimals,
     skipIfBalance: false,
+    symbol,
   };
 }
 

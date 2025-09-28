@@ -13,6 +13,7 @@ const PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
   balanceUsd: '3.69',
   chainId: '0x1',
   decimals: 6,
+  symbol: 'TST',
 };
 
 const TRANSACTION_TOKEN_MOCK: TransactionToken = {
@@ -29,6 +30,7 @@ const TRANSACTION_TOKEN_MOCK: TransactionToken = {
   chainId: '0x1',
   decimals: 6,
   skipIfBalance: false,
+  symbol: 'TST2',
 };
 
 const TRANSACTION_ID_MOCK = '123-456';

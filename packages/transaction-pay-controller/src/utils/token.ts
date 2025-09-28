@@ -39,11 +39,11 @@ export function getTokenBalance(
  * @param chainId - Id of the chain.
  * @returns The token decimals or undefined if the token is not found.
  */
-export function getTokenDecimals(
+export function getTokenInfo(
   messenger: TransactionPayControllerMessenger,
   tokenAddress: Hex,
   chainId: Hex,
-): number | undefined {
+): { decimals: number; symbol: string } | undefined {
   const controllerState = messenger.call('TokensController:getState');
   const normalizedTokenAddress = tokenAddress.toLowerCase() as Hex;
 
@@ -51,7 +51,7 @@ export function getTokenDecimals(
     .flat()
     .find((t) => t.address.toLowerCase() === normalizedTokenAddress);
 
-  return token?.decimals;
+  return token ? { decimals: token.decimals, symbol: token.symbol } : undefined;
 }
 
 /**

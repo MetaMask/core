@@ -1,7 +1,7 @@
 import { Messenger } from '@metamask/base-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getTokenBalance, getTokenDecimals, getTokenFiatRate } from './token';
+import { getTokenBalance, getTokenInfo, getTokenFiatRate } from './token';
 import type { TransactionPayControllerMessenger } from '..';
 import type { AllowedActions } from '../types';
 
@@ -12,6 +12,7 @@ const BALANCE_MOCK = '0x123';
 const FROM_MOCK = '0x456';
 const NETWORK_CLIENT_ID_MOCK = '123-456';
 const TICKER_MOCK = 'TST';
+const SYMBOL_MOCK = 'TEST';
 
 describe('Token Utils', () => {
   let baseMessenger: Messenger<AllowedActions, never>;
@@ -73,8 +74,8 @@ describe('Token Utils', () => {
     });
   });
 
-  describe('getTokenDecimals', () => {
-    it('returns decimals from controller state', () => {
+  describe('getTokenInfo', () => {
+    it('returns decimals and symbol from controller state', () => {
       getTokensControllerStateMock.mockReturnValue({
         allTokens: {
           [CHAIN_ID_MOCK]: {
@@ -82,25 +83,29 @@ describe('Token Utils', () => {
               {
                 address: TOKEN_ADDRESS_MOCK.toLowerCase(),
                 decimals: DECIMALS_MOCK,
+                symbol: SYMBOL_MOCK,
               },
             ],
           },
         },
       });
 
-      const result = getTokenDecimals(
+      const result = getTokenInfo(
         messengerMock,
         TOKEN_ADDRESS_MOCK,
         CHAIN_ID_MOCK,
       );
 
-      expect(result).toBe(DECIMALS_MOCK);
+      expect(result).toStrictEqual({
+        decimals: DECIMALS_MOCK,
+        symbol: SYMBOL_MOCK,
+      });
     });
 
     it('returns undefined if token is not found', () => {
       getTokensControllerStateMock.mockReturnValue({});
 
-      const result = getTokenDecimals(
+      const result = getTokenInfo(
         messengerMock,
         TOKEN_ADDRESS_MOCK,
         CHAIN_ID_MOCK,

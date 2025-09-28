@@ -17,6 +17,7 @@ const TRANSACTION_TOKEN_MOCK: TransactionTokenRequired = {
   chainId: '0x1',
   decimals: 6,
   skipIfBalance: false,
+  symbol: 'TST',
 };
 
 const MESSENGER_MOCK = {} as TransactionPayControllerMessenger;

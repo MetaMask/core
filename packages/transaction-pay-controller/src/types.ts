@@ -109,6 +109,7 @@ export type TransactionTokenRequired = {
   chainId: Hex;
   decimals: number;
   skipIfBalance: boolean;
+  symbol: string;
 };
 
 export type TransactionTokenFiat = {
@@ -133,6 +134,7 @@ export type TransactionPaymentToken = {
   balanceUsd: string;
   chainId: Hex;
   decimals: number;
+  symbol: string;
 };
 
 export type UpdateTransactionDataCallback = (

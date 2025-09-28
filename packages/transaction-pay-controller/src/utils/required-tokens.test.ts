@@ -2,7 +2,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { parseRequiredTokens } from './required-tokens';
-import { getTokenBalance, getTokenDecimals } from './token';
+import { getTokenBalance, getTokenInfo } from './token';
 import type { TransactionPayControllerMessenger } from '../types';
 
 jest.mock('./token');
@@ -19,7 +19,7 @@ const MESSENGER_MOCK = {} as TransactionPayControllerMessenger;
 
 describe('Required Tokens Utils', () => {
   const getTokenBalanceMock = jest.mocked(getTokenBalance);
-  const getTokenDecimalsMock = jest.mocked(getTokenDecimals);
+  const getTokenInfoMock = jest.mocked(getTokenInfo);
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -27,7 +27,7 @@ describe('Required Tokens Utils', () => {
 
   describe('parseRequiredTokens', () => {
     it('returns token transfer required token', () => {
-      getTokenDecimalsMock.mockReturnValue(3);
+      getTokenInfoMock.mockReturnValue({ decimals: 3, symbol: 'TST' });
       getTokenBalanceMock.mockReturnValue('789000');
 
       const result = parseRequiredTokens(TRANSACTION_META_MOCK, MESSENGER_MOCK);
@@ -43,6 +43,7 @@ describe('Required Tokens Utils', () => {
           chainId: TRANSACTION_META_MOCK.chainId,
           decimals: 3,
           skipIfBalance: false,
+          symbol: 'TST',
         },
       ]);
     });

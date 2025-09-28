@@ -5,7 +5,7 @@ import { updatePaymentToken } from './update-payment-token';
 import type { TransactionData } from '../types';
 import {
   getTokenBalance,
-  getTokenDecimals,
+  getTokenInfo,
   getTokenFiatRate,
 } from '../utils/token';
 import { getTransaction } from '../utils/transaction';
@@ -20,14 +20,14 @@ const TRANSACTION_ID_MOCK = '123-456';
 
 describe('Update Payment Token Action', () => {
   const getTokenBalanceMock = jest.mocked(getTokenBalance);
-  const getTokenDecimalsMock = jest.mocked(getTokenDecimals);
+  const getTokenInfoMock = jest.mocked(getTokenInfo);
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
   const getTransactionMock = jest.mocked(getTransaction);
 
   beforeEach(() => {
     jest.resetAllMocks();
 
-    getTokenDecimalsMock.mockReturnValue(6);
+    getTokenInfoMock.mockReturnValue({ decimals: 6, symbol: 'TST' });
     getTokenBalanceMock.mockReturnValue('1230000');
     getTokenFiatRateMock.mockReturnValue({ fiatRate: '2.0', usdRate: '3.0' });
 
@@ -65,11 +65,12 @@ describe('Update Payment Token Action', () => {
       balanceUsd: '3.69',
       chainId: CHAIN_ID_MOCK,
       decimals: 6,
+      symbol: 'TST',
     });
   });
 
   it('throws if decimals not found', () => {
-    getTokenDecimalsMock.mockReturnValue(undefined);
+    getTokenInfoMock.mockReturnValue(undefined);
 
     expect(() =>
       updatePaymentToken(

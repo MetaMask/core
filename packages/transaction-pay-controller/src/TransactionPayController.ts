@@ -74,8 +74,6 @@ export class TransactionPayController extends BaseController<
 
       if (!current) {
         transactionData[transactionId] = {
-          paymentToken: {} as TransactionPaymentToken,
-          quotes: [],
           tokens: [],
         } as TransactionData;
 
