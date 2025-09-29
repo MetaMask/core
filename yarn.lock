@@ -2414,7 +2414,7 @@ __metadata:
     "@metamask/keyring-api": "npm:^21.0.0"
     "@metamask/keyring-controller": "npm:^23.1.0"
     "@metamask/multichain-account-service": "npm:^1.2.0"
-    "@metamask/profile-sync-controller": "npm:^25.0.0"
+    "@metamask/profile-sync-controller": "npm:^25.1.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/snaps-controllers": "npm:^14.0.1"
     "@metamask/snaps-sdk": "npm:^9.0.0"
@@ -4098,7 +4098,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.4.0"
     "@metamask/controller-utils": "npm:^11.14.0"
     "@metamask/keyring-controller": "npm:^23.1.0"
-    "@metamask/profile-sync-controller": "npm:^25.0.0"
+    "@metamask/profile-sync-controller": "npm:^25.1.0"
     "@metamask/utils": "npm:^11.8.1"
     "@types/jest": "npm:^27.4.1"
     "@types/readable-stream": "npm:^2.3.0"
@@ -4290,7 +4290,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/profile-sync-controller@npm:^25.0.0, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
+"@metamask/profile-sync-controller@npm:^25.1.0, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/profile-sync-controller@workspace:packages/profile-sync-controller"
   dependencies:
@@ -4700,7 +4700,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.0"
     "@metamask/controller-utils": "npm:^11.14.0"
-    "@metamask/profile-sync-controller": "npm:^25.0.0"
+    "@metamask/profile-sync-controller": "npm:^25.1.0"
     "@metamask/utils": "npm:^11.8.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
