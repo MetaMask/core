@@ -84,7 +84,6 @@ import {
 import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook';
 import { projectLogger as log } from './logger';
 import type {
-  AssetsFiatValues,
   DappSuggestedGasFees,
   Layer1GasFeeFlow,
   SavedGasFees,
@@ -93,7 +92,6 @@ import type {
   TransactionParams,
   TransactionMeta,
   TransactionReceipt,
-  WalletDevice,
   SecurityAlertResponse,
   GasFeeFlow,
   SimulationData,
@@ -117,7 +115,6 @@ import type {
   AfterSimulateHook,
   BeforeSignHook,
   TransactionContainerType,
-  NestedTransactionMetadata,
   GetSimulationConfig,
   AddTransactionOptions,
 } from './types';
