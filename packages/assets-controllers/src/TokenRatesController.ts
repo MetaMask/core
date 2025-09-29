@@ -6,6 +6,7 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller/next';
 import {
   safelyExecute,
@@ -200,11 +201,11 @@ async function getCurrencyConversionRate({
   }
 }
 
-const tokenRatesControllerMetadata = {
+const tokenRatesControllerMetadata: StateMetadata<TokenRatesControllerState> = {
   marketData: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };

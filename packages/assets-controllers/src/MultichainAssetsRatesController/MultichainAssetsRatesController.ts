@@ -6,6 +6,7 @@ import type {
 import type {
   ControllerStateChangeEvent,
   ControllerGetStateAction,
+  StateMetadata,
 } from '@metamask/base-controller/next';
 import { type CaipAssetType, isEvmAccountType } from '@metamask/keyring-api';
 import type {
@@ -157,17 +158,17 @@ export type MultichainAssetsRatesPollingInput = {
   accountId: string;
 };
 
-const metadata = {
+const metadata: StateMetadata<MultichainAssetsRatesControllerState> = {
   conversionRates: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   historicalPrices: {
     includeInStateLogs: false,
     persist: false,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
 };

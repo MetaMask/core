@@ -8,6 +8,7 @@ import type {
 import type {
   ControllerStateChangeEvent,
   ControllerGetStateAction,
+  StateMetadata,
 } from '@metamask/base-controller/next';
 import {
   query,
@@ -120,11 +121,11 @@ export type AccountTrackerControllerState = {
   accountsByChainId: Record<string, { [address: string]: AccountInformation }>;
 };
 
-const accountTrackerMetadata = {
+const accountTrackerMetadata: StateMetadata<AccountTrackerControllerState> = {
   accountsByChainId: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };

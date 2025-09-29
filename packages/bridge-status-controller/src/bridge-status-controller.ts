@@ -1,5 +1,5 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
-import type { StateMetadata } from '@metamask/base-controller';
+import type { StateMetadata } from '@metamask/base-controller/next';
 import type {
   QuoteMetadata,
   RequiredEventContextFromClient,
@@ -81,7 +81,7 @@ const metadata: StateMetadata<BridgeStatusControllerState> = {
   txHistory: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };

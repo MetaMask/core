@@ -798,14 +798,14 @@ describe('CurrencyRateController', () => {
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
       const controller = new CurrencyRateController({
-        messenger: getRestrictedMessenger(),
+        messenger: getCurrencyRateControllerMessenger(),
       });
 
       expect(
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
         Object {
@@ -823,7 +823,7 @@ describe('CurrencyRateController', () => {
 
     it('includes expected state in state logs', () => {
       const controller = new CurrencyRateController({
-        messenger: getRestrictedMessenger(),
+        messenger: getCurrencyRateControllerMessenger(),
       });
 
       expect(
@@ -848,7 +848,7 @@ describe('CurrencyRateController', () => {
 
     it('persists expected state', () => {
       const controller = new CurrencyRateController({
-        messenger: getRestrictedMessenger(),
+        messenger: getCurrencyRateControllerMessenger(),
       });
 
       expect(
@@ -873,7 +873,7 @@ describe('CurrencyRateController', () => {
 
     it('exposes expected state to UI', () => {
       const controller = new CurrencyRateController({
-        messenger: getRestrictedMessenger(),
+        messenger: getCurrencyRateControllerMessenger(),
       });
 
       expect(

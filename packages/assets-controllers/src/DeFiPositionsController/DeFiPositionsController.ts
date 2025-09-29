@@ -70,13 +70,13 @@ const controllerMetadata: StateMetadata<DeFiPositionsControllerState> = {
   allDeFiPositions: {
     includeInStateLogs: false,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   allDeFiPositionsCount: {
     includeInStateLogs: false,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
 };

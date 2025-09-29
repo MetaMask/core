@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-restricted-matchers */
 /* eslint-disable jest/no-conditional-in-test */
 import { Contract } from '@ethersproject/contracts';
-import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import {
   EthAccountType,
   EthScope,
@@ -2444,7 +2444,7 @@ describe('BridgeController', function () {
         deriveStateFromMetadata(
           bridgeController.state,
           bridgeController.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
