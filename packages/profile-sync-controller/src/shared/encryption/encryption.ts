@@ -12,6 +12,7 @@ import {
 import {
   ALGORITHM_KEY_SIZE,
   ALGORITHM_NONCE_SIZE,
+  MAX_KDF_PROMISE_CACHE_SIZE,
   SCRYPT_N,
   SCRYPT_p,
   SCRYPT_r,
@@ -49,7 +50,7 @@ export type EncryptedPayload = {
 };
 
 class EncryptorDecryptor {
-  readonly #MAX_KDF_PROMISE_CACHE_SIZE = 100;
+  readonly #MAX_KDF_PROMISE_CACHE_SIZE = MAX_KDF_PROMISE_CACHE_SIZE;
 
   // Promise cache for ongoing KDF operations to prevent duplicate work
   readonly #kdfPromiseCache = new Map<

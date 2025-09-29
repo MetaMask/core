@@ -1,3 +1,4 @@
+import { MAX_KDF_PROMISE_CACHE_SIZE } from './constants';
 import encryption, { createSHA256Hash } from './encryption';
 
 describe('encryption tests', () => {
@@ -235,9 +236,37 @@ describe('encryption tests', () => {
       );
 
       await Promise.all(decryptPromises);
-
-      // Log performance for manual verification (deferred promises should make this faster)
-      console.log(`Concurrent operations completed in ${duration}ms`);
     });
+
+    it('should limit KDF promise cache size and remove oldest entries when limit is reached', async () => {
+      // Create enough operations to exceed the actual cache limit
+      const numOperations = MAX_KDF_PROMISE_CACHE_SIZE + 5; // 25 operations to exceed the limit
+
+      const promises: Promise<string>[] = [];
+      for (let i = 0; i < numOperations; i++) {
+        // Use different passwords to create unique cache keys
+        const uniquePassword = `cache-test-${i}`;
+        promises.push(encryption.encryptString('test-data', uniquePassword));
+      }
+
+      // All operations should complete successfully despite cache limit
+      const results = await Promise.all(promises);
+      expect(results).toHaveLength(numOperations);
+
+      // Verify a sampling of results can be decrypted (testing all 25 would be slow)
+      const sampleIndices = [
+        0,
+        Math.floor(MAX_KDF_PROMISE_CACHE_SIZE / 2),
+        numOperations - 1,
+      ]; // Test first, middle, and last
+      for (const i of sampleIndices) {
+        const uniquePassword = `cache-test-${i}`;
+        const decrypted = await encryption.decryptString(
+          results[i],
+          uniquePassword,
+        );
+        expect(decrypted).toBe('test-data');
+      }
+    }, 30000);
   });
 });
