@@ -49,6 +49,7 @@ describe('@metamask/controller-utils', () => {
         "HOURS",
         "DAY",
         "DAYS",
+        "NETWORKS_BYPASSING_VALIDATION",
         "BNToHex",
         "convertHexToDecimal",
         "fetchWithErrorHandling",

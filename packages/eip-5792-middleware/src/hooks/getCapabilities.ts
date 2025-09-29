@@ -25,6 +25,8 @@ export type GetCapabilitiesHooks = {
   getSendBundleSupportedChains: (
     chainIds: Hex[],
   ) => Promise<Record<string, boolean>>;
+  /** Function to validate if auxiliary funds capability is supported. */
+  isAuxiliaryFundsSupported: (chainId: Hex) => boolean;
 };
 
 /**
@@ -48,6 +50,7 @@ export async function getCapabilities(
     isAtomicBatchSupported,
     isRelaySupported,
     getSendBundleSupportedChains,
+    isAuxiliaryFundsSupported,
   } = hooks;
 
   let chainIdsNormalized = chainIds?.map(
@@ -106,14 +109,21 @@ export async function getCapabilities(
     }
 
     const status = isSupported ? 'supported' : 'ready';
+    const hexChainId = chainId as Hex;
 
-    if (acc[chainId as Hex] === undefined) {
-      acc[chainId as Hex] = {};
+    if (acc[hexChainId] === undefined) {
+      acc[hexChainId] = {};
     }
 
-    acc[chainId as Hex].atomic = {
+    acc[hexChainId].atomic = {
       status,
     };
+
+    if (isSupportedAccount && isAuxiliaryFundsSupported(chainId)) {
+      acc[hexChainId].auxiliaryFunds = {
+        supported: true,
+      };
+    }
 
     return acc;
   }, alternateGasFeesAcc);

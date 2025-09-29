@@ -259,6 +259,8 @@ export const SUPPORTED_CHAIN_IDS = [
   '0x531',
   // Sonic Mainnet
   '0x92',
+  // Monad Mainnet
+  '0x8f',
 ] as const;
 
 /**

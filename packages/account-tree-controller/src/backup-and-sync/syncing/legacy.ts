@@ -49,6 +49,8 @@ export const performLegacyAccountSyncing = async (
   );
 
   if (numberOfAccountGroupsToCreate > 0) {
+    // Creating multichain account group is idempotent, so we can safely
+    // re-create every groups starting from 0.
     for (let i = 0; i < numberOfAccountGroupsToCreate; i++) {
       backupAndSyncLogger(`Creating account group ${i} for legacy account`);
       await createMultichainAccountGroup(
@@ -86,7 +88,7 @@ export const performLegacyAccountSyncing = async (
         group.accounts.includes(localAccountId),
       );
       if (localGroup) {
-        context.controller.setAccountGroupName(localGroup.id, n);
+        context.controller.setAccountGroupName(localGroup.id, n, true);
 
         context.emitAnalyticsEventFn({
           action: BackupAndSyncAnalyticsEvent.LegacyGroupRenamed,

@@ -8,6 +8,27 @@ const invalidValues = [
   Number.NEGATIVE_INFINITY,
 ];
 
+describe('formatNumber', () => {
+  const { formatNumber } = createFormatters({ locale });
+
+  it('formats a basic integer', () => {
+    expect(formatNumber(1234)).toBe('1,234');
+  });
+
+  it('respects fraction digit options', () => {
+    expect(
+      formatNumber(1.2345, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    ).toBe('1.23');
+  });
+
+  it('returns empty string for invalid number', () => {
+    expect(formatNumber(NaN)).toBe('');
+  });
+});
+
 describe('formatCurrency', () => {
   const { formatCurrency } = createFormatters({ locale });
 

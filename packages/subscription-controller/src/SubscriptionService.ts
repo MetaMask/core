@@ -16,7 +16,9 @@ import type {
   StartCryptoSubscriptionResponse,
   StartSubscriptionRequest,
   StartSubscriptionResponse,
+  Subscription,
   UpdatePaymentMethodCardRequest,
+  UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodCryptoRequest,
 } from './types';
 
@@ -43,9 +45,18 @@ export class SubscriptionService implements ISubscriptionService {
     return await this.#makeRequest(path);
   }
 
-  async cancelSubscription(params: { subscriptionId: string }): Promise<void> {
-    const path = `subscriptions/${params.subscriptionId}`;
-    return await this.#makeRequest(path, 'DELETE');
+  async cancelSubscription(params: {
+    subscriptionId: string;
+  }): Promise<Subscription> {
+    const path = `subscriptions/${params.subscriptionId}/cancel`;
+    return await this.#makeRequest(path, 'POST', {});
+  }
+
+  async unCancelSubscription(params: {
+    subscriptionId: string;
+  }): Promise<Subscription> {
+    const path = `subscriptions/${params.subscriptionId}/uncancel`;
+    return await this.#makeRequest(path, 'POST', {});
   }
 
   async startSubscriptionWithCard(
@@ -68,12 +79,18 @@ export class SubscriptionService implements ISubscriptionService {
     return await this.#makeRequest(path, 'POST', request);
   }
 
-  async updatePaymentMethodCard(request: UpdatePaymentMethodCardRequest) {
+  async updatePaymentMethodCard(
+    request: UpdatePaymentMethodCardRequest,
+  ): Promise<UpdatePaymentMethodCardResponse> {
     const path = `subscriptions/${request.subscriptionId}/payment-method/card`;
-    await this.#makeRequest(path, 'PATCH', {
-      ...request,
-      subscriptionId: undefined,
-    });
+    return await this.#makeRequest<UpdatePaymentMethodCardResponse>(
+      path,
+      'PATCH',
+      {
+        ...request,
+        subscriptionId: undefined,
+      },
+    );
   }
 
   async updatePaymentMethodCrypto(request: UpdatePaymentMethodCryptoRequest) {

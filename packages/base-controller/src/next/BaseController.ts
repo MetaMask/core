@@ -362,45 +362,12 @@ export class BaseController<
 }
 
 /**
- * Returns an anonymized representation of the controller state.
- *
- * By "anonymized" we mean that it should not contain any information that could be personally
- * identifiable.
- *
- * @deprecated Use `deriveStateFromMetadata` instead.
- * @param state - The controller state.
- * @param metadata - The controller state metadata, which describes how to derive the
- * anonymized state.
- * @returns The anonymized controller state.
- */
-export function getAnonymizedState<ControllerState extends StateConstraint>(
-  state: ControllerState,
-  metadata: StateMetadata<ControllerState>,
-): Record<keyof ControllerState, Json> {
-  return deriveStateFromMetadata(state, metadata, 'includeInDebugSnapshot');
-}
-
-/**
- * Returns the subset of state that should be persisted.
- *
- * @deprecated Use `deriveStateFromMetadata` instead.
- * @param state - The controller state.
- * @param metadata - The controller state metadata, which describes which pieces of state should be persisted.
- * @returns The subset of controller state that should be persisted.
- */
-export function getPersistentState<ControllerState extends StateConstraint>(
-  state: ControllerState,
-  metadata: StateMetadata<ControllerState>,
-): Record<keyof ControllerState, Json> {
-  return deriveStateFromMetadata(state, metadata, 'persist');
-}
-
-/**
  * Use the metadata to derive state according to the given metadata property.
  *
  * @param state - The full controller state.
  * @param metadata - The controller metadata.
  * @param metadataProperty - The metadata property to use to derive state.
+ * @param captureException - Reports an error to an error monitoring service.
  * @returns The metadata-derived controller state.
  */
 export function deriveStateFromMetadata<
@@ -409,6 +376,7 @@ export function deriveStateFromMetadata<
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
   metadataProperty: keyof StatePropertyMetadata<Json>,
+  captureException?: (error: Error) => void,
 ): Record<keyof ControllerState, Json> {
   return (Object.keys(state) as (keyof ControllerState)[]).reduce<
     Record<keyof ControllerState, Json>
@@ -427,11 +395,23 @@ export function deriveStateFromMetadata<
       }
       return derivedState;
     } catch (error) {
-      // Throw error after timeout so that it is captured as a console error
-      // (and by Sentry) without interrupting state-related operations
-      setTimeout(() => {
-        throw error;
-      });
+      // Capture error without interrupting state-related operations
+      // See [ADR core#0016](https://github.com/MetaMask/decisions/blob/main/decisions/core/0016-core-classes-error-reporting.md)
+      if (captureException) {
+        try {
+          captureException(
+            error instanceof Error ? error : new Error(String(error)),
+          );
+        } catch (captureExceptionError) {
+          console.error(
+            new Error(`Error thrown when calling 'captureException'`),
+            captureExceptionError,
+          );
+          console.error(error);
+        }
+      } else {
+        console.error(error);
+      }
       return derivedState;
     }
   }, {} as never);

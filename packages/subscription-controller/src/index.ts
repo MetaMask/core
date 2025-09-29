@@ -8,10 +8,14 @@ export type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetCryptoApproveTransactionParamsAction,
   SubscriptionControllerStartSubscriptionWithCryptoAction,
+  SubscriptionControllerGetBillingPortalUrlAction,
+  SubscriptionControllerUpdatePaymentMethodAction,
   SubscriptionControllerGetStateAction,
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerStateChangeEvent,
+  AllowedActions,
+  AllowedEvents,
 } from './SubscriptionController';
 export {
   SubscriptionController,
@@ -27,6 +31,9 @@ export type {
   StartSubscriptionResponse,
   GetCryptoApproveTransactionRequest,
   GetCryptoApproveTransactionResponse,
+  SubscriptionCardPaymentMethod,
+  SubscriptionCryptoPaymentMethod,
+  SubscriptionPaymentMethod,
   RecurringInterval,
   SubscriptionStatus,
   PaymentType,
@@ -40,6 +47,13 @@ export type {
   PricingPaymentMethod,
   PricingResponse,
   UpdatePaymentMethodOpts,
+  BillingPortalResponse,
+} from './types';
+export {
+  SUBSCRIPTION_STATUSES,
+  PRODUCT_TYPES,
+  RECURRING_INTERVALS,
+  PAYMENT_TYPES,
 } from './types';
 export { SubscriptionServiceError } from './errors';
 export { Env, SubscriptionControllerErrorMessage } from './constants';

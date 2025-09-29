@@ -62,6 +62,7 @@ const setupController = ({
       'TokensController:getState',
       'AccountsController:getSelectedAccount',
       'AccountsController:listAccounts',
+      'AccountTrackerController:getState',
       'AccountTrackerController:updateNativeBalances',
       'AccountTrackerController:updateStakedBalances',
     ],
@@ -109,6 +110,13 @@ const setupController = ({
   messenger.registerActionHandler(
     'TokensController:getState',
     jest.fn().mockImplementation(() => tokens),
+  );
+
+  messenger.registerActionHandler(
+    'AccountTrackerController:getState',
+    jest.fn().mockImplementation(() => ({
+      accountsByChainId: {},
+    })),
   );
 
   messenger.registerActionHandler(
@@ -3566,6 +3574,42 @@ describe('TokenBalancesController', () => {
       );
 
       consoleSpy.mockRestore();
+    });
+
+    it('should handle malformed JSON in _stopPollingByPollingTokenSetId gracefully', async () => {
+      const { controller } = setupController();
+
+      // Start polling to create an active session
+      controller.startPolling({ chainIds: ['0x1', '0x2'] });
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      // Call with malformed JSON - this should trigger the fallback behavior
+      const malformedTokenSetId = '{invalid json}';
+      controller._stopPollingByPollingTokenSetId(malformedTokenSetId);
+
+      // Should log the error
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to parse tokenSetId, stopping all polling:',
+        expect.any(SyntaxError),
+      );
+
+      // Verify that controller can recover by starting new polling session successfully
+      // This demonstrates that the fallback stop-all-polling behavior worked
+      const updateBalancesSpy = jest
+        .spyOn(controller, 'updateBalances')
+        .mockResolvedValue();
+
+      // Start new polling session - should work normally after error recovery
+      controller.startPolling({ chainIds: ['0x1'] });
+
+      // Wait for any immediate polling to complete
+      await advanceTime({ clock, duration: 1 });
+
+      // Clean up
+      controller.stopAllPolling();
+      consoleSpy.mockRestore();
+      updateBalancesSpy.mockRestore();
     });
 
     it('should properly destroy controller and cleanup resources', () => {

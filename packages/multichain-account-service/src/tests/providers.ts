@@ -6,6 +6,7 @@ import type { KeyringAccount } from '@metamask/keyring-api';
 
 export type MockAccountProvider = {
   accounts: KeyringAccount[];
+  constructor: jest.Mock;
   getAccount: jest.Mock;
   getAccounts: jest.Mock;
   createAccounts: jest.Mock;
@@ -19,6 +20,7 @@ export function makeMockAccountProvider(
 ): MockAccountProvider {
   return {
     accounts,
+    constructor: jest.fn(),
     getAccount: jest.fn(),
     getAccounts: jest.fn(),
     createAccounts: jest.fn(),
@@ -56,6 +58,7 @@ export function setupNamedAccountProvider({
       // Assuming this never fails.
       getAccounts().find((account) => account.id === id),
   );
+  mocks.createAccounts.mockResolvedValue([]);
 
   return mocks;
 }

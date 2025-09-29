@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0]
+
+### Changed
+
+- Get pricing from state instead of fetching pricing from server in `getCryptoApproveTransactionParams` ([#6735](https://github.com/MetaMask/core/pull/6735))
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
+## [0.4.0]
+
+### Changed
+
+- `updatePaymentMethod` return `redirectUrl` for card payment ([#6726](https://github.com/MetaMask/core/pull/6726))
+
+## [0.3.0]
+
+### Added
+
+- Add `CryptoPaymentMethodError` error response to `SubscriptionCryptoPaymentMethod` ([#6720](https://github.com/MetaMask/core/pull/6720))
+
+### Changed
+
+- Make `rawTransaction` in `UpdatePaymentMethodCryptoRequest` optional for top up case ([#6720](https://github.com/MetaMask/core/pull/6720))
+
+## [0.2.0]
+
+### Changed
+
+- Added `displayBrand` in card payment type ([#6669](https://github.com/MetaMask/core/pull/6669))
+- Added optional `successUrl` param in start subscription with card ([#6669](https://github.com/MetaMask/core/pull/6669))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
+## [0.1.0]
+
 ### Added
 
 - Initial release of the subscription controller ([#6233](https://github.com/MetaMask/core/pull/6233))
@@ -19,9 +52,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6504](https://github.com/MetaMask/core/pull/6504))
 - Added `updatePaymentMethodCard` and `updatePaymentMethodCrypto` methods ([#6539](https://github.com/MetaMask/core/pull/6539))
 - Added `getBillingPortalUrl` method ([#6580](https://github.com/MetaMask/core/pull/6580))
+- Added `unCancelSubscription` method ([#6596](https://github.com/MetaMask/core/pull/6596))
 
 ### Changed
 
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@0.5.0...HEAD
+[0.5.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@0.4.0...@metamask/subscription-controller@0.5.0
+[0.4.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@0.3.0...@metamask/subscription-controller@0.4.0
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@0.2.0...@metamask/subscription-controller@0.3.0
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@0.1.0...@metamask/subscription-controller@0.2.0
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/subscription-controller@0.1.0
