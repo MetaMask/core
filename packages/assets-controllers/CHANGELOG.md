@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/multichain-account-service` from `^1.2.0` to `^1.3.0` ([#6748](https://github.com/MetaMask/core/pull/6748))
 
 ### Fixed
 
