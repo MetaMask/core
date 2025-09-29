@@ -1456,7 +1456,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const result = await getAddTransactionBatchParams({
         quoteResponse: mockQuoteResponse,
-        messagingSystem: mockMessagingSystem,
+        messenger: mockMessagingSystem,
         isBridgeTx: false,
         trade: mockQuoteResponse.trade,
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
@@ -1473,7 +1473,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const result = await getAddTransactionBatchParams({
         quoteResponse: mockQuoteResponse,
-        messagingSystem: mockMessagingSystem,
+        messenger: mockMessagingSystem,
         isBridgeTx: false,
         trade: mockQuoteResponse.trade,
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
@@ -1490,7 +1490,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const result = await getAddTransactionBatchParams({
         quoteResponse: mockQuoteResponse,
-        messagingSystem: mockMessagingSystem,
+        messenger: mockMessagingSystem,
         isBridgeTx: false,
         trade: mockQuoteResponse.trade,
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
