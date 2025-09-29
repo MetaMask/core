@@ -49,6 +49,8 @@ export type EncryptedPayload = {
 };
 
 class EncryptorDecryptor {
+  readonly #MAX_KDF_PROMISE_CACHE_SIZE = 100;
+
   // Promise cache for ongoing KDF operations to prevent duplicate work
   readonly #kdfPromiseCache = new Map<
     string,
@@ -271,6 +273,15 @@ class EncryptorDecryptor {
     const existingPromise = this.#kdfPromiseCache.get(cacheKey);
     if (existingPromise) {
       return existingPromise;
+    }
+
+    // Limit cache size to prevent unbounded growth
+    if (this.#kdfPromiseCache.size >= this.#MAX_KDF_PROMISE_CACHE_SIZE) {
+      // Remove the oldest entry (first inserted)
+      const firstKey = this.#kdfPromiseCache.keys().next().value;
+      if (firstKey) {
+        this.#kdfPromiseCache.delete(firstKey);
+      }
     }
 
     // Create and cache the promise for the KDF operation
