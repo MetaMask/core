@@ -333,14 +333,10 @@ export class BackendWebSocketService {
     try {
       // Subscribe to authentication state changes - this includes wallet unlock state
       // AuthenticationController can only be signed in if wallet is unlocked
+      // Using selector to only listen for isSignedIn property changes for better performance
       this.#messenger.subscribe(
         'AuthenticationController:stateChange',
-        (
-          newState: AuthenticationController.AuthenticationControllerState,
-          _patches: unknown,
-        ) => {
-          const isSignedIn = newState?.isSignedIn || false;
-
+        (isSignedIn: boolean) => {
           if (isSignedIn) {
             // User signed in (wallet unlocked + authenticated) - try to connect
             console.debug(
@@ -364,6 +360,8 @@ export class BackendWebSocketService {
             // Note: Don't disconnect here - let AppStateWebSocketManager handle disconnection
           }
         },
+        (state: AuthenticationController.AuthenticationControllerState) =>
+          state?.isSignedIn ?? false,
       );
     } catch (error) {
       throw new Error(
@@ -974,6 +972,7 @@ export class BackendWebSocketService {
       this.#handleSubscriptionNotification(
         message as ServerNotificationMessage,
       );
+      return;
     }
 
     // Trigger channel callbacks for any message with a channel property
