@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Make QuoteMetadata optional when calling `submitTx` ([#6739](https://github.com/MetaMask/core/pull/6739))
+- Skip event publishing for transactions submitted outside of the Unified Swap and Bridge experience ([#6739](https://github.com/MetaMask/core/pull/6739))
+  - On tx submission, add the quote's `featureId` to txHistory
+  - When transaction statuses change, check the `featureId` and skip event publishing when it's not `undefined`
+  - This affects the Submitted, Completed and Failed events
+
 ## [47.1.0]
 
 ### Changed
