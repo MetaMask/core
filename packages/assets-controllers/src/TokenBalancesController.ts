@@ -836,10 +836,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#intervalPollingTimers.clear();
 
     // Unregister action handlers
-    this.messagingSystem.unregisterActionHandler(
+    this.messenger.unregisterActionHandler(
       `TokenBalancesController:updateChainPollingConfigs`,
     );
-    this.messagingSystem.unregisterActionHandler(
+    this.messenger.unregisterActionHandler(
       `TokenBalancesController:getChainPollingConfig`,
     );
 
