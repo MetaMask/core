@@ -214,8 +214,6 @@ class MockWebSocket extends EventTarget {
   public getLastSentMessage(): string | null {
     return this._lastSentMessage;
   }
-
-  // Removed getLastRequestId() - replaced with optional requestId parameters throughout the service
 }
 
 // Setup function following TokenBalancesController pattern
