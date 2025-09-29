@@ -13,6 +13,7 @@ import {
   StatusTypes,
   BridgeController,
   getNativeAssetForChainId,
+  FeatureId,
 } from '@metamask/bridge-controller';
 import { ChainId } from '@metamask/bridge-controller';
 import { ActionTypes, FeeType } from '@metamask/bridge-controller';
@@ -38,6 +39,7 @@ import {
 import type {
   BridgeStatusControllerActions,
   BridgeStatusControllerEvents,
+  StatusResponse,
 } from './types';
 import {
   type BridgeId,
@@ -145,22 +147,23 @@ const MockStatusResponse = {
     srcTxHash = '0xsrcTxHash1',
     srcChainId = 42161,
     destChainId = 10,
-  } = {}) => ({
+  } = {}): StatusResponse => ({
     status: 'FAILED' as StatusTypes,
+    bridge: 'debridge' as BridgeId,
     srcChain: {
       chainId: srcChainId,
       txHash: srcTxHash,
       amount: '991250000000000',
       token: {
         address: '0x0000000000000000000000000000000000000000',
+        assetId: `eip155:${srcChainId}/slip44:60` as CaipAssetType,
         chainId: srcChainId,
         symbol: 'ETH',
         decimals: 18,
         name: 'ETH',
         coinKey: 'ETH',
-        logoURI:
+        iconUrl:
           'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
-        priceUSD: '2518.47',
         icon: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
       },
     },
@@ -374,6 +377,7 @@ const MockTxHistory = {
     account = '0xaccount1',
     srcChainId = 42161,
     destChainId = 10,
+    featureId = undefined,
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
@@ -401,6 +405,7 @@ const MockTxHistory = {
       hasApprovalTx: false,
       completionTime: undefined,
       attempts: undefined,
+      featureId,
     },
   }),
   getUnknown: ({
@@ -443,6 +448,7 @@ const MockTxHistory = {
     account = '0xaccount1',
     srcChainId = 42161,
     destChainId = 42161,
+    featureId = undefined,
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
@@ -467,6 +473,7 @@ const MockTxHistory = {
       isStxEnabled: false,
       hasApprovalTx: false,
       completionTime: undefined,
+      featureId,
     },
   }),
   getComplete: ({
@@ -480,6 +487,7 @@ const MockTxHistory = {
     [txMetaId]: {
       txMetaId,
       batchId,
+      featureId: undefined,
       quote: getMockQuote({ srcChainId, destChainId }),
       startTime: 1729964825189,
       completionTime: 1736277625746,
@@ -3503,10 +3511,9 @@ describe('BridgeStatusController', () => {
         getLayer1GasFee: jest.fn(),
       });
 
-      mockFetchFn = jest.fn().mockResolvedValueOnce({
-        status: MockStatusResponse.getPending(),
-        validationFailures: [],
-      });
+      mockFetchFn = jest
+        .fn()
+        .mockResolvedValueOnce(MockStatusResponse.getPending());
       bridgeStatusController = new BridgeStatusController({
         messenger: mockBridgeStatusMessenger,
         clientId: BridgeClientId.EXTENSION,
@@ -3522,6 +3529,15 @@ describe('BridgeStatusController', () => {
             ...MockTxHistory.getPending({
               txMetaId: 'bridgeTxMetaId1WithApproval',
               approvalTxId: 'bridgeApprovalTxMetaId1' as never,
+            }),
+            ...MockTxHistory.getPendingSwap({
+              txMetaId: 'perpsSwapTxMetaId1',
+              featureId: FeatureId.PERPS as never,
+            }),
+            ...MockTxHistory.getPending({
+              txMetaId: 'perpsBridgeTxMetaId1',
+              srcTxHash: '0xperpsSrcTxHash1',
+              featureId: FeatureId.PERPS as never,
             }),
           },
         },
@@ -3575,6 +3591,28 @@ describe('BridgeStatusController', () => {
           bridgeStatusController.state.txHistory.bridgeTxMetaId1WithApproval
             .status.status,
         ).toBe(StatusTypes.FAILED);
+      });
+
+      it('should not track failed event for bridge transaction with featureId', () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockMessenger.publish('TransactionController:transactionFailed', {
+          error: 'tx-error',
+          transactionMeta: {
+            chainId: CHAIN_IDS.ARBITRUM,
+            networkClientId: 'eth-id',
+            time: Date.now(),
+            txParams: {} as unknown as TransactionParams,
+            type: TransactionType.bridge,
+            status: TransactionStatus.failed,
+            id: 'perpsBridgeTxMetaId1',
+          },
+        });
+
+        expect(
+          bridgeStatusController.state.txHistory.perpsBridgeTxMetaId1.status
+            .status,
+        ).toBe(StatusTypes.FAILED);
+        expect(messengerCallSpy).not.toHaveBeenCalled();
       });
 
       it('should track failed event for swap transaction if approval fails', () => {
@@ -3730,7 +3768,7 @@ describe('BridgeStatusController', () => {
         await flushPromises();
 
         expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
-        expect(mockFetchFn).toHaveBeenCalledTimes(2);
+        expect(mockFetchFn).toHaveBeenCalledTimes(3);
         expect(mockFetchFn).toHaveBeenCalledWith(
           'https://bridge.api.cx.metamask.io/getTxStatus?bridgeId=lifi&srcTxHash=0xsrcTxHash1&bridge=across&srcChainId=42161&destChainId=10&refuel=false&requestId=197c402f-cb96-4096-9f8c-54aed84ca776',
           {
@@ -3750,6 +3788,80 @@ describe('BridgeStatusController', () => {
         expect(consoleFnSpy.mock.calls).toMatchSnapshot();
       });
 
+      it('should start polling for completed bridge tx with featureId', async () => {
+        jest.useFakeTimers();
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+
+        mockFetchFn.mockClear();
+        mockFetchFn.mockResolvedValueOnce(
+          MockStatusResponse.getComplete({ srcTxHash: '0xperpsSrcTxHash1' }),
+        );
+        mockMessenger.publish('TransactionController:transactionConfirmed', {
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+          type: TransactionType.bridge,
+          status: TransactionStatus.confirmed,
+          id: 'perpsBridgeTxMetaId1',
+        });
+
+        jest.advanceTimersByTime(30500);
+        bridgeStatusController.stopAllPolling();
+        await flushPromises();
+
+        expect(messengerCallSpy).not.toHaveBeenCalled();
+        expect(mockFetchFn).toHaveBeenCalledWith(
+          'https://bridge.api.cx.metamask.io/getTxStatus?bridgeId=lifi&srcTxHash=0xperpsSrcTxHash1&bridge=across&srcChainId=42161&destChainId=10&refuel=false&requestId=197c402f-cb96-4096-9f8c-54aed84ca776',
+          {
+            headers: { 'X-Client-Id': BridgeClientId.EXTENSION },
+          },
+        );
+        expect(
+          bridgeStatusController.getBridgeHistoryItemByTxMetaId(
+            'perpsBridgeTxMetaId1',
+          )?.status,
+        ).toMatchSnapshot();
+        expect(consoleFnSpy).not.toHaveBeenCalled();
+      });
+
+      it('should start polling for failed bridge tx with featureId', async () => {
+        jest.useFakeTimers();
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+
+        mockFetchFn.mockClear();
+        mockFetchFn.mockResolvedValueOnce(
+          MockStatusResponse.getFailed({ srcTxHash: '0xperpsSrcTxHash1' }),
+        );
+        mockMessenger.publish('TransactionController:transactionConfirmed', {
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+          type: TransactionType.bridge,
+          status: TransactionStatus.confirmed,
+          id: 'perpsBridgeTxMetaId1',
+        });
+
+        jest.advanceTimersByTime(40500);
+        bridgeStatusController.stopAllPolling();
+        await flushPromises();
+
+        expect(messengerCallSpy).not.toHaveBeenCalled();
+        expect(mockFetchFn).toHaveBeenCalledWith(
+          'https://bridge.api.cx.metamask.io/getTxStatus?bridgeId=lifi&srcTxHash=0xperpsSrcTxHash1&bridge=across&srcChainId=42161&destChainId=10&refuel=false&requestId=197c402f-cb96-4096-9f8c-54aed84ca776',
+          {
+            headers: { 'X-Client-Id': BridgeClientId.EXTENSION },
+          },
+        );
+        expect(
+          bridgeStatusController.getBridgeHistoryItemByTxMetaId(
+            'perpsBridgeTxMetaId1',
+          )?.status,
+        ).toMatchSnapshot();
+        expect(consoleFnSpy).not.toHaveBeenCalled();
+      });
+
       it('should track completed event for swap transaction', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
         mockMessenger.publish('TransactionController:transactionConfirmed', {
@@ -3763,6 +3875,21 @@ describe('BridgeStatusController', () => {
         });
 
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
+      });
+
+      it('should not track completed event for swap transaction with featureId', () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockMessenger.publish('TransactionController:transactionConfirmed', {
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+          type: TransactionType.swap,
+          status: TransactionStatus.confirmed,
+          id: 'perpsSwapTxMetaId1',
+        });
+
+        expect(messengerCallSpy).not.toHaveBeenCalled();
       });
 
       it('should not track completed event for other transaction types', () => {
