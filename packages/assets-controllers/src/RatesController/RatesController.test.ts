@@ -1,6 +1,14 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { useFakeTimers } from 'sinon';
 
+import type { RatesControllerMessenger, RatesControllerState } from './types';
 import { advanceTime } from '../../../../tests/helpers';
 import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
 import {
@@ -8,12 +16,12 @@ import {
   RatesController,
   name as ratesControllerName,
 } from './RatesController';
-import type {
-  RatesControllerActions,
-  RatesControllerEvents,
-  RatesControllerMessenger,
-  RatesControllerState,
-} from './types';
+
+type AllActions = MessengerActions<RatesControllerMessenger>;
+
+type AllEvents = MessengerEvents<RatesControllerMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const MOCK_TIMESTAMP = 1709983353;
 
@@ -26,28 +34,26 @@ function getStubbedDate(): number {
 }
 
 /**
- * Builds a new Messenger instance for RatesController.
- * @returns A new Messenger instance.
+ * Builds a new root messenger instance.
+ *
+ * @returns A new root messenger instance.
  */
-function buildMessenger(): Messenger<
-  RatesControllerActions,
-  RatesControllerEvents
-> {
-  return new Messenger<RatesControllerActions, RatesControllerEvents>();
+function buildRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 /**
  * Builds a restricted messenger for the RatesController.
+ *
  * @param messenger - The base messenger instance.
  * @returns A restricted messenger for the RatesController.
  */
 function buildRatesControllerMessenger(
-  messenger: Messenger<RatesControllerActions, RatesControllerEvents>,
+  messenger: RootMessenger,
 ): RatesControllerMessenger {
-  return messenger.getRestricted({
-    name: ratesControllerName,
-    allowedEvents: [],
-    allowedActions: [],
+  return new Messenger({
+    namespace: ratesControllerName,
+    parent: messenger,
   });
 }
 
@@ -70,7 +76,7 @@ function setupRatesController({
 }: {
   interval?: number;
   initialState?: Partial<RatesControllerState>;
-  messenger: Messenger<RatesControllerActions, RatesControllerEvents>;
+  messenger: RootMessenger;
   includeUsdRate: boolean;
   fetchMultiExchangeRate?: typeof defaultFetchExchangeRate;
 }) {
@@ -91,7 +97,7 @@ describe('RatesController', () => {
     it('constructs the RatesController with default values', () => {
       const ratesController = setupRatesController({
         initialState: {},
-        messenger: buildMessenger(),
+        messenger: buildRootMessenger(),
         includeUsdRate: false,
       });
       const { fiatCurrency, rates, cryptocurrencies } = ratesController.state;
@@ -118,7 +124,7 @@ describe('RatesController', () => {
     });
 
     it('starts the polling process with default values', async () => {
-      const messenger = buildMessenger();
+      const messenger = buildRootMessenger();
       const publishActionSpy = jest.spyOn(messenger, 'publish');
 
       jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
@@ -222,7 +228,7 @@ describe('RatesController', () => {
           cryptocurrencies: [Cryptocurrency.Btc],
           fiatCurrency: 'eur',
         },
-        messenger: buildMessenger(),
+        messenger: buildRootMessenger(),
         includeUsdRate: true,
         fetchMultiExchangeRate: fetchExchangeRateStub,
       });
@@ -263,7 +269,7 @@ describe('RatesController', () => {
     });
 
     it('stops the polling process', async () => {
-      const messenger = buildMessenger();
+      const messenger = buildRootMessenger();
       const publishActionSpy = jest.spyOn(messenger, 'publish');
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
       const ratesController = setupRatesController({
@@ -318,7 +324,7 @@ describe('RatesController', () => {
         initialState: {
           cryptocurrencies: mockCryptocurrencyList,
         },
-        messenger: buildMessenger(),
+        messenger: buildRootMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
         includeUsdRate: false,
       });
@@ -335,7 +341,7 @@ describe('RatesController', () => {
       const ratesController = setupRatesController({
         interval: 150,
         initialState: {},
-        messenger: buildMessenger(),
+        messenger: buildRootMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
         includeUsdRate: false,
       });
@@ -366,7 +372,7 @@ describe('RatesController', () => {
       const ratesController = setupRatesController({
         interval: 150,
         initialState: {},
-        messenger: buildMessenger(),
+        messenger: buildRootMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
         includeUsdRate: false,
       });
@@ -385,7 +391,7 @@ describe('RatesController', () => {
       const ratesController = setupRatesController({
         interval: 150,
         initialState: {},
-        messenger: buildMessenger(),
+        messenger: buildRootMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
         includeUsdRate: false,
       });
@@ -400,7 +406,7 @@ describe('RatesController', () => {
     it('includes expected state in debug snapshots', () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
       const controller = setupRatesController({
-        messenger: buildMessenger(),
+        messenger: buildRootMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
         includeUsdRate: false,
       });
@@ -409,7 +415,7 @@ describe('RatesController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
         Object {
@@ -435,7 +441,7 @@ describe('RatesController', () => {
     it('includes expected state in state logs', () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
       const controller = setupRatesController({
-        messenger: buildMessenger(),
+        messenger: buildRootMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
         includeUsdRate: false,
       });
@@ -460,7 +466,7 @@ describe('RatesController', () => {
     it('persists expected state', () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
       const controller = setupRatesController({
-        messenger: buildMessenger(),
+        messenger: buildRootMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
         includeUsdRate: false,
       });
@@ -495,7 +501,7 @@ describe('RatesController', () => {
     it('exposes expected state to UI', () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
       const controller = setupRatesController({
-        messenger: buildMessenger(),
+        messenger: buildRootMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
         includeUsdRate: false,
       });

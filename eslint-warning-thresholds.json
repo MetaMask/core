@@ -38,8 +38,8 @@
     "jsdoc/tag-lines": 1
   },
   "packages/assets-controllers/src/RatesController/RatesController.test.ts": {
-    "import-x/order": 2,
-    "jsdoc/tag-lines": 4
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 2
   },
   "packages/assets-controllers/src/RatesController/RatesController.ts": {
     "@typescript-eslint/prefer-readonly": 1,
@@ -70,7 +70,7 @@
   },
   "packages/assets-controllers/src/TokenListController.test.ts": {
     "import-x/namespace": 7,
-    "import-x/order": 3,
+    "import-x/order": 2,
     "jest/no-conditional-in-test": 2
   },
   "packages/assets-controllers/src/TokenRatesController.test.ts": {
