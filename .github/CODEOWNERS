@@ -11,6 +11,7 @@
 /packages/multichain-transactions-controller @MetaMask/accounts-engineers
 /packages/multichain-account-service         @MetaMask/accounts-engineers
 /packages/account-tree-controller            @MetaMask/accounts-engineers
+/packages/profile-sync-controller            @MetaMask/accounts-engineers
 
 ## Assets Team
 /packages/assets-controllers         @MetaMask/metamask-assets
@@ -89,7 +90,6 @@
 /packages/network-controller           @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/permission-controller        @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
 /packages/permission-log-controller    @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
-/packages/profile-sync-controller      @MetaMask/identity
 /packages/remote-feature-flag-controller @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/foundryup                    @MetaMask/mobile-platform @MetaMask/extension-platform
 
@@ -138,8 +138,8 @@
 /packages/notification-services-controller/CHANGELOG.md @MetaMask/notifications @MetaMask/core-platform
 /packages/phishing-controller/package.json    @MetaMask/product-safety @MetaMask/core-platform
 /packages/phishing-controller/CHANGELOG.md    @MetaMask/product-safety @MetaMask/core-platform
-/packages/profile-sync-controller/package.json    @MetaMask/identity @MetaMask/core-platform
-/packages/profile-sync-controller/CHANGELOG.md    @MetaMask/identity @MetaMask/core-platform
+/packages/profile-sync-controller/package.json    @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/profile-sync-controller/CHANGELOG.md    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/selected-network-controller/package.json @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
 /packages/selected-network-controller/CHANGELOG.md @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
 /packages/signature-controller/package.json       @MetaMask/confirmations @MetaMask/core-platform
