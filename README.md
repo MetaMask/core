@@ -173,6 +173,7 @@ linkStyle default opacity:0.5
   bridge_controller --> base_controller;
   bridge_controller --> controller_utils;
   bridge_controller --> gas_fee_controller;
+  bridge_controller --> messenger;
   bridge_controller --> multichain_network_controller;
   bridge_controller --> polling_controller;
   bridge_controller --> accounts_controller;
@@ -305,6 +306,7 @@ linkStyle default opacity:0.5
   token_search_discovery_controller --> base_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
+  transaction_controller --> messenger;
   transaction_controller --> accounts_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> eth_json_rpc_provider;

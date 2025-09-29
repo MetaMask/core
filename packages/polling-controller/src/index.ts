@@ -6,7 +6,6 @@ export {
 export {
   StaticIntervalPollingControllerOnly,
   StaticIntervalPollingController,
-  StaticIntervalPollingControllerNext,
 } from './StaticIntervalPollingController';
 
 export type { IPollingController } from './types';
