@@ -103,7 +103,7 @@ export const ChainConfigurationSchema = type({
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
   isGaslessSwapEnabled: optional(boolean()),
   noFeeAssets: optional(array(string())),
-  bip44DefaultPairs: optional(DefaultPairSchema),
+  defaultPairs: optional(DefaultPairSchema),
 });
 
 export const PriceImpactThresholdSchema = type({
@@ -136,7 +136,7 @@ export const PlatformConfigSchema = type({
    * The bip44 default pairs for the chains
    * Key is the CAIP chainId namespace
    */
-  defaultPairs: optional(record(string(), optional(DefaultPairSchema))),
+  bip44DefaultPairs: optional(record(string(), optional(DefaultPairSchema))),
 });
 
 export const validateFeatureFlagsResponse = (
