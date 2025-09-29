@@ -9,14 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0]
 
-### Uncategorized
-
-- feat: remove `isMultichainOrigin` guard from `wallet_invokeMethod` handler ([#6703](https://github.com/MetaMask/core/pull/6703))
-
 ### Changed
 
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
-- `wallet_invokeMethod` requests no longer fail with unauthorized error if the `isMultichainOrigin` property is false on the requesting origin's CAIP-25 Permission.
+- `wallet_invokeMethod` no longer fails with unauthorized error if the `isMultichainOrigin` property is false on the requesting origin's CAIP-25 Permission ([#6703](https://github.com/MetaMask/core/pull/6703))
 
 ## [1.1.0]
 
