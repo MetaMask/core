@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose `addTransaction` and `addTransactionBatch` methods through the messenger ([#6749](https://github.com/MetaMask/core/pull/6749))
+  - Add types:
+    - `AddTransactionOptions`
+    - `TransactionControllerAddTransactionAction`
+    - `TransactionControllerAddTransactionBatchAction`
+
 ## [60.5.0]
 
 ### Added
