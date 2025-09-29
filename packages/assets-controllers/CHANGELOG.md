@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
 
+### Fixed
+
+- Fix unnecessary balance updates in `TokenBalancesController` by skipping updates when values haven't changed ([#6743](https://github.com/MetaMask/core/pull/6743))
+  - Prevents unnecessary state mutations for token balances when values are identical
+  - Improves performance by reducing redundant processing and re-renders
+
 ## [77.0.0]
 
 ### Changed
