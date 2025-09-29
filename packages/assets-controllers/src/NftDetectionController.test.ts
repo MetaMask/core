@@ -43,8 +43,6 @@ import {
   NftDetectionController,
   BlockaidResultType,
   MAX_GET_COLLECTION_BATCH_SIZE,
-  type AllowedActions,
-  type AllowedEvents,
 } from './NftDetectionController';
 import * as constants from './NftDetectionController';
 

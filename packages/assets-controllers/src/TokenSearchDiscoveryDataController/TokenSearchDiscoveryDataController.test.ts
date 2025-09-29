@@ -16,8 +16,6 @@ import {
   TokenSearchDiscoveryDataController,
   controllerName,
   MAX_TOKEN_DISPLAY_DATA_LENGTH,
-  type AllowedActions,
-  type AllowedEvents,
   type TokenSearchDiscoveryDataControllerMessenger,
   type TokenSearchDiscoveryDataControllerState,
 } from './TokenSearchDiscoveryDataController';
