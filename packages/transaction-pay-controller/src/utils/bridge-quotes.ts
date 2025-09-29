@@ -16,6 +16,7 @@ import type {
   TransactionPayControllerMessenger,
   UpdateTransactionDataCallback,
 } from '../types';
+import { calculateTotals } from './totals';
 
 const ERROR_MESSAGE_NO_QUOTES = 'No quotes found';
 const ERROR_MESSAGE_ALL_QUOTES_UNDER_MINIMUM = 'All quotes under minimum';
@@ -87,6 +88,7 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
 
   updateTransactionData(transactionId, (data) => {
     data.quotes = quotes;
+    data.totals = calculateTotals(quotes ?? [], data.tokens, messenger);
   });
 }
 

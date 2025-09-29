@@ -10,7 +10,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@metamask/transaction-controller';
 import { cloneDeep, noop } from 'lodash';
 
-import type { SubmitBridgeQuotesRequest, SubmitMessenger } from './submit';
+import type { SubmitBridgeQuotesRequest } from './submit';
 import { submitBridgeQuotes } from './submit';
 import type { TransactionBridgeQuote } from '../types';
 
@@ -148,8 +148,14 @@ describe('Submit Utils', () => {
 
       await submitBridgeQuotes(request);
 
-      expect(submitTransactionMock).toHaveBeenCalledWith(QUOTE_MOCK, true);
-      expect(submitTransactionMock).toHaveBeenCalledWith(QUOTE_2_MOCK, true);
+      expect(submitTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining(QUOTE_MOCK),
+        true,
+      );
+      expect(submitTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining(QUOTE_2_MOCK),
+        true,
+      );
     });
 
     it('does nothing if no matching quotes', async () => {

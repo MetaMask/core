@@ -8,7 +8,7 @@ import type { TokensControllerGetStateAction } from '@metamask/assets-controller
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
-import type { QuoteMetadata, QuoteResponse } from '@metamask/bridge-controller';
+import type { QuoteResponse } from '@metamask/bridge-controller';
 import type { BridgeControllerActions } from '@metamask/bridge-controller';
 import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
 import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
@@ -18,6 +18,8 @@ import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@meta
 import type { TransactionControllerGetStateAction } from '@metamask/transaction-controller';
 import type { TransactionControllerStateChangeEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+
+import type { TransactionTotals } from './utils/totals';
 
 export const controllerName = 'TransactionPayController';
 
@@ -77,6 +79,7 @@ export type TransactionData = {
   quotes?: TransactionBridgeQuote[];
   sourceAmounts?: SourceAmountValues[];
   tokens: TransactionToken[];
+  totals?: TransactionTotals;
 };
 
 export type BridgeQuoteRequest = {
