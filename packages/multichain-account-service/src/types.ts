@@ -9,12 +9,15 @@ import type {
   AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetAccountByAddressAction,
+  AccountsControllerGetAccountsAction,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import type {
   KeyringControllerAddNewKeyringAction,
+  KeyringControllerCreateNewVaultAndKeychainAction,
+  KeyringControllerCreateNewVaultAndRestoreAction,
   KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
@@ -127,6 +130,7 @@ export type MultichainAccountServiceEvents =
  */
 export type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
+  | AccountsControllerGetAccountsAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountByAddressAction
   | SnapControllerHandleSnapRequestAction
@@ -135,7 +139,9 @@ export type AllowedActions =
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerAddNewKeyringAction
   | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction;
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | KeyringControllerCreateNewVaultAndKeychainAction
+  | KeyringControllerCreateNewVaultAndRestoreAction;
 
 /**
  * All events published by other modules that {@link MultichainAccountService}
