@@ -66,6 +66,10 @@ export type SubscriptionControllerUpdatePaymentMethodAction = {
   type: `${typeof controllerName}:updatePaymentMethod`;
   handler: SubscriptionController['updatePaymentMethod'];
 };
+export type SubscriptionControllerGetBillingPortalUrlAction = {
+  type: `${typeof controllerName}:getBillingPortalUrl`;
+  handler: SubscriptionController['getBillingPortalUrl'];
+};
 
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -79,7 +83,8 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerGetStateAction
   | SubscriptionControllerGetCryptoApproveTransactionParamsAction
   | SubscriptionControllerStartSubscriptionWithCryptoAction
-  | SubscriptionControllerUpdatePaymentMethodAction;
+  | SubscriptionControllerUpdatePaymentMethodAction
+  | SubscriptionControllerGetBillingPortalUrlAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -241,6 +246,11 @@ export class SubscriptionController extends BaseController<
     this.messagingSystem.registerActionHandler(
       'SubscriptionController:updatePaymentMethod',
       this.updatePaymentMethod.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:getBillingPortalUrl',
+      this.getBillingPortalUrl.bind(this),
     );
   }
 
