@@ -62,6 +62,7 @@ const setupController = ({
       'TokensController:getState',
       'AccountsController:getSelectedAccount',
       'AccountsController:listAccounts',
+      'AccountTrackerController:getState',
       'AccountTrackerController:updateNativeBalances',
       'AccountTrackerController:updateStakedBalances',
     ],
@@ -109,6 +110,13 @@ const setupController = ({
   messenger.registerActionHandler(
     'TokensController:getState',
     jest.fn().mockImplementation(() => tokens),
+  );
+
+  messenger.registerActionHandler(
+    'AccountTrackerController:getState',
+    jest.fn().mockImplementation(() => ({
+      accountsByChainId: {},
+    })),
   );
 
   messenger.registerActionHandler(

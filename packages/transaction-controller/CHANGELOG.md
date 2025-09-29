@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Expose `addTransaction` and `addTransactionBatch` methods through the messenger ([#6749](https://github.com/MetaMask/core/pull/6749))
+  - Add types:
+    - `AddTransactionOptions`
+    - `TransactionControllerAddTransactionAction`
+    - `TransactionControllerAddTransactionBatchAction`
+
+## [60.5.0]
+
+### Added
+
 - Add `predictBuy`, `predictClaim`, `predictDeposit` and `predictSell` to `TransactionType` ([#6690](https://github.com/MetaMask/core/pull/6690))
 
 ### Changed
@@ -1830,7 +1840,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.5.0...HEAD
+[60.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.4.0...@metamask/transaction-controller@60.5.0
 [60.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.3.0...@metamask/transaction-controller@60.4.0
 [60.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.2.0...@metamask/transaction-controller@60.3.0
 [60.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.1.0...@metamask/transaction-controller@60.2.0
