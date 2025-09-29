@@ -1,6 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller/next';
 import { safelyExecute } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
@@ -74,17 +75,17 @@ export type TokenListControllerMessenger = Messenger<
   TokenListControllerEvents | AllowedEvents
 >;
 
-const metadata = {
+const metadata: StateMetadata<TokenListState> = {
   tokensChainsCache: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   preventPollingOnNetworkRestart: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
 };

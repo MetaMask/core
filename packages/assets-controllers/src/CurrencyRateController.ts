@@ -1,6 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller/next';
 import {
   TESTNET_TICKER_SYMBOLS,
@@ -57,17 +58,17 @@ export type CurrencyRateMessenger = Messenger<
   CurrencyRateControllerEvents
 >;
 
-const metadata = {
+const metadata: StateMetadata<CurrencyRateState> = {
   currentCurrency: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   currencyRates: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
 };
