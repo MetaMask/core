@@ -10,12 +10,6 @@ Core backend services for MetaMask, serving as the data layer between Backend se
   - [Quick Start](#quick-start)
     - [Basic Usage](#basic-usage)
     - [Integration with Controllers](#integration-with-controllers)
-  - [Overview](#overview)
-    - [Key Components](#key-components)
-    - [Core Value Propositions](#core-value-propositions)
-  - [Features](#features)
-    - [BackendWebSocketService](#backendwebsocketservice)
-    - [AccountActivityService (Example Implementation)](#accountactivityservice-example-implementation)
   - [Architecture \& Design](#architecture--design)
     - [Layered Architecture](#layered-architecture)
     - [Dependencies Structure](#dependencies-structure)
@@ -23,7 +17,7 @@ Core backend services for MetaMask, serving as the data layer between Backend se
       - [Sequence Diagram: Real-time Account Activity Flow](#sequence-diagram-real-time-account-activity-flow)
       - [Key Flow Characteristics](#key-flow-characteristics)
   - [API Reference](#api-reference)
-    - [BackendWebSocketService](#backendwebsocketservice-1)
+    - [BackendWebSocketService](#backendwebsocketservice)
       - [Constructor Options](#constructor-options)
       - [Methods](#methods)
     - [AccountActivityService](#accountactivityservice)
@@ -125,51 +119,6 @@ messenger.subscribe(
   },
 );
 ```
-
-## Overview
-
-The MetaMask Backend Platform serves as the data layer between Backend services (REST APIs, WebSocket services) and Frontend applications (MetaMask Extension and Mobile). It provides efficient, scalable WebSocket-based real-time communication for various data services including account activity monitoring, price updates, and other time-sensitive blockchain data. The platform bridges backend data services with frontend applications through a unified real-time interface.
-
-### Key Components
-
-- **BackendWebSocketService**: Low-level WebSocket connection management and message routing
-- **AccountActivityService**: High-level account activity monitoring (one example use case)
-
-### Core Value Propositions
-
-1. **Data Layer Bridge**: Connects backend services (REST APIs, WebSocket services) with frontend applications
-2. **Real-time Data**: Instant delivery of time-sensitive information (transactions, prices, etc.)
-3. **Authentication**: Integrated bearer token authentication with wallet unlock detection
-4. **Type Safety**: Auto-generated types with DRY principles - no manual type duplication
-5. **Reliability**: Automatic reconnection with intelligent backoff
-6. **Extensibility**: Flexible architecture supporting diverse data types and use cases
-7. **Multi-chain**: CAIP-10 address format support for blockchain interoperability
-8. **Integration**: Seamless coordination with existing MetaMask controllers
-
-## Features
-
-### BackendWebSocketService
-
-- ✅ **Universal Message Routing**: Route any real-time data to appropriate handlers
-- ✅ **Automatic Reconnection**: Smart reconnection with exponential backoff  
-- ✅ **Authentication Support**: Integrated bearer token authentication with wallet unlock detection
-- ✅ **Request Timeout Detection**: Automatically reconnects on stale connections
-- ✅ **Subscription Management**: Centralized tracking of channel subscriptions
-- ✅ **Direct Callback Routing**: Clean message routing without EventEmitter overhead
-- ✅ **Connection Health Monitoring**: Proactive connection state management
-- ✅ **Auto-Generated Types**: Type-safe messenger integration with DRY principles
-- ✅ **Extensible Architecture**: Support for multiple service types (account activity, prices, etc.)
-
-### AccountActivityService (Example Implementation)
-
-- ✅ **Automatic Account Management**: Subscribes/unsubscribes accounts based on selection changes
-- ✅ **Real-time Transaction Updates**: Receives transaction status changes instantly
-- ✅ **Balance Monitoring**: Tracks balance changes with comprehensive transfer details
-- ✅ **CAIP-10 Address Support**: Works with multi-chain address formats
-- ✅ **Fallback Polling Integration**: Coordinates with polling controllers for offline scenarios
-- ✅ **Direct Callback Routing**: Efficient message routing and minimal subscription tracking
-- ✅ **Type-Safe Integration**: Imports controller action types directly to eliminate duplication
-- ✅ **DRY Architecture**: Reuses auto-generated types from AccountsController and AuthenticationController
 
 ## Architecture & Design
 
