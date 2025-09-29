@@ -82,12 +82,12 @@ export const BridgeAssetSchema = type({
 
 const DefaultPairSchema = type({
   /**
-   * The standard default pairs. Use this if the client change the default dest a single time.
+   * The standard default pairs. Use this if the pair is only set once.
    * The key is the CAIP asset type of the src token and the value is the CAIP asset type of the dest token.
    */
   standard: record(string(), string()),
   /**
-   * The other default pairs. Use this if the client change the default dest token multiple times.
+   * The other default pairs. Use this if the dest token depends on the src token and can be set multiple times.
    * The key is the CAIP asset type of the src token and the value is the CAIP asset type of the dest token.
    */
   other: record(string(), string()),
