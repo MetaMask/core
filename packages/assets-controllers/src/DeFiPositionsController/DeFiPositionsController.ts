@@ -5,11 +5,11 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
   StateMetadata,
-} from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
 import type { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
 import type { KeyringControllerLockEvent } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
@@ -123,12 +123,10 @@ export type AllowedEvents =
 /**
  * The messenger of the {@link DeFiPositionsController}.
  */
-export type DeFiPositionsControllerMessenger = RestrictedMessenger<
+export type DeFiPositionsControllerMessenger = Messenger<
   typeof controllerName,
   DeFiPositionsControllerActions | AllowedActions,
-  DeFiPositionsControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  DeFiPositionsControllerEvents | AllowedEvents
 >;
 
 /**
@@ -176,15 +174,15 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     this.#fetchPositions = buildPositionFetcher();
     this.#isEnabled = isEnabled;
 
-    this.messagingSystem.subscribe('KeyringController:unlock', () => {
+    this.messenger.subscribe('KeyringController:unlock', () => {
       this.startPolling(null);
     });
 
-    this.messagingSystem.subscribe('KeyringController:lock', () => {
+    this.messenger.subscribe('KeyringController:lock', () => {
       this.stopAllPolling();
     });
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       async (transactionMeta) => {
         if (!this.#isEnabled()) {
@@ -195,7 +193,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
       },
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:accountAdded',
       async (account) => {
         if (!this.#isEnabled() || !account.type.startsWith('eip155:')) {
@@ -214,9 +212,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
       return;
     }
 
-    const accounts = this.messagingSystem.call(
-      'AccountsController:listAccounts',
-    );
+    const accounts = this.messenger.call('AccountsController:listAccounts');
 
     const initialResult: {
       accountAddress: string;
