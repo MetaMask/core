@@ -6,7 +6,6 @@ import type {
   TxData,
   QuoteResponse,
 } from '@metamask/bridge-controller';
-import type { FeatureId } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
   isNonEvmChainId,
@@ -448,11 +447,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         quoteResponse.estimatedProcessingTimeInSeconds,
       slippagePercentage,
       pricingData: {
-        amountSent: quoteResponse.sentAmount.amount,
-        amountSentInUsd: quoteResponse.sentAmount.usd ?? undefined,
-        quotedGasInUsd: quoteResponse.gasFee.effective?.usd ?? undefined,
-        quotedReturnInUsd: quoteResponse.toTokenAmount.usd ?? undefined,
-        quotedGasAmount: quoteResponse.gasFee.effective?.amount ?? undefined,
+        amountSent: quoteResponse.sentAmount?.amount ?? '0',
+        amountSentInUsd: quoteResponse.sentAmount?.usd ?? undefined,
+        quotedGasInUsd: quoteResponse.gasFee?.effective?.usd ?? undefined,
+        quotedReturnInUsd: quoteResponse.toTokenAmount?.usd ?? undefined,
+        quotedGasAmount: quoteResponse.gasFee?.effective?.amount ?? undefined,
       },
       initialDestAssetBalance,
       targetContractAddress,
@@ -809,7 +808,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #handleApprovalTx = async (
     isBridgeTx: boolean,
-    quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
+    quoteResponse: QuoteResponse<string | TxData> & Partial<QuoteMetadata>,
     requireApproval?: boolean,
   ): Promise<TransactionMeta | undefined> => {
     const { approval } = quoteResponse;
@@ -915,7 +914,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #handleUSDTAllowanceReset = async (
-    quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
+    quoteResponse: QuoteResponse<TxData | string> & Partial<QuoteMetadata>,
   ) => {
     const resetApproval = await getUSDTAllowanceResetTx(
       this.messagingSystem,
@@ -1021,9 +1020,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    */
   submitTx = async (
     accountAddress: string,
-    quoteResponse: QuoteResponse<TxData | string>['featureId'] extends FeatureId
-      ? QuoteResponse<TxData | string>
-      : QuoteResponse<TxData | string> & QuoteMetadata,
+    quoteResponse: QuoteResponse<TxData | string> & Partial<QuoteMetadata>,
     isStxEnabledOnClient: boolean,
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     this.messagingSystem.call('BridgeController:stopPollingForQuotes');
@@ -1214,6 +1211,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...(eventProperties ?? {}),
     };
 
+    // This will publish events for PERPS dropped tx failures as well
     if (!txMetaId) {
       this.messagingSystem.call(
         'BridgeController:trackUnifiedSwapBridgeEvent',

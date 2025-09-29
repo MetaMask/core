@@ -2883,6 +2883,39 @@ describe('BridgeStatusController', () => {
       expect(mockMessengerCall).toHaveBeenCalledTimes(11);
     });
 
+    it('should successfully submit an EVM swap transaction with featureId', async () => {
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      setupApprovalMocks();
+      setupBridgeMocks();
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      const result = await controller.submitTx(
+        mockEvmQuoteResponse.trade.from,
+        {
+          quote: mockEvmQuoteResponse.quote,
+          featureId: FeatureId.PERPS,
+          trade: mockEvmQuoteResponse.trade,
+          approval: mockEvmQuoteResponse.approval,
+          estimatedProcessingTimeInSeconds:
+            mockEvmQuoteResponse.estimatedProcessingTimeInSeconds,
+        },
+        false,
+      );
+      controller.stopAllPolling();
+
+      expect(result).toMatchSnapshot();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      const { approvalTxId } = controller.state.txHistory[result.id];
+      expect(approvalTxId).toBe('test-approval-tx-id');
+      expect(controller.state.txHistory[result.id].featureId).toBe(
+        FeatureId.PERPS,
+      );
+      expect(addTransactionFn).toHaveBeenCalledTimes(2);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(10);
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+    });
+
     it('should handle a gasless swap transaction with approval', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
