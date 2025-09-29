@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [25.1.0]
 
-### Uncategorized
-
-- Release/549.0.0 ([#6590](https://github.com/MetaMask/core/pull/6590))
-
 ### Changed
 
 - Use deferred promises for encryption/decryption KDF operations ([#6736](https://github.com/MetaMask/core/pull/6736))
