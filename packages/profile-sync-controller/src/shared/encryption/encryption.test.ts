@@ -221,10 +221,7 @@ describe('encryption tests', () => {
         .fill(0)
         .map((_, i) => encryption.encryptString(`${baseData}-${i}`, password));
 
-      const startTime = Date.now();
       const results = await Promise.all(encryptPromises);
-      const duration = Date.now() - startTime;
-
       expect(results).toHaveLength(10);
 
       // Verify all can be decrypted
