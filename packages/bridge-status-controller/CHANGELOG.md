@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [47.1.0]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `60.4.0` to `60.5.0` ([#6733](https://github.com/MetaMask/core/pull/6733))
+
 ## [47.0.0]
 
 ### Changed
@@ -612,7 +618,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@47.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@47.1.0...HEAD
+[47.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@47.0.0...@metamask/bridge-status-controller@47.1.0
 [47.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@46.0.0...@metamask/bridge-status-controller@47.0.0
 [46.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@45.0.0...@metamask/bridge-status-controller@46.0.0
 [45.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@44.1.0...@metamask/bridge-status-controller@45.0.0
