@@ -1549,48 +1549,6 @@ describe('BackendWebSocketService', () => {
       cleanup();
     });
 
-    it('should handle authentication selector edge cases', async () => {
-      const { spies, cleanup } = setupBackendWebSocketService({
-        options: {},
-      });
-
-      // Find the authentication state change subscription
-      const authStateChangeCall = spies.subscribe.mock.calls.find(
-        (call) => call[0] === 'AuthenticationController:stateChange',
-      );
-      expect(authStateChangeCall).toBeDefined();
-
-      // Get the selector function (third parameter)
-      const selectorFunction = (
-        authStateChangeCall as unknown as [
-          string,
-          (state: unknown, previousState: unknown) => void,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (state: any) => boolean,
-        ]
-      )[2];
-
-      // Test selector with null state
-      expect(selectorFunction(null)).toBe(false);
-
-      // Test selector with undefined state
-      expect(selectorFunction(undefined)).toBe(false);
-
-      // Test selector with empty object
-      expect(selectorFunction({})).toBe(false);
-
-      // Test selector with valid isSignedIn: true
-      expect(selectorFunction({ isSignedIn: true })).toBe(true);
-
-      // Test selector with valid isSignedIn: false
-      expect(selectorFunction({ isSignedIn: false })).toBe(false);
-
-      // Test selector with isSignedIn: undefined
-      expect(selectorFunction({ isSignedIn: undefined })).toBe(false);
-
-      cleanup();
-    });
-
     it('should reset reconnection attempts on authentication sign-out', async () => {
       const { service, completeAsyncOperations, spies, cleanup } =
         setupBackendWebSocketService({

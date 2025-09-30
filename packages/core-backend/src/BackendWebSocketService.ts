@@ -359,7 +359,7 @@ export class BackendWebSocketService {
           }
         },
         (state: AuthenticationController.AuthenticationControllerState) =>
-          state?.isSignedIn ?? false,
+          state.isSignedIn,
       );
     } catch (error) {
       throw new Error(`Authentication setup failed: ${getErrorMessage(error)}`);
