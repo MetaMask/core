@@ -124,48 +124,65 @@ messenger.subscribe(
 
 ### Layered Architecture
 
-```
-┌─────────────────────────────────────────┐
-│                FRONTEND                 │
-├─────────────────────────────────────────┤
-│        Frontend Applications            │
-│   (MetaMask Extension, Mobile, etc.)    │
-├─────────────────────────────────────────┤
-│          Integration Layer              │
-│  (Controllers, State Management, UI)    │
-├─────────────────────────────────────────┤
-│           DATA LAYER (BRIDGE)           │
-├─────────────────────────────────────────┤
-│           Core Backend Services         │
-│  ┌─────────────────────────────────────┐ │
-│  │    High-Level Services             │ │  ← Domain-specific services
-│  │  - AccountActivityService          │ │
-│  │  - PriceUpdateService (future)     │ │
-│  │  - Custom services...              │ │
-│  └─────────────────────────────────────┘ │
-│  ┌─────────────────────────────────────┐ │
-│  │   BackendWebSocketService          │ │  ← Transport layer
-│  │  - Connection management           │ │
-│  │  - Authentication integration      │ │
-│  │  - Automatic reconnection          │ │
-│  │  - Message routing to services     │ │
-│  │  - Subscription management         │ │
-│  └─────────────────────────────────────┘ │
-└─────────────────────────────────────────┘
-
-
-┌─────────────────────────────────────────┐
-│                BACKEND                  │
-├─────────────────────────────────────────┤
-│          Backend Services               │
-│  (REST APIs, WebSocket Services, etc.)  │
-└─────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph "FRONTEND"
+        subgraph "Presentation Layer"
+            FE[Frontend Applications<br/>MetaMask Extension, Mobile, etc.]
+        end
+        
+        subgraph "Integration Layer"
+            IL[Controllers, State Management, UI]
+        end
+        
+        subgraph "Data layer (core-backend)"
+            subgraph "Domain Services"
+                AAS[AccountActivityService]
+                PUS[PriceUpdateService<br/>future]
+                CS[Custom Services...]
+            end
+            
+            subgraph "Transport Layer"
+                WSS[WebSocketService<br/>• Connection management<br/>• Automatic reconnection<br/>• Message routing<br/>• Subscription management]
+                HTTP[HTTP Service<br/>• REST API calls<br/>• Request/response handling<br/>• Error handling<br/>future]
+            end
+        end
+    end
+    
+    subgraph "BACKEND"
+        BS[Backend Services<br/>REST APIs, WebSocket Services, etc.]
+    end
+    
+    %% Flow connections
+    FE --> IL
+    IL --> AAS
+    IL --> PUS
+    IL --> CS
+    AAS --> WSS
+    AAS --> HTTP
+    PUS --> WSS
+    PUS --> HTTP
+    CS --> WSS
+    CS --> HTTP
+    WSS <--> BS
+    HTTP <--> BS
+    
+    %% Styling
+    classDef frontend fill:#e1f5fe
+    classDef backend fill:#f3e5f5
+    classDef service fill:#e8f5e8
+    classDef transport fill:#fff3e0
+    
+    class FE,IL frontend
+    class BS backend
+    class AAS,PUS,CS service
+    class WSS,HTTP transport
 ```
 
 ### Dependencies Structure
 
 ```mermaid
-graph TD
+graph BT
     %% External Controllers
     AC["AccountsController<br/>(Auto-generated types)"]
     AuthC["AuthenticationController<br/>(Auto-generated types)"]
