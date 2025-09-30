@@ -3407,8 +3407,10 @@ describe('AccountTreeController', () => {
       const wallet = controller.state.accountTree.wallets[expectedWalletId];
       const group1 = wallet?.groups[expectedGroupId1];
 
-      // We used the `account.metadata.name` to compute this name.
+      // Solana account name are never used.
       expect(group1?.metadata.name).not.toBe(mockSolAccountName1);
+      // Since EVM account name was empty, we default to normal account naming.
+      expect(group1?.metadata.name).toBe('Account 1');
     });
 
     it('automatically resolve conflicting names if any', () => {
