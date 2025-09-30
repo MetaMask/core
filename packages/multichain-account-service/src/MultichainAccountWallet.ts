@@ -324,14 +324,51 @@ export class MultichainAccountWallet<
       }
 
       this.#log(`Creating new group for index ${groupIndex}...`);
-      const results = await Promise.allSettled(
-        this.#providers.map((provider) =>
-          provider.createAccounts({
+
+      // Extract the EVM provider from the list of providers.
+      // We will only await the EVM provider to create its accounts, while
+      // all other providers will be started in the background.
+      const { evmProvider, otherProviders } = this.#providers.reduce(
+        (acc, provider) => {
+          if (provider.getName() === 'EVM') {
+            acc.evmProvider = provider;
+          } else {
+            acc.otherProviders.push(provider);
+          }
+          return acc;
+        },
+        {
+          evmProvider: undefined as NamedAccountProvider<Account> | undefined,
+          otherProviders: [] as NamedAccountProvider<Account>[],
+        },
+      );
+
+      if (!evmProvider) {
+        throw new Error('EVM provider not found');
+      }
+
+      // Create account with the EVM provider
+      const evmProviderCreatedAccount = evmProvider.createAccounts({
+        entropySource: this.#entropySource,
+        groupIndex,
+      });
+
+      // Create account with other providers in the background
+      otherProviders.forEach((provider) => {
+        provider
+          .createAccounts({
             entropySource: this.#entropySource,
             groupIndex,
-          }),
-        ),
-      );
+          })
+          .catch((error) => {
+            // Log errors from background providers but don't fail the operation
+            const errorMessage = `Unable to create multichain account group for index: ${groupIndex} with provider ${provider.getName()}`;
+            this.#log(`${WARNING_PREFIX} ${errorMessage}:`, error);
+          });
+      });
+
+      // Only await the EVM provider
+      await evmProviderCreatedAccount;
 
       // --------------------------------------------------------------------------------
       // READ THIS CAREFULLY:
@@ -354,25 +391,6 @@ export class MultichainAccountWallet<
       // "aligned" (missing "blockchain account" on this group).
       //
       // --------------------------------------------------------------------------------
-
-      // If any of the provider failed to create their accounts, then we consider the
-      // multichain account group to have failed too.
-      if (results.some((result) => result.status === 'rejected')) {
-        // NOTE: Some accounts might still have been created on other account providers. We
-        // don't rollback them.
-        const error = `Unable to create multichain account group for index: ${groupIndex}`;
-
-        let message = `${error}:`;
-        for (const result of results) {
-          if (result.status === 'rejected') {
-            message += `\n- ${result.reason}`;
-          }
-        }
-        this.#log(`${WARNING_PREFIX} ${message}`);
-        console.warn(message);
-
-        throw new Error(error);
-      }
 
       // Because of the :accountAdded automatic sync, we might already have created the
       // group, so we first try to get it.
