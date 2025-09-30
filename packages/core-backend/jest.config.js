@@ -14,6 +14,10 @@ module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
+  // Use jsdom for BackendWebSocketService tests
+  testEnvironment: 'jsdom',
+  testEnvironmentOptions: {},
+
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {

@@ -1,5 +1,4 @@
 import { Messenger } from '@metamask/base-controller';
-import { useFakeTimers } from 'sinon';
 
 import {
   BackendWebSocketService,
@@ -9,43 +8,13 @@ import {
   type BackendWebSocketServiceMessenger,
   type ClientRequestMessage,
 } from './BackendWebSocketService';
-import { flushPromises, advanceTime } from '../../../tests/helpers';
+import { flushPromises } from '../../../tests/helpers';
 
 // =====================================================
 // TEST UTILITIES & MOCKS
 // =====================================================
 
-/**
- * Mock DOM APIs not available in Node.js test environment
- */
-function setupDOMGlobals() {
-  global.MessageEvent = class MockMessageEvent extends Event {
-    public data: unknown;
-
-    constructor(type: string, eventInitDict?: { data?: unknown }) {
-      super(type);
-      this.data = eventInitDict?.data;
-    }
-  } as unknown as typeof global.MessageEvent;
-
-  // eslint-disable-next-line n/no-unsupported-features/node-builtins
-  global.CloseEvent = class MockCloseEvent extends Event {
-    public code: number;
-
-    public reason: string;
-
-    constructor(
-      type: string,
-      eventInitDict?: { code?: number; reason?: string },
-    ) {
-      super(type);
-      this.code = eventInitDict?.code ?? 1000;
-      this.reason = eventInitDict?.reason ?? '';
-    }
-  } as unknown as typeof global.CloseEvent;
-}
-
-setupDOMGlobals();
+// DOM globals (MessageEvent, CloseEvent, etc.) are now provided by jsdom test environment
 
 /**
  * Creates a real messenger with registered mock actions for testing
@@ -283,7 +252,6 @@ type TestSetup = {
     publish: jest.SpyInstance;
     call: jest.SpyInstance;
   };
-  clock: ReturnType<typeof useFakeTimers>;
   completeAsyncOperations: (advanceMs?: number) => Promise<void>;
   getMockWebSocket: () => MockWebSocket;
   cleanup: () => void;
@@ -303,17 +271,7 @@ const setupBackendWebSocketService = ({
   mockWebSocketOptions,
 }: TestSetupOptions = {}): TestSetup => {
   // Setup fake timers to control all async operations
-  const clock = useFakeTimers({
-    toFake: [
-      'setTimeout',
-      'clearTimeout',
-      'setInterval',
-      'clearInterval',
-      'setImmediate',
-      'clearImmediate',
-    ],
-    shouldAdvanceTime: false,
-  });
+  jest.useFakeTimers();
 
   // Create real messenger with registered actions
   const messengerSetup = createMockMessenger();
@@ -352,7 +310,9 @@ const setupBackendWebSocketService = ({
 
   const completeAsyncOperations = async (advanceMs = 10) => {
     await flushPromises();
-    await advanceTime({ clock, duration: advanceMs });
+    if (advanceMs > 0) {
+      jest.advanceTimersByTime(advanceMs);
+    }
     await flushPromises();
   };
 
@@ -369,7 +329,6 @@ const setupBackendWebSocketService = ({
       publish: publishSpy,
       call: callSpy,
     },
-    clock,
     completeAsyncOperations,
     getMockWebSocket,
     cleanup: () => {
@@ -377,7 +336,7 @@ const setupBackendWebSocketService = ({
       subscribeSpy.mockRestore();
       publishSpy.mockRestore();
       callSpy.mockRestore();
-      clock.restore();
+      jest.useRealTimers();
       jest.clearAllMocks();
     },
   };
@@ -2252,7 +2211,7 @@ describe('BackendWebSocketService', () => {
     it('should stop reconnection attempts when enabledCallback returns false during scheduled reconnect', async () => {
       // Start with enabled callback returning true
       const mockEnabledCallback = jest.fn().mockReturnValue(true);
-      const { service, getMockWebSocket, cleanup, clock } =
+      const { service, getMockWebSocket, cleanup } =
         setupBackendWebSocketService({
           options: {
             isEnabled: mockEnabledCallback,
@@ -2278,7 +2237,7 @@ describe('BackendWebSocketService', () => {
       mockEnabledCallback.mockReturnValue(false);
 
       // Advance timer to trigger the scheduled reconnection timeout (which should check enabledCallback)
-      clock.tick(50);
+      jest.advanceTimersByTime(50);
       await flushPromises();
 
       // Verify enabledCallback was called during the timeout check
@@ -2315,7 +2274,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should handle request timeout properly with fake timers', async () => {
-      const { service, cleanup, clock, getMockWebSocket } =
+      const { service, cleanup, getMockWebSocket } =
         setupBackendWebSocketService({
           options: {
             requestTimeout: 1000, // 1 second timeout
@@ -2339,7 +2298,7 @@ describe('BackendWebSocketService', () => {
       });
 
       // Advance time to trigger timeout and cleanup
-      clock.tick(1001); // Just past the timeout
+      jest.advanceTimersByTime(1001); // Just past the timeout
 
       await expect(requestPromise).rejects.toThrow(
         'Request timeout after 1000ms',
@@ -3005,7 +2964,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should hit WebSocket error and reconnection branches', async () => {
-      const { service, cleanup, clock, getMockWebSocket } =
+      const { service, cleanup, getMockWebSocket } =
         setupBackendWebSocketService();
 
       await service.connect();
@@ -3017,7 +2976,7 @@ describe('BackendWebSocketService', () => {
       await flushPromises();
 
       // Advance time for reconnection logic
-      clock.tick(50);
+      jest.advanceTimersByTime(50);
 
       await flushPromises();
 
@@ -3154,7 +3113,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should hit WebSocket event handling branches', async () => {
-      const { service, cleanup, clock, getMockWebSocket } =
+      const { service, cleanup, getMockWebSocket } =
         setupBackendWebSocketService();
 
       await service.connect();
@@ -3163,7 +3122,7 @@ describe('BackendWebSocketService', () => {
       // Test various close codes to hit different branches
       mockWs.simulateClose(1001, 'Going away'); // Should trigger reconnection
       await flushPromises();
-      clock.tick(100);
+      jest.advanceTimersByTime(100);
       await flushPromises();
 
       // Test normal close - assume connected state and simulate close
@@ -4082,7 +4041,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should handle request timeout and cleanup properly', async () => {
-      const { service, cleanup, clock } = setupBackendWebSocketService({
+      const { service, cleanup } = setupBackendWebSocketService({
         options: { requestTimeout: 50 },
       });
 
@@ -4095,7 +4054,7 @@ describe('BackendWebSocketService', () => {
       });
 
       // Advance time past timeout
-      clock.tick(100);
+      jest.advanceTimersByTime(100);
 
       await expect(requestPromise).rejects.toThrow('timeout');
 
@@ -4205,7 +4164,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should hit reconnection and cleanup paths', async () => {
-      const { service, cleanup, clock } = setupBackendWebSocketService();
+      const { service, cleanup } = setupBackendWebSocketService();
 
       await service.connect();
       const mockWs = new MockWebSocket('ws://test', { autoConnect: false });
@@ -4214,7 +4173,7 @@ describe('BackendWebSocketService', () => {
       mockWs.simulateClose(1006, 'Abnormal closure');
 
       // Advance time to trigger reconnection logic
-      clock.tick(1000);
+      jest.advanceTimersByTime(1000);
 
       // Test request cleanup when connection is lost
       await service.disconnect();
@@ -4325,7 +4284,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should handle request timeouts and cleanup properly', async () => {
-      const { service, cleanup, clock } = setupBackendWebSocketService({
+      const { service, cleanup } = setupBackendWebSocketService({
         options: { requestTimeout: 30 }, // Very short timeout
       });
 
@@ -4338,7 +4297,7 @@ describe('BackendWebSocketService', () => {
       });
 
       // Advance time past timeout
-      clock.tick(50);
+      jest.advanceTimersByTime(50);
 
       await expect(timeoutPromise).rejects.toThrow('timeout');
 
@@ -4378,7 +4337,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should handle message routing and error scenarios comprehensively', async () => {
-      const { service, cleanup, clock } = setupBackendWebSocketService({
+      const { service, cleanup } = setupBackendWebSocketService({
         options: { requestTimeout: 20 },
       });
 
@@ -4419,7 +4378,7 @@ describe('BackendWebSocketService', () => {
       });
 
       // Advance time to trigger timeout
-      clock.tick(30);
+      jest.advanceTimersByTime(30);
 
       await expect(timeoutPromise).rejects.toBeInstanceOf(Error);
 
@@ -4520,7 +4479,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should hit request timeout paths', async () => {
-      const { service, cleanup, clock } = setupBackendWebSocketService({
+      const { service, cleanup } = setupBackendWebSocketService({
         options: { requestTimeout: 10 },
       });
 
@@ -4532,8 +4491,8 @@ describe('BackendWebSocketService', () => {
         data: { test: true },
       });
 
-      // Advance clock to trigger timeout
-      clock.tick(15);
+      // Advance timers to trigger timeout
+      jest.advanceTimersByTime(15);
 
       await expect(timeoutPromise).rejects.toBeInstanceOf(Error);
       await expect(timeoutPromise).rejects.toThrow(/timeout/u);
@@ -4600,7 +4559,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should handle request timeout scenarios', async () => {
-      const { service, cleanup, clock } = setupBackendWebSocketService({
+      const { service, cleanup } = setupBackendWebSocketService({
         options: { requestTimeout: 50 },
       });
 
@@ -4613,7 +4572,7 @@ describe('BackendWebSocketService', () => {
       });
 
       // Advance timer to trigger timeout
-      clock.tick(60);
+      jest.advanceTimersByTime(60);
 
       await expect(timeoutPromise).rejects.toThrow(
         'Request timeout after 50ms',
@@ -4662,7 +4621,7 @@ describe('BackendWebSocketService', () => {
     // Removed: Development warning test - we simplified the code to eliminate this edge case
 
     it('should hit timeout and request paths with fake timers', async () => {
-      const { service, cleanup, clock } = setupBackendWebSocketService({
+      const { service, cleanup } = setupBackendWebSocketService({
         options: { requestTimeout: 10 },
       });
 
@@ -4674,7 +4633,7 @@ describe('BackendWebSocketService', () => {
         data: { test: true },
       });
 
-      clock.tick(15); // Trigger timeout
+      jest.advanceTimersByTime(15); // Trigger timeout
 
       await expect(timeoutPromise).rejects.toBeInstanceOf(Error);
 
@@ -5004,18 +4963,13 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should handle reconnection failures and trigger error logging', async () => {
-      const {
-        service,
-        completeAsyncOperations,
-        cleanup,
-        clock,
-        getMockWebSocket,
-      } = setupBackendWebSocketService({
-        options: {
-          reconnectDelay: 50, // Very short for testing
-          maxReconnectDelay: 100,
-        },
-      });
+      const { service, completeAsyncOperations, cleanup, getMockWebSocket } =
+        setupBackendWebSocketService({
+          options: {
+            reconnectDelay: 50, // Very short for testing
+            maxReconnectDelay: 100,
+          },
+        });
 
       // Mock console.error to spy on specific error logging
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -5040,7 +4994,7 @@ describe('BackendWebSocketService', () => {
       await completeAsyncOperations();
 
       // Advance time to trigger the reconnection attempt which should now fail
-      clock.tick(75); // Advance past the reconnect delay to trigger setTimeout callback
+      jest.advanceTimersByTime(75); // Advance past the reconnect delay to trigger setTimeout callback
       await completeAsyncOperations();
 
       // Verify the specific error message was logged
