@@ -66,7 +66,7 @@ export function setupNamedAccountProvider({
 
   if (index === 0) {
     // Make the first provider to always be an `EvmAccountProvider`, since we
-    // check for this pre-condition in some methods. 
+    // check for this pre-condition in some methods.
     Object.setPrototypeOf(mocks, EvmAccountProvider.prototype);
   }
 
