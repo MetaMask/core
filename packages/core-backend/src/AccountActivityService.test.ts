@@ -71,7 +71,7 @@ const createMockMessenger = () => {
   const mockConnect = jest.fn().mockResolvedValue(undefined);
   const mockDisconnect = jest.fn().mockResolvedValue(undefined);
   const mockSubscribe = jest.fn().mockResolvedValue({ unsubscribe: jest.fn() });
-  const mockIsChannelSubscribed = jest.fn().mockReturnValue(false);
+  const mockChannelHasSubscription = jest.fn().mockReturnValue(false);
   const mockGetSubscriptionByChannel = jest.fn().mockReturnValue(null);
   const mockFindSubscriptionsByChannelPrefix = jest.fn().mockReturnValue([]);
   const mockAddChannelCallback = jest.fn();
@@ -107,7 +107,7 @@ const createMockMessenger = () => {
   rootMessenger.registerActionHandler(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     'BackendWebSocketService:channelHasSubscription' as any,
-    mockIsChannelSubscribed,
+    mockChannelHasSubscription,
   );
   rootMessenger.registerActionHandler(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -144,7 +144,7 @@ const createMockMessenger = () => {
       connect: mockConnect,
       disconnect: mockDisconnect,
       subscribe: mockSubscribe,
-      channelHasSubscription: mockIsChannelSubscribed,
+      channelHasSubscription: mockChannelHasSubscription,
       getSubscriptionByChannel: mockGetSubscriptionByChannel,
       findSubscriptionsByChannelPrefix: mockFindSubscriptionsByChannelPrefix,
       addChannelCallback: mockAddChannelCallback,

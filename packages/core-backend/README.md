@@ -331,7 +331,7 @@ interface BackendWebSocketServiceOptions {
 - `disconnect(): Promise<void>` - Close WebSocket connection  
 - `subscribe(options: SubscriptionOptions): Promise<SubscriptionResult>` - Subscribe to channels
 - `sendRequest(message: ClientRequestMessage): Promise<ServerResponseMessage>` - Send request/response messages
-- `isChannelSubscribed(channel: string): boolean` - Check subscription status
+- `channelHasSubscription(channel: string): boolean` - Check subscription status
 - `findSubscriptionsByChannelPrefix(prefix: string): SubscriptionInfo[]` - Find subscriptions by prefix
 - `getConnectionInfo(): WebSocketConnectionInfo` - Get detailed connection state
 
