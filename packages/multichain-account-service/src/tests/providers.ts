@@ -3,6 +3,7 @@
 import type { Bip44Account } from '@metamask/account-api';
 import { isBip44Account } from '@metamask/account-api';
 import type { KeyringAccount } from '@metamask/keyring-api';
+import { EvmAccountProvider } from '../providers';
 
 export type MockAccountProvider = {
   accounts: KeyringAccount[];
@@ -35,11 +36,13 @@ export function setupNamedAccountProvider({
   accounts,
   mocks = makeMockAccountProvider(),
   filter = () => true,
+  index,
 }: {
   name?: string;
   mocks?: MockAccountProvider;
   accounts: KeyringAccount[];
   filter?: (account: KeyringAccount) => boolean;
+  index?: number;
 }): MockAccountProvider {
   // You can mock this and all other mocks will re-use that list
   // of accounts.
@@ -59,6 +62,11 @@ export function setupNamedAccountProvider({
       getAccounts().find((account) => account.id === id),
   );
   mocks.createAccounts.mockResolvedValue([]);
+
+  if (index === 0) {
+    // change mocks to be instance of EvmAccountProvider
+    Object.setPrototypeOf(mocks, EvmAccountProvider.prototype);
+  }
 
   return mocks;
 }

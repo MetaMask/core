@@ -21,12 +21,14 @@ import { Mutex } from 'async-mutex';
 import type { Logger } from './logger';
 import {
   createModuleLogger,
+  ERROR_PREFIX,
   projectLogger as log,
   WARNING_PREFIX,
 } from './logger';
 import { MultichainAccountGroup } from './MultichainAccountGroup';
-import type { NamedAccountProvider } from './providers';
+import { EvmAccountProvider, type NamedAccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
+import assert from 'assert';
 
 /**
  * The context for a provider discovery.
@@ -328,30 +330,24 @@ export class MultichainAccountWallet<
       // Extract the EVM provider from the list of providers.
       // We will only await the EVM provider to create its accounts, while
       // all other providers will be started in the background.
-      const { evmProvider, otherProviders } = this.#providers.reduce(
-        (acc, provider) => {
-          if (provider.getName() === 'EVM') {
-            acc.evmProvider = provider;
-          } else {
-            acc.otherProviders.push(provider);
-          }
-          return acc;
-        },
-        {
-          evmProvider: undefined as NamedAccountProvider<Account> | undefined,
-          otherProviders: [] as NamedAccountProvider<Account>[],
-        },
+      const [evmProvider, ...otherProviders] = this.#providers;
+      assert(
+        evmProvider instanceof EvmAccountProvider,
+        'EVM account provider must be first',
       );
 
-      if (!evmProvider) {
-        throw new Error('EVM provider not found');
+      // Create account with the EVM provider first and await it.
+      // If it fails, we don't start creating accounts with other providers.
+      try {
+        await evmProvider.createAccounts({
+          entropySource: this.#entropySource,
+          groupIndex,
+        });
+      } catch (error) {
+        const errorMessage = `Unable to create multichain account group for index: ${groupIndex} with provider "${evmProvider.getName()}"`;
+        this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
+        throw new Error(errorMessage);
       }
-
-      // Create account with the EVM provider
-      const evmProviderCreatedAccount = evmProvider.createAccounts({
-        entropySource: this.#entropySource,
-        groupIndex,
-      });
 
       // Create account with other providers in the background
       otherProviders.forEach((provider) => {
@@ -362,13 +358,10 @@ export class MultichainAccountWallet<
           })
           .catch((error) => {
             // Log errors from background providers but don't fail the operation
-            const errorMessage = `Unable to create multichain account group for index: ${groupIndex} with provider ${provider.getName()}`;
+            const errorMessage = `Could not to create account with provider "${provider.getName()}" for multichain account group index: ${groupIndex}`;
             this.#log(`${WARNING_PREFIX} ${errorMessage}:`, error);
           });
       });
-
-      // Only await the EVM provider
-      await evmProviderCreatedAccount;
 
       // --------------------------------------------------------------------------------
       // READ THIS CAREFULLY:
