@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+### Added
 
 - Add an optional `options` parameter to `MultichainAccountWallet.createMultichainAccountGroup()` ([#6759](https://github.com/MetaMask/core/pull/6759))
   - Introduces `options.waitForAllProvidersToFinishCreatingAccounts`, that will make `createMultichainAccountGroup` await either only the EVM provider or all the providers to have created their accounts depending on the value. Defaults to `false` (only awaits for EVM accounts creation by default).
