@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0]
+
+### Changed
+
+- Only await for EVM account creation in `MultichainAccountWallet.createMultichainAccountGroup()` instead of all types of providers ([#6755](https://github.com/MetaMask/core/pull/6755))
+  - Other type of providers will create accounts in the background and won't throw errors in case they fail to do so.
+  - Multichain account groups will now be "misaligned" for a short period of time, until each of the other providers finish creating their accounts.
+
 ## [1.3.0]
 
 ### Added
@@ -200,7 +208,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.4.0...HEAD
+[1.4.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.3.0...@metamask/multichain-account-service@1.4.0
 [1.3.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.2.0...@metamask/multichain-account-service@1.3.0
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.1.0...@metamask/multichain-account-service@1.2.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.0.0...@metamask/multichain-account-service@1.1.0

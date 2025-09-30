@@ -70,6 +70,7 @@ function setup({
     return setupNamedAccountProvider({
       name: `Mocked Provider ${i}`,
       accounts: providerAccounts,
+      index: i,
     });
   });
 
@@ -298,7 +299,7 @@ describe('MultichainAccountWallet', () => {
       );
     });
 
-    it('fails to create an account group if any of the provider fails to create its account', async () => {
+    it('fails to create an account group if the EVM provider fails to create its account', async () => {
       const groupIndex = 1;
 
       const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
@@ -315,13 +316,39 @@ describe('MultichainAccountWallet', () => {
         new Error('Unable to create accounts'),
       );
 
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       await expect(
         wallet.createMultichainAccountGroup(groupIndex),
       ).rejects.toThrow(
-        'Unable to create multichain account group for index: 1',
+        'Unable to create multichain account group for index: 1 with provider "Mocked Provider 0"',
       );
-      expect(consoleSpy).toHaveBeenCalled();
+    });
+
+    it('does not fail to create an account group if a non-EVM provider fails to create its account', async () => {
+      const groupIndex = 0;
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(groupIndex)
+        .get();
+
+      const { wallet, providers } = setup({
+        accounts: [[], []],
+      });
+
+      const [evmProvider, solProvider] = providers;
+
+      const mockSolProviderError = jest
+        .fn()
+        .mockRejectedValue('Unable to create');
+      evmProvider.createAccounts.mockResolvedValueOnce([mockEvmAccount]);
+      solProvider.createAccounts.mockImplementation(mockSolProviderError);
+
+      await wallet.createMultichainAccountGroup(groupIndex);
+
+      expect(
+        await wallet.createMultichainAccountGroup(groupIndex),
+      ).toBeDefined();
+      await new Promise(process.nextTick);
+      expect(mockSolProviderError).toHaveBeenCalled();
     });
   });
 
