@@ -953,12 +953,12 @@ describe('BackendWebSocketService', () => {
       await completeAsyncOperations();
 
       await subscriptionPromise;
-      const subscription = service.getSubscriptionByChannel('test-channel');
-      expect(subscription).toBeDefined();
-      expect(subscription?.subscriptionId).toBe('sub-123');
+      const subscriptions = service.getSubscriptionsByChannel('test-channel');
+      expect(subscriptions).toHaveLength(1);
+      expect(subscriptions[0].subscriptionId).toBe('sub-123');
 
       // Also test nonexistent channel
-      expect(service.getSubscriptionByChannel('nonexistent')).toBeUndefined();
+      expect(service.getSubscriptionsByChannel('nonexistent')).toHaveLength(0);
 
       cleanup();
     });
@@ -1947,6 +1947,33 @@ describe('BackendWebSocketService', () => {
       // Verify that reconnection attempts have been incremented due to failures
       // This demonstrates that the reconnection rescheduling logic is working
       expect(service.getConnectionInfo().reconnectAttempts).toBeGreaterThan(1);
+
+      cleanup();
+    });
+
+    it('should use authentication state selector to extract isSignedIn property', async () => {
+      const { spies, cleanup } = setupBackendWebSocketService({
+        options: {},
+      });
+
+      // Find the authentication state change subscription
+      const authStateChangeCall = spies.subscribe.mock.calls.find(
+        (call) => call[0] === 'AuthenticationController:stateChange',
+      );
+      expect(authStateChangeCall).toBeDefined();
+
+      // Extract the selector function (third parameter)
+      const authStateSelector = (
+        authStateChangeCall as unknown as [
+          string,
+          (state: unknown, previousState: unknown) => void,
+          (state: { isSignedIn: boolean }) => boolean,
+        ]
+      )[2];
+
+      // Test the selector function with different authentication states
+      expect(authStateSelector({ isSignedIn: true })).toBe(true);
+      expect(authStateSelector({ isSignedIn: false })).toBe(false);
 
       cleanup();
     });

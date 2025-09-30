@@ -58,14 +58,14 @@ export type BackendWebSocketServiceGetConnectionInfoAction = {
 };
 
 /**
- * Gets subscription information for a specific channel
+ * Gets all subscription information for a specific channel
  *
  * @param channel - The channel name to look up
- * @returns Subscription details or undefined if not found
+ * @returns Array of subscription details for all subscriptions containing the channel
  */
-export type BackendWebSocketServiceGetSubscriptionByChannelAction = {
-  type: `BackendWebSocketService:getSubscriptionByChannel`;
-  handler: BackendWebSocketService['getSubscriptionByChannel'];
+export type BackendWebSocketServiceGetSubscriptionsByChannelAction = {
+  type: `BackendWebSocketService:getSubscriptionsByChannel`;
+  handler: BackendWebSocketService['getSubscriptionsByChannel'];
 };
 
 /**
@@ -162,7 +162,7 @@ export type BackendWebSocketServiceMethodActions =
   | BackendWebSocketServiceSendMessageAction
   | BackendWebSocketServiceSendRequestAction
   | BackendWebSocketServiceGetConnectionInfoAction
-  | BackendWebSocketServiceGetSubscriptionByChannelAction
+  | BackendWebSocketServiceGetSubscriptionsByChannelAction
   | BackendWebSocketServiceChannelHasSubscriptionAction
   | BackendWebSocketServiceFindSubscriptionsByChannelPrefixAction
   | BackendWebSocketServiceAddChannelCallbackAction
