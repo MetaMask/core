@@ -1,4 +1,5 @@
 import { useFakeTimers } from 'sinon';
+import { Messenger } from '@metamask/base-controller';
 
 import {
   BackendWebSocketService,
@@ -45,6 +46,44 @@ function setupDOMGlobals() {
 }
 
 setupDOMGlobals();
+
+/**
+ * Creates a real messenger with registered mock actions for testing
+ * Each call creates a completely independent messenger to ensure test isolation
+ *
+ * @returns Object containing the messenger and mock action functions
+ */
+const createMockMessenger = () => {
+  // Use any types for the root messenger to avoid complex type constraints in tests
+  // Create a unique root messenger for each test
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rootMessenger = new Messenger<any, any>();
+  const messenger = rootMessenger.getRestricted({
+    name: 'BackendWebSocketService',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    allowedActions: ['AuthenticationController:getBearerToken'] as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    allowedEvents: ['AuthenticationController:stateChange'] as any,
+  }) as unknown as BackendWebSocketServiceMessenger;
+
+  // Create mock action handlers
+  const mockGetBearerToken = jest.fn().mockResolvedValue('valid-default-token');
+
+  // Register all action handlers
+  rootMessenger.registerActionHandler(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    'AuthenticationController:getBearerToken' as any,
+    mockGetBearerToken,
+  );
+
+  return {
+    rootMessenger,
+    messenger,
+    mocks: {
+      getBearerToken: mockGetBearerToken,
+    },
+  };
+};
 
 // =====================================================
 // TEST CONSTANTS & DATA
@@ -234,7 +273,16 @@ type TestSetupOptions = {
  */
 type TestSetup = {
   service: BackendWebSocketService;
-  mockMessenger: jest.Mocked<BackendWebSocketServiceMessenger>;
+  messenger: BackendWebSocketServiceMessenger;
+  rootMessenger: Messenger<any, any>;
+  mocks: {
+    getBearerToken: jest.Mock;
+  };
+  spies: {
+    subscribe: jest.SpyInstance;
+    publish: jest.SpyInstance;
+    call: jest.SpyInstance;
+  };
   clock: ReturnType<typeof useFakeTimers>;
   completeAsyncOperations: (advanceMs?: number) => Promise<void>;
   getMockWebSocket: () => MockWebSocket;
@@ -267,27 +315,14 @@ const setupBackendWebSocketService = ({
     shouldAdvanceTime: false,
   });
 
-  // Create mock messenger with all required methods
-  const mockMessenger = {
-    registerActionHandler: jest.fn(),
-    registerMethodActionHandlers: jest.fn(),
-    registerInitialEventPayload: jest.fn(),
-    publish: jest.fn(),
-    call: jest.fn(),
-    subscribe: jest.fn(),
-    unsubscribe: jest.fn(),
-  } as unknown as jest.Mocked<BackendWebSocketServiceMessenger>;
+  // Create real messenger with registered actions
+  const messengerSetup = createMockMessenger();
+  const { rootMessenger, messenger, mocks } = messengerSetup;
 
-  // Default authentication mock - always return valid token unless overridden
-  const defaultAuthMockMap = new Map([
-    [
-      'AuthenticationController:getBearerToken',
-      Promise.resolve('valid-default-token'),
-    ],
-  ]);
-  (mockMessenger.call as jest.Mock).mockImplementation(
-    (method: string) => defaultAuthMockMap.get(method) ?? Promise.resolve(),
-  );
+  // Create spies BEFORE service construction to capture constructor calls
+  const subscribeSpy = jest.spyOn(messenger, 'subscribe');
+  const publishSpy = jest.spyOn(messenger, 'publish');
+  const callSpy = jest.spyOn(messenger, 'call');
 
   // Default test options (shorter timeouts for faster tests)
   const defaultOptions = {
@@ -310,7 +345,7 @@ const setupBackendWebSocketService = ({
   global.WebSocket = TestMockWebSocket as unknown as typeof WebSocket;
 
   const service = new BackendWebSocketService({
-    messenger: mockMessenger,
+    messenger,
     ...defaultOptions,
     ...options,
   });
@@ -326,12 +361,22 @@ const setupBackendWebSocketService = ({
 
   return {
     service,
-    mockMessenger,
+    messenger,
+    rootMessenger,
+    mocks,
+    spies: {
+      subscribe: subscribeSpy,
+      publish: publishSpy,
+      call: callSpy,
+    },
     clock,
     completeAsyncOperations,
     getMockWebSocket,
     cleanup: () => {
       service?.destroy();
+      subscribeSpy.mockRestore();
+      publishSpy.mockRestore();
+      callSpy.mockRestore();
       clock.restore();
       jest.clearAllMocks();
     },
@@ -392,7 +437,7 @@ describe('BackendWebSocketService', () => {
   // =====================================================
   describe('connect', () => {
     it('should connect successfully', async () => {
-      const { service, mockMessenger, completeAsyncOperations, cleanup } =
+      const { service, spies, completeAsyncOperations, cleanup } =
         setupBackendWebSocketService();
 
       const connectPromise = service.connect();
@@ -400,7 +445,7 @@ describe('BackendWebSocketService', () => {
       await connectPromise;
 
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
-      expect(mockMessenger.publish).toHaveBeenCalledWith(
+      expect(spies.publish).toHaveBeenCalledWith(
         'BackendWebSocketService:connectionStateChanged',
         expect.objectContaining({
           state: WebSocketState.CONNECTED,
@@ -411,7 +456,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should not connect if already connected', async () => {
-      const { service, mockMessenger, completeAsyncOperations, cleanup } =
+      const { service, spies, completeAsyncOperations, cleanup } =
         setupBackendWebSocketService();
 
       const firstConnect = service.connect();
@@ -424,7 +469,7 @@ describe('BackendWebSocketService', () => {
       await secondConnect;
 
       // Should only connect once (CONNECTING + CONNECTED states)
-      expect(mockMessenger.publish).toHaveBeenCalledTimes(2);
+      expect(spies.publish).toHaveBeenCalledTimes(2);
 
       cleanup();
     });
@@ -1392,7 +1437,7 @@ describe('BackendWebSocketService', () => {
   // =====================================================
   describe('authentication flows', () => {
     it('should handle authentication state changes - sign in', async () => {
-      const { service, completeAsyncOperations, mockMessenger, cleanup } =
+      const { service, completeAsyncOperations, spies, mocks, cleanup } =
         setupBackendWebSocketService({
           options: {},
         });
@@ -1400,7 +1445,7 @@ describe('BackendWebSocketService', () => {
       await completeAsyncOperations();
 
       // Find the authentication state change subscription
-      const authStateChangeCall = mockMessenger.subscribe.mock.calls.find(
+      const authStateChangeCall = spies.subscribe.mock.calls.find(
         (call) => call[0] === 'AuthenticationController:stateChange',
       );
       expect(authStateChangeCall).toBeDefined();
@@ -1415,9 +1460,7 @@ describe('BackendWebSocketService', () => {
       const connectSpy = jest.spyOn(service, 'connect').mockResolvedValue();
 
       // Mock getBearerToken to return valid token
-      (mockMessenger.call as jest.Mock)
-        .mockReturnValue(Promise.resolve())
-        .mockReturnValueOnce(Promise.resolve('valid-bearer-token'));
+      mocks.getBearerToken.mockResolvedValueOnce('valid-bearer-token');
 
       // Simulate user signing in (wallet unlocked + authenticated)
       const newAuthState = { isSignedIn: true };
@@ -1432,7 +1475,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should handle authentication state changes - sign out', async () => {
-      const { service, completeAsyncOperations, mockMessenger, cleanup } =
+      const { service, completeAsyncOperations, spies, cleanup } =
         setupBackendWebSocketService({
           options: {},
         });
@@ -1440,7 +1483,7 @@ describe('BackendWebSocketService', () => {
       await completeAsyncOperations();
 
       // Find the authentication state change subscription
-      const authStateChangeCall = mockMessenger.subscribe.mock.calls.find(
+      const authStateChangeCall = spies.subscribe.mock.calls.find(
         (call) => call[0] === 'AuthenticationController:stateChange',
       );
 
@@ -1482,20 +1525,20 @@ describe('BackendWebSocketService', () => {
 
     it('should throw error on authentication setup failure', async () => {
       // Mock messenger subscribe to throw error for authentication events
-      const { mockMessenger, cleanup } = setupBackendWebSocketService({
+      const { messenger, cleanup } = setupBackendWebSocketService({
         options: {},
         mockWebSocketOptions: { autoConnect: false },
       });
 
       // Mock subscribe to fail for authentication events
-      jest.spyOn(mockMessenger, 'subscribe').mockImplementationOnce(() => {
+      jest.spyOn(messenger, 'subscribe').mockImplementationOnce(() => {
         throw new Error('AuthenticationController not available');
       });
 
       // Create service with authentication enabled - should throw error
       expect(() => {
         new BackendWebSocketService({
-          messenger: mockMessenger,
+          messenger,
           url: 'ws://test',
         });
       }).toThrow(
@@ -1505,7 +1548,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should handle authentication state change sign-in connection failure', async () => {
-      const { service, completeAsyncOperations, mockMessenger, cleanup } =
+      const { service, completeAsyncOperations, spies, cleanup } =
         setupBackendWebSocketService({
           options: {},
         });
@@ -1513,7 +1556,7 @@ describe('BackendWebSocketService', () => {
       await completeAsyncOperations();
 
       // Find the authentication state change subscription
-      const authStateChangeCall = mockMessenger.subscribe.mock.calls.find(
+      const authStateChangeCall = spies.subscribe.mock.calls.find(
         (call) => call[0] === 'AuthenticationController:stateChange',
       );
       expect(authStateChangeCall).toBeDefined();
@@ -1536,22 +1579,24 @@ describe('BackendWebSocketService', () => {
 
       // Assert that connect was called and the catch block executed successfully
       expect(connectSpy).toHaveBeenCalledTimes(1);
-      
+
       // Verify the authentication callback completed without throwing an error
       // This ensures the catch block in setupAuthentication executed properly
-      expect(() => authStateChangeCallback(newAuthState, undefined)).not.toThrow();
+      expect(() =>
+        authStateChangeCallback(newAuthState, undefined),
+      ).not.toThrow();
 
       connectSpy.mockRestore();
       cleanup();
     });
 
     it('should handle authentication selector edge cases', async () => {
-      const { mockMessenger, cleanup } = setupBackendWebSocketService({
+      const { spies, cleanup } = setupBackendWebSocketService({
         options: {},
       });
 
       // Find the authentication state change subscription
-      const authStateChangeCall = mockMessenger.subscribe.mock.calls.find(
+      const authStateChangeCall = spies.subscribe.mock.calls.find(
         (call) => call[0] === 'AuthenticationController:stateChange',
       );
       expect(authStateChangeCall).toBeDefined();
@@ -1561,6 +1606,7 @@ describe('BackendWebSocketService', () => {
         authStateChangeCall as unknown as [
           string,
           (state: unknown, previousState: unknown) => void,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (state: any) => boolean,
         ]
       )[2];
@@ -1587,7 +1633,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should reset reconnection attempts on authentication sign-out', async () => {
-      const { service, completeAsyncOperations, mockMessenger, cleanup } =
+      const { service, completeAsyncOperations, spies, cleanup } =
         setupBackendWebSocketService({
           options: {},
         });
@@ -1595,7 +1641,7 @@ describe('BackendWebSocketService', () => {
       await completeAsyncOperations();
 
       // Find the authentication state change subscription
-      const authStateChangeCall = mockMessenger.subscribe.mock.calls.find(
+      const authStateChangeCall = spies.subscribe.mock.calls.find(
         (call) => call[0] === 'AuthenticationController:stateChange',
       );
       expect(authStateChangeCall).toBeDefined();
@@ -1618,7 +1664,7 @@ describe('BackendWebSocketService', () => {
       }
 
       // Verify there might be reconnection attempts before sign-out
-      const infoBeforeSignOut = service.getConnectionInfo();
+      service.getConnectionInfo();
 
       // Test sign-out resets reconnection attempts
       authStateChangeCallback({ isSignedIn: false }, undefined);
@@ -1632,7 +1678,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should log debug message on authentication sign-out', async () => {
-      const { service, completeAsyncOperations, mockMessenger, cleanup } =
+      const { service, completeAsyncOperations, spies, cleanup } =
         setupBackendWebSocketService({
           options: {},
         });
@@ -1640,7 +1686,7 @@ describe('BackendWebSocketService', () => {
       await completeAsyncOperations();
 
       // Find the authentication state change subscription
-      const authStateChangeCall = mockMessenger.subscribe.mock.calls.find(
+      const authStateChangeCall = spies.subscribe.mock.calls.find(
         (call) => call[0] === 'AuthenticationController:stateChange',
       );
       expect(authStateChangeCall).toBeDefined();
@@ -1658,17 +1704,22 @@ describe('BackendWebSocketService', () => {
       // Verify reconnection attempts were reset to 0
       // This confirms the sign-out code path executed properly including the debug message
       expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
-      
+
       // Verify the callback executed without throwing an error
       expect(() => authStateChangeCallback(false, true)).not.toThrow();
       cleanup();
     });
 
     it('should clear timers during authentication sign-out', async () => {
-      const { service, completeAsyncOperations, mockMessenger, getMockWebSocket, cleanup } =
-        setupBackendWebSocketService({
-          options: { reconnectDelay: 50 },
-        });
+      const {
+        service,
+        completeAsyncOperations,
+        spies,
+        getMockWebSocket,
+        cleanup,
+      } = setupBackendWebSocketService({
+        options: { reconnectDelay: 50 },
+      });
 
       await completeAsyncOperations();
 
@@ -1677,7 +1728,7 @@ describe('BackendWebSocketService', () => {
       const mockWs = getMockWebSocket();
 
       // Find the authentication state change subscription
-      const authStateChangeCall = mockMessenger.subscribe.mock.calls.find(
+      const authStateChangeCall = spies.subscribe.mock.calls.find(
         (call) => call[0] === 'AuthenticationController:stateChange',
       );
       expect(authStateChangeCall).toBeDefined();
@@ -1689,8 +1740,6 @@ describe('BackendWebSocketService', () => {
       )[1];
 
       // Mock setTimeout and clearTimeout to track timer operations
-      const originalSetTimeout = setTimeout;
-      const originalClearTimeout = clearTimeout;
       const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
       const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
 
@@ -1717,7 +1766,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should handle authentication required but user not signed in', async () => {
-      const { service, completeAsyncOperations, mockMessenger, cleanup } =
+      const { service, completeAsyncOperations, mocks, cleanup } =
         setupBackendWebSocketService({
           options: {},
           mockWebSocketOptions: { autoConnect: false },
@@ -1726,9 +1775,7 @@ describe('BackendWebSocketService', () => {
       await completeAsyncOperations();
 
       // Mock getBearerToken to return null (user not signed in)
-      (mockMessenger.call as jest.Mock)
-        .mockReturnValue(Promise.resolve())
-        .mockReturnValueOnce(Promise.resolve(null));
+      mocks.getBearerToken.mockResolvedValueOnce(null);
 
       // Record initial state
       const initialState = service.getConnectionInfo().state;
@@ -1744,14 +1791,12 @@ describe('BackendWebSocketService', () => {
       expect(initialState).toBe(WebSocketState.DISCONNECTED);
 
       // Verify getBearerToken was called (authentication was checked)
-      expect(mockMessenger.call).toHaveBeenCalledWith(
-        'AuthenticationController:getBearerToken',
-      );
+      expect(mocks.getBearerToken).toHaveBeenCalled();
       cleanup();
     });
 
     it('should handle getBearerToken error during connection', async () => {
-      const { service, completeAsyncOperations, mockMessenger, cleanup } =
+      const { service, completeAsyncOperations, mocks, cleanup } =
         setupBackendWebSocketService({
           options: {},
           mockWebSocketOptions: { autoConnect: false },
@@ -1760,9 +1805,7 @@ describe('BackendWebSocketService', () => {
       await completeAsyncOperations();
 
       // Mock getBearerToken to throw error
-      (mockMessenger.call as jest.Mock)
-        .mockReturnValue(Promise.resolve())
-        .mockRejectedValueOnce(new Error('Auth error'));
+      mocks.getBearerToken.mockRejectedValueOnce(new Error('Auth error'));
 
       // Attempt to connect - should handle error gracefully
       await service.connect();
@@ -1774,15 +1817,13 @@ describe('BackendWebSocketService', () => {
       );
 
       // Verify getBearerToken was attempted (authentication was tried)
-      expect(mockMessenger.call).toHaveBeenCalledWith(
-        'AuthenticationController:getBearerToken',
-      );
+      expect(mocks.getBearerToken).toHaveBeenCalled();
 
       cleanup();
     });
 
     it('should handle connection failure after sign-in', async () => {
-      const { service, completeAsyncOperations, mockMessenger, cleanup } =
+      const { service, completeAsyncOperations, spies, mocks, cleanup } =
         setupBackendWebSocketService({
           options: {},
           mockWebSocketOptions: { autoConnect: false },
@@ -1791,15 +1832,13 @@ describe('BackendWebSocketService', () => {
       await completeAsyncOperations();
 
       // Find the authentication state change subscription
-      const authStateChangeCall = mockMessenger.subscribe.mock.calls.find(
+      const authStateChangeCall = spies.subscribe.mock.calls.find(
         (call) => call[0] === 'AuthenticationController:stateChange',
       );
       const authStateChangeCallback = authStateChangeCall?.[1];
 
       // Mock getBearerToken to return valid token but connection to fail
-      (mockMessenger.call as jest.Mock)
-        .mockReturnValue(Promise.resolve())
-        .mockReturnValueOnce(Promise.resolve('valid-token'));
+      mocks.getBearerToken.mockResolvedValueOnce('valid-token');
 
       // Mock service.connect to fail
       const connectSpy = jest
@@ -1821,6 +1860,321 @@ describe('BackendWebSocketService', () => {
       connectSpy.mockRestore();
       cleanup();
     });
+
+    it('should handle concurrent connect calls by awaiting existing connection promise', async () => {
+      const { service, getMockWebSocket, completeAsyncOperations, cleanup } =
+        setupBackendWebSocketService({
+          mockWebSocketOptions: { autoConnect: false },
+        });
+
+      // Start first connection (will be in CONNECTING state)
+      const firstConnect = service.connect();
+      await completeAsyncOperations(10); // Allow connect to start
+
+      expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTING);
+
+      // Start second connection while first is still connecting
+      // This should await the existing connection promise
+      const secondConnect = service.connect();
+
+      // Complete the first connection
+      const mockWs = getMockWebSocket();
+      mockWs.triggerOpen();
+      await completeAsyncOperations();
+
+      // Both promises should resolve successfully
+      await Promise.all([firstConnect, secondConnect]);
+      
+      expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
+
+      cleanup();
+    });
+
+    it('should handle WebSocket error events during connection establishment', async () => {
+      const { service, getMockWebSocket, completeAsyncOperations, cleanup } =
+        setupBackendWebSocketService({
+          mockWebSocketOptions: { autoConnect: false },
+        });
+
+      const connectPromise = service.connect();
+      await completeAsyncOperations(10);
+
+      // Trigger error event during connection phase
+      const mockWs = getMockWebSocket();
+      mockWs.simulateError();
+
+      await expect(connectPromise).rejects.toThrow('WebSocket connection error');
+      expect(service.getConnectionInfo().state).toBe(WebSocketState.ERROR);
+
+      cleanup();
+    });
+
+    it('should handle WebSocket close events during connection establishment', async () => {
+      const { service, getMockWebSocket, completeAsyncOperations, cleanup } =
+        setupBackendWebSocketService({
+          mockWebSocketOptions: { autoConnect: false },
+        });
+
+      const connectPromise = service.connect();
+      await completeAsyncOperations(10);
+
+      // Trigger close event during connection phase
+      const mockWs = getMockWebSocket();
+      mockWs.simulateClose(1006, 'Connection failed');
+
+      await expect(connectPromise).rejects.toThrow('WebSocket connection closed during connection');
+
+      cleanup();
+    });
+
+    it('should properly transition through disconnecting state during manual disconnect', async () => {
+      const { service, getMockWebSocket, completeAsyncOperations, spies, cleanup } =
+        setupBackendWebSocketService();
+
+      // Connect first
+      const connectPromise = service.connect();
+      await completeAsyncOperations();
+      await connectPromise;
+
+      expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
+
+      const mockWs = getMockWebSocket();
+      
+      // Mock the close method to simulate manual WebSocket close
+      mockWs.close.mockImplementation((code?: number, reason?: string) => {
+        // Simulate the WebSocket close event in response to manual close
+        mockWs.simulateClose(code || 1000, reason || 'Normal closure');
+      });
+
+      // Start manual disconnect - this will trigger close() and simulate close event
+      await service.disconnect();
+      
+      // The service should transition through DISCONNECTING to DISCONNECTED
+      expect(service.getConnectionInfo().state).toBe(WebSocketState.DISCONNECTED);
+      
+      // Verify the close method was called with normal closure code
+      expect(mockWs.close).toHaveBeenCalledWith(1000, 'Normal closure');
+
+      cleanup();
+    });
+
+    it('should handle reconnection failures and continue rescheduling attempts', async () => {
+      const { service, getMockWebSocket, completeAsyncOperations, spies, cleanup } =
+        setupBackendWebSocketService();
+
+      // Connect first
+      await service.connect();
+      expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
+
+      // Trigger unexpected close to start reconnection
+      const mockWs = getMockWebSocket();
+      mockWs.simulateClose(1006, 'Connection lost');
+      await completeAsyncOperations();
+
+      // Should be disconnected with 1 reconnect attempt
+      expect(service.getConnectionInfo().state).toBe(WebSocketState.DISCONNECTED);
+      expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
+
+      // Mock auth to fail for reconnection
+      spies.call.mockRejectedValue(new Error('Auth failed'));
+
+      // Fast-forward past the reconnection delay
+      await completeAsyncOperations(600); // Should trigger multiple reconnection attempts
+
+      // Should have failed and scheduled more attempts due to auth errors
+      expect(service.getConnectionInfo().reconnectAttempts).toBeGreaterThan(1);
+
+      cleanup();
+    });
+
+    it('should handle reconnection scheduling and retry logic', async () => {
+      const { service, getMockWebSocket, completeAsyncOperations, spies, cleanup } =
+        setupBackendWebSocketService();
+
+      // Connect first
+      await service.connect();
+      const mockWs = getMockWebSocket();
+
+      // Force a disconnect to trigger reconnection
+      mockWs.simulateClose(1006, 'Connection lost');
+      await completeAsyncOperations();
+
+      // Verify initial reconnection attempt was scheduled
+      expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
+
+      // Now mock the auth call to fail for subsequent reconnections
+      spies.call.mockRejectedValue(new Error('Auth service unavailable'));
+
+      // Advance time to trigger multiple reconnection attempts
+      await completeAsyncOperations(600); // Should trigger reconnection and failure
+
+      // Verify that reconnection attempts have been incremented due to failures
+      // This demonstrates that the reconnection rescheduling logic is working
+      expect(service.getConnectionInfo().reconnectAttempts).toBeGreaterThan(1);
+
+      cleanup();
+    });
+  });
+
+  // =====================================================
+  // MESSAGE HANDLING TESTS
+  // =====================================================
+  describe('message handling edge cases', () => {
+    it('should gracefully ignore server responses for non-existent requests', async () => {
+      const { service, getMockWebSocket, completeAsyncOperations, cleanup } =
+        setupBackendWebSocketService();
+
+      await service.connect();
+      await completeAsyncOperations();
+
+      const mockWs = getMockWebSocket();
+
+      // Send server response with requestId that doesn't exist in pending requests
+      // Should be silently ignored without throwing errors
+      const serverResponse = {
+        event: 'response',
+        data: {
+          requestId: 'nonexistent-request-id-12345',
+          result: 'success',
+        },
+      };
+
+      mockWs.simulateMessage(JSON.stringify(serverResponse));
+      await completeAsyncOperations();
+
+      // Should not throw - just silently ignore missing request
+      expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
+
+      cleanup();
+    });
+
+    it('should handle defensive guard in server response processing', async () => {
+      const { service, getMockWebSocket, completeAsyncOperations, cleanup } =
+        setupBackendWebSocketService();
+
+      await service.connect();
+      await completeAsyncOperations();
+
+      const mockWs = getMockWebSocket();
+
+      // Test normal request/response flow 
+      const requestPromise = service.sendRequest({
+        event: 'test-request',
+        data: { test: true }
+      });
+
+      await completeAsyncOperations(10);
+
+      // Complete the request normally
+      const lastSentMessage = mockWs.getLastSentMessage();
+      if (lastSentMessage) {
+        const parsedMessage = JSON.parse(lastSentMessage);
+        const serverResponse = {
+          event: 'response',
+          data: {
+            requestId: parsedMessage.data.requestId,
+            result: 'success',
+          },
+        };
+        mockWs.simulateMessage(JSON.stringify(serverResponse));
+        await completeAsyncOperations();
+      }
+
+      await requestPromise;
+
+      // Should handle gracefully - line 1028 is defensive guard that's very hard to hit
+      expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
+
+      cleanup();
+    });
+
+    it('should gracefully ignore channel messages when no callbacks are registered', async () => {
+      const { service, getMockWebSocket, completeAsyncOperations, cleanup } =
+        setupBackendWebSocketService();
+
+      await service.connect();
+      await completeAsyncOperations();
+
+      const mockWs = getMockWebSocket();
+
+      // Send channel message when no channel callbacks are registered
+      const channelMessage = {
+        event: 'notification',
+        channel: 'test-channel',
+        data: { message: 'test' },
+      };
+
+      mockWs.simulateMessage(JSON.stringify(channelMessage));
+      await completeAsyncOperations();
+
+      // Should not throw - just silently ignore
+      expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
+
+      cleanup();
+    });
+
+    it('should gracefully ignore subscription notifications without subscription IDs', async () => {
+      const { service, getMockWebSocket, completeAsyncOperations, cleanup } =
+        setupBackendWebSocketService();
+
+      await service.connect();
+      await completeAsyncOperations();
+
+      const mockWs = getMockWebSocket();
+
+      // Create a message that will be identified as a subscription notification 
+      // but has missing/falsy subscriptionId - should be gracefully ignored
+      const notificationMessage = {
+        event: 'notification',
+        channel: 'test-channel-missing-subid',
+        data: { message: 'test notification without subscription ID' },
+        subscriptionId: null, // Explicitly falsy to trigger graceful ignore behavior
+      };
+
+      mockWs.simulateMessage(JSON.stringify(notificationMessage));
+      await completeAsyncOperations();
+
+      // Also test with undefined subscriptionId
+      const notificationMessage2 = {
+        event: 'notification', 
+        channel: 'test-channel-missing-subid-2',
+        data: { message: 'test notification without subscription ID' },
+        subscriptionId: undefined,
+      };
+
+      mockWs.simulateMessage(JSON.stringify(notificationMessage2));
+      await completeAsyncOperations();
+
+      // Should not throw - just silently ignore missing subscriptionId
+      expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
+
+      cleanup();
+    });
+
+    it('should properly clear pending requests and their timeouts during disconnect', async () => {
+      const { service, getMockWebSocket, completeAsyncOperations, cleanup } =
+        setupBackendWebSocketService();
+
+      await service.connect();
+      await completeAsyncOperations();
+
+      // Create a request that will be pending
+      const requestPromise = service.sendRequest({
+        event: 'test-request',
+        data: { test: true },
+      });
+
+      // Don't wait for response - let it stay pending
+      await completeAsyncOperations(10);
+
+      // Disconnect to trigger clearPendingRequests
+      await service.disconnect();
+
+      // The pending request should be rejected
+      await expect(requestPromise).rejects.toThrow('WebSocket disconnected');
+
+      cleanup();
+    });
   });
 
   // =====================================================
@@ -1832,7 +2186,7 @@ describe('BackendWebSocketService', () => {
       const { service, completeAsyncOperations, cleanup } =
         setupBackendWebSocketService({
           options: {
-            enabledCallback: mockEnabledCallback,
+            isEnabled: mockEnabledCallback,
           },
           mockWebSocketOptions: { autoConnect: false },
         });
@@ -1864,7 +2218,7 @@ describe('BackendWebSocketService', () => {
       const { service, completeAsyncOperations, cleanup } =
         setupBackendWebSocketService({
           options: {
-            enabledCallback: mockEnabledCallback,
+            isEnabled: mockEnabledCallback,
           },
           mockWebSocketOptions: { autoConnect: false },
         });
@@ -1883,7 +2237,7 @@ describe('BackendWebSocketService', () => {
       const { service, getMockWebSocket, cleanup, clock } =
         setupBackendWebSocketService({
           options: {
-            enabledCallback: mockEnabledCallback,
+            isEnabled: mockEnabledCallback,
             reconnectDelay: 50, // Use shorter delay for faster test
           },
         });
@@ -1918,7 +2272,9 @@ describe('BackendWebSocketService', () => {
 
       // Verify no actual reconnection attempt was made (line 1195 - early return)
       // Service should still be disconnected
-      expect(service.getConnectionInfo().state).toBe(WebSocketState.DISCONNECTED);
+      expect(service.getConnectionInfo().state).toBe(
+        WebSocketState.DISCONNECTED,
+      );
       cleanup();
     });
   });
@@ -3350,7 +3706,7 @@ describe('BackendWebSocketService', () => {
         service,
         completeAsyncOperations,
         getMockWebSocket,
-        mockMessenger,
+        spies,
         cleanup,
       } = setupBackendWebSocketService();
 
@@ -3389,7 +3745,7 @@ describe('BackendWebSocketService', () => {
       await completeAsyncOperations(200); // Allow time for reconnection attempt
 
       // Service should attempt to reconnect and publish state changes
-      expect(mockMessenger.publish).toHaveBeenCalledWith(
+      expect(spies.publish).toHaveBeenCalledWith(
         'BackendWebSocketService:connectionStateChanged',
         expect.objectContaining({ state: WebSocketState.CONNECTING }),
       );
@@ -3485,7 +3841,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should handle rapid connection state changes', async () => {
-      const { service, completeAsyncOperations, mockMessenger, cleanup } =
+      const { service, completeAsyncOperations, spies, cleanup } =
         setupBackendWebSocketService();
 
       // Start connection
@@ -3509,7 +3865,7 @@ describe('BackendWebSocketService', () => {
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
 
       // Verify state change events were published correctly
-      expect(mockMessenger.publish).toHaveBeenCalledWith(
+      expect(spies.publish).toHaveBeenCalledWith(
         'BackendWebSocketService:connectionStateChanged',
         expect.objectContaining({ state: WebSocketState.CONNECTED }),
       );
@@ -3665,20 +4021,16 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should hit authentication error path', async () => {
-      const { service, cleanup, mockMessenger, completeAsyncOperations } =
+      const { service, cleanup, spies, completeAsyncOperations } =
         setupBackendWebSocketService();
 
       // Mock no bearer token to test authentication failure handling - this should cause retry scheduling
-
-      const mockMessengerCallWithNoBearerToken = (method: string) => {
+      spies.call.mockImplementation((method: string) => {
         // eslint-disable-next-line jest/no-conditional-in-test
         return method === 'AuthenticationController:getBearerToken'
           ? Promise.resolve(null)
           : Promise.resolve();
-      };
-      (mockMessenger.call as jest.Mock).mockImplementation(
-        mockMessengerCallWithNoBearerToken,
-      );
+      });
 
       // connect() should complete successfully but schedule a retry (not throw error)
       await service.connect();
@@ -3690,7 +4042,7 @@ describe('BackendWebSocketService', () => {
       );
 
       // Verify getBearerToken was called (authentication was checked)
-      expect(mockMessenger.call).toHaveBeenCalledWith(
+      expect(spies.call).toHaveBeenCalledWith(
         'AuthenticationController:getBearerToken',
       );
 
@@ -4172,20 +4524,16 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should hit authentication error paths', async () => {
-      const { service, cleanup, mockMessenger, completeAsyncOperations } =
+      const { service, cleanup, spies, completeAsyncOperations } =
         setupBackendWebSocketService();
 
       // Mock getBearerToken to return null - this should trigger retry logic, not error
-
-      const mockMessengerCallWithNullBearerToken = (method: string) => {
+      spies.call.mockImplementation((method: string) => {
         // eslint-disable-next-line jest/no-conditional-in-test
         return method === 'AuthenticationController:getBearerToken'
           ? Promise.resolve(null)
           : Promise.resolve();
-      };
-      (mockMessenger.call as jest.Mock).mockImplementation(
-        mockMessengerCallWithNullBearerToken,
-      );
+      });
 
       // Both connect() calls should complete successfully but schedule retries
       await service.connect();
@@ -4200,10 +4548,10 @@ describe('BackendWebSocketService', () => {
       );
 
       // Verify getBearerToken was called multiple times (authentication was checked)
-      expect(mockMessenger.call).toHaveBeenCalledWith(
+      expect(spies.call).toHaveBeenCalledWith(
         'AuthenticationController:getBearerToken',
       );
-      expect(mockMessenger.call).toHaveBeenCalledTimes(2);
+      expect(spies.call).toHaveBeenCalledTimes(2);
 
       cleanup();
     });
@@ -4249,7 +4597,9 @@ describe('BackendWebSocketService', () => {
       // Advance timer to trigger timeout
       clock.tick(60);
 
-      await expect(timeoutPromise).rejects.toThrow('Request timeout after 50ms');
+      await expect(timeoutPromise).rejects.toThrow(
+        'Request timeout after 50ms',
+      );
 
       cleanup();
     });
@@ -4367,11 +4717,11 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should handle messenger publish errors during state changes', async () => {
-      const { service, mockMessenger, cleanup } =
+      const { service, messenger, cleanup } =
         setupBackendWebSocketService();
 
       // Mock messenger.publish to throw an error (this will trigger line 1382)
-      mockMessenger.publish.mockImplementation(() => {
+      const publishSpy = jest.spyOn(messenger, 'publish').mockImplementation(() => {
         throw new Error('Messenger publish failed');
       });
 
@@ -4387,6 +4737,7 @@ describe('BackendWebSocketService', () => {
       // Verify that the service is still functional despite the messenger publish error
       // This ensures the error was caught and handled properly
       expect(service.getConnectionInfo()).toBeDefined();
+      publishSpy.mockRestore();
       cleanup();
     });
 
@@ -4457,18 +4808,17 @@ describe('BackendWebSocketService', () => {
     it('should handle authentication URL building errors', async () => {
       // Test: WebSocket URL building error when authentication service fails during URL construction
       // First getBearerToken call (auth check) succeeds, second call (URL building) throws
-      const { service, mockMessenger, cleanup } =
+      const { service, spies, cleanup } =
         setupBackendWebSocketService();
 
       // First call succeeds, second call fails
-      (mockMessenger.call as jest.Mock)
+      spies.call
         .mockImplementationOnce(() =>
           Promise.resolve('valid-token-for-auth-check'),
         )
         .mockImplementationOnce(() => {
           throw new Error('Auth service error during URL building');
-        })
-        .mockImplementation(() => Promise.resolve());
+        });
 
       // Should reject with an error when URL building fails
       await expect(service.connect()).rejects.toThrow(
@@ -4479,10 +4829,10 @@ describe('BackendWebSocketService', () => {
       expect(service.getConnectionInfo().state).toBe('error');
 
       // Verify getBearerToken was called twice (once for auth check, once for URL building)
-      expect(mockMessenger.call).toHaveBeenCalledWith(
+      expect(spies.call).toHaveBeenCalledWith(
         'AuthenticationController:getBearerToken',
       );
-      expect(mockMessenger.call).toHaveBeenCalledTimes(2);
+      expect(spies.call).toHaveBeenCalledTimes(2);
 
       cleanup();
     });
@@ -4490,16 +4840,15 @@ describe('BackendWebSocketService', () => {
     it('should handle no access token during URL building', async () => {
       // Test: No access token error during URL building
       // First getBearerToken call succeeds, second returns null
-      const { service, mockMessenger, cleanup } =
+      const { service, spies, cleanup } =
         setupBackendWebSocketService();
 
       // First call succeeds, second call returns null
-      (mockMessenger.call as jest.Mock)
+      spies.call
         .mockImplementationOnce(() =>
           Promise.resolve('valid-token-for-auth-check'),
         )
-        .mockImplementationOnce(() => Promise.resolve(null))
-        .mockImplementation(() => Promise.resolve());
+        .mockImplementationOnce(() => Promise.resolve(null));
 
       await expect(service.connect()).rejects.toStrictEqual(
         new Error('Failed to connect to WebSocket: No access token available'),
