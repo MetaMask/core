@@ -228,3 +228,4 @@ export type {
 } from './selectors/token-selectors';
 export { selectAssetsBySelectedAccountGroup } from './selectors/token-selectors';
 export { createFormatters } from './utils/formatters';
+export { fetchSupportedNetworks } from './multi-chain-accounts-service/multi-chain-accounts';
