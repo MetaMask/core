@@ -17,7 +17,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'sendRequest',
   'subscribe',
   'getConnectionInfo',
-  'getSubscriptionByChannel',
+  'getSubscriptionsByChannel',
   'channelHasSubscription',
   'findSubscriptionsByChannelPrefix',
   'addChannelCallback',
@@ -566,22 +566,23 @@ export class BackendWebSocketService {
   }
 
   /**
-   * Gets subscription information for a specific channel
+   * Gets all subscription information for a specific channel
    *
    * @param channel - The channel name to look up
-   * @returns Subscription details or undefined if not found
+   * @returns Array of subscription details for all subscriptions containing the channel
    */
-  getSubscriptionByChannel(channel: string): WebSocketSubscription | undefined {
+  getSubscriptionsByChannel(channel: string): WebSocketSubscription[] {
+    const matchingSubscriptions: WebSocketSubscription[] = [];
     for (const [subscriptionId, subscription] of this.#subscriptions) {
       if (subscription.channels.includes(channel)) {
-        return {
+        matchingSubscriptions.push({
           subscriptionId,
           channels: subscription.channels,
           unsubscribe: subscription.unsubscribe,
-        };
+        });
       }
     }
-    return undefined;
+    return matchingSubscriptions;
   }
 
   /**

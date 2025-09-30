@@ -16,6 +16,7 @@ import type { AccountActivityServiceMethodActions } from './AccountActivityServi
 import type {
   WebSocketConnectionInfo,
   BackendWebSocketServiceConnectionStateChangedEvent,
+  WebSocketSubscription,
   ServerNotificationMessage,
 } from './BackendWebSocketService';
 import { WebSocketState } from './BackendWebSocketService';
@@ -111,7 +112,7 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'BackendWebSocketService:disconnect',
   'BackendWebSocketService:subscribe',
   'BackendWebSocketService:channelHasSubscription',
-  'BackendWebSocketService:getSubscriptionByChannel',
+  'BackendWebSocketService:getSubscriptionsByChannel',
   'BackendWebSocketService:findSubscriptionsByChannelPrefix',
   'BackendWebSocketService:addChannelCallback',
   'BackendWebSocketService:removeChannelCallback',
@@ -368,17 +369,20 @@ export class AccountActivityService {
     try {
       // Find channel for the specified address
       const channel = `${this.#options.subscriptionNamespace}.${address}`;
-      const subscriptionInfo = this.#messenger.call(
-        'BackendWebSocketService:getSubscriptionByChannel',
+      const subscriptions = this.#messenger.call(
+        'BackendWebSocketService:getSubscriptionsByChannel',
         channel,
-      );
+      ) as WebSocketSubscription[];
 
-      if (!subscriptionInfo) {
+      if (subscriptions.length === 0) {
         return;
       }
 
       // Fast path: Direct unsubscribe using stored unsubscribe function
-      await subscriptionInfo.unsubscribe();
+      // Unsubscribe from all matching subscriptions
+      for (const subscriptionInfo of subscriptions) {
+        await subscriptionInfo.unsubscribe();
+      }
     } catch (error) {
       log('Unsubscription failed, forcing reconnection', { error });
       await this.#forceReconnection();
