@@ -69,14 +69,14 @@ export type BackendWebSocketServiceGetSubscriptionByChannelAction = {
 };
 
 /**
- * Checks if a channel is currently subscribed
+ * Checks if a channel has a subscription
  *
  * @param channel - The channel name to check
- * @returns True if the channel is subscribed, false otherwise
+ * @returns True if the channel has a subscription, false otherwise
  */
-export type BackendWebSocketServiceIsChannelSubscribedAction = {
-  type: `BackendWebSocketService:isChannelSubscribed`;
-  handler: BackendWebSocketService['isChannelSubscribed'];
+export type BackendWebSocketServiceChannelHasSubscriptionAction = {
+  type: `BackendWebSocketService:channelHasSubscription`;
+  handler: BackendWebSocketService['channelHasSubscription'];
 };
 
 /**
@@ -163,7 +163,7 @@ export type BackendWebSocketServiceMethodActions =
   | BackendWebSocketServiceSendRequestAction
   | BackendWebSocketServiceGetConnectionInfoAction
   | BackendWebSocketServiceGetSubscriptionByChannelAction
-  | BackendWebSocketServiceIsChannelSubscribedAction
+  | BackendWebSocketServiceChannelHasSubscriptionAction
   | BackendWebSocketServiceFindSubscriptionsByChannelPrefixAction
   | BackendWebSocketServiceAddChannelCallbackAction
   | BackendWebSocketServiceRemoveChannelCallbackAction

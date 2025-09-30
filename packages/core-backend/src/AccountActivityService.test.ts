@@ -102,7 +102,7 @@ const createMockMessenger = () => {
   );
   rootMessenger.registerActionHandler(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    'BackendWebSocketService:isChannelSubscribed' as any,
+    'BackendWebSocketService:channelHasSubscription' as any,
     mockIsChannelSubscribed,
   );
   rootMessenger.registerActionHandler(
@@ -140,7 +140,7 @@ const createMockMessenger = () => {
       connect: mockConnect,
       disconnect: mockDisconnect,
       subscribe: mockSubscribe,
-      isChannelSubscribed: mockIsChannelSubscribed,
+      channelHasSubscription: mockIsChannelSubscribed,
       getSubscriptionByChannel: mockGetSubscriptionByChannel,
       findSubscriptionsByChannelPrefix: mockFindSubscriptionsByChannelPrefix,
       addChannelCallback: mockAddChannelCallback,
@@ -201,7 +201,7 @@ describe('AccountActivityService', () => {
       subscriptionId: 'mock-sub-id',
       unsubscribe: mockUnsubscribe,
     });
-    messengerMocks.isChannelSubscribed.mockReturnValue(false); // Default to not subscribed
+    messengerMocks.channelHasSubscription.mockReturnValue(false); // Default to not subscribed
     messengerMocks.getSubscriptionByChannel.mockReturnValue({
       subscriptionId: 'mock-sub-id',
       unsubscribe: mockUnsubscribe,
@@ -278,7 +278,7 @@ describe('AccountActivityService', () => {
         'BackendWebSocketService:connect',
         'BackendWebSocketService:disconnect',
         'BackendWebSocketService:subscribe',
-        'BackendWebSocketService:isChannelSubscribed',
+        'BackendWebSocketService:channelHasSubscription',
         'BackendWebSocketService:getSubscriptionByChannel',
         'BackendWebSocketService:findSubscriptionsByChannelPrefix',
         'BackendWebSocketService:addChannelCallback',
@@ -316,7 +316,7 @@ describe('AccountActivityService', () => {
 
       // Verify all messenger calls
       expect(messengerMocks.connect).toHaveBeenCalled();
-      expect(messengerMocks.isChannelSubscribed).toHaveBeenCalledWith(
+      expect(messengerMocks.channelHasSubscription).toHaveBeenCalledWith(
         'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
       );
       expect(messengerMocks.subscribe).toHaveBeenCalledWith(
@@ -354,7 +354,7 @@ describe('AccountActivityService', () => {
       messengerMocks.connect.mockResolvedValue(undefined);
       messengerMocks.disconnect.mockResolvedValue(undefined);
       messengerMocks.subscribe.mockRejectedValue(error);
-      messengerMocks.isChannelSubscribed.mockReturnValue(false);
+      messengerMocks.channelHasSubscription.mockReturnValue(false);
       messengerMocks.addChannelCallback.mockReturnValue(undefined);
       messengerMocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
 
@@ -382,7 +382,7 @@ describe('AccountActivityService', () => {
           unsubscribe: mockUnsubscribe,
         });
       });
-      messengerMocks.isChannelSubscribed.mockReturnValue(false);
+      messengerMocks.channelHasSubscription.mockReturnValue(false);
       messengerMocks.addChannelCallback.mockReturnValue(undefined);
       messengerMocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
 
@@ -469,7 +469,7 @@ describe('AccountActivityService', () => {
           unsubscribe: mockUnsubscribe,
         });
       });
-      messengerMocks.isChannelSubscribed.mockReturnValue(false);
+      messengerMocks.channelHasSubscription.mockReturnValue(false);
       messengerMocks.addChannelCallback.mockReturnValue(undefined);
       messengerMocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
 
@@ -595,7 +595,7 @@ describe('AccountActivityService', () => {
         subscriptionId: 'sub-new',
         unsubscribe: jest.fn().mockResolvedValue(undefined),
       });
-      eventTestMocks.isChannelSubscribed.mockReturnValue(false);
+      eventTestMocks.channelHasSubscription.mockReturnValue(false);
       eventTestMocks.addChannelCallback.mockReturnValue(undefined);
       eventTestMocks.connect.mockResolvedValue(undefined);
 
@@ -657,7 +657,7 @@ describe('AccountActivityService', () => {
 
       // Mock the required messenger calls for successful account subscription
       mocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
-      mocks.isChannelSubscribed.mockReturnValue(false); // Allow subscription to proceed
+      mocks.channelHasSubscription.mockReturnValue(false); // Allow subscription to proceed
       mocks.subscribe.mockResolvedValue({
         subscriptionId: 'sub-reconnect',
         channels: [
@@ -884,7 +884,7 @@ describe('AccountActivityService', () => {
           unsubscribe: mockUnsubscribe,
         });
       });
-      messengerMocks.isChannelSubscribed.mockReturnValue(false);
+      messengerMocks.channelHasSubscription.mockReturnValue(false);
       messengerMocks.addChannelCallback.mockReturnValue(undefined);
       messengerMocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
 
@@ -985,7 +985,7 @@ describe('AccountActivityService', () => {
         subscriptionId: 'sub-123',
         unsubscribe: mockUnsubscribe,
       });
-      customMocks.isChannelSubscribed.mockReturnValue(false); // Make sure it returns false so subscription proceeds
+      customMocks.channelHasSubscription.mockReturnValue(false); // Make sure it returns false so subscription proceeds
       customMocks.addChannelCallback.mockReturnValue(undefined);
       customMocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
 
@@ -1058,10 +1058,10 @@ describe('AccountActivityService', () => {
     it('should handle already subscribed account scenario', async () => {
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
 
-      // Mock messenger to return true for isChannelSubscribed (already subscribed)
+      // Mock messenger to return true for channelHasSubscription (already subscribed)
       messengerMocks.connect.mockResolvedValue(undefined);
       messengerMocks.disconnect.mockResolvedValue(undefined);
-      messengerMocks.isChannelSubscribed.mockReturnValue(true); // Already subscribed
+      messengerMocks.channelHasSubscription.mockReturnValue(true); // Already subscribed
       messengerMocks.addChannelCallback.mockReturnValue(undefined);
       messengerMocks.getSelectedAccount.mockReturnValue(testAccount);
 
@@ -1310,7 +1310,7 @@ describe('AccountActivityService', () => {
       });
 
       // Should use Solana address format (test passes just by calling subscribeAccounts)
-      expect(solanaMocks.isChannelSubscribed).toHaveBeenCalledWith(
+      expect(solanaMocks.channelHasSubscription).toHaveBeenCalledWith(
         expect.stringContaining('abc123solana'),
       );
 
@@ -1341,8 +1341,8 @@ describe('AccountActivityService', () => {
         mocks.connect.mockResolvedValue(undefined);
         mocks.disconnect.mockRejectedValue(new Error('Disconnect failed'));
         mocks.addChannelCallback.mockReturnValue(undefined);
-        // CRITICAL: Mock isChannelSubscribed to return false so account change proceeds to unsubscribe logic
-        mocks.isChannelSubscribed.mockReturnValue(false);
+        // CRITICAL: Mock channelHasSubscription to return false so account change proceeds to unsubscribe logic
+        mocks.channelHasSubscription.mockReturnValue(false);
 
         // Mock existing subscriptions that need to be unsubscribed
         const mockUnsubscribeExisting = jest.fn().mockResolvedValue(undefined);
@@ -1403,7 +1403,7 @@ describe('AccountActivityService', () => {
         throw new Error('Subscription service unavailable');
       });
       mocks.addChannelCallback.mockReturnValue(undefined);
-      mocks.isChannelSubscribed.mockReturnValue(false);
+      mocks.channelHasSubscription.mockReturnValue(false);
 
       // Try to subscribe - should handle the error gracefully
       await service.subscribeAccounts({ address: '0x123abc' });
@@ -1477,7 +1477,7 @@ describe('AccountActivityService', () => {
 
       // Mock to test the convertToCaip10Address method path
       mocks.connect.mockResolvedValue(undefined);
-      mocks.isChannelSubscribed.mockReturnValue(false); // Not subscribed, so will proceed with subscription
+      mocks.channelHasSubscription.mockReturnValue(false); // Not subscribed, so will proceed with subscription
       mocks.addChannelCallback.mockReturnValue(undefined);
       mocks.findSubscriptionsByChannelPrefix.mockReturnValue([]); // No existing subscriptions
       mocks.subscribe.mockResolvedValue({
@@ -1530,7 +1530,7 @@ describe('AccountActivityService', () => {
 
       // Mock to test the convertToCaip10Address fallback path
       mocks.connect.mockResolvedValue(undefined);
-      mocks.isChannelSubscribed.mockReturnValue(false); // Not subscribed, so will proceed with subscription
+      mocks.channelHasSubscription.mockReturnValue(false); // Not subscribed, so will proceed with subscription
       mocks.addChannelCallback.mockReturnValue(undefined);
       mocks.findSubscriptionsByChannelPrefix.mockReturnValue([]); // No existing subscriptions
       mocks.subscribe.mockResolvedValue({
@@ -1577,7 +1577,7 @@ describe('AccountActivityService', () => {
 
       // Mock to trigger account change failure that leads to force reconnection
       mocks.connect.mockResolvedValue(undefined);
-      mocks.isChannelSubscribed.mockReturnValue(false);
+      mocks.channelHasSubscription.mockReturnValue(false);
       mocks.findSubscriptionsByChannelPrefix.mockReturnValue([]);
       mocks.subscribe.mockImplementation(() => {
         throw new Error('Subscribe failed'); // Trigger lines 488-492
@@ -1612,7 +1612,7 @@ describe('AccountActivityService', () => {
 
       // Test lines 649-655 with different account types
       mocks.connect.mockResolvedValue(undefined);
-      mocks.isChannelSubscribed.mockReturnValue(false);
+      mocks.channelHasSubscription.mockReturnValue(false);
       mocks.subscribe.mockResolvedValue({
         subscriptionId: 'unknown-test',
         unsubscribe: jest.fn(),
@@ -1745,7 +1745,7 @@ describe('AccountActivityService', () => {
         subscriptionId: 'sub-123',
         unsubscribe: mockUnsubscribeLocal,
       });
-      messengerMocks.isChannelSubscribed.mockReturnValue(false); // Allow subscription to proceed
+      messengerMocks.channelHasSubscription.mockReturnValue(false); // Allow subscription to proceed
       messengerMocks.getSubscriptionByChannel.mockReturnValue({
         subscriptionId: 'sub-123',
         channels: [
@@ -1780,7 +1780,7 @@ describe('AccountActivityService', () => {
           unsubscribe: mockUnsubscribe,
         });
       });
-      messengerMocks.isChannelSubscribed.mockReturnValue(false);
+      messengerMocks.channelHasSubscription.mockReturnValue(false);
       messengerMocks.addChannelCallback.mockReturnValue(undefined);
       messengerMocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
 
@@ -1825,7 +1825,7 @@ describe('AccountActivityService', () => {
       const { mocks } = createIndependentService();
 
       // Check that no subscriptions are active initially
-      expect(mocks.isChannelSubscribed).not.toHaveBeenCalledWith(
+      expect(mocks.channelHasSubscription).not.toHaveBeenCalledWith(
         expect.any(String),
       );
       // Verify no subscription calls were made
@@ -1842,7 +1842,7 @@ describe('AccountActivityService', () => {
         subscriptionId: 'sub-123',
         unsubscribe: mockUnsubscribe,
       });
-      mocks.isChannelSubscribed.mockReturnValue(false); // Allow subscription to proceed
+      mocks.channelHasSubscription.mockReturnValue(false); // Allow subscription to proceed
       mocks.addChannelCallback.mockReturnValue(undefined);
       mocks.getSelectedAccount.mockReturnValue(testAccount);
 
@@ -1912,7 +1912,7 @@ describe('AccountActivityService', () => {
         subscriptionId: 'test-sub-id',
         unsubscribe: mockUnsubscribeLocal,
       });
-      mocks.isChannelSubscribed.mockReturnValue(false); // Allow subscription to proceed
+      mocks.channelHasSubscription.mockReturnValue(false); // Allow subscription to proceed
       mocks.getSubscriptionByChannel.mockReturnValue({
         subscriptionId: 'test-sub-id',
         channels: [`account-activity.v1.${testAccount.address.toLowerCase()}`],
@@ -2036,7 +2036,7 @@ describe('AccountActivityService', () => {
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
       mocks.getSelectedAccount.mockReturnValue(testAccount);
-      mocks.isChannelSubscribed.mockReturnValue(false); // Allow subscription to proceed
+      mocks.channelHasSubscription.mockReturnValue(false); // Allow subscription to proceed
       mocks.addChannelCallback.mockReturnValue(undefined);
       mocks.connect.mockResolvedValue(undefined);
 
@@ -2114,7 +2114,7 @@ describe('AccountActivityService', () => {
       mocks.subscribe.mockRejectedValue(
         new Error('WebSocket connection failed'),
       );
-      mocks.isChannelSubscribed.mockReturnValue(false);
+      mocks.channelHasSubscription.mockReturnValue(false);
       mocks.addChannelCallback.mockReturnValue(undefined);
       mocks.getSelectedAccount.mockReturnValue(testAccount);
 
@@ -2209,7 +2209,7 @@ describe('AccountActivityService', () => {
         subscriptionId: 'test-subscription',
         unsubscribe: mockUnsubscribeLocal,
       });
-      mocks.isChannelSubscribed.mockReturnValue(false); // Always allow subscription to proceed
+      mocks.channelHasSubscription.mockReturnValue(false); // Always allow subscription to proceed
       mocks.getSubscriptionByChannel.mockReturnValue({
         subscriptionId: 'test-subscription',
         channels: [`account-activity.v1.${testAccount.address.toLowerCase()}`],
@@ -2262,7 +2262,7 @@ describe('AccountActivityService', () => {
           unsubscribe: jest.fn().mockResolvedValue(undefined),
         });
       });
-      mocks.isChannelSubscribed.mockReturnValue(false); // Always allow new subscriptions
+      mocks.channelHasSubscription.mockReturnValue(false); // Always allow new subscriptions
       mocks.findSubscriptionsByChannelPrefix.mockReturnValue([]);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mocks.getSubscriptionByChannel.mockImplementation((channel: any) => {
@@ -2331,7 +2331,7 @@ describe('AccountActivityService', () => {
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
       mocks.getSelectedAccount.mockReturnValue(testAccount);
-      mocks.isChannelSubscribed.mockReturnValue(false); // Allow subscription to proceed
+      mocks.channelHasSubscription.mockReturnValue(false); // Allow subscription to proceed
       mocks.addChannelCallback.mockReturnValue(undefined);
       mocks.connect.mockResolvedValue(undefined);
 
@@ -2414,7 +2414,7 @@ describe('AccountActivityService', () => {
           unsubscribe: jest.fn(),
         });
       });
-      mocks.isChannelSubscribed.mockReturnValue(false);
+      mocks.channelHasSubscription.mockReturnValue(false);
       mocks.addChannelCallback.mockReturnValue(undefined);
       mocks.getSelectedAccount.mockReturnValue(testAccount);
 
@@ -2483,7 +2483,7 @@ describe('AccountActivityService', () => {
         subscriptionId: 'persistent-sub',
         unsubscribe: jest.fn().mockResolvedValue(undefined),
       });
-      mocks.isChannelSubscribed.mockReturnValue(false);
+      mocks.channelHasSubscription.mockReturnValue(false);
       mocks.findSubscriptionsByChannelPrefix.mockReturnValue([]); // Mock empty subscriptions found
       mocks.addChannelCallback.mockReturnValue(undefined);
       mocks.removeChannelCallback.mockReturnValue(undefined);
@@ -2520,7 +2520,7 @@ describe('AccountActivityService', () => {
         subscriptionId: 'restart-sub',
         unsubscribe: jest.fn().mockResolvedValue(undefined),
       });
-      newServiceMocks.isChannelSubscribed.mockReturnValue(false);
+      newServiceMocks.channelHasSubscription.mockReturnValue(false);
       newServiceMocks.addChannelCallback.mockReturnValue(undefined);
       newServiceMocks.getSelectedAccount.mockReturnValue(testAccount);
 
@@ -2632,7 +2632,7 @@ describe('AccountActivityService', () => {
       mocks.connect.mockResolvedValue(undefined);
       mocks.disconnect.mockResolvedValue(undefined);
       mocks.subscribe.mockRejectedValue(new Error('Connection timeout')); // First call fails, subsequent calls succeed (not needed for this simple test)
-      mocks.isChannelSubscribed.mockReturnValue(false);
+      mocks.channelHasSubscription.mockReturnValue(false);
       mocks.findSubscriptionsByChannelPrefix.mockReturnValue([]); // Mock empty subscriptions found
       mocks.addChannelCallback.mockReturnValue(undefined);
       mocks.getSelectedAccount.mockReturnValue(testAccount);
@@ -2680,7 +2680,7 @@ describe('AccountActivityService', () => {
         subscriptionId: 'simple-test-123',
         unsubscribe: jest.fn(),
       });
-      mocks.isChannelSubscribed.mockReturnValue(false);
+      mocks.channelHasSubscription.mockReturnValue(false);
 
       // Simple subscription test
       await service.subscribeAccounts({
@@ -2736,7 +2736,7 @@ describe('AccountActivityService', () => {
         subscriptionId: 'edge-sub-123',
         unsubscribe: jest.fn(),
       });
-      mocks.isChannelSubscribed.mockReturnValue(false);
+      mocks.channelHasSubscription.mockReturnValue(false);
       mocks.addChannelCallback.mockReturnValue(undefined);
       mocks.getSubscriptionByChannel.mockReturnValue({
         subscriptionId: 'edge-sub-123',
@@ -2763,7 +2763,7 @@ describe('AccountActivityService', () => {
       mocks.subscribe.mockResolvedValueOnce({
         unsubscribe: jest.fn(),
       });
-      mocks.isChannelSubscribed.mockReturnValue(false); // Allow subscription to proceed
+      mocks.channelHasSubscription.mockReturnValue(false); // Allow subscription to proceed
       mocks.addChannelCallback.mockReturnValue(undefined);
       mocks.connect.mockResolvedValue(undefined);
 
@@ -2791,7 +2791,7 @@ describe('AccountActivityService', () => {
 
       // Setup basic mocks
       mocks.connect.mockResolvedValue(undefined);
-      mocks.isChannelSubscribed.mockReturnValue(false);
+      mocks.channelHasSubscription.mockReturnValue(false);
       mocks.addChannelCallback.mockReturnValue(undefined);
 
       // Hit connection error (line 578)
@@ -2836,8 +2836,8 @@ describe('AccountActivityService', () => {
         messenger: testMessenger,
       });
 
-      // Mock isChannelSubscribed to return true for the specific channel we're testing
-      mocks.isChannelSubscribed.mockImplementation((channel: string) => {
+      // Mock channelHasSubscription to return true for the specific channel we're testing
+      mocks.channelHasSubscription.mockImplementation((channel: string) => {
         // Return true for the channel we're testing to trigger early return
         if (channel === 'account-activity.v1.eip155:0:0x123abc') {
           return true;
@@ -2873,7 +2873,7 @@ describe('AccountActivityService', () => {
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
 
       // Mock methods to simulate error scenario
-      mocks.isChannelSubscribed.mockReturnValue(false); // Not subscribed
+      mocks.channelHasSubscription.mockReturnValue(false); // Not subscribed
       mocks.findSubscriptionsByChannelPrefix.mockImplementation(() => {
         throw new Error('Failed to find subscriptions');
       });
@@ -2917,7 +2917,7 @@ describe('AccountActivityService', () => {
       // Mock disconnect to fail
       mocks.disconnect.mockRejectedValue(new Error('Disconnect failed'));
       mocks.connect.mockResolvedValue(undefined);
-      mocks.isChannelSubscribed.mockReturnValue(false);
+      mocks.channelHasSubscription.mockReturnValue(false);
       mocks.addChannelCallback.mockReturnValue(undefined);
 
       // Trigger scenario that causes force reconnection by making subscribe fail

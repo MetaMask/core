@@ -1,5 +1,6 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import { getErrorMessage } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
 
 import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
@@ -17,7 +18,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'subscribe',
   'getConnectionInfo',
   'getSubscriptionByChannel',
-  'isChannelSubscribed',
+  'channelHasSubscription',
   'findSubscriptionsByChannelPrefix',
   'addChannelCallback',
   'removeChannelCallback',
@@ -361,9 +362,7 @@ export class BackendWebSocketService {
           state?.isSignedIn ?? false,
       );
     } catch (error) {
-      throw new Error(
-        `Authentication setup failed: ${this.#getErrorMessage(error)}`,
-      );
+      throw new Error(`Authentication setup failed: ${getErrorMessage(error)}`);
     }
   }
 
@@ -432,7 +431,7 @@ export class BackendWebSocketService {
       await this.#connectionPromise;
       log('Connection attempt succeeded');
     } catch (error) {
-      const errorMessage = this.#getErrorMessage(error);
+      const errorMessage = getErrorMessage(error);
       log('Connection attempt failed', { errorMessage, error });
       this.#setState(WebSocketState.ERROR);
 
@@ -485,7 +484,7 @@ export class BackendWebSocketService {
     try {
       this.#ws.send(JSON.stringify(message));
     } catch (error) {
-      const errorMessage = this.#getErrorMessage(error);
+      const errorMessage = getErrorMessage(error);
       this.#handleError(new Error(errorMessage));
       throw new Error(errorMessage);
     }
@@ -586,12 +585,12 @@ export class BackendWebSocketService {
   }
 
   /**
-   * Checks if a channel is currently subscribed
+   * Checks if a channel has a subscription
    *
    * @param channel - The channel name to check
-   * @returns True if the channel is subscribed, false otherwise
+   * @returns True if the channel has a subscription, false otherwise
    */
-  isChannelSubscribed(channel: string): boolean {
+  channelHasSubscription(channel: string): boolean {
     for (const subscription of this.#subscriptions.values()) {
       if (subscription.channels.includes(channel)) {
         return true;
@@ -1274,16 +1273,6 @@ export class BackendWebSocketService {
   // =============================================================================
   // 7. UTILITY METHODS (PRIVATE)
   // =============================================================================
-
-  /**
-   * Extracts error message from unknown error type
-   *
-   * @param error - Error of unknown type
-   * @returns Error message string
-   */
-  #getErrorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
-  }
 
   /**
    * Determines if reconnection should be attempted based on close code

@@ -967,7 +967,7 @@ describe('BackendWebSocketService', () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
         setupBackendWebSocketService();
 
-      expect(service.isChannelSubscribed('test-channel')).toBe(false);
+      expect(service.channelHasSubscription('test-channel')).toBe(false);
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -1001,10 +1001,10 @@ describe('BackendWebSocketService', () => {
       await completeAsyncOperations();
 
       await subscriptionPromise;
-      expect(service.isChannelSubscribed('test-channel')).toBe(true);
+      expect(service.channelHasSubscription('test-channel')).toBe(true);
 
       // Also test nonexistent channel
-      expect(service.isChannelSubscribed('nonexistent-channel')).toBe(false);
+      expect(service.channelHasSubscription('nonexistent-channel')).toBe(false);
 
       cleanup();
     });
@@ -1319,8 +1319,8 @@ describe('BackendWebSocketService', () => {
       await completeAsyncOperations();
       await connectPromise;
 
-      // Initially no subscriptions - verify through isChannelSubscribed
-      expect(service.isChannelSubscribed(TEST_CONSTANTS.TEST_CHANNEL)).toBe(
+      // Initially no subscriptions - verify through channelHasSubscription
+      expect(service.channelHasSubscription(TEST_CONSTANTS.TEST_CHANNEL)).toBe(
         false,
       );
 
@@ -1344,7 +1344,7 @@ describe('BackendWebSocketService', () => {
       await subscriptionPromise;
 
       // Should show subscription is active
-      expect(service.isChannelSubscribed(TEST_CONSTANTS.TEST_CHANNEL)).toBe(
+      expect(service.channelHasSubscription(TEST_CONSTANTS.TEST_CHANNEL)).toBe(
         true,
       );
 
@@ -2549,7 +2549,7 @@ describe('BackendWebSocketService', () => {
       expect(service.getConnectionInfo().state).toBe(
         WebSocketState.DISCONNECTED,
       );
-      expect(service.isChannelSubscribed('any-channel')).toBe(false);
+      expect(service.channelHasSubscription('any-channel')).toBe(false);
 
       cleanup();
     });
@@ -2586,8 +2586,8 @@ describe('BackendWebSocketService', () => {
       expect(subscription.subscriptionId).toBe('all-success-sub');
 
       // Test that channels are properly registered
-      expect(service.isChannelSubscribed('success-channel-1')).toBe(true);
-      expect(service.isChannelSubscribed('success-channel-2')).toBe(true);
+      expect(service.channelHasSubscription('success-channel-1')).toBe(true);
+      expect(service.channelHasSubscription('success-channel-2')).toBe(true);
 
       cleanup();
     });
@@ -2829,8 +2829,8 @@ describe('BackendWebSocketService', () => {
       await service.connect();
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
 
-      // Test isChannelSubscribed with different states
-      expect(service.isChannelSubscribed('test-channel')).toBe(false);
+      // Test channelHasSubscription with different states
+      expect(service.channelHasSubscription('test-channel')).toBe(false);
 
       // Test findSubscriptionsByChannelPrefix with empty results
       const matches = service.findSubscriptionsByChannelPrefix('non-existent');
@@ -2924,11 +2924,11 @@ describe('BackendWebSocketService', () => {
       });
 
       // Test various state queries
-      expect(service.isChannelSubscribed('non-existent')).toBe(false);
+      expect(service.channelHasSubscription('non-existent')).toBe(false);
 
       // Test with different channel names
-      expect(service.isChannelSubscribed('')).toBe(false);
-      expect(service.isChannelSubscribed('test.channel.name')).toBe(false);
+      expect(service.channelHasSubscription('')).toBe(false);
+      expect(service.channelHasSubscription('test.channel.name')).toBe(false);
 
       // Test findSubscriptionsByChannelPrefix edge cases
       expect(service.findSubscriptionsByChannelPrefix('')).toStrictEqual([]);
@@ -2950,7 +2950,7 @@ describe('BackendWebSocketService', () => {
       expect(service.getConnectionInfo().state).toBe(
         WebSocketState.DISCONNECTED,
       );
-      expect(service.isChannelSubscribed('any-test')).toBe(false);
+      expect(service.channelHasSubscription('any-test')).toBe(false);
 
       // Test multiple findSubscriptionsByChannelPrefix calls
       expect(service.findSubscriptionsByChannelPrefix('test')).toStrictEqual(
@@ -3060,7 +3060,7 @@ describe('BackendWebSocketService', () => {
       });
 
       // Test subscription query methods
-      expect(service.isChannelSubscribed('test-channel')).toBe(false);
+      expect(service.channelHasSubscription('test-channel')).toBe(false);
       expect(service.findSubscriptionsByChannelPrefix('test')).toStrictEqual(
         [],
       );
@@ -3075,7 +3075,9 @@ describe('BackendWebSocketService', () => {
       });
 
       // Test different utility methods
-      expect(service.isChannelSubscribed('non-existent-channel')).toBe(false);
+      expect(service.channelHasSubscription('non-existent-channel')).toBe(
+        false,
+      );
       expect(
         service.findSubscriptionsByChannelPrefix('non-existent'),
       ).toStrictEqual([]);
@@ -3104,7 +3106,9 @@ describe('BackendWebSocketService', () => {
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
 
       // Test various channel subscription checks
-      expect(service.isChannelSubscribed('non-existent-channel')).toBe(false);
+      expect(service.channelHasSubscription('non-existent-channel')).toBe(
+        false,
+      );
       expect(
         service.findSubscriptionsByChannelPrefix('non-existent'),
       ).toStrictEqual([]);
@@ -3146,7 +3150,7 @@ describe('BackendWebSocketService', () => {
       expect(service.getConnectionInfo().state).toBe(
         WebSocketState.DISCONNECTED,
       );
-      expect(service.isChannelSubscribed('test')).toBe(false);
+      expect(service.channelHasSubscription('test')).toBe(false);
 
       // Test some utility methods that don't require connection
       expect(service.findSubscriptionsByChannelPrefix('test')).toStrictEqual(
@@ -3163,7 +3167,7 @@ describe('BackendWebSocketService', () => {
       expect(service.getConnectionInfo().state).toBe(
         WebSocketState.DISCONNECTED,
       );
-      expect(service.isChannelSubscribed('test')).toBe(false);
+      expect(service.channelHasSubscription('test')).toBe(false);
       expect(service.findSubscriptionsByChannelPrefix('prefix')).toStrictEqual(
         [],
       );
@@ -3230,7 +3234,7 @@ describe('BackendWebSocketService', () => {
       await service.connect();
 
       // Test various utility methods
-      expect(service.isChannelSubscribed('test')).toBe(false);
+      expect(service.channelHasSubscription('test')).toBe(false);
       expect(service.findSubscriptionsByChannelPrefix('test')).toStrictEqual(
         [],
       );
@@ -3245,7 +3249,7 @@ describe('BackendWebSocketService', () => {
       expect(service.getConnectionInfo().state).toBe(
         WebSocketState.DISCONNECTED,
       );
-      expect(service.isChannelSubscribed('test')).toBe(false);
+      expect(service.channelHasSubscription('test')).toBe(false);
       expect(service.findSubscriptionsByChannelPrefix('test')).toStrictEqual(
         [],
       );
@@ -3631,9 +3635,9 @@ describe('BackendWebSocketService', () => {
       await subscription2Promise;
 
       // Verify both subscriptions exist
-      expect(service.isChannelSubscribed('channel-1')).toBe(true);
-      expect(service.isChannelSubscribed('channel-2')).toBe(true);
-      expect(service.isChannelSubscribed('channel-3')).toBe(true);
+      expect(service.channelHasSubscription('channel-1')).toBe(true);
+      expect(service.channelHasSubscription('channel-2')).toBe(true);
+      expect(service.channelHasSubscription('channel-3')).toBe(true);
 
       // Send notifications to different channels with subscription IDs
       const notification1 = {
@@ -3671,9 +3675,9 @@ describe('BackendWebSocketService', () => {
       await completeAsyncOperations();
       await unsubscribePromise;
 
-      expect(service.isChannelSubscribed('channel-1')).toBe(false);
-      expect(service.isChannelSubscribed('channel-2')).toBe(false);
-      expect(service.isChannelSubscribed('channel-3')).toBe(true);
+      expect(service.channelHasSubscription('channel-1')).toBe(false);
+      expect(service.channelHasSubscription('channel-2')).toBe(false);
+      expect(service.channelHasSubscription('channel-3')).toBe(true);
 
       cleanup();
     });
@@ -3713,7 +3717,7 @@ describe('BackendWebSocketService', () => {
 
       // Verify initial connection state
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
-      expect(service.isChannelSubscribed(TEST_CONSTANTS.TEST_CHANNEL)).toBe(
+      expect(service.channelHasSubscription(TEST_CONSTANTS.TEST_CHANNEL)).toBe(
         true,
       );
 
@@ -3770,9 +3774,9 @@ describe('BackendWebSocketService', () => {
       await rejectionCheck;
 
       // No channels should be subscribed when the subscription fails
-      expect(service.isChannelSubscribed('valid-channel')).toBe(false);
-      expect(service.isChannelSubscribed('another-valid')).toBe(false);
-      expect(service.isChannelSubscribed('invalid-channel')).toBe(false);
+      expect(service.channelHasSubscription('valid-channel')).toBe(false);
+      expect(service.channelHasSubscription('another-valid')).toBe(false);
+      expect(service.channelHasSubscription('invalid-channel')).toBe(false);
 
       cleanup();
     });
@@ -3811,8 +3815,8 @@ describe('BackendWebSocketService', () => {
       expect(subscription.subscriptionId).toBe('success-sub');
 
       // All successful channels should be subscribed
-      expect(service.isChannelSubscribed('valid-channel-1')).toBe(true);
-      expect(service.isChannelSubscribed('valid-channel-2')).toBe(true);
+      expect(service.channelHasSubscription('valid-channel-1')).toBe(true);
+      expect(service.channelHasSubscription('valid-channel-2')).toBe(true);
 
       cleanup();
     });
@@ -3949,8 +3953,8 @@ describe('BackendWebSocketService', () => {
 
       expect(subscription1.subscriptionId).toBe('sub-concurrent-1');
       expect(subscription2.subscriptionId).toBe('sub-concurrent-2');
-      expect(service.isChannelSubscribed('concurrent-1')).toBe(true);
-      expect(service.isChannelSubscribed('concurrent-2')).toBe(true);
+      expect(service.channelHasSubscription('concurrent-1')).toBe(true);
+      expect(service.channelHasSubscription('concurrent-2')).toBe(true);
 
       cleanup();
     });
@@ -4114,7 +4118,7 @@ describe('BackendWebSocketService', () => {
 
       // Test 2: Test simple synchronous utility methods
       expect(service.getConnectionInfo().state).toBe('connected');
-      expect(service.isChannelSubscribed('nonexistent')).toBe(false);
+      expect(service.channelHasSubscription('nonexistent')).toBe(false);
       expect(service.findSubscriptionsByChannelPrefix('test')).toStrictEqual(
         [],
       );
@@ -4129,7 +4133,7 @@ describe('BackendWebSocketService', () => {
       expect(service.getConnectionInfo().state).toBe(
         WebSocketState.DISCONNECTED,
       );
-      expect(service.isChannelSubscribed('test')).toBe(false);
+      expect(service.channelHasSubscription('test')).toBe(false);
       expect(service.findSubscriptionsByChannelPrefix('test')).toStrictEqual(
         [],
       );
@@ -4158,7 +4162,7 @@ describe('BackendWebSocketService', () => {
 
       // Verify service is still connected after handling unknown messages
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
-      expect(service.isChannelSubscribed('unknown-channel')).toBe(false);
+      expect(service.channelHasSubscription('unknown-channel')).toBe(false);
 
       cleanup();
     });
@@ -4210,7 +4214,7 @@ describe('BackendWebSocketService', () => {
 
       // Verify service handled unknown messages gracefully
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
-      expect(service.isChannelSubscribed('unknown-channel')).toBe(false);
+      expect(service.channelHasSubscription('unknown-channel')).toBe(false);
 
       cleanup();
     });
@@ -4236,7 +4240,7 @@ describe('BackendWebSocketService', () => {
       mockWs.simulateClose(1006, 'Test close');
 
       // Verify channel callback was registered but not called for different channel
-      expect(service.isChannelSubscribed('callback-channel')).toBe(false);
+      expect(service.channelHasSubscription('callback-channel')).toBe(false);
       expect(service.getConnectionInfo()).toBeDefined();
 
       cleanup();
@@ -4275,7 +4279,7 @@ describe('BackendWebSocketService', () => {
 
       // Verify service handled all unknown messages gracefully
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
-      expect(service.isChannelSubscribed('unknown-channel')).toBe(false);
+      expect(service.channelHasSubscription('unknown-channel')).toBe(false);
       expect(service.findSubscriptionsByChannelPrefix('unknown')).toStrictEqual(
         [],
       );
@@ -4331,7 +4335,7 @@ describe('BackendWebSocketService', () => {
 
       // Verify service handled unknown messages gracefully
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
-      expect(service.isChannelSubscribed('unknown-channel')).toBe(false);
+      expect(service.channelHasSubscription('unknown-channel')).toBe(false);
 
       cleanup();
     });
@@ -4424,7 +4428,7 @@ describe('BackendWebSocketService', () => {
 
       // Hit utility method paths - these are synchronous and safe
       expect(service.getConnectionInfo().state).toBe('disconnected');
-      expect(service.isChannelSubscribed('non-existent')).toBe(false);
+      expect(service.channelHasSubscription('non-existent')).toBe(false);
       expect(service.findSubscriptionsByChannelPrefix('missing')).toStrictEqual(
         [],
       );
@@ -4470,7 +4474,7 @@ describe('BackendWebSocketService', () => {
       expect(info.state).toBe('disconnected');
 
       // Test utility methods
-      expect(service.isChannelSubscribed('test-channel')).toBe(false);
+      expect(service.channelHasSubscription('test-channel')).toBe(false);
       expect(service.findSubscriptionsByChannelPrefix('test')).toStrictEqual(
         [],
       );
@@ -4542,7 +4546,7 @@ describe('BackendWebSocketService', () => {
       expect(info.state).toBe('disconnected');
 
       // Hit utility methods
-      expect(service.isChannelSubscribed('test-channel')).toBe(false);
+      expect(service.channelHasSubscription('test-channel')).toBe(false);
       expect(service.findSubscriptionsByChannelPrefix('test')).toStrictEqual(
         [],
       );
@@ -4645,7 +4649,7 @@ describe('BackendWebSocketService', () => {
 
       // Hit various utility method branches
       expect(service.getConnectionInfo()).toBeDefined();
-      expect(service.isChannelSubscribed('non-existent')).toBe(false);
+      expect(service.channelHasSubscription('non-existent')).toBe(false);
       expect(service.findSubscriptionsByChannelPrefix('test')).toStrictEqual(
         [],
       );
