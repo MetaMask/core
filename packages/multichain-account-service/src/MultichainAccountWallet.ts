@@ -1,21 +1,19 @@
-import {
-  getGroupIndexFromMultichainAccountGroupId,
-  isMultichainAccountGroupId,
-  toMultichainAccountWalletId,
-} from '@metamask/account-api';
-import { toDefaultAccountGroupId } from '@metamask/account-api';
-import { AccountWalletType } from '@metamask/account-api';
 import type {
+  AccountGroupId,
   Bip44Account,
   MultichainAccountWalletId,
   MultichainAccountWallet as MultichainAccountWalletDefinition,
   MultichainAccountWalletStatus,
 } from '@metamask/account-api';
-import type { AccountGroupId } from '@metamask/account-api';
 import {
-  type EntropySourceId,
-  type KeyringAccount,
-} from '@metamask/keyring-api';
+  AccountWalletType,
+  getGroupIndexFromMultichainAccountGroupId,
+  isMultichainAccountGroupId,
+  toDefaultAccountGroupId,
+  toMultichainAccountWalletId,
+} from '@metamask/account-api';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import { assert } from '@metamask/superstruct';
 import { Mutex } from 'async-mutex';
 
 import type { Logger } from './logger';
@@ -28,7 +26,6 @@ import {
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 import { EvmAccountProvider, type NamedAccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
-import assert from 'assert';
 
 /**
  * The context for a provider discovery.

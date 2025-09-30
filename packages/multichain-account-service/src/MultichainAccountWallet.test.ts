@@ -344,8 +344,8 @@ describe('MultichainAccountWallet', () => {
 
       await wallet.createMultichainAccountGroup(groupIndex);
 
-      await expect(
-        wallet.createMultichainAccountGroup(groupIndex),
+      expect(
+        await wallet.createMultichainAccountGroup(groupIndex),
       ).resolves.toBeDefined();
       await new Promise(process.nextTick);
       expect(mockSolProviderError).toHaveBeenCalled();
