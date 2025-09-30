@@ -13,7 +13,7 @@ import {
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
-import { assert } from '@metamask/superstruct';
+import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
 import type { Logger } from './logger';
