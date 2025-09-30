@@ -128,6 +128,8 @@ function setup({
     SolAccountProvider: makeMockAccountProvider(),
   };
 
+  Object.setPrototypeOf(mocks.EvmAccountProvider, EvmAccountProvider.prototype);
+
   mocks.KeyringController.getState.mockImplementation(() => ({
     isUnlocked: true,
     keyrings: mocks.KeyringController.keyrings,
