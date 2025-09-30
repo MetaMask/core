@@ -343,7 +343,7 @@ export class MultichainAccountWallet<
       } catch (error) {
         const errorMessage = `Unable to create multichain account group for index: ${groupIndex} with provider "${evmProvider.getName()}"`;
         this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
-        throw new Error(errorMessage);
+        throw new Error(errorMessage, { cause: error });
       }
 
       // Create account with other providers in the background

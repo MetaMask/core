@@ -65,7 +65,8 @@ export function setupNamedAccountProvider({
   mocks.createAccounts.mockResolvedValue([]);
 
   if (index === 0) {
-    // change mocks to be instance of EvmAccountProvider
+    // Make the first provider to always be an `EvmAccountProvider`, since we
+    // check for this pre-condition in some methods. 
     Object.setPrototypeOf(mocks, EvmAccountProvider.prototype);
   }
 

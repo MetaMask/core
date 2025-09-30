@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Only await for EVM account creation in `MultichainAccountWallet.createMultichainAccountGroup()` instead of all types of providers ([#6755](https://github.com/MetaMask/core/pull/6755))
   - Other type of providers will create accounts in the background and won't throw errors in case they fail to do so.
+  - Multichain account groups will now be "misaligned" for a short period of time, until each of the other providers finish creating their accounts.
 
 ## [1.3.0]
 
