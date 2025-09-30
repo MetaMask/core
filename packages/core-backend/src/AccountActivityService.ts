@@ -27,6 +27,30 @@ import type {
   AccountActivityMessage,
   BalanceUpdate,
 } from './types';
+/**
+ * Fetches supported networks from the v2 API endpoint.
+ * Returns chain IDs already in CAIP-2 format.
+ *
+ * @returns Array of supported chain IDs in CAIP-2 format (e.g., "eip155:1")
+ */
+async function fetchSupportedChainsInCaipFormat(): Promise<string[]> {
+  const url = 'https://accounts.api.cx.metamask.io/v2/supportedNetworks';
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch supported networks: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  const data: {
+    fullSupport: string[];
+    partialSupport: { balances: string[] };
+  } = await response.json();
+
+  // v2 endpoint already returns data in CAIP-2 format
+  return data.fullSupport;
+}
 
 /**
  * System notification data for chain status updates
@@ -47,7 +71,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'unsubscribeAccounts',
 ] as const;
 
-// Temporary list of supported chains for fallback polling - this hardcoded list will be replaced with a dynamic logic
+// Default supported chains used as fallback when API is unavailable
+// This list should match the expected chains from the accounts API v2/supportedNetworks endpoint
 const SUPPORTED_CHAINS = [
   'eip155:1', // Ethereum Mainnet
   'eip155:137', // Polygon
@@ -196,6 +221,60 @@ export class AccountActivityService {
   readonly #messenger: AccountActivityServiceMessenger;
 
   readonly #options: Required<AccountActivityServiceOptions>;
+
+  #supportedChains: string[] | null = null;
+
+  #supportedChainsLastFetch: number = 0;
+
+  // Cache supported chains for 5 hours
+  readonly #supportedChainsCacheTtl = 5 * 60 * 60 * 1000;
+
+  /**
+   * Fetch supported chains from API with fallback to hardcoded list.
+   * Uses caching to avoid excessive API calls.
+   *
+   * @returns Array of supported chain IDs in CAIP-2 format
+   */
+  async #getSupportedChains(): Promise<string[]> {
+    const now = Date.now();
+
+    // Return cached result if still valid
+    if (
+      this.#supportedChains &&
+      now - this.#supportedChainsLastFetch < this.#supportedChainsCacheTtl
+    ) {
+      return this.#supportedChains;
+    }
+
+    try {
+      // Try to fetch from API
+      const apiChains = await fetchSupportedChainsInCaipFormat();
+      this.#supportedChains = apiChains;
+      this.#supportedChainsLastFetch = now;
+
+      log('Successfully fetched supported chains from API', {
+        count: apiChains.length,
+        chains: apiChains,
+      });
+
+      return apiChains;
+    } catch (error) {
+      log('Failed to fetch supported chains from API, using fallback', {
+        error,
+      });
+
+      // Fallback to hardcoded list
+      const fallbackChains = Array.from(SUPPORTED_CHAINS);
+
+      // Only update cache if we don't have any cached data
+      if (!this.#supportedChains) {
+        this.#supportedChains = fallbackChains;
+        this.#supportedChainsLastFetch = now;
+      }
+
+      return this.#supportedChains;
+    }
+  }
 
   /**
    * Creates a new Account Activity service instance
@@ -514,14 +593,18 @@ export class AccountActivityService {
       try {
         await this.#subscribeSelectedAccount();
 
+        // Get current supported chains from API or fallback
+        const supportedChains = await this.#getSupportedChains();
+
         // Publish initial status - all supported chains are up when WebSocket connects
         this.#messenger.publish(`AccountActivityService:statusChanged`, {
-          chainIds: Array.from(SUPPORTED_CHAINS),
+          chainIds: supportedChains,
           status: 'up' as const,
         });
 
         log('WebSocket connected - Published all chains as up', {
-          chains: SUPPORTED_CHAINS,
+          count: supportedChains.length,
+          chains: supportedChains,
         });
       } catch (error) {
         log('Failed to resubscribe to selected account', { error });
@@ -530,13 +613,17 @@ export class AccountActivityService {
       state === WebSocketState.DISCONNECTED ||
       state === WebSocketState.ERROR
     ) {
+      // Get current supported chains for down status
+      const supportedChains = await this.#getSupportedChains();
+
       this.#messenger.publish(`AccountActivityService:statusChanged`, {
-        chainIds: Array.from(SUPPORTED_CHAINS),
+        chainIds: supportedChains,
         status: 'down' as const,
       });
 
       log('WebSocket error/disconnection - Published all chains as down', {
-        chains: SUPPORTED_CHAINS,
+        count: supportedChains.length,
+        chains: supportedChains,
       });
     }
   }

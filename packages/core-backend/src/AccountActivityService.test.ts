@@ -17,6 +17,10 @@ import type {
 import { WebSocketState } from './BackendWebSocketService';
 import type { AccountActivityMessage } from './types';
 
+// Mock global fetch for API testing
+const mockFetch = jest.fn();
+global.fetch = mockFetch;
+
 // Test helper constants - using string literals to avoid import errors
 enum ChainId {
   mainnet = '0x1',
@@ -684,6 +688,15 @@ describe('AccountActivityService', () => {
       // Set up publish spy BEFORE triggering callback
       const publishSpy = jest.spyOn(testMessenger, 'publish');
 
+      // Mock successful API response for supported networks
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          fullSupport: ['eip155:1', 'eip155:137', 'eip155:56'],
+          partialSupport: { balances: ['eip155:42220'] },
+        }),
+      });
+
       // Simulate connection established - this now triggers async behavior
       await connectionStateChangeCallback(
         {
@@ -698,6 +711,7 @@ describe('AccountActivityService', () => {
         'AccountActivityService:statusChanged',
         expect.objectContaining({
           status: 'up',
+          chainIds: ['eip155:1', 'eip155:137', 'eip155:56'],
         }),
       );
 
@@ -705,7 +719,7 @@ describe('AccountActivityService', () => {
       testService.destroy();
     });
 
-    it('should handle connectionStateChanged event when disconnected', () => {
+    it('should handle connectionStateChanged event when disconnected', async () => {
       // Create independent service with spy set up before construction
       const { messenger: testMessenger } = createMockMessenger();
 
@@ -732,8 +746,17 @@ describe('AccountActivityService', () => {
       // Set up publish spy BEFORE triggering callback
       const publishSpy = jest.spyOn(testMessenger, 'publish');
 
+      // Mock API response for supported networks (used when getting cached/fallback data)
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          fullSupport: ['eip155:1', 'eip155:137', 'eip155:56'],
+          partialSupport: { balances: ['eip155:42220'] },
+        }),
+      });
+
       // Simulate connection lost
-      connectionStateChangeCallback(
+      await connectionStateChangeCallback(
         {
           state: WebSocketState.DISCONNECTED,
           url: 'ws://localhost:8080',
@@ -747,11 +770,306 @@ describe('AccountActivityService', () => {
         'AccountActivityService:statusChanged',
         expect.objectContaining({
           status: 'down',
+          chainIds: ['eip155:1', 'eip155:137', 'eip155:56'],
         }),
       );
 
       // Clean up
       testService.destroy();
+    });
+
+    describe('dynamic supported chains', () => {
+      it('should fetch supported chains from API on first WebSocket connection', async () => {
+        const { messenger: testMessenger } = createMockMessenger();
+        const subscribeSpy = jest.spyOn(testMessenger, 'subscribe');
+
+        const testService = new AccountActivityService({
+          messenger: testMessenger,
+        });
+
+        const connectionStateChangeCall = subscribeSpy.mock.calls.find(
+          (call: unknown[]) =>
+            call[0] === 'BackendWebSocketService:connectionStateChanged',
+        );
+        if (!connectionStateChangeCall) {
+          throw new Error('connectionStateChangeCall is undefined');
+        }
+        const connectionStateChangeCallback = connectionStateChangeCall[1];
+
+        jest.clearAllMocks();
+        const publishSpy = jest.spyOn(testMessenger, 'publish');
+
+        // Mock API response
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            fullSupport: ['eip155:1', 'eip155:137', 'eip155:8453'],
+            partialSupport: { balances: ['eip155:42220'] },
+          }),
+        });
+
+        await connectionStateChangeCallback(
+          {
+            state: WebSocketState.CONNECTED,
+            url: 'ws://localhost:8080',
+            reconnectAttempts: 0,
+          },
+          undefined,
+        );
+
+        // Verify API was called
+        expect(mockFetch).toHaveBeenCalledWith(
+          'https://accounts.api.cx.metamask.io/v2/supportedNetworks',
+        );
+
+        // Verify correct chains were published
+        expect(publishSpy).toHaveBeenCalledWith(
+          'AccountActivityService:statusChanged',
+          expect.objectContaining({
+            status: 'up',
+            chainIds: ['eip155:1', 'eip155:137', 'eip155:8453'],
+          }),
+        );
+
+        testService.destroy();
+      });
+
+      it('should use cached supported chains within 5-hour window', async () => {
+        const { messenger: testMessenger } = createMockMessenger();
+        const subscribeSpy = jest.spyOn(testMessenger, 'subscribe');
+
+        const testService = new AccountActivityService({
+          messenger: testMessenger,
+        });
+
+        const connectionStateChangeCall = subscribeSpy.mock.calls.find(
+          (call: unknown[]) =>
+            call[0] === 'BackendWebSocketService:connectionStateChanged',
+        );
+        if (!connectionStateChangeCall) {
+          throw new Error('connectionStateChangeCall is undefined');
+        }
+        const connectionStateChangeCallback = connectionStateChangeCall[1];
+
+        jest.clearAllMocks();
+
+        // First call - should fetch from API
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            fullSupport: ['eip155:1', 'eip155:137'],
+            partialSupport: { balances: [] },
+          }),
+        });
+
+        await connectionStateChangeCallback(
+          {
+            state: WebSocketState.CONNECTED,
+            url: 'ws://localhost:8080',
+            reconnectAttempts: 0,
+          },
+          undefined,
+        );
+
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+
+        // Second call immediately after - should use cache
+        jest.clearAllMocks();
+        mockFetch.mockClear();
+
+        await connectionStateChangeCallback(
+          {
+            state: WebSocketState.DISCONNECTED,
+            url: 'ws://localhost:8080',
+            reconnectAttempts: 0,
+          },
+          undefined,
+        );
+
+        // Should not call API again (using cache)
+        expect(mockFetch).not.toHaveBeenCalled();
+
+        testService.destroy();
+      });
+
+      it('should fallback to hardcoded chains when API fails', async () => {
+        const { messenger: testMessenger } = createMockMessenger();
+        const subscribeSpy = jest.spyOn(testMessenger, 'subscribe');
+
+        const testService = new AccountActivityService({
+          messenger: testMessenger,
+        });
+
+        const connectionStateChangeCall = subscribeSpy.mock.calls.find(
+          (call: unknown[]) =>
+            call[0] === 'BackendWebSocketService:connectionStateChanged',
+        );
+        if (!connectionStateChangeCall) {
+          throw new Error('connectionStateChangeCall is undefined');
+        }
+        const connectionStateChangeCallback = connectionStateChangeCall[1];
+
+        jest.clearAllMocks();
+        const publishSpy = jest.spyOn(testMessenger, 'publish');
+
+        // Mock API failure
+        mockFetch.mockRejectedValueOnce(new Error('Network error'));
+
+        await connectionStateChangeCallback(
+          {
+            state: WebSocketState.CONNECTED,
+            url: 'ws://localhost:8080',
+            reconnectAttempts: 0,
+          },
+          undefined,
+        );
+
+        // Should fallback to hardcoded chains
+        expect(publishSpy).toHaveBeenCalledWith(
+          'AccountActivityService:statusChanged',
+          expect.objectContaining({
+            status: 'up',
+            chainIds: [
+              'eip155:1',
+              'eip155:137',
+              'eip155:56',
+              'eip155:59144',
+              'eip155:8453',
+              'eip155:10',
+              'eip155:42161',
+              'eip155:534352',
+              'eip155:1329',
+            ],
+          }),
+        );
+
+        testService.destroy();
+      });
+
+      it('should handle API returning non-200 status', async () => {
+        const { messenger: testMessenger } = createMockMessenger();
+        const subscribeSpy = jest.spyOn(testMessenger, 'subscribe');
+
+        const testService = new AccountActivityService({
+          messenger: testMessenger,
+        });
+
+        const connectionStateChangeCall = subscribeSpy.mock.calls.find(
+          (call: unknown[]) =>
+            call[0] === 'BackendWebSocketService:connectionStateChanged',
+        );
+        if (!connectionStateChangeCall) {
+          throw new Error('connectionStateChangeCall is undefined');
+        }
+        const connectionStateChangeCallback = connectionStateChangeCall[1];
+
+        jest.clearAllMocks();
+        const publishSpy = jest.spyOn(testMessenger, 'publish');
+
+        // Mock 500 error response
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+        });
+
+        await connectionStateChangeCallback(
+          {
+            state: WebSocketState.CONNECTED,
+            url: 'ws://localhost:8080',
+            reconnectAttempts: 0,
+          },
+          undefined,
+        );
+
+        // Should fallback to hardcoded chains
+        expect(publishSpy).toHaveBeenCalledWith(
+          'AccountActivityService:statusChanged',
+          expect.objectContaining({
+            status: 'up',
+            chainIds: expect.arrayContaining([
+              'eip155:1',
+              'eip155:137',
+              'eip155:56',
+            ]),
+          }),
+        );
+
+        testService.destroy();
+      });
+
+      it('should expire cache after 5 hours and refetch', async () => {
+        const { messenger: testMessenger } = createMockMessenger();
+        const subscribeSpy = jest.spyOn(testMessenger, 'subscribe');
+
+        const testService = new AccountActivityService({
+          messenger: testMessenger,
+        });
+
+        const connectionStateChangeCall = subscribeSpy.mock.calls.find(
+          (call: unknown[]) =>
+            call[0] === 'BackendWebSocketService:connectionStateChanged',
+        );
+        if (!connectionStateChangeCall) {
+          throw new Error('connectionStateChangeCall is undefined');
+        }
+        const connectionStateChangeCallback = connectionStateChangeCall[1];
+
+        jest.clearAllMocks();
+
+        // First call
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            fullSupport: ['eip155:1'],
+            partialSupport: { balances: [] },
+          }),
+        });
+
+        await connectionStateChangeCallback(
+          {
+            state: WebSocketState.CONNECTED,
+            url: 'ws://localhost:8080',
+            reconnectAttempts: 0,
+          },
+          undefined,
+        );
+
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+
+        // Mock time passing (5 hours + 1 second)
+        const originalDateNow = Date.now;
+        jest
+          .spyOn(Date, 'now')
+          .mockImplementation(
+            () => originalDateNow.call(Date) + 5 * 60 * 60 * 1000 + 1000,
+          );
+
+        // Second call after cache expires
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            fullSupport: ['eip155:1', 'eip155:137', 'eip155:8453'],
+            partialSupport: { balances: [] },
+          }),
+        });
+
+        await connectionStateChangeCallback(
+          {
+            state: WebSocketState.CONNECTED,
+            url: 'ws://localhost:8080',
+            reconnectAttempts: 0,
+          },
+          undefined,
+        );
+
+        // Should call API again since cache expired
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+
+        // Restore original Date.now
+        Date.now = originalDateNow;
+        testService.destroy();
+      });
     });
 
     it('should handle system notifications for chain status', () => {
@@ -3044,6 +3362,7 @@ describe('AccountActivityService', () => {
 
   afterEach(() => {
     jest.restoreAllMocks(); // Clean up any spies created by individual tests
+    mockFetch.mockReset(); // Reset fetch mock between tests
     // Note: Timer cleanup is handled by individual tests as needed
   });
 });
