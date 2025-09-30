@@ -86,7 +86,7 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'BackendWebSocketService:connect',
   'BackendWebSocketService:disconnect',
   'BackendWebSocketService:subscribe',
-  'BackendWebSocketService:isChannelSubscribed',
+  'BackendWebSocketService:channelHasSubscription',
   'BackendWebSocketService:getSubscriptionByChannel',
   'BackendWebSocketService:findSubscriptionsByChannelPrefix',
   'BackendWebSocketService:addChannelCallback',
@@ -197,9 +197,6 @@ export class AccountActivityService {
 
   readonly #options: Required<AccountActivityServiceOptions>;
 
-  // BackendWebSocketService is the source of truth for subscription state
-  // Using BackendWebSocketService:findSubscriptionsByChannelPrefix() for cleanup
-
   /**
    * Creates a new Account Activity service instance
    *
@@ -260,7 +257,7 @@ export class AccountActivityService {
       // Check if already subscribed
       if (
         this.#messenger.call(
-          'BackendWebSocketService:isChannelSubscribed',
+          'BackendWebSocketService:channelHasSubscription',
           channel,
         )
       ) {
@@ -370,7 +367,7 @@ export class AccountActivityService {
       // If already subscribed to this account, no need to change
       if (
         this.#messenger.call(
-          'BackendWebSocketService:isChannelSubscribed',
+          'BackendWebSocketService:channelHasSubscription',
           newChannel,
         )
       ) {
@@ -418,7 +415,7 @@ export class AccountActivityService {
   async #subscribeSelectedAccount(): Promise<void> {
     const selectedAccount = this.#messenger.call(
       'AccountsController:getSelectedAccount',
-    ) as InternalAccount;
+    );
 
     if (!selectedAccount || !selectedAccount.address) {
       return;
@@ -431,7 +428,7 @@ export class AccountActivityService {
     // Only subscribe if we're not already subscribed to this account
     if (
       !this.#messenger.call(
-        'BackendWebSocketService:isChannelSubscribed',
+        'BackendWebSocketService:channelHasSubscription',
         channel,
       )
     ) {
@@ -447,7 +444,7 @@ export class AccountActivityService {
     const accountActivitySubscriptions = this.#messenger.call(
       'BackendWebSocketService:findSubscriptionsByChannelPrefix',
       this.#options.subscriptionNamespace,
-    ) as WebSocketSubscription[];
+    );
 
     // Ensure we have an array before iterating
     if (Array.isArray(accountActivitySubscriptions)) {
