@@ -16,7 +16,6 @@ import type { AccountActivityServiceMethodActions } from './AccountActivityServi
 import type {
   WebSocketConnectionInfo,
   BackendWebSocketServiceConnectionStateChangedEvent,
-  WebSocketSubscription,
   ServerNotificationMessage,
 } from './BackendWebSocketService';
 import { WebSocketState } from './BackendWebSocketService';
@@ -372,7 +371,7 @@ export class AccountActivityService {
       const subscriptionInfo = this.#messenger.call(
         'BackendWebSocketService:getSubscriptionByChannel',
         channel,
-      ) as WebSocketSubscription | undefined;
+      );
 
       if (!subscriptionInfo) {
         return;
@@ -637,10 +636,6 @@ export class AccountActivityService {
    * Optimized for fast cleanup during service destruction or mobile app termination
    */
   destroy(): void {
-    this.#unsubscribeFromAllAccountActivity().catch(() => {
-      // Ignore errors during cleanup - service is being destroyed
-    });
-
     // Clean up system notification callback
     this.#messenger.call(
       'BackendWebSocketService:removeChannelCallback',
@@ -668,5 +663,9 @@ export class AccountActivityService {
     this.#messenger.clearEventSubscriptions(
       'AccountActivityService:statusChanged',
     );
+
+    this.#unsubscribeFromAllAccountActivity().catch(() => {
+      // Ignore errors during cleanup - service is being destroyed
+    });
   }
 }
