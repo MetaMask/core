@@ -669,39 +669,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     });
   };
 
-  fetchQuoteStream = async (
-    quoteRequest: GenericQuoteRequest,
-    abortSignal: AbortSignal | null = null,
-  ): Promise<void> => {
-    await fetchBridgeQuoteStream(
-      this.#fetchFn,
-      quoteRequest,
-      abortSignal,
-      this.#clientId,
-
-      this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
-      {
-        onValidationFailures: (validationFailures: string[]) => {
-          console.log('===validationFailures', validationFailures);
-          this.#trackResponseValidationFailures(validationFailures);
-        },
-        onValidQuotesReceived: async (quotes: QuoteResponse[]) => {
-          console.log('===event', quotes);
-          const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);
-          const quotesWithNonEvmFees = await this.#appendNonEvmFees(quotes);
-          const quotesWithFees =
-            quotesWithL1GasFees ?? quotesWithNonEvmFees ?? quotes;
-          this.update((state) => {
-            state.quotes.push(...quotesWithFees);
-          });
-        },
-        onerror: (event) => {
-          console.log('===event error', event);
-        },
-      },
-    );
-  };
-
   readonly #fetchBridgeQuoteStream = async ({
     networkClientId: _networkClientId,
     updatedQuoteRequest,
@@ -740,22 +707,46 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           this.#setMinimumBalanceForRentExemptionInLamports(
             updatedQuoteRequest.srcChainId,
           );
-          await this.fetchQuoteStream(
+          await fetchBridgeQuoteStream(
+            this.#fetchFn,
             updatedQuoteRequest,
             // AbortController is always defined by this line, because we assign it a few lines above,
             // not sure why Jest thinks it's not
             // Linters accurately say that it's defined
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             this.#abortController!.signal as AbortSignal,
+            this.#clientId,
+            this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+            {
+              onValidationFailures: (validationFailures: string[]) => {
+                console.log('===validationFailures', validationFailures);
+                this.#trackResponseValidationFailures(validationFailures);
+              },
+              onValidQuotesReceived: async (quotes: QuoteResponse[]) => {
+                console.log('===event', quotes);
+                const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);
+                // TODO replace with non-evm fees
+                const quotesWithNonEvmFees =
+                  await this.#appendSolanaFees(quotes);
+                const quotesWithFees =
+                  quotesWithL1GasFees ?? quotesWithNonEvmFees ?? quotes;
+                this.update((state) => {
+                  state.quotes.push(...quotesWithFees);
+                });
+              },
+              // Catches errors thrown by onmessage (network errors)
+              onError: (event) => {
+                throw new Error(event.message);
+              },
+            },
           );
-
-          this.update((state) => {
-            state.quotesLoadingStatus = RequestStatus.FETCHED;
-          });
         },
       );
+      this.update((state) => {
+        state.quotesLoadingStatus = RequestStatus.FETCHED;
+      });
     } catch (error) {
-      console.log('=====error', error);
+      console.log('=====catcherror', error);
       const isAbortError = (error as Error).name === 'AbortError';
       if (
         isAbortError ||
@@ -765,6 +756,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           AbortReason.QuoteRequestUpdated,
         ].includes(error as AbortReason)
       ) {
+        console.log('===Aborting stream due to abort error.', error);
         // Exit the function early to prevent other state updates
         return;
       }
@@ -779,7 +771,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         UnifiedSwapBridgeEventName.QuotesError,
         context,
       );
-      console.log('Failed to fetch bridge quotes', error);
+      console.log('Failed to stream bridge quotes.', error);
     }
     const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
     const { maxRefreshCount } = bridgeFeatureFlags;

@@ -270,7 +270,7 @@ export const fetchAssetPrices = async (
  * @param serverEventHandlers - The server event handlers
  * @param serverEventHandlers.onValidationFailures - The function to handle validation failures
  * @param serverEventHandlers.onValidQuotesReceived - The function to handle valid quotes
- * @param serverEventHandlers.onerror - The function to handle errors
+ * @param serverEventHandlers.onError - The function to handle errors
  * @returns A list of bridge tx quotes
  */
 export async function fetchBridgeQuoteStream(
@@ -281,8 +281,8 @@ export async function fetchBridgeQuoteStream(
   bridgeApiBaseUrl: string,
   serverEventHandlers: {
     onValidationFailures: (validationFailures: string[]) => void;
-    onValidQuotesReceived: (quotes: QuoteResponse[]) => void;
-    onerror: (event: EventSourceMessage) => void;
+    onValidQuotesReceived: (quotes: QuoteResponse[]) => Promise<void>;
+    onError?: (event: Error) => void;
   },
 ): Promise<void> {
   const destWalletAddress = request.destWalletAddress ?? request.walletAddress;
@@ -325,11 +325,20 @@ export async function fetchBridgeQuoteStream(
       return;
     }
     const quoteResponse = JSON.parse(event.data);
+
     try {
       // TODO validate bitcoin quote
       validateQuoteResponse(quoteResponse);
 
-      serverEventHandlers.onValidQuotesReceived([quoteResponse]);
+      serverEventHandlers
+        .onValidQuotesReceived([quoteResponse])
+        .then((v) => {
+          console.log('===onValidQuotesReceived success');
+          return v;
+        })
+        .catch(() => {
+          console.error('===onValidQuotesReceived error');
+        });
     } catch (error) {
       if (error instanceof StructError) {
         error.failures().forEach(({ branch, path }) => {
@@ -356,10 +365,10 @@ export async function fetchBridgeQuoteStream(
     headers: getClientIdHeader(clientId),
     signal,
     onmessage: onMessage,
-    onerror: serverEventHandlers.onerror,
-    onclose: () => {
-      console.log('===onclose', 'should loading be set here?');
-    },
+    onerror: serverEventHandlers.onError,
+    // onclose: () => {
+    //   console.log('===onclose', 'should loading be set here?');
+    // },
     // fetch: fetchFn,
   });
 }
