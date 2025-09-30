@@ -21,12 +21,12 @@ import type {
 } from './BackendWebSocketService';
 import { WebSocketState } from './BackendWebSocketService';
 import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
+import { projectLogger, createModuleLogger } from './logger';
 import type {
   Transaction,
   AccountActivityMessage,
   BalanceUpdate,
 } from './types';
-import { projectLogger, createModuleLogger } from './logger';
 
 /**
  * System notification data for chain status updates
@@ -334,9 +334,9 @@ export class AccountActivityService {
   #handleAccountActivityUpdate(payload: AccountActivityMessage): void {
     const { address, tx, updates } = payload;
 
-    log('Handling account activity update', { 
-      address, 
-      updateCount: updates.length 
+    log('Handling account activity update', {
+      address,
+      updateCount: updates.length,
     });
 
     // Process transaction update
@@ -523,8 +523,8 @@ export class AccountActivityService {
           status: 'up' as const,
         });
 
-        log('WebSocket connected - Published all chains as up', { 
-          chains: SUPPORTED_CHAINS 
+        log('WebSocket connected - Published all chains as up', {
+          chains: SUPPORTED_CHAINS,
         });
       } catch (error) {
         log('Failed to resubscribe to selected account', { error });
@@ -538,8 +538,8 @@ export class AccountActivityService {
         status: 'down' as const,
       });
 
-      log('WebSocket error/disconnection - Published all chains as down', { 
-        chains: SUPPORTED_CHAINS 
+      log('WebSocket error/disconnection - Published all chains as down', {
+        chains: SUPPORTED_CHAINS,
       });
     }
   }

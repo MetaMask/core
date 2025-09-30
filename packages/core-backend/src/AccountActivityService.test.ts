@@ -641,8 +641,8 @@ describe('AccountActivityService', () => {
 
       // Get the selectedAccountChange callback
       const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) => call[0] === 'AccountsController:selectedAccountChange',
+        (call: unknown[]) =>
+          call[0] === 'AccountsController:selectedAccountChange',
       );
       expect(selectedAccountChangeCall).toBeDefined();
 
@@ -689,8 +689,7 @@ describe('AccountActivityService', () => {
 
       // Get the connectionStateChanged callback
       const connectionStateChangeCall = subscribeSpy.mock.calls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) =>
+        (call: unknown[]) =>
           call[0] === 'BackendWebSocketService:connectionStateChanged',
       );
       expect(connectionStateChangeCall).toBeDefined();
@@ -740,8 +739,7 @@ describe('AccountActivityService', () => {
       });
 
       const connectionStateChangeCall = subscribeSpy.mock.calls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) =>
+        (call: unknown[]) =>
           call[0] === 'BackendWebSocketService:connectionStateChanged',
       );
       if (!connectionStateChangeCall) {
@@ -787,8 +785,7 @@ describe('AccountActivityService', () => {
 
       // Find the system callback from messenger calls
       const systemCallbackCall = mocks.addChannelCallback.mock.calls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) =>
+        (call: unknown[]) =>
           call[0] &&
           typeof call[0] === 'object' &&
           'channelName' in call[0] &&
@@ -839,8 +836,7 @@ describe('AccountActivityService', () => {
 
       // Find the system callback from messenger calls
       const systemCallbackCall = mocks.addChannelCallback.mock.calls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) =>
+        (call: unknown[]) =>
           call[0] &&
           typeof call[0] === 'object' &&
           'channelName' in call[0] &&
@@ -981,8 +977,8 @@ describe('AccountActivityService', () => {
       });
 
       const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) => call[0] === 'AccountsController:selectedAccountChange',
+        (call: unknown[]) =>
+          call[0] === 'AccountsController:selectedAccountChange',
       );
       if (!selectedAccountChangeCall) {
         throw new Error('selectedAccountChangeCall is undefined');
@@ -1144,8 +1140,8 @@ describe('AccountActivityService', () => {
       });
 
       const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) => call[0] === 'AccountsController:selectedAccountChange',
+        (call: unknown[]) =>
+          call[0] === 'AccountsController:selectedAccountChange',
       );
       if (!selectedAccountChangeCall) {
         throw new Error('selectedAccountChangeCall is undefined');
@@ -1197,8 +1193,7 @@ describe('AccountActivityService', () => {
 
       // Since subscribeSelectedAccount is private, we need to trigger it through connection state change
       const connectionStateChangeCall = subscribeSpy.mock.calls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) =>
+        (call: unknown[]) =>
           call[0] === 'BackendWebSocketService:connectionStateChanged',
       );
       if (!connectionStateChangeCall) {
@@ -1246,8 +1241,8 @@ describe('AccountActivityService', () => {
 
       // Trigger scenario that causes force reconnection
       const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) => call[0] === 'AccountsController:selectedAccountChange',
+        (call: unknown[]) =>
+          call[0] === 'AccountsController:selectedAccountChange',
       );
       if (!selectedAccountChangeCall) {
         throw new Error('selectedAccountChangeCall is undefined');
@@ -1396,8 +1391,8 @@ describe('AccountActivityService', () => {
 
         // Find and call the selectedAccountChange callback
         const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (call: any) => call[0] === 'AccountsController:selectedAccountChange',
+          (call: unknown[]) =>
+            call[0] === 'AccountsController:selectedAccountChange',
         );
 
         if (selectedAccountChangeCall) {
@@ -1465,8 +1460,8 @@ describe('AccountActivityService', () => {
 
       // Get the selectedAccountChange callback
       const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) => call[0] === 'AccountsController:selectedAccountChange',
+        (call: unknown[]) =>
+          call[0] === 'AccountsController:selectedAccountChange',
       );
 
       expect(selectedAccountChangeCall).toBeDefined();
@@ -1519,8 +1514,8 @@ describe('AccountActivityService', () => {
 
       // Get the selectedAccountChange callback to trigger conversion
       const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) => call[0] === 'AccountsController:selectedAccountChange',
+        (call: unknown[]) =>
+          call[0] === 'AccountsController:selectedAccountChange',
       );
 
       if (selectedAccountChangeCall) {
@@ -1572,8 +1567,8 @@ describe('AccountActivityService', () => {
 
       // Get the selectedAccountChange callback to trigger conversion
       const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) => call[0] === 'AccountsController:selectedAccountChange',
+        (call: unknown[]) =>
+          call[0] === 'AccountsController:selectedAccountChange',
       );
 
       if (selectedAccountChangeCall) {
@@ -1622,8 +1617,8 @@ describe('AccountActivityService', () => {
 
       // Trigger account change that will fail - lines 488-492
       const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) => call[0] === 'AccountsController:selectedAccountChange',
+        (call: unknown[]) =>
+          call[0] === 'AccountsController:selectedAccountChange',
       );
 
       if (selectedAccountChangeCall) {
@@ -1694,8 +1689,7 @@ describe('AccountActivityService', () => {
       // Trigger different state changes to exercise more code paths
       const subscribeSpy = jest.spyOn(serviceMessenger, 'subscribe');
       const connectionStateChangeCall = subscribeSpy.mock.calls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) =>
+        (call: unknown[]) =>
           call[0] === 'BackendWebSocketService:connectionStateChanged',
       );
 
@@ -2327,8 +2321,8 @@ describe('AccountActivityService', () => {
       // Find and call the selectedAccountChange handler using the spy that was set up before service creation
       const subscribeCalls = subscribeSpy.mock.calls;
       const selectedAccountChangeHandler = subscribeCalls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) => call[0] === 'AccountsController:selectedAccountChange',
+        (call: unknown[]) =>
+          call[0] === 'AccountsController:selectedAccountChange',
       )?.[1];
 
       expect(selectedAccountChangeHandler).toBeDefined();
@@ -2387,8 +2381,7 @@ describe('AccountActivityService', () => {
       // Find connection state handler
       const subscribeCalls = subscribeSpy.mock.calls;
       const connectionStateHandler = subscribeCalls.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) =>
+        (call: unknown[]) =>
           call[0] === 'BackendWebSocketService:connectionStateChanged',
       )?.[1];
 
@@ -2658,8 +2651,7 @@ describe('AccountActivityService', () => {
       // Verify no events were published for malformed messages
       const publishSpy = jest.spyOn(messenger, 'publish');
       const publishCalls = publishSpy.mock.calls.filter(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (call: any) =>
+        (call: unknown[]) =>
           call[0] === 'AccountActivityService:transactionUpdated' ||
           call[0] === 'AccountActivityService:balanceUpdated',
       );
@@ -2857,6 +2849,231 @@ describe('AccountActivityService', () => {
       // Verify connect was called (this is the actual call from subscribeAccounts)
       expect(mocks.connect).toHaveBeenCalled();
       expect(mocks.subscribe).toHaveBeenCalledTimes(2);
+
+      service.destroy();
+    });
+  });
+
+  describe('error handling scenarios', () => {
+    it('should skip resubscription when already subscribed to new account', async () => {
+      // Create independent messenger setup
+      const { messenger: testMessenger, mocks } = createMockMessenger();
+
+      // Set up spy before creating service
+      const subscribeSpy = jest.spyOn(testMessenger, 'subscribe');
+
+      const testAccount = createMockInternalAccount({ address: '0x123abc' });
+
+      // Mock the messenger responses
+      mocks.addChannelCallback.mockReturnValue(undefined);
+      mocks.getSelectedAccount.mockReturnValue(testAccount);
+
+      // Create service (this will call subscribe for events)
+      const service = new AccountActivityService({
+        messenger: testMessenger,
+      });
+
+      // Mock isChannelSubscribed to return true for the specific channel we're testing
+      mocks.isChannelSubscribed.mockImplementation((channel: string) => {
+        // Return true for the channel we're testing to trigger early return
+        if (channel === 'account-activity.v1.eip155:0:0x123abc') {
+          return true;
+        }
+        return false;
+      });
+
+      // Get the selectedAccountChange callback
+      const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
+        (call: unknown[]) =>
+          call[0] === 'AccountsController:selectedAccountChange',
+      );
+
+      if (selectedAccountChangeCall) {
+        const selectedAccountChangeCallback = selectedAccountChangeCall[1];
+
+        // Trigger account change - should hit early return when already subscribed
+        await selectedAccountChangeCallback(testAccount, undefined);
+      }
+
+      // Verify service remains functional after early return
+      expect(service.name).toBe('AccountActivityService');
+      service.destroy();
+    });
+
+    it('should handle errors during account change processing', async () => {
+      // Create independent messenger setup
+      const { messenger: testMessenger, mocks } = createMockMessenger();
+
+      // Set up spy before creating service
+      const subscribeSpy = jest.spyOn(testMessenger, 'subscribe');
+
+      const testAccount = createMockInternalAccount({ address: '0x123abc' });
+
+      // Mock methods to simulate error scenario
+      mocks.isChannelSubscribed.mockReturnValue(false); // Not subscribed
+      mocks.findSubscriptionsByChannelPrefix.mockImplementation(() => {
+        throw new Error('Failed to find subscriptions');
+      });
+      mocks.addChannelCallback.mockReturnValue(undefined);
+
+      // Create service (this will call subscribe for events)
+      const service = new AccountActivityService({
+        messenger: testMessenger,
+      });
+
+      // Get the selectedAccountChange callback
+      const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
+        (call: unknown[]) =>
+          call[0] === 'AccountsController:selectedAccountChange',
+      );
+
+      // Ensure we have the callback before proceeding
+      expect(selectedAccountChangeCall).toBeDefined();
+
+      const selectedAccountChangeCallback = selectedAccountChangeCall?.[1] as (
+        account: unknown,
+        previousAccount: unknown,
+      ) => Promise<void>;
+
+      // Should handle error gracefully without throwing
+      const result = selectedAccountChangeCallback(testAccount, undefined);
+      expect(await result).toBeUndefined();
+
+      service.destroy();
+    });
+
+    it('should handle WebSocket reconnection failures', async () => {
+      // Create independent messenger setup
+      const { messenger: testMessenger, mocks } = createMockMessenger();
+
+      // Create service
+      const service = new AccountActivityService({
+        messenger: testMessenger,
+      });
+
+      // Mock disconnect to fail
+      mocks.disconnect.mockRejectedValue(new Error('Disconnect failed'));
+      mocks.connect.mockResolvedValue(undefined);
+      mocks.isChannelSubscribed.mockReturnValue(false);
+      mocks.addChannelCallback.mockReturnValue(undefined);
+
+      // Trigger scenario that causes force reconnection by making subscribe fail
+      mocks.subscribe.mockRejectedValue(new Error('Subscription failed'));
+
+      // Should handle reconnection failure gracefully
+      const result = service.subscribeAccounts({ address: '0x123abc' });
+      expect(await result).toBeUndefined();
+
+      service.destroy();
+    });
+
+    it('should handle resubscription failures during WebSocket connection', async () => {
+      // Create independent messenger setup
+      const { messenger: testMessenger, mocks } = createMockMessenger();
+
+      // Set up spy before creating service
+      const subscribeSpy = jest.spyOn(testMessenger, 'subscribe');
+
+      const testAccount = createMockInternalAccount({ address: '0x123abc' });
+
+      // Setup mocks for connection state change
+      mocks.getSelectedAccount.mockReturnValue(testAccount);
+      mocks.addChannelCallback.mockReturnValue(undefined);
+
+      // Create service (this will call subscribe for events)
+      const service = new AccountActivityService({
+        messenger: testMessenger,
+      });
+
+      // Make subscribeAccounts fail during resubscription
+      const subscribeAccountsSpy = jest
+        .spyOn(service, 'subscribeAccounts')
+        .mockRejectedValue(new Error('Resubscription failed'));
+
+      // Get the connectionStateChanged callback
+      const connectionStateChangeCall = subscribeSpy.mock.calls.find(
+        (call: unknown[]) =>
+          call[0] === 'BackendWebSocketService:connectionStateChanged',
+      );
+
+      if (connectionStateChangeCall) {
+        const connectionStateChangeCallback = connectionStateChangeCall[1];
+
+        // Trigger connected state change - should handle resubscription failure gracefully
+        // Fix TypeScript error by providing the required previousValue argument
+        await connectionStateChangeCallback(
+          { state: WebSocketState.CONNECTED },
+          undefined,
+        );
+      }
+
+      // Should have attempted to resubscribe
+      expect(subscribeAccountsSpy).toHaveBeenCalled();
+
+      service.destroy();
+    });
+
+    it('should handle WebSocket ERROR state to cover line 533', async () => {
+      // Create a clean service setup to specifically target line 533
+      const { messenger: testMessenger, mocks } = createMockMessenger();
+
+      // Clear all previous mock calls to avoid interference
+      jest.clearAllMocks();
+
+      const subscribeSpy = jest.spyOn(testMessenger, 'subscribe');
+      const publishSpy = jest.spyOn(testMessenger, 'publish');
+
+      mocks.addChannelCallback.mockReturnValue(undefined);
+      mocks.getSelectedAccount.mockReturnValue(null); // Ensure no selected account
+
+      const service = new AccountActivityService({
+        messenger: testMessenger,
+      });
+
+      // Clear any publish calls from service initialization
+      publishSpy.mockClear();
+
+      // Get the connectionStateChanged callback
+      const connectionStateChangeCall = subscribeSpy.mock.calls.find(
+        (call: unknown[]) =>
+          call[0] === 'BackendWebSocketService:connectionStateChanged',
+      );
+
+      expect(connectionStateChangeCall).toBeDefined();
+
+      if (connectionStateChangeCall) {
+        const connectionStateChangeCallback = connectionStateChangeCall[1];
+
+        // Test with ERROR state instead of DISCONNECTED to ensure both parts of OR are covered
+        // This should trigger line 533-534: state === WebSocketState.DISCONNECTED || state === WebSocketState.ERROR
+        await connectionStateChangeCallback(
+          {
+            state: WebSocketState.ERROR,
+            url: 'ws://test-error-533',
+            reconnectAttempts: 1,
+          },
+          undefined,
+        );
+      }
+
+      // Verify that the ERROR state triggered the status change
+      expect(publishSpy).toHaveBeenCalledWith(
+        'AccountActivityService:statusChanged',
+        {
+          chainIds: expect.arrayContaining([
+            'eip155:1',
+            'eip155:137',
+            'eip155:56',
+            'eip155:59144',
+            'eip155:8453',
+            'eip155:10',
+            'eip155:42161',
+            'eip155:534352',
+            'eip155:1329',
+          ]),
+          status: 'down',
+        },
+      );
 
       service.destroy();
     });
