@@ -725,9 +725,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
               onValidQuotesReceived: async (quotes: QuoteResponse[]) => {
                 console.log('===event', quotes);
                 const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);
-                // TODO replace with non-evm fees
-                const quotesWithNonEvmFees =
-                  await this.#appendSolanaFees(quotes);
+                const quotesWithNonEvmFees = await this.#appendNonEvmFees(
+                  quotes,
+                  updatedQuoteRequest.walletAddress,
+                );
                 const quotesWithFees =
                   quotesWithL1GasFees ?? quotesWithNonEvmFees ?? quotes;
                 this.update((state) => {
