@@ -26,6 +26,7 @@ import type {
   AccountActivityMessage,
   BalanceUpdate,
 } from './types';
+import { projectLogger, createModuleLogger } from './logger';
 
 /**
  * System notification data for chain status updates
@@ -38,6 +39,8 @@ export type SystemNotificationData = {
 };
 
 const SERVICE_NAME = 'AccountActivityService' as const;
+
+const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
 const MESSENGER_EXPOSED_METHODS = [
   'subscribeAccounts',
@@ -274,10 +277,7 @@ export class AccountActivityService {
         },
       });
     } catch (error) {
-      console.error(
-        `[${SERVICE_NAME}] Subscription failed, forcing reconnection:`,
-        error,
-      );
+      log('Subscription failed, forcing reconnection', { error });
       await this.#forceReconnection();
     }
   }
@@ -305,10 +305,7 @@ export class AccountActivityService {
       // Fast path: Direct unsubscribe using stored unsubscribe function
       await subscriptionInfo.unsubscribe();
     } catch (error) {
-      console.error(
-        `[${SERVICE_NAME}] Unsubscription failed, forcing reconnection:`,
-        error,
-      );
+      log('Unsubscription failed, forcing reconnection', { error });
       await this.#forceReconnection();
     }
   }
@@ -337,9 +334,10 @@ export class AccountActivityService {
   #handleAccountActivityUpdate(payload: AccountActivityMessage): void {
     const { address, tx, updates } = payload;
 
-    console.log(
-      `[${SERVICE_NAME}] Handling account activity update for ${address} with ${updates.length} balance updates`,
-    );
+    log('Handling account activity update', { 
+      address, 
+      updateCount: updates.length 
+    });
 
     // Process transaction update
     this.#messenger.publish(`AccountActivityService:transactionUpdated`, tx);
@@ -385,7 +383,7 @@ export class AccountActivityService {
       // Then, subscribe to the new selected account
       await this.subscribeAccounts({ address: newAddress });
     } catch (error) {
-      console.warn(`[${SERVICE_NAME}] Account change failed`, error);
+      log('Account change failed', { error });
     }
   }
 
@@ -492,19 +490,14 @@ export class AccountActivityService {
    */
   async #forceReconnection(): Promise<void> {
     try {
-      console.log(
-        `[${SERVICE_NAME}] Forcing WebSocket reconnection to clean up subscription state`,
-      );
+      log('Forcing WebSocket reconnection to clean up subscription state');
 
       // All subscriptions will be cleaned up automatically on WebSocket disconnect
 
       await this.#messenger.call('BackendWebSocketService:disconnect');
       await this.#messenger.call('BackendWebSocketService:connect');
     } catch (error) {
-      console.error(
-        `[${SERVICE_NAME}] Failed to force WebSocket reconnection:`,
-        error,
-      );
+      log('Failed to force WebSocket reconnection', { error });
     }
   }
 
@@ -517,7 +510,7 @@ export class AccountActivityService {
     connectionInfo: WebSocketConnectionInfo,
   ): Promise<void> {
     const { state } = connectionInfo;
-    console.log(`[${SERVICE_NAME}] WebSocket state changed to ${state}`);
+    log('WebSocket state changed', { state });
 
     if (state === WebSocketState.CONNECTED) {
       // WebSocket connected - resubscribe and set all chains as up
@@ -530,14 +523,11 @@ export class AccountActivityService {
           status: 'up' as const,
         });
 
-        console.log(
-          `[${SERVICE_NAME}] WebSocket connected - Published all chains as up: [${SUPPORTED_CHAINS.join(', ')}]`,
-        );
+        log('WebSocket connected - Published all chains as up', { 
+          chains: SUPPORTED_CHAINS 
+        });
       } catch (error) {
-        console.error(
-          `[${SERVICE_NAME}] Failed to resubscribe to selected account:`,
-          error,
-        );
+        log('Failed to resubscribe to selected account', { error });
       }
     } else if (
       state === WebSocketState.DISCONNECTED ||
@@ -548,9 +538,9 @@ export class AccountActivityService {
         status: 'down' as const,
       });
 
-      console.log(
-        `[${SERVICE_NAME}] WebSocket error/disconnection - Published all chains as down: [${SUPPORTED_CHAINS.join(', ')}]`,
-      );
+      log('WebSocket error/disconnection - Published all chains as down', { 
+        chains: SUPPORTED_CHAINS 
+      });
     }
   }
 
@@ -563,7 +553,9 @@ export class AccountActivityService {
    * Optimized for fast cleanup during service destruction or mobile app termination
    */
   destroy(): void {
-    this.#unsubscribeFromAllAccountActivity()
+    this.#unsubscribeFromAllAccountActivity().catch(() => {
+      // Ignore errors during cleanup - service is being destroyed
+    });
 
     // Clean up system notification callback
     this.#messenger.call(

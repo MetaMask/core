@@ -3,8 +3,11 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import { v4 as uuidV4 } from 'uuid';
 
 import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
+import { projectLogger, createModuleLogger } from './logger';
 
 const SERVICE_NAME = 'BackendWebSocketService' as const;
+
+const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
 const MESSENGER_EXPOSED_METHODS = [
   'connect',
@@ -118,7 +121,7 @@ export type BackendWebSocketServiceOptions = {
   requestTimeout?: number;
 
   /** Optional callback to determine if connection should be enabled (default: always enabled) */
-  enabledCallback?: () => boolean;
+  isEnabled?: () => boolean;
 };
 
 /**
@@ -255,10 +258,10 @@ export class BackendWebSocketService {
   readonly #messenger: BackendWebSocketServiceMessenger;
 
   readonly #options: Required<
-    Omit<BackendWebSocketServiceOptions, 'messenger' | 'enabledCallback'>
+    Omit<BackendWebSocketServiceOptions, 'messenger' | 'isEnabled'>
   >;
 
-  readonly #enabledCallback: (() => boolean) | undefined;
+  readonly #isEnabled: (() => boolean) | undefined;
 
   #ws: WebSocket | undefined;
 
@@ -303,7 +306,7 @@ export class BackendWebSocketService {
    */
   constructor(options: BackendWebSocketServiceOptions) {
     this.#messenger = options.messenger;
-    this.#enabledCallback = options.enabledCallback;
+    this.#isEnabled = options.isEnabled;
 
     this.#options = {
       url: options.url,
@@ -339,9 +342,6 @@ export class BackendWebSocketService {
         (isSignedIn: boolean) => {
           if (isSignedIn) {
             // User signed in (wallet unlocked + authenticated) - try to connect
-            console.debug(
-              `[${SERVICE_NAME}] ✅ User signed in (wallet unlocked + authenticated), attempting connection...`,
-            );
             // Clear any pending reconnection timer since we're attempting connection
             this.#clearTimers();
             this.connect().catch((error) => {
@@ -352,9 +352,6 @@ export class BackendWebSocketService {
             });
           } else {
             // User signed out (wallet locked OR signed out) - stop reconnection attempts
-            console.debug(
-              `[${SERVICE_NAME}] 🔒 User signed out (wallet locked OR signed out), stopping reconnection attempts...`,
-            );
             this.#clearTimers();
             this.#reconnectAttempts = 0;
             // Note: Don't disconnect here - let AppStateWebSocketManager handle disconnection
@@ -387,10 +384,7 @@ export class BackendWebSocketService {
   async connect(): Promise<void> {
     // Priority 1: Check if connection is enabled via callback (app lifecycle check)
     // If app is closed/backgrounded, stop all connection attempts to save resources
-    if (this.#enabledCallback && !this.#enabledCallback()) {
-      console.debug(
-        `[${SERVICE_NAME}] Connection disabled by enabledCallback (app closed/backgrounded) - stopping connect and clearing reconnection attempts`,
-      );
+    if (this.#isEnabled && !this.#isEnabled()) {
       // Clear any pending reconnection attempts since app is disabled
       this.#clearTimers();
       this.#reconnectAttempts = 0;
@@ -415,9 +409,6 @@ export class BackendWebSocketService {
         'AuthenticationController:getBearerToken',
       );
       if (!bearerToken) {
-        console.debug(
-          `[${SERVICE_NAME}] Authentication required but user is not signed in (wallet locked OR not authenticated). Scheduling retry...`,
-        );
         this.#scheduleReconnect();
         return;
       }
@@ -439,12 +430,10 @@ export class BackendWebSocketService {
 
     try {
       await this.#connectionPromise;
-      console.log(`[${SERVICE_NAME}] ✅ Connection attempt succeeded`);
+      log('Connection attempt succeeded');
     } catch (error) {
       const errorMessage = this.#getErrorMessage(error);
-      console.error(
-        `[${SERVICE_NAME}] ❌ Connection attempt failed: ${errorMessage}`,
-      );
+      log('Connection attempt failed', { errorMessage, error });
       this.#setState(WebSocketState.ERROR);
 
       throw new Error(`Failed to connect to WebSocket: ${errorMessage}`);
@@ -1187,9 +1176,9 @@ export class BackendWebSocketService {
 
     this.#reconnectTimer = setTimeout(() => {
       // Check if connection is still enabled before reconnecting
-      if (this.#enabledCallback && !this.#enabledCallback()) {
+      if (this.#isEnabled && !this.#isEnabled()) {
         console.debug(
-          `[${SERVICE_NAME}] Reconnection disabled by enabledCallback (app closed/backgrounded) - stopping all reconnection attempts`,
+          `[${SERVICE_NAME}] Reconnection disabled by isEnabled (app closed/backgrounded) - stopping all reconnection attempts`,
         );
         this.#reconnectAttempts = 0;
         return;
@@ -1254,7 +1243,7 @@ export class BackendWebSocketService {
     this.#state = newState;
 
     if (oldState !== newState) {
-      console.debug(`WebSocket state changed: ${oldState} → ${newState}`);
+      log('WebSocket state changed', { oldState, newState });
 
       // Log disconnection-related state changes
       if (
