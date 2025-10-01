@@ -55,7 +55,7 @@ const backendWebSocketService = new BackendWebSocketService({
   requestTimeout: 20000,
 });
 
-// Initialize Account Activity service  
+// Initialize Account Activity service
 const accountActivityService = new AccountActivityService({
   messenger: accountActivityMessenger,
 });
@@ -130,29 +130,29 @@ graph TD
         subgraph "Presentation Layer"
             FE[Frontend Applications<br/>MetaMask Extension, Mobile, etc.]
         end
-        
+
         subgraph "Integration Layer"
             IL[Controllers, State Management, UI]
         end
-        
+
         subgraph "Data layer (core-backend)"
             subgraph "Domain Services"
                 AAS[AccountActivityService]
                 PUS[PriceUpdateService<br/>future]
                 CS[Custom Services...]
             end
-            
+
             subgraph "Transport Layer"
                 WSS[WebSocketService<br/>• Connection management<br/>• Automatic reconnection<br/>• Message routing<br/>• Subscription management]
                 HTTP[HTTP Service<br/>• REST API calls<br/>• Request/response handling<br/>• Error handling<br/>future]
             end
         end
     end
-    
+
     subgraph "BACKEND"
         BS[Backend Services<br/>REST APIs, WebSocket Services, etc.]
     end
-    
+
     %% Flow connections
     FE --> IL
     IL --> AAS
@@ -166,13 +166,13 @@ graph TD
     CS --> HTTP
     WSS <--> BS
     HTTP <--> BS
-    
+
     %% Styling
     classDef frontend fill:#e1f5fe
     classDef backend fill:#f3e5f5
     classDef service fill:#e8f5e8
     classDef transport fill:#fff3e0
-    
+
     class FE,IL frontend
     class BS backend
     class AAS,PUS,CS service
@@ -187,14 +187,14 @@ graph BT
     AC["AccountsController<br/>(Auto-generated types)"]
     AuthC["AuthenticationController<br/>(Auto-generated types)"]
     TBC["TokenBalancesController<br/>(External Integration)"]
-    
+
     %% Core Services
     AA["AccountActivityService"]
     WS["BackendWebSocketService"]
 
     %% Dependencies & Type Imports
     AC -.->|"Import types<br/>(DRY)" | AA
-    AuthC -.->|"Import types<br/>(DRY)" | WS  
+    AuthC -.->|"Import types<br/>(DRY)" | WS
     WS -->|"Messenger calls"| AA
     AA -.->|"Event publishing"| TBC
 
@@ -328,7 +328,7 @@ interface BackendWebSocketServiceOptions {
 #### Methods
 
 - `connect(): Promise<void>` - Establish authenticated WebSocket connection
-- `disconnect(): Promise<void>` - Close WebSocket connection  
+- `disconnect(): Promise<void>` - Close WebSocket connection
 - `subscribe(options: SubscriptionOptions): Promise<SubscriptionResult>` - Subscribe to channels
 - `sendRequest(message: ClientRequestMessage): Promise<ServerResponseMessage>` - Send request/response messages
 - `channelHasSubscription(channel: string): boolean` - Check subscription status
