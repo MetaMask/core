@@ -37,7 +37,7 @@ export const generateActionId = () => (Date.now() + Math.random()).toString();
 
 export const getUSDTAllowanceResetTx = async (
   messagingSystem: BridgeStatusControllerMessenger,
-  quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
+  quoteResponse: QuoteResponse<TxData | string> & Partial<QuoteMetadata>,
 ) => {
   const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
   if (
@@ -52,7 +52,7 @@ export const getUSDTAllowanceResetTx = async (
       ),
     );
     const shouldResetApproval =
-      allowance.lt(quoteResponse.sentAmount.amount) && allowance.gt(0);
+      allowance.lt(quoteResponse.sentAmount?.amount ?? '0') && allowance.gt(0);
     if (shouldResetApproval) {
       return { ...quoteResponse.approval, data: getEthUsdtResetData() };
     }
@@ -314,7 +314,8 @@ export const getAddTransactionBatchParams = async ({
   messagingSystem: BridgeStatusControllerMessenger;
   isBridgeTx: boolean;
   trade: TxData;
-  quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata;
+  quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> &
+    Partial<QuoteMetadata>;
   estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
   approval?: TxData;
   resetApproval?: TxData;

@@ -586,10 +586,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
     }
 
-    // Determine which accounts to process
-    const accountsToProcess = this.#queryAllAccounts
-      ? allAccounts.map((a) => a.address as ChecksumAddress)
-      : [selected as ChecksumAddress];
+    // Determine which accounts to process based on queryAllAccounts parameter
+    const accountsToProcess =
+      (queryAllAccounts ?? this.#queryAllAccounts)
+        ? allAccounts.map((a) => a.address as ChecksumAddress)
+        : [selected as ChecksumAddress];
 
     const prev = this.state;
     const next = draft(prev, (d) => {

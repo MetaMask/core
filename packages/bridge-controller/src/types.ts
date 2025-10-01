@@ -29,6 +29,7 @@ import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 import type {
   BridgeAssetSchema,
   ChainConfigurationSchema,
+  FeatureId,
   FeeDataSchema,
   PlatformConfigSchema,
   ProtocolSchema,
@@ -264,6 +265,7 @@ export type QuoteResponse<TxDataType = TxData> = Infer<
 > & {
   trade: TxDataType;
   approval?: TxData;
+  featureId?: FeatureId;
 };
 
 export enum ChainId {

@@ -6,6 +6,7 @@ import {
   fetchBridgeTokens,
   fetchAssetPrices,
 } from './fetch';
+import { FeatureId } from './validators';
 import mockBridgeQuotesErc20Erc20 from '../../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20 from '../../tests/mock-quotes-native-erc20.json';
 import { BridgeClientId, BRIDGE_PROD_API_BASE_URL } from '../constants/bridge';
@@ -173,6 +174,7 @@ describe('fetch', () => {
         BridgeClientId.EXTENSION,
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
+        null,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
@@ -187,7 +189,12 @@ describe('fetch', () => {
         },
       );
 
-      expect(result.quotes).toStrictEqual(mockBridgeQuotesNativeErc20);
+      expect(result.quotes).toStrictEqual(
+        mockBridgeQuotesNativeErc20.map((quote) => ({
+          ...quote,
+          featureId: undefined,
+        })),
+      );
       expect(result.validationFailures).toStrictEqual([]);
       expect(mockConsoleWarn).not.toHaveBeenCalled();
     });
@@ -227,6 +234,7 @@ describe('fetch', () => {
         BridgeClientId.EXTENSION,
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
+        null,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
@@ -241,7 +249,12 @@ describe('fetch', () => {
         },
       );
 
-      expect(result.quotes).toStrictEqual(mockBridgeQuotesErc20Erc20);
+      expect(result.quotes).toStrictEqual(
+        mockBridgeQuotesErc20Erc20.map((quote) => ({
+          ...quote,
+          featureId: undefined,
+        })),
+      );
       expect(result.validationFailures).toStrictEqual([
         'lifi|approval',
         'socket|trade',
@@ -299,6 +312,7 @@ describe('fetch', () => {
         BridgeClientId.EXTENSION,
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
+        null,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
@@ -313,7 +327,12 @@ describe('fetch', () => {
         },
       );
 
-      expect(result.quotes).toStrictEqual(mockBridgeQuotesErc20Erc20);
+      expect(result.quotes).toStrictEqual(
+        mockBridgeQuotesErc20Erc20.map((quote) => ({
+          ...quote,
+          featureId: undefined,
+        })),
+      );
       expect(result.validationFailures).toMatchInlineSnapshot(`
         Array [
           "unknown|quote",
@@ -366,6 +385,7 @@ describe('fetch', () => {
         BridgeClientId.EXTENSION,
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
+        FeatureId.PERPS,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
@@ -380,7 +400,12 @@ describe('fetch', () => {
         },
       );
 
-      expect(result.quotes).toStrictEqual(mockBridgeQuotesNativeErc20);
+      expect(result.quotes).toStrictEqual(
+        mockBridgeQuotesNativeErc20.map((quote) => ({
+          ...quote,
+          featureId: FeatureId.PERPS,
+        })),
+      );
       expect(result.validationFailures).toStrictEqual([]);
     });
   });
