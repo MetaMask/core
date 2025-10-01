@@ -11,6 +11,13 @@ import {
 import { flushPromises } from '../../../tests/helpers';
 
 // =====================================================
+// TYPES
+// =====================================================
+
+// Type for global object with WebSocket mock
+type GlobalWithWebSocket = typeof global & { lastWebSocket: MockWebSocket };
+
+// =====================================================
 // TEST UTILITIES & MOCKS
 // =====================================================
 
@@ -159,8 +166,7 @@ class MockWebSocket extends EventTarget {
       this._lastSentMessage = data;
     });
     this.autoConnect = autoConnect;
-    (global as unknown as { lastWebSocket: MockWebSocket }).lastWebSocket =
-      this;
+    (global as GlobalWithWebSocket).lastWebSocket = this;
   }
 
   set onopen(handler: ((event: Event) => void) | null) {
@@ -316,8 +322,9 @@ const setupBackendWebSocketService = ({
     await flushPromises();
   };
 
-  const getMockWebSocket = () =>
-    (global as unknown as { lastWebSocket: MockWebSocket }).lastWebSocket;
+  const getMockWebSocket = (): MockWebSocket => {
+    return (global as GlobalWithWebSocket).lastWebSocket;
+  };
 
   return {
     service,
@@ -468,7 +475,6 @@ describe('BackendWebSocketService', () => {
 
       const info = service.getConnectionInfo();
       expect(info).toBeDefined();
-      // Error is logged to console, not stored in connection info
 
       cleanup();
     });
@@ -529,7 +535,7 @@ describe('BackendWebSocketService', () => {
       const mockCallback = jest.fn();
       const mockWs = getMockWebSocket();
 
-      // NEW PATTERN: Start subscription with predictable request ID
+      // Start subscription with predictable request ID
       const testRequestId = 'test-subscribe-success';
       const subscriptionPromise = service.subscribe({
         channels: [TEST_CONSTANTS.TEST_CHANNEL],
@@ -537,7 +543,7 @@ describe('BackendWebSocketService', () => {
         requestId: testRequestId, // Known ID = no complexity!
       });
 
-      // NEW PATTERN: Send response immediately - no waiting or ID extraction!
+      // Send response immediately - no waiting or ID extraction!
       const responseMessage = createResponseMessage(testRequestId, {
         subscriptionId: TEST_CONSTANTS.SUBSCRIPTION_ID,
         successful: [TEST_CONSTANTS.TEST_CHANNEL],
@@ -929,7 +935,7 @@ describe('BackendWebSocketService', () => {
       const mockCallback = jest.fn();
       const mockWs = getMockWebSocket();
 
-      // NEW PATTERN: Use predictable request ID - no waiting needed!
+      // Use predictable request ID - no waiting needed!
       const testRequestId = 'test-notification-handling';
       const subscriptionPromise = service.subscribe({
         channels: ['test-channel'],
@@ -977,7 +983,7 @@ describe('BackendWebSocketService', () => {
       const mockWs = getMockWebSocket();
 
       // Subscribe
-      // NEW PATTERN: Use predictable request ID - no waiting needed!
+      // Use predictable request ID - no waiting needed!
       const testRequestId = 'test-complex-notification';
       const subscriptionPromise = service.subscribe({
         channels: ['test-channel'],
@@ -1324,7 +1330,7 @@ describe('BackendWebSocketService', () => {
         false,
       );
 
-      // Add a subscription - NEW PATTERN: Use predictable request ID
+      // Add a subscription - Use predictable request ID
       const mockCallback = jest.fn();
       const mockWs = getMockWebSocket();
       const testRequestId = 'test-subscription-successful';
@@ -2386,7 +2392,7 @@ describe('BackendWebSocketService', () => {
       await connectPromise;
       const mockWs = getMockWebSocket();
 
-      // Create subscriptions with various channel patterns - NEW PATTERN: Use predictable request IDs
+      // Create subscriptions with various channel patterns - Use predictable request IDs
       const callback1 = jest.fn();
       const callback2 = jest.fn();
       const callback3 = jest.fn();
@@ -2548,7 +2554,7 @@ describe('BackendWebSocketService', () => {
 
       const callback = jest.fn();
 
-      // Test subscription with all successful results - NEW PATTERN: Use predictable request ID
+      // Test subscription with all successful results - Use predictable request ID
       const testRequestId = 'test-all-successful-channels';
       const subscriptionPromise = service.subscribe({
         channels: ['success-channel-1', 'success-channel-2'],
@@ -2667,7 +2673,7 @@ describe('BackendWebSocketService', () => {
       // Test subscription failure scenario
       const callback = jest.fn();
 
-      // Create subscription request - NEW PATTERN: Use predictable request ID
+      // Create subscription request - Use predictable request ID
       const testRequestId = 'test-error-branch-scenarios';
       const subscriptionPromise = service.subscribe({
         channels: ['test-channel-error'],
@@ -3332,7 +3338,7 @@ describe('BackendWebSocketService', () => {
       const mockWs = getMockWebSocket();
 
       // Test 1: Request failure branch - this hits general request failure
-      // NEW PATTERN: Use predictable request ID
+      // Use predictable request ID
       const testRequestId = 'test-subscription-failure';
       const subscriptionPromise = service.subscribe({
         channels: ['fail-channel'],
@@ -3370,7 +3376,7 @@ describe('BackendWebSocketService', () => {
       const mockWs = getMockWebSocket();
 
       // Test: Unsubscribe error handling
-      // NEW PATTERN: Use predictable request ID
+      // Use predictable request ID
       const mockCallback = jest.fn();
       const testRequestId = 'test-subscription-unsub-error';
       const subscriptionPromise = service.subscribe({
@@ -3428,10 +3434,9 @@ describe('BackendWebSocketService', () => {
       await connectPromise;
 
       // Create a subscription that will receive a response without subscriptionId
-      const mockWs = (global as Record<string, unknown>)
-        .lastWebSocket as MockWebSocket;
+      const mockWs = (global as GlobalWithWebSocket).lastWebSocket;
 
-      // NEW PATTERN: Use predictable request ID
+      // Use predictable request ID
       const testRequestId = 'test-missing-subscription-id';
       const subscriptionPromise = service.subscribe({
         channels: ['invalid-test'],
@@ -3646,7 +3651,7 @@ describe('BackendWebSocketService', () => {
       expect(mockCallback1).toHaveBeenCalledWith(notification1);
       expect(mockCallback2).toHaveBeenCalledWith(notification2);
 
-      // Unsubscribe from first subscription - NEW PATTERN: Use predictable request ID
+      // Unsubscribe from first subscription - Use predictable request ID
       const unsubRequestId = 'test-unsubscribe-multiple';
       const unsubscribePromise = subscription1.unsubscribe(unsubRequestId);
 
@@ -3897,7 +3902,7 @@ describe('BackendWebSocketService', () => {
       const mockCallback1 = jest.fn();
       const mockCallback2 = jest.fn();
 
-      // Start multiple subscriptions concurrently - NEW PATTERN: Use predictable request IDs
+      // Start multiple subscriptions concurrently - Use predictable request IDs
       const sub1RequestId = 'test-concurrent-sub-1';
       const subscription1Promise = service.subscribe({
         channels: ['concurrent-1'],
@@ -4057,7 +4062,7 @@ describe('BackendWebSocketService', () => {
       await service.connect();
       const mockWs = getMockWebSocket();
 
-      // Start subscription - NEW PATTERN: Use predictable request ID
+      // Start subscription - Use predictable request ID
       const testRequestId = 'test-subscription-failure-error-path';
       const subscriptionPromise = service.subscribe({
         channels: ['failing-channel'],
