@@ -50,7 +50,7 @@ type FetchWithCacheOptions = {
 };
 
 export type FetchFunction = (
-  input: RequestInfo | URL,
+  input: string | RequestInfo | URL,
   init?: RequestInit & FetchWithCacheOptions,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<any>;

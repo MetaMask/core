@@ -330,10 +330,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         // The bridge-api filters out quotes if the balance on mainnet is insufficient so this override allows quotes to always be returned
         insufficientBal = true;
       } else {
-        // Otherwise query the src token balance from the RPC provider
-        insufficientBal =
-          paramsToUpdate.insufficientBal ??
-          !(await this.#hasSufficientBalance(updatedQuoteRequest));
+        try {
+          // Otherwise query the src token balance from the RPC provider
+          insufficientBal =
+            paramsToUpdate.insufficientBal ??
+            !(await this.#hasSufficientBalance(updatedQuoteRequest));
+        } catch (error) {
+          console.error('===hasSufficientBalance error', error);
+          insufficientBal = false;
+        }
       }
 
       const networkClientId = this.#getSelectedNetworkClientId();
@@ -737,6 +742,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
               },
               // Catches errors thrown by onmessage (network errors)
               onError: (event) => {
+                console.error('===onError', event);
                 throw new Error(event.message);
               },
             },

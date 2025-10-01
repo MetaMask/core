@@ -362,13 +362,19 @@ export async function fetchBridgeQuoteStream(
 
   const urlStream = `${bridgeApiBaseUrl}/getQuoteStream?${queryParams}`;
   await fetchEventSource(urlStream, {
-    headers: getClientIdHeader(clientId),
+    headers: {
+      ...getClientIdHeader(clientId),
+      'Content-Type': 'text/event-stream',
+    },
     signal,
     onmessage: onMessage,
     onerror: serverEventHandlers.onError,
-    // onclose: () => {
-    //   console.log('===onclose', 'should loading be set here?');
-    // },
-    // fetch: fetchFn,
+    onclose: () => {
+      console.log('===onclose');
+    },
+    onopen: async (e) => {
+      console.log('===onopen', e);
+    },
+    fetch: fetchFn,
   });
 }
