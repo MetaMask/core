@@ -65,7 +65,7 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/profile-sync-controller": "^25.1.0"
+    "@metamask/profile-sync-controller": "^25.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
