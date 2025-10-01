@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/595.0.0 ([#6757](https://github.com/MetaMask/core/pull/6757))
+- Release/589.0.0 ([#6748](https://github.com/MetaMask/core/pull/6748))
+
 ### Changed
 
 - Re-introduce computed names for account groups ([#6758](https://github.com/MetaMask/core/pull/6758))
