@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Re-introduce computed names for account groups ([#6758](https://github.com/MetaMask/core/pull/6758))
+  - Those names are computed using the old internal account names, allowing to automatically migrate them.
+  - We only consider EVM account names.
+  - This automatically handles conflicting names, similarly to backup & sync (adding a suffix ` (n)` in case of conflicts.
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
 
 ## [1.3.0]
