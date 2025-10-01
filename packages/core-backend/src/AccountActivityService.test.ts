@@ -241,38 +241,25 @@ describe('AccountActivityService', () => {
   });
 
   describe('constructor', () => {
-    it('should create AccountActivityService instance', () => {
-      expect(accountActivityService).toBeInstanceOf(AccountActivityService);
-    });
-
-    it('should create AccountActivityService with custom options', () => {
-      // Test that the service exists and has expected properties
+    it('should create AccountActivityService with comprehensive initialization', () => {
       expect(accountActivityService).toBeInstanceOf(AccountActivityService);
       expect(accountActivityService.name).toBe('AccountActivityService');
-    });
-
-    it('should subscribe to required events on initialization', () => {
-      // Since the service was already created, verify it has the expected name
-      // The event subscriptions happen during construction, so we can't spy on them after the fact
-      expect(accountActivityService.name).toBe('AccountActivityService');
-
-      // We can test that the service responds to events by triggering them in other tests
-      // This test confirms the service was created successfully
-    });
-
-    it('should set up system notification callback', () => {
-      // Since the service is created before each test, we need to check if it was called
-      // during the service creation. Since we reset mocks in beforeEach after service creation,
-      // we can't see the original calls. Let's test this differently by verifying the service exists.
       expect(accountActivityService).toBeDefined();
-      expect(accountActivityService.name).toBe('AccountActivityService');
-    });
 
-    it('should publish status changed event for all supported chains on initialization', () => {
+      // Verify service can be created with custom namespace
+      const customMessengerSetup = createMockMessenger();
+      const customService = new AccountActivityService({
+        messenger: customMessengerSetup.messenger,
+        subscriptionNamespace: 'custom-activity.v2',
+      });
+      expect(customService).toBeInstanceOf(AccountActivityService);
+      expect(customService.name).toBe('AccountActivityService');
+
       // Status changed event is only published when WebSocket connects
-      // In tests, this happens when we mock the connection state change
       const publishSpy = jest.spyOn(messenger, 'publish');
       expect(publishSpy).not.toHaveBeenCalled();
+
+      customService.destroy();
     });
   });
 
@@ -1175,35 +1162,14 @@ describe('AccountActivityService', () => {
   });
 
   describe('edge cases and error handling', () => {
-    it('should handle subscription for address without account prefix', async () => {
-      const subscriptionWithoutPrefix: AccountSubscription = {
-        address: '0x1234567890123456789012345678901234567890',
-      };
-
-      // Messenger mocks are already configured in the main beforeEach
-
-      await accountActivityService.subscribeAccounts(subscriptionWithoutPrefix);
-
-      expect(messengerMocks.subscribe).toHaveBeenCalledWith(
-        expect.objectContaining({
-          channels: [
-            'account-activity.v1.0x1234567890123456789012345678901234567890',
-          ],
-          callback: expect.any(Function),
-        }),
-      );
-    });
-
-    it('should handle account activity message with missing updates', async () => {
+    it('should handle comprehensive edge cases and address formats', async () => {
       let capturedCallback: (notification: ServerNotificationMessage) => void =
         jest.fn();
 
-      // Mock the subscribe call to capture the callback
+      // Set up comprehensive mocks
       messengerMocks.connect.mockResolvedValue(undefined);
       messengerMocks.disconnect.mockResolvedValue(undefined);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      messengerMocks.subscribe.mockImplementation((options: any) => {
-        // Capture the callback from the subscription options
+      messengerMocks.subscribe.mockImplementation((options) => {
         capturedCallback = options.callback;
         return Promise.resolve({
           subscriptionId: 'sub-123',
@@ -1214,11 +1180,21 @@ describe('AccountActivityService', () => {
       messengerMocks.addChannelCallback.mockReturnValue(undefined);
       messengerMocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
 
-      await accountActivityService.subscribeAccounts({
-        address: 'eip155:1:0x1234567890123456789012345678901234567890',
-      });
+      // Test subscription for address without CAIP-10 prefix
+      const subscriptionWithoutPrefix: AccountSubscription = {
+        address: '0x1234567890123456789012345678901234567890',
+      };
+      await accountActivityService.subscribeAccounts(subscriptionWithoutPrefix);
+      expect(messengerMocks.subscribe).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channels: [
+            'account-activity.v1.0x1234567890123456789012345678901234567890',
+          ],
+          callback: expect.any(Function),
+        }),
+      );
 
-      // Simulate message with empty updates
+      // Test message handling with empty updates
       const activityMessage: AccountActivityMessage = {
         address: '0x1234567890123456789012345678901234567890',
         tx: {
@@ -1231,7 +1207,6 @@ describe('AccountActivityService', () => {
         },
         updates: [], // Empty updates
       };
-
       const notificationMessage = {
         event: 'notification',
         subscriptionId: 'sub-123',
@@ -1240,19 +1215,13 @@ describe('AccountActivityService', () => {
         data: activityMessage,
       };
 
-      // Create spy before calling callback to capture publish events
       const publishSpy = jest.spyOn(messenger, 'publish');
-
-      // Call the captured callback
       capturedCallback(notificationMessage);
 
-      // Should still publish transaction event
       expect(publishSpy).toHaveBeenCalledWith(
         'AccountActivityService:transactionUpdated',
         activityMessage.tx,
       );
-
-      // Should still publish balance event even with empty updates
       expect(publishSpy).toHaveBeenCalledWith(
         'AccountActivityService:balanceUpdated',
         {
@@ -1263,14 +1232,9 @@ describe('AccountActivityService', () => {
       );
     });
 
-    it('should handle selectedAccountChange with null account', async () => {
-      // Create independent service with spy set up before construction
+    it('should handle null account in selectedAccountChange', async () => {
       const { messenger: testMessenger, mocks } = createMockMessenger();
-
-      // Set up spy BEFORE creating service
       const subscribeSpy = jest.spyOn(testMessenger, 'subscribe');
-
-      // Create service (this will trigger event subscriptions)
       const testService = new AccountActivityService({
         messenger: testMessenger,
       });
@@ -1279,161 +1243,78 @@ describe('AccountActivityService', () => {
         (call: unknown[]) =>
           call[0] === 'AccountsController:selectedAccountChange',
       );
-      if (!selectedAccountChangeCall) {
-        throw new Error('selectedAccountChangeCall is undefined');
-      }
-      const selectedAccountChangeCallback = selectedAccountChangeCall[1];
+      const selectedAccountChangeCallback = selectedAccountChangeCall?.[1];
 
-      // Should handle null account gracefully (this is a bug in the implementation)
       await expect(
-        selectedAccountChangeCallback(null, undefined),
+        selectedAccountChangeCallback?.(null, undefined),
       ).rejects.toThrow('Account address is required');
-
-      // Should not attempt to subscribe
       expect(mocks.subscribe).not.toHaveBeenCalledWith(expect.any(Object));
-
-      // Clean up
       testService.destroy();
     });
   });
 
-  describe('custom namespace', () => {
-    it('should use custom subscription namespace', async () => {
-      // Create an independent messenger for this test
-      const customMessengerSetup = createMockMessenger();
-      const customMessenger = customMessengerSetup.messenger;
-      const customMocks = customMessengerSetup.mocks;
-
-      // Mock the custom messenger calls
-      customMocks.connect.mockResolvedValue(undefined);
-      customMocks.disconnect.mockResolvedValue(undefined);
-      customMocks.subscribe.mockResolvedValue({
-        subscriptionId: 'sub-123',
-        unsubscribe: mockUnsubscribe,
-      });
-      customMocks.channelHasSubscription.mockReturnValue(false); // Make sure it returns false so subscription proceeds
-      customMocks.addChannelCallback.mockReturnValue(undefined);
-      customMocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
-
-      const customService = new AccountActivityService({
-        messenger: customMessenger,
-        subscriptionNamespace: 'custom-activity.v2',
-      });
-
-      await customService.subscribeAccounts({
-        address: 'eip155:1:0x1234567890123456789012345678901234567890',
-      });
-
-      expect(customMocks.subscribe).toHaveBeenCalledWith(
-        expect.objectContaining({
-          channels: [
-            'custom-activity.v2.eip155:1:0x1234567890123456789012345678901234567890',
-          ],
-          callback: expect.any(Function),
-        }),
-      );
-    });
-  });
-
   describe('edge cases and error handling - additional coverage', () => {
-    it('should handle WebSocketService connection events not available', async () => {
-      // Create isolated messenger setup for this test
-      const isolatedSetup = createMockMessenger();
-      const isolatedMessenger = isolatedSetup.messenger;
-
-      // Mock subscribe to throw error for WebSocket connection events
+    it('should handle service initialization failures comprehensively', async () => {
+      // Test WebSocketService connection events not available
+      const isolatedSetup1 = createMockMessenger();
       jest
-        .spyOn(isolatedMessenger, 'subscribe')
+        .spyOn(isolatedSetup1.messenger, 'subscribe')
         .mockImplementation((event, _) => {
           if (event === 'BackendWebSocketService:connectionStateChanged') {
             throw new Error('WebSocketService not available');
           }
           return jest.fn();
         });
-
-      // Creating service should throw error when connection events are not available
       expect(
         () =>
-          new AccountActivityService({
-            messenger: isolatedMessenger,
-          }),
+          new AccountActivityService({ messenger: isolatedSetup1.messenger }),
       ).toThrow('WebSocketService not available');
-    });
 
-    it('should handle system notification callback setup failure', async () => {
-      // Create an independent messenger for this error test
-      const errorMessengerSetup = createMockMessenger();
-      const errorMessenger = errorMessengerSetup.messenger;
-      const errorMocks = errorMessengerSetup.mocks;
-
-      // Mock addChannelCallback to throw error
-      errorMocks.connect.mockResolvedValue(undefined);
-      errorMocks.addChannelCallback.mockImplementation(() => {
+      // Test system notification callback setup failure
+      const isolatedSetup2 = createMockMessenger();
+      isolatedSetup2.mocks.addChannelCallback.mockImplementation(() => {
         throw new Error('Cannot add channel callback');
       });
-
-      // Creating service should throw error when channel callback setup fails
       expect(
         () =>
-          new AccountActivityService({
-            messenger: errorMessenger,
-          }),
+          new AccountActivityService({ messenger: isolatedSetup2.messenger }),
       ).toThrow('Cannot add channel callback');
-    });
 
-    it('should handle already subscribed account scenario', async () => {
-      const testAccount = createMockInternalAccount({ address: '0x123abc' });
-
-      // Mock messenger to return true for channelHasSubscription (already subscribed)
-      messengerMocks.connect.mockResolvedValue(undefined);
-      messengerMocks.disconnect.mockResolvedValue(undefined);
-      messengerMocks.channelHasSubscription.mockReturnValue(true); // Already subscribed
-      messengerMocks.addChannelCallback.mockReturnValue(undefined);
-      messengerMocks.getSelectedAccount.mockReturnValue(testAccount);
-
-      // Should not throw, just log and return early
-      await accountActivityService.subscribeAccounts({
-        address: testAccount.address,
-      });
-
-      // Should NOT call subscribe since already subscribed
-      expect(messengerMocks.subscribe).not.toHaveBeenCalledWith(
-        expect.any(Object),
-      );
-    });
-
-    it('should handle AccountsController events not available error', async () => {
-      // Create isolated messenger setup for this test
-      const isolatedSetup = createMockMessenger();
-      const isolatedMessenger = isolatedSetup.messenger;
-
-      // Mock subscribe to throw error for AccountsController events
+      // Test AccountsController events not available
+      const isolatedSetup3 = createMockMessenger();
       jest
-        .spyOn(isolatedMessenger, 'subscribe')
+        .spyOn(isolatedSetup3.messenger, 'subscribe')
         .mockImplementation((event, _) => {
           if (event === 'AccountsController:selectedAccountChange') {
             throw new Error('AccountsController not available');
           }
           return jest.fn();
         });
-
-      // Creating service should throw error when AccountsController events are not available
       expect(
         () =>
-          new AccountActivityService({
-            messenger: isolatedMessenger,
-          }),
+          new AccountActivityService({ messenger: isolatedSetup3.messenger }),
       ).toThrow('AccountsController not available');
     });
 
-    it('should handle selected account change with null account address', async () => {
-      // Create independent service with spy set up before construction
+    it('should handle already subscribed accounts and invalid addresses', async () => {
+      const testAccount = createMockInternalAccount({ address: '0x123abc' });
+
+      // Test already subscribed scenario
+      messengerMocks.connect.mockResolvedValue(undefined);
+      messengerMocks.channelHasSubscription.mockReturnValue(true); // Already subscribed
+      messengerMocks.addChannelCallback.mockReturnValue(undefined);
+      messengerMocks.getSelectedAccount.mockReturnValue(testAccount);
+
+      await accountActivityService.subscribeAccounts({
+        address: testAccount.address,
+      });
+      expect(messengerMocks.subscribe).not.toHaveBeenCalledWith(
+        expect.any(Object),
+      );
+
+      // Test account with empty address
       const { messenger: testMessenger } = createMockMessenger();
-
-      // Set up spy BEFORE creating service
       const subscribeSpy = jest.spyOn(testMessenger, 'subscribe');
-
-      // Create service (this will trigger event subscriptions)
       const testService = new AccountActivityService({
         messenger: testMessenger,
       });
@@ -1442,15 +1323,11 @@ describe('AccountActivityService', () => {
         (call: unknown[]) =>
           call[0] === 'AccountsController:selectedAccountChange',
       );
-      if (!selectedAccountChangeCall) {
-        throw new Error('selectedAccountChangeCall is undefined');
-      }
-      const selectedAccountChangeCallback = selectedAccountChangeCall[1];
+      const selectedAccountChangeCallback = selectedAccountChangeCall?.[1];
 
-      // Call with account that has no address
       const accountWithoutAddress = {
         id: 'test-id',
-        address: '', // Empty address
+        address: '',
         metadata: {
           name: 'Test',
           importTime: Date.now(),
@@ -1462,46 +1339,29 @@ describe('AccountActivityService', () => {
         type: 'eip155:eoa',
       } as InternalAccount;
 
-      // Should throw error for account without address
       await expect(
-        selectedAccountChangeCallback(accountWithoutAddress, undefined),
+        selectedAccountChangeCallback?.(accountWithoutAddress, undefined),
       ).rejects.toThrow('Account address is required');
-
-      // Clean up
       testService.destroy();
     });
 
-    it('should handle no selected account found scenario', async () => {
-      // Create messenger setup first
-      const messengerSetup = createMockMessenger();
-      const testMessenger = messengerSetup.messenger;
-      const { mocks } = messengerSetup;
+    it('should handle complex service scenarios comprehensively', async () => {
+      // Test 1: No selected account scenario
+      const messengerSetup1 = createMockMessenger();
+      const subscribeSpy1 = jest.spyOn(messengerSetup1.messenger, 'subscribe');
+      messengerSetup1.mocks.connect.mockResolvedValue(undefined);
+      messengerSetup1.mocks.addChannelCallback.mockReturnValue(undefined);
+      messengerSetup1.mocks.getSelectedAccount.mockReturnValue(null);
 
-      // Set up spy before creating service
-      const subscribeSpy = jest.spyOn(testMessenger, 'subscribe');
-
-      // Mock getSelectedAccount to return null/undefined
-      mocks.connect.mockResolvedValue(undefined);
-      mocks.addChannelCallback.mockReturnValue(undefined);
-      mocks.getSelectedAccount.mockReturnValue(null); // No selected account
-
-      // Create service (this will call subscribe for events during construction)
-      const service = new AccountActivityService({
-        messenger: testMessenger,
+      const service1 = new AccountActivityService({
+        messenger: messengerSetup1.messenger,
       });
-
-      // Since subscribeSelectedAccount is private, we need to trigger it through connection state change
-      const connectionStateChangeCall = subscribeSpy.mock.calls.find(
+      const connectionStateChangeCall = subscribeSpy1.mock.calls.find(
         (call: unknown[]) =>
           call[0] === 'BackendWebSocketService:connectionStateChanged',
       );
-      if (!connectionStateChangeCall) {
-        throw new Error('connectionStateChangeCall is undefined');
-      }
-      const connectionStateChangeCallback = connectionStateChangeCall[1];
-
-      // Simulate connection to trigger subscription attempt
-      connectionStateChangeCallback(
+      const connectionStateChangeCallback = connectionStateChangeCall?.[1];
+      connectionStateChangeCallback?.(
         {
           state: WebSocketState.CONNECTED,
           url: 'ws://test',
@@ -1509,109 +1369,64 @@ describe('AccountActivityService', () => {
         },
         undefined,
       );
+      expect(messengerSetup1.mocks.getSelectedAccount).toHaveBeenCalled();
+      service1.destroy();
 
-      // Should return silently when no selected account
-      expect(mocks.getSelectedAccount).toHaveBeenCalled();
-
-      service.destroy();
-    });
-
-    it('should handle force reconnection error', async () => {
+      // Test 2: Force reconnection error
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
-
-      // Create independent service with spy set up before construction
-      const { messenger: testMessenger, mocks } = createMockMessenger();
-
-      // Set up spy BEFORE creating service
-      const subscribeSpy = jest.spyOn(testMessenger, 'subscribe');
-
-      // Create service (this will trigger event subscriptions)
-      const testService = new AccountActivityService({
-        messenger: testMessenger,
+      const messengerSetup2 = createMockMessenger();
+      const subscribeSpy2 = jest.spyOn(messengerSetup2.messenger, 'subscribe');
+      const service2 = new AccountActivityService({
+        messenger: messengerSetup2.messenger,
       });
 
-      // Mock disconnect to fail
-      mocks.connect.mockResolvedValue(undefined);
-      mocks.disconnect.mockImplementation(() => {
+      messengerSetup2.mocks.disconnect.mockImplementation(() => {
         throw new Error('Disconnect failed');
       });
-      mocks.addChannelCallback.mockReturnValue(undefined);
-      mocks.getSelectedAccount.mockReturnValue(testAccount);
+      messengerSetup2.mocks.connect.mockResolvedValue(undefined);
+      messengerSetup2.mocks.addChannelCallback.mockReturnValue(undefined);
+      messengerSetup2.mocks.getSelectedAccount.mockReturnValue(testAccount);
 
-      // Trigger scenario that causes force reconnection
-      const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
+      const selectedAccountChangeCall = subscribeSpy2.mock.calls.find(
         (call: unknown[]) =>
           call[0] === 'AccountsController:selectedAccountChange',
       );
-      if (!selectedAccountChangeCall) {
-        throw new Error('selectedAccountChangeCall is undefined');
-      }
-      const selectedAccountChangeCallback = selectedAccountChangeCall[1];
+      const selectedAccountChangeCallback = selectedAccountChangeCall?.[1];
+      await selectedAccountChangeCallback?.(testAccount, undefined);
+      expect(
+        messengerSetup2.mocks.findSubscriptionsByChannelPrefix,
+      ).toHaveBeenCalledWith('account-activity.v1');
+      service2.destroy();
 
-      await selectedAccountChangeCallback(testAccount, undefined);
-
-      // Test should handle error scenario
-      expect(mocks.findSubscriptionsByChannelPrefix).toHaveBeenCalledWith(
-        'account-activity.v1',
-      );
-
-      // Clean up
-      testService.destroy();
-    });
-
-    it('should handle system notification publish error', async () => {
-      // Create isolated messenger setup for this test
+      // Test 3: System notification publish error
       const isolatedSetup = createMockMessenger();
-      const isolatedMessenger = isolatedSetup.messenger;
       let capturedCallback: (notification: ServerNotificationMessage) => void =
         jest.fn();
-
-      // Mock addChannelCallback to capture the system notification callback
-      isolatedSetup.mocks.addChannelCallback.mockImplementation(
-        (options: {
-          callback: (notification: ServerNotificationMessage) => void;
-        }) => {
-          capturedCallback = options.callback;
-          return undefined;
-        },
-      );
-
-      // Mock publish to throw error
-      jest.spyOn(isolatedMessenger, 'publish').mockImplementation(() => {
+      isolatedSetup.mocks.addChannelCallback.mockImplementation((options) => {
+        capturedCallback = options.callback;
+        return undefined;
+      });
+      jest.spyOn(isolatedSetup.messenger, 'publish').mockImplementation(() => {
         throw new Error('Publish failed');
       });
 
-      // Create service with isolated messenger
-      new AccountActivityService({
-        messenger: isolatedMessenger,
-      });
-
-      // Simulate a system notification that triggers publish
+      new AccountActivityService({ messenger: isolatedSetup.messenger });
       const systemNotification = {
         event: 'system-notification',
         channel: 'system-notifications.v1.account-activity.v1',
-        data: {
-          chainIds: ['0x1', '0x2'],
-          status: 'connected',
-        },
+        data: { chainIds: ['0x1', '0x2'], status: 'connected' },
       };
 
-      // The service should handle publish errors gracefully - they may throw or be caught
-      // Since publish currently throws, we expect the error to propagate
-      expect(() => {
-        capturedCallback(systemNotification);
-      }).toThrow('Publish failed');
-
-      // Verify that publish was indeed called
-      expect(isolatedMessenger.publish).toHaveBeenCalledWith(
-        expect.any(String), // Event name
+      expect(() => capturedCallback(systemNotification)).toThrow(
+        'Publish failed',
+      );
+      expect(isolatedSetup.messenger.publish).toHaveBeenCalledWith(
+        expect.any(String),
         expect.objectContaining({
           chainIds: ['0x1', '0x2'],
           status: 'connected',
         }),
       );
-
-      // Test completed - service handled publish error appropriately
     });
 
     it('should handle account conversion for different scope types', async () => {
@@ -1719,340 +1534,198 @@ describe('AccountActivityService', () => {
         jest.useRealTimers();
       }
     });
-
-    it('should handle various subscription error scenarios', async () => {
-      const { service, mocks } = createIndependentService();
-
-      // Test different error scenarios in subscription process
-      mocks.connect.mockResolvedValue(undefined);
-      mocks.subscribe.mockImplementation(() => {
-        throw new Error('Subscription service unavailable');
-      });
-      mocks.addChannelCallback.mockReturnValue(undefined);
-      mocks.channelHasSubscription.mockReturnValue(false);
-
-      // Try to subscribe - should handle the error gracefully
-      await service.subscribeAccounts({ address: '0x123abc' });
-
-      // Service should handle errors gracefully without throwing
-      expect(service).toBeDefined();
-
-      service.destroy();
-    });
   });
 
   // =====================================================
   // SUBSCRIPTION CONDITIONAL BRANCHES AND EDGE CASES
   // =====================================================
   describe('subscription conditional branches and edge cases', () => {
-    it('should handle null account in selectedAccountChange', async () => {
-      // Create messenger setup first
-      const { messenger: serviceMessenger } = createMockMessenger();
-
-      // Set up spy BEFORE creating service
-      const subscribeSpy = jest.spyOn(serviceMessenger, 'subscribe');
-
-      // Create service (this will trigger event subscriptions)
-      const service = new AccountActivityService({
-        messenger: serviceMessenger,
+    it('should handle comprehensive account scope conversion scenarios', async () => {
+      // Test 1: Null account handling
+      const { messenger: serviceMessenger1 } = createMockMessenger();
+      const subscribeSpy1 = jest.spyOn(serviceMessenger1, 'subscribe');
+      const service1 = new AccountActivityService({
+        messenger: serviceMessenger1,
       });
-
-      // Get the selectedAccountChange callback
-      const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
+      const selectedAccountChangeCall1 = subscribeSpy1.mock.calls.find(
         (call: unknown[]) =>
           call[0] === 'AccountsController:selectedAccountChange',
       );
-
-      expect(selectedAccountChangeCall).toBeDefined();
-
-      // Extract the callback - we know it exists due to the assertion above
-      const selectedAccountChangeCallback = selectedAccountChangeCall?.[1];
-      expect(selectedAccountChangeCallback).toBeDefined();
-
-      // Test with null account - should throw error (line 364)
-      // Cast to function since we've asserted it exists
-      const callback = selectedAccountChangeCallback as (
+      const callback1 = selectedAccountChangeCall1?.[1] as (
         account: unknown,
         previousAccount: unknown,
       ) => Promise<void>;
-      // eslint-disable-next-line n/callback-return
-      await expect(callback(null, undefined)).rejects.toThrow(
+      await expect(callback1(null, undefined)).rejects.toThrow(
         'Account address is required',
       );
+      service1.destroy();
 
-      service.destroy();
-    });
-
-    it('should handle Solana account scope conversion via selected account change', async () => {
-      // Create mock Solana account with Solana scopes
+      // Test 2: Solana account scope conversion
       const solanaAccount = createMockInternalAccount({
         address: 'SolanaAddress123abc',
       });
-      solanaAccount.scopes = ['solana:mainnet-beta']; // Solana scope
-
-      // Create messenger setup first
-      const { messenger: serviceMessenger, mocks } = createMockMessenger();
-
-      // Set up spy BEFORE creating service
-      const subscribeSpy = jest.spyOn(serviceMessenger, 'subscribe');
-
-      // Create service (this will trigger event subscriptions)
-      const service = new AccountActivityService({
-        messenger: serviceMessenger,
+      solanaAccount.scopes = ['solana:mainnet-beta'];
+      const { messenger: serviceMessenger2, mocks: mocks2 } =
+        createMockMessenger();
+      const subscribeSpy2 = jest.spyOn(serviceMessenger2, 'subscribe');
+      const service2 = new AccountActivityService({
+        messenger: serviceMessenger2,
       });
 
-      // Mock to test the convertToCaip10Address method path
-      mocks.connect.mockResolvedValue(undefined);
-      mocks.channelHasSubscription.mockReturnValue(false); // Not subscribed, so will proceed with subscription
-      mocks.addChannelCallback.mockReturnValue(undefined);
-      mocks.findSubscriptionsByChannelPrefix.mockReturnValue([]); // No existing subscriptions
-      mocks.subscribe.mockResolvedValue({
+      mocks2.connect.mockResolvedValue(undefined);
+      mocks2.channelHasSubscription.mockReturnValue(false);
+      mocks2.addChannelCallback.mockReturnValue(undefined);
+      mocks2.findSubscriptionsByChannelPrefix.mockReturnValue([]);
+      mocks2.subscribe.mockResolvedValue({
         subscriptionId: 'solana-sub-123',
         unsubscribe: jest.fn(),
       });
 
-      // Get the selectedAccountChange callback to trigger conversion
-      const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
+      const selectedAccountChangeCall2 = subscribeSpy2.mock.calls.find(
         (call: unknown[]) =>
           call[0] === 'AccountsController:selectedAccountChange',
       );
-
-      if (selectedAccountChangeCall) {
-        const selectedAccountChangeCallback = selectedAccountChangeCall[1];
-
-        // Trigger account change with Solana account
-        await selectedAccountChangeCallback(solanaAccount, undefined);
-      }
-
-      // Should have subscribed to Solana format channel
-      expect(mocks.subscribe).toHaveBeenCalledWith(
+      await selectedAccountChangeCall2?.[1]?.(solanaAccount, undefined);
+      expect(mocks2.subscribe).toHaveBeenCalledWith(
         expect.objectContaining({
           channels: expect.arrayContaining([
             expect.stringContaining('solana:0:solanaaddress123abc'),
           ]),
         }),
       );
+      service2.destroy();
 
-      service.destroy();
-    });
-
-    it('should handle unknown scope account conversion via selected account change', async () => {
-      // Create mock account with unknown/unsupported scopes
+      // Test 3: Unknown scope fallback
       const unknownAccount = createMockInternalAccount({
         address: 'UnknownChainAddress456def',
       });
-      unknownAccount.scopes = ['bitcoin:mainnet', 'unknown:chain']; // Non-EVM, non-Solana scopes - hits line 504
-
-      // Create messenger setup first
-      const { messenger: serviceMessenger, mocks } = createMockMessenger();
-
-      // Set up spy BEFORE creating service
-      const subscribeSpy = jest.spyOn(serviceMessenger, 'subscribe');
-
-      // Create service (this will trigger event subscriptions)
-      const service = new AccountActivityService({
-        messenger: serviceMessenger,
+      unknownAccount.scopes = ['bitcoin:mainnet', 'unknown:chain'];
+      const { messenger: serviceMessenger3, mocks: mocks3 } =
+        createMockMessenger();
+      const subscribeSpy3 = jest.spyOn(serviceMessenger3, 'subscribe');
+      const service3 = new AccountActivityService({
+        messenger: serviceMessenger3,
       });
 
-      // Mock to test the convertToCaip10Address fallback path
-      mocks.connect.mockResolvedValue(undefined);
-      mocks.channelHasSubscription.mockReturnValue(false); // Not subscribed, so will proceed with subscription
-      mocks.addChannelCallback.mockReturnValue(undefined);
-      mocks.findSubscriptionsByChannelPrefix.mockReturnValue([]); // No existing subscriptions
-      mocks.subscribe.mockResolvedValue({
+      mocks3.connect.mockResolvedValue(undefined);
+      mocks3.channelHasSubscription.mockReturnValue(false);
+      mocks3.addChannelCallback.mockReturnValue(undefined);
+      mocks3.findSubscriptionsByChannelPrefix.mockReturnValue([]);
+      mocks3.subscribe.mockResolvedValue({
         subscriptionId: 'unknown-sub-456',
         unsubscribe: jest.fn(),
       });
 
-      // Get the selectedAccountChange callback to trigger conversion
-      const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
+      const selectedAccountChangeCall3 = subscribeSpy3.mock.calls.find(
         (call: unknown[]) =>
           call[0] === 'AccountsController:selectedAccountChange',
       );
-
-      if (selectedAccountChangeCall) {
-        const selectedAccountChangeCallback = selectedAccountChangeCall[1];
-
-        // Trigger account change with unknown scope account - hits line 504
-        await selectedAccountChangeCallback(unknownAccount, undefined);
-      }
-
-      // Should have subscribed using raw address (fallback - address is lowercased)
-      expect(mocks.subscribe).toHaveBeenCalledWith(
+      await selectedAccountChangeCall3?.[1]?.(unknownAccount, undefined);
+      expect(mocks3.subscribe).toHaveBeenCalledWith(
         expect.objectContaining({
           channels: expect.arrayContaining([
             expect.stringContaining('unknownchainaddress456def'),
           ]),
         }),
       );
-
-      service.destroy();
+      service3.destroy();
     });
 
-    it('should handle subscription failure during account change', async () => {
-      // Create messenger setup first
-      const { messenger: serviceMessenger, mocks } = createMockMessenger();
-
-      // Set up spy BEFORE creating service
-      const subscribeSpy = jest.spyOn(serviceMessenger, 'subscribe');
-
-      // Create service (this will trigger event subscriptions)
-      const service = new AccountActivityService({
-        messenger: serviceMessenger,
+    it('should handle comprehensive subscription and lifecycle scenarios', async () => {
+      // Test 1: Subscription failure during account change
+      const { messenger: serviceMessenger1, mocks: mocks1 } =
+        createMockMessenger();
+      const subscribeSpy1 = jest.spyOn(serviceMessenger1, 'subscribe');
+      const service1 = new AccountActivityService({
+        messenger: serviceMessenger1,
       });
 
-      // Mock to trigger account change failure that leads to force reconnection
-      mocks.connect.mockResolvedValue(undefined);
-      mocks.channelHasSubscription.mockReturnValue(false);
-      mocks.findSubscriptionsByChannelPrefix.mockReturnValue([]);
-      mocks.subscribe.mockImplementation(() => {
-        throw new Error('Subscribe failed'); // Trigger lines 488-492
+      mocks1.connect.mockResolvedValue(undefined);
+      mocks1.channelHasSubscription.mockReturnValue(false);
+      mocks1.findSubscriptionsByChannelPrefix.mockReturnValue([]);
+      mocks1.subscribe.mockImplementation(() => {
+        throw new Error('Subscribe failed');
       });
-      mocks.addChannelCallback.mockReturnValue(undefined);
-      mocks.disconnect.mockResolvedValue(undefined);
-      mocks.getSelectedAccount.mockReturnValue(
+      mocks1.addChannelCallback.mockReturnValue(undefined);
+      mocks1.disconnect.mockResolvedValue(undefined);
+      mocks1.getSelectedAccount.mockReturnValue(
         createMockInternalAccount({ address: '0x123abc' }),
       );
 
-      // Trigger account change that will fail - lines 488-492
-      const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
+      const selectedAccountChangeCall1 = subscribeSpy1.mock.calls.find(
         (call: unknown[]) =>
           call[0] === 'AccountsController:selectedAccountChange',
       );
+      const testAccount = createMockInternalAccount({ address: '0x123abc' });
+      await selectedAccountChangeCall1?.[1]?.(testAccount, undefined);
+      expect(mocks1.subscribe).toHaveBeenCalledWith(expect.any(Object));
+      service1.destroy();
 
-      if (selectedAccountChangeCall) {
-        const selectedAccountChangeCallback = selectedAccountChangeCall[1];
-        const testAccount = createMockInternalAccount({ address: '0x123abc' });
-
-        await selectedAccountChangeCallback(testAccount, undefined);
-      }
-
-      // Test should handle account change failure scenario
-      expect(mocks.subscribe).toHaveBeenCalledWith(expect.any(Object));
-
-      service.destroy();
-    });
-
-    it('should handle accounts with unknown blockchain scopes', async () => {
-      const { service, mocks } = createIndependentService();
-
-      // Test lines 649-655 with different account types
-      mocks.connect.mockResolvedValue(undefined);
-      mocks.channelHasSubscription.mockReturnValue(false);
-      mocks.subscribe.mockResolvedValue({
+      // Test 2: Unknown blockchain scopes
+      const { service: service2, mocks: mocks2 } = createIndependentService();
+      mocks2.connect.mockResolvedValue(undefined);
+      mocks2.channelHasSubscription.mockReturnValue(false);
+      mocks2.subscribe.mockResolvedValue({
         subscriptionId: 'unknown-test',
         unsubscribe: jest.fn(),
       });
-      mocks.addChannelCallback.mockReturnValue(undefined);
+      mocks2.addChannelCallback.mockReturnValue(undefined);
 
-      // Create account with unknown scopes - should hit line 655 (return raw address)
       const unknownAccount = createMockInternalAccount({
         address: 'unknown-chain-address-123',
       });
-      // Set unknown scope
       unknownAccount.scopes = ['unknown:123:address'];
+      await service2.subscribeAccounts({ address: unknownAccount.address });
+      expect(mocks2.subscribe).toHaveBeenCalledWith(expect.any(Object));
+      service2.destroy();
 
-      // Subscribe to unknown account type - should hit lines 654-655 fallback
-      await service.subscribeAccounts({
-        address: unknownAccount.address,
-      });
-
-      // Should have called subscribe method
-      expect(mocks.subscribe).toHaveBeenCalledWith(expect.any(Object));
-
-      service.destroy();
-    });
-
-    it('should handle system notification parsing scenarios', () => {
-      // Test various system notification scenarios to hit different branches
-      const { service } = createIndependentService();
-
-      // Test that service handles different setup scenarios
-      expect(service.name).toBe('AccountActivityService');
-
-      service.destroy();
-    });
-
-    it('should handle additional error scenarios and edge cases', async () => {
+      // Test 3: Service lifecycle and multiple connection states
       const {
-        service,
-        messenger: serviceMessenger,
-        mocks,
+        service: service3,
+        messenger: serviceMessenger3,
+        mocks: mocks3,
       } = createIndependentService();
+      mocks3.connect.mockResolvedValue(undefined);
+      mocks3.addChannelCallback.mockReturnValue(undefined);
+      mocks3.getSelectedAccount.mockReturnValue(null);
 
-      // Test various error scenarios
-      mocks.connect.mockResolvedValue(undefined);
-      mocks.addChannelCallback.mockReturnValue(undefined);
-      mocks.getSelectedAccount.mockReturnValue(null); // Return different types of invalid accounts to test error paths
-
-      // Trigger different state changes to exercise more code paths
-      const subscribeSpy = jest.spyOn(serviceMessenger, 'subscribe');
-      const connectionStateChangeCall = subscribeSpy.mock.calls.find(
+      const subscribeSpy3 = jest.spyOn(serviceMessenger3, 'subscribe');
+      const connectionStateChangeCall3 = subscribeSpy3.mock.calls.find(
         (call: unknown[]) =>
           call[0] === 'BackendWebSocketService:connectionStateChanged',
       );
+      const connectionStateChangeCallback3 = connectionStateChangeCall3?.[1];
 
-      if (connectionStateChangeCall) {
-        const connectionStateChangeCallback = connectionStateChangeCall[1];
+      // Test multiple connection states
+      connectionStateChangeCallback3?.(
+        {
+          state: WebSocketState.CONNECTED,
+          url: 'ws://test',
+          reconnectAttempts: 0,
+        },
+        undefined,
+      );
+      connectionStateChangeCallback3?.(
+        {
+          state: WebSocketState.DISCONNECTED,
+          url: 'ws://test',
+          reconnectAttempts: 1,
+        },
+        undefined,
+      );
+      connectionStateChangeCallback3?.(
+        { state: WebSocketState.ERROR, url: 'ws://test', reconnectAttempts: 2 },
+        undefined,
+      );
 
-        // Test with different connection states
-        connectionStateChangeCallback(
-          {
-            state: WebSocketState.CONNECTED,
-            url: 'ws://test',
-            reconnectAttempts: 0,
-          },
-          undefined,
-        );
+      expect(service3).toBeInstanceOf(AccountActivityService);
+      expect(service3.name).toBe('AccountActivityService');
+      expect(typeof service3.subscribeAccounts).toBe('function');
+      expect(typeof service3.unsubscribeAccounts).toBe('function');
 
-        connectionStateChangeCallback(
-          {
-            state: WebSocketState.DISCONNECTED,
-            url: 'ws://test',
-            reconnectAttempts: 1,
-          },
-          undefined,
-        );
-
-        connectionStateChangeCallback(
-          {
-            state: WebSocketState.ERROR,
-            url: 'ws://test',
-            reconnectAttempts: 2,
-          },
-          undefined,
-        );
-      }
-
-      // Verify the service was created and can be destroyed
-      expect(service).toBeInstanceOf(AccountActivityService);
-      service.destroy();
-    });
-
-    it('should test various account activity message scenarios', () => {
-      const { service } = createIndependentService();
-
-      // Test service properties and methods
-      expect(service.name).toBe('AccountActivityService');
-      expect(typeof service.subscribeAccounts).toBe('function');
-      expect(typeof service.unsubscribeAccounts).toBe('function');
-
-      service.destroy();
-    });
-
-    it('should handle service lifecycle comprehensively', () => {
-      // Test creating and destroying service multiple times
-      const { service: service1 } = createIndependentService();
-      expect(service1).toBeInstanceOf(AccountActivityService);
-      service1.destroy();
-
-      const { service: service2 } = createIndependentService();
-      expect(service2).toBeInstanceOf(AccountActivityService);
-      service2.destroy();
-
-      // Test that multiple destroy calls are safe
-      expect(() => service2.destroy()).not.toThrow();
-      expect(() => service2.destroy()).not.toThrow();
+      service3.destroy();
+      expect(() => service3.destroy()).not.toThrow(); // Multiple destroy calls are safe
+      expect(() => service3.destroy()).not.toThrow();
     });
   });
 
@@ -2149,103 +1822,25 @@ describe('AccountActivityService', () => {
   });
 
   describe('subscription state tracking', () => {
-    it('should return null when no account is subscribed', () => {
-      const { mocks } = createIndependentService();
-
-      // Check that no subscriptions are active initially
-      expect(mocks.channelHasSubscription).not.toHaveBeenCalledWith(
-        expect.any(String),
-      );
-      // Verify no subscription calls were made
-      expect(mocks.subscribe).not.toHaveBeenCalledWith(expect.any(Object));
-    });
-
-    it('should return current subscribed account address', async () => {
+    it('should handle comprehensive subscription state management', async () => {
       const { service, mocks } = createIndependentService();
-
-      const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mocks.connect.mockResolvedValue(undefined);
-      mocks.disconnect.mockResolvedValue(undefined);
-      mocks.subscribe.mockResolvedValue({
-        subscriptionId: 'sub-123',
-        unsubscribe: mockUnsubscribe,
-      });
-      mocks.channelHasSubscription.mockReturnValue(false); // Allow subscription to proceed
-      mocks.addChannelCallback.mockReturnValue(undefined);
-      mocks.getSelectedAccount.mockReturnValue(testAccount);
-
-      // Subscribe to an account
-      const subscription = {
-        address: testAccount.address,
-      };
-
-      await service.subscribeAccounts(subscription);
-
-      // Verify that subscription was created successfully
-      expect(mocks.subscribe).toHaveBeenCalledWith(
-        expect.objectContaining({
-          channels: expect.arrayContaining([
-            expect.stringContaining(testAccount.address.toLowerCase()),
-          ]),
-        }),
-      );
-    });
-
-    it('should return the most recently subscribed account', async () => {
-      const { service, mocks } = createIndependentService();
-
       const testAccount1 = createMockInternalAccount({ address: '0x123abc' });
       const testAccount2 = createMockInternalAccount({ address: '0x456def' });
-
-      mocks.getSelectedAccount.mockReturnValue(testAccount1); // Default selected account
-
-      // Subscribe to first account
-      await service.subscribeAccounts({
-        address: testAccount1.address,
-      });
-
-      // Instead of checking internal state, verify subscription behavior
-      expect(mocks.subscribe).toHaveBeenCalledWith(
-        expect.objectContaining({
-          channels: expect.arrayContaining([
-            expect.stringContaining(testAccount1.address.toLowerCase()),
-          ]),
-        }),
-      );
-
-      // Subscribe to second account (should become current)
-      await service.subscribeAccounts({
-        address: testAccount2.address,
-      });
-
-      // Instead of checking internal state, verify subscription behavior
-      expect(mocks.subscribe).toHaveBeenCalledWith(
-        expect.objectContaining({
-          channels: expect.arrayContaining([
-            expect.stringContaining(testAccount2.address.toLowerCase()),
-          ]),
-        }),
-      );
-    });
-
-    it('should return null after unsubscribing all accounts', async () => {
-      const { service, mocks } = createIndependentService();
-
-      const testAccount = createMockInternalAccount({ address: '0x123abc' });
       const mockUnsubscribeLocal = jest.fn().mockResolvedValue(undefined);
 
+      // Setup comprehensive mocks
       mocks.connect.mockResolvedValue(undefined);
       mocks.disconnect.mockResolvedValue(undefined);
       mocks.subscribe.mockResolvedValue({
         subscriptionId: 'test-sub-id',
         unsubscribe: mockUnsubscribeLocal,
       });
-      mocks.channelHasSubscription.mockReturnValue(false); // Allow subscription to proceed
+      mocks.channelHasSubscription.mockReturnValue(false);
       mocks.getSubscriptionsByChannel.mockReturnValue([
         {
           subscriptionId: 'test-sub-id',
           channels: [
-            `account-activity.v1.${testAccount.address.toLowerCase()}`,
+            `account-activity.v1.${testAccount1.address.toLowerCase()}`,
           ],
           unsubscribe: mockUnsubscribeLocal,
         },
@@ -2254,87 +1849,90 @@ describe('AccountActivityService', () => {
         {
           subscriptionId: 'test-sub-id',
           channels: [
-            `account-activity.v1.${testAccount.address.toLowerCase()}`,
+            `account-activity.v1.${testAccount1.address.toLowerCase()}`,
           ],
           unsubscribe: mockUnsubscribeLocal,
         },
       ]);
       mocks.addChannelCallback.mockReturnValue(undefined);
-      mocks.getSelectedAccount.mockReturnValue(testAccount);
+      mocks.getSelectedAccount.mockReturnValue(testAccount1);
 
-      // Subscribe to an account
-      const subscription = {
-        address: testAccount.address,
-      };
-
-      await service.subscribeAccounts(subscription);
-
-      // Unsubscribe from the account
-      await service.unsubscribeAccounts(subscription);
-
-      // Should return null after unsubscribing
-      // Verify unsubscription was called
-      expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
-        expect.stringContaining('account-activity'),
+      // Test 1: Initial state - no subscriptions
+      expect(mocks.channelHasSubscription).not.toHaveBeenCalledWith(
+        expect.any(String),
       );
-    });
-  });
+      expect(mocks.subscribe).not.toHaveBeenCalledWith(expect.any(Object));
 
-  describe('destroy', () => {
-    it('should clean up all subscriptions and callbacks on destroy', async () => {
-      const { service, mocks } = createIndependentService();
-
-      const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mocks.getSelectedAccount.mockReturnValue(testAccount);
-
-      // Subscribe to an account to create some state
-      const subscription = {
-        address: testAccount.address,
-      };
-
-      await service.subscribeAccounts(subscription);
-      // Instead of checking internal state, verify subscription behavior
+      // Test 2: Subscribe to first account
+      await service.subscribeAccounts({ address: testAccount1.address });
       expect(mocks.subscribe).toHaveBeenCalledWith(
         expect.objectContaining({
           channels: expect.arrayContaining([
-            expect.stringContaining(testAccount.address.toLowerCase()),
+            expect.stringContaining(testAccount1.address.toLowerCase()),
           ]),
         }),
       );
 
-      // Verify service has active subscriptions
-      expect(mocks.subscribe).toHaveBeenCalledWith(expect.any(Object));
+      // Test 3: Subscribe to second account
+      await service.subscribeAccounts({ address: testAccount2.address });
+      expect(mocks.subscribe).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channels: expect.arrayContaining([
+            expect.stringContaining(testAccount2.address.toLowerCase()),
+          ]),
+        }),
+      );
 
-      // Destroy the service
-      service.destroy();
-
-      // Verify cleanup occurred
-      // Verify unsubscription was called
-      expect(mocks.findSubscriptionsByChannelPrefix).toHaveBeenCalledWith(
+      // Test 4: Unsubscribe and verify cleanup
+      await service.unsubscribeAccounts({ address: testAccount1.address });
+      expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
         expect.stringContaining('account-activity'),
       );
+
+      service.destroy();
     });
+  });
 
-    it('should handle destroy gracefully when no subscriptions exist', () => {
-      const { service } = createIndependentService();
+  describe('destroy', () => {
+    it('should handle comprehensive service destruction and cleanup', async () => {
+      // Test 1: Clean up subscriptions and callbacks on destroy
+      const { service: service1, mocks: mocks1 } = createIndependentService();
+      const testAccount = createMockInternalAccount({ address: '0x123abc' });
+      mocks1.getSelectedAccount.mockReturnValue(testAccount);
+      mocks1.channelHasSubscription.mockReturnValue(false);
+      mocks1.addChannelCallback.mockReturnValue(undefined);
+      mocks1.connect.mockResolvedValue(undefined);
 
-      // Should not throw when destroying with no active subscriptions
-      expect(() => service.destroy()).not.toThrow();
-    });
+      const mockSubscription = {
+        subscriptionId: 'test-subscription',
+        channels: ['test-channel'],
+        unsubscribe: jest.fn().mockResolvedValue(undefined),
+      };
+      mocks1.subscribe.mockResolvedValue(mockSubscription);
+      mocks1.getSubscriptionsByChannel.mockReturnValue([mockSubscription]);
+      mocks1.findSubscriptionsByChannelPrefix.mockReturnValue([
+        mockSubscription,
+      ]);
 
-    it('should unsubscribe from messenger events on destroy', () => {
-      // Create messenger setup first
+      await service1.subscribeAccounts({ address: testAccount.address });
+      expect(mocks1.subscribe).toHaveBeenCalledWith(expect.any(Object));
+
+      service1.destroy();
+      expect(mocks1.findSubscriptionsByChannelPrefix).toHaveBeenCalledWith(
+        expect.stringContaining('account-activity'),
+      );
+
+      // Test 2: Handle destroy gracefully when no subscriptions exist
+      const { service: service2 } = createIndependentService();
+      expect(() => service2.destroy()).not.toThrow();
+
+      // Test 3: Unsubscribe from messenger events on destroy
       const { messenger: serviceMessenger } = createMockMessenger();
-
-      // Set up spy BEFORE creating service
       const subscribeSpy = jest.spyOn(serviceMessenger, 'subscribe');
-
-      // Create service (this will trigger event subscriptions)
-      const service = new AccountActivityService({
+      const service3 = new AccountActivityService({
         messenger: serviceMessenger,
       });
 
-      // Verify initial subscriptions were created
       expect(subscribeSpy).toHaveBeenCalledWith(
         'AccountsController:selectedAccountChange',
         expect.any(Function),
@@ -2344,68 +1942,16 @@ describe('AccountActivityService', () => {
         expect.any(Function),
       );
 
-      // Clear mock calls to verify destroy behavior
       const unregisterSpy = jest.spyOn(
         serviceMessenger,
         'unregisterActionHandler',
       );
-      unregisterSpy.mockClear();
-
-      // Destroy the service
-      service.destroy();
-
-      // Verify it unregistered action handlers
+      service3.destroy();
       expect(unregisterSpy).toHaveBeenCalledWith(
         'AccountActivityService:subscribeAccounts',
       );
       expect(unregisterSpy).toHaveBeenCalledWith(
         'AccountActivityService:unsubscribeAccounts',
-      );
-    });
-
-    it('should clean up WebSocket subscriptions on destroy', async () => {
-      const { service, mocks } = createIndependentService();
-
-      const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mocks.getSelectedAccount.mockReturnValue(testAccount);
-      mocks.channelHasSubscription.mockReturnValue(false); // Allow subscription to proceed
-      mocks.addChannelCallback.mockReturnValue(undefined);
-      mocks.connect.mockResolvedValue(undefined);
-
-      // Mock subscription object with unsubscribe method
-      const mockSubscription = {
-        subscriptionId: 'test-subscription',
-        channels: ['test-channel'],
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
-      };
-
-      mocks.subscribe.mockResolvedValue(mockSubscription);
-      mocks.getSubscriptionsByChannel.mockReturnValue([mockSubscription]);
-
-      // Subscribe to an account
-      await service.subscribeAccounts({
-        address: testAccount.address,
-      });
-
-      // Verify subscription was created
-      expect(mocks.subscribe).toHaveBeenCalledWith(expect.any(Object));
-
-      // Mock existing subscriptions for destroy to find
-      mocks.findSubscriptionsByChannelPrefix.mockReturnValue([
-        {
-          subscriptionId: 'test-subscription',
-          channels: ['test-channel'],
-          unsubscribe: jest.fn().mockResolvedValue(undefined),
-        },
-      ]);
-
-      // Destroy the service
-      service.destroy();
-
-      // Verify the service was cleaned up (current implementation just clears state)
-      // Verify unsubscription was called
-      expect(mocks.findSubscriptionsByChannelPrefix).toHaveBeenCalledWith(
-        expect.stringContaining('account-activity'),
       );
     });
   });
