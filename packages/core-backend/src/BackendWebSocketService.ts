@@ -212,10 +212,12 @@ export type BackendWebSocketServiceActions =
   BackendWebSocketServiceMethodActions;
 
 export type BackendWebSocketServiceAllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerToken;
+  | AuthenticationController.AuthenticationControllerGetBearerToken
+  | BackendWebSocketServiceMethodActions;
 
 export type BackendWebSocketServiceAllowedEvents =
-  AuthenticationController.AuthenticationControllerStateChangeEvent;
+  | AuthenticationController.AuthenticationControllerStateChangeEvent
+  | BackendWebSocketServiceConnectionStateChangedEvent;
 
 // Event types for WebSocket connection state changes
 export type BackendWebSocketServiceConnectionStateChangedEvent = {
