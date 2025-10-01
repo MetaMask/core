@@ -169,10 +169,18 @@ export const domainToParts = (domain: string) => {
  * Converts a list of domain strings to a list of domain parts.
  *
  * @param list - the list of domain strings to convert.
- * @returns the list of domain parts.
+ * @returns the list of domain parts for valid domains only.
  */
-export const processDomainList = (list: string[]) => {
-  return list.map(domainToParts);
+export const processDomainList = (list: unknown[]) => {
+  return list
+    .filter((domain): domain is string => {
+      if (typeof domain !== 'string') {
+        console.warn(`Invalid domain value in list: ${JSON.stringify(domain)}`);
+        return false;
+      }
+      return true;
+    })
+    .map(domainToParts);
 };
 
 /**
