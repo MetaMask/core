@@ -3,6 +3,10 @@ import { Messenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Hex } from '@metamask/utils';
 
+import type {
+  AccountActivityServiceAllowedEvents,
+  AccountActivityServiceAllowedActions,
+} from './AccountActivityService';
 import {
   AccountActivityService,
   type AccountActivityServiceMessenger,
@@ -15,6 +19,7 @@ import type {
   ServerNotificationMessage,
 } from './BackendWebSocketService';
 import { WebSocketState } from './BackendWebSocketService';
+import type { Transaction, BalanceUpdate } from './types';
 import type { AccountActivityMessage } from './types';
 
 // Mock global fetch for API testing
@@ -55,15 +60,16 @@ const createMockInternalAccount = (options: {
 const createMockMessenger = () => {
   // Use any types for the root messenger to avoid complex type constraints in tests
   // Create a unique root messenger for each test
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rootMessenger = new Messenger<any, any>();
-  const messenger = rootMessenger.getRestricted({
-    name: 'AccountActivityService',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    allowedActions: [...ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS] as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    allowedEvents: [...ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS] as any,
-  }) as unknown as AccountActivityServiceMessenger;
+  const rootMessenger = new Messenger<
+    AccountActivityServiceAllowedActions,
+    AccountActivityServiceAllowedEvents
+  >();
+  const messenger: AccountActivityServiceMessenger =
+    rootMessenger.getRestricted({
+      name: 'AccountActivityService',
+      allowedActions: [...ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS],
+      allowedEvents: [...ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS],
+    });
 
   // Create mock action handlers
   const mockGetAccountByAddress = jest.fn();
@@ -80,58 +86,47 @@ const createMockMessenger = () => {
 
   // Register all action handlers
   rootMessenger.registerActionHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    'AccountsController:getAccountByAddress' as any,
+    'AccountsController:getAccountByAddress',
     mockGetAccountByAddress,
   );
   rootMessenger.registerActionHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    'AccountsController:getSelectedAccount' as any,
+    'AccountsController:getSelectedAccount',
     mockGetSelectedAccount,
   );
   rootMessenger.registerActionHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    'BackendWebSocketService:connect' as any,
+    'BackendWebSocketService:connect',
     mockConnect,
   );
   rootMessenger.registerActionHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    'BackendWebSocketService:disconnect' as any,
+    'BackendWebSocketService:disconnect',
     mockDisconnect,
   );
   rootMessenger.registerActionHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    'BackendWebSocketService:subscribe' as any,
+    'BackendWebSocketService:subscribe',
     mockSubscribe,
   );
   rootMessenger.registerActionHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    'BackendWebSocketService:channelHasSubscription' as any,
+    'BackendWebSocketService:channelHasSubscription',
     mockChannelHasSubscription,
   );
   rootMessenger.registerActionHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    'BackendWebSocketService:getSubscriptionsByChannel' as any,
+    'BackendWebSocketService:getSubscriptionsByChannel',
     mockGetSubscriptionsByChannel,
   );
   rootMessenger.registerActionHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    'BackendWebSocketService:findSubscriptionsByChannelPrefix' as any,
+    'BackendWebSocketService:findSubscriptionsByChannelPrefix',
     mockFindSubscriptionsByChannelPrefix,
   );
   rootMessenger.registerActionHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    'BackendWebSocketService:addChannelCallback' as any,
+    'BackendWebSocketService:addChannelCallback',
     mockAddChannelCallback,
   );
   rootMessenger.registerActionHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    'BackendWebSocketService:removeChannelCallback' as any,
+    'BackendWebSocketService:removeChannelCallback',
     mockRemoveChannelCallback,
   );
   rootMessenger.registerActionHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    'BackendWebSocketService:sendRequest' as any,
+    'BackendWebSocketService:sendRequest',
     mockSendRequest,
   );
 
@@ -460,26 +455,38 @@ describe('AccountActivityService', () => {
         data: activityMessage,
       };
 
-      // Create spy before calling callback to capture publish events
-      const publishSpy = jest.spyOn(messenger, 'publish');
+      // Subscribe to events to verify they are published
+      const receivedTransactionEvents: Transaction[] = [];
+      const receivedBalanceEvents: {
+        address: string;
+        chain: string;
+        updates: BalanceUpdate[];
+      }[] = [];
+
+      messenger.subscribe(
+        'AccountActivityService:transactionUpdated',
+        (data) => {
+          receivedTransactionEvents.push(data);
+        },
+      );
+
+      messenger.subscribe('AccountActivityService:balanceUpdated', (data) => {
+        receivedBalanceEvents.push(data);
+      });
 
       // Call the captured callback
       capturedCallback(notificationMessage);
 
-      // Should publish transaction and balance events
-      expect(publishSpy).toHaveBeenCalledWith(
-        'AccountActivityService:transactionUpdated',
-        activityMessage.tx,
-      );
+      // Should receive transaction and balance events
+      expect(receivedTransactionEvents).toHaveLength(1);
+      expect(receivedTransactionEvents[0]).toStrictEqual(activityMessage.tx);
 
-      expect(publishSpy).toHaveBeenCalledWith(
-        'AccountActivityService:balanceUpdated',
-        {
-          address: '0x1234567890123456789012345678901234567890',
-          chain: 'eip155:1',
-          updates: activityMessage.updates,
-        },
-      );
+      expect(receivedBalanceEvents).toHaveLength(1);
+      expect(receivedBalanceEvents[0]).toStrictEqual({
+        address: '0x1234567890123456789012345678901234567890',
+        chain: 'eip155:1',
+        updates: activityMessage.updates,
+      });
 
       // Clean up
       service.destroy();
@@ -1304,21 +1311,37 @@ describe('AccountActivityService', () => {
         data: activityMessage,
       };
 
-      const publishSpy = jest.spyOn(messenger, 'publish');
-      capturedCallback(notificationMessage);
+      // Subscribe to events to verify they are published
+      const receivedTransactionEvents: Transaction[] = [];
+      const receivedBalanceEvents: {
+        address: string;
+        chain: string;
+        updates: BalanceUpdate[];
+      }[] = [];
 
-      expect(publishSpy).toHaveBeenCalledWith(
+      messenger.subscribe(
         'AccountActivityService:transactionUpdated',
-        activityMessage.tx,
-      );
-      expect(publishSpy).toHaveBeenCalledWith(
-        'AccountActivityService:balanceUpdated',
-        {
-          address: '0x1234567890123456789012345678901234567890',
-          chain: 'eip155:1',
-          updates: [],
+        (data) => {
+          receivedTransactionEvents.push(data);
         },
       );
+
+      messenger.subscribe('AccountActivityService:balanceUpdated', (data) => {
+        receivedBalanceEvents.push(data);
+      });
+
+      capturedCallback(notificationMessage);
+
+      // Should receive transaction and balance events
+      expect(receivedTransactionEvents).toHaveLength(1);
+      expect(receivedTransactionEvents[0]).toStrictEqual(activityMessage.tx);
+
+      expect(receivedBalanceEvents).toHaveLength(1);
+      expect(receivedBalanceEvents[0]).toStrictEqual({
+        address: '0x1234567890123456789012345678901234567890',
+        chain: 'eip155:1',
+        updates: [],
+      });
 
       // Clean up
       service.destroy();
@@ -1921,8 +1944,15 @@ describe('AccountActivityService', () => {
         updates: [],
       };
 
-      // Create spy before calling callback to capture publish events
-      const publishSpy = jest.spyOn(messenger, 'publish');
+      // Subscribe to events to verify they are published
+      const receivedTransactionEvents: Transaction[] = [];
+
+      messenger.subscribe(
+        'AccountActivityService:transactionUpdated',
+        (data) => {
+          receivedTransactionEvents.push(data);
+        },
+      );
 
       capturedCallback({
         event: 'notification',
@@ -1932,10 +1962,9 @@ describe('AccountActivityService', () => {
         data: activityMessage,
       });
 
-      expect(publishSpy).toHaveBeenCalledWith(
-        'AccountActivityService:transactionUpdated',
-        activityMessage.tx,
-      );
+      // Should receive transaction event
+      expect(receivedTransactionEvents).toHaveLength(1);
+      expect(receivedTransactionEvents[0]).toStrictEqual(activityMessage.tx);
 
       // Clean up
       service.destroy();

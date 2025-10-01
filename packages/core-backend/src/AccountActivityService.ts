@@ -8,6 +8,7 @@
 import type {
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerGetSelectedAccountAction,
+  AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -164,10 +165,7 @@ export type AccountActivityServiceEvents =
   | AccountActivityServiceStatusChangedEvent;
 
 export type AccountActivityServiceAllowedEvents =
-  | {
-      type: 'AccountsController:selectedAccountChange';
-      payload: [InternalAccount];
-    }
+  | AccountsControllerSelectedAccountChangeEvent
   | BackendWebSocketServiceConnectionStateChangedEvent;
 
 export type AccountActivityServiceMessenger = RestrictedMessenger<
