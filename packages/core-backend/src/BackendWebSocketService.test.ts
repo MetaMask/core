@@ -6,6 +6,8 @@ import {
   WebSocketState,
   type BackendWebSocketServiceOptions,
   type BackendWebSocketServiceMessenger,
+  type BackendWebSocketServiceAllowedActions,
+  type BackendWebSocketServiceAllowedEvents,
   type ClientRequestMessage,
 } from './BackendWebSocketService';
 import { flushPromises } from '../../../tests/helpers';
@@ -29,17 +31,16 @@ type GlobalWithWebSocket = typeof global & { lastWebSocket: MockWebSocket };
  *
  * @returns Object containing the messenger and mock action functions
  */
-const createMockMessenger = () => {
-  // Use any types for the root messenger to avoid complex type constraints in tests
+const getMessenger = () => {
   // Create a unique root messenger for each test
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rootMessenger = new Messenger<any, any>();
+  const rootMessenger = new Messenger<
+    BackendWebSocketServiceAllowedActions,
+    BackendWebSocketServiceAllowedEvents
+  >();
   const messenger = rootMessenger.getRestricted({
     name: 'BackendWebSocketService',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    allowedActions: ['AuthenticationController:getBearerToken'] as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    allowedEvents: ['AuthenticationController:stateChange'] as any,
+    allowedActions: ['AuthenticationController:getBearerToken'],
+    allowedEvents: ['AuthenticationController:stateChange'],
   }) as unknown as BackendWebSocketServiceMessenger;
 
   // Create mock action handlers
@@ -47,8 +48,7 @@ const createMockMessenger = () => {
 
   // Register all action handlers
   rootMessenger.registerActionHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    'AuthenticationController:getBearerToken' as any,
+    'AuthenticationController:getBearerToken',
     mockGetBearerToken,
   );
 
@@ -249,7 +249,10 @@ type TestSetupOptions = {
 type TestSetup = {
   service: BackendWebSocketService;
   messenger: BackendWebSocketServiceMessenger;
-  rootMessenger: Messenger<any, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  rootMessenger: Messenger<
+    BackendWebSocketServiceAllowedActions,
+    BackendWebSocketServiceAllowedEvents
+  >;
   mocks: {
     getBearerToken: jest.Mock;
   };
@@ -280,7 +283,7 @@ const setupBackendWebSocketService = ({
   jest.useFakeTimers();
 
   // Create real messenger with registered actions
-  const messengerSetup = createMockMessenger();
+  const messengerSetup = getMessenger();
   const { rootMessenger, messenger, mocks } = messengerSetup;
 
   // Create spies BEFORE service construction to capture constructor calls

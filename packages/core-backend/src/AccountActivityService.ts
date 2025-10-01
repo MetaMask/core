@@ -17,7 +17,6 @@ import type { AccountActivityServiceMethodActions } from './AccountActivityServi
 import type {
   WebSocketConnectionInfo,
   BackendWebSocketServiceConnectionStateChangedEvent,
-  WebSocketSubscription,
   ServerNotificationMessage,
 } from './BackendWebSocketService';
 import { WebSocketState } from './BackendWebSocketService';
@@ -63,7 +62,7 @@ export type SystemNotificationData = {
   status: 'down' | 'up';
 };
 
-const SERVICE_NAME = 'AccountActivityService' as const;
+const SERVICE_NAME = 'AccountActivityService';
 
 const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
@@ -84,7 +83,7 @@ const SUPPORTED_CHAINS = [
   'eip155:42161', // Arbitrum One
   'eip155:534352', // Scroll
   'eip155:1329', // Sei
-] as const;
+];
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
 /**
@@ -370,7 +369,7 @@ export class AccountActivityService {
       const subscriptions = this.#messenger.call(
         'BackendWebSocketService:getSubscriptionsByChannel',
         channel,
-      ) as WebSocketSubscription[];
+      );
 
       if (subscriptions.length === 0) {
         return;
@@ -600,7 +599,7 @@ export class AccountActivityService {
         // Publish initial status - all supported chains are up when WebSocket connects
         this.#messenger.publish(`AccountActivityService:statusChanged`, {
           chainIds: supportedChains,
-          status: 'up' as const,
+          status: 'up',
         });
 
         log('WebSocket connected - Published all chains as up', {
@@ -619,7 +618,7 @@ export class AccountActivityService {
 
       this.#messenger.publish(`AccountActivityService:statusChanged`, {
         chainIds: supportedChains,
-        status: 'down' as const,
+        status: 'down',
       });
 
       log('WebSocket error/disconnection - Published all chains as down', {

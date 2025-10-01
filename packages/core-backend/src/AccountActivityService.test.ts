@@ -21,6 +21,7 @@ import type {
 import { WebSocketState } from './BackendWebSocketService';
 import type { Transaction, BalanceUpdate } from './types';
 import type { AccountActivityMessage } from './types';
+import { flushPromises } from '../../../tests/helpers';
 
 // Mock global fetch for API testing
 const mockFetch = jest.fn();
@@ -400,8 +401,7 @@ describe('AccountActivityService', () => {
       // Mock the subscribe call to capture the callback
       mocks.connect.mockResolvedValue(undefined);
       mocks.disconnect.mockResolvedValue(undefined);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mocks.subscribe.mockImplementation((options: any) => {
+      mocks.subscribe.mockImplementation((options) => {
         // Capture the callback from the subscription options
         capturedCallback = options.callback;
         return Promise.resolve({
@@ -502,8 +502,7 @@ describe('AccountActivityService', () => {
       // Mock the subscribe call to capture the callback
       mocks.connect.mockResolvedValue(undefined);
       mocks.disconnect.mockResolvedValue(undefined);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mocks.subscribe.mockImplementation((options: any) => {
+      mocks.subscribe.mockImplementation((options) => {
         // Capture the callback from the subscription options
         capturedCallback = options.callback;
         return Promise.resolve({
@@ -569,7 +568,6 @@ describe('AccountActivityService', () => {
       ]);
 
       await service.subscribeAccounts(mockSubscription);
-      jest.clearAllMocks();
 
       // Mock getSubscriptionsByChannel to return subscription with unsubscribe function
       mocks.getSubscriptionsByChannel.mockReturnValue([
@@ -649,9 +647,8 @@ describe('AccountActivityService', () => {
 
   describe('event handling', () => {
     it('should handle selectedAccountChange event', async () => {
-      // Create messenger setup with spy BEFORE service creation
+      // Create messenger setup
       const messengerSetup = createMockMessenger();
-      const subscribeSpy = jest.spyOn(messengerSetup.messenger, 'subscribe');
 
       // Create test account
       const mockSelectedAccount = createMockInternalAccount({
@@ -673,7 +670,7 @@ describe('AccountActivityService', () => {
       messengerSetup.mocks.addChannelCallback.mockReturnValue(undefined);
       messengerSetup.mocks.connect.mockResolvedValue(undefined);
 
-      // Create service AFTER setting up spy
+      // Create service
       const service = new AccountActivityService({
         messenger: messengerSetup.messenger,
       });
@@ -692,20 +689,14 @@ describe('AccountActivityService', () => {
         type: 'eip155:eoa',
       };
 
-      // Get the selectedAccountChange callback
-      const selectedAccountChangeCall = subscribeSpy.mock.calls.find(
-        (call: unknown[]) =>
-          call[0] === 'AccountsController:selectedAccountChange',
+      // Publish event on root messenger - this will be picked up by the service
+      messengerSetup.rootMessenger.publish(
+        'AccountsController:selectedAccountChange',
+        newAccount,
       );
-      expect(selectedAccountChangeCall).toBeDefined();
 
-      if (!selectedAccountChangeCall) {
-        throw new Error('selectedAccountChangeCall is undefined');
-      }
-      const selectedAccountChangeCallback = selectedAccountChangeCall[1];
-
-      // Simulate account change
-      await selectedAccountChangeCallback(newAccount, undefined);
+      // Wait for async operations to complete
+      await flushPromises();
 
       expect(messengerSetup.mocks.subscribe).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -721,9 +712,8 @@ describe('AccountActivityService', () => {
     });
 
     it('should handle connectionStateChanged event when connected', async () => {
-      // Create messenger setup with spy BEFORE service creation
+      // Create messenger setup
       const messengerSetup = createMockMessenger();
-      const subscribeSpy = jest.spyOn(messengerSetup.messenger, 'subscribe');
 
       // Create test account
       const mockSelectedAccount = createMockInternalAccount({
@@ -745,28 +735,14 @@ describe('AccountActivityService', () => {
       messengerSetup.mocks.addChannelCallback.mockReturnValue(undefined);
       messengerSetup.mocks.connect.mockResolvedValue(undefined);
 
-      // Create service AFTER setting up spy
+      // Create service
       const testService = new AccountActivityService({
         messenger: messengerSetup.messenger,
       });
 
-      // Get the connectionStateChanged callback
-      const connectionStateChangeCall = subscribeSpy.mock.calls.find(
-        (call: unknown[]) =>
-          call[0] === 'BackendWebSocketService:connectionStateChanged',
-      );
-      expect(connectionStateChangeCall).toBeDefined();
-
-      if (!connectionStateChangeCall) {
-        throw new Error('connectionStateChangeCall is undefined');
-      }
-      const connectionStateChangeCallback = connectionStateChangeCall[1];
-
-      // Clear initial status change publish
-      jest.clearAllMocks();
-
-      // Set up publish spy BEFORE triggering callback
+      // Set up publish spy and clear its initial calls from service setup
       const publishSpy = jest.spyOn(messengerSetup.messenger, 'publish');
+      publishSpy.mockClear();
 
       // Mock successful API response for supported networks
       mockFetch.mockResolvedValueOnce({
@@ -777,15 +753,18 @@ describe('AccountActivityService', () => {
         }),
       });
 
-      // Simulate connection established - this now triggers async behavior
-      await connectionStateChangeCallback(
+      // Publish connectionStateChanged event on root messenger
+      messengerSetup.rootMessenger.publish(
+        'BackendWebSocketService:connectionStateChanged',
         {
           state: WebSocketState.CONNECTED,
           url: 'ws://localhost:8080',
           reconnectAttempts: 0,
         },
-        undefined,
       );
+
+      // Wait for async operations to complete
+      await flushPromises();
 
       expect(publishSpy).toHaveBeenCalledWith(
         'AccountActivityService:statusChanged',
@@ -800,33 +779,21 @@ describe('AccountActivityService', () => {
     });
 
     it('should handle connectionStateChanged event when disconnected', async () => {
-      // Create messenger setup with spy BEFORE service creation
+      // Create messenger setup
       const messengerSetup = createMockMessenger();
-      const subscribeSpy = jest.spyOn(messengerSetup.messenger, 'subscribe');
 
       // Set up default mocks
       messengerSetup.mocks.addChannelCallback.mockReturnValue(undefined);
       messengerSetup.mocks.connect.mockResolvedValue(undefined);
 
-      // Create service AFTER setting up spy
+      // Create service
       const testService = new AccountActivityService({
         messenger: messengerSetup.messenger,
       });
 
-      const connectionStateChangeCall = subscribeSpy.mock.calls.find(
-        (call: unknown[]) =>
-          call[0] === 'BackendWebSocketService:connectionStateChanged',
-      );
-      if (!connectionStateChangeCall) {
-        throw new Error('connectionStateChangeCall is undefined');
-      }
-      const connectionStateChangeCallback = connectionStateChangeCall[1];
-
-      // Clear initial status change publish
-      jest.clearAllMocks();
-
-      // Set up publish spy BEFORE triggering callback
+      // Set up publish spy and clear its initial calls from service setup
       const publishSpy = jest.spyOn(messengerSetup.messenger, 'publish');
+      publishSpy.mockClear();
 
       // Mock API response for supported networks (used when getting cached/fallback data)
       mockFetch.mockResolvedValueOnce({
@@ -837,15 +804,18 @@ describe('AccountActivityService', () => {
         }),
       });
 
-      // Simulate connection lost
-      await connectionStateChangeCallback(
+      // Publish connectionStateChanged event on root messenger
+      messengerSetup.rootMessenger.publish(
+        'BackendWebSocketService:connectionStateChanged',
         {
           state: WebSocketState.DISCONNECTED,
           url: 'ws://localhost:8080',
           reconnectAttempts: 0,
         },
-        undefined,
       );
+
+      // Wait for async operations to complete
+      await flushPromises();
 
       // WebSocket disconnection now publishes "down" status for all supported chains
       expect(publishSpy).toHaveBeenCalledWith(
@@ -884,8 +854,8 @@ describe('AccountActivityService', () => {
         }
         const connectionStateChangeCallback = connectionStateChangeCall[1];
 
-        jest.clearAllMocks();
         const publishSpy = jest.spyOn(messengerSetup.messenger, 'publish');
+        publishSpy.mockClear();
 
         // Mock API response
         mockFetch.mockResolvedValueOnce({
@@ -939,8 +909,6 @@ describe('AccountActivityService', () => {
         }
         const connectionStateChangeCallback = connectionStateChangeCall[1];
 
-        jest.clearAllMocks();
-
         // First call - should fetch from API
         mockFetch.mockResolvedValueOnce({
           ok: true,
@@ -962,7 +930,6 @@ describe('AccountActivityService', () => {
         expect(mockFetch).toHaveBeenCalledTimes(1);
 
         // Second call immediately after - should use cache
-        jest.clearAllMocks();
         mockFetch.mockClear();
 
         await connectionStateChangeCallback(
@@ -997,8 +964,8 @@ describe('AccountActivityService', () => {
         }
         const connectionStateChangeCallback = connectionStateChangeCall[1];
 
-        jest.clearAllMocks();
         const publishSpy = jest.spyOn(testMessenger, 'publish');
+        publishSpy.mockClear();
 
         // Mock API failure
         mockFetch.mockRejectedValueOnce(new Error('Network error'));
@@ -1051,8 +1018,8 @@ describe('AccountActivityService', () => {
         }
         const connectionStateChangeCallback = connectionStateChangeCall[1];
 
-        jest.clearAllMocks();
         const publishSpy = jest.spyOn(testMessenger, 'publish');
+        publishSpy.mockClear();
 
         // Mock 500 error response
         mockFetch.mockResolvedValueOnce({
@@ -1102,8 +1069,6 @@ describe('AccountActivityService', () => {
           throw new Error('connectionStateChangeCall is undefined');
         }
         const connectionStateChangeCallback = connectionStateChangeCall[1];
-
-        jest.clearAllMocks();
 
         // First call
         mockFetch.mockResolvedValueOnce({
@@ -1913,8 +1878,7 @@ describe('AccountActivityService', () => {
       // Mock the subscribe call to capture the callback
       mocks.connect.mockResolvedValue(undefined);
       mocks.disconnect.mockResolvedValue(undefined);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mocks.subscribe.mockImplementation((options: any) => {
+      mocks.subscribe.mockImplementation((options) => {
         // Capture the callback from the subscription options
         capturedCallback = options.callback;
         return Promise.resolve({
@@ -2296,8 +2260,7 @@ describe('AccountActivityService', () => {
       });
       mocks.channelHasSubscription.mockReturnValue(false); // Always allow new subscriptions
       mocks.findSubscriptionsByChannelPrefix.mockReturnValue([]);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mocks.getSubscriptionsByChannel.mockImplementation((channel: any) => {
+      mocks.getSubscriptionsByChannel.mockImplementation((channel) => {
         return [
           {
             subscriptionId: `test-subscription-${subscribeCallCount}`,
@@ -2439,8 +2402,7 @@ describe('AccountActivityService', () => {
       // Mock messenger calls with callback capture
       mocks.connect.mockResolvedValue(undefined);
       mocks.disconnect.mockResolvedValue(undefined);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mocks.subscribe.mockImplementation((options: any) => {
+      mocks.subscribe.mockImplementation((options) => {
         // Capture the callback from the subscription options
         capturedCallback = options.callback;
         return Promise.resolve({
@@ -3015,9 +2977,6 @@ describe('AccountActivityService', () => {
     it('should handle WebSocket ERROR state to cover line 533', async () => {
       // Create a clean service setup to specifically target line 533
       const { messenger: testMessenger, mocks } = createMockMessenger();
-
-      // Clear all previous mock calls to avoid interference
-      jest.clearAllMocks();
 
       const subscribeSpy = jest.spyOn(testMessenger, 'subscribe');
       const publishSpy = jest.spyOn(testMessenger, 'publish');
