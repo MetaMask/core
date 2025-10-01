@@ -2251,65 +2251,25 @@ describe('BackendWebSocketService', () => {
   // CONNECTION AND MESSAGING FUNDAMENTALS
   // =====================================================
   describe('connection and messaging fundamentals', () => {
-    it('should handle connection already in progress - early return path', () => {
+    it('should handle comprehensive basic functionality when disconnected', async () => {
       const { service, cleanup } = setupBackendWebSocketService({
         mockWebSocketOptions: { autoConnect: false },
       });
 
-      // Test that service starts disconnected
+      // Test all basic disconnected state functionality
       expect(service.getConnectionInfo().state).toBe(
         WebSocketState.DISCONNECTED,
       );
+      expect(service.channelHasSubscription('test-channel')).toBe(false);
+      expect(
+        service.findSubscriptionsByChannelPrefix('account-activity'),
+      ).toStrictEqual([]);
+      expect(
+        service.findSubscriptionsByChannelPrefix('non-existent'),
+      ).toStrictEqual([]);
+      expect(service.getChannelCallbacks()).toStrictEqual([]);
 
-      cleanup();
-    });
-
-    it('should handle request timeout properly with fake timers', async () => {
-      const { service, cleanup, getMockWebSocket } =
-        setupBackendWebSocketService({
-          options: {
-            requestTimeout: 1000, // 1 second timeout
-          },
-        });
-
-      await service.connect();
-
-      // Get the actual mock WebSocket instance used by the service
-      const mockWs = getMockWebSocket();
-      const closeSpy = jest.spyOn(mockWs, 'close');
-
-      // Start a request that will timeout
-      const requestPromise = service.sendRequest({
-        event: 'timeout-test',
-        data: {
-          requestId: 'timeout-req-1',
-          method: 'test',
-          params: {},
-        },
-      });
-
-      // Advance time to trigger timeout and cleanup
-      jest.advanceTimersByTime(1001); // Just past the timeout
-
-      await expect(requestPromise).rejects.toThrow(
-        'Request timeout after 1000ms',
-      );
-
-      // Should trigger WebSocket close after timeout (which triggers reconnection)
-      expect(closeSpy).toHaveBeenCalledWith(
-        1001,
-        'Request timeout - forcing reconnect',
-      );
-
-      closeSpy.mockRestore();
-      cleanup();
-    });
-
-    it('should handle sendMessage when WebSocket not initialized', async () => {
-      const { service, cleanup } = setupBackendWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
-      });
-
+      // Test disconnected operation failures
       const testMessage = {
         event: 'test-event',
         data: {
@@ -2319,31 +2279,53 @@ describe('BackendWebSocketService', () => {
         },
       };
 
-      // Service is not connected, so WebSocket should not be initialized
       await expect(service.sendMessage(testMessage)).rejects.toThrow(
         'Cannot send message: WebSocket is disconnected',
+      );
+      await expect(
+        service.sendRequest({ event: 'test', data: { test: true } }),
+      ).rejects.toThrow('Cannot send request: WebSocket is disconnected');
+      await expect(
+        service.subscribe({ channels: ['test-channel'], callback: jest.fn() }),
+      ).rejects.toThrow(
+        'Cannot create subscription(s) test-channel: WebSocket is disconnected',
       );
 
       cleanup();
     });
 
-    it('should handle findSubscriptionsByChannelPrefix with no subscriptions', () => {
-      const { service, cleanup } = setupBackendWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
+    it('should handle request timeout and force reconnection', async () => {
+      const { service, cleanup, getMockWebSocket } =
+        setupBackendWebSocketService({
+          options: { requestTimeout: 1000 },
+        });
+
+      await service.connect();
+      const mockWs = getMockWebSocket();
+      const closeSpy = jest.spyOn(mockWs, 'close');
+
+      const requestPromise = service.sendRequest({
+        event: 'timeout-test',
+        data: { requestId: 'timeout-req-1', method: 'test', params: {} },
       });
 
-      // Test with no subscriptions
-      const result =
-        service.findSubscriptionsByChannelPrefix('account-activity');
-      expect(result).toStrictEqual([]);
+      jest.advanceTimersByTime(1001);
 
+      await expect(requestPromise).rejects.toThrow(
+        'Request timeout after 1000ms',
+      );
+      expect(closeSpy).toHaveBeenCalledWith(
+        1001,
+        'Request timeout - forcing reconnect',
+      );
+
+      closeSpy.mockRestore();
       cleanup();
     });
 
     it('should handle connection state when already connected', async () => {
       const { service, cleanup } = setupBackendWebSocketService();
 
-      // First connection
       await service.connect();
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
 
@@ -2515,36 +2497,6 @@ describe('BackendWebSocketService', () => {
       cleanup();
     });
 
-    it('should handle sendMessage without WebSocket and connection state checking', async () => {
-      const { service, cleanup } = setupBackendWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
-      });
-
-      // Try to send without connecting - should trigger WebSocket not initialized
-      await expect(
-        service.sendMessage({
-          event: 'test-event',
-          data: { requestId: 'test-1', payload: 'data' },
-        }),
-      ).rejects.toThrow('Cannot send message: WebSocket is disconnected');
-
-      cleanup();
-    });
-
-    it('should handle various connection state branches', () => {
-      const { service, cleanup } = setupBackendWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
-      });
-
-      // Test disconnected state
-      expect(service.getConnectionInfo().state).toBe(
-        WebSocketState.DISCONNECTED,
-      );
-      expect(service.channelHasSubscription('any-channel')).toBe(false);
-
-      cleanup();
-    });
-
     it('should handle subscription with only successful channels', async () => {
       const { service, getMockWebSocket, cleanup } =
         setupBackendWebSocketService();
@@ -2612,20 +2564,7 @@ describe('BackendWebSocketService', () => {
       cleanup();
     });
 
-    it('should test basic request success path', () => {
-      const { service, cleanup } = setupBackendWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
-      });
-
-      // Test that service can be created - simpler test
-      expect(service.getConnectionInfo().state).toBe(
-        WebSocketState.DISCONNECTED,
-      );
-
-      cleanup();
-    });
-
-    it('should handle adding duplicate channel callback', async () => {
+    it('should handle channel callback management comprehensively', async () => {
       const { service, cleanup } = setupBackendWebSocketService({
         mockWebSocketOptions: { autoConnect: false },
       });
@@ -2639,7 +2578,6 @@ describe('BackendWebSocketService', () => {
         callback: originalCallback,
       });
 
-      // Verify callback was added
       expect(service.getChannelCallbacks()).toHaveLength(1);
 
       // Add same channel callback again - should replace the existing one
@@ -2648,17 +2586,24 @@ describe('BackendWebSocketService', () => {
         callback: duplicateCallback,
       });
 
-      // Should still have only 1 callback (replaced, not added)
       expect(service.getChannelCallbacks()).toHaveLength(1);
 
-      // Verify the callback was replaced by checking the callback list
-      const callbacks = service.getChannelCallbacks();
-      expect(
-        callbacks.find((cb) => cb.channelName === 'test-channel-duplicate'),
-      ).toBeDefined();
-      expect(
-        callbacks.filter((cb) => cb.channelName === 'test-channel-duplicate'),
-      ).toHaveLength(1);
+      // Add different channel callback
+      service.addChannelCallback({
+        channelName: 'different-channel',
+        callback: jest.fn(),
+      });
+
+      expect(service.getChannelCallbacks()).toHaveLength(2);
+
+      // Remove callback - should return true
+      expect(service.removeChannelCallback('test-channel-duplicate')).toBe(
+        true,
+      );
+      expect(service.getChannelCallbacks()).toHaveLength(1);
+
+      // Try to remove non-existent callback - should return false
+      expect(service.removeChannelCallback('non-existent-channel')).toBe(false);
 
       cleanup();
     });
@@ -2695,59 +2640,6 @@ describe('BackendWebSocketService', () => {
       // Should reject due to failed channels
       await expect(subscriptionPromise).rejects.toThrow(
         'Request failed: test-channel-error',
-      );
-
-      cleanup();
-    });
-
-    it('should remove channel callback successfully', () => {
-      const { service, cleanup } = setupBackendWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
-      });
-
-      // Add callback first
-      service.addChannelCallback({
-        channelName: 'remove-test-channel',
-        callback: jest.fn(),
-      });
-
-      // Verify callback was added
-      expect(service.getChannelCallbacks()).toHaveLength(1);
-      expect(
-        service
-          .getChannelCallbacks()
-          .some((cb) => cb.channelName === 'remove-test-channel'),
-      ).toBe(true);
-
-      // Remove it - should return true indicating successful removal
-      const removed = service.removeChannelCallback('remove-test-channel');
-      expect(removed).toBe(true);
-
-      // Verify callback was actually removed
-      expect(service.getChannelCallbacks()).toHaveLength(0);
-      expect(
-        service
-          .getChannelCallbacks()
-          .some((cb) => cb.channelName === 'remove-test-channel'),
-      ).toBe(false);
-
-      // Try to remove non-existent callback - should return false
-      const removedAgain = service.removeChannelCallback(
-        'non-existent-channel',
-      );
-      expect(removedAgain).toBe(false);
-
-      cleanup();
-    });
-
-    it('should handle WebSocket state checking', () => {
-      const { service, cleanup } = setupBackendWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
-      });
-
-      // Test basic WebSocket state management
-      expect(service.getConnectionInfo().state).toBe(
-        WebSocketState.DISCONNECTED,
       );
 
       cleanup();
@@ -2997,85 +2889,24 @@ describe('BackendWebSocketService', () => {
   // BASIC FUNCTIONALITY & STATE MANAGEMENT
   // =====================================================
   describe('basic functionality and state management', () => {
-    it('should return early when connection is already in progress', () => {
+    it('should handle connection promise management and early returns', () => {
       const { service, cleanup } = setupBackendWebSocketService({
         mockWebSocketOptions: { autoConnect: false },
       });
 
-      // Set connection promise to simulate connection in progress
-      (
-        service as unknown as { connectionPromise: Promise<void> }
-      ).connectionPromise = Promise.resolve();
-
-      // Now calling connect should return early since connection is in progress
-      const connectPromise = service.connect();
-
-      // Should return the existing connection promise
-      expect(connectPromise).toBeDefined();
-
-      cleanup();
-    });
-
-    it('should hit WebSocket connection state validation', async () => {
-      const { service, cleanup } = setupBackendWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
-      });
-
-      // Try to send message without connecting - should hit state validation
-      await expect(
-        service.sendMessage({
-          event: 'test-event',
-          data: { requestId: 'test-req-1', payload: 'data' },
-        }),
-      ).rejects.toThrow('Cannot send message');
-
-      cleanup();
-    });
-
-    it('should handle connection info correctly', () => {
-      const { service, cleanup } = setupBackendWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
-      });
-
+      // Test comprehensive connection info
       const connectionInfo = service.getConnectionInfo();
       expect(connectionInfo.state).toBe(WebSocketState.DISCONNECTED);
       expect(connectionInfo.url).toContain('ws://');
       expect(connectionInfo.reconnectAttempts).toBe(0);
 
-      cleanup();
-    });
+      // Test connection promise behavior by setting connection in progress
+      (
+        service as unknown as { connectionPromise: Promise<void> }
+      ).connectionPromise = Promise.resolve();
 
-    it('should handle subscription queries correctly', () => {
-      const { service, cleanup } = setupBackendWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
-      });
-
-      // Test subscription query methods
-      expect(service.channelHasSubscription('test-channel')).toBe(false);
-      expect(service.findSubscriptionsByChannelPrefix('test')).toStrictEqual(
-        [],
-      );
-      // Test that service has basic functionality
-
-      cleanup();
-    });
-
-    it('should hit various error paths and edge cases', () => {
-      const { service, cleanup } = setupBackendWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
-      });
-
-      // Test different utility methods
-      expect(service.channelHasSubscription('non-existent-channel')).toBe(
-        false,
-      );
-      expect(
-        service.findSubscriptionsByChannelPrefix('non-existent'),
-      ).toStrictEqual([]);
-
-      // Test public methods that don't require internal access
-      expect(typeof service.connect).toBe('function');
-      expect(typeof service.disconnect).toBe('function');
+      const connectPromise = service.connect();
+      expect(connectPromise).toBeDefined();
 
       cleanup();
     });
@@ -3134,119 +2965,6 @@ describe('BackendWebSocketService', () => {
 
       cleanup();
     });
-    it('should hit multiple specific uncovered lines efficiently', () => {
-      const { service, cleanup } = setupBackendWebSocketService();
-
-      // Simple synchronous test to hit specific paths without complex async flows
-      expect(service.getConnectionInfo().state).toBe(
-        WebSocketState.DISCONNECTED,
-      );
-      expect(service.channelHasSubscription('test')).toBe(false);
-
-      // Test some utility methods that don't require connection
-      expect(service.findSubscriptionsByChannelPrefix('test')).toStrictEqual(
-        [],
-      );
-
-      cleanup();
-    });
-
-    it('should hit authentication and state validation paths', () => {
-      const { service, cleanup } = setupBackendWebSocketService();
-
-      // Test utility methods
-      expect(service.getConnectionInfo().state).toBe(
-        WebSocketState.DISCONNECTED,
-      );
-      expect(service.channelHasSubscription('test')).toBe(false);
-      expect(service.findSubscriptionsByChannelPrefix('prefix')).toStrictEqual(
-        [],
-      );
-
-      cleanup();
-    });
-
-    it('should hit various disconnected state paths', async () => {
-      const { service, cleanup } = setupBackendWebSocketService();
-
-      // These should all hit disconnected state paths
-      await expect(
-        service.sendMessage({
-          event: 'test',
-          data: { requestId: 'test-id' },
-        }),
-      ).rejects.toThrow('WebSocket is disconnected');
-
-      await expect(
-        service.sendRequest({
-          event: 'test',
-          data: { test: true },
-        }),
-      ).rejects.toThrow('WebSocket is disconnected');
-
-      cleanup();
-    });
-
-    it('should hit sendRequest disconnected path', async () => {
-      const { service, cleanup } = setupBackendWebSocketService();
-
-      // Try to send request when disconnected
-      await expect(
-        service.sendRequest({
-          event: 'test',
-          data: { params: {} },
-        }),
-      ).rejects.toThrow('Cannot send request: WebSocket is disconnected');
-
-      cleanup();
-    });
-
-    it('should hit connection timeout and error handling paths', () => {
-      const { service, cleanup } = setupBackendWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
-        options: { timeout: 50 }, // Very short timeout
-      });
-
-      // Test connection info methods
-      const info = service.getConnectionInfo();
-      expect(info.state).toBe(WebSocketState.DISCONNECTED);
-      expect(info.url).toBe('ws://localhost:8080');
-
-      cleanup();
-    });
-
-    it('should handle connection state validation and channel subscriptions', async () => {
-      const { service, cleanup } = setupBackendWebSocketService();
-
-      // Test connection already connected case
-      await service.connect();
-
-      // Second connect should return early since connection is already in progress
-      await service.connect();
-
-      // Test various utility methods
-      expect(service.channelHasSubscription('test')).toBe(false);
-      expect(service.findSubscriptionsByChannelPrefix('test')).toStrictEqual(
-        [],
-      );
-
-      cleanup();
-    });
-
-    it('should handle service utility methods and connection state checks', () => {
-      const { service, cleanup } = setupBackendWebSocketService();
-
-      // Test simple synchronous paths
-      expect(service.getConnectionInfo().state).toBe(
-        WebSocketState.DISCONNECTED,
-      );
-      expect(service.channelHasSubscription('test')).toBe(false);
-      expect(service.findSubscriptionsByChannelPrefix('test')).toStrictEqual(
-        [],
-      );
-
-      cleanup();
-    });
 
     it('should hit WebSocket event handling edge cases', async () => {
       const { service, cleanup } = setupBackendWebSocketService();
@@ -3281,52 +2999,6 @@ describe('BackendWebSocketService', () => {
   // ERROR HANDLING & EDGE CASES
   // =====================================================
   describe('error handling and edge cases', () => {
-    it('should handle request timeout configuration', async () => {
-      const { service, cleanup } = setupBackendWebSocketService({
-        options: {
-          requestTimeout: 100, // Test that timeout option is accepted
-        },
-      });
-
-      // Just test that the service can be created with timeout config
-      expect(service.getConnectionInfo().state).toBe(
-        WebSocketState.DISCONNECTED,
-      );
-
-      cleanup();
-    });
-
-    it('should handle connection state management', () => {
-      const { service, cleanup } = setupBackendWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
-      });
-
-      // Test initial state
-      expect(service.getConnectionInfo().state).toBe(
-        WebSocketState.DISCONNECTED,
-      );
-
-      cleanup();
-    });
-
-    it('should handle invalid subscription response format', async () => {
-      const { service, completeAsyncOperations, cleanup } =
-        setupBackendWebSocketService();
-
-      const connectPromise = service.connect();
-      await completeAsyncOperations();
-      await connectPromise;
-
-      // Test subscription validation by verifying the validation code path exists
-      // We know the validation works because it throws the error (visible in test output)
-      expect(typeof service.subscribe).toBe('function');
-
-      // Verify that WebSocket is connected and ready for subscriptions
-      expect(service.getConnectionInfo().state).toBe('connected');
-
-      cleanup();
-    });
-
     it('should throw general request failed error when subscription request fails', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
         setupBackendWebSocketService();
