@@ -38,6 +38,8 @@ export const DEFAULT_ENS_NETWORK_MAP: Record<number, Hex> = {
   17000: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
   // Sepolia
   11155111: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+  // Rootstock Mainnet
+  30: '0xcb868aeabd31e2b66f74e9a55cf064abb31a4ad5',
 };
 
 /**

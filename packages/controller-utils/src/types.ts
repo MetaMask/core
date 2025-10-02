@@ -80,6 +80,7 @@ export enum BuiltInNetworkName {
   MegaETHTestnet = 'megaeth-testnet',
   MonadTestnet = 'monad-testnet',
   BaseMainnet = 'base-mainnet',
+  RootstockMainnet = 'rootstock-mainnet',
 }
 
 /**
@@ -98,6 +99,7 @@ export const ChainId = {
   [BuiltInNetworkName.MegaETHTestnet]: '0x18c6', // toHex(6342)
   [BuiltInNetworkName.MonadTestnet]: '0x279f', // toHex(10143)
   [BuiltInNetworkName.BaseMainnet]: '0x2105', // toHex(8453)
+  [BuiltInNetworkName.RootstockMainnet]: '0x1e', // toHex(30)
 } as const;
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
