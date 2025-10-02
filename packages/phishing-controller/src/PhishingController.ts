@@ -17,7 +17,12 @@ import type { Patch } from 'immer';
 import { toASCII } from 'punycode/punycode.js';
 
 import { CacheManager, type CacheEntry } from './CacheManager';
-import { type PathTrie, convertListToTrie } from './PathTrie';
+import {
+  type PathTrie,
+  convertListToTrie,
+  insertToTrie,
+  matchedPathPrefix,
+} from './PathTrie';
 import { PhishingDetector } from './PhishingDetector';
 import {
   PhishingDetectorResultType,
@@ -291,7 +296,7 @@ const getDefaultState = (): PhishingControllerState => {
   return {
     phishingLists: [],
     whitelist: [],
-    whitelistPaths: [],
+    whitelistPaths: {},
     hotlistLastFetched: 0,
     stalelistLastFetched: 0,
     c2DomainBlocklistLastFetched: 0,
@@ -315,7 +320,7 @@ const getDefaultState = (): PhishingControllerState => {
 export type PhishingControllerState = {
   phishingLists: PhishingListState[];
   whitelist: string[];
-  whitelistPaths: string[];
+  whitelistPaths: PathTrie;
   hotlistLastFetched: number;
   stalelistLastFetched: number;
   c2DomainBlocklistLastFetched: number;
@@ -789,7 +794,7 @@ export class PhishingController extends BaseController<
     const hostname = getHostnameFromUrl(punycodeOrigin);
     const hostnameWithPaths = hostname + getPathnameFromUrl(origin);
 
-    if (this.state.whitelistPaths.includes(hostnameWithPaths)) {
+    if (matchedPathPrefix(hostnameWithPaths, this.state.whitelistPaths)) {
       return { result: false, type: PhishingDetectorResultType.All };
     }
 
@@ -828,19 +833,18 @@ export class PhishingController extends BaseController<
     const hostname = getHostnameFromUrl(punycodeOrigin);
     const hostnameWithPaths = hostname + getPathnameFromUrl(origin);
     const { whitelist, whitelistPaths } = this.state;
+    const whitelistPath = matchedPathPrefix(hostnameWithPaths, whitelistPaths);
 
-    if (
-      whitelist.includes(hostname || punycodeOrigin) ||
-      whitelistPaths.includes(hostnameWithPaths)
-    ) {
+    if (whitelist.includes(hostname || punycodeOrigin) || whitelistPath) {
       return;
     }
 
     // If the origin was blocked by a path, then we only want to add it to the whitelistPaths since
     // other paths with the same hostname may not be blocked.
-    if (this.#detector.isPathBlocked(origin)) {
+    const blockingPath = this.#detector.blockingPath(origin);
+    if (blockingPath) {
       this.update((draftState) => {
-        draftState.whitelistPaths.push(hostnameWithPaths);
+        insertToTrie(blockingPath, draftState.whitelistPaths);
       });
       return;
     }
