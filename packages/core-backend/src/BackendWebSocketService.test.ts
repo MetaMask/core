@@ -4372,7 +4372,7 @@ describe('BackendWebSocketService', () => {
       cleanup();
     });
 
-    it('should handle no access token during URL building', async () => {
+    it('should handle missing access token during URL building', async () => {
       // Test: No access token error during URL building
       // First getBearerToken call succeeds, second returns null
       const { service, spies, cleanup } = setupBackendWebSocketService();
