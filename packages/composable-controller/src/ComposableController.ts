@@ -160,7 +160,6 @@ export class ComposableController<
         },
         {} as never,
       ),
-      // @ts-expect-error "Property 'messagingSystem' is missing in type ..."
       messenger,
     });
 
@@ -186,7 +185,7 @@ export class ComposableController<
     }
     try {
       this.messenger.subscribe(
-        `${controllerName}:stateChange`,
+        `${name}:stateChange`,
         (childState: StateConstraint) => {
           this.update((state) => {
             // Type assertion is necessary for property assignment to a generic type. This does not pollute or widen the type of the asserted variable.
