@@ -158,11 +158,7 @@ export function validateConfig(
  * @returns the list of domain parts.
  */
 export const domainToParts = (domain: string) => {
-  try {
-    return domain.split('.').reverse();
-  } catch (e) {
-    throw new Error(JSON.stringify(domain));
-  }
+  return domain.split('.').reverse();
 };
 
 /**
@@ -171,16 +167,15 @@ export const domainToParts = (domain: string) => {
  * @param list - the list of domain strings to convert.
  * @returns the list of domain parts for valid domains only.
  */
-export const processDomainList = (list: unknown[]) => {
-  return list
-    .filter((domain): domain is string => {
-      if (typeof domain !== 'string') {
-        console.warn(`Invalid domain value in list: ${JSON.stringify(domain)}`);
-        return false;
-      }
-      return true;
-    })
-    .map(domainToParts);
+export const processDomainList = (list: string[]): string[][] => {
+  return list.reduce<string[][]>((acc, domain) => {
+    if (typeof domain !== 'string') {
+      console.warn(`Invalid domain value in list: ${JSON.stringify(domain)}`);
+      return acc;
+    }
+    acc.push(domainToParts(domain));
+    return acc;
+  }, []);
 };
 
 /**

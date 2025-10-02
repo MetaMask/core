@@ -286,11 +286,6 @@ describe('domainToParts', () => {
     const result = domainToParts(domain);
     expect(result).toStrictEqual(['com', 'example', 'sub']);
   });
-
-  it('throws an error if the domain string is invalid', () => {
-    // @ts-expect-error testing invalid input
-    expect(() => domainToParts(123)).toThrow('123');
-  });
 });
 
 describe('processConfigs', () => {
@@ -474,7 +469,7 @@ describe('processDomainList', () => {
       -2342394,
     ];
 
-    const result = processDomainList(domainList);
+    const result = processDomainList(domainList as unknown as string[]);
 
     expect(result).toStrictEqual([
       ['com', 'example'],
@@ -499,7 +494,7 @@ describe('processDomainList', () => {
   it('returns empty array when all values are invalid', () => {
     const domainList = [123, null, {}];
 
-    const result = processDomainList(domainList);
+    const result = processDomainList(domainList as unknown as string[]);
 
     expect(result).toStrictEqual([]);
     expect(consoleWarnMock).toHaveBeenCalledTimes(3);
