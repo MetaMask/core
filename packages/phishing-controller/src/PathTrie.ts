@@ -120,7 +120,7 @@ export const matchedPathPrefix = (
     return null;
   }
 
-  let matchedPath = hostname + '/';
+  let matchedPath = `${hostname}/`;
   let curr: PathNode = pathTrie[lowerHostname];
   for (const pathComponent of pathComponents) {
     if (!curr[pathComponent]) {
@@ -132,7 +132,7 @@ export const matchedPathPrefix = (
       matchedPath += pathComponent;
       return matchedPath;
     }
-    matchedPath += pathComponent + '/';
+    matchedPath += `${pathComponent}/`;
   }
   return null;
 };
