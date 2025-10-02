@@ -1163,6 +1163,28 @@ describe('PhishingDetector', () => {
           },
         );
       });
+
+      describe('blocklistPaths', () => {
+        it('returns true if exact path is blocked', async () => {
+          await withPhishingDetector(
+            [
+              {
+                allowlist: [],
+                blocklist: [],
+                blocklistPaths: {
+                  'example.com': {
+                    path: {},
+                  },
+                },
+              },
+            ],
+            async ({ detector }) => {
+              const out = detector.check('https://example.com/path');
+              expect(out.result).toBe(true);
+            },
+          );
+        });
+      });
     });
 
     describe('with legacy config', () => {
@@ -1225,6 +1247,66 @@ describe('PhishingDetector', () => {
     });
 
     describe('path-based blocking', () => {
+      const blocklistPathsOpts = {
+        'sub.example.com': {
+          path1: {
+            path2: {},
+          },
+        },
+      };
+
+      it('blocks on the exact path', async () => {
+        await withPhishingDetector(
+          [
+            {
+              allowlist: [],
+              blocklist: [],
+              blocklistPaths: blocklistPathsOpts,
+            },
+          ],
+          async ({ detector }) => {
+            const result = detector.check(
+              'https://sub.example.com/path1/path2',
+            );
+            expect(result.result).toBe(true);
+          },
+        );
+      });
+
+      it('does not block if not terminal path', async () => {
+        await withPhishingDetector(
+          [
+            {
+              allowlist: [],
+              blocklist: [],
+              blocklistPaths: blocklistPathsOpts,
+            },
+          ],
+          async ({ detector }) => {
+            const result = detector.check('https://sub.example.com/path1');
+            expect(result.result).toBe(false);
+          },
+        );
+      });
+
+      it('blocks if the terminal path is present in the URL', async () => {
+        await withPhishingDetector(
+          [
+            {
+              allowlist: [],
+              blocklist: [],
+              blocklistPaths: blocklistPathsOpts,
+            },
+          ],
+          async ({ detector }) => {
+            const result = detector.check(
+              'https://sub.example.com/path1/path2/path3',
+            );
+            expect(result.result).toBe(true);
+          },
+        );
+      });
+
       it('blocks a domain with path when version is defined', async () => {
         await withPhishingDetector(
           [
@@ -1285,8 +1367,77 @@ describe('PhishingDetector', () => {
     });
   });
 
-  describe('isPathBlocked', () => {
-    it('returns false if blocklistPaths is empty', async () => {
+  describe('blockingPath', () => {
+    const blocklistPathsOpts = {
+      'example.com': {
+        path1: {
+          path2: {},
+        },
+      },
+    };
+
+    it('returns the matching terminal path if URL has an exact match in blocklistPaths', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            blocklistPaths: blocklistPathsOpts,
+            version: 1,
+            tolerance: 2,
+            name: 'test-config',
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.blockingPath(
+            'https://example.com/path1/path2',
+          );
+          expect(result).toBe('example.com/path1/path2');
+        },
+      );
+    });
+
+    it('returns null if the URL path ends at an ancestor path', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            blocklistPaths: blocklistPathsOpts,
+            version: 1,
+            tolerance: 2,
+            name: 'test-config',
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.blockingPath('https://example.com/path1');
+          expect(result).toBeNull();
+        },
+      );
+    });
+
+    it('returns the matching terminal path if the URL path contains a terminal path', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            blocklistPaths: blocklistPathsOpts,
+            version: 1,
+            tolerance: 2,
+            name: 'test-config',
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.blockingPath(
+            'https://example.com/path1/path2/path3',
+          );
+          expect(result).toBe('example.com/path1/path2');
+        },
+      );
+    });
+
+    it('returns null if blocklistPaths is empty', async () => {
       await withPhishingDetector(
         [
           {
@@ -1299,13 +1450,13 @@ describe('PhishingDetector', () => {
           },
         ],
         async ({ detector }) => {
-          const result = detector.isPathBlocked('https://example.com');
-          expect(result).toBe(false);
+          const result = detector.blockingPath('https://example.com/path');
+          expect(result).toBeNull();
         },
       );
     });
 
-    it('returns false if blocklistPaths is not defined', async () => {
+    it('returns null if blocklistPaths is not defined', async () => {
       await withPhishingDetector(
         [
           {
@@ -1317,36 +1468,13 @@ describe('PhishingDetector', () => {
           },
         ],
         async ({ detector }) => {
-          const result = detector.isPathBlocked('https://example.com');
-          expect(result).toBe(false);
+          const result = detector.blockingPath('https://example.com/path');
+          expect(result).toBeNull();
         },
       );
     });
 
-    it('returns true if URL matches a blocked path with version defined', async () => {
-      await withPhishingDetector(
-        [
-          {
-            blocklist: [],
-            fuzzylist: [],
-            blocklistPaths: {
-              'example.com': {
-                path: {},
-              },
-            },
-            name: 'test-config',
-            version: 1,
-            tolerance: 2,
-          },
-        ],
-        async ({ detector }) => {
-          const result = detector.isPathBlocked('https://example.com/path');
-          expect(result).toBe(true);
-        },
-      );
-    });
-
-    it('returns true if URL matches a blocked path with version undefined', async () => {
+    it('returns the matching terminal path if URL matches a blocked path with version undefined', async () => {
       await withPhishingDetector(
         [
           {
@@ -1363,10 +1491,10 @@ describe('PhishingDetector', () => {
           },
         ],
         async ({ detector }) => {
-          const result = detector.isPathBlocked(
+          const result = detector.blockingPath(
             'https://malicious.com/phishing',
           );
-          expect(result).toBe(true);
+          expect(result).toBe('malicious.com/phishing');
         },
       );
     });
