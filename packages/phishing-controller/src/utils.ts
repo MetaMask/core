@@ -170,9 +170,7 @@ export const domainToParts = (domain: string) => {
 export const processDomainList = (list: string[]): string[][] => {
   return list.reduce<string[][]>((acc, domain) => {
     if (typeof domain !== 'string') {
-      console.warn(
-        `Invalid domain value in list: ${JSON.stringify(domain)} (type: ${typeof domain})`,
-      );
+      console.warn(`Invalid domain value in list: ${JSON.stringify(domain)}`);
       return acc;
     }
     acc.push(domainToParts(domain));
