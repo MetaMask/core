@@ -326,7 +326,7 @@ export class AccountActivityService {
       this.#supportedChains = apiChains;
       this.#supportedChainsTimestamp = Date.now();
       return apiChains;
-    } catch (error) {
+    } catch {
       // Fallback to hardcoded list and cache it with timestamp
       this.#supportedChains = Array.from(SUPPORTED_CHAINS);
       this.#supportedChainsTimestamp = Date.now();
