@@ -2702,27 +2702,7 @@ describe('AccountActivityService', () => {
       // Clean up
       testService.destroy();
     });
-
-//     it('should handle error for null account in selectedAccountChange', async () => {
-//       // Create messenger setup
-//       const messengerSetup = createMockMessenger();
-// 
-//       // Create service
-//       const testService = new AccountActivityService({
-//         messenger: messengerSetup.messenger,
-//       });
-// 
-//       // Test that null account is handled gracefully when published via messenger
-//       expect(() => {
-//         messengerSetup.rootMessenger.publish('AccountsController:selectedAccountChange', null as any);
-//       }).not.toThrow();
-// 
-//       await completeAsyncOperations();
-// 
-//       // Clean up
-//       testService.destroy();
-//     });
-
+   
     it('should handle error for account without address in selectedAccountChange', async () => {
       // Create messenger setup
       const messengerSetup = createMockMessenger();
