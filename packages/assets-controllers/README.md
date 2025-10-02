@@ -1,58 +1,197 @@
 # `@metamask/assets-controllers`
 
-Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs).
+A comprehensive suite of controllers for managing various digital assets in MetaMask, including ERC-20, ERC-721, and ERC-1155 tokens (including NFTs), as well as handling currency rates and DeFi positions.
+
+## Features
+
+- **Token Management**: Complete handling of ERC-20, ERC-721, and ERC-1155 tokens
+- **NFT Support**: Track and manage NFT collections with OpenSea integration
+- **Multi-Chain Support**: Handle assets across different blockchain networks
+- **DeFi Integration**: Track DeFi positions and balances
+- **Real-time Updates**: Automatic polling and updates for balances and rates
+- **Exchange Rates**: Track and convert between different currencies and tokens
+- **Contract Interactions**: Convenient methods for token contract operations
 
 ## Installation
 
-`yarn add @metamask/assets-controllers`
+```bash
+yarn add @metamask/assets-controllers
+```
 
 or
 
-`npm install @metamask/assets-controllers`
+```bash
+npm install @metamask/assets-controllers
+```
 
 ## Controllers
 
 This package features the following controllers:
 
-- [**AccountTrackerController**](src/AccountTrackerController.ts) keeps a updated list of the accounts in the currently selected keychain which is updated automatically on a schedule or on demand.
-- [**AssetsContractController**](src/AssetsContractController.ts) provides a set of convenience methods that use contracts to retrieve information about tokens, read token balances, and transfer tokens.
-- [**CollectibleDetectionController**](src/CollectibleDetectionController.ts) keeps a periodically updated list of ERC-721 tokens assigned to the currently selected address.
-- [**CollectiblesController**](src/CollectiblesController.ts) tracks ERC-721 and ERC-1155 tokens assigned to the currently selected address, using OpenSea to retrieve token information.
-- [**CurrencyRateController**](src/CurrencyRateController.ts) keeps a periodically updated value of the exchange rate from the currently selected "native" currency to another (handling testnet tokens specially).
-- [**DeFiPositionsController**](src/DeFiPositionsController/DeFiPositionsController.ts.ts) keeps a periodically updated value of the DeFi positions for the owner EVM addresses.
-- [**RatesController**](src/RatesController/RatesController.ts) keeps a periodically updated value for the exchange rates for different cryptocurrencies. The difference between the `RatesController` and `CurrencyRateController` is that the second one is coupled to the `NetworksController` and is EVM specific, whilst the first one can handle different blockchain currencies like BTC and SOL.
-- [**TokenBalancesController**](src/TokenBalancesController.ts) keeps a periodically updated set of balances for the current set of ERC-20 tokens.
-- [**TokenDetectionController**](src/TokenDetectionController.ts) keeps a periodically updated list of ERC-20 tokens assigned to the currently selected address.
-- [**TokenListController**](src/TokenListController.ts) uses the MetaSwap API to keep a periodically updated list of known ERC-20 tokens along with their metadata.
-- [**TokenRatesController**](src/TokenRatesController.ts) keeps a periodically updated list of exchange rates for known ERC-20 tokens relative to the currently selected native currency.
-- [**TokensController**](src/TokensController.ts) stores the ERC-20 and ERC-721 tokens, along with their metadata, that are listed in the wallet under the currently selected address on the currently selected chain.
+### Account and Asset Management
 
-### `RatesController`
+- [**AccountTrackerController**](src/AccountTrackerController.ts)
 
-The `RatesController` is responsible for managing the state related to cryptocurrency exchange rates and periodically updating these rates by fetching new data from an external API.
+  - Maintains up-to-date list of accounts in the selected keychain
+  - Auto-updates on schedule or on demand
+  - Tracks account balances and staked balances
 
-```ts
-// Initialize the RatesController
-const ratesController = new RatesController({
-  interval: 180000,
-  includeUsdRate: true,
-  state: {
-    fiatCurrency: 'eur',
-    cryptocurrencies: [Cryptocurrency.Btc],
-  },
+- [**AssetsContractController**](src/AssetsContractController.ts)
+
+  - Provides contract interaction methods
+  - Retrieves token information
+  - Handles token transfers
+  - Example:
+
+    ```typescript
+    const controller = new AssetsContractController({
+      messenger,
+      chainId: '0x1',
+    });
+
+    // Get token details
+    const name = await controller.getERC721AssetName(tokenAddress);
+    const symbol = await controller.getERC721AssetSymbol(tokenAddress);
+    const balance = await controller.getERC721BalanceOf(
+      tokenAddress,
+      ownerAddress,
+    );
+    ```
+
+### NFT Management
+
+- [**CollectibleDetectionController**](src/CollectibleDetectionController.ts)
+
+  - Auto-detects ERC-721 tokens for selected address
+  - Periodic updates of NFT holdings
+
+- [**CollectiblesController**](src/CollectiblesController.ts)
+
+  - Tracks ERC-721 and ERC-1155 tokens
+  - Integrates with OpenSea for metadata
+  - Example:
+
+    ```typescript
+    const controller = new CollectiblesController({
+      messenger,
+      networkType: 'mainnet',
+      options: {
+        openSeaEnabled: true,
+        ipfsGateway: 'https://ipfs.io/ipfs/',
+      },
+    });
+
+    // Add a collectible
+    await controller.addCollectible({
+      address: '0x...',
+      tokenId: '123',
+    });
+    ```
+
+### Rate Management
+
+- [**CurrencyRateController**](src/CurrencyRateController.ts)
+
+  - Tracks exchange rates for native currencies
+  - Special handling for testnet tokens
+
+- [**RatesController**](src/RatesController/RatesController.ts)
+
+  - Manages exchange rates for various cryptocurrencies
+  - Supports non-EVM chains (BTC, SOL, etc.)
+  - Example:
+
+    ```typescript
+    const controller = new RatesController({
+      interval: 180000,
+      includeUsdRate: true,
+      state: {
+        fiatCurrency: 'eur',
+        cryptocurrencies: [Cryptocurrency.Btc],
+      },
+    });
+
+    await controller.start();
+    ```
+
+### Token Management
+
+- [**TokenBalancesController**](src/TokenBalancesController.ts)
+
+  - Tracks ERC-20 token balances
+  - Periodic balance updates
+
+- [**TokenDetectionController**](src/TokenDetectionController.ts)
+
+  - Auto-detects ERC-20 tokens
+  - Periodic scanning for new tokens
+
+- [**TokenListController**](src/TokenListController.ts)
+
+  - Maintains list of known ERC-20 tokens
+  - Uses MetaSwap API for metadata
+
+- [**TokensController**](src/TokensController.ts)
+
+  - Central management of token data
+  - Example:
+
+    ```typescript
+    const controller = new TokensController({
+      messenger,
+      chainId: '0x1',
+    });
+
+    // Add a token
+    await controller.addToken({
+      address: '0x...',
+      symbol: 'TOKEN',
+      decimals: 18,
+    });
+    ```
+
+### DeFi Integration
+
+- [**DeFiPositionsController**](src/DeFiPositionsController/DeFiPositionsController.ts)
+
+  - Tracks DeFi positions
+  - Periodic updates of position values
+  - Example:
+
+    ```typescript
+    const controller = new DeFiPositionsController({
+      messenger,
+      chainId: '0x1',
+    });
+
+    // Get positions
+    const positions = controller.getPositions();
+    ```
+
+## State Management
+
+Each controller maintains its own state and can be subscribed to for updates:
+
+```typescript
+messenger.subscribe(`${controllerName}:stateChange`, (state) => {
+  console.log('New state:', state);
 });
+```
 
-// Start the polling process
-ratesController.start().then(() => {
-  console.log('Polling for exchange rates has started.');
-});
+## Error Handling
 
-// Stop the polling process after some time
-setTimeout(() => {
-  ratesController.stop().then(() => {
-    console.log('Polling for exchange rates has stopped.');
-  });
-}, 300000);
+Controllers implement comprehensive error handling and retry mechanisms:
+
+```typescript
+try {
+  await controller.updateExchangeRates();
+} catch (error) {
+  if (error.message.includes('Rate limit exceeded')) {
+    // Handle rate limiting
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await controller.updateExchangeRates();
+  }
+}
 ```
 
 ## Contributing
