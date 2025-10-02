@@ -1,5 +1,5 @@
 import { MultiChainOpenRPCDocument } from '@metamask/api-specs';
-import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { isObject } from '@metamask/utils';
 import type { JsonRpcError, JsonRpcParams } from '@metamask/utils';
@@ -93,9 +93,14 @@ const multichainMethodCallValidator = async (
 /**
  * Middleware that validates the params of a Multichain method request
  * using the specifications from `@metamask/api-specs`.
+ *
+ * @param params - The middleware parameters.
+ * @param params.request - The request to validate.
+ * @param params.next - The next middleware to call.
+ * @returns The result of the next middleware.
  */
-export const multichainMethodCallValidatorMiddleware = createAsyncMiddleware(
-  async (request, _response, next) => {
+export const multichainMethodCallValidatorMiddleware: JsonRpcMiddleware =
+  async ({ request, next }) => {
     const errors = await multichainMethodCallValidator(
       request.method,
       request.params,
@@ -104,5 +109,4 @@ export const multichainMethodCallValidatorMiddleware = createAsyncMiddleware(
       throw rpcErrors.invalidParams<JsonRpcError[]>({ data: errors });
     }
     return await next();
-  },
-);
+  };
