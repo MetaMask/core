@@ -57,7 +57,10 @@ export const getHostnameAndPathComponents = (
     const { hostname, pathname } = new URL(urlWithProtocol);
     return {
       hostname: hostname.toLowerCase(),
-      pathComponents: pathname.split('/').filter(Boolean),
+      pathComponents: pathname
+        .split('/')
+        .filter(Boolean)
+        .map((component) => decodeURIComponent(component)),
     };
   } catch {
     return {
