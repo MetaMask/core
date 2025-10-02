@@ -19,74 +19,8 @@ import { flushPromises } from '../../../tests/helpers';
 type GlobalWithWebSocket = typeof global & { lastWebSocket: MockWebSocket };
 
 // =====================================================
-// TEST UTILITIES & MOCKS
+// MOCK WEBSOCKET CLASS
 // =====================================================
-
-/**
- * Creates a real messenger with registered mock actions for testing
- * Each call creates a completely independent messenger to ensure test isolation
- *
- * @returns Object containing the messenger and mock action functions
- */
-const getMessenger = () => {
-  // Create a unique root messenger for each test
-  const rootMessenger = new Messenger<
-    BackendWebSocketServiceAllowedActions,
-    BackendWebSocketServiceAllowedEvents
-  >();
-  const messenger = rootMessenger.getRestricted({
-    name: 'BackendWebSocketService',
-    allowedActions: ['AuthenticationController:getBearerToken'],
-    allowedEvents: ['AuthenticationController:stateChange'],
-  }) as unknown as BackendWebSocketServiceMessenger;
-
-  // Create mock action handlers
-  const mockGetBearerToken = jest.fn().mockResolvedValue('valid-default-token');
-
-  // Register all action handlers
-  rootMessenger.registerActionHandler(
-    'AuthenticationController:getBearerToken',
-    mockGetBearerToken,
-  );
-
-  return {
-    rootMessenger,
-    messenger,
-    mocks: {
-      getBearerToken: mockGetBearerToken,
-    },
-  };
-};
-
-// =====================================================
-// TEST CONSTANTS & DATA
-// =====================================================
-
-const TEST_CONSTANTS = {
-  WS_URL: 'ws://localhost:8080',
-  TEST_CHANNEL: 'test-channel',
-  SUBSCRIPTION_ID: 'sub-123',
-  TIMEOUT_MS: 100,
-  RECONNECT_DELAY: 50,
-} as const;
-
-/**
- * Helper to create a properly formatted WebSocket response message
- *
- * @param requestId - The request ID to match with the response
- * @param data - The response data payload
- * @returns Formatted WebSocket response message
- */
-const createResponseMessage = (
-  requestId: string,
-  data: Record<string, unknown>,
-) => ({
-  id: requestId,
-  data: {
-    requestId,
-    ...data,
-  },
-});
 
 /**
  * Mock WebSocket implementation for testing
@@ -210,6 +144,76 @@ class MockWebSocket extends EventTarget {
     return this._lastSentMessage;
   }
 }
+
+// =====================================================
+// TEST UTILITIES & MOCKS
+// =====================================================
+
+/**
+ * Creates a real messenger with registered mock actions for testing
+ * Each call creates a completely independent messenger to ensure test isolation
+ *
+ * @returns Object containing the messenger and mock action functions
+ */
+const getMessenger = () => {
+  // Create a unique root messenger for each test
+  const rootMessenger = new Messenger<
+    BackendWebSocketServiceAllowedActions,
+    BackendWebSocketServiceAllowedEvents
+  >();
+  const messenger = rootMessenger.getRestricted({
+    name: 'BackendWebSocketService',
+    allowedActions: ['AuthenticationController:getBearerToken'],
+    allowedEvents: ['AuthenticationController:stateChange'],
+  }) as unknown as BackendWebSocketServiceMessenger;
+
+  // Create mock action handlers
+  const mockGetBearerToken = jest.fn().mockResolvedValue('valid-default-token');
+
+  // Register all action handlers
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    mockGetBearerToken,
+  );
+
+  return {
+    rootMessenger,
+    messenger,
+    mocks: {
+      getBearerToken: mockGetBearerToken,
+    },
+  };
+};
+
+// =====================================================
+// TEST CONSTANTS & DATA
+// =====================================================
+
+const TEST_CONSTANTS = {
+  WS_URL: 'ws://localhost:8080',
+  TEST_CHANNEL: 'test-channel',
+  SUBSCRIPTION_ID: 'sub-123',
+  TIMEOUT_MS: 100,
+  RECONNECT_DELAY: 50,
+} as const;
+
+/**
+ * Helper to create a properly formatted WebSocket response message
+ *
+ * @param requestId - The request ID to match with the response
+ * @param data - The response data payload
+ * @returns Formatted WebSocket response message
+ */
+const createResponseMessage = (
+  requestId: string,
+  data: Record<string, unknown>,
+) => ({
+  id: requestId,
+  data: {
+    requestId,
+    ...data,
+  },
+});
 
 // Setup function following TokenBalancesController pattern
 // =====================================================

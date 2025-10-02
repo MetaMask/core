@@ -36,6 +36,8 @@ import type {
  * Fetches supported networks from the v2 API endpoint.
  * Returns chain IDs already in CAIP-2 format.
  *
+ * Note: This is temporary until we have a data layer for the Account API
+ *
  * @returns Array of supported chain IDs in CAIP-2 format (e.g., "eip155:1")
  */
 async function fetchSupportedChainsInCaipFormat(): Promise<string[]> {
