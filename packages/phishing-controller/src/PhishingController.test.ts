@@ -2491,7 +2491,7 @@ describe('PhishingController', () => {
     });
 
     describe('whitelistPaths', () => {
-      it('adds the terminal path match within blocklistPaths to the whitelistPaths', () => {
+      it('adds the matched path prefix within blocklistPaths to the whitelistPaths', () => {
         const origin = 'https://sub.example.com/path1/path2/path3';
         controller.bypass(origin);
 
@@ -2502,9 +2502,10 @@ describe('PhishingController', () => {
             },
           },
         });
+        expect(controller.state.whitelist).toHaveLength(0);
       });
 
-      it('does not add if a terminal path is not present', () => {
+      it('does not add if a matched path prefix is not present', () => {
         const origin = 'https://sub.example.com/path1/path3';
         controller.bypass(origin);
 
