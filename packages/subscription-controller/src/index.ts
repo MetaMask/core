@@ -8,10 +8,14 @@ export type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetCryptoApproveTransactionParamsAction,
   SubscriptionControllerStartSubscriptionWithCryptoAction,
+  SubscriptionControllerGetBillingPortalUrlAction,
+  SubscriptionControllerUpdatePaymentMethodAction,
   SubscriptionControllerGetStateAction,
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerStateChangeEvent,
+  AllowedActions,
+  AllowedEvents,
 } from './SubscriptionController';
 export {
   SubscriptionController,

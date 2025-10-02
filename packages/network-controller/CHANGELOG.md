@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
+## [24.2.0]
+
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
@@ -20,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rephrase "circuit broken" errors so they are more user-friendly ([#6423](https://github.com/MetaMask/core/pull/6423))
   - These are errors produced when a request is made to an RPC endpoint after it returns too many consecutive 5xx responses and the underlying circuit is open.
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/json-rpc-engine` from `^10.0.3` to `^10.1.0` ([#6678](https://github.com/MetaMask/core/pull/6678))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.8` to `^5.0.0` ([#6678](https://github.com/MetaMask/core/pull/6678))
 
 ### Deprecated
 
@@ -938,7 +946,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.0...HEAD
+[24.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.1.0...@metamask/network-controller@24.2.0
 [24.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.1...@metamask/network-controller@24.1.0
 [24.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.0...@metamask/network-controller@24.0.1
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.6.0...@metamask/network-controller@24.0.0

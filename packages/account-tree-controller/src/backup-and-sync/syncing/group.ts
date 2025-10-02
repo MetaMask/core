@@ -145,7 +145,7 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
     validateUserStorageValue: (value) =>
       UserStorageSyncedWalletGroupSchema.schema.name.schema.value.is(value),
     applyLocalUpdate: (name: string) => {
-      context.controller.setAccountGroupName(localGroup.id, name);
+      context.controller.setAccountGroupName(localGroup.id, name, true);
     },
     analytics: {
       action: BackupAndSyncAnalyticsEvent.GroupRenamed,

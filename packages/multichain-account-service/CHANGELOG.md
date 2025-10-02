@@ -7,11 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0]
+
+### Added
+
+- Add an optional `options` parameter to `MultichainAccountWallet.createMultichainAccountGroup()` ([#6759](https://github.com/MetaMask/core/pull/6759))
+  - Introduces `options.waitForAllProvidersToFinishCreatingAccounts`, that will make `createMultichainAccountGroup` await either only the EVM provider or all the providers to have created their accounts depending on the value. Defaults to `false` (only awaits for EVM accounts creation by default).
+
+## [1.4.0]
+
+### Changed
+
+- Only await for EVM account creation in `MultichainAccountWallet.createMultichainAccountGroup()` instead of all types of providers ([#6755](https://github.com/MetaMask/core/pull/6755))
+  - Other type of providers will create accounts in the background and won't throw errors in case they fail to do so.
+  - Multichain account groups will now be "misaligned" for a short period of time, until each of the other providers finish creating their accounts.
+
+## [1.3.0]
+
+### Added
+
+- Add `{Btc/Trx}AccountProvider` account providers ([#6662](https://github.com/MetaMask/core/pull/6662))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
+## [1.2.0]
+
+### Changed
+
+- Add more internal logs ([#6729](https://github.com/MetaMask/core/pull/6729))
+
+## [1.1.0]
+
+### Added
+
+- Add a timeout around Solana account creation ([#6704](https://github.com/MetaMask/core/pull/6704))
+  - This timeout can be configured at the client level through the config passed to the `MultichainAccountService`.
+
+## [1.0.0]
+
+### Changed
+
+- Bump package version to v1.0 to mark stabilization ([#6676](https://github.com/MetaMask/core/pull/6676))
+
+## [0.11.0]
+
+### Added
+
+- Add missing exports for providers (`{EVM,SOL}_ACCOUNT_PROVIDER_NAME` + `${Evm,Sol}AccountProvider}`) ([#6660](https://github.com/MetaMask/core/pull/6660))
+  - These are required when setting the new account providers when constructing the service.
+
+## [0.10.0]
+
 ### Added
 
 - Add timeout and retry mechanism to Solana discovery ([#6624](https://github.com/MetaMask/core/pull/6624))
 - Add custom account provider configs ([#6624](https://github.com/MetaMask/core/pull/6624))
   - This new config can be set by the clients to update discovery timeout/retry values.
+
+### Fixed
+
+- No longer create temporary EVM account during discovery ([#6650](https://github.com/MetaMask/core/pull/6650))
+  - We used to create the EVM account and remove it if there was no activity for that account. Now we're just deriving the next address directly, which avoids state mutation.
+  - This prevents `:accountAdded` event from being published, which also prevents account-tree and multichain-account service updates.
+  - Backup & sync will no longer synchronize this temporary account group, which was causing a bug that persisted it on the user profile and left it permanently.
 
 ## [0.9.0]
 
@@ -155,7 +215,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.9.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.5.0...HEAD
+[1.5.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.4.0...@metamask/multichain-account-service@1.5.0
+[1.4.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.3.0...@metamask/multichain-account-service@1.4.0
+[1.3.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.2.0...@metamask/multichain-account-service@1.3.0
+[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.1.0...@metamask/multichain-account-service@1.2.0
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.0.0...@metamask/multichain-account-service@1.1.0
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.11.0...@metamask/multichain-account-service@1.0.0
+[0.11.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.10.0...@metamask/multichain-account-service@0.11.0
+[0.10.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.9.0...@metamask/multichain-account-service@0.10.0
 [0.9.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.8.0...@metamask/multichain-account-service@0.9.0
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.7.0...@metamask/multichain-account-service@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.6.0...@metamask/multichain-account-service@0.7.0

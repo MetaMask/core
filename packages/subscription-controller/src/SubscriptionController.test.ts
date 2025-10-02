@@ -49,6 +49,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
     type: PAYMENT_TYPES.byCard,
     card: {
       brand: 'visa',
+      displayBrand: 'visa',
       last4: '1234',
     },
   },
@@ -758,176 +759,223 @@ describe('SubscriptionController', () => {
 
   describe('getCryptoApproveTransactionParams', () => {
     it('returns transaction params for crypto approve transaction', async () => {
-      await withController(async ({ controller, mockService }) => {
-        // Provide product pricing and crypto payment info with unitDecimals small to avoid integer div to 0
-        mockService.getPricing.mockResolvedValue(MOCK_PRICE_INFO_RESPONSE);
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ controller }) => {
+          const result = await controller.getCryptoApproveTransactionParams({
+            chainId: '0x1',
+            paymentTokenAddress: '0xtoken',
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
+          });
 
-        const result = await controller.getCryptoApproveTransactionParams({
-          chainId: '0x1',
-          paymentTokenAddress: '0xtoken',
-          productType: PRODUCT_TYPES.SHIELD,
-          interval: RECURRING_INTERVALS.month,
-        });
+          expect(result).toStrictEqual({
+            approveAmount: '9000000000000000000',
+            paymentAddress: '0xspender',
+            paymentTokenAddress: '0xtoken',
+            chainId: '0x1',
+          });
+        },
+      );
+    });
 
-        expect(result).toStrictEqual({
-          approveAmount: '9000000000000000000',
-          paymentAddress: '0xspender',
-          paymentTokenAddress: '0xtoken',
-          chainId: '0x1',
-        });
+    it('throws when pricing not found', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.getCryptoApproveTransactionParams({
+            chainId: '0x1',
+            paymentTokenAddress: '0xtoken',
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
+          }),
+        ).rejects.toThrow('Subscription pricing not found');
       });
     });
 
     it('throws when product price not found', async () => {
-      await withController(async ({ controller, mockService }) => {
-        mockService.getPricing.mockResolvedValue({
-          products: [],
-          paymentMethods: [],
-        });
-
-        await expect(
-          controller.getCryptoApproveTransactionParams({
-            chainId: '0x1',
-            paymentTokenAddress: '0xtoken',
-            productType: PRODUCT_TYPES.SHIELD,
-            interval: RECURRING_INTERVALS.month,
-          }),
-        ).rejects.toThrow('Product price not found');
-      });
+      await withController(
+        {
+          state: {
+            pricing: {
+              products: [],
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getCryptoApproveTransactionParams({
+              chainId: '0x1',
+              paymentTokenAddress: '0xtoken',
+              productType: PRODUCT_TYPES.SHIELD,
+              interval: RECURRING_INTERVALS.month,
+            }),
+          ).rejects.toThrow('Product price not found');
+        },
+      );
     });
 
     it('throws when price not found for interval', async () => {
-      await withController(async ({ controller, mockService }) => {
-        mockService.getPricing.mockResolvedValue({
-          products: [
-            {
-              name: PRODUCT_TYPES.SHIELD,
-              prices: [
+      await withController(
+        {
+          state: {
+            pricing: {
+              products: [
                 {
-                  interval: RECURRING_INTERVALS.year,
-                  currency: 'usd',
-                  unitAmount: 10,
-                  unitDecimals: 18,
-                  trialPeriodDays: 0,
-                  minBillingCycles: 1,
+                  name: PRODUCT_TYPES.SHIELD,
+                  prices: [
+                    {
+                      interval: RECURRING_INTERVALS.year,
+                      currency: 'usd',
+                      unitAmount: 10,
+                      unitDecimals: 18,
+                      trialPeriodDays: 0,
+                      minBillingCycles: 1,
+                    },
+                  ],
                 },
               ],
+              paymentMethods: [],
             },
-          ],
-          paymentMethods: [],
-        });
-
-        await expect(
-          controller.getCryptoApproveTransactionParams({
-            chainId: '0x1',
-            paymentTokenAddress: '0xtoken',
-            productType: PRODUCT_TYPES.SHIELD,
-            interval: RECURRING_INTERVALS.month,
-          }),
-        ).rejects.toThrow('Price not found');
-      });
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getCryptoApproveTransactionParams({
+              chainId: '0x1',
+              paymentTokenAddress: '0xtoken',
+              productType: PRODUCT_TYPES.SHIELD,
+              interval: RECURRING_INTERVALS.month,
+            }),
+          ).rejects.toThrow('Price not found');
+        },
+      );
     });
 
     it('throws when chains payment info not found', async () => {
-      await withController(async ({ controller, mockService }) => {
-        mockService.getPricing.mockResolvedValue({
-          ...MOCK_PRICE_INFO_RESPONSE,
-          paymentMethods: [
-            {
-              type: PAYMENT_TYPES.byCard,
-            },
-          ],
-        });
-
-        await expect(
-          controller.getCryptoApproveTransactionParams({
-            chainId: '0x1',
-            paymentTokenAddress: '0xtoken',
-            productType: PRODUCT_TYPES.SHIELD,
-            interval: RECURRING_INTERVALS.month,
-          }),
-        ).rejects.toThrow('Chains payment info not found');
-      });
-    });
-
-    it('throws when invalid chain id', async () => {
-      await withController(async ({ controller, mockService }) => {
-        mockService.getPricing.mockResolvedValue({
-          ...MOCK_PRICE_INFO_RESPONSE,
-          paymentMethods: [
-            {
-              type: PAYMENT_TYPES.byCrypto,
-              chains: [
+      await withController(
+        {
+          state: {
+            pricing: {
+              ...MOCK_PRICE_INFO_RESPONSE,
+              paymentMethods: [
                 {
-                  chainId: '0x2',
-                  paymentAddress: '0xspender',
-                  tokens: [],
+                  type: PAYMENT_TYPES.byCard,
                 },
               ],
             },
-          ],
-        });
-
-        await expect(
-          controller.getCryptoApproveTransactionParams({
-            chainId: '0x1',
-            paymentTokenAddress: '0xtoken',
-            productType: PRODUCT_TYPES.SHIELD,
-            interval: RECURRING_INTERVALS.month,
-          }),
-        ).rejects.toThrow('Invalid chain id');
-      });
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getCryptoApproveTransactionParams({
+              chainId: '0x1',
+              paymentTokenAddress: '0xtoken',
+              productType: PRODUCT_TYPES.SHIELD,
+              interval: RECURRING_INTERVALS.month,
+            }),
+          ).rejects.toThrow('Chains payment info not found');
+        },
+      );
     });
 
-    it('throws when invalid token address', async () => {
-      await withController(async ({ controller, mockService }) => {
-        mockService.getPricing.mockResolvedValue(MOCK_PRICE_INFO_RESPONSE);
-
-        await expect(
-          controller.getCryptoApproveTransactionParams({
-            chainId: '0x1',
-            paymentTokenAddress: '0xtoken-invalid',
-            productType: PRODUCT_TYPES.SHIELD,
-            interval: RECURRING_INTERVALS.month,
-          }),
-        ).rejects.toThrow('Invalid token address');
-      });
-    });
-
-    it('throws when conversion rate not found', async () => {
-      await withController(async ({ controller, mockService }) => {
-        // Valid product and chain/token, but token lacks conversion rate for currency
-        mockService.getPricing.mockResolvedValue({
-          ...MOCK_PRICE_INFO_RESPONSE,
-          paymentMethods: [
-            {
-              type: PAYMENT_TYPES.byCrypto,
-              chains: [
+    it('throws when invalid chain id', async () => {
+      await withController(
+        {
+          state: {
+            pricing: {
+              ...MOCK_PRICE_INFO_RESPONSE,
+              paymentMethods: [
                 {
-                  chainId: '0x1',
-                  paymentAddress: '0xspender',
-                  tokens: [
+                  type: PAYMENT_TYPES.byCrypto,
+                  chains: [
                     {
-                      address: '0xtoken',
-                      decimals: 18,
-                      conversionRate: {},
+                      chainId: '0x2',
+                      paymentAddress: '0xspender',
+                      tokens: [],
                     },
                   ],
                 },
               ],
             },
-          ],
-        });
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getCryptoApproveTransactionParams({
+              chainId: '0x1',
+              paymentTokenAddress: '0xtoken',
+              productType: PRODUCT_TYPES.SHIELD,
+              interval: RECURRING_INTERVALS.month,
+            }),
+          ).rejects.toThrow('Invalid chain id');
+        },
+      );
+    });
 
-        await expect(
-          controller.getCryptoApproveTransactionParams({
-            chainId: '0x1',
-            paymentTokenAddress: '0xtoken',
-            productType: PRODUCT_TYPES.SHIELD,
-            interval: RECURRING_INTERVALS.month,
-          }),
-        ).rejects.toThrow('Conversion rate not found');
-      });
+    it('throws when invalid token address', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getCryptoApproveTransactionParams({
+              chainId: '0x1',
+              paymentTokenAddress: '0xtoken-invalid',
+              productType: PRODUCT_TYPES.SHIELD,
+              interval: RECURRING_INTERVALS.month,
+            }),
+          ).rejects.toThrow('Invalid token address');
+        },
+      );
+    });
+
+    it('throws when conversion rate not found', async () => {
+      await withController(
+        {
+          state: {
+            pricing: {
+              ...MOCK_PRICE_INFO_RESPONSE,
+              paymentMethods: [
+                {
+                  type: PAYMENT_TYPES.byCrypto,
+                  chains: [
+                    {
+                      chainId: '0x1',
+                      paymentAddress: '0xspender',
+                      tokens: [
+                        {
+                          address: '0xtoken',
+                          decimals: 18,
+                          symbol: 'USDT',
+                          conversionRate: {} as { usd: string },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getCryptoApproveTransactionParams({
+              chainId: '0x1',
+              paymentTokenAddress: '0xtoken',
+              productType: PRODUCT_TYPES.SHIELD,
+              interval: RECURRING_INTERVALS.month,
+            }),
+          ).rejects.toThrow('Conversion rate not found');
+        },
+      );
     });
   });
 
@@ -1013,12 +1061,15 @@ describe('SubscriptionController', () => {
   describe('updatePaymentMethod', () => {
     it('should update card payment method successfully', async () => {
       await withController(async ({ controller, mockService }) => {
-        mockService.updatePaymentMethodCard.mockResolvedValue({});
+        const redirectUrl = 'https://redirect.com';
+        mockService.updatePaymentMethodCard.mockResolvedValue({
+          redirectUrl,
+        });
         mockService.getSubscriptions.mockResolvedValue(
           MOCK_GET_SUBSCRIPTIONS_RESPONSE,
         );
 
-        await controller.updatePaymentMethod({
+        const result = await controller.updatePaymentMethod({
           subscriptionId: 'sub_123456789',
           paymentType: PAYMENT_TYPES.byCard,
           recurringInterval: RECURRING_INTERVALS.month,
@@ -1028,10 +1079,7 @@ describe('SubscriptionController', () => {
           subscriptionId: 'sub_123456789',
           recurringInterval: RECURRING_INTERVALS.month,
         });
-
-        expect(controller.state.subscriptions).toStrictEqual([
-          MOCK_SUBSCRIPTION,
-        ]);
+        expect(result).toStrictEqual({ redirectUrl });
       });
     });
 

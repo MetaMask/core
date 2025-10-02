@@ -18,6 +18,7 @@ import type {
   ProductPrice,
   StartCryptoSubscriptionRequest,
   TokenPaymentInfo,
+  UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodOpts,
 } from './types';
 import {
@@ -65,6 +66,10 @@ export type SubscriptionControllerUpdatePaymentMethodAction = {
   type: `${typeof controllerName}:updatePaymentMethod`;
   handler: SubscriptionController['updatePaymentMethod'];
 };
+export type SubscriptionControllerGetBillingPortalUrlAction = {
+  type: `${typeof controllerName}:getBillingPortalUrl`;
+  handler: SubscriptionController['getBillingPortalUrl'];
+};
 
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -78,7 +83,8 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerGetStateAction
   | SubscriptionControllerGetCryptoApproveTransactionParamsAction
   | SubscriptionControllerStartSubscriptionWithCryptoAction
-  | SubscriptionControllerUpdatePaymentMethodAction;
+  | SubscriptionControllerUpdatePaymentMethodAction
+  | SubscriptionControllerGetBillingPortalUrlAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -241,6 +247,11 @@ export class SubscriptionController extends BaseController<
       'SubscriptionController:updatePaymentMethod',
       this.updatePaymentMethod.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:getBillingPortalUrl',
+      this.getBillingPortalUrl.bind(this),
+    );
   }
 
   /**
@@ -339,7 +350,10 @@ export class SubscriptionController extends BaseController<
   async getCryptoApproveTransactionParams(
     request: GetCryptoApproveTransactionRequest,
   ): Promise<GetCryptoApproveTransactionResponse> {
-    const pricing = await this.getPricing();
+    const { pricing } = this.state;
+    if (!pricing) {
+      throw new Error('Subscription pricing not found');
+    }
     const product = pricing.products.find(
       (p) => p.name === request.productType,
     );
@@ -384,17 +398,20 @@ export class SubscriptionController extends BaseController<
     };
   }
 
-  async updatePaymentMethod(opts: UpdatePaymentMethodOpts) {
+  async updatePaymentMethod(
+    opts: UpdatePaymentMethodOpts,
+  ): Promise<UpdatePaymentMethodCardResponse | Subscription[]> {
     if (opts.paymentType === PAYMENT_TYPES.byCard) {
       const { paymentType, ...cardRequest } = opts;
-      await this.#subscriptionService.updatePaymentMethodCard(cardRequest);
+      return await this.#subscriptionService.updatePaymentMethodCard(
+        cardRequest,
+      );
     } else if (opts.paymentType === PAYMENT_TYPES.byCrypto) {
       const { paymentType, ...cryptoRequest } = opts;
       await this.#subscriptionService.updatePaymentMethodCrypto(cryptoRequest);
-    } else {
-      throw new Error('Invalid payment type');
+      return await this.getSubscriptions();
     }
-    await this.getSubscriptions();
+    throw new Error('Invalid payment type');
   }
 
   /**
