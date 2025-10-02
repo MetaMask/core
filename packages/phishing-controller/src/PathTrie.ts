@@ -138,7 +138,7 @@ export const matchedPathPrefix = (
 };
 
 /**
- * Converts an array of paths into a PathTrie structure. This assumes that the
+ * Converts a list ofpaths into a PathTrie structure. This assumes that the
  * entries are only hostname+pathname format.
  *
  * @param paths - Array of hostname+pathname
