@@ -167,7 +167,7 @@ export class PhishingDetector {
       const pathMatch = matchedPathPrefix(url, blocklistPaths);
       if (pathMatch) {
         return {
-          match: domainPartsToDomain(source), // TODO: revisit this. do we want to return the path?
+          match: pathMatch,
           name,
           result: true,
           type: PhishingDetectorResultType.Blocklist,

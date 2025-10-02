@@ -1268,7 +1268,13 @@ describe('PhishingDetector', () => {
             const result = detector.check(
               'https://sub.example.com/path1/path2',
             );
-            expect(result.result).toBe(true);
+            expect(result).toStrictEqual({
+              match: 'sub.example.com/path1/path2',
+              name: undefined,
+              result: true,
+              type: PhishingDetectorResultType.Blocklist,
+              version: undefined,
+            });
           },
         );
       });
@@ -1325,13 +1331,14 @@ describe('PhishingDetector', () => {
             },
           ],
           async ({ detector }) => {
-            const { result, type, name, version } = detector.check(
-              'https://example.com/path',
-            );
-            expect(result).toBe(true);
-            expect(type).toBe(PhishingDetectorResultType.Blocklist);
-            expect(name).toBe('test-config');
-            expect(version).toBe('1');
+            const result = detector.check('https://example.com/path');
+            expect(result).toStrictEqual({
+              match: 'example.com/path',
+              name: 'test-config',
+              result: true,
+              type: PhishingDetectorResultType.Blocklist,
+              version: '1',
+            });
           },
         );
       });
@@ -1348,19 +1355,19 @@ describe('PhishingDetector', () => {
                   phishing: {},
                 },
               },
-              name: 'test-config',
               // version is undefined
               tolerance: 0,
             },
           ],
           async ({ detector }) => {
-            const { result, type, name, version } = detector.check(
-              'https://malicious.com/phishing',
-            );
-            expect(result).toBe(true);
-            expect(type).toBe(PhishingDetectorResultType.Blocklist);
-            expect(name).toBe('test-config');
-            expect(version).toBeUndefined();
+            const result = detector.check('https://malicious.com/phishing');
+            expect(result).toStrictEqual({
+              match: 'malicious.com/phishing',
+              name: undefined,
+              result: true,
+              type: PhishingDetectorResultType.Blocklist,
+              version: undefined,
+            });
           },
         );
       });
