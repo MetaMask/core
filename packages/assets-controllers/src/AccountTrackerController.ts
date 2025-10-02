@@ -702,26 +702,46 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   updateNativeBalances(
     balances: { address: string; chainId: Hex; balance: Hex }[],
   ) {
-    this.update((state) => {
-      balances.forEach(({ address, chainId, balance }) => {
-        const checksumAddress = toChecksumHexAddress(address);
+    const nextAccountsByChainId = cloneDeep(this.state.accountsByChainId);
+    let hasChanges = false;
 
-        // Ensure the chainId exists in the state
-        if (!state.accountsByChainId[chainId]) {
-          state.accountsByChainId[chainId] = {};
-        }
+    balances.forEach(({ address, chainId, balance }) => {
+      const checksumAddress = toChecksumHexAddress(address);
 
-        // Ensure the address exists for this chain
-        if (!state.accountsByChainId[chainId][checksumAddress]) {
-          state.accountsByChainId[chainId][checksumAddress] = {
-            balance: '0x0',
-          };
-        }
+      // Ensure the chainId exists in the state
+      if (!nextAccountsByChainId[chainId]) {
+        nextAccountsByChainId[chainId] = {};
+        hasChanges = true;
+      }
 
-        // Update the balance
-        state.accountsByChainId[chainId][checksumAddress].balance = balance;
-      });
+      // Check if the address exists for this chain
+      const accountExists = Boolean(
+        nextAccountsByChainId[chainId][checksumAddress],
+      );
+
+      // Ensure the address exists for this chain
+      if (!accountExists) {
+        nextAccountsByChainId[chainId][checksumAddress] = {
+          balance: '0x0',
+        };
+        hasChanges = true;
+      }
+
+      // Only update the balance if it has changed, or if this is a new account
+      const currentBalance =
+        nextAccountsByChainId[chainId][checksumAddress].balance;
+      if (!accountExists || currentBalance !== balance) {
+        nextAccountsByChainId[chainId][checksumAddress].balance = balance;
+        hasChanges = true;
+      }
     });
+
+    // Only call update if there are actual changes
+    if (hasChanges) {
+      this.update((state) => {
+        state.accountsByChainId = nextAccountsByChainId;
+      });
+    }
   }
 
   /**
@@ -738,27 +758,47 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       stakedBalance: StakedBalance;
     }[],
   ) {
-    this.update((state) => {
-      stakedBalances.forEach(({ address, chainId, stakedBalance }) => {
-        const checksumAddress = toChecksumHexAddress(address);
+    const nextAccountsByChainId = cloneDeep(this.state.accountsByChainId);
+    let hasChanges = false;
 
-        // Ensure the chainId exists in the state
-        if (!state.accountsByChainId[chainId]) {
-          state.accountsByChainId[chainId] = {};
-        }
+    stakedBalances.forEach(({ address, chainId, stakedBalance }) => {
+      const checksumAddress = toChecksumHexAddress(address);
 
-        // Ensure the address exists for this chain
-        if (!state.accountsByChainId[chainId][checksumAddress]) {
-          state.accountsByChainId[chainId][checksumAddress] = {
-            balance: '0x0',
-          };
-        }
+      // Ensure the chainId exists in the state
+      if (!nextAccountsByChainId[chainId]) {
+        nextAccountsByChainId[chainId] = {};
+        hasChanges = true;
+      }
 
-        // Update the staked balance
-        state.accountsByChainId[chainId][checksumAddress].stakedBalance =
+      // Check if the address exists for this chain
+      const accountExists = Boolean(
+        nextAccountsByChainId[chainId][checksumAddress],
+      );
+
+      // Ensure the address exists for this chain
+      if (!accountExists) {
+        nextAccountsByChainId[chainId][checksumAddress] = {
+          balance: '0x0',
+        };
+        hasChanges = true;
+      }
+
+      // Only update the staked balance if it has changed, or if this is a new account
+      const currentStakedBalance =
+        nextAccountsByChainId[chainId][checksumAddress].stakedBalance;
+      if (!accountExists || !isEqual(currentStakedBalance, stakedBalance)) {
+        nextAccountsByChainId[chainId][checksumAddress].stakedBalance =
           stakedBalance;
-      });
+        hasChanges = true;
+      }
     });
+
+    // Only call update if there are actual changes
+    if (hasChanges) {
+      this.update((state) => {
+        state.accountsByChainId = nextAccountsByChainId;
+      });
+    }
   }
 
   #registerMessageHandlers() {

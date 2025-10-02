@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `blocklistPaths` to `PhishingDetectorList`
   - Add `blocklistPaths` to `PhishingDetectorConfiguration`
 
+### Fixed
+
+- Fixed phishing detector initialization failure when domain lists contain invalid values (numbers, null, undefined) by filtering them out ([#6767](https://github.com/MetaMask/core/pull/6767))
+
 ## [14.0.0]
 
 ### Added

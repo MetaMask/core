@@ -427,6 +427,7 @@ describe('BridgeController', function () {
       BridgeClientId.EXTENSION,
       mockFetchFn,
       BRIDGE_PROD_API_BASE_URL,
+      null,
     );
     expect(bridgeController.state.quotesLastFetched).toBeNull();
 
@@ -928,6 +929,7 @@ describe('BridgeController', function () {
       BridgeClientId.EXTENSION,
       mockFetchFn,
       BRIDGE_PROD_API_BASE_URL,
+      null,
     );
     expect(bridgeController.state.quotesLastFetched).toBeNull();
 
@@ -1391,6 +1393,7 @@ describe('BridgeController', function () {
         BridgeClientId.EXTENSION,
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
+        null,
       );
       expect(bridgeController.state.quotesLastFetched).toBeNull();
 
@@ -2549,6 +2552,7 @@ describe('BridgeController', function () {
             "extension",
             [Function],
             "https://bridge.api.cx.metamask.io",
+            "perps",
           ],
         ]
       `);
@@ -2609,6 +2613,7 @@ describe('BridgeController', function () {
             "extension",
             [Function],
             "https://bridge.api.cx.metamask.io",
+            "perps",
           ],
         ]
       `);
@@ -2659,6 +2664,7 @@ describe('BridgeController', function () {
             "extension",
             [Function],
             "https://bridge.api.cx.metamask.io",
+            null,
           ],
         ]
       `);

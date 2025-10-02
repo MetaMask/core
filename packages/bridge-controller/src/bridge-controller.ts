@@ -354,7 +354,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     quoteRequest: GenericQuoteRequest,
     abortSignal: AbortSignal | null = null,
     featureId: FeatureId | null = null,
-  ): Promise<QuoteResponse[]> => {
+  ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
     const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
     // If featureId is specified, retrieve the quoteRequestOverrides for that featureId
     const quoteRequestOverrides = featureId
@@ -370,6 +370,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#clientId,
       this.#fetchFn,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+      featureId,
     );
 
     this.#trackResponseValidationFailures(validationFailures);

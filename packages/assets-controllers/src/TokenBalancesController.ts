@@ -32,6 +32,7 @@ import { produce } from 'immer';
 import { isEqual } from 'lodash';
 
 import type {
+  AccountTrackerControllerGetStateAction,
   AccountTrackerUpdateNativeBalancesAction,
   AccountTrackerUpdateStakedBalancesAction,
 } from './AccountTrackerController';
@@ -112,6 +113,7 @@ export type AllowedActions =
   | PreferencesControllerGetStateAction
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerListAccountsAction
+  | AccountTrackerControllerGetStateAction
   | AccountTrackerUpdateNativeBalancesAction
   | AccountTrackerUpdateStakedBalancesAction;
 
@@ -154,6 +156,7 @@ export type TokenBalancesControllerOptions = {
   allowExternalServices?: () => boolean;
   /** Custom logger. */
   log?: (...args: unknown[]) => void;
+  platform?: 'extension' | 'mobile';
 };
 // endregion
 
@@ -177,6 +180,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   TokenBalancesControllerState,
   TokenBalancesControllerMessenger
 > {
+  readonly #platform: 'extension' | 'mobile';
+
   readonly #queryAllAccounts: boolean;
 
   readonly #accountsApiChainIds: ChainIdHex[];
@@ -210,6 +215,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     queryMultipleAccounts = true,
     accountsApiChainIds = [],
     allowExternalServices = () => true,
+    platform,
   }: TokenBalancesControllerOptions) {
     super({
       name: CONTROLLER,
@@ -218,6 +224,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       state: { tokenBalances: {}, ...state },
     });
 
+    this.#platform = platform ?? 'extension';
     this.#queryAllAccounts = queryMultipleAccounts;
     this.#accountsApiChainIds = [...accountsApiChainIds];
     this.#defaultInterval = interval;
@@ -313,7 +320,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    */
   readonly #createAccountsApiFetcher = (): BalanceFetcher => {
     const originalFetcher = new AccountsApiBalanceFetcher(
-      'extension',
+      this.#platform,
       this.#getProvider,
     );
 
@@ -584,50 +591,63 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
     }
 
-    // Determine which accounts to process
-    const accountsToProcess = this.#queryAllAccounts
-      ? allAccounts.map((a) => a.address as ChecksumAddress)
-      : [selected as ChecksumAddress];
+    // Determine which accounts to process based on queryAllAccounts parameter
+    const accountsToProcess =
+      (queryAllAccounts ?? this.#queryAllAccounts)
+        ? allAccounts.map((a) => a.address as ChecksumAddress)
+        : [selected as ChecksumAddress];
 
     const prev = this.state;
     const next = draft(prev, (d) => {
-      // First, initialize all tokens from allTokens state with balance 0
-      // for the accounts and chains we're processing
+      // Initialize account and chain structures if they don't exist, but preserve existing balances
       for (const chainId of targetChains) {
         for (const account of accountsToProcess) {
-          // Initialize tokens from allTokens
+          // Ensure the nested structure exists without overwriting existing balances
+          d.tokenBalances[account] ??= {};
+          d.tokenBalances[account][chainId] ??= {};
+          // Initialize tokens from allTokens only if they don't exist yet
           const chainTokens = this.#allTokens[chainId];
           if (chainTokens?.[account]) {
             Object.values(chainTokens[account]).forEach(
               (token: { address: string }) => {
                 const tokenAddress = checksum(token.address);
-                ((d.tokenBalances[account] ??= {})[chainId] ??= {})[
-                  tokenAddress
-                ] = '0x0';
+                // Only initialize if the token balance doesn't exist yet
+                if (!(tokenAddress in d.tokenBalances[account][chainId])) {
+                  d.tokenBalances[account][chainId][tokenAddress] = '0x0';
+                }
               },
             );
           }
 
-          // Initialize tokens from allDetectedTokens
+          // Initialize tokens from allDetectedTokens only if they don't exist yet
           const detectedChainTokens = this.#detectedTokens[chainId];
           if (detectedChainTokens?.[account]) {
             Object.values(detectedChainTokens[account]).forEach(
               (token: { address: string }) => {
                 const tokenAddress = checksum(token.address);
-                ((d.tokenBalances[account] ??= {})[chainId] ??= {})[
-                  tokenAddress
-                ] = '0x0';
+                // Only initialize if the token balance doesn't exist yet
+                if (!(tokenAddress in d.tokenBalances[account][chainId])) {
+                  d.tokenBalances[account][chainId][tokenAddress] = '0x0';
+                }
               },
             );
           }
         }
       }
 
-      // Then update with actual fetched balances where available
+      // Update with actual fetched balances only if the value has changed
       aggregated.forEach(({ success, value, account, token, chainId }) => {
         if (success && value !== undefined) {
-          ((d.tokenBalances[account] ??= {})[chainId] ??= {})[checksum(token)] =
-            toHex(value);
+          const newBalance = toHex(value);
+          const tokenAddress = checksum(token);
+          const currentBalance =
+            d.tokenBalances[account]?.[chainId]?.[tokenAddress];
+
+          // Only update if the balance has actually changed
+          if (currentBalance !== newBalance) {
+            ((d.tokenBalances[account] ??= {})[chainId] ??= {})[tokenAddress] =
+              newBalance;
+          }
         }
       });
     });
@@ -639,18 +659,34 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         (r) => r.success && r.token === ZERO_ADDRESS,
       );
 
-      // Update native token balances in a single batch operation for better performance
-      if (nativeBalances.length > 0) {
-        const balanceUpdates = nativeBalances.map((balance) => ({
-          address: balance.account,
-          chainId: balance.chainId,
-          balance: balance.value ? BNToHex(balance.value) : '0x0',
-        }));
+      // Get current AccountTracker state to compare existing balances
+      const accountTrackerState = this.messagingSystem.call(
+        'AccountTrackerController:getState',
+      );
 
-        this.messagingSystem.call(
-          'AccountTrackerController:updateNativeBalances',
-          balanceUpdates,
-        );
+      // Update native token balances only if they have changed
+      if (nativeBalances.length > 0) {
+        const balanceUpdates = nativeBalances
+          .map((balance) => ({
+            address: balance.account,
+            chainId: balance.chainId,
+            balance: balance.value ? BNToHex(balance.value) : '0x0',
+          }))
+          .filter((update) => {
+            const currentBalance =
+              accountTrackerState.accountsByChainId[update.chainId]?.[
+                checksum(update.address)
+              ]?.balance;
+            // Only include if the balance has actually changed
+            return currentBalance !== update.balance;
+          });
+
+        if (balanceUpdates.length > 0) {
+          this.messagingSystem.call(
+            'AccountTrackerController:updateNativeBalances',
+            balanceUpdates,
+          );
+        }
       }
 
       // Get staking contract addresses for filtering
@@ -668,16 +704,27 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       });
 
       if (stakedBalances.length > 0) {
-        const stakedBalanceUpdates = stakedBalances.map((balance) => ({
-          address: balance.account,
-          chainId: balance.chainId,
-          stakedBalance: balance.value ? toHex(balance.value) : '0x0',
-        }));
+        const stakedBalanceUpdates = stakedBalances
+          .map((balance) => ({
+            address: balance.account,
+            chainId: balance.chainId,
+            stakedBalance: balance.value ? toHex(balance.value) : '0x0',
+          }))
+          .filter((update) => {
+            const currentStakedBalance =
+              accountTrackerState.accountsByChainId[update.chainId]?.[
+                checksum(update.address)
+              ]?.stakedBalance;
+            // Only include if the staked balance has actually changed
+            return currentStakedBalance !== update.stakedBalance;
+          });
 
-        this.messagingSystem.call(
-          'AccountTrackerController:updateStakedBalances',
-          stakedBalanceUpdates,
-        );
+        if (stakedBalanceUpdates.length > 0) {
+          this.messagingSystem.call(
+            'AccountTrackerController:updateStakedBalances',
+            stakedBalanceUpdates,
+          );
+        }
       }
     }
   }
