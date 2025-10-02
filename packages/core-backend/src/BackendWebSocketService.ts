@@ -661,6 +661,11 @@ export class BackendWebSocketService {
     channelName: string;
     callback: (notification: ServerNotificationMessage) => void;
   }): void {
+    const channelCallback: ChannelCallback = {
+      channelName: options.channelName,
+      callback: options.callback,
+    };
+
     // Check if callback already exists for this channel
     if (this.#channelCallbacks.has(options.channelName)) {
       console.debug(
@@ -668,11 +673,6 @@ export class BackendWebSocketService {
       );
       return;
     }
-
-    const channelCallback: ChannelCallback = {
-      channelName: options.channelName,
-      callback: options.callback,
-    };
 
     this.#channelCallbacks.set(options.channelName, channelCallback);
   }
@@ -934,9 +934,11 @@ export class BackendWebSocketService {
 
       // Set up message handler immediately - no need to wait for connection
       ws.onmessage = (event: MessageEvent) => {
-        const message = this.#parseMessage(event.data);
-        if (message) {
+        try {
+          const message = this.#parseMessage(event.data);
           this.#handleMessage(message);
+        } catch {
+          // Silently ignore invalid JSON messages
         }
       };
     });
@@ -958,12 +960,15 @@ export class BackendWebSocketService {
       return;
     }
 
-    // Handle subscription notifications
+    // Handle subscription notifications with valid subscriptionId
     if (this.#isSubscriptionNotification(message)) {
-      this.#handleSubscriptionNotification(
+      const handled = this.#handleSubscriptionNotification(
         message as ServerNotificationMessage,
       );
-      return;
+      // If subscription notification wasn't handled (falsy subscriptionId), fall through to channel handling
+      if (handled) {
+        return;
+      }
     }
 
     // Trigger channel callbacks for any message with a channel property
@@ -994,11 +999,7 @@ export class BackendWebSocketService {
    * @returns True if the message is a subscription notification with subscriptionId
    */
   #isSubscriptionNotification(message: WebSocketMessage): boolean {
-    return (
-      'subscriptionId' in message &&
-      (message as ServerNotificationMessage).subscriptionId !== undefined &&
-      !this.#isServerResponse(message)
-    );
+    return 'subscriptionId' in message && !this.#isServerResponse(message);
   }
 
   /**
@@ -1020,10 +1021,6 @@ export class BackendWebSocketService {
    */
   #handleServerResponse(message: ServerResponseMessage): void {
     const { requestId } = message.data;
-
-    if (!this.#pendingRequests.has(requestId)) {
-      return;
-    }
 
     const request = this.#pendingRequests.get(requestId);
     if (!request) {
@@ -1053,47 +1050,36 @@ export class BackendWebSocketService {
       return;
     }
 
-    // Use the channel name directly from the notification
-    const channelName = message.channel;
-
     // Direct lookup for exact channel match
-    const channelCallback = this.#channelCallbacks.get(channelName);
-    if (channelCallback) {
-      channelCallback.callback(message);
-    }
+    this.#channelCallbacks.get(message.channel)?.callback(message);
   }
 
   /**
    * Handles server notifications with subscription IDs
    *
    * @param message - The server notification message to handle
+   * @returns True if the message was handled, false if it should fall through to channel handling
    */
-  #handleSubscriptionNotification(message: ServerNotificationMessage): void {
+  #handleSubscriptionNotification(message: ServerNotificationMessage): boolean {
     const { subscriptionId } = message;
-    if (!subscriptionId) {
-      return;
-    } // Malformed message, ignore
 
-    // Fast path: Direct callback routing by subscription ID
-    const subscription = this.#subscriptions.get(subscriptionId);
-    if (subscription?.callback) {
-      const { callback } = subscription;
-      callback(message);
+    // Only handle if subscriptionId is truthy
+    if (subscriptionId) {
+      this.#subscriptions.get(subscriptionId)?.callback?.(message);
+      return true;
     }
+
+    return false;
   }
 
   /**
-   * Optimized message parsing for mobile (reduces JSON.parse overhead)
+   * Parse WebSocket message data
    *
    * @param data - The raw message data to parse
-   * @returns Parsed message or null if parsing fails
+   * @returns Parsed message
    */
-  #parseMessage(data: string): WebSocketMessage | null {
-    try {
-      return JSON.parse(data);
-    } catch {
-      return null;
-    }
+  #parseMessage(data: string): WebSocketMessage {
+    return JSON.parse(data);
   }
 
   // =============================================================================
