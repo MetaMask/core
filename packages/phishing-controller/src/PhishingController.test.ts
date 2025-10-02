@@ -1345,6 +1345,35 @@ describe('PhishingController', () => {
     });
   });
 
+  it('returns positive result even if the hostname+pathname contains percent encoding', async () => {
+    const controller = getPhishingController({
+      state: {
+        phishingLists: [
+          {
+            allowlist: [],
+            blocklist: [],
+            blocklistPaths: {
+              'example.com': {
+                path: {},
+              },
+            },
+            c2DomainBlocklist: [],
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 0,
+            name: ListNames.MetaMask,
+          },
+        ],
+      },
+    });
+
+    expect(controller.test('https://example.com/%70%61%74%68')).toMatchObject({
+      result: true,
+      type: PhishingDetectorResultType.Blocklist,
+    });
+  });
+
   describe('updateStalelist', () => {
     it('should update lists with addition to hotlist', async () => {
       sinon.useFakeTimers(2);
@@ -2524,6 +2553,17 @@ describe('PhishingController', () => {
           },
         });
         expect(controller.state.whitelist).toHaveLength(0);
+      });
+
+      it('if the pathname contains percent encoding, it is added decoded', () => {
+        const origin = 'https://example.com/%70%61%74%68';
+        controller.bypass(origin);
+
+        expect(controller.state.whitelistPaths).toStrictEqual({
+          'example.com': {
+            path: {},
+          },
+        });
       });
     });
   });
