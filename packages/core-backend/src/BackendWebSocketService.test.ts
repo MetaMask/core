@@ -257,7 +257,6 @@ type TestSetup = {
     getBearerToken: jest.Mock;
   };
   spies: {
-    subscribe: jest.SpyInstance;
     publish: jest.SpyInstance;
     call: jest.SpyInstance;
   };
@@ -287,7 +286,6 @@ const setupBackendWebSocketService = ({
   const { rootMessenger, messenger, mocks } = messengerSetup;
 
   // Create spies BEFORE service construction to capture constructor calls
-  const subscribeSpy = jest.spyOn(messenger, 'subscribe');
   const publishSpy = jest.spyOn(messenger, 'publish');
   const callSpy = jest.spyOn(messenger, 'call');
 
@@ -335,7 +333,6 @@ const setupBackendWebSocketService = ({
     rootMessenger,
     mocks,
     spies: {
-      subscribe: subscribeSpy,
       publish: publishSpy,
       call: callSpy,
     },
@@ -343,7 +340,6 @@ const setupBackendWebSocketService = ({
     getMockWebSocket,
     cleanup: () => {
       service?.destroy();
-      subscribeSpy.mockRestore();
       publishSpy.mockRestore();
       callSpy.mockRestore();
       jest.useRealTimers();
@@ -1405,24 +1401,12 @@ describe('BackendWebSocketService', () => {
   // =====================================================
   describe('authentication flows', () => {
     it('should handle authentication state changes - sign in', async () => {
-      const { service, completeAsyncOperations, spies, mocks, cleanup } =
+      const { service, completeAsyncOperations, rootMessenger, mocks, cleanup } =
         setupBackendWebSocketService({
           options: {},
         });
 
       await completeAsyncOperations();
-
-      // Find the authentication state change subscription
-      const authStateChangeCall = spies.subscribe.mock.calls.find(
-        (call) => call[0] === 'AuthenticationController:stateChange',
-      );
-      expect(authStateChangeCall).toBeDefined();
-      const authStateChangeCallback = (
-        authStateChangeCall as unknown as [
-          string,
-          (state: unknown, previousState: unknown) => void,
-        ]
-      )[1];
 
       // Spy on the connect method instead of console.debug
       const connectSpy = jest.spyOn(service, 'connect').mockResolvedValue();
@@ -1430,9 +1414,8 @@ describe('BackendWebSocketService', () => {
       // Mock getBearerToken to return valid token
       mocks.getBearerToken.mockResolvedValueOnce('valid-bearer-token');
 
-      // Simulate user signing in (wallet unlocked + authenticated)
-      const newAuthState = { isSignedIn: true };
-      authStateChangeCallback(newAuthState, undefined);
+      // Simulate user signing in (wallet unlocked + authenticated) by publishing event
+      rootMessenger.publish('AuthenticationController:stateChange', { isSignedIn: true }, []);
       await completeAsyncOperations();
 
       // Assert that connect was called when user signs in
@@ -1443,28 +1426,15 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should handle authentication state changes - sign out', async () => {
-      const { service, completeAsyncOperations, spies, cleanup } =
+      const { service, completeAsyncOperations, rootMessenger, cleanup } =
         setupBackendWebSocketService({
           options: {},
         });
 
       await completeAsyncOperations();
 
-      // Find the authentication state change subscription
-      const authStateChangeCall = spies.subscribe.mock.calls.find(
-        (call) => call[0] === 'AuthenticationController:stateChange',
-      );
-
-      expect(authStateChangeCall).toBeDefined();
-      const authStateChangeCallback = (
-        authStateChangeCall as unknown as [
-          string,
-          (state: unknown, previousState: unknown) => void,
-        ]
-      )[1];
-
-      // Start with signed in state
-      authStateChangeCallback({ isSignedIn: true }, undefined);
+      // Start with signed in state by publishing event
+      rootMessenger.publish('AuthenticationController:stateChange', { isSignedIn: true }, []);
       await completeAsyncOperations();
 
       // Set up some reconnection attempts to verify they get reset
@@ -1480,8 +1450,8 @@ describe('BackendWebSocketService', () => {
         // Expected to fail
       }
 
-      // Simulate user signing out (wallet locked OR signed out)
-      authStateChangeCallback({ isSignedIn: false }, undefined);
+      // Simulate user signing out (wallet locked OR signed out) by publishing event
+      rootMessenger.publish('AuthenticationController:stateChange', { isSignedIn: false }, []);
       await completeAsyncOperations();
 
       // Assert that reconnection attempts were reset to 0 when user signs out
@@ -1516,33 +1486,20 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should handle authentication state change sign-in connection failure', async () => {
-      const { service, completeAsyncOperations, spies, cleanup } =
+      const { service, completeAsyncOperations, rootMessenger, cleanup } =
         setupBackendWebSocketService({
           options: {},
         });
 
       await completeAsyncOperations();
 
-      // Find the authentication state change subscription
-      const authStateChangeCall = spies.subscribe.mock.calls.find(
-        (call) => call[0] === 'AuthenticationController:stateChange',
-      );
-      expect(authStateChangeCall).toBeDefined();
-      const authStateChangeCallback = (
-        authStateChangeCall as unknown as [
-          string,
-          (state: unknown, previousState: unknown) => void,
-        ]
-      )[1];
-
       // Mock connect to fail
       const connectSpy = jest
         .spyOn(service, 'connect')
         .mockRejectedValue(new Error('Connection failed during auth'));
 
-      // Simulate user signing in with connection failure
-      const newAuthState = { isSignedIn: true };
-      authStateChangeCallback(newAuthState, undefined);
+      // Simulate user signing in with connection failure by publishing event
+      rootMessenger.publish('AuthenticationController:stateChange', { isSignedIn: true }, []);
       await completeAsyncOperations();
 
       // Assert that connect was called and the catch block executed successfully
@@ -1551,7 +1508,7 @@ describe('BackendWebSocketService', () => {
       // Verify the authentication callback completed without throwing an error
       // This ensures the catch block in setupAuthentication executed properly
       expect(() =>
-        authStateChangeCallback(newAuthState, undefined),
+        rootMessenger.publish('AuthenticationController:stateChange', { isSignedIn: true }, []),
       ).not.toThrow();
 
       connectSpy.mockRestore();
@@ -1559,24 +1516,12 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should reset reconnection attempts on authentication sign-out', async () => {
-      const { service, completeAsyncOperations, spies, cleanup } =
+      const { service, completeAsyncOperations, rootMessenger, cleanup } =
         setupBackendWebSocketService({
           options: {},
         });
 
       await completeAsyncOperations();
-
-      // Find the authentication state change subscription
-      const authStateChangeCall = spies.subscribe.mock.calls.find(
-        (call) => call[0] === 'AuthenticationController:stateChange',
-      );
-      expect(authStateChangeCall).toBeDefined();
-      const authStateChangeCallback = (
-        authStateChangeCall as unknown as [
-          string,
-          (state: unknown, previousState: unknown) => void,
-        ]
-      )[1];
 
       // First trigger a failed connection to simulate some reconnection attempts
       const connectSpy = jest
@@ -1592,8 +1537,8 @@ describe('BackendWebSocketService', () => {
       // Verify there might be reconnection attempts before sign-out
       service.getConnectionInfo();
 
-      // Test sign-out resets reconnection attempts
-      authStateChangeCallback({ isSignedIn: false }, undefined);
+      // Test sign-out resets reconnection attempts by publishing event
+      rootMessenger.publish('AuthenticationController:stateChange', { isSignedIn: false }, []);
       await completeAsyncOperations();
 
       // Verify reconnection attempts were reset to 0
@@ -1604,27 +1549,15 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should log debug message on authentication sign-out', async () => {
-      const { service, completeAsyncOperations, spies, cleanup } =
+      const { service, completeAsyncOperations, rootMessenger, cleanup } =
         setupBackendWebSocketService({
           options: {},
         });
 
       await completeAsyncOperations();
 
-      // Find the authentication state change subscription
-      const authStateChangeCall = spies.subscribe.mock.calls.find(
-        (call) => call[0] === 'AuthenticationController:stateChange',
-      );
-      expect(authStateChangeCall).toBeDefined();
-      const authStateChangeCallback = (
-        authStateChangeCall as unknown as [
-          string,
-          (isSignedIn: boolean, previousState: unknown) => void,
-        ]
-      )[1];
-
-      // Test sign-out behavior (directly call with false)
-      authStateChangeCallback(false, true);
+      // Test sign-out behavior by publishing event
+      rootMessenger.publish('AuthenticationController:stateChange', { isSignedIn: false }, []);
       await completeAsyncOperations();
 
       // Verify reconnection attempts were reset to 0
@@ -1632,7 +1565,7 @@ describe('BackendWebSocketService', () => {
       expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
 
       // Verify the callback executed without throwing an error
-      expect(() => authStateChangeCallback(false, true)).not.toThrow();
+      expect(() => rootMessenger.publish('AuthenticationController:stateChange', { isSignedIn: false }, [])).not.toThrow();
       cleanup();
     });
 
@@ -1640,7 +1573,7 @@ describe('BackendWebSocketService', () => {
       const {
         service,
         completeAsyncOperations,
-        spies,
+        rootMessenger,
         getMockWebSocket,
         cleanup,
       } = setupBackendWebSocketService({
@@ -1653,18 +1586,6 @@ describe('BackendWebSocketService', () => {
       await service.connect();
       const mockWs = getMockWebSocket();
 
-      // Find the authentication state change subscription
-      const authStateChangeCall = spies.subscribe.mock.calls.find(
-        (call) => call[0] === 'AuthenticationController:stateChange',
-      );
-      expect(authStateChangeCall).toBeDefined();
-      const authStateChangeCallback = (
-        authStateChangeCall as unknown as [
-          string,
-          (state: unknown, previousState: unknown) => void,
-        ]
-      )[1];
-
       // Mock setTimeout and clearTimeout to track timer operations
       const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
       const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
@@ -1676,8 +1597,8 @@ describe('BackendWebSocketService', () => {
       // Verify a timer was set for reconnection
       expect(setTimeoutSpy).toHaveBeenCalled();
 
-      // Now trigger sign-out, which should call clearTimers
-      authStateChangeCallback({ isSignedIn: false }, undefined);
+      // Now trigger sign-out, which should call clearTimers by publishing event
+      rootMessenger.publish('AuthenticationController:stateChange', { isSignedIn: false }, []);
       await completeAsyncOperations();
 
       // Verify clearTimeout was called (indicating timers were cleared)
@@ -1749,19 +1670,13 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should handle connection failure after sign-in', async () => {
-      const { service, completeAsyncOperations, spies, mocks, cleanup } =
+      const { service, completeAsyncOperations, rootMessenger, mocks, cleanup } =
         setupBackendWebSocketService({
           options: {},
           mockWebSocketOptions: { autoConnect: false },
         });
 
       await completeAsyncOperations();
-
-      // Find the authentication state change subscription
-      const authStateChangeCall = spies.subscribe.mock.calls.find(
-        (call) => call[0] === 'AuthenticationController:stateChange',
-      );
-      const authStateChangeCallback = authStateChangeCall?.[1];
 
       // Mock getBearerToken to return valid token but connection to fail
       mocks.getBearerToken.mockResolvedValueOnce('valid-token');
@@ -1771,8 +1686,8 @@ describe('BackendWebSocketService', () => {
         .spyOn(service, 'connect')
         .mockRejectedValueOnce(new Error('Connection failed'));
 
-      // Trigger sign-in event which should attempt connection and fail
-      authStateChangeCallback?.({ isSignedIn: true }, { isSignedIn: false });
+      // Trigger sign-in event which should attempt connection and fail by publishing event
+      rootMessenger.publish('AuthenticationController:stateChange', { isSignedIn: true }, []);
       await completeAsyncOperations();
 
       // Verify that connect was called when user signed in
@@ -1960,32 +1875,6 @@ describe('BackendWebSocketService', () => {
       cleanup();
     });
 
-    it('should use authentication state selector to extract isSignedIn property', async () => {
-      const { spies, cleanup } = setupBackendWebSocketService({
-        options: {},
-      });
-
-      // Find the authentication state change subscription
-      const authStateChangeCall = spies.subscribe.mock.calls.find(
-        (call) => call[0] === 'AuthenticationController:stateChange',
-      );
-      expect(authStateChangeCall).toBeDefined();
-
-      // Extract the selector function (third parameter)
-      const authStateSelector = (
-        authStateChangeCall as unknown as [
-          string,
-          (state: unknown, previousState: unknown) => void,
-          (state: { isSignedIn: boolean }) => boolean,
-        ]
-      )[2];
-
-      // Test the selector function with different authentication states
-      expect(authStateSelector({ isSignedIn: true })).toBe(true);
-      expect(authStateSelector({ isSignedIn: false })).toBe(false);
-
-      cleanup();
-    });
   });
 
   // =====================================================
