@@ -1739,7 +1739,7 @@ export class NetworkController extends BaseController<
   async #lookupGivenNetwork(networkClientId: NetworkClientId) {
     const { networkStatus, isEIP1559Compatible } =
       await this.#determineNetworkMetadata(networkClientId);
-    this.#updateMetadataForNetwork(
+    this.#updateNetworkMetadata(
       networkClientId,
       networkStatus,
       isEIP1559Compatible,
@@ -1764,80 +1764,20 @@ export class NetworkController extends BaseController<
       return;
     }
 
-    let networkChanged = false;
-    const listener = () => {
-      networkChanged = true;
-      try {
-        this.messagingSystem.unsubscribe(
-          'NetworkController:networkDidChange',
-          listener,
-        );
-      } catch (error) {
-        // In theory, this `catch` should not be necessary given that this error
-        // would occur "inside" of the call to `#determineEIP1559Compatibility`
-        // below and so it should be caught by the `try`/`catch` below (it is
-        // impossible to reproduce in tests for that reason). However, somehow
-        // it occurs within Mobile and so we have to add our own `try`/`catch`
-        // here.
-        /* istanbul ignore next */
-        if (
-          !(error instanceof Error) ||
-          error.message !==
-            'Subscription not found for event: NetworkController:networkDidChange'
-        ) {
-          // Again, this error should not happen and is impossible to reproduce
-          // in tests.
-          /* istanbul ignore next */
-          throw error;
-        }
-      }
-    };
-    this.messagingSystem.subscribe(
-      'NetworkController:networkDidChange',
-      listener,
-    );
+    // Capture up front in case the network is switched while awaiting the
+    // network request
+    const { selectedNetworkClientId } = this.state;
 
     const { isInfura, networkStatus, isEIP1559Compatible } =
-      await this.#determineNetworkMetadata(this.state.selectedNetworkClientId);
+      await this.#determineNetworkMetadata(selectedNetworkClientId);
 
-    if (networkChanged) {
-      // If the network has changed, then `lookupNetwork` either has been or is
-      // in the process of being called, so we don't need to go further.
-      return;
-    }
-
-    try {
-      this.messagingSystem.unsubscribe(
-        'NetworkController:networkDidChange',
-        listener,
+    if (selectedNetworkClientId === this.state.selectedNetworkClientId) {
+      this.#updateNetworkMetadata(
+        selectedNetworkClientId,
+        networkStatus,
+        isEIP1559Compatible,
       );
-    } catch (error) {
-      if (
-        !(error instanceof Error) ||
-        error.message !==
-          'Subscription not found for event: NetworkController:networkDidChange'
-      ) {
-        throw error;
-      }
-    }
-
-    this.#updateMetadataForNetwork(
-      this.state.selectedNetworkClientId,
-      networkStatus,
-      isEIP1559Compatible,
-    );
-
-    if (isInfura) {
-      if (networkStatus === NetworkStatus.Available) {
-        this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
-      } else if (networkStatus === NetworkStatus.Blocked) {
-        this.messagingSystem.publish('NetworkController:infuraIsBlocked');
-      }
-    } else {
-      // Always publish infuraIsUnblocked regardless of network status to
-      // prevent consumers from being stuck in a blocked state if they were
-      // previously connected to an Infura network that was blocked
-      this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
+      this.#publishInfuraBlockedStatusEvents(isInfura, networkStatus);
     }
   }
 
@@ -1849,7 +1789,7 @@ export class NetworkController extends BaseController<
    * @param isEIP1559Compatible - The EIP-1559 compatibility status to
    * store in state.
    */
-  #updateMetadataForNetwork(
+  #updateNetworkMetadata(
     networkClientId: NetworkClientId,
     networkStatus: NetworkStatus,
     isEIP1559Compatible: boolean | undefined,
@@ -1869,6 +1809,31 @@ export class NetworkController extends BaseController<
         meta.EIPS[1559] = isEIP1559Compatible;
       }
     });
+  }
+
+  /**
+   * Publishes events that advise users about whether the recently updated
+   * network is geo-blocked by Infura.
+   *
+   * @param isInfura - Whether the network points to an Infura URL.
+   * @param networkStatus - The status of the network.
+   */
+  #publishInfuraBlockedStatusEvents(
+    isInfura: boolean,
+    networkStatus: NetworkStatus,
+  ) {
+    if (isInfura) {
+      if (networkStatus === NetworkStatus.Available) {
+        this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
+      } else if (networkStatus === NetworkStatus.Blocked) {
+        this.messagingSystem.publish('NetworkController:infuraIsBlocked');
+      }
+    } else {
+      // Always publish infuraIsUnblocked regardless of network status to
+      // prevent consumers from being stuck in a blocked state if they were
+      // previously connected to an Infura network that was blocked
+      this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
+    }
   }
 
   /**
