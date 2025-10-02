@@ -156,6 +156,7 @@ export type TokenBalancesControllerOptions = {
   allowExternalServices?: () => boolean;
   /** Custom logger. */
   log?: (...args: unknown[]) => void;
+  platform?: 'extension' | 'mobile';
 };
 // endregion
 
@@ -179,6 +180,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   TokenBalancesControllerState,
   TokenBalancesControllerMessenger
 > {
+  readonly #platform: 'extension' | 'mobile';
+
   readonly #queryAllAccounts: boolean;
 
   readonly #accountsApiChainIds: ChainIdHex[];
@@ -212,6 +215,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     queryMultipleAccounts = true,
     accountsApiChainIds = [],
     allowExternalServices = () => true,
+    platform,
   }: TokenBalancesControllerOptions) {
     super({
       name: CONTROLLER,
@@ -220,6 +224,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       state: { tokenBalances: {}, ...state },
     });
 
+    this.#platform = platform ?? 'extension';
     this.#queryAllAccounts = queryMultipleAccounts;
     this.#accountsApiChainIds = [...accountsApiChainIds];
     this.#defaultInterval = interval;
@@ -315,7 +320,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    */
   readonly #createAccountsApiFetcher = (): BalanceFetcher => {
     const originalFetcher = new AccountsApiBalanceFetcher(
-      'extension',
+      this.#platform,
       this.#getProvider,
     );
 

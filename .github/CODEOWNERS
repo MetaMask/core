@@ -74,7 +74,7 @@
 /packages/rate-limit-controller        @MetaMask/core-platform
 
 ## Wallet UX Team
-/packages/announcement-controller      @MetaMask/wallet-ux
+/packages/announcement-controller      @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
 
 ## Web3Auth Team
 /packages/seedless-onboarding-controller @MetaMask/web3auth
@@ -100,8 +100,8 @@
 /packages/accounts-controller/CHANGELOG.md        @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/address-book-controller/package.json    @MetaMask/confirmations @MetaMask/core-platform
 /packages/address-book-controller/CHANGELOG.md    @MetaMask/confirmations @MetaMask/core-platform
-/packages/announcement-controller/package.json    @MetaMask/wallet-ux @MetaMask/core-platform
-/packages/announcement-controller/CHANGELOG.md    @MetaMask/wallet-ux @MetaMask/core-platform
+/packages/announcement-controller/package.json    @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
+/packages/announcement-controller/CHANGELOG.md    @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
 /packages/approval-controller/package.json        @MetaMask/confirmations @MetaMask/core-platform
 /packages/approval-controller/CHANGELOG.md        @MetaMask/confirmations @MetaMask/core-platform
 /packages/assets-controllers/package.json         @MetaMask/metamask-assets @MetaMask/core-platform
