@@ -165,12 +165,14 @@ export const domainToParts = (domain: string) => {
  * Converts a list of domain strings to a list of domain parts.
  *
  * @param list - the list of domain strings to convert.
- * @returns the list of domain parts for valid domains only.
+ * @returns the list of domain parts.
  */
 export const processDomainList = (list: string[]): string[][] => {
   return list.reduce<string[][]>((acc, domain) => {
     if (typeof domain !== 'string') {
-      console.warn(`Invalid domain value in list: ${JSON.stringify(domain)}`);
+      console.warn(
+        `Invalid domain value in list: ${JSON.stringify(domain)} (type: ${typeof domain})`,
+      );
       return acc;
     }
     acc.push(domainToParts(domain));
