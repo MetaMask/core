@@ -235,23 +235,23 @@ export class PhishingDetector {
   }
 
   /**
-   * Checks if a URL is blocked against the blocklistPaths.
+   * Gets the specific terminal path from blocklistPaths that is blocking a URL.
    *
    * @param url - The URL to check.
-   * @returns true if the URL is blocked, false otherwise.
+   * @returns The terminal path that is blocking the URL, or null if not blocked.
    */
-  isPathBlocked(url: string): boolean {
+  blockingPath(url: string): string | null {
     for (const { blocklistPaths } of this.#configs) {
       if (!blocklistPaths || Object.keys(blocklistPaths).length === 0) {
         continue;
       }
-      const pathMatch = isTerminalPath(url, blocklistPaths);
-      if (pathMatch) {
-        return true;
+      const matchedPath = matchedPathPrefix(url, blocklistPaths);
+      if (matchedPath) {
+        return matchedPath;
       }
     }
 
-    return false;
+    return null;
   }
 
   /**
