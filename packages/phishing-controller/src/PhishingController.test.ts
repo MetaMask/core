@@ -425,7 +425,7 @@ describe('PhishingController', () => {
             },
           ],
           whitelist: [],
-          whitelistPaths: [],
+          whitelistPaths: {},
           hotlistLastFetched: 0,
           stalelistLastFetched: 0,
           c2DomainBlocklistLastFetched: 0,
@@ -2431,6 +2431,11 @@ describe('PhishingController', () => {
                 'example.com': {
                   path: {},
                 },
+                'sub.example.com': {
+                  path1: {
+                    path2: {},
+                  },
+                },
               },
               fuzzylist: [],
               tolerance: 0,
@@ -2439,6 +2444,7 @@ describe('PhishingController', () => {
               name: ListNames.MetaMask,
             },
           ],
+          whitelistPaths: {},
         },
       });
     });
@@ -2455,7 +2461,7 @@ describe('PhishingController', () => {
         // Verify that the whitelist has not changed
         expect(controller.state.whitelist).toContain(hostname);
         expect(controller.state.whitelist).toHaveLength(1); // No duplicates added
-        expect(controller.state.whitelistPaths).toHaveLength(0);
+        expect(Object.keys(controller.state.whitelistPaths)).toHaveLength(0);
       });
 
       it('should add the origin to the whitelist if not already present', () => {
@@ -2468,7 +2474,7 @@ describe('PhishingController', () => {
         // Verify that the whitelist now includes the new origin
         expect(controller.state.whitelist).toContain(hostname);
         expect(controller.state.whitelist).toHaveLength(1);
-        expect(controller.state.whitelistPaths).toHaveLength(0);
+        expect(Object.keys(controller.state.whitelistPaths)).toHaveLength(0);
       });
 
       it('should add punycode origins to the whitelist if not already present', () => {
@@ -2480,27 +2486,42 @@ describe('PhishingController', () => {
         // Verify that the whitelist now includes the punycode origin
         expect(controller.state.whitelist).toContain(punycodeOrigin);
         expect(controller.state.whitelist).toHaveLength(1);
-        expect(controller.state.whitelistPaths).toHaveLength(0);
+        expect(Object.keys(controller.state.whitelistPaths)).toHaveLength(0);
       });
     });
 
     describe('whitelistPaths', () => {
-      it('adds the hostname + paths to the whitelistPaths if not already present', () => {
-        const origin = 'https://example.com/path';
+      it('adds the terminal path match within blocklistPaths to the whitelistPaths', () => {
+        const origin = 'https://sub.example.com/path1/path2/path3';
         controller.bypass(origin);
 
-        expect(controller.state.whitelistPaths).toContain('example.com/path');
-        expect(controller.state.whitelistPaths).toHaveLength(1);
-        expect(controller.state.whitelist).toHaveLength(0);
+        expect(controller.state.whitelistPaths).toStrictEqual({
+          'sub.example.com': {
+            path1: {
+              path2: {},
+            },
+          },
+        });
       });
 
-      it('does not add the hostname + paths to the whitelistPaths if already present', () => {
+      it('does not add if a terminal path is not present', () => {
+        const origin = 'https://sub.example.com/path1/path3';
+        controller.bypass(origin);
+
+        expect(controller.state.whitelistPaths).toStrictEqual({});
+        expect(controller.state.whitelist).toStrictEqual(['sub.example.com']);
+      });
+
+      it('idempotent', () => {
         const origin = 'https://example.com/path';
         controller.bypass(origin);
         controller.bypass(origin);
 
-        expect(controller.state.whitelistPaths).toContain('example.com/path');
-        expect(controller.state.whitelistPaths).toHaveLength(1);
+        expect(controller.state.whitelistPaths).toStrictEqual({
+          'example.com': {
+            path: {},
+          },
+        });
         expect(controller.state.whitelist).toHaveLength(0);
       });
     });
@@ -3474,7 +3495,7 @@ describe('URL Scan Cache', () => {
           "tokenScanCache": Object {},
           "urlScanCache": Object {},
           "whitelist": Array [],
-          "whitelistPaths": Array [],
+          "whitelistPaths": Object {},
         }
       `);
     });
