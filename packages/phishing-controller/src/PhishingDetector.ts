@@ -1,6 +1,6 @@
 import { distance } from 'fastest-levenshtein';
 
-import { isTerminalPath, type PathTrie } from './PathTrie';
+import { matchedPathPrefix, type PathTrie } from './PathTrie';
 import {
   PhishingDetectorResultType,
   type PhishingDetectorResult,
@@ -164,7 +164,7 @@ export class PhishingDetector {
       if (!blocklistPaths || Object.keys(blocklistPaths).length === 0) {
         continue;
       }
-      const pathMatch = isTerminalPath(url, blocklistPaths);
+      const pathMatch = matchedPathPrefix(url, blocklistPaths);
       if (pathMatch) {
         return {
           match: domainPartsToDomain(source), // TODO: revisit this. do we want to return the path?

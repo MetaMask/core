@@ -100,28 +100,41 @@ export const deleteFromTrie = (url: string, pathTrie: PathTrie) => {
 };
 
 /**
- * Check if a URL is a terminal path i.e. the last path component is a terminal node.
+ * Get the concatenated hostname and path components all the way down to the
+ * terminal node in the trie that is prefixed in the passed URL. It will only
+ * return a string if the terminal node in the trie is contained in the passed
+ * URL.
  *
  * @param url - The URL to check.
  * @param pathTrie - The trie to check the URL in.
- * @returns True if the URL is a terminal path, false otherwise.
+ * @returns The matched path prefix, or null if no match is found.
  */
-export const isTerminalPath = (url: string, pathTrie: PathTrie): boolean => {
+export const matchedPathPrefix = (
+  url: string,
+  pathTrie: PathTrie,
+): string | null => {
   const { hostname, pathComponents } = getHostnameAndPathComponents(url);
 
   const lowerHostname = hostname.toLowerCase();
   if (pathComponents.length === 0 || !hostname || !pathTrie[lowerHostname]) {
-    return false;
+    return null;
   }
 
+  let matchedPath = hostname + '/';
   let curr: PathNode = pathTrie[lowerHostname];
   for (const pathComponent of pathComponents) {
     if (!curr[pathComponent]) {
-      return false;
+      return null;
     }
     curr = curr[pathComponent];
+    // If we've reached a terminal node, then we can return the matched path.
+    if (isTerminal(curr)) {
+      matchedPath += pathComponent;
+      return matchedPath;
+    }
+    matchedPath += pathComponent + '/';
   }
-  return isTerminal(curr);
+  return null;
 };
 
 /**
