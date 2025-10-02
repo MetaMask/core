@@ -155,20 +155,24 @@ export class SelectedNetworkController extends BaseController<
 
     this.messagingSystem.subscribe(
       'PermissionController:stateChange',
-      (_, patches) => {
-        patches.forEach(({ op, path }) => {
+      ({ subjects }, patches) => {
+        patches.forEach(({ op, path, value }) => {
           const isChangingSubject =
-            path[0] === 'subjects' && path[1] !== undefined;
+            path[0] === 'subjects' && path[1] !== undefined ;
           if (isChangingSubject && typeof path[1] === 'string') {
             const domain = path[1];
-            if (op === 'add' && this.state.domains[domain] === undefined) {
-              this.setNetworkClientIdForDomain(
-                domain,
-                this.messagingSystem.call('NetworkController:getState')
-                  .selectedNetworkClientId,
-              );
-            } else if (
-              op === 'remove' &&
+            if (op === 'add' || op === 'replace') {
+              const newDomain = op === 'replace' ? value : domain;
+              if (this.state.domains[newDomain] === undefined) {
+                this.setNetworkClientIdForDomain(
+                  newDomain,
+                  this.messagingSystem.call('NetworkController:getState')
+                    .selectedNetworkClientId,
+                );
+              }
+            }
+            if (
+              op === 'remove' || op === 'replace' &&
               this.state.domains[domain] !== undefined
             ) {
               this.#unsetNetworkClientIdForDomain(domain);
