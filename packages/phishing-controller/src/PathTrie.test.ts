@@ -2,9 +2,9 @@ import {
   convertListToTrie,
   deepCopyPathTrie,
   deleteFromTrie,
-  isTerminalPath,
   insertToTrie,
   type PathTrie,
+  matchedPathPrefix,
 } from './PathTrie';
 
 const emptyPathTrie: PathTrie = {};
@@ -200,7 +200,7 @@ describe('PathTrie', () => {
     });
   });
 
-  describe('isTerminalPath', () => {
+  describe('matchedPathPrefix', () => {
     let pathTrie: PathTrie;
 
     beforeEach(() => {
@@ -214,14 +214,26 @@ describe('PathTrie', () => {
     });
 
     it.each([
-      ['terminal path', 'example.com/path11/path2', true],
-      ['ancestor path', 'example.com/path11', false],
-      ['non-existent path', 'example.com/path11/path3', false],
-      ['no path', 'example.com', false],
-      ['no hostname', 'nonexistent.com/path11/path2', false],
-      ['with a scheme', 'https://example.com/path11/path2', true],
-    ])('returns %s if the path is %s', (_name, path, expected) => {
-      expect(isTerminalPath(path, pathTrie)).toBe(expected);
+      {
+        path: 'example.com/path11/path2',
+        expected: 'example.com/path11/path2',
+      },
+      { path: 'example.com/path11', expected: null },
+      {
+        path: 'example.com/path11/path3',
+        expected: null,
+      },
+      { path: 'example.com', expected: null },
+      {
+        path: 'nonexistent.com/path11/path2',
+        expected: null,
+      },
+      {
+        path: 'https://example.com/path11/path2/path3',
+        expected: 'example.com/path11/path2',
+      },
+    ])('$path returns $expected', ({ path, expected }) => {
+      expect(matchedPathPrefix(path, pathTrie)).toBe(expected);
     });
   });
 
