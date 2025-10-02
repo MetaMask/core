@@ -27,6 +27,11 @@ import type {
   AccountActivityMessage,
   BalanceUpdate,
 } from './types';
+
+// =============================================================================
+// Utility Functions
+// =============================================================================
+
 /**
  * Fetches supported networks from the v2 API endpoint.
  * Returns chain IDs already in CAIP-2 format.
@@ -51,6 +56,10 @@ async function fetchSupportedChainsInCaipFormat(): Promise<string[]> {
   // v2 endpoint already returns data in CAIP-2 format
   return data.fullSupport;
 }
+
+// =============================================================================
+// Types and Constants
+// =============================================================================
 
 /**
  * System notification data for chain status updates
@@ -86,6 +95,9 @@ const SUPPORTED_CHAINS = [
 ];
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
+// Cache TTL for supported chains (5 hours in milliseconds)
+const SUPPORTED_CHAINS_CACHE_TTL = 5 * 60 * 60 * 1000;
+
 /**
  * Account subscription options
  */
@@ -100,6 +112,10 @@ export type AccountActivityServiceOptions = {
   /** Custom subscription namespace (default: 'account-activity.v1') */
   subscriptionNamespace?: string;
 };
+
+// =============================================================================
+// Action and Event Types
+// =============================================================================
 
 // Action types for the messaging system - using generated method actions
 export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
@@ -175,6 +191,10 @@ export type AccountActivityServiceMessenger = RestrictedMessenger<
   AccountActivityServiceAllowedEvents['type']
 >;
 
+// =============================================================================
+// Main Service Class
+// =============================================================================
+
 /**
  * High-performance service for real-time account activity monitoring using optimized
  * WebSocket subscriptions with direct callback routing. Automatically subscribes to
@@ -221,57 +241,11 @@ export class AccountActivityService {
 
   #supportedChains: string[] | null = null;
 
-  #supportedChainsLastFetch: number = 0;
+  #supportedChainsTimestamp: number = 0;
 
-  // Cache supported chains for 5 hours
-  readonly #supportedChainsCacheTtl = 5 * 60 * 60 * 1000;
-
-  /**
-   * Fetch supported chains from API with fallback to hardcoded list.
-   * Uses caching to avoid excessive API calls.
-   *
-   * @returns Array of supported chain IDs in CAIP-2 format
-   */
-  async #getSupportedChains(): Promise<string[]> {
-    const now = Date.now();
-
-    // Return cached result if still valid
-    if (
-      this.#supportedChains &&
-      now - this.#supportedChainsLastFetch < this.#supportedChainsCacheTtl
-    ) {
-      return this.#supportedChains;
-    }
-
-    try {
-      // Try to fetch from API
-      const apiChains = await fetchSupportedChainsInCaipFormat();
-      this.#supportedChains = apiChains;
-      this.#supportedChainsLastFetch = now;
-
-      log('Successfully fetched supported chains from API', {
-        count: apiChains.length,
-        chains: apiChains,
-      });
-
-      return apiChains;
-    } catch (error) {
-      log('Failed to fetch supported chains from API, using fallback', {
-        error,
-      });
-
-      // Fallback to hardcoded list
-      const fallbackChains = Array.from(SUPPORTED_CHAINS);
-
-      // Only update cache if we don't have any cached data
-      if (!this.#supportedChains) {
-        this.#supportedChains = fallbackChains;
-        this.#supportedChainsLastFetch = now;
-      }
-
-      return this.#supportedChains;
-    }
-  }
+  // =============================================================================
+  // Constructor and Initialization
+  // =============================================================================
 
   /**
    * Creates a new Account Activity service instance
@@ -297,7 +271,8 @@ export class AccountActivityService {
     );
     this.#messenger.subscribe(
       'AccountsController:selectedAccountChange',
-      (account: InternalAccount) => this.#handleSelectedAccountChange(account),
+      async (account: InternalAccount) =>
+        await this.#handleSelectedAccountChange(account),
     );
     this.#messenger.subscribe(
       'BackendWebSocketService:connectionStateChanged',
@@ -311,6 +286,52 @@ export class AccountActivityService {
           notification.data as SystemNotificationData,
         ),
     });
+  }
+
+  // =============================================================================
+  // Public Methods - Chain Management
+  // =============================================================================
+
+  /**
+   * Check if the cached supported chains are expired based on TTL.
+   *
+   * @returns Whether the cache is expired (`true`) or still valid (`false`).
+   */
+  #isSupportedChainsCacheExpired(): boolean {
+    return (
+      this.#supportedChainsTimestamp === 0 ||
+      Date.now() - this.#supportedChainsTimestamp > SUPPORTED_CHAINS_CACHE_TTL
+    );
+  }
+
+  /**
+   * Fetch supported chains from API with fallback to hardcoded list.
+   * Uses timestamp-based caching with TTL to prevent stale data.
+   *
+   * @returns Array of supported chain IDs in CAIP-2 format
+   */
+  async getSupportedChains(): Promise<string[]> {
+    // Return cached result if available and not expired
+    if (
+      this.#supportedChains !== null &&
+      !this.#isSupportedChainsCacheExpired()
+    ) {
+      return this.#supportedChains;
+    }
+
+    try {
+      // Try to fetch from API
+      const apiChains = await fetchSupportedChainsInCaipFormat();
+      // Cache the result with timestamp
+      this.#supportedChains = apiChains;
+      this.#supportedChainsTimestamp = Date.now();
+      return apiChains;
+    } catch (error) {
+      // Fallback to hardcoded list and cache it with timestamp
+      this.#supportedChains = Array.from(SUPPORTED_CHAINS);
+      this.#supportedChainsTimestamp = Date.now();
+      return this.#supportedChains;
+    }
   }
 
   // =============================================================================
@@ -435,7 +456,7 @@ export class AccountActivityService {
     newAccount: InternalAccount | null,
   ): Promise<void> {
     if (!newAccount?.address) {
-      throw new Error('Account address is required');
+      return;
     }
 
     try {
@@ -482,6 +503,57 @@ export class AccountActivityService {
       chainIds: data.chainIds,
       status: data.status,
     });
+  }
+
+  /**
+   * Handle WebSocket connection state changes for fallback polling and resubscription
+   *
+   * @param connectionInfo - WebSocket connection state information
+   */
+  async #handleWebSocketStateChange(
+    connectionInfo: WebSocketConnectionInfo,
+  ): Promise<void> {
+    const { state } = connectionInfo;
+    log('WebSocket state changed', { state });
+
+    if (state === WebSocketState.CONNECTED) {
+      // WebSocket connected - resubscribe and set all chains as up
+      try {
+        await this.#subscribeSelectedAccount();
+
+        // Get current supported chains from API or fallback
+        const supportedChains = await this.getSupportedChains();
+
+        // Publish initial status - all supported chains are up when WebSocket connects
+        this.#messenger.publish(`AccountActivityService:statusChanged`, {
+          chainIds: supportedChains,
+          status: 'up',
+        });
+
+        log('WebSocket connected - Published all chains as up', {
+          count: supportedChains.length,
+          chains: supportedChains,
+        });
+      } catch (error) {
+        log('Failed to resubscribe to selected account', { error });
+      }
+    } else if (
+      state === WebSocketState.DISCONNECTED ||
+      state === WebSocketState.ERROR
+    ) {
+      // Get current supported chains for down status
+      const supportedChains = await this.getSupportedChains();
+
+      this.#messenger.publish(`AccountActivityService:statusChanged`, {
+        chainIds: supportedChains,
+        status: 'down',
+      });
+
+      log('WebSocket error/disconnection - Published all chains as down', {
+        count: supportedChains.length,
+        chains: supportedChains,
+      });
+    }
   }
 
   // =============================================================================
@@ -577,59 +649,8 @@ export class AccountActivityService {
     }
   }
 
-  /**
-   * Handle WebSocket connection state changes for fallback polling and resubscription
-   *
-   * @param connectionInfo - WebSocket connection state information
-   */
-  async #handleWebSocketStateChange(
-    connectionInfo: WebSocketConnectionInfo,
-  ): Promise<void> {
-    const { state } = connectionInfo;
-    log('WebSocket state changed', { state });
-
-    if (state === WebSocketState.CONNECTED) {
-      // WebSocket connected - resubscribe and set all chains as up
-      try {
-        await this.#subscribeSelectedAccount();
-
-        // Get current supported chains from API or fallback
-        const supportedChains = await this.#getSupportedChains();
-
-        // Publish initial status - all supported chains are up when WebSocket connects
-        this.#messenger.publish(`AccountActivityService:statusChanged`, {
-          chainIds: supportedChains,
-          status: 'up',
-        });
-
-        log('WebSocket connected - Published all chains as up', {
-          count: supportedChains.length,
-          chains: supportedChains,
-        });
-      } catch (error) {
-        log('Failed to resubscribe to selected account', { error });
-      }
-    } else if (
-      state === WebSocketState.DISCONNECTED ||
-      state === WebSocketState.ERROR
-    ) {
-      // Get current supported chains for down status
-      const supportedChains = await this.#getSupportedChains();
-
-      this.#messenger.publish(`AccountActivityService:statusChanged`, {
-        chainIds: supportedChains,
-        status: 'down',
-      });
-
-      log('WebSocket error/disconnection - Published all chains as down', {
-        count: supportedChains.length,
-        chains: supportedChains,
-      });
-    }
-  }
-
   // =============================================================================
-  // Private Methods - Cleanup
+  // Public Methods - Cleanup
   // =============================================================================
 
   /**
