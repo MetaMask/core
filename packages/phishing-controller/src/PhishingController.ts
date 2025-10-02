@@ -128,7 +128,7 @@ export type C2DomainBlocklistResponse = {
  *
  * allowlist - List of approved origins.
  * blocklist - List of unapproved origins (hostname-only entries).
- * blocklistPaths - List of unapproved origins with paths (hostname + path entries).
+ * blocklistPaths - Trie of unapproved origins with paths (hostname + path entries).
  * fuzzylist - List of fuzzy-matched unapproved origins.
  * tolerance - Fuzzy match tolerance level
  * lastUpdated - Timestamp of last update.
@@ -150,9 +150,7 @@ export type PhishingStalelist = {
  * type defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
  * @property allowlist - List of approved origins (legacy naming "whitelist")
  * @property blocklist - List of unapproved origins (legacy naming "blacklist")
- * @property blocklistPaths - List of unapproved origins with paths (hostname + path, no query params).
- * The first key is hostname+first path segment. The second key is the second path segment.
- * The value of the second key is an array of blocked third path segments. We only store up to three path segments deep.
+ * @property blocklistPaths - Trie of unapproved origins with paths (hostname + path, no query params).
  * @property c2DomainBlocklist - List of hashed hostnames that C2 requests are blocked against.
  * @property fuzzylist - List of fuzzy-matched unapproved origins
  * @property tolerance - Fuzzy match tolerance level
