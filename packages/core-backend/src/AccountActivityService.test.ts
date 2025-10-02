@@ -30,8 +30,6 @@ const completeAsyncOperations = async (advanceMs = 10) => {
   await flushPromises();
 };
 
-// Test helper constants - using string literals to avoid import errors
-
 // Mock function to create test accounts
 const createMockInternalAccount = (options: {
   address: string;
