@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump utils version ([#6708](https://github.com/MetaMask/core/pull/6708))
+
 ## [20.0.1]
 
 ### Changed
