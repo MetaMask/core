@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/597.0.0 ([#6771](https://github.com/MetaMask/core/pull/6771))
+- Release/586.0.0 ([#6733](https://github.com/MetaMask/core/pull/6733))
+
 ### Fixed
 
 - Fixed phishing detector initialization failure when domain lists contain invalid values (numbers, null, undefined) by filtering them out ([#6767](https://github.com/MetaMask/core/pull/6767))

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/589.0.0 ([#6748](https://github.com/MetaMask/core/pull/6748))
+- Release/549.0.0 ([#6590](https://github.com/MetaMask/core/pull/6590))
+
 ### Added
 
 - Add max bound version segmentation for feature announcements ([#6773](https://github.com/MetaMask/core/pull/6773))
