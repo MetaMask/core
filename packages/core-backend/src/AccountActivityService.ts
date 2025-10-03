@@ -6,7 +6,6 @@
  */
 
 import type {
-  AccountsControllerGetAccountByAddressAction,
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
@@ -125,17 +124,16 @@ export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
 
 // Allowed actions that AccountActivityService can call on other controllers
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
-  'AccountsController:getAccountByAddress',
   'AccountsController:getSelectedAccount',
   'BackendWebSocketService:connect',
   'BackendWebSocketService:disconnect',
   'BackendWebSocketService:subscribe',
+  'BackendWebSocketService:getConnectionInfo',
   'BackendWebSocketService:channelHasSubscription',
   'BackendWebSocketService:getSubscriptionsByChannel',
   'BackendWebSocketService:findSubscriptionsByChannelPrefix',
   'BackendWebSocketService:addChannelCallback',
   'BackendWebSocketService:removeChannelCallback',
-  'BackendWebSocketService:sendRequest',
 ] as const;
 
 // Allowed events that AccountActivityService can listen to
@@ -145,7 +143,6 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS = [
 ] as const;
 
 export type AccountActivityServiceAllowedActions =
-  | AccountsControllerGetAccountByAddressAction
   | AccountsControllerGetSelectedAccountAction
   | BackendWebSocketServiceMethodActions;
 
