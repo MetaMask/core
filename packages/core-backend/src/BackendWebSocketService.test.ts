@@ -469,7 +469,7 @@ describe('BackendWebSocketService', () => {
   // CONNECTION LIFECYCLE TESTS
   // =====================================================
   describe('connection lifecycle - connect / disconnect', () => {
-    it('should connect successfully', async () => {
+    it('should establish WebSocket connection and set state to CONNECTED, publishing state change event', async () => {
       await withService(async ({ service, spies }) => {
         await service.connect();
 
@@ -483,7 +483,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should not connect if already connected', async () => {
+    it('should return immediately without creating new connection when already connected', async () => {
       await withService(async ({ service, spies }) => {
         // Connect first time
         await service.connect();
@@ -504,7 +504,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle connection timeout', async () => {
+    it('should handle connection timeout by rejecting with timeout error and setting state to DISCONNECTED', async () => {
       await withService(
         {
           options: { timeout: TEST_CONSTANTS.TIMEOUT_MS },
@@ -532,7 +532,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should reject operations when disconnected', async () => {
+    it('should reject sendMessage and sendRequest operations when WebSocket is disconnected', async () => {
       await withService(
         { mockWebSocketOptions: { autoConnect: false } },
         async ({ service }) => {
@@ -555,7 +555,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should handle request timeout and force reconnection', async () => {
+    it('should handle request timeout by clearing pending requests and forcing WebSocket reconnection', async () => {
       await withService(
         { options: { requestTimeout: 1000 } },
         async ({ service, getMockWebSocket }) => {
@@ -583,7 +583,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should hit WebSocket error and reconnection branches', async () => {
+    it('should handle WebSocket error events by triggering reconnection logic and error logging', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
@@ -618,7 +618,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle reconnection failures and trigger error logging', async () => {
+    it('should handle reconnection failures by logging errors and stopping reconnection attempts after max retries', async () => {
       await withService(
         {
           options: {
@@ -670,7 +670,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should handle WebSocket close during connection establishment without reason', async () => {
+    it('should handle WebSocket close events during connection establishment without close reason', async () => {
       await withService(
         async ({ service, completeAsyncOperations, getMockWebSocket }) => {
           // Connect and get the WebSocket instance
@@ -691,7 +691,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should disconnect successfully when connected', async () => {
+    it('should disconnect WebSocket connection and set state to DISCONNECTED when connected', async () => {
       await withService(async ({ service }) => {
         await service.connect();
         await service.disconnect();
@@ -702,7 +702,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle disconnect when already disconnected', async () => {
+    it('should handle disconnect gracefully when WebSocket is already disconnected', async () => {
       await withService(async ({ service }) => {
         expect(() => service.disconnect()).not.toThrow();
         expect(service.getConnectionInfo().state).toBe(
@@ -711,7 +711,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should test getCloseReason functionality with all close codes', async () => {
+    it('should test getCloseReason functionality by mapping all WebSocket close codes to human-readable descriptions', async () => {
       await withService(async () => {
         // Test all close codes to verify proper close reason descriptions
         const closeCodeTests = [
@@ -744,7 +744,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle messenger publish errors during state changes', async () => {
+    it('should handle messenger publish errors during state changes by logging errors without throwing', async () => {
       await withService(async ({ service, messenger }) => {
         // Mock messenger.publish to throw an error
         const publishSpy = jest
@@ -774,7 +774,7 @@ describe('BackendWebSocketService', () => {
   // SUBSCRIPTION TESTS
   // =====================================================
   describe('subscribe', () => {
-    it('should subscribe to channels successfully', async () => {
+    it('should subscribe to WebSocket channels and return subscription with unsubscribe function', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockCallback = jest.fn();
@@ -794,7 +794,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should hit various error branches with comprehensive scenarios', async () => {
+    it('should handle various error scenarios including connection failures and invalid responses', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
@@ -828,7 +828,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle unsubscribe errors and connection errors', async () => {
+    it('should handle unsubscribe errors and connection errors gracefully without throwing', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
@@ -852,7 +852,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should throw error when subscription response is missing subscription ID', async () => {
+    it('should throw error when subscription response is missing required subscription ID field', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
@@ -879,7 +879,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should throw subscription-specific error when channels fail to subscribe', async () => {
+    it('should throw subscription-specific error when individual channels fail to subscribe', async () => {
       await withService(async ({ service }) => {
         await service.connect();
 
@@ -898,7 +898,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should get subscription by channel', async () => {
+    it('should retrieve subscription by channel name from internal subscription storage', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockCallback = jest.fn();
@@ -920,7 +920,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should find subscriptions by channel prefix', async () => {
+    it('should find all subscriptions matching a channel prefix pattern', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
@@ -948,7 +948,7 @@ describe('BackendWebSocketService', () => {
   // MESSAGE HANDLING TESTS
   // =====================================================
   describe('message handling', () => {
-    it('should silently ignore invalid JSON and trigger parseMessage', async () => {
+    it('should silently ignore invalid JSON messages and trigger parseMessage error handling', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
@@ -1018,7 +1018,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should not process messages with both subscriptionId and channel twice', async () => {
+    it('should not process duplicate messages that have both subscriptionId and channel fields', async () => {
       await withService(
         async ({ service, completeAsyncOperations, getMockWebSocket }) => {
           await service.connect();
@@ -1099,7 +1099,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should properly clear pending requests and their timeouts during disconnect', async () => {
+    it('should properly clear all pending requests and their timeouts during WebSocket disconnect', async () => {
       await withService(async ({ service }) => {
         await service.connect();
 
@@ -1114,7 +1114,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle WebSocket send error and call error handler', async () => {
+    it('should handle WebSocket send errors by calling error handler and logging the error', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
@@ -1140,7 +1140,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should gracefully handle server responses for non-existent requests', async () => {
+    it('should gracefully handle server responses for non-existent or expired requests', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
@@ -1161,7 +1161,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle sendRequest error when sendMessage fails with non-Error object', async () => {
+    it('should handle sendRequest error when sendMessage fails with non-Error object by converting to Error', async () => {
       await withService(async ({ service }) => {
         await service.connect();
 
@@ -1187,7 +1187,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle channel messages when no channel callbacks are registered', async () => {
+    it('should handle channel messages gracefully when no channel callbacks are registered', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
@@ -1208,7 +1208,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle subscription notifications with falsy subscriptionId', async () => {
+    it('should handle subscription notifications with falsy subscriptionId by ignoring them', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
@@ -1238,7 +1238,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle channel callback management comprehensively', async () => {
+    it('should handle channel callback management comprehensively including add, remove, and get operations', async () => {
       await withService(
         { mockWebSocketOptions: { autoConnect: false } },
         async ({ service }) => {
@@ -1285,7 +1285,7 @@ describe('BackendWebSocketService', () => {
   });
 
   describe('authentication flows', () => {
-    it('should handle authentication state changes - sign out', async () => {
+    it('should handle authentication state changes by disconnecting WebSocket when user signs out', async () => {
       await withService(
         { options: {} },
         async ({ service, completeAsyncOperations, rootMessenger }) => {
@@ -1328,7 +1328,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should throw error on authentication setup failure', async () => {
+    it('should throw error on authentication setup failure when messenger action registration fails', async () => {
       await withService(
         {
           options: {},
@@ -1353,7 +1353,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should handle authentication state change sign-in connection failure', async () => {
+    it('should handle authentication state change sign-in connection failure by logging error and continuing', async () => {
       await withService(
         { options: {} },
         async ({ service, completeAsyncOperations, rootMessenger }) => {
@@ -1391,7 +1391,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should handle authentication required but user not signed in', async () => {
+    it('should handle authentication required but user not signed in by rejecting connection with error', async () => {
       await withService(
         {
           options: {},
@@ -1409,7 +1409,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should handle getBearerToken error during connection', async () => {
+    it('should handle getBearerToken error during connection by rejecting with authentication error', async () => {
       await withService(
         {
           options: {},
@@ -1427,7 +1427,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should handle concurrent connect calls by awaiting existing connection promise', async () => {
+    it('should handle concurrent connect calls by awaiting existing connection promise and returning same result', async () => {
       await withService(
         { mockWebSocketOptions: { autoConnect: false } },
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
@@ -1458,7 +1458,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should handle WebSocket error events during connection establishment', async () => {
+    it('should handle WebSocket error events during connection establishment by setting state to ERROR', async () => {
       await withService(
         { mockWebSocketOptions: { autoConnect: false } },
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
@@ -1477,7 +1477,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should handle WebSocket close events during connection establishment', async () => {
+    it('should handle WebSocket close events during connection establishment by setting state to ERROR', async () => {
       await withService(
         { mockWebSocketOptions: { autoConnect: false } },
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
@@ -1495,7 +1495,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should properly transition through disconnecting state during manual disconnect', async () => {
+    it('should properly transition through disconnecting state during manual disconnect and set final state to DISCONNECTED', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
@@ -1525,7 +1525,7 @@ describe('BackendWebSocketService', () => {
   // ENABLED CALLBACK TESTS
   // =====================================================
   describe('enabledCallback functionality', () => {
-    it('should respect enabledCallback returning false during connection', async () => {
+    it('should respect enabledCallback returning false during connection by rejecting with disabled error', async () => {
       const mockEnabledCallback = jest.fn().mockReturnValue(false);
       await withService(
         {
@@ -1554,7 +1554,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should stop reconnection attempts when enabledCallback returns false during scheduled reconnect', async () => {
+    it('should stop reconnection attempts when enabledCallback returns false during scheduled reconnect by canceling reconnection', async () => {
       // Start with enabled callback returning true
       const mockEnabledCallback = jest.fn().mockReturnValue(true);
       await withService(
@@ -1603,7 +1603,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should handle multiple subscriptions and unsubscriptions with different channels', async () => {
+    it('should handle multiple subscriptions and unsubscriptions with different channels by managing subscription state correctly', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
@@ -1690,7 +1690,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle sendRequest error scenarios', async () => {
+    it('should handle sendRequest error scenarios by properly rejecting promises and cleaning up pending requests', async () => {
       await withService(async ({ service }) => {
         await service.connect();
 
@@ -1707,7 +1707,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle missing access token during URL building', async () => {
+    it('should handle missing access token during URL building by rejecting with authentication error', async () => {
       await withService(async ({ service, spies }) => {
         // Test: No access token error during URL building
         // First getBearerToken call succeeds, second returns null
