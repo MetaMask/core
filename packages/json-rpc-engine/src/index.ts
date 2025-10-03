@@ -1,10 +1,10 @@
+export { asV2Middleware } from './asV2Middleware';
 export type {
   AsyncJsonRpcEngineNextCallback,
   AsyncJsonrpcMiddleware,
 } from './createAsyncMiddleware';
 export { createAsyncMiddleware } from './createAsyncMiddleware';
 export { createScaffoldMiddleware } from './createScaffoldMiddleware';
-export { getUniqueId } from './getUniqueId';
 export { createIdRemapMiddleware } from './idRemapMiddleware';
 export type {
   JsonRpcEngineCallbackError,
