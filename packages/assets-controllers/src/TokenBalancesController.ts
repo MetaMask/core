@@ -151,7 +151,7 @@ export type TokenBalancesControllerOptions = {
   /** When `true`, balances for *all* known accounts are queried. */
   queryMultipleAccounts?: boolean;
   /** Array of chainIds that should use Accounts-API strategy (if supported by API). */
-  accountsApiChainIds?: ChainIdHex[];
+  accountsApiChainIds?: () => ChainIdHex[];
   /** Disable external HTTP calls (privacy / offline mode). */
   allowExternalServices?: () => boolean;
   /** Custom logger. */
@@ -184,7 +184,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   readonly #queryAllAccounts: boolean;
 
-  readonly #accountsApiChainIds: ChainIdHex[];
+  readonly #accountsApiChainIds: () => ChainIdHex[];
 
   readonly #balanceFetchers: BalanceFetcher[];
 
@@ -213,7 +213,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chainPollingIntervals = {},
     state = {},
     queryMultipleAccounts = true,
-    accountsApiChainIds = [],
+    accountsApiChainIds = () => [],
     allowExternalServices = () => true,
     platform,
   }: TokenBalancesControllerOptions) {
@@ -226,13 +226,13 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
     this.#platform = platform ?? 'extension';
     this.#queryAllAccounts = queryMultipleAccounts;
-    this.#accountsApiChainIds = [...accountsApiChainIds];
+    this.#accountsApiChainIds = accountsApiChainIds;
     this.#defaultInterval = interval;
     this.#chainPollingConfig = { ...chainPollingIntervals };
 
     // Strategy order: API first, then RPC fallback
     this.#balanceFetchers = [
-      ...(accountsApiChainIds.length > 0 && allowExternalServices()
+      ...(accountsApiChainIds().length > 0 && allowExternalServices()
         ? [this.#createAccountsApiFetcher()]
         : []),
       new RpcBalanceFetcher(this.#getProvider, this.#getNetworkClient, () => ({
@@ -330,7 +330,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         // 1. In our specified accountsApiChainIds array
         // 2. Actually supported by the AccountsApi
         return (
-          this.#accountsApiChainIds.includes(chainId) &&
+          this.#accountsApiChainIds().includes(chainId) &&
           originalFetcher.supports(chainId)
         );
       },

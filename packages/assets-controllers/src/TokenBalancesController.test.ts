@@ -390,7 +390,10 @@ describe('TokenBalancesController', () => {
 
     const { controller, messenger, updateSpy } = setupController({
       tokens: initialTokens,
-      config: { accountsApiChainIds: [], allowExternalServices: () => true },
+      config: {
+        accountsApiChainIds: () => [],
+        allowExternalServices: () => true,
+      },
     });
 
     // Set initial balance
@@ -1056,7 +1059,7 @@ describe('TokenBalancesController', () => {
       };
 
       const { controller, messenger } = setupController({
-        config: { accountsApiChainIds: [], allowExternalServices: () => true },
+        config: { accountsApiChainIds: () => [], allowExternalServices: () => true },
         tokens,
         listAccounts: [account, account2],
       });
@@ -1135,7 +1138,7 @@ describe('TokenBalancesController', () => {
         });
 
       const { controller } = setupController({
-        config: { accountsApiChainIds: [], allowExternalServices: () => true },
+        config: { accountsApiChainIds: () => [], allowExternalServices: () => true },
         tokens: {
           allTokens: {
             '0x1': {
@@ -1176,7 +1179,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         config: {
-          accountsApiChainIds: [], // Use RPC fetcher
+          accountsApiChainIds: () => [], // Use RPC fetcher
           allowExternalServices: () => true,
           queryMultipleAccounts: false, // Default is false
         },
@@ -1223,7 +1226,7 @@ describe('TokenBalancesController', () => {
       const accountAddress = '0x1111111111111111111111111111111111111111';
 
       const { controller } = setupController({
-        config: { accountsApiChainIds: [], allowExternalServices: () => true },
+        config: { accountsApiChainIds: () => [], allowExternalServices: () => true },
         tokens: {
           allTokens: {
             '0x1': {
@@ -1263,7 +1266,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         config: {
           interval: customInterval,
-          accountsApiChainIds: [],
+          accountsApiChainIds: () => [],
           allowExternalServices: () => true,
         },
       });
@@ -1280,7 +1283,7 @@ describe('TokenBalancesController', () => {
       const chainId = '0x1';
 
       const { controller, messenger } = setupController({
-        config: { accountsApiChainIds: [], allowExternalServices: () => true },
+        config: { accountsApiChainIds: () => [], allowExternalServices: () => true },
         tokens: {
           allTokens: {
             [chainId]: {
@@ -1338,7 +1341,7 @@ describe('TokenBalancesController', () => {
       const chainId = '0x1';
 
       const { controller } = setupController({
-        config: { accountsApiChainIds: [], allowExternalServices: () => true },
+        config: { accountsApiChainIds: () => [], allowExternalServices: () => true },
         tokens: {
           allTokens: {
             [chainId]: {
@@ -1514,7 +1517,7 @@ describe('TokenBalancesController', () => {
     const tokenAddress = '0x0000000000000000000000000000000000000000';
 
     const { controller } = setupController({
-      config: { accountsApiChainIds: [], allowExternalServices: () => true },
+      config: { accountsApiChainIds: () => [], allowExternalServices: () => true },
       tokens: {
         allTokens: {
           [chainId]: {
@@ -1588,7 +1591,7 @@ describe('TokenBalancesController', () => {
 
     const { controller } = setupController({
       tokens,
-      config: { accountsApiChainIds: [], allowExternalServices: () => true },
+      config: { accountsApiChainIds: () => [], allowExternalServices: () => true },
       listAccounts: [createMockInternalAccount({ address: accountAddress })],
     });
 
@@ -1646,7 +1649,7 @@ describe('TokenBalancesController', () => {
 
     const { controller } = setupController({
       tokens,
-      config: { accountsApiChainIds: [], allowExternalServices: () => true },
+      config: { accountsApiChainIds: () => [], allowExternalServices: () => true },
       listAccounts: [createMockInternalAccount({ address: accountAddress })],
     });
 
@@ -1696,7 +1699,7 @@ describe('TokenBalancesController', () => {
       tokens,
       config: {
         queryMultipleAccounts: true,
-        accountsApiChainIds: [],
+        accountsApiChainIds: () => [],
         allowExternalServices: () => true,
       },
       listAccounts: [
@@ -1967,7 +1970,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         tokens,
-        config: { accountsApiChainIds: [], allowExternalServices: () => true },
+        config: { accountsApiChainIds: () => [], allowExternalServices: () => true },
       });
 
       jest
@@ -2195,7 +2198,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         tokens,
-        config: { accountsApiChainIds: [], allowExternalServices: () => true },
+        config: { accountsApiChainIds: () => [], allowExternalServices: () => true },
       });
 
       // Mock balance fetcher to return balance with lowercase address
@@ -2267,7 +2270,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         tokens,
-        config: { accountsApiChainIds: [], allowExternalServices: () => true },
+        config: { accountsApiChainIds: () => [], allowExternalServices: () => true },
       });
 
       // Mock balances returned with lowercase addresses
@@ -2322,7 +2325,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         tokens,
-        config: { accountsApiChainIds: [], allowExternalServices: () => true },
+        config: { accountsApiChainIds: () => [], allowExternalServices: () => true },
       });
 
       // Mock fetcher to return balance with different mixed case address
@@ -2380,7 +2383,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         tokens,
-        config: { accountsApiChainIds: [], allowExternalServices: () => true },
+        config: { accountsApiChainIds: () => [], allowExternalServices: () => true },
       });
 
       // Simulate the scenario that caused duplicates - different case in fetch results
@@ -2457,7 +2460,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         config: {
           queryMultipleAccounts: false,
-          accountsApiChainIds: [],
+          accountsApiChainIds: () => [],
           allowExternalServices: () => true,
         },
         tokens,
@@ -3662,7 +3665,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         tokens,
         listAccounts: [account],
-        config: { accountsApiChainIds: [] }, // Force use of RpcBalanceFetcher
+        config: { accountsApiChainIds: () => [] }, // Force use of RpcBalanceFetcher
       });
 
       // Mock safelyExecuteWithTimeout to simulate timeout by returning undefined
@@ -3723,7 +3726,7 @@ describe('TokenBalancesController', () => {
             },
           },
           queryMultipleAccounts: false,
-          accountsApiChainIds: ['0x1'],
+          accountsApiChainIds: () => ['0x1'],
           allowExternalServices: () => false,
         },
       });
@@ -3763,7 +3766,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         config: {
           allowExternalServices: () => false,
-          accountsApiChainIds: ['0x1'], // This should be ignored when allowExternalServices is false
+          accountsApiChainIds: () => ['0x1'], // This should be ignored when allowExternalServices is false
         },
       });
 
@@ -3776,7 +3779,7 @@ describe('TokenBalancesController', () => {
       // Test line 197: default allowExternalServices = () => true
       const { controller } = setupController({
         config: {
-          accountsApiChainIds: ['0x1'],
+          accountsApiChainIds: () => ['0x1'],
           // allowExternalServices not provided - should use default
         },
       });
@@ -3958,7 +3961,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         tokens,
         listAccounts: [account],
-        config: { accountsApiChainIds: [] },
+        config: { accountsApiChainIds: () => [] },
       });
 
       // Mock the RpcBalanceFetcher to not support this specific chain
@@ -4017,9 +4020,9 @@ describe('TokenBalancesController', () => {
     it('should test AccountsApiFetcher supports method logic', async () => {
       jest.setTimeout(10000);
 
-      const chainId1 = '0x1'; // Will be in accountsApiChainIds
-      const chainId2 = '0x89'; // Will be in accountsApiChainIds
-      const chainId3 = '0xa'; // NOT in accountsApiChainIds
+      const chainId1 = '0x1'; // Will be returned by accountsApiChainIds()
+      const chainId2 = '0x89'; // Will be returned by accountsApiChainIds()
+      const chainId3 = '0xa'; // NOT returned by accountsApiChainIds()
       const accountAddress = '0x1234567890123456789012345678901234567890';
 
       // Create mock account for testing
@@ -4059,7 +4062,7 @@ describe('TokenBalancesController', () => {
       // Create controller with accountsApiChainIds to enable AccountsApi fetcher
       const { controller } = setupController({
         config: {
-          accountsApiChainIds: [chainId1, chainId2], // This enables AccountsApi for these chains
+          accountsApiChainIds: () => [chainId1, chainId2], // This enables AccountsApi for these chains
           allowExternalServices: () => true,
         },
         listAccounts: [account],
@@ -4069,19 +4072,19 @@ describe('TokenBalancesController', () => {
       mockSupports.mockClear();
       mockApiFetch.mockClear();
 
-      // Test Case 1: Execute line 517 -> line 320 with chainId in accountsApiChainIds
+      // Test Case 1: Execute line 517 -> line 320 with chainId returned by accountsApiChainIds()
       mockSupports.mockReturnValue(true);
       await controller.updateBalances({ chainIds: [chainId1] }); // This triggers line 517 -> line 320
 
       // Verify line 320 logic was executed (originalFetcher.supports was called)
       expect(mockSupports).toHaveBeenCalledWith(chainId1);
 
-      // Test Case 2: Execute line 517 -> line 320 with chainId NOT in accountsApiChainIds
+      // Test Case 2: Execute line 517 -> line 320 with chainId NOT returned by accountsApiChainIds()
       mockSupports.mockClear();
       await controller.updateBalances({ chainIds: [chainId3] }); // This triggers line 517 -> line 320
 
-      // Should NOT have called originalFetcher.supports because chainId3 is not in accountsApiChainIds
-      // This tests the short-circuit evaluation on line 322: this.#accountsApiChainIds.includes(chainId)
+      // Should NOT have called originalFetcher.supports because chainId3 is not returned by accountsApiChainIds()
+      // This tests the short-circuit evaluation on line 322: this.#accountsApiChainIds().includes(chainId)
       expect(mockSupports).not.toHaveBeenCalledWith(chainId3);
 
       // Clean up
