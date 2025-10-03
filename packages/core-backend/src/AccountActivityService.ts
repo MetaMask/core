@@ -85,7 +85,7 @@ const MESSENGER_EXPOSED_METHODS = [
 
 // Default supported chains used as fallback when API is unavailable
 // This list should match the expected chains from the accounts API v2/supportedNetworks endpoint
-const SUPPORTED_CHAINS = [
+const DEFAULT_SUPPORTED_CHAINS = [
   'eip155:1', // Ethereum Mainnet
   'eip155:137', // Polygon
   'eip155:56', // BSC
@@ -244,7 +244,7 @@ export class AccountActivityService {
 
   #supportedChains: string[] | null = null;
 
-  #supportedChainsTimestamp: number = 0;
+  #supportedChainsExpiresAt: number = 0;
 
   // =============================================================================
   // Constructor and Initialization
@@ -296,20 +296,8 @@ export class AccountActivityService {
   // =============================================================================
 
   /**
-   * Check if the cached supported chains are expired based on TTL.
-   *
-   * @returns Whether the cache is expired (`true`) or still valid (`false`).
-   */
-  #isSupportedChainsCacheExpired(): boolean {
-    return (
-      this.#supportedChainsTimestamp === 0 ||
-      Date.now() - this.#supportedChainsTimestamp > SUPPORTED_CHAINS_CACHE_TTL
-    );
-  }
-
-  /**
    * Fetch supported chains from API with fallback to hardcoded list.
-   * Uses timestamp-based caching with TTL to prevent stale data.
+   * Uses expiry-based caching with TTL to prevent stale data.
    *
    * @returns Array of supported chain IDs in CAIP-2 format
    */
@@ -317,24 +305,22 @@ export class AccountActivityService {
     // Return cached result if available and not expired
     if (
       this.#supportedChains !== null &&
-      !this.#isSupportedChainsCacheExpired()
+      Date.now() < this.#supportedChainsExpiresAt
     ) {
       return this.#supportedChains;
     }
 
+    this.#supportedChainsExpiresAt = Date.now() + SUPPORTED_CHAINS_CACHE_TTL;
+
     try {
       // Try to fetch from API
-      const apiChains = await fetchSupportedChainsInCaipFormat();
-      // Cache the result with timestamp
-      this.#supportedChains = apiChains;
-      this.#supportedChainsTimestamp = Date.now();
-      return apiChains;
+      this.#supportedChains = await fetchSupportedChainsInCaipFormat();
     } catch {
       // Fallback to hardcoded list and cache it with timestamp
-      this.#supportedChains = Array.from(SUPPORTED_CHAINS);
-      this.#supportedChainsTimestamp = Date.now();
-      return this.#supportedChains;
+      this.#supportedChains = Array.from(DEFAULT_SUPPORTED_CHAINS);
     }
+
+    return this.#supportedChains;
   }
 
   // =============================================================================
@@ -465,17 +451,6 @@ export class AccountActivityService {
     try {
       // Convert new account to CAIP-10 format
       const newAddress = this.#convertToCaip10Address(newAccount);
-      const newChannel = `${this.#options.subscriptionNamespace}.${newAddress}`;
-
-      // If already subscribed to this account, no need to change
-      if (
-        this.#messenger.call(
-          'BackendWebSocketService:channelHasSubscription',
-          newChannel,
-        )
-      ) {
-        return;
-      }
 
       // First, unsubscribe from all current account activity subscriptions to avoid multiple subscriptions
       await this.#unsubscribeFromAllAccountActivity();
@@ -517,36 +492,26 @@ export class AccountActivityService {
     connectionInfo: WebSocketConnectionInfo,
   ): Promise<void> {
     const { state } = connectionInfo;
-    log('WebSocket state changed', { state });
+    const supportedChains = await this.getSupportedChains();
 
     if (state === WebSocketState.CONNECTED) {
       // WebSocket connected - resubscribe and set all chains as up
-      try {
-        await this.#subscribeSelectedAccount();
+      await this.#subscribeSelectedAccount();
 
-        // Get current supported chains from API or fallback
-        const supportedChains = await this.getSupportedChains();
+      // Publish initial status - all supported chains are up when WebSocket connects
+      this.#messenger.publish(`AccountActivityService:statusChanged`, {
+        chainIds: supportedChains,
+        status: 'up',
+      });
 
-        // Publish initial status - all supported chains are up when WebSocket connects
-        this.#messenger.publish(`AccountActivityService:statusChanged`, {
-          chainIds: supportedChains,
-          status: 'up',
-        });
-
-        log('WebSocket connected - Published all chains as up', {
-          count: supportedChains.length,
-          chains: supportedChains,
-        });
-      } catch (error) {
-        log('Failed to resubscribe to selected account', { error });
-      }
+      log('WebSocket connected - Published all chains as up', {
+        count: supportedChains.length,
+        chains: supportedChains,
+      });
     } else if (
       state === WebSocketState.DISCONNECTED ||
       state === WebSocketState.ERROR
     ) {
-      // Get current supported chains for down status
-      const supportedChains = await this.getSupportedChains();
-
       this.#messenger.publish(`AccountActivityService:statusChanged`, {
         chainIds: supportedChains,
         status: 'down',
@@ -577,17 +542,7 @@ export class AccountActivityService {
 
     // Convert to CAIP-10 format and subscribe
     const address = this.#convertToCaip10Address(selectedAccount);
-    const channel = `${this.#options.subscriptionNamespace}.${address}`;
-
-    // Only subscribe if we're not already subscribed to this account
-    if (
-      !this.#messenger.call(
-        'BackendWebSocketService:channelHasSubscription',
-        channel,
-      )
-    ) {
-      await this.subscribeAccounts({ address });
-    }
+    await this.subscribeAccounts({ address });
   }
 
   /**

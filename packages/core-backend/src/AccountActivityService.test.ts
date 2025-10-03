@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-conditional-in-test */
 import { Messenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Hex } from '@metamask/utils';
@@ -284,6 +283,34 @@ type WithServiceCallback<ReturnValue> = (payload: {
   mockSelectedAccount?: InternalAccount;
   destroy: () => void;
 }) => Promise<ReturnValue> | ReturnValue;
+
+/**
+ * Helper function to extract the system notification callback from messenger calls
+ *
+ * @param mocks - The mocks object from withService
+ * @param mocks.addChannelCallback - Mock function for adding channel callbacks
+ * @returns The system notification callback function
+ */
+const getSystemNotificationCallback = (mocks: {
+  addChannelCallback: jest.Mock;
+}): ((notification: ServerNotificationMessage) => void) => {
+  const systemCallbackCall = mocks.addChannelCallback.mock.calls.find(
+    (call: unknown[]) =>
+      call[0] &&
+      typeof call[0] === 'object' &&
+      'channelName' in call[0] &&
+      call[0].channelName === 'system-notifications.v1.account-activity.v1',
+  );
+
+  if (!systemCallbackCall) {
+    throw new Error('systemCallbackCall is undefined');
+  }
+
+  const callbackOptions = systemCallbackCall[0] as {
+    callback: (notification: ServerNotificationMessage) => void;
+  };
+  return callbackOptions.callback;
+};
 
 /**
  * Wrap tests for the AccountActivityService by ensuring that the service is
@@ -618,24 +645,7 @@ describe('AccountActivityService', () => {
     describe('handleSystemNotification', () => {
       it('should handle invalid system notifications by throwing error for missing required fields', async () => {
         await withService(async ({ mocks }) => {
-          // Find the system callback from messenger calls
-          const systemCallbackCall = mocks.addChannelCallback.mock.calls.find(
-            (call: unknown[]) =>
-              call[0] &&
-              typeof call[0] === 'object' &&
-              'channelName' in call[0] &&
-              call[0].channelName ===
-                'system-notifications.v1.account-activity.v1',
-          );
-
-          if (!systemCallbackCall) {
-            throw new Error('systemCallbackCall is undefined');
-          }
-
-          const callbackOptions = systemCallbackCall[0] as {
-            callback: (notification: ServerNotificationMessage) => void;
-          };
-          const systemCallback = callbackOptions.callback;
+          const systemCallback = getSystemNotificationCallback(mocks);
 
           // Simulate invalid system notification
           const invalidNotification = {
@@ -680,7 +690,7 @@ describe('AccountActivityService', () => {
               reconnectAttempts: 2,
             },
           );
-          await new Promise((resolve) => setTimeout(resolve, 100)); // Give time for async processing
+          await new Promise((resolve) => setTimeout(resolve, 100));
 
           // Verify that the ERROR state triggered the status change
           expect(publishSpy).toHaveBeenCalledWith(
@@ -733,7 +743,7 @@ describe('AccountActivityService', () => {
             'AccountsController:selectedAccountChange',
             solanaAccount,
           );
-          await new Promise((resolve) => setTimeout(resolve, 100)); // Give time for async processing
+          await new Promise((resolve) => setTimeout(resolve, 100));
 
           expect(mocks.subscribe).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -766,7 +776,7 @@ describe('AccountActivityService', () => {
             'AccountsController:selectedAccountChange',
             unknownAccount,
           );
-          await new Promise((resolve) => setTimeout(resolve, 100)); // Give time for async processing
+          await new Promise((resolve) => setTimeout(resolve, 100));
 
           expect(mocks.subscribe).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -834,7 +844,7 @@ describe('AccountActivityService', () => {
               reconnectAttempts: 0,
             },
           );
-          await new Promise((resolve) => setTimeout(resolve, 100)); // Give time for async processing
+          await new Promise((resolve) => setTimeout(resolve, 100));
 
           // Should attempt to get selected account even when none exists
           expect(mocks.getSelectedAccount).toHaveBeenCalled();
@@ -843,24 +853,7 @@ describe('AccountActivityService', () => {
 
       it('should handle system notification publish failures gracefully by throwing error when publish fails', async () => {
         await withService(async ({ mocks, messenger }) => {
-          // Find the system callback from messenger calls
-          const systemCallbackCall = mocks.addChannelCallback.mock.calls.find(
-            (call: unknown[]) =>
-              call[0] &&
-              typeof call[0] === 'object' &&
-              'channelName' in call[0] &&
-              call[0].channelName ===
-                'system-notifications.v1.account-activity.v1',
-          );
-
-          if (!systemCallbackCall) {
-            throw new Error('systemCallbackCall is undefined');
-          }
-
-          const callbackOptions = systemCallbackCall[0] as {
-            callback: (notification: ServerNotificationMessage) => void;
-          };
-          const systemCallback = callbackOptions.callback;
+          const systemCallback = getSystemNotificationCallback(mocks);
 
           // Mock publish to throw error
           jest.spyOn(messenger, 'publish').mockImplementation(() => {
@@ -975,10 +968,10 @@ describe('AccountActivityService', () => {
         });
       });
 
-      it('should handle resubscription failures during WebSocket connection via messenger by attempting resubscription', async () => {
+      it('should resubscribe to selected account when WebSocket connects', async () => {
         await withService(
           { accountAddress: '0x123abc' },
-          async ({ service, mocks, rootMessenger }) => {
+          async ({ mocks, rootMessenger }) => {
             // Set up mocks
             const testAccount = createMockInternalAccount({
               address: '0x123abc',
@@ -986,13 +979,8 @@ describe('AccountActivityService', () => {
             mocks.getSelectedAccount.mockReturnValue(testAccount);
             mocks.addChannelCallback.mockReturnValue(undefined);
 
-            // Make subscribeAccounts fail during resubscription
-            const subscribeAccountsSpy = jest
-              .spyOn(service, 'subscribeAccounts')
-              .mockRejectedValue(new Error('Resubscription failed'));
-
-            // Publish WebSocket connection event - should trigger resubscription failure
-            await rootMessenger.publish(
+            // Publish WebSocket connection event
+            rootMessenger.publish(
               'BackendWebSocketService:connectionStateChanged',
               {
                 state: WebSocketState.CONNECTED,
@@ -1002,8 +990,11 @@ describe('AccountActivityService', () => {
             );
             await completeAsyncOperations();
 
-            // Should have attempted to resubscribe
-            expect(subscribeAccountsSpy).toHaveBeenCalled();
+            // Verify it resubscribed to the selected account
+            expect(mocks.subscribe).toHaveBeenCalledWith({
+              channels: ['account-activity.v1.eip155:0:0x123abc'],
+              callback: expect.any(Function),
+            });
           },
         );
       });

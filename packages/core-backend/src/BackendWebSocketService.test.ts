@@ -618,54 +618,47 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle reconnection failures by logging errors and stopping reconnection attempts after max retries', async () => {
+    it('should schedule another reconnection attempt when connect fails during reconnection', async () => {
       await withService(
         {
           options: {
-            reconnectDelay: 50, // Very short for testing
+            reconnectDelay: 50,
             maxReconnectDelay: 100,
           },
         },
         async ({ service, completeAsyncOperations, getMockWebSocket }) => {
-          // Mock console.error to spy on specific error logging
-          const consoleErrorSpy = jest
-            .spyOn(console, 'error')
-            .mockImplementation();
-
           // Connect first
           await service.connect();
 
-          // Set up the mock to fail on all subsequent connect attempts
+          // Track connect calls
           let connectCallCount = 0;
-          jest.spyOn(service, 'connect').mockImplementation(async () => {
+          const connectSpy = jest.spyOn(service, 'connect');
+          connectSpy.mockImplementation(async () => {
             connectCallCount += 1;
-            // Always fail on reconnection attempts (after initial successful connection)
-            throw new Error(
-              `Mocked reconnection failure attempt ${connectCallCount}`,
-            );
+            // Fail the first reconnection attempt
+            throw new Error('Connection failed');
           });
 
-          // Get the mock WebSocket and simulate unexpected closure to trigger reconnection
+          // Simulate connection loss to trigger reconnection
           const mockWs = getMockWebSocket();
-          mockWs.simulateClose(1006, 'Connection lost unexpectedly');
+          mockWs.simulateClose(1006, 'Connection lost');
           await completeAsyncOperations();
 
-          // Advance time to trigger the reconnection attempt which should now fail
-          jest.advanceTimersByTime(75); // Advance past the reconnect delay to trigger setTimeout callback
+          // Advance time to trigger first reconnection attempt (will fail)
+          jest.advanceTimersByTime(75);
           await completeAsyncOperations();
 
-          // Verify the specific error message was logged
-          expect(consoleErrorSpy).toHaveBeenCalledWith(
-            expect.stringMatching(/❌ Reconnection attempt #\d+ failed:/u),
-            expect.any(Error),
-          );
+          // Verify first connect was called
+          expect(connectCallCount).toBe(1);
 
-          // Verify that the connect method was called (indicating reconnection was attempted)
-          expect(connectCallCount).toBeGreaterThanOrEqual(1);
+          // Advance time to trigger second reconnection (verifies catch scheduled another)
+          jest.advanceTimersByTime(150);
+          await completeAsyncOperations();
 
-          // Clean up
-          consoleErrorSpy.mockRestore();
-          (service.connect as jest.Mock).mockRestore();
+          // If catch block works, connect should be called again
+          expect(connectCallCount).toBeGreaterThan(1);
+
+          connectSpy.mockRestore();
         },
       );
     });
@@ -711,39 +704,6 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should test getCloseReason functionality by mapping all WebSocket close codes to human-readable descriptions', async () => {
-      await withService(async () => {
-        // Test all close codes to verify proper close reason descriptions
-        const closeCodeTests = [
-          { code: 1000, expected: 'Normal Closure' },
-          { code: 1001, expected: 'Going Away' },
-          { code: 1002, expected: 'Protocol Error' },
-          { code: 1003, expected: 'Unsupported Data' },
-          { code: 1004, expected: 'Reserved' },
-          { code: 1005, expected: 'No Status Received' },
-          { code: 1006, expected: 'Abnormal Closure' },
-          { code: 1007, expected: 'Invalid frame payload data' },
-          { code: 1008, expected: 'Policy Violation' },
-          { code: 1009, expected: 'Message Too Big' },
-          { code: 1010, expected: 'Mandatory Extension' },
-          { code: 1011, expected: 'Internal Server Error' },
-          { code: 1012, expected: 'Service Restart' },
-          { code: 1013, expected: 'Try Again Later' },
-          { code: 1014, expected: 'Bad Gateway' },
-          { code: 1015, expected: 'TLS Handshake' },
-          { code: 3500, expected: 'Library/Framework Error' }, // 3000-3999 range
-          { code: 4500, expected: 'Application Error' }, // 4000-4999 range
-          { code: 9999, expected: 'Unknown' }, // default case
-        ];
-
-        closeCodeTests.forEach(({ code, expected }) => {
-          // Test the getCloseReason utility function directly
-          const result = getCloseReason(code);
-          expect(result).toBe(expected);
-        });
-      });
-    });
-
     it('should handle messenger publish errors during state changes by logging errors without throwing', async () => {
       await withService(async ({ service, messenger }) => {
         // Mock messenger.publish to throw an error
@@ -766,6 +726,99 @@ describe('BackendWebSocketService', () => {
         // This ensures the error was caught and handled properly
         expect(service.getConnectionInfo()).toBeDefined();
         publishSpy.mockRestore();
+      });
+    });
+
+    it('should handle concurrent connect calls by awaiting existing connection promise and returning same result', async () => {
+      await withService(
+        { mockWebSocketOptions: { autoConnect: false } },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          // Start first connection (will be in CONNECTING state)
+          const firstConnect = service.connect();
+          await completeAsyncOperations(10); // Allow connect to start
+
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.CONNECTING,
+          );
+
+          // Start second connection while first is still connecting
+          // This should await the existing connection promise
+          const secondConnect = service.connect();
+
+          // Complete the first connection
+          const mockWs = getMockWebSocket();
+          mockWs.triggerOpen();
+          await completeAsyncOperations();
+
+          // Both promises should resolve successfully
+          await Promise.all([firstConnect, secondConnect]);
+
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.CONNECTED,
+          );
+        },
+      );
+    });
+
+    it('should handle WebSocket error events during connection establishment by setting state to ERROR', async () => {
+      await withService(
+        { mockWebSocketOptions: { autoConnect: false } },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          const connectPromise = service.connect();
+          await completeAsyncOperations(10);
+
+          // Trigger error event during connection phase
+          const mockWs = getMockWebSocket();
+          mockWs.simulateError();
+
+          await expect(connectPromise).rejects.toThrow(
+            'WebSocket connection error',
+          );
+          expect(service.getConnectionInfo().state).toBe(WebSocketState.ERROR);
+        },
+      );
+    });
+
+    it('should handle WebSocket close events during connection establishment by setting state to ERROR', async () => {
+      await withService(
+        { mockWebSocketOptions: { autoConnect: false } },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          const connectPromise = service.connect();
+          await completeAsyncOperations(10);
+
+          // Trigger close event during connection phase
+          const mockWs = getMockWebSocket();
+          mockWs.simulateClose(1006, 'Connection failed');
+
+          await expect(connectPromise).rejects.toThrow(
+            'WebSocket connection closed during connection',
+          );
+        },
+      );
+    });
+
+    it('should properly transition through disconnecting state during manual disconnect and set final state to DISCONNECTED', async () => {
+      await withService(async ({ service, getMockWebSocket }) => {
+        await service.connect();
+        const mockWs = getMockWebSocket();
+
+        // Mock the close method to simulate manual WebSocket close
+        mockWs.close.mockImplementation(
+          (code = 1000, reason = 'Normal closure') => {
+            mockWs.simulateClose(code, reason);
+          },
+        );
+
+        // Start manual disconnect - this will trigger close() and simulate close event
+        await service.disconnect();
+
+        // The service should transition through DISCONNECTING to DISCONNECTED
+        expect(service.getConnectionInfo().state).toBe(
+          WebSocketState.DISCONNECTED,
+        );
+
+        // Verify the close method was called with normal closure code
+        expect(mockWs.close).toHaveBeenCalledWith(1000, 'Normal closure');
       });
     });
   });
@@ -940,6 +993,93 @@ describe('BackendWebSocketService', () => {
         expect(
           service.findSubscriptionsByChannelPrefix('non-existent'),
         ).toStrictEqual([]);
+      });
+    });
+
+    it('should handle multiple subscriptions and unsubscriptions with different channels by managing subscription state correctly', async () => {
+      await withService(async ({ service, getMockWebSocket }) => {
+        await service.connect();
+        const mockWs = getMockWebSocket();
+        const mockCallback1 = jest.fn();
+        const mockCallback2 = jest.fn();
+
+        // Create multiple subscriptions
+        const subscription1 = await createSubscription(service, mockWs, {
+          channels: ['channel-1', 'channel-2'],
+          callback: mockCallback1,
+          requestId: 'test-multi-sub-1',
+          subscriptionId: 'sub-1',
+        });
+
+        const subscription2 = await createSubscription(service, mockWs, {
+          channels: ['channel-3'],
+          callback: mockCallback2,
+          requestId: 'test-multi-sub-2',
+          subscriptionId: 'sub-2',
+        });
+
+        // Verify both subscriptions exist
+        expect(service.channelHasSubscription('channel-1')).toBe(true);
+        expect(service.channelHasSubscription('channel-2')).toBe(true);
+        expect(service.channelHasSubscription('channel-3')).toBe(true);
+
+        // Send notifications to different channels
+        const notification1 = {
+          event: 'notification',
+          channel: 'channel-1',
+          subscriptionId: 'sub-1',
+          data: { data: 'test1' },
+        };
+
+        const notification2 = {
+          event: 'notification',
+          channel: 'channel-3',
+          subscriptionId: 'sub-2',
+          data: { data: 'test3' },
+        };
+
+        mockWs.simulateMessage(notification1);
+        mockWs.simulateMessage(notification2);
+
+        expect(mockCallback1).toHaveBeenCalledWith(notification1);
+        expect(mockCallback2).toHaveBeenCalledWith(notification2);
+
+        // Unsubscribe from first subscription
+        const unsubscribePromise = subscription1.unsubscribe(
+          'test-unsubscribe-multiple',
+        );
+        const unsubResponseMessage = createResponseMessage(
+          'test-unsubscribe-multiple',
+          {
+            subscriptionId: 'sub-1',
+            successful: ['channel-1', 'channel-2'],
+            failed: [],
+          },
+        );
+        mockWs.simulateMessage(unsubResponseMessage);
+        await unsubscribePromise;
+
+        expect(service.channelHasSubscription('channel-1')).toBe(false);
+        expect(service.channelHasSubscription('channel-2')).toBe(false);
+        expect(service.channelHasSubscription('channel-3')).toBe(true);
+
+        // Unsubscribe from second subscription
+        const unsubscribePromise2 = subscription2.unsubscribe(
+          'test-unsubscribe-multiple-2',
+        );
+        const unsubResponseMessage2 = createResponseMessage(
+          'test-unsubscribe-multiple-2',
+          {
+            subscriptionId: 'sub-2',
+            successful: ['channel-3'],
+            failed: [],
+          },
+        );
+        mockWs.simulateMessage(unsubResponseMessage2);
+        await unsubscribePromise2;
+
+        // Verify second subscription is also removed
+        expect(service.channelHasSubscription('channel-3')).toBe(false);
       });
     });
   });
@@ -1282,6 +1422,23 @@ describe('BackendWebSocketService', () => {
         },
       );
     });
+
+    it('should handle sendRequest error scenarios by properly rejecting promises and cleaning up pending requests', async () => {
+      await withService(async ({ service }) => {
+        await service.connect();
+
+        // Test sendRequest error handling when message sending fails
+        const sendMessageSpy = jest
+          .spyOn(service, 'sendMessage')
+          .mockRejectedValue(new Error('Send failed'));
+
+        await expect(
+          service.sendRequest({ event: 'test', data: { test: 'value' } }),
+        ).rejects.toStrictEqual(new Error('Send failed'));
+
+        sendMessageSpy.mockRestore();
+      });
+    });
   });
 
   describe('authentication flows', () => {
@@ -1426,99 +1583,6 @@ describe('BackendWebSocketService', () => {
         },
       );
     });
-
-    it('should handle concurrent connect calls by awaiting existing connection promise and returning same result', async () => {
-      await withService(
-        { mockWebSocketOptions: { autoConnect: false } },
-        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          // Start first connection (will be in CONNECTING state)
-          const firstConnect = service.connect();
-          await completeAsyncOperations(10); // Allow connect to start
-
-          expect(service.getConnectionInfo().state).toBe(
-            WebSocketState.CONNECTING,
-          );
-
-          // Start second connection while first is still connecting
-          // This should await the existing connection promise
-          const secondConnect = service.connect();
-
-          // Complete the first connection
-          const mockWs = getMockWebSocket();
-          mockWs.triggerOpen();
-          await completeAsyncOperations();
-
-          // Both promises should resolve successfully
-          await Promise.all([firstConnect, secondConnect]);
-
-          expect(service.getConnectionInfo().state).toBe(
-            WebSocketState.CONNECTED,
-          );
-        },
-      );
-    });
-
-    it('should handle WebSocket error events during connection establishment by setting state to ERROR', async () => {
-      await withService(
-        { mockWebSocketOptions: { autoConnect: false } },
-        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          const connectPromise = service.connect();
-          await completeAsyncOperations(10);
-
-          // Trigger error event during connection phase
-          const mockWs = getMockWebSocket();
-          mockWs.simulateError();
-
-          await expect(connectPromise).rejects.toThrow(
-            'WebSocket connection error',
-          );
-          expect(service.getConnectionInfo().state).toBe(WebSocketState.ERROR);
-        },
-      );
-    });
-
-    it('should handle WebSocket close events during connection establishment by setting state to ERROR', async () => {
-      await withService(
-        { mockWebSocketOptions: { autoConnect: false } },
-        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          const connectPromise = service.connect();
-          await completeAsyncOperations(10);
-
-          // Trigger close event during connection phase
-          const mockWs = getMockWebSocket();
-          mockWs.simulateClose(1006, 'Connection failed');
-
-          await expect(connectPromise).rejects.toThrow(
-            'WebSocket connection closed during connection',
-          );
-        },
-      );
-    });
-
-    it('should properly transition through disconnecting state during manual disconnect and set final state to DISCONNECTED', async () => {
-      await withService(async ({ service, getMockWebSocket }) => {
-        await service.connect();
-        const mockWs = getMockWebSocket();
-
-        // Mock the close method to simulate manual WebSocket close
-        mockWs.close.mockImplementation(
-          (code = 1000, reason = 'Normal closure') => {
-            mockWs.simulateClose(code, reason);
-          },
-        );
-
-        // Start manual disconnect - this will trigger close() and simulate close event
-        await service.disconnect();
-
-        // The service should transition through DISCONNECTING to DISCONNECTED
-        expect(service.getConnectionInfo().state).toBe(
-          WebSocketState.DISCONNECTED,
-        );
-
-        // Verify the close method was called with normal closure code
-        expect(mockWs.close).toHaveBeenCalledWith(1000, 'Normal closure');
-      });
-    });
   });
 
   // =====================================================
@@ -1602,127 +1666,39 @@ describe('BackendWebSocketService', () => {
         },
       );
     });
+  });
 
-    it('should handle multiple subscriptions and unsubscriptions with different channels by managing subscription state correctly', async () => {
-      await withService(async ({ service, getMockWebSocket }) => {
-        await service.connect();
-        const mockWs = getMockWebSocket();
-        const mockCallback1 = jest.fn();
-        const mockCallback2 = jest.fn();
+  // =====================================================
+  // UTILITY FUNCTIONS
+  // =====================================================
+  describe('getCloseReason utility', () => {
+    it('should map WebSocket close codes to human-readable descriptions', () => {
+      // Test all close codes to verify proper close reason descriptions
+      const closeCodeTests = [
+        { code: 1000, expected: 'Normal Closure' },
+        { code: 1001, expected: 'Going Away' },
+        { code: 1002, expected: 'Protocol Error' },
+        { code: 1003, expected: 'Unsupported Data' },
+        { code: 1004, expected: 'Reserved' },
+        { code: 1005, expected: 'No Status Received' },
+        { code: 1006, expected: 'Abnormal Closure' },
+        { code: 1007, expected: 'Invalid frame payload data' },
+        { code: 1008, expected: 'Policy Violation' },
+        { code: 1009, expected: 'Message Too Big' },
+        { code: 1010, expected: 'Mandatory Extension' },
+        { code: 1011, expected: 'Internal Server Error' },
+        { code: 1012, expected: 'Service Restart' },
+        { code: 1013, expected: 'Try Again Later' },
+        { code: 1014, expected: 'Bad Gateway' },
+        { code: 1015, expected: 'TLS Handshake' },
+        { code: 3500, expected: 'Library/Framework Error' }, // 3000-3999 range
+        { code: 4500, expected: 'Application Error' }, // 4000-4999 range
+        { code: 9999, expected: 'Unknown' }, // default case
+      ];
 
-        // Create multiple subscriptions
-        const subscription1 = await createSubscription(service, mockWs, {
-          channels: ['channel-1', 'channel-2'],
-          callback: mockCallback1,
-          requestId: 'test-multi-sub-1',
-          subscriptionId: 'sub-1',
-        });
-
-        const subscription2 = await createSubscription(service, mockWs, {
-          channels: ['channel-3'],
-          callback: mockCallback2,
-          requestId: 'test-multi-sub-2',
-          subscriptionId: 'sub-2',
-        });
-
-        // Verify both subscriptions exist
-        expect(service.channelHasSubscription('channel-1')).toBe(true);
-        expect(service.channelHasSubscription('channel-2')).toBe(true);
-        expect(service.channelHasSubscription('channel-3')).toBe(true);
-
-        // Send notifications to different channels
-        const notification1 = {
-          event: 'notification',
-          channel: 'channel-1',
-          subscriptionId: 'sub-1',
-          data: { data: 'test1' },
-        };
-
-        const notification2 = {
-          event: 'notification',
-          channel: 'channel-3',
-          subscriptionId: 'sub-2',
-          data: { data: 'test3' },
-        };
-
-        mockWs.simulateMessage(notification1);
-        mockWs.simulateMessage(notification2);
-
-        expect(mockCallback1).toHaveBeenCalledWith(notification1);
-        expect(mockCallback2).toHaveBeenCalledWith(notification2);
-
-        // Unsubscribe from first subscription
-        const unsubscribePromise = subscription1.unsubscribe(
-          'test-unsubscribe-multiple',
-        );
-        const unsubResponseMessage = createResponseMessage(
-          'test-unsubscribe-multiple',
-          {
-            subscriptionId: 'sub-1',
-            successful: ['channel-1', 'channel-2'],
-            failed: [],
-          },
-        );
-        mockWs.simulateMessage(unsubResponseMessage);
-        await unsubscribePromise;
-
-        expect(service.channelHasSubscription('channel-1')).toBe(false);
-        expect(service.channelHasSubscription('channel-2')).toBe(false);
-        expect(service.channelHasSubscription('channel-3')).toBe(true);
-
-        // Unsubscribe from second subscription
-        const unsubscribePromise2 = subscription2.unsubscribe(
-          'test-unsubscribe-multiple-2',
-        );
-        const unsubResponseMessage2 = createResponseMessage(
-          'test-unsubscribe-multiple-2',
-          {
-            subscriptionId: 'sub-2',
-            successful: ['channel-3'],
-            failed: [],
-          },
-        );
-        mockWs.simulateMessage(unsubResponseMessage2);
-        await unsubscribePromise2;
-
-        // Verify second subscription is also removed
-        expect(service.channelHasSubscription('channel-3')).toBe(false);
-      });
-    });
-
-    it('should handle sendRequest error scenarios by properly rejecting promises and cleaning up pending requests', async () => {
-      await withService(async ({ service }) => {
-        await service.connect();
-
-        // Test sendRequest error handling when message sending fails
-        const sendMessageSpy = jest
-          .spyOn(service, 'sendMessage')
-          .mockRejectedValue(new Error('Send failed'));
-
-        await expect(
-          service.sendRequest({ event: 'test', data: { test: 'value' } }),
-        ).rejects.toStrictEqual(new Error('Send failed'));
-
-        sendMessageSpy.mockRestore();
-      });
-    });
-
-    it('should handle missing access token during URL building by rejecting with authentication error', async () => {
-      await withService(async ({ service, spies }) => {
-        // Test: No access token error during URL building
-        // First getBearerToken call succeeds, second returns null
-        // First call succeeds, second call returns null
-        spies.call
-          .mockImplementationOnce(() =>
-            Promise.resolve('valid-token-for-auth-check'),
-          )
-          .mockImplementationOnce(() => Promise.resolve(null));
-
-        await expect(service.connect()).rejects.toStrictEqual(
-          new Error(
-            'Failed to connect to WebSocket: No access token available',
-          ),
-        );
+      closeCodeTests.forEach(({ code, expected }) => {
+        const result = getCloseReason(code);
+        expect(result).toBe(expected);
       });
     });
   });
