@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [14.1.0]
 
-### Uncategorized
-
-- Release/597.0.0 ([#6771](https://github.com/MetaMask/core/pull/6771))
-- Release/586.0.0 ([#6733](https://github.com/MetaMask/core/pull/6733))
-
 ### Added
 
 - Add path-based blocking [#6416](https://github.com/MetaMask/core/pull/6416)
