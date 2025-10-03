@@ -248,7 +248,93 @@ const createServiceWithTestAccount = (
   };
 };
 
-// Note: Using proper messenger-based testing approach instead of directly mocking BackendWebSocketService
+/**
+ * Test configuration options for withService
+ */
+type WithServiceOptions = {
+  setupDefaultMocks?: boolean;
+  subscriptionNamespace?: string;
+  accountAddress?: string;
+};
+
+/**
+ * The callback that `withService` calls.
+ */
+type WithServiceCallback<ReturnValue> = (payload: {
+  service: AccountActivityService;
+  messenger: AccountActivityServiceMessenger;
+  rootMessenger: Messenger<
+    AccountActivityServiceAllowedActions,
+    AccountActivityServiceAllowedEvents
+  >;
+  mocks: {
+    getAccountByAddress: jest.Mock;
+    getSelectedAccount: jest.Mock;
+    connect: jest.Mock;
+    disconnect: jest.Mock;
+    subscribe: jest.Mock;
+    channelHasSubscription: jest.Mock;
+    getSubscriptionsByChannel: jest.Mock;
+    findSubscriptionsByChannelPrefix: jest.Mock;
+    addChannelCallback: jest.Mock;
+    removeChannelCallback: jest.Mock;
+    sendRequest: jest.Mock;
+  };
+  mockSelectedAccount?: InternalAccount;
+  destroy: () => void;
+}) => Promise<ReturnValue> | ReturnValue;
+
+/**
+ * Wrap tests for the AccountActivityService by ensuring that the service is
+ * created ahead of time and then safely destroyed afterward as needed.
+ *
+ * @param args - Either a function, or an options bag + a function. The options
+ * bag contains arguments for the service constructor. All constructor
+ * arguments are optional and will be filled in with defaults as needed
+ * (including `messenger`). The function is called with the new
+ * service, root messenger, and service messenger.
+ * @returns The same return value as the given function.
+ */
+async function withService<ReturnValue>(
+  ...args:
+    | [WithServiceCallback<ReturnValue>]
+    | [WithServiceOptions, WithServiceCallback<ReturnValue>]
+): Promise<ReturnValue> {
+  const [
+    { setupDefaultMocks = true, subscriptionNamespace, accountAddress },
+    testFunction,
+  ] =
+    args.length === 2
+      ? args
+      : [
+          {
+            setupDefaultMocks: true,
+            subscriptionNamespace: undefined,
+            accountAddress: undefined,
+          },
+          args[0],
+        ];
+
+  const setup = accountAddress
+    ? createServiceWithTestAccount(accountAddress, setupDefaultMocks)
+    : createIndependentService({ setupDefaultMocks, subscriptionNamespace });
+
+  try {
+    return await testFunction({
+      service: setup.service,
+      messenger: setup.messenger,
+      rootMessenger: setup.rootMessenger,
+      mocks: setup.mocks,
+      mockSelectedAccount:
+        'mockSelectedAccount' in setup
+          ? (setup.mockSelectedAccount as InternalAccount)
+          : undefined,
+      destroy: setup.destroy,
+    });
+  } finally {
+    setup.destroy();
+  }
+}
 
 describe('AccountActivityService', () => {
   beforeEach(() => {
@@ -267,27 +353,25 @@ describe('AccountActivityService', () => {
   // CONSTRUCTOR TESTS
   // =============================================================================
   describe('constructor', () => {
-    it('should create AccountActivityService with comprehensive initialization', () => {
-      const { service, messenger } = createIndependentService();
+    it('should create AccountActivityService with comprehensive initialization', async () => {
+      await withService(async ({ service, messenger }) => {
+        expect(service).toBeInstanceOf(AccountActivityService);
+        expect(service.name).toBe('AccountActivityService');
+        expect(service).toBeDefined();
 
-      expect(service).toBeInstanceOf(AccountActivityService);
-      expect(service.name).toBe('AccountActivityService');
-      expect(service).toBeDefined();
-
-      // Verify service can be created with custom namespace
-      const { service: customService } = createIndependentService({
-        subscriptionNamespace: 'custom-activity.v2',
+        // Status changed event is only published when WebSocket connects
+        const publishSpy = jest.spyOn(messenger, 'publish');
+        expect(publishSpy).not.toHaveBeenCalled();
       });
-      expect(customService).toBeInstanceOf(AccountActivityService);
-      expect(customService.name).toBe('AccountActivityService');
 
-      // Status changed event is only published when WebSocket connects
-      const publishSpy = jest.spyOn(messenger, 'publish');
-      expect(publishSpy).not.toHaveBeenCalled();
-
-      // Clean up
-      service.destroy();
-      customService.destroy();
+      // Test custom namespace separately
+      await withService(
+        { subscriptionNamespace: 'custom-activity.v2' },
+        async ({ service }) => {
+          expect(service).toBeInstanceOf(AccountActivityService);
+          expect(service).toBeDefined();
+        },
+      );
     });
   });
 
@@ -300,129 +384,127 @@ describe('AccountActivityService', () => {
     };
 
     it('should handle account activity messages', async () => {
-      const { service, mocks, messenger, mockSelectedAccount } =
-        createServiceWithTestAccount();
-      const mockUnsubscribe = jest.fn().mockResolvedValue(undefined);
-      let capturedCallback: (notification: ServerNotificationMessage) => void =
-        jest.fn();
+      await withService(
+        { accountAddress: '0x1234567890123456789012345678901234567890' },
+        async ({ service, mocks, messenger, mockSelectedAccount }) => {
+          const mockUnsubscribe = jest.fn().mockResolvedValue(undefined);
+          let capturedCallback: (
+            notification: ServerNotificationMessage,
+          ) => void = jest.fn();
 
-      // Mock the subscribe call to capture the callback
-      mocks.connect.mockResolvedValue(undefined);
-      mocks.disconnect.mockResolvedValue(undefined);
-      mocks.subscribe.mockImplementation((options) => {
-        // Capture the callback from the subscription options
-        capturedCallback = options.callback;
-        return Promise.resolve({
-          subscriptionId: 'sub-123',
-          unsubscribe: mockUnsubscribe,
-        });
-      });
-      mocks.channelHasSubscription.mockReturnValue(false);
-      mocks.addChannelCallback.mockReturnValue(undefined);
-      mocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
+          // Mock the subscribe call to capture the callback
+          mocks.connect.mockResolvedValue(undefined);
+          mocks.disconnect.mockResolvedValue(undefined);
+          mocks.subscribe.mockImplementation((options) => {
+            // Capture the callback from the subscription options
+            capturedCallback = options.callback;
+            return Promise.resolve({
+              subscriptionId: 'sub-123',
+              unsubscribe: mockUnsubscribe,
+            });
+          });
+          mocks.channelHasSubscription.mockReturnValue(false);
+          mocks.addChannelCallback.mockReturnValue(undefined);
+          mocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
 
-      await service.subscribeAccounts(mockSubscription);
+          await service.subscribeAccounts(mockSubscription);
 
-      // Simulate receiving account activity message
-      const activityMessage: AccountActivityMessage = {
-        address: '0x1234567890123456789012345678901234567890',
-        tx: {
-          hash: '0xabc123',
-          chain: 'eip155:1',
-          status: 'confirmed',
-          timestamp: Date.now(),
-          from: '0x1234567890123456789012345678901234567890',
-          to: '0x9876543210987654321098765432109876543210',
-        },
-        updates: [
-          {
-            asset: {
-              fungible: true,
-              type: 'eip155:1/slip44:60',
-              unit: 'ETH',
+          // Simulate receiving account activity message
+          const activityMessage: AccountActivityMessage = {
+            address: '0x1234567890123456789012345678901234567890',
+            tx: {
+              hash: '0xabc123',
+              chain: 'eip155:1',
+              status: 'confirmed',
+              timestamp: Date.now(),
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0x9876543210987654321098765432109876543210',
             },
-            postBalance: {
-              amount: '1000000000000000000', // 1 ETH
-            },
-            transfers: [
+            updates: [
               {
-                from: '0x1234567890123456789012345678901234567890',
-                to: '0x9876543210987654321098765432109876543210',
-                amount: '500000000000000000', // 0.5 ETH
+                asset: {
+                  fungible: true,
+                  type: 'eip155:1/slip44:60',
+                  unit: 'ETH',
+                },
+                postBalance: {
+                  amount: '1000000000000000000', // 1 ETH
+                },
+                transfers: [
+                  {
+                    from: '0x1234567890123456789012345678901234567890',
+                    to: '0x9876543210987654321098765432109876543210',
+                    amount: '500000000000000000', // 0.5 ETH
+                  },
+                ],
               },
             ],
-          },
-        ],
-      };
+          };
 
-      const notificationMessage = {
-        event: 'notification',
-        subscriptionId: 'sub-123',
-        channel:
-          'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
-        data: activityMessage,
-      };
+          const notificationMessage = {
+            event: 'notification',
+            subscriptionId: 'sub-123',
+            channel:
+              'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
+            data: activityMessage,
+          };
 
-      // Subscribe to events to verify they are published
-      const receivedTransactionEvents: Transaction[] = [];
-      const receivedBalanceEvents: {
-        address: string;
-        chain: string;
-        updates: BalanceUpdate[];
-      }[] = [];
+          // Subscribe to events to verify they are published
+          const receivedTransactionEvents: Transaction[] = [];
+          const receivedBalanceEvents: {
+            address: string;
+            chain: string;
+            updates: BalanceUpdate[];
+          }[] = [];
 
-      messenger.subscribe(
-        'AccountActivityService:transactionUpdated',
-        (data) => {
-          receivedTransactionEvents.push(data);
+          messenger.subscribe(
+            'AccountActivityService:transactionUpdated',
+            (data) => {
+              receivedTransactionEvents.push(data);
+            },
+          );
+
+          messenger.subscribe(
+            'AccountActivityService:balanceUpdated',
+            (data) => {
+              receivedBalanceEvents.push(data);
+            },
+          );
+
+          // Call the captured callback
+          capturedCallback(notificationMessage);
+
+          // Should receive transaction and balance events
+          expect(receivedTransactionEvents).toHaveLength(1);
+          expect(receivedTransactionEvents[0]).toStrictEqual(
+            activityMessage.tx,
+          );
+
+          expect(receivedBalanceEvents).toHaveLength(1);
+          expect(receivedBalanceEvents[0]).toStrictEqual({
+            address: '0x1234567890123456789012345678901234567890',
+            chain: 'eip155:1',
+            updates: activityMessage.updates,
+          });
         },
       );
-
-      messenger.subscribe('AccountActivityService:balanceUpdated', (data) => {
-        receivedBalanceEvents.push(data);
-      });
-
-      // Call the captured callback
-      capturedCallback(notificationMessage);
-
-      // Should receive transaction and balance events
-      expect(receivedTransactionEvents).toHaveLength(1);
-      expect(receivedTransactionEvents[0]).toStrictEqual(activityMessage.tx);
-
-      expect(receivedBalanceEvents).toHaveLength(1);
-      expect(receivedBalanceEvents[0]).toStrictEqual({
-        address: '0x1234567890123456789012345678901234567890',
-        chain: 'eip155:1',
-        updates: activityMessage.updates,
-      });
-
-      // Clean up
-      service.destroy();
     });
 
     it('should handle WebSocket reconnection failures', async () => {
-      // Create independent messenger setup
-      const { messenger: testMessenger, mocks } = createMockMessenger();
+      await withService(async ({ service, mocks }) => {
+        // Mock disconnect to fail
+        mocks.disconnect.mockRejectedValue(new Error('Disconnect failed'));
+        mocks.connect.mockResolvedValue(undefined);
+        mocks.channelHasSubscription.mockReturnValue(false);
+        mocks.addChannelCallback.mockReturnValue(undefined);
 
-      // Create service
-      const service = new AccountActivityService({
-        messenger: testMessenger,
+        // Trigger scenario that causes force reconnection by making subscribe fail
+        mocks.subscribe.mockRejectedValue(new Error('Subscription failed'));
+
+        // Should handle reconnection failure gracefully
+        const result = service.subscribeAccounts({ address: '0x123abc' });
+        expect(await result).toBeUndefined();
       });
-
-      // Mock disconnect to fail
-      mocks.disconnect.mockRejectedValue(new Error('Disconnect failed'));
-      mocks.connect.mockResolvedValue(undefined);
-      mocks.channelHasSubscription.mockReturnValue(false);
-      mocks.addChannelCallback.mockReturnValue(undefined);
-
-      // Trigger scenario that causes force reconnection by making subscribe fail
-      mocks.subscribe.mockRejectedValue(new Error('Subscription failed'));
-
-      // Should handle reconnection failure gracefully
-      const result = service.subscribeAccounts({ address: '0x123abc' });
-      expect(await result).toBeUndefined();
-
-      service.destroy();
     });
   });
 
@@ -435,53 +517,50 @@ describe('AccountActivityService', () => {
     };
 
     it('should handle unsubscribe when not subscribed', async () => {
-      const { service, mocks } = createServiceWithTestAccount();
+      await withService(async ({ service, mocks }) => {
+        // Mock the messenger call to return empty array (no active subscription)
+        mocks.getSubscriptionsByChannel.mockReturnValue([]);
 
-      // Mock the messenger call to return empty array (no active subscription)
-      mocks.getSubscriptionsByChannel.mockReturnValue([]);
+        // This should trigger the early return on line 302
+        await service.unsubscribeAccounts(mockSubscription);
 
-      // This should trigger the early return on line 302
-      await service.unsubscribeAccounts(mockSubscription);
-
-      // Verify the messenger call was made but early return happened
-      expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
-        expect.any(String),
-      );
-
-      // Clean up
-      service.destroy();
+        // Verify the messenger call was made but early return happened
+        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
+          expect.any(String),
+        );
+      });
     });
 
     it('should handle unsubscribe errors', async () => {
-      const { service, mocks, mockSelectedAccount } =
-        createServiceWithTestAccount();
-      const error = new Error('Unsubscribe failed');
-      const mockUnsubscribeError = jest.fn().mockRejectedValue(error);
+      await withService(
+        { accountAddress: '0x1234567890123456789012345678901234567890' },
+        async ({ service, mocks, mockSelectedAccount }) => {
+          const error = new Error('Unsubscribe failed');
+          const mockUnsubscribeError = jest.fn().mockRejectedValue(error);
 
-      // Mock getSubscriptionsByChannel to return subscription with failing unsubscribe function
-      mocks.getSubscriptionsByChannel.mockReturnValue([
-        {
-          subscriptionId: 'sub-123',
-          channels: [
-            'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
-          ],
-          unsubscribe: mockUnsubscribeError,
+          // Mock getSubscriptionsByChannel to return subscription with failing unsubscribe function
+          mocks.getSubscriptionsByChannel.mockReturnValue([
+            {
+              subscriptionId: 'sub-123',
+              channels: [
+                'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
+              ],
+              unsubscribe: mockUnsubscribeError,
+            },
+          ]);
+          mocks.disconnect.mockResolvedValue(undefined);
+          mocks.connect.mockResolvedValue(undefined);
+          mocks.addChannelCallback.mockReturnValue(undefined);
+          mocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
+
+          // unsubscribeAccounts catches errors and forces reconnection instead of throwing
+          await service.unsubscribeAccounts(mockSubscription);
+
+          // Should have attempted to force reconnection
+          expect(mocks.disconnect).toHaveBeenCalled();
+          expect(mocks.connect).toHaveBeenCalled();
         },
-      ]);
-      mocks.disconnect.mockResolvedValue(undefined);
-      mocks.connect.mockResolvedValue(undefined);
-      mocks.addChannelCallback.mockReturnValue(undefined);
-      mocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
-
-      // unsubscribeAccounts catches errors and forces reconnection instead of throwing
-      await service.unsubscribeAccounts(mockSubscription);
-
-      // Should have attempted to force reconnection
-      expect(mocks.disconnect).toHaveBeenCalled();
-      expect(mocks.connect).toHaveBeenCalled();
-
-      // Clean up
-      service.destroy();
+      );
     });
   });
 
@@ -490,55 +569,44 @@ describe('AccountActivityService', () => {
   // =============================================================================
   describe('getSupportedChains', () => {
     it('should handle API returning non-200 status', async () => {
-      const messengerSetup = createMockMessenger();
+      await withService(async ({ service }) => {
+        // Mock 500 error response
+        nock('https://accounts.api.cx.metamask.io')
+          .get('/v2/supportedNetworks')
+          .reply(500, 'Internal Server Error');
 
-      const testService = new AccountActivityService({
-        messenger: messengerSetup.messenger,
+        // Test the getSupportedChains method directly - should fallback to hardcoded chains
+        const supportedChains = await service.getSupportedChains();
+
+        // Should fallback to hardcoded chains
+        expect(supportedChains).toStrictEqual(
+          expect.arrayContaining(['eip155:1', 'eip155:137', 'eip155:56']),
+        );
       });
-
-      // Mock 500 error response
-      nock('https://accounts.api.cx.metamask.io')
-        .get('/v2/supportedNetworks')
-        .reply(500, 'Internal Server Error');
-
-      // Test the getSupportedChains method directly - should fallback to hardcoded chains
-      const supportedChains = await testService.getSupportedChains();
-
-      // Should fallback to hardcoded chains
-      expect(supportedChains).toStrictEqual(
-        expect.arrayContaining(['eip155:1', 'eip155:137', 'eip155:56']),
-      );
-
-      testService.destroy();
     });
 
     it('should cache supported chains for service lifecycle', async () => {
-      const { messenger: testMessenger } = createMockMessenger();
-      const testService = new AccountActivityService({
-        messenger: testMessenger,
+      await withService(async ({ service }) => {
+        // First call - should fetch from API
+        nock('https://accounts.api.cx.metamask.io')
+          .get('/v2/supportedNetworks')
+          .reply(200, {
+            fullSupport: ['eip155:1', 'eip155:137'],
+            partialSupport: { balances: [] },
+          });
+
+        const firstResult = await service.getSupportedChains();
+
+        expect(firstResult).toStrictEqual(['eip155:1', 'eip155:137']);
+        expect(isDone()).toBe(true);
+
+        // Second call immediately after - should use cache (no new API call)
+        const secondResult = await service.getSupportedChains();
+
+        // Should return same result from cache
+        expect(secondResult).toStrictEqual(['eip155:1', 'eip155:137']);
+        expect(isDone()).toBe(true); // Still done from first call
       });
-
-      // First call - should fetch from API
-      nock('https://accounts.api.cx.metamask.io')
-        .get('/v2/supportedNetworks')
-        .reply(200, {
-          fullSupport: ['eip155:1', 'eip155:137'],
-          partialSupport: { balances: [] },
-        });
-
-      const firstResult = await testService.getSupportedChains();
-
-      expect(firstResult).toStrictEqual(['eip155:1', 'eip155:137']);
-      expect(isDone()).toBe(true);
-
-      // Second call immediately after - should use cache (no new API call)
-      const secondResult = await testService.getSupportedChains();
-
-      // Should return same result from cache
-      expect(secondResult).toStrictEqual(['eip155:1', 'eip155:137']);
-      expect(isDone()).toBe(true); // Still done from first call
-
-      testService.destroy();
     });
   });
 
@@ -547,434 +615,396 @@ describe('AccountActivityService', () => {
   // =============================================================================
   describe('event handlers', () => {
     describe('handleSystemNotification', () => {
-      it('should handle invalid system notifications', () => {
-        // Create independent service
-        const { service: testService, mocks } = createIndependentService();
+      it('should handle invalid system notifications', async () => {
+        await withService(async ({ mocks }) => {
+          // Find the system callback from messenger calls
+          const systemCallbackCall = mocks.addChannelCallback.mock.calls.find(
+            (call: unknown[]) =>
+              call[0] &&
+              typeof call[0] === 'object' &&
+              'channelName' in call[0] &&
+              call[0].channelName ===
+                'system-notifications.v1.account-activity.v1',
+          );
 
-        // Find the system callback from messenger calls
-        const systemCallbackCall = mocks.addChannelCallback.mock.calls.find(
-          (call: unknown[]) =>
-            call[0] &&
-            typeof call[0] === 'object' &&
-            'channelName' in call[0] &&
-            call[0].channelName ===
-              'system-notifications.v1.account-activity.v1',
-        );
+          if (!systemCallbackCall) {
+            throw new Error('systemCallbackCall is undefined');
+          }
 
-        if (!systemCallbackCall) {
-          throw new Error('systemCallbackCall is undefined');
-        }
+          const callbackOptions = systemCallbackCall[0] as {
+            callback: (notification: ServerNotificationMessage) => void;
+          };
+          const systemCallback = callbackOptions.callback;
 
-        const callbackOptions = systemCallbackCall[0] as {
-          callback: (notification: ServerNotificationMessage) => void;
-        };
-        const systemCallback = callbackOptions.callback;
+          // Simulate invalid system notification
+          const invalidNotification = {
+            event: 'system-notification',
+            channel: 'system',
+            data: { invalid: true }, // Missing required fields
+          };
 
-        // Simulate invalid system notification
-        const invalidNotification = {
-          event: 'system-notification',
-          channel: 'system',
-          data: { invalid: true }, // Missing required fields
-        };
-
-        // The callback should throw an error for invalid data
-        expect(() => systemCallback(invalidNotification)).toThrow(
-          'Invalid system notification data: missing chainIds or status',
-        );
-
-        // Clean up
-        testService.destroy();
+          // The callback should throw an error for invalid data
+          expect(() => systemCallback(invalidNotification)).toThrow(
+            'Invalid system notification data: missing chainIds or status',
+          );
+        });
       });
     });
 
     describe('handleWebSocketStateChange', () => {
       it('should handle WebSocket ERROR state to cover line 533', async () => {
-        // Create a clean service setup to specifically target line 533
-        const messengerSetup = createMockMessenger();
+        await withService(async ({ messenger, rootMessenger, mocks }) => {
+          const publishSpy = jest.spyOn(messenger, 'publish');
 
-        const publishSpy = jest.spyOn(messengerSetup.messenger, 'publish');
+          mocks.addChannelCallback.mockReturnValue(undefined);
+          mocks.getSelectedAccount.mockReturnValue(null); // Ensure no selected account
 
-        messengerSetup.mocks.addChannelCallback.mockReturnValue(undefined);
-        messengerSetup.mocks.getSelectedAccount.mockReturnValue(null); // Ensure no selected account
+          // Clear any publish calls from service initialization
+          publishSpy.mockClear();
 
-        const service = new AccountActivityService({
-          messenger: messengerSetup.messenger,
+          // Mock API response for supported networks
+          nock('https://accounts.api.cx.metamask.io')
+            .get('/v2/supportedNetworks')
+            .reply(200, {
+              fullSupport: ['eip155:1', 'eip155:137', 'eip155:56'],
+              partialSupport: { balances: ['eip155:42220'] },
+            });
+
+          // Publish WebSocket ERROR state event - will be picked up by controller subscription
+          await rootMessenger.publish(
+            'BackendWebSocketService:connectionStateChanged',
+            {
+              state: WebSocketState.ERROR,
+              url: 'ws://test',
+              reconnectAttempts: 2,
+            },
+          );
+          await new Promise((resolve) => setTimeout(resolve, 100)); // Give time for async processing
+
+          // Verify that the ERROR state triggered the status change
+          expect(publishSpy).toHaveBeenCalledWith(
+            'AccountActivityService:statusChanged',
+            {
+              chainIds: ['eip155:1', 'eip155:137', 'eip155:56'],
+              status: 'down',
+            },
+          );
         });
-
-        // Clear any publish calls from service initialization
-        publishSpy.mockClear();
-
-        // Mock API response for supported networks
-        nock('https://accounts.api.cx.metamask.io')
-          .get('/v2/supportedNetworks')
-          .reply(200, {
-            fullSupport: ['eip155:1', 'eip155:137', 'eip155:56'],
-            partialSupport: { balances: ['eip155:42220'] },
-          });
-
-        // Publish WebSocket ERROR state event - will be picked up by controller subscription
-        await messengerSetup.rootMessenger.publish(
-          'BackendWebSocketService:connectionStateChanged',
-          {
-            state: WebSocketState.ERROR,
-            url: 'ws://test',
-            reconnectAttempts: 2,
-          },
-        );
-        await new Promise((resolve) => setTimeout(resolve, 100)); // Give time for async processing
-
-        // Verify that the ERROR state triggered the status change
-        expect(publishSpy).toHaveBeenCalledWith(
-          'AccountActivityService:statusChanged',
-          {
-            chainIds: ['eip155:1', 'eip155:137', 'eip155:56'],
-            status: 'down',
-          },
-        );
-
-        service.destroy();
       });
     });
 
     describe('handleSelectedAccountChange', () => {
       it('should handle valid account scope conversion', async () => {
-        const messengerSetup = createMockMessenger();
-        const service = new AccountActivityService({
-          messenger: messengerSetup.messenger,
+        await withService(async ({ service, rootMessenger }) => {
+          // Publish valid account change event
+          const validAccount = createMockInternalAccount({
+            address: '0x123abc',
+          });
+          rootMessenger.publish(
+            'AccountsController:selectedAccountChange',
+            validAccount,
+          );
+          await completeAsyncOperations();
+
+          // Test passes if no errors are thrown
+          expect(service).toBeDefined();
         });
-
-        // Publish valid account change event
-        const validAccount = createMockInternalAccount({ address: '0x123abc' });
-        messengerSetup.rootMessenger.publish(
-          'AccountsController:selectedAccountChange',
-          validAccount,
-        );
-        await completeAsyncOperations();
-
-        // Test passes if no errors are thrown
-        expect(service).toBeDefined();
       });
 
       it('should handle Solana account scope conversion', async () => {
-        const solanaAccount = createMockInternalAccount({
-          address: 'SolanaAddress123abc',
+        await withService(async ({ mocks, rootMessenger }) => {
+          const solanaAccount = createMockInternalAccount({
+            address: 'SolanaAddress123abc',
+          });
+          solanaAccount.scopes = ['solana:mainnet-beta'];
+
+          mocks.connect.mockResolvedValue(undefined);
+          mocks.channelHasSubscription.mockReturnValue(false);
+          mocks.addChannelCallback.mockReturnValue(undefined);
+          mocks.findSubscriptionsByChannelPrefix.mockReturnValue([]);
+          mocks.subscribe.mockResolvedValue({
+            subscriptionId: 'solana-sub-123',
+            unsubscribe: jest.fn(),
+          });
+
+          // Publish account change event - will be picked up by controller subscription
+          await rootMessenger.publish(
+            'AccountsController:selectedAccountChange',
+            solanaAccount,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 100)); // Give time for async processing
+
+          expect(mocks.subscribe).toHaveBeenCalledWith(
+            expect.objectContaining({
+              channels: expect.arrayContaining([
+                expect.stringContaining('solana:0:solanaaddress123abc'),
+              ]),
+            }),
+          );
         });
-        solanaAccount.scopes = ['solana:mainnet-beta'];
-
-        const messengerSetup = createMockMessenger();
-        new AccountActivityService({
-          messenger: messengerSetup.messenger,
-        });
-
-        messengerSetup.mocks.connect.mockResolvedValue(undefined);
-        messengerSetup.mocks.channelHasSubscription.mockReturnValue(false);
-        messengerSetup.mocks.addChannelCallback.mockReturnValue(undefined);
-        messengerSetup.mocks.findSubscriptionsByChannelPrefix.mockReturnValue(
-          [],
-        );
-        messengerSetup.mocks.subscribe.mockResolvedValue({
-          subscriptionId: 'solana-sub-123',
-          unsubscribe: jest.fn(),
-        });
-
-        // Publish account change event - will be picked up by controller subscription
-        await messengerSetup.rootMessenger.publish(
-          'AccountsController:selectedAccountChange',
-          solanaAccount,
-        );
-        await new Promise((resolve) => setTimeout(resolve, 100)); // Give time for async processing
-
-        expect(messengerSetup.mocks.subscribe).toHaveBeenCalledWith(
-          expect.objectContaining({
-            channels: expect.arrayContaining([
-              expect.stringContaining('solana:0:solanaaddress123abc'),
-            ]),
-          }),
-        );
       });
 
       it('should handle unknown scope fallback', async () => {
-        const unknownAccount = createMockInternalAccount({
-          address: 'UnknownChainAddress456def',
+        await withService(async ({ mocks, rootMessenger }) => {
+          const unknownAccount = createMockInternalAccount({
+            address: 'UnknownChainAddress456def',
+          });
+          unknownAccount.scopes = ['bitcoin:mainnet', 'unknown:chain'];
+
+          mocks.connect.mockResolvedValue(undefined);
+          mocks.channelHasSubscription.mockReturnValue(false);
+          mocks.addChannelCallback.mockReturnValue(undefined);
+          mocks.findSubscriptionsByChannelPrefix.mockReturnValue([]);
+          mocks.subscribe.mockResolvedValue({
+            subscriptionId: 'unknown-sub-456',
+            unsubscribe: jest.fn(),
+          });
+
+          // Publish account change event - will be picked up by controller subscription
+          await rootMessenger.publish(
+            'AccountsController:selectedAccountChange',
+            unknownAccount,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 100)); // Give time for async processing
+
+          expect(mocks.subscribe).toHaveBeenCalledWith(
+            expect.objectContaining({
+              channels: expect.arrayContaining([
+                expect.stringContaining('unknownchainaddress456def'),
+              ]),
+            }),
+          );
         });
-        unknownAccount.scopes = ['bitcoin:mainnet', 'unknown:chain'];
-
-        const messengerSetup = createMockMessenger();
-        new AccountActivityService({
-          messenger: messengerSetup.messenger,
-        });
-
-        messengerSetup.mocks.connect.mockResolvedValue(undefined);
-        messengerSetup.mocks.channelHasSubscription.mockReturnValue(false);
-        messengerSetup.mocks.addChannelCallback.mockReturnValue(undefined);
-        messengerSetup.mocks.findSubscriptionsByChannelPrefix.mockReturnValue(
-          [],
-        );
-        messengerSetup.mocks.subscribe.mockResolvedValue({
-          subscriptionId: 'unknown-sub-456',
-          unsubscribe: jest.fn(),
-        });
-
-        // Publish account change event - will be picked up by controller subscription
-        await messengerSetup.rootMessenger.publish(
-          'AccountsController:selectedAccountChange',
-          unknownAccount,
-        );
-        await new Promise((resolve) => setTimeout(resolve, 100)); // Give time for async processing
-
-        expect(messengerSetup.mocks.subscribe).toHaveBeenCalledWith(
-          expect.objectContaining({
-            channels: expect.arrayContaining([
-              expect.stringContaining('unknownchainaddress456def'),
-            ]),
-          }),
-        );
       });
 
       it('should handle already subscribed accounts and invalid addresses', async () => {
-        const { service, mocks } = createServiceWithTestAccount('0x123abc');
-        const testAccount = createMockInternalAccount({ address: '0x123abc' });
+        await withService(
+          { accountAddress: '0x123abc' },
+          async ({ service, mocks }) => {
+            const testAccount = createMockInternalAccount({
+              address: '0x123abc',
+            });
 
-        // Test already subscribed scenario
-        mocks.connect.mockResolvedValue(undefined);
-        mocks.channelHasSubscription.mockReturnValue(true); // Already subscribed
-        mocks.addChannelCallback.mockReturnValue(undefined);
-        mocks.getSelectedAccount.mockReturnValue(testAccount);
+            // Test already subscribed scenario
+            mocks.connect.mockResolvedValue(undefined);
+            mocks.channelHasSubscription.mockReturnValue(true); // Already subscribed
+            mocks.addChannelCallback.mockReturnValue(undefined);
+            mocks.getSelectedAccount.mockReturnValue(testAccount);
 
-        await service.subscribeAccounts({
-          address: testAccount.address,
-        });
-        expect(mocks.subscribe).not.toHaveBeenCalledWith(expect.any(Object));
-
-        // Clean up first service
-        service.destroy();
-
-        // Test account with empty address
-        const messengerSetup2 = createMockMessenger();
-
-        // Set up default mocks
-        messengerSetup2.mocks.addChannelCallback.mockReturnValue(undefined);
-        messengerSetup2.mocks.connect.mockResolvedValue(undefined);
-
-        // Create service
-        const testService = new AccountActivityService({
-          messenger: messengerSetup2.messenger,
-        });
-
-        // Publish account change event with valid account
-        const validAccount = createMockInternalAccount({ address: '0x123abc' });
-        messengerSetup2.rootMessenger.publish(
-          'AccountsController:selectedAccountChange',
-          validAccount,
+            await service.subscribeAccounts({
+              address: testAccount.address,
+            });
+            expect(mocks.subscribe).not.toHaveBeenCalledWith(
+              expect.any(Object),
+            );
+          },
         );
-        await completeAsyncOperations();
 
-        testService.destroy();
+        // Test account with empty address separately
+        await withService(async ({ rootMessenger, mocks }) => {
+          // Set up default mocks
+          mocks.addChannelCallback.mockReturnValue(undefined);
+          mocks.connect.mockResolvedValue(undefined);
+
+          // Publish account change event with valid account
+          const validAccount = createMockInternalAccount({
+            address: '0x123abc',
+          });
+          rootMessenger.publish(
+            'AccountsController:selectedAccountChange',
+            validAccount,
+          );
+          await completeAsyncOperations();
+        });
       });
 
       it('should handle WebSocket connection when no selected account exists', async () => {
-        const messengerSetup = createMockMessenger();
-        messengerSetup.mocks.connect.mockResolvedValue(undefined);
-        messengerSetup.mocks.addChannelCallback.mockReturnValue(undefined);
-        messengerSetup.mocks.getSelectedAccount.mockReturnValue(null);
+        await withService(async ({ rootMessenger, mocks }) => {
+          mocks.connect.mockResolvedValue(undefined);
+          mocks.addChannelCallback.mockReturnValue(undefined);
+          mocks.getSelectedAccount.mockReturnValue(null);
 
-        new AccountActivityService({
-          messenger: messengerSetup.messenger,
+          // Publish WebSocket connection event - will be picked up by controller subscription
+          await rootMessenger.publish(
+            'BackendWebSocketService:connectionStateChanged',
+            {
+              state: WebSocketState.CONNECTED,
+              url: 'ws://test',
+              reconnectAttempts: 0,
+            },
+          );
+          await new Promise((resolve) => setTimeout(resolve, 100)); // Give time for async processing
+
+          // Should attempt to get selected account even when none exists
+          expect(mocks.getSelectedAccount).toHaveBeenCalled();
         });
-
-        // Publish WebSocket connection event - will be picked up by controller subscription
-        await messengerSetup.rootMessenger.publish(
-          'BackendWebSocketService:connectionStateChanged',
-          {
-            state: WebSocketState.CONNECTED,
-            url: 'ws://test',
-            reconnectAttempts: 0,
-          },
-        );
-        await new Promise((resolve) => setTimeout(resolve, 100)); // Give time for async processing
-
-        // Should attempt to get selected account even when none exists
-        expect(messengerSetup.mocks.getSelectedAccount).toHaveBeenCalled();
       });
+
       it('should handle system notification publish failures gracefully', async () => {
-        const messengerSetup = createMockMessenger();
-        let capturedCallback: (
-          notification: ServerNotificationMessage,
-        ) => void = jest.fn();
+        await withService(async ({ mocks, messenger }) => {
+          // Find the system callback from messenger calls
+          const systemCallbackCall = mocks.addChannelCallback.mock.calls.find(
+            (call: unknown[]) =>
+              call[0] &&
+              typeof call[0] === 'object' &&
+              'channelName' in call[0] &&
+              call[0].channelName ===
+                'system-notifications.v1.account-activity.v1',
+          );
 
-        messengerSetup.mocks.addChannelCallback.mockImplementation(
-          (options) => {
-            capturedCallback = options.callback;
-            return undefined;
-          },
-        );
+          if (!systemCallbackCall) {
+            throw new Error('systemCallbackCall is undefined');
+          }
 
-        // Mock publish to throw error
-        jest
-          .spyOn(messengerSetup.messenger, 'publish')
-          .mockImplementation(() => {
+          const callbackOptions = systemCallbackCall[0] as {
+            callback: (notification: ServerNotificationMessage) => void;
+          };
+          const systemCallback = callbackOptions.callback;
+
+          // Mock publish to throw error
+          jest.spyOn(messenger, 'publish').mockImplementation(() => {
             throw new Error('Publish failed');
           });
 
-        new AccountActivityService({ messenger: messengerSetup.messenger });
+          const systemNotification = {
+            event: 'system-notification',
+            channel: 'system-notifications.v1.account-activity.v1',
+            data: { chainIds: ['0x1', '0x2'], status: 'connected' },
+          };
 
-        const systemNotification = {
-          event: 'system-notification',
-          channel: 'system-notifications.v1.account-activity.v1',
-          data: { chainIds: ['0x1', '0x2'], status: 'connected' },
-        };
+          // Should throw error when publish fails
+          expect(() => systemCallback(systemNotification)).toThrow(
+            'Publish failed',
+          );
 
-        // Should throw error when publish fails
-        expect(() => capturedCallback(systemNotification)).toThrow(
-          'Publish failed',
-        );
-
-        // Should have attempted to publish the notification
-        expect(messengerSetup.messenger.publish).toHaveBeenCalledWith(
-          expect.any(String),
-          expect.objectContaining({
-            chainIds: ['0x1', '0x2'],
-            status: 'connected',
-          }),
-        );
+          // Should have attempted to publish the notification
+          expect(messenger.publish).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({
+              chainIds: ['0x1', '0x2'],
+              status: 'connected',
+            }),
+          );
+        });
       });
 
       it('should skip resubscription when already subscribed to new account', async () => {
-        // Create messenger setup
-        const messengerSetup = createMockMessenger();
+        await withService(
+          { accountAddress: '0x123abc' },
+          async ({ mocks, rootMessenger }) => {
+            // Set up mocks
+            mocks.getSelectedAccount.mockReturnValue(
+              createMockInternalAccount({ address: '0x123abc' }),
+            );
+            mocks.channelHasSubscription.mockReturnValue(true); // Already subscribed
+            mocks.subscribe.mockResolvedValue({
+              unsubscribe: jest.fn(),
+            });
 
-        // Set up mocks
-        messengerSetup.mocks.getSelectedAccount.mockReturnValue(
-          createMockInternalAccount({ address: '0x123abc' }),
+            // Create a new account
+            const newAccount = createMockInternalAccount({
+              address: '0x123abc',
+            });
+
+            // Publish account change event on root messenger
+            await rootMessenger.publish(
+              'AccountsController:selectedAccountChange',
+              newAccount,
+            );
+            await completeAsyncOperations();
+
+            // Verify that subscribe was not called since already subscribed
+            expect(mocks.subscribe).not.toHaveBeenCalled();
+          },
         );
-        messengerSetup.mocks.channelHasSubscription.mockReturnValue(true); // Already subscribed
-        messengerSetup.mocks.subscribe.mockResolvedValue({
-          unsubscribe: jest.fn(),
-        });
-
-        // Create service
-        const testService = new AccountActivityService({
-          messenger: messengerSetup.messenger,
-        });
-
-        // Create a new account
-        const newAccount = createMockInternalAccount({ address: '0x123abc' });
-
-        // Publish account change event on root messenger
-        await messengerSetup.rootMessenger.publish(
-          'AccountsController:selectedAccountChange',
-          newAccount,
-        );
-        await completeAsyncOperations();
-
-        // Verify that subscribe was not called since already subscribed
-        expect(messengerSetup.mocks.subscribe).not.toHaveBeenCalled();
-
-        // Clean up
-        testService.destroy();
       });
 
       it('should handle errors during account change processing', async () => {
-        // Create messenger setup
-        const messengerSetup = createMockMessenger();
+        await withService(
+          { accountAddress: '0x123abc' },
+          async ({ service, mocks, rootMessenger }) => {
+            // Set up mocks to cause an error in the unsubscribe step
+            mocks.getSelectedAccount.mockReturnValue(
+              createMockInternalAccount({ address: '0x123abc' }),
+            );
+            mocks.channelHasSubscription.mockReturnValue(false);
+            mocks.findSubscriptionsByChannelPrefix.mockReturnValue([
+              {
+                unsubscribe: jest
+                  .fn()
+                  .mockRejectedValue(new Error('Unsubscribe failed')),
+              },
+            ]);
+            mocks.subscribe.mockResolvedValue({
+              unsubscribe: jest.fn(),
+            });
 
-        // Set up mocks to cause an error in the unsubscribe step
-        messengerSetup.mocks.getSelectedAccount.mockReturnValue(
-          createMockInternalAccount({ address: '0x123abc' }),
-        );
-        messengerSetup.mocks.channelHasSubscription.mockReturnValue(false);
-        messengerSetup.mocks.findSubscriptionsByChannelPrefix.mockReturnValue([
-          {
-            unsubscribe: jest
-              .fn()
-              .mockRejectedValue(new Error('Unsubscribe failed')),
+            // Create a new account
+            const newAccount = createMockInternalAccount({
+              address: '0x123abc',
+            });
+
+            // Publish account change event on root messenger
+            await rootMessenger.publish(
+              'AccountsController:selectedAccountChange',
+              newAccount,
+            );
+            await completeAsyncOperations();
+
+            // The method should handle the error gracefully and not throw
+            expect(service).toBeDefined();
           },
-        ]);
-        messengerSetup.mocks.subscribe.mockResolvedValue({
-          unsubscribe: jest.fn(),
-        });
-
-        // Create service
-        const testService = new AccountActivityService({
-          messenger: messengerSetup.messenger,
-        });
-
-        // Create a new account
-        const newAccount = createMockInternalAccount({ address: '0x123abc' });
-
-        // Publish account change event on root messenger
-        await messengerSetup.rootMessenger.publish(
-          'AccountsController:selectedAccountChange',
-          newAccount,
         );
-        await completeAsyncOperations();
-
-        // The method should handle the error gracefully and not throw
-        expect(testService).toBeDefined();
-
-        // Clean up
-        testService.destroy();
       });
 
       it('should handle error for account without address in selectedAccountChange', async () => {
-        // Create messenger setup
-        const messengerSetup = createMockMessenger();
+        await withService(async ({ rootMessenger }) => {
+          // Test that account without address is handled gracefully when published via messenger
+          const accountWithoutAddress = createMockInternalAccount({
+            address: '',
+          });
+          expect(() => {
+            rootMessenger.publish(
+              'AccountsController:selectedAccountChange',
+              accountWithoutAddress,
+            );
+          }).not.toThrow();
 
-        // Create service
-        const testService = new AccountActivityService({
-          messenger: messengerSetup.messenger,
+          await completeAsyncOperations();
         });
-
-        // Test that account without address is handled gracefully when published via messenger
-        const accountWithoutAddress = createMockInternalAccount({
-          address: '',
-        });
-        expect(() => {
-          messengerSetup.rootMessenger.publish(
-            'AccountsController:selectedAccountChange',
-            accountWithoutAddress,
-          );
-        }).not.toThrow();
-
-        await completeAsyncOperations();
-
-        // Clean up
-        testService.destroy();
       });
+
       it('should handle resubscription failures during WebSocket connection via messenger', async () => {
-        // Create messenger setup
-        const messengerSetup = createMockMessenger();
+        await withService(
+          { accountAddress: '0x123abc' },
+          async ({ service, mocks, rootMessenger }) => {
+            // Set up mocks
+            const testAccount = createMockInternalAccount({
+              address: '0x123abc',
+            });
+            mocks.getSelectedAccount.mockReturnValue(testAccount);
+            mocks.addChannelCallback.mockReturnValue(undefined);
 
-        // Set up mocks
-        const testAccount = createMockInternalAccount({ address: '0x123abc' });
-        messengerSetup.mocks.getSelectedAccount.mockReturnValue(testAccount);
-        messengerSetup.mocks.addChannelCallback.mockReturnValue(undefined);
+            // Make subscribeAccounts fail during resubscription
+            const subscribeAccountsSpy = jest
+              .spyOn(service, 'subscribeAccounts')
+              .mockRejectedValue(new Error('Resubscription failed'));
 
-        // Create service
-        const service = new AccountActivityService({
-          messenger: messengerSetup.messenger,
-        });
+            // Publish WebSocket connection event - should trigger resubscription failure
+            await rootMessenger.publish(
+              'BackendWebSocketService:connectionStateChanged',
+              {
+                state: WebSocketState.CONNECTED,
+                url: 'ws://test',
+                reconnectAttempts: 0,
+              },
+            );
+            await completeAsyncOperations();
 
-        // Make subscribeAccounts fail during resubscription
-        const subscribeAccountsSpy = jest
-          .spyOn(service, 'subscribeAccounts')
-          .mockRejectedValue(new Error('Resubscription failed'));
-
-        // Publish WebSocket connection event - should trigger resubscription failure
-        await messengerSetup.rootMessenger.publish(
-          'BackendWebSocketService:connectionStateChanged',
-          {
-            state: WebSocketState.CONNECTED,
-            url: 'ws://test',
-            reconnectAttempts: 0,
+            // Should have attempted to resubscribe
+            expect(subscribeAccountsSpy).toHaveBeenCalled();
           },
         );
-        await completeAsyncOperations();
-
-        // Should have attempted to resubscribe
-        expect(subscribeAccountsSpy).toHaveBeenCalled();
-
-        service.destroy();
       });
     });
   });
