@@ -177,6 +177,11 @@ const deepCopyPathNode = (original: PathNode): PathNode => {
  * @param original - The original PathTrie to copy.
  * @returns A deep copy of the PathTrie.
  */
-export const deepCopyPathTrie = (original: PathTrie): PathTrie => {
+export const deepCopyPathTrie = (
+  original: PathTrie | undefined | null,
+): PathTrie => {
+  if (!original) {
+    return {};
+  }
   return deepCopyPathNode(original) as PathTrie;
 };
