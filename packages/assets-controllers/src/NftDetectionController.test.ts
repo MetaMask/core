@@ -39,7 +39,6 @@ import {
   type AllowedActions,
   type AllowedEvents,
 } from './NftDetectionController';
-import * as constants from './NftDetectionController';
 
 const controllerName = 'NftDetectionController' as const;
 
