@@ -689,17 +689,20 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         }
       }
 
-      // Get staking contract addresses for filtering
-      const stakingContractAddresses = Object.values(
-        STAKING_CONTRACT_ADDRESS_BY_CHAINID,
-      ).map((addr) => addr.toLowerCase());
-
       // Filter and update staked balances in a single batch operation for better performance
       const stakedBalances = aggregated.filter((r) => {
+        if (!r.success || r.token === ZERO_ADDRESS) {
+          return false;
+        }
+
+        // Check if the chainId and token address match any staking contract
+        const stakingContractAddress =
+          STAKING_CONTRACT_ADDRESS_BY_CHAINID[
+            r.chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
+          ];
         return (
-          r.success &&
-          r.token !== ZERO_ADDRESS &&
-          stakingContractAddresses.includes(r.token.toLowerCase())
+          stakingContractAddress &&
+          stakingContractAddress.toLowerCase() === r.token.toLowerCase()
         );
       });
 
