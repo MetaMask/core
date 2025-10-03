@@ -36,7 +36,8 @@ import type {
  * Fetches supported networks from the v2 API endpoint.
  * Returns chain IDs already in CAIP-2 format.
  *
- * Note: This is temporary until we have a data layer for the Account API
+ * Note: This directly calls the Account API v2 endpoint. In the future, this should
+ * be moved to a dedicated data layer service for better separation of concerns.
  *
  * @returns Array of supported chain IDs in CAIP-2 format (e.g., "eip155:1")
  */
@@ -205,7 +206,7 @@ export type AccountActivityServiceMessenger = RestrictedMessenger<
  *
  * Performance Features:
  * - Direct callback routing (no EventEmitter overhead)
- * - Minimal subscription tracking (no duplication with WebSocketService)
+ * - Minimal subscription tracking (no duplication with BackendWebSocketService)
  * - Optimized cleanup for mobile environments
  * - Single-account subscription (only selected account)
  * - Comprehensive balance updates with transfer tracking
@@ -215,7 +216,7 @@ export type AccountActivityServiceMessenger = RestrictedMessenger<
  * - AccountActivityService tracks channel-to-subscriptionId mappings via messenger calls
  * - Automatically subscribes to selected account on initialization
  * - Switches subscriptions when selected account changes
- * - No direct dependency on WebSocketService (uses messenger instead)
+ * - No direct dependency on BackendWebSocketService (uses messenger instead)
  *
  * @example
  * ```typescript

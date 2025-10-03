@@ -357,7 +357,7 @@ export class BackendWebSocketService {
             // User signed out (wallet locked OR signed out) - stop reconnection attempts
             this.#clearTimers();
             this.#reconnectAttempts = 0;
-            // Note: Don't disconnect here - let AppStateWebSocketManager handle disconnection
+            // Note: Don't disconnect here - let the app lifecycle manager handle disconnection
           }
         },
         (state: AuthenticationController.AuthenticationControllerState) =>
