@@ -404,22 +404,21 @@ export class BackendWebSocketService {
     }
 
     // Priority 2: Check authentication requirements (simplified - just check if signed in)
+    let bearerToken: string;
     try {
       // AuthenticationController.getBearerToken() handles wallet unlock checks internally
-      const bearerToken = await this.#messenger.call(
+      const token = await this.#messenger.call(
         'AuthenticationController:getBearerToken',
       );
-      if (!bearerToken) {
+      if (!token) {
         this.#scheduleReconnect();
         return;
       }
+      bearerToken = token;
     } catch (error) {
-      console.warn(
-        `[${SERVICE_NAME}] Failed to check authentication requirements:`,
-        error,
-      );
+      log('Failed to check authentication requirements', { error });
 
-      // Simple approach: if we can't connect for ANY reason, schedule a retry
+      // If we can't connect for ANY reason, schedule a retry
       this.#scheduleReconnect();
       return;
     }
@@ -427,11 +426,10 @@ export class BackendWebSocketService {
     this.#setState(WebSocketState.CONNECTING);
 
     // Create and store the connection promise
-    this.#connectionPromise = this.#establishConnection();
+    this.#connectionPromise = this.#establishConnection(bearerToken);
 
     try {
       await this.#connectionPromise;
-      log('Connection attempt succeeded');
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       log('Connection attempt failed', { errorMessage, error });
@@ -469,7 +467,7 @@ export class BackendWebSocketService {
     }
 
     this.#setState(WebSocketState.DISCONNECTED);
-    console.log(`[${SERVICE_NAME}] WebSocket manually disconnected`);
+    log('WebSocket manually disconnected');
   }
 
   /**
@@ -522,9 +520,9 @@ export class BackendWebSocketService {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.#pendingRequests.delete(requestId);
-        console.warn(
-          `[${SERVICE_NAME}] 🔴 Request timeout after ${this.#options.requestTimeout}ms - triggering reconnection`,
-        );
+        log('Request timeout - triggering reconnection', {
+          timeout: this.#options.requestTimeout,
+        });
 
         // Trigger reconnection on request timeout as it may indicate stale connection
         if (this.#state === WebSocketState.CONNECTED && this.#ws) {
@@ -824,60 +822,34 @@ export class BackendWebSocketService {
    * Uses query parameter for WebSocket authentication since native WebSocket
    * doesn't support custom headers during handshake.
    *
-   * @returns Promise that resolves to the authenticated WebSocket URL
-   * @throws Error if authentication is enabled but no access token is available
+   * @param bearerToken - The bearer token to use for authentication
+   * @returns The authenticated WebSocket URL
    */
-  async #buildAuthenticatedUrl(): Promise<string> {
+  #buildAuthenticatedUrl(bearerToken: string): string {
     const baseUrl = this.#options.url;
 
-    // Authentication is always enabled
+    // Add token as query parameter to the WebSocket URL
+    const url = new URL(baseUrl);
+    url.searchParams.set('token', bearerToken);
 
-    try {
-      console.debug(
-        `[${SERVICE_NAME}] 🔐 Getting access token for authenticated connection...`,
-      );
-
-      // Get access token directly from AuthenticationController via messenger
-      const accessToken = await this.#messenger.call(
-        'AuthenticationController:getBearerToken',
-      );
-
-      if (!accessToken) {
-        throw new Error('No access token available');
-      }
-
-      console.debug(
-        `[${SERVICE_NAME}] ✅ Building authenticated WebSocket URL with bearer token`,
-      );
-
-      // Add token as query parameter to the WebSocket URL
-      const url = new URL(baseUrl);
-      url.searchParams.set('token', accessToken);
-
-      return url.toString();
-    } catch (error) {
-      console.error(
-        `[${SERVICE_NAME}] Failed to build authenticated WebSocket URL:`,
-        error,
-      );
-      throw error;
-    }
+    return url.toString();
   }
 
   /**
    * Establishes the actual WebSocket connection
    *
+   * @param bearerToken - The bearer token to use for authentication
    * @returns Promise that resolves when connection is established
    */
-  async #establishConnection(): Promise<void> {
-    const wsUrl = await this.#buildAuthenticatedUrl();
+  async #establishConnection(bearerToken: string): Promise<void> {
+    const wsUrl = this.#buildAuthenticatedUrl(bearerToken);
 
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(wsUrl);
       const connectTimeout = setTimeout(() => {
-        console.debug(
-          `[${SERVICE_NAME}] 🔴 WebSocket connection timeout after ${this.#options.timeout}ms - forcing close`,
-        );
+        log('WebSocket connection timeout - forcing close', {
+          timeout: this.#options.timeout,
+        });
         ws.close();
         reject(
           new Error(`Connection timeout after ${this.#options.timeout}ms`),
@@ -885,9 +857,6 @@ export class BackendWebSocketService {
       }, this.#options.timeout);
 
       ws.onopen = () => {
-        console.debug(
-          `[${SERVICE_NAME}] ✅ WebSocket connection opened successfully`,
-        );
         clearTimeout(connectTimeout);
         this.#ws = ws;
         this.#setState(WebSocketState.CONNECTED);
@@ -900,10 +869,7 @@ export class BackendWebSocketService {
       };
 
       ws.onerror = (event: Event) => {
-        console.debug(
-          `[${SERVICE_NAME}] WebSocket onerror event triggered:`,
-          event,
-        );
+        log('WebSocket onerror event triggered', { event });
         if (this.#state === WebSocketState.CONNECTING) {
           // Handle connection-phase errors
           clearTimeout(connectTimeout);
@@ -916,9 +882,11 @@ export class BackendWebSocketService {
       };
 
       ws.onclose = (event: CloseEvent) => {
-        console.debug(
-          `[${SERVICE_NAME}] WebSocket onclose event triggered - code: ${event.code}, reason: ${event.reason || 'none'}, wasClean: ${event.wasClean}`,
-        );
+        log('WebSocket onclose event triggered', {
+          code: event.code,
+          reason: event.reason || 'none',
+          wasClean: event.wasClean,
+        });
         if (this.#state === WebSocketState.CONNECTING) {
           // Handle connection-phase close events
           clearTimeout(connectTimeout);
@@ -1103,12 +1071,6 @@ export class BackendWebSocketService {
     this.#clearPendingRequests(new Error('WebSocket connection closed'));
     this.#clearSubscriptions();
 
-    // Log close reason for debugging
-    const closeReason = getCloseReason(event.code);
-    console.debug(
-      `[${SERVICE_NAME}] WebSocket closed: ${event.code} - ${closeReason} (reason: ${event.reason || 'none'}) - current state: ${this.#state}`,
-    );
-
     if (this.#state === WebSocketState.DISCONNECTING) {
       // Manual disconnect
       this.#setState(WebSocketState.DISCONNECTED);
@@ -1122,15 +1084,11 @@ export class BackendWebSocketService {
     const shouldReconnect = this.#shouldReconnectOnClose(event.code);
 
     if (shouldReconnect) {
-      console.log(
-        `[${SERVICE_NAME}] Connection lost unexpectedly, will attempt reconnection`,
-      );
+      log('Connection lost unexpectedly, will attempt reconnection');
       this.#scheduleReconnect();
     } else {
       // Non-recoverable error - set error state
-      console.log(
-        `[${SERVICE_NAME}] Non-recoverable error - close code: ${event.code} - ${closeReason}`,
-      );
+      log('Non-recoverable error', { code: event.code });
       this.#setState(WebSocketState.ERROR);
     }
   }
@@ -1158,34 +1116,21 @@ export class BackendWebSocketService {
       this.#options.reconnectDelay * Math.pow(1.5, this.#reconnectAttempts - 1);
     const delay = Math.min(rawDelay, this.#options.maxReconnectDelay);
 
-    console.debug(
-      `⏱️ Scheduling reconnection attempt #${this.#reconnectAttempts} in ${delay}ms (${(delay / 1000).toFixed(1)}s)`,
-    );
+    log('Scheduling reconnection attempt', {
+      attempt: this.#reconnectAttempts,
+      delayMs: delay,
+    });
 
     this.#reconnectTimer = setTimeout(() => {
       // Check if connection is still enabled before reconnecting
       if (this.#isEnabled && !this.#isEnabled()) {
-        console.debug(
-          `[${SERVICE_NAME}] Reconnection disabled by isEnabled (app closed/backgrounded) - stopping all reconnection attempts`,
-        );
+        log('Reconnection disabled by isEnabled - stopping all attempts');
         this.#reconnectAttempts = 0;
         return;
       }
 
-      // Authentication checks are handled in connect() method
-      // No need to check here since AuthenticationController manages wallet state internally
-
-      console.debug(
-        `🔄 ${delay}ms delay elapsed - starting reconnection attempt #${this.#reconnectAttempts}...`,
-      );
-
-      this.connect().catch((error) => {
-        console.error(
-          `❌ Reconnection attempt #${this.#reconnectAttempts} failed:`,
-          error,
-        );
-
-        // Always schedule another reconnection attempt
+      // Attempt to reconnect - if it fails, schedule another attempt
+      this.connect().catch(() => {
         this.#scheduleReconnect();
       });
     }, delay);
@@ -1233,17 +1178,6 @@ export class BackendWebSocketService {
     if (oldState !== newState) {
       log('WebSocket state changed', { oldState, newState });
 
-      // Log disconnection-related state changes
-      if (
-        newState === WebSocketState.DISCONNECTED ||
-        newState === WebSocketState.DISCONNECTING ||
-        newState === WebSocketState.ERROR
-      ) {
-        console.debug(
-          `🔴 WebSocket disconnection detected - state: ${oldState} → ${newState}`,
-        );
-      }
-
       // Publish connection state change event
       try {
         this.#messenger.publish(
@@ -1251,10 +1185,7 @@ export class BackendWebSocketService {
           this.getConnectionInfo(),
         );
       } catch (error) {
-        console.error(
-          'Failed to publish WebSocket connection state change:',
-          error,
-        );
+        log('Failed to publish WebSocket connection state change', { error });
       }
     }
   }
@@ -1271,13 +1202,6 @@ export class BackendWebSocketService {
    */
   #shouldReconnectOnClose(code: number): boolean {
     // Don't reconnect only on normal closure (manual disconnect)
-    if (code === 1000) {
-      console.debug(`Not reconnecting - normal closure (manual disconnect)`);
-      return false;
-    }
-
-    // Reconnect on server errors and temporary issues
-    console.debug(`Will reconnect - treating as temporary server issue`);
-    return true;
+    return code !== 1000;
   }
 }
