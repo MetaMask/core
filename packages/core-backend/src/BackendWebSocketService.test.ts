@@ -579,7 +579,7 @@ describe('BackendWebSocketService', () => {
             'Request timeout after 200ms',
           );
           expect(closeSpy).toHaveBeenCalledWith(
-            1001,
+            3000,
             'Request timeout - forcing reconnect',
           );
 

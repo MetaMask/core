@@ -70,7 +70,6 @@ const getMessenger = () => {
     });
 
   // Create mock action handlers
-  const mockGetAccountByAddress = jest.fn();
   const mockGetSelectedAccount = jest.fn();
   const mockConnect = jest.fn();
   const mockDisconnect = jest.fn();
@@ -80,13 +79,8 @@ const getMessenger = () => {
   const mockFindSubscriptionsByChannelPrefix = jest.fn();
   const mockAddChannelCallback = jest.fn();
   const mockRemoveChannelCallback = jest.fn();
-  const mockSendRequest = jest.fn();
 
   // Register all action handlers
-  rootMessenger.registerActionHandler(
-    'AccountsController:getAccountByAddress',
-    mockGetAccountByAddress,
-  );
   rootMessenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
     mockGetSelectedAccount,
@@ -123,16 +117,11 @@ const getMessenger = () => {
     'BackendWebSocketService:removeChannelCallback',
     mockRemoveChannelCallback,
   );
-  rootMessenger.registerActionHandler(
-    'BackendWebSocketService:sendRequest',
-    mockSendRequest,
-  );
 
   return {
     rootMessenger,
     messenger,
     mocks: {
-      getAccountByAddress: mockGetAccountByAddress,
       getSelectedAccount: mockGetSelectedAccount,
       connect: mockConnect,
       disconnect: mockDisconnect,
@@ -142,7 +131,6 @@ const getMessenger = () => {
       findSubscriptionsByChannelPrefix: mockFindSubscriptionsByChannelPrefix,
       addChannelCallback: mockAddChannelCallback,
       removeChannelCallback: mockRemoveChannelCallback,
-      sendRequest: mockSendRequest,
     },
   };
 };
@@ -207,7 +195,6 @@ const createServiceWithTestAccount = (
 
   // Setup account-related mock implementations
   serviceSetup.mocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
-  serviceSetup.mocks.getAccountByAddress.mockReturnValue(mockSelectedAccount);
 
   return {
     ...serviceSetup,
@@ -234,7 +221,6 @@ type WithServiceCallback<ReturnValue> = (payload: {
     AccountActivityServiceAllowedEvents
   >;
   mocks: {
-    getAccountByAddress: jest.Mock;
     getSelectedAccount: jest.Mock;
     connect: jest.Mock;
     disconnect: jest.Mock;
@@ -244,7 +230,6 @@ type WithServiceCallback<ReturnValue> = (payload: {
     findSubscriptionsByChannelPrefix: jest.Mock;
     addChannelCallback: jest.Mock;
     removeChannelCallback: jest.Mock;
-    sendRequest: jest.Mock;
   };
   mockSelectedAccount?: InternalAccount;
   destroy: () => void;

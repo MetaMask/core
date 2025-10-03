@@ -512,8 +512,8 @@ export class BackendWebSocketService {
     const requestMessage: ClientRequestMessage = {
       event: message.event,
       data: {
-        requestId,
         ...message.data,
+        requestId, // Set after spread to ensure it's not overwritten by undefined
       },
     };
 
@@ -527,7 +527,7 @@ export class BackendWebSocketService {
         // Trigger reconnection on request timeout as it may indicate stale connection
         if (this.#state === WebSocketState.CONNECTED && this.#ws) {
           // Force close the current connection to trigger reconnection logic
-          this.#ws.close(1001, 'Request timeout - forcing reconnect');
+          this.#ws.close(3000, 'Request timeout - forcing reconnect');
         }
 
         reject(
