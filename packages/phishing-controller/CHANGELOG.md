@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add path-based blocking [#6416](https://github.com/MetaMask/core/pull/6416)
   - Add `blocklistPaths` to `PhishingDetectorList`
   - Add `blocklistPaths` to `PhishingDetectorConfiguration`
+  - Add `whitelistPaths` to `PhishingControllerState`
+  - Adds a type called PathTrie
 
 ### Fixed
 
