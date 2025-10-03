@@ -9,8 +9,6 @@ import {
   NFT_API_VERSION,
   convertHexToDecimal,
   handleFetch,
-  fetchWithErrorHandling,
-  NFT_API_TIMEOUT,
   toHex,
 } from '@metamask/controller-utils';
 import type {
@@ -26,7 +24,6 @@ import type {
 } from '@metamask/preferences-controller';
 import { createDeferredPromise, type Hex } from '@metamask/utils';
 
-import { reduceInBatchesSerially } from './assetsUtil';
 import { Source } from './constants';
 import {
   type NftController,
@@ -452,8 +449,6 @@ export type Metadata = {
   imageOriginal?: string;
   tokenURI?: string;
 };
-
-export const MAX_GET_COLLECTION_BATCH_SIZE = 20;
 
 /**
  * Controller that passively detects nfts for a user address
