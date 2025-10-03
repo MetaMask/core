@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add max bound version segmentation for feature announcements ([#6773](https://github.com/MetaMask/core/pull/6773))
+  - Add `extensionMaximumVersionNumber` and `mobileMaximumVersionNumber` properties to feature announcements
 - Add optional `platformVersion` property to `NotificationServicesController` `FeatureAnnouncementEnv` type ([#6568](https://github.com/MetaMask/core/pull/6568))
 - Filtering logic to filter feature annonucements by version number ([#6568](https://github.com/MetaMask/core/pull/6568))
 - Add package `semver@^7.7.2` to handle semver version comparisons for announcement notification filtering ([#6568](https://github.com/MetaMask/core/pull/6568))
