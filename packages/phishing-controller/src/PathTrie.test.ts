@@ -3,6 +3,7 @@ import {
   deepCopyPathTrie,
   deleteFromTrie,
   insertToTrie,
+  isTerminal,
   type PathTrie,
   matchedPathPrefix,
 } from './PathTrie';
@@ -10,6 +11,32 @@ import {
 const emptyPathTrie: PathTrie = {};
 
 describe('PathTrie', () => {
+  describe('isTerminal', () => {
+    it.each([
+      [{}, true],
+      [{ child: {} }, false],
+      [{ path1: {}, path2: {} }, false],
+      [undefined, false],
+      [null, false],
+      ['string', false],
+      [123, false],
+      [true, false],
+      [false, false],
+      [[], false],
+      [['item'], false],
+    ])('returns %s for %s', (input, expected) => {
+      expect(isTerminal(input as any)).toBe(expected);
+    });
+
+    it('handles nested empty objects correctly', () => {
+      const nestedEmptyNode = {
+        child: {},
+      };
+      expect(isTerminal(nestedEmptyNode)).toBe(false); // Has properties
+      expect(isTerminal(nestedEmptyNode.child)).toBe(true); // Child is empty
+    });
+  });
+
   describe('insertToTrie', () => {
     let pathTrie: PathTrie;
 
@@ -289,6 +316,16 @@ describe('PathTrie', () => {
 
       expect(copy).toStrictEqual({});
       expect(copy).not.toBe(original);
+    });
+
+    it('handles undefined input gracefully', () => {
+      const copy = deepCopyPathTrie(undefined);
+      expect(copy).toStrictEqual({});
+    });
+
+    it('handles null input gracefully', () => {
+      const copy = deepCopyPathTrie(null);
+      expect(copy).toStrictEqual({});
     });
   });
 });
