@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Change `accountsApiChainIds` parameter from `ChainIdHex[]` to `() => ChainIdHex[]` in both `AccountTrackerController` and `TokenBalancesController`
+
+  - Enables dynamic configuration of chains that should use Accounts API strategy
+  - Allows runtime determination of supported chain IDs instead of static array
+
 ### Added
 
 - add `platform` property to `TokenBalancesController` to send better analytics for which platform is hitting out APIs ([#6768](https://github.com/MetaMask/core/pull/6768))
+
+### Fixed
+
+- Fix staked balance update on the `TokenBalancesController` , it's now filtered by supported chains
 
 ## [77.0.2]
 
