@@ -48,7 +48,11 @@ import {
   formatChainIdToHex,
 } from './utils/caip-formatters';
 import { getBridgeFeatureFlags } from './utils/feature-flags';
-import { fetchAssetPrices, fetchBridgeQuotes } from './utils/fetch';
+import {
+  fetchAssetPrices,
+  fetchBridgeQuotes,
+  fetchBridgeQuoteStream,
+} from './utils/fetch';
 import {
   AbortReason,
   MetricsActionType,
@@ -263,7 +267,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   }
 
   _executePoll = async (pollingInput: BridgePollingInput) => {
-    await this.#fetchBridgeQuotes(pollingInput);
+    const shouldStream = true;
+    if (shouldStream) {
+      await this.#fetchBridgeQuoteStream(pollingInput);
+    } else {
+      await this.#fetchBridgeQuotes(pollingInput);
+    }
   };
 
   updateBridgeQuoteRequestParams = async (
@@ -321,10 +330,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         // The bridge-api filters out quotes if the balance on mainnet is insufficient so this override allows quotes to always be returned
         insufficientBal = true;
       } else {
-        // Otherwise query the src token balance from the RPC provider
-        insufficientBal =
-          paramsToUpdate.insufficientBal ??
-          !(await this.#hasSufficientBalance(updatedQuoteRequest));
+        try {
+          // Otherwise query the src token balance from the RPC provider
+          insufficientBal =
+            paramsToUpdate.insufficientBal ??
+            !(await this.#hasSufficientBalance(updatedQuoteRequest));
+        } catch (error) {
+          console.error('===hasSufficientBalance error', error);
+          insufficientBal = false;
+        }
       }
 
       const networkClientId = this.#getSelectedNetworkClientId();
@@ -635,6 +649,136 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         context,
       );
       console.log('Failed to fetch bridge quotes', error);
+    }
+    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
+    const { maxRefreshCount } = bridgeFeatureFlags;
+
+    // Stop polling if the maximum number of refreshes has been reached
+    if (
+      updatedQuoteRequest.insufficientBal ||
+      (!updatedQuoteRequest.insufficientBal &&
+        this.state.quotesRefreshCount >= maxRefreshCount)
+    ) {
+      this.stopAllPolling();
+    }
+
+    // Update quote fetching stats
+    const quotesLastFetched = Date.now();
+    this.update((state) => {
+      state.quotesInitialLoadTime =
+        state.quotesRefreshCount === 0 && this.#quotesFirstFetched
+          ? quotesLastFetched - this.#quotesFirstFetched
+          : this.state.quotesInitialLoadTime;
+      state.quotesLastFetched = quotesLastFetched;
+      state.quotesRefreshCount += 1;
+    });
+  };
+
+  readonly #fetchBridgeQuoteStream = async ({
+    networkClientId: _networkClientId,
+    updatedQuoteRequest,
+    context,
+  }: BridgePollingInput) => {
+    this.#abortController?.abort('New quote request');
+    this.#abortController = new AbortController();
+
+    this.trackUnifiedSwapBridgeEvent(
+      UnifiedSwapBridgeEventName.QuotesRequested,
+      context,
+    );
+    this.update((state) => {
+      state.quotesLoadingStatus = RequestStatus.LOADING;
+      state.quoteRequest = updatedQuoteRequest;
+      state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
+    });
+
+    try {
+      await this.#trace(
+        {
+          name: isCrossChain(
+            updatedQuoteRequest.srcChainId,
+            updatedQuoteRequest.destChainId,
+          )
+            ? TraceName.BridgeQuotesFetched
+            : TraceName.SwapQuotesFetched,
+          data: {
+            srcChainId: formatChainIdToCaip(updatedQuoteRequest.srcChainId),
+            destChainId: formatChainIdToCaip(updatedQuoteRequest.destChainId),
+          },
+        },
+        async () => {
+          // This call is not awaited to prevent blocking quote fetching if the snap takes too long to respond
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.#setMinimumBalanceForRentExemptionInLamports(
+            updatedQuoteRequest.srcChainId,
+          );
+          await fetchBridgeQuoteStream(
+            this.#fetchFn,
+            updatedQuoteRequest,
+            // AbortController is always defined by this line, because we assign it a few lines above,
+            // not sure why Jest thinks it's not
+            // Linters accurately say that it's defined
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            this.#abortController!.signal as AbortSignal,
+            this.#clientId,
+            this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+            {
+              onValidationFailures: (validationFailures: string[]) => {
+                console.log('===validationFailures', validationFailures);
+                this.#trackResponseValidationFailures(validationFailures);
+              },
+              onValidQuotesReceived: async (quotes: QuoteResponse[]) => {
+                console.log('===event', quotes);
+                const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);
+                const quotesWithNonEvmFees = await this.#appendNonEvmFees(
+                  quotes,
+                  updatedQuoteRequest.walletAddress,
+                );
+                const quotesWithFees =
+                  quotesWithL1GasFees ?? quotesWithNonEvmFees ?? quotes;
+                this.update((state) => {
+                  state.quotes.push(...quotesWithFees);
+                });
+              },
+              // Catches errors thrown by onmessage (network errors)
+              onError: (event) => {
+                console.error('===onError', event);
+                throw new Error(event.message);
+              },
+            },
+          );
+        },
+      );
+      this.update((state) => {
+        state.quotesLoadingStatus = RequestStatus.FETCHED;
+      });
+    } catch (error) {
+      console.log('=====catcherror', error);
+      const isAbortError = (error as Error).name === 'AbortError';
+      if (
+        isAbortError ||
+        [
+          AbortReason.ResetState,
+          AbortReason.NewQuoteRequest,
+          AbortReason.QuoteRequestUpdated,
+        ].includes(error as AbortReason)
+      ) {
+        console.log('===Aborting stream due to abort error.', error);
+        // Exit the function early to prevent other state updates
+        return;
+      }
+
+      this.update((state) => {
+        state.quoteFetchError =
+          error instanceof Error ? error.message : (error?.toString() ?? null);
+        state.quotesLoadingStatus = RequestStatus.ERROR;
+        state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
+      });
+      this.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.QuotesError,
+        context,
+      );
+      console.log('Failed to stream bridge quotes.', error);
     }
     const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
     const { maxRefreshCount } = bridgeFeatureFlags;
