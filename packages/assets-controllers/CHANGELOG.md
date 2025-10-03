@@ -9,21 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [77.1.0]
 
-### Uncategorized
-
-- Release/600.0.0 ([#6775](https://github.com/MetaMask/core/pull/6775))
-- Release/598.0.0 ([#6772](https://github.com/MetaMask/core/pull/6772))
-- Release/597.0.0 ([#6771](https://github.com/MetaMask/core/pull/6771))
-- Release/596.0.0 ([#6763](https://github.com/MetaMask/core/pull/6763))
-- Release/595.0.0 ([#6757](https://github.com/MetaMask/core/pull/6757))
-
 ### Added
 
 - add `platform` property to `TokenBalancesController` to send better analytics for which platform is hitting out APIs ([#6768](https://github.com/MetaMask/core/pull/6768))
 
 ### Changed
 
-- **BREAKING:** Change `accountsApiChainIds` parameter from `ChainIdHex[]` to `() => ChainIdHex[]` in both `AccountTrackerController` and `TokenBalancesController` ([#6776](https://github.com/MetaMask/core/pull/6776))
+- Change `accountsApiChainIds` parameter from `ChainIdHex[]` to `() => ChainIdHex[]` in both `AccountTrackerController` and `TokenBalancesController` ([#6776](https://github.com/MetaMask/core/pull/6776))
 
   - Enables dynamic configuration of chains that should use Accounts API strategy
   - Allows runtime determination of supported chain IDs instead of static array
