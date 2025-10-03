@@ -6,7 +6,10 @@ export type PathNode = {
 
 export type PathTrie = Record<string, PathNode>;
 
-const isTerminal = (node: PathNode): boolean => {
+export const isTerminal = (node: PathNode | undefined): boolean => {
+  if (!node || typeof node !== 'object') {
+    return false;
+  }
   return Object.keys(node).length === 0;
 };
 
