@@ -27,7 +27,7 @@
   },
   "packages/assets-controllers/src/NftDetectionController.test.ts": {
     "import-x/namespace": 6,
-    "import-x/order": 4
+    "import-x/order": 3
   },
   "packages/assets-controllers/src/NftDetectionController.ts": {
     "jsdoc/check-tag-names": 34,
