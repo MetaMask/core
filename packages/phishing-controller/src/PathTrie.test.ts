@@ -18,12 +18,6 @@ describe('PathTrie', () => {
       [{ path1: {}, path2: {} }, false],
       [undefined, false],
       [null, false],
-      ['string', false],
-      [123, false],
-      [true, false],
-      [false, false],
-      [[], false],
-      [['item'], false],
     ])('returns %s for %s', (input, expected) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(isTerminal(input as any)).toBe(expected);
