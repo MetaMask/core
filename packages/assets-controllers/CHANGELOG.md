@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/598.0.0 ([#6772](https://github.com/MetaMask/core/pull/6772))
+- Release/597.0.0 ([#6771](https://github.com/MetaMask/core/pull/6771))
+- Release/596.0.0 ([#6763](https://github.com/MetaMask/core/pull/6763))
+- Release/595.0.0 ([#6757](https://github.com/MetaMask/core/pull/6757))
+
 ### Added
 
 - add `platform` property to `TokenBalancesController` to send better analytics for which platform is hitting out APIs ([#6768](https://github.com/MetaMask/core/pull/6768))
