@@ -286,11 +286,6 @@ describe('domainToParts', () => {
     const result = domainToParts(domain);
     expect(result).toStrictEqual(['com', 'example', 'sub']);
   });
-
-  it('throws an error if the domain string is invalid', () => {
-    // @ts-expect-error testing invalid input
-    expect(() => domainToParts(123)).toThrow('123');
-  });
 });
 
 describe('processConfigs', () => {
@@ -443,6 +438,16 @@ describe('processConfigs', () => {
 });
 
 describe('processDomainList', () => {
+  let consoleWarnMock: jest.SpyInstance;
+
+  beforeEach(() => {
+    consoleWarnMock = jest.spyOn(console, 'warn').mockImplementation();
+  });
+
+  afterEach(() => {
+    consoleWarnMock.mockRestore();
+  });
+
   it('correctly converts a list of domains to an array of parts', () => {
     const domainList = ['example.com', 'sub.example.com'];
 
@@ -452,6 +457,47 @@ describe('processDomainList', () => {
       ['com', 'example'],
       ['com', 'example', 'sub'],
     ]);
+  });
+
+  it('filters out invalid values and logs warnings', () => {
+    const domainList = [
+      'example.com',
+      123,
+      'valid.com',
+      null,
+      undefined,
+      -2342394,
+    ];
+
+    const result = processDomainList(domainList as unknown as string[]);
+
+    expect(result).toStrictEqual([
+      ['com', 'example'],
+      ['com', 'valid'],
+    ]);
+
+    expect(consoleWarnMock).toHaveBeenCalledTimes(4);
+    expect(consoleWarnMock).toHaveBeenCalledWith(
+      'Invalid domain value in list: 123',
+    );
+    expect(consoleWarnMock).toHaveBeenCalledWith(
+      'Invalid domain value in list: null',
+    );
+    expect(consoleWarnMock).toHaveBeenCalledWith(
+      'Invalid domain value in list: undefined',
+    );
+    expect(consoleWarnMock).toHaveBeenCalledWith(
+      'Invalid domain value in list: -2342394',
+    );
+  });
+
+  it('returns empty array when all values are invalid', () => {
+    const domainList = [123, null, {}];
+
+    const result = processDomainList(domainList as unknown as string[]);
+
+    expect(result).toStrictEqual([]);
+    expect(consoleWarnMock).toHaveBeenCalledTimes(3);
   });
 });
 
