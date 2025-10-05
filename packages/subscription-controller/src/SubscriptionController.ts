@@ -1,10 +1,10 @@
 import {
-  BaseController,
   type StateMetadata,
   type ControllerStateChangeEvent,
   type ControllerGetStateAction,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
 import {
@@ -29,7 +29,6 @@ import {
   type StartSubscriptionRequest,
   type Subscription,
 } from './types';
-import { StaticIntervalPollingController } from '@metamask/polling-controller';
 
 export type SubscriptionControllerState = {
   customerId?: string;

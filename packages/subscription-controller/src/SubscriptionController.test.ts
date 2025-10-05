@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import * as sinon from 'sinon';
 
 import {
   controllerName,
@@ -29,6 +30,7 @@ import {
   RECURRING_INTERVALS,
   SUBSCRIPTION_STATUSES,
 } from './types';
+import { advanceTime } from '../../../tests/helpers';
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
@@ -696,6 +698,28 @@ describe('SubscriptionController', () => {
           );
         },
       );
+    });
+  });
+
+  describe('startPolling', () => {
+    let clock: sinon.SinonFakeTimers;
+    beforeEach(() => {
+      // eslint-disable-next-line import-x/namespace
+      clock = sinon.useFakeTimers();
+    });
+
+    afterEach(() => {
+      clock.restore();
+    });
+
+    it('should call getSubscriptions with the correct interval', async () => {
+      await withController({}, async ({ controller }) => {
+        const getSubscriptionsSpy = jest.spyOn(controller, 'getSubscriptions');
+        controller.startPolling({});
+        await advanceTime({ clock, duration: 0 });
+        expect(getSubscriptionsSpy).toHaveBeenCalledTimes(1);
+        controller.stopAllPolling();
+      });
     });
   });
 
