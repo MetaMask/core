@@ -9,6 +9,7 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 
 import {
   controllerName,
+  DEFAULT_POLLING_INTERVAL,
   SubscriptionControllerErrorMessage,
 } from './constants';
 import type {
@@ -125,6 +126,11 @@ export type SubscriptionControllerOptions = {
    * Subscription service to use for the subscription controller.
    */
   subscriptionService: ISubscriptionService;
+
+  /**
+   * Polling interval to use for the subscription controller.
+   */
+  pollingInterval?: number;
 };
 
 /**
@@ -188,11 +194,13 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    * @param options.subscriptionService - The subscription service for communicating with subscription server.
+   * @param options.pollingInterval - The polling interval to use for the subscription controller.
    */
   constructor({
     messenger,
     state,
     subscriptionService,
+    pollingInterval = DEFAULT_POLLING_INTERVAL,
   }: SubscriptionControllerOptions) {
     super({
       name: controllerName,
@@ -204,7 +212,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       messenger,
     });
 
-    this.setIntervalLength(10_000);
+    this.setIntervalLength(pollingInterval);
     this.#subscriptionService = subscriptionService;
     this.#registerMessageHandlers();
   }
@@ -269,16 +277,22 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   async getSubscriptions() {
-    const { subscriptions, customerId, trialedProducts } =
-      await this.#subscriptionService.getSubscriptions();
+    const currentSubscriptions = this.state.subscriptions;
+    const {
+      subscriptions: newSubscriptions,
+      customerId,
+      trialedProducts,
+    } = await this.#subscriptionService.getSubscriptions();
 
-    this.update((state) => {
-      state.subscriptions = subscriptions;
-      state.customerId = customerId;
-      state.trialedProducts = trialedProducts;
-    });
+    if (!this.#areSubscriptionsEqual(currentSubscriptions, newSubscriptions)) {
+      this.update((state) => {
+        state.subscriptions = newSubscriptions;
+        state.customerId = customerId;
+        state.trialedProducts = trialedProducts;
+      });
+    }
 
-    return subscriptions;
+    return newSubscriptions;
   }
 
   async cancelSubscription(request: { subscriptionId: string }) {
@@ -509,5 +523,48 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    */
   async getBillingPortalUrl(): Promise<BillingPortalResponse> {
     return await this.#subscriptionService.getBillingPortalUrl();
+  }
+
+  /**
+   * Determines whether two subscription arrays are equal by comparing all properties
+   * of each subscription in the arrays.
+   *
+   * @param oldSubs - The first subscription array to compare.
+   * @param newSubs - The second subscription array to compare.
+   * @returns True if the subscription arrays are equal, false otherwise.
+   */
+  #areSubscriptionsEqual(
+    oldSubs: Subscription[],
+    newSubs: Subscription[],
+  ): boolean {
+    // Check if arrays have different lengths
+    if (oldSubs.length !== newSubs.length) {
+      return false;
+    }
+
+    // Sort both arrays by id to ensure consistent comparison
+    const sortedOldSubs = [...oldSubs].sort((a, b) => a.id.localeCompare(b.id));
+    const sortedNewSubs = [...newSubs].sort((a, b) => a.id.localeCompare(b.id));
+
+    // Check if all subscriptions are equal
+    return sortedOldSubs.every((oldSub, index) => {
+      const newSub = sortedNewSubs[index];
+      return (
+        this.#stringifySubscription(oldSub) ===
+        this.#stringifySubscription(newSub)
+      );
+    });
+  }
+
+  #stringifySubscription(subscription: Subscription): string {
+    const subsWithSortedProducts = {
+      ...subscription,
+      // order the products by name
+      products: [...subscription.products].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      ),
+    };
+
+    return JSON.stringify(subsWithSortedProducts);
   }
 }

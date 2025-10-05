@@ -23,6 +23,7 @@ import type {
   StartCryptoSubscriptionRequest,
   StartCryptoSubscriptionResponse,
   UpdatePaymentMethodOpts,
+  Product,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -293,7 +294,7 @@ describe('SubscriptionController', () => {
     });
   });
 
-  describe('getSubscription', () => {
+  describe('getSubscriptions', () => {
     it('should fetch and store subscription successfully', async () => {
       await withController(async ({ controller, mockService }) => {
         mockService.getSubscriptions.mockResolvedValue(
@@ -370,6 +371,47 @@ describe('SubscriptionController', () => {
             newSubscription,
           ]);
           expect(controller.state.subscriptions[0]?.id).toBe('sub_new');
+        },
+      );
+    });
+
+    it('should not update state when subscription is the same', async () => {
+      const mockProduct1: Product = {
+        // @ts-expect-error - mock data
+        name: 'Product 1',
+        currency: 'usd',
+        unitAmount: 900,
+        unitDecimals: 2,
+      };
+      const mockProduct2: Product = {
+        // @ts-expect-error - mock data
+        name: 'Product 2',
+        currency: 'usd',
+        unitAmount: 900,
+        unitDecimals: 2,
+      };
+      const mockSubscription = {
+        ...MOCK_SUBSCRIPTION,
+        products: [mockProduct1, mockProduct2],
+      };
+
+      await withController(
+        {
+          state: {
+            subscriptions: [mockSubscription],
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_SUBSCRIPTION,
+            subscriptions: [
+              { ...MOCK_SUBSCRIPTION, products: [mockProduct2, mockProduct1] },
+            ],
+          });
+          await controller.getSubscriptions();
+          expect(controller.state.subscriptions).toStrictEqual([
+            mockSubscription,
+          ]);
         },
       );
     });
