@@ -272,6 +272,7 @@ describe('SubscriptionController', () => {
         messenger,
         state: initialState,
         subscriptionService: mockService,
+        pollingInterval: 10_000,
       });
 
       expect(controller).toBeDefined();
@@ -375,7 +376,43 @@ describe('SubscriptionController', () => {
       );
     });
 
-    it('should not update state when subscription is the same', async () => {
+    it('should not update state when multiple subscriptions are the same but in different order', async () => {
+      const mockSubscription1 = { ...MOCK_SUBSCRIPTION, id: 'sub_1' };
+      const mockSubscription2 = { ...MOCK_SUBSCRIPTION, id: 'sub_2' };
+      const mockSubscription3 = { ...MOCK_SUBSCRIPTION, id: 'sub_3' };
+
+      await withController(
+        {
+          state: {
+            subscriptions: [
+              mockSubscription1,
+              mockSubscription2,
+              mockSubscription3,
+            ],
+          },
+        },
+        async ({ controller, mockService }) => {
+          // Return the same subscriptions but in different order
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [
+              mockSubscription3,
+              mockSubscription1,
+              mockSubscription2,
+            ], // Different order
+            trialedProducts: [],
+          });
+
+          const initialState = [...controller.state.subscriptions];
+          await controller.getSubscriptions();
+
+          // Should not update state since subscriptions are the same (just different order)
+          expect(controller.state.subscriptions).toStrictEqual(initialState);
+        },
+      );
+    });
+
+    it('should not update state when subscriptions are the same but the products are in different order', async () => {
       const mockProduct1: Product = {
         // @ts-expect-error - mock data
         name: 'Product 1',
@@ -755,12 +792,11 @@ describe('SubscriptionController', () => {
     });
 
     it('should call getSubscriptions with the correct interval', async () => {
-      await withController({}, async ({ controller }) => {
+      await withController(async ({ controller }) => {
         const getSubscriptionsSpy = jest.spyOn(controller, 'getSubscriptions');
         controller.startPolling({});
         await advanceTime({ clock, duration: 0 });
         expect(getSubscriptionsSpy).toHaveBeenCalledTimes(1);
-        controller.stopAllPolling();
       });
     });
   });
