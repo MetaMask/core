@@ -29,6 +29,7 @@ import {
   type StartSubscriptionRequest,
   type Subscription,
 } from './types';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
 
 export type SubscriptionControllerState = {
   customerId?: string;
@@ -174,7 +175,7 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
     },
   };
 
-export class SubscriptionController extends BaseController<
+export class SubscriptionController extends StaticIntervalPollingController()<
   typeof controllerName,
   SubscriptionControllerState,
   SubscriptionControllerMessenger
@@ -204,6 +205,7 @@ export class SubscriptionController extends BaseController<
       messenger,
     });
 
+    this.setIntervalLength(10_000);
     this.#subscriptionService = subscriptionService;
     this.#registerMessageHandlers();
   }
@@ -412,6 +414,10 @@ export class SubscriptionController extends BaseController<
       return await this.getSubscriptions();
     }
     throw new Error('Invalid payment type');
+  }
+
+  async _executePoll(): Promise<void> {
+    await this.getSubscriptions();
   }
 
   /**

@@ -4233,7 +4233,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/polling-controller@npm:^14.0.0, @metamask/polling-controller@workspace:packages/polling-controller":
+"@metamask/polling-controller@npm:^14.0.0, @metamask/polling-controller@workspace:^, @metamask/polling-controller@workspace:packages/polling-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/polling-controller@workspace:packages/polling-controller"
   dependencies:
@@ -4700,6 +4700,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.0"
     "@metamask/controller-utils": "npm:^11.14.0"
+    "@metamask/polling-controller": "workspace:^"
     "@metamask/profile-sync-controller": "npm:^25.1.0"
     "@metamask/utils": "npm:^11.8.1"
     "@types/jest": "npm:^27.4.1"
