@@ -868,7 +868,7 @@ describe('AccountTrackerController', () => {
                   },
                 },
               },
-              accountsApiChainIds: [], // Disable API balance fetchers to force RPC usage
+              accountsApiChainIds: () => [], // Disable API balance fetchers to force RPC usage
             },
             isMultiAccountBalancesEnabled: true,
             selectedAccount: ACCOUNT_1,
@@ -911,7 +911,7 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             options: {
-              accountsApiChainIds: ['0x1'],
+              accountsApiChainIds: () => ['0x1'],
               // allowExternalServices not provided - should default to () => true (line 390)
             },
             isMultiAccountBalancesEnabled: true,
@@ -944,7 +944,7 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             options: {
-              accountsApiChainIds: ['0x1'],
+              accountsApiChainIds: () => ['0x1'],
               allowExternalServices: () => true, // Explicitly set to true
             },
             isMultiAccountBalancesEnabled: true,
@@ -958,7 +958,7 @@ describe('AccountTrackerController', () => {
             // Refresh balances for mainnet (supported by API)
             await refresh(clock, ['mainnet'], true);
 
-            // Since allowExternalServices is true and accountsApiChainIds includes '0x1',
+            // Since allowExternalServices is true and accountsApiChainIds returns ['0x1'],
             // the API fetcher should be used, which means fetch should be called
             expect(fetchSpy).toHaveBeenCalled();
 
@@ -977,7 +977,7 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             options: {
-              accountsApiChainIds: ['0x1'],
+              accountsApiChainIds: () => ['0x1'],
               allowExternalServices: () => false, // Explicitly set to false
             },
             isMultiAccountBalancesEnabled: true,
@@ -1012,7 +1012,7 @@ describe('AccountTrackerController', () => {
       await withController(
         {
           options: {
-            accountsApiChainIds: ['0x1'], // Configure to use AccountsAPI for mainnet
+            accountsApiChainIds: () => ['0x1'], // Configure to use AccountsAPI for mainnet
             allowExternalServices: () => true,
           },
           isMultiAccountBalancesEnabled: true,
@@ -1051,7 +1051,7 @@ describe('AccountTrackerController', () => {
       await withController(
         {
           options: {
-            accountsApiChainIds: ['0x1'], // Configure to use AccountsAPI for mainnet
+            accountsApiChainIds: () => ['0x1'], // Configure to use AccountsAPI for mainnet
             allowExternalServices: () => true,
           },
           isMultiAccountBalancesEnabled: true,

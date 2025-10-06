@@ -12,6 +12,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reduce NFT detection API calls by 83% (from 6 calls to 1 call per 100 tokens) by eliminating collection endpoint requests
   - Remove unused collection metadata fields: `contractDeployedAt`, `creator`, and `topBid`
 
+## [78.0.0]
+
+### Added
+
+- add `platform` property to `TokenBalancesController` to send better analytics for which platform is hitting out APIs ([#6768](https://github.com/MetaMask/core/pull/6768))
+
+### Changed
+
+- **BREAKING:** Change `accountsApiChainIds` parameter from `ChainIdHex[]` to `() => ChainIdHex[]` in both `AccountTrackerController` and `TokenBalancesController` ([#6776](https://github.com/MetaMask/core/pull/6776))
+
+  - Enables dynamic configuration of chains that should use Accounts API strategy
+  - Allows runtime determination of supported chain IDs instead of static array
+
+### Fixed
+
+- Fix staked balance update on the `TokenBalancesController` , it's now filtered by supported chains ([#6776](https://github.com/MetaMask/core/pull/6776))
+
+## [78.0.0]
+
+### Added
+
+- add `platform` property to `TokenBalancesController` to send better analytics for which platform is hitting out APIs ([#6768](https://github.com/MetaMask/core/pull/6768))
+
+### Changed
+
+- **BREAKING:** Change `accountsApiChainIds` parameter from `ChainIdHex[]` to `() => ChainIdHex[]` in both `AccountTrackerController` and `TokenBalancesController` ([#6776](https://github.com/MetaMask/core/pull/6776))
+
+  - Enables dynamic configuration of chains that should use Accounts API strategy
+  - Allows runtime determination of supported chain IDs instead of static array
+
+### Fixed
+
+- Fix staked balance update on the `TokenBalancesController` , it's now filtered by supported chains ([#6776](https://github.com/MetaMask/core/pull/6776))
+
+### Changed
+- **Performance Optimization:** Remove collection API calls from NFT detection process ([#6762](https://github.com/MetaMask/core/pull/6762))
+  - Reduce NFT detection API calls by 83% (from 6 calls to 1 call per 100 tokens) by eliminating collection endpoint requests
+  - Remove unused collection metadata fields: `contractDeployedAt`, `creator`, and `topBid`
+
 ## [77.0.2]
 
 ### Changed
@@ -2051,7 +2090,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@77.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@78.0.0...HEAD
+[78.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@77.0.2...@metamask/assets-controllers@78.0.0
 [77.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@77.0.1...@metamask/assets-controllers@77.0.2
 [77.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@77.0.0...@metamask/assets-controllers@77.0.1
 [77.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@76.0.0...@metamask/assets-controllers@77.0.0
