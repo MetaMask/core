@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+
 - **Performance Optimization:** Remove collection API calls from NFT detection process ([#6762](https://github.com/MetaMask/core/pull/6762))
   - Reduce NFT detection API calls by 83% (from 6 calls to 1 call per 100 tokens) by eliminating collection endpoint requests
   - Remove unused collection metadata fields: `contractDeployedAt`, `creator`, and `topBid`
@@ -47,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix staked balance update on the `TokenBalancesController` , it's now filtered by supported chains ([#6776](https://github.com/MetaMask/core/pull/6776))
 
 ### Changed
+
 - **Performance Optimization:** Remove collection API calls from NFT detection process ([#6762](https://github.com/MetaMask/core/pull/6762))
   - Reduce NFT detection API calls by 83% (from 6 calls to 1 call per 100 tokens) by eliminating collection endpoint requests
   - Remove unused collection metadata fields: `contractDeployedAt`, `creator`, and `topBid`
