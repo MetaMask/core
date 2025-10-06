@@ -129,6 +129,8 @@ export type SubscriptionControllerOptions = {
 
   /**
    * Polling interval to use for the subscription controller.
+   *
+   * @default 5 minutes.
    */
   pollingInterval?: number;
 };
