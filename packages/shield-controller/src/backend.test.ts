@@ -192,7 +192,7 @@ describe('ShieldRemoteBackend', () => {
       fetchMock.mockResolvedValueOnce({ status: 200 } as unknown as Response);
 
       await backend.logSignature({
-        coverageId: 'coverageId',
+        signatureRequest: generateMockSignatureRequest(),
         signature: '0x00',
         status: 'shown',
       });
@@ -207,7 +207,7 @@ describe('ShieldRemoteBackend', () => {
 
       await expect(
         backend.logSignature({
-          coverageId: 'coverageId',
+          signatureRequest: generateMockSignatureRequest(),
           signature: '0x00',
           status: 'shown',
         }),
@@ -222,7 +222,7 @@ describe('ShieldRemoteBackend', () => {
       fetchMock.mockResolvedValueOnce({ status: 200 } as unknown as Response);
 
       await backend.logTransaction({
-        coverageId: 'coverageId',
+        txMeta: generateMockTxMeta(),
         transactionHash: '0x00',
         status: 'shown',
       });
@@ -237,7 +237,7 @@ describe('ShieldRemoteBackend', () => {
 
       await expect(
         backend.logTransaction({
-          coverageId: 'coverageId',
+          txMeta: generateMockTxMeta(),
           transactionHash: '0x00',
           status: 'shown',
         }),

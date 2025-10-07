@@ -75,19 +75,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
   }
 
   async checkCoverage(txMeta: TransactionMeta): Promise<CoverageResult> {
-    const reqBody: InitCoverageCheckRequest = {
-      txParams: [
-        {
-          from: txMeta.txParams.from,
-          to: txMeta.txParams.to,
-          value: txMeta.txParams.value,
-          data: txMeta.txParams.data,
-          nonce: txMeta.txParams.nonce,
-        },
-      ],
-      chainId: txMeta.chainId,
-      origin: txMeta.origin,
-    };
+    const reqBody = makeInitCoverageCheckBody(txMeta);
 
     const { coverageId } = await this.#initCoverageCheck(
       'v1/transaction/coverage/init',
@@ -101,17 +89,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
   async checkSignatureCoverage(
     signatureRequest: SignatureRequest,
   ): Promise<CoverageResult> {
-    if (typeof signatureRequest.messageParams.data !== 'string') {
-      throw new Error('Signature data must be a string');
-    }
-
-    const reqBody: InitSignatureCoverageCheckRequest = {
-      chainId: signatureRequest.chainId,
-      data: signatureRequest.messageParams.data,
-      from: signatureRequest.messageParams.from,
-      method: signatureRequest.type,
-      origin: signatureRequest.messageParams.origin,
-    };
+    const reqBody = makeInitSignatureCoverageCheckBody(signatureRequest);
 
     const { coverageId } = await this.#initCoverageCheck(
       'v1/signature/coverage/init',
@@ -123,12 +101,19 @@ export class ShieldRemoteBackend implements ShieldBackend {
   }
 
   async logSignature(req: LogSignatureRequest): Promise<void> {
+    const initBody = makeInitSignatureCoverageCheckBody(req.signatureRequest);
+    const body = {
+      signature: req.signature,
+      status: req.status,
+      ...initBody,
+    };
+
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/signature/coverage/log`,
       {
         method: 'POST',
         headers: await this.#createHeaders(),
-        body: JSON.stringify(req),
+        body: JSON.stringify(body),
       },
     );
     if (res.status !== 200) {
@@ -137,12 +122,19 @@ export class ShieldRemoteBackend implements ShieldBackend {
   }
 
   async logTransaction(req: LogTransactionRequest): Promise<void> {
+    const initBody = makeInitCoverageCheckBody(req.txMeta);
+    const body = {
+      transactionHash: req.transactionHash,
+      status: req.status,
+      ...initBody,
+    };
+
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/transaction/coverage/log`,
       {
         method: 'POST',
         headers: await this.#createHeaders(),
-        body: JSON.stringify(req),
+        body: JSON.stringify(body),
       },
     );
     if (res.status !== 200) {
@@ -226,4 +218,50 @@ export class ShieldRemoteBackend implements ShieldBackend {
  */
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Make the body for the init coverage check request.
+ *
+ * @param txMeta - The transaction metadata.
+ * @returns The body for the init coverage check request.
+ */
+function makeInitCoverageCheckBody(
+  txMeta: TransactionMeta,
+): InitCoverageCheckRequest {
+  return {
+    txParams: [
+      {
+        from: txMeta.txParams.from,
+        to: txMeta.txParams.to,
+        value: txMeta.txParams.value,
+        data: txMeta.txParams.data,
+        nonce: txMeta.txParams.nonce,
+      },
+    ],
+    chainId: txMeta.chainId,
+    origin: txMeta.origin,
+  };
+}
+
+/**
+ * Make the body for the init signature coverage check request.
+ *
+ * @param signatureRequest - The signature request.
+ * @returns The body for the init signature coverage check request.
+ */
+function makeInitSignatureCoverageCheckBody(
+  signatureRequest: SignatureRequest,
+): InitSignatureCoverageCheckRequest {
+  if (typeof signatureRequest.messageParams.data !== 'string') {
+    throw new Error('Signature data must be a string');
+  }
+
+  return {
+    chainId: signatureRequest.chainId,
+    data: signatureRequest.messageParams.data as string,
+    from: signatureRequest.messageParams.from,
+    method: signatureRequest.type,
+    origin: signatureRequest.messageParams.origin,
+  };
 }
