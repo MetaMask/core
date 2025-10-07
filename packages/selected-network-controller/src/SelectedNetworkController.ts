@@ -18,7 +18,7 @@ import type {
   GetSubjects as PermissionControllerGetSubjectsAction,
   HasPermissions as PermissionControllerHasPermissions,
 } from '@metamask/permission-controller';
-import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
+import { createSwappableProxy } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
 
 const controllerName = 'SelectedNetworkController';
@@ -365,10 +365,8 @@ export class SelectedNetworkController extends BaseController<
         }
       }
       networkProxy = {
-        provider: createEventEmitterProxy(networkClient.provider),
-        blockTracker: createEventEmitterProxy(networkClient.blockTracker, {
-          eventFilter: 'skipInternal',
-        }),
+        provider: createSwappableProxy(networkClient.provider),
+        blockTracker: createSwappableProxy(networkClient.blockTracker),
       };
       this.#domainProxyMap.set(domain, networkProxy);
     }

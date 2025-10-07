@@ -1518,11 +1518,7 @@ describe('NetworkController', () => {
       const infuraChainId = ChainId[infuraNetworkType];
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
 
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`when the selectedNetworkClientId is changed to represent the Infura network "${infuraNetworkType}"`, () => {
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         it(`returns a provider object that was pointed to another network before the switch and is now pointed to ${infuraNetworkNickname} afterward`, async () => {
           const infuraProjectId = 'some-infura-project-id';
 
@@ -2636,8 +2632,6 @@ describe('NetworkController', () => {
                   jest
                     .spyOn(networkControllerMessenger, 'unsubscribe')
                     .mockImplementation((eventType) => {
-                      // This is okay.
-                      // eslint-disable-next-line jest/no-conditional-in-test
                       if (eventType === 'NetworkController:networkDidChange') {
                         throw error;
                       }
@@ -3147,8 +3141,6 @@ describe('NetworkController', () => {
                 jest
                   .spyOn(networkControllerMessenger, 'unsubscribe')
                   .mockImplementation((eventType) => {
-                    // This is okay.
-                    // eslint-disable-next-line jest/no-conditional-in-test
                     if (eventType === 'NetworkController:networkDidChange') {
                       throw error;
                     }
@@ -3187,8 +3179,6 @@ describe('NetworkController', () => {
 
   describe('setProviderType', () => {
     for (const infuraNetworkType of INFURA_NETWORKS) {
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`given the Infura network "${infuraNetworkType}"`, () => {
         refreshNetworkTests({
           expectedNetworkClientConfiguration:
@@ -3200,8 +3190,6 @@ describe('NetworkController', () => {
         });
       });
 
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       it(`sets selectedNetworkClientId in state to "${infuraNetworkType}"`, async () => {
         await withController(async ({ controller }) => {
           mockCreateNetworkClient().mockReturnValue(buildFakeClient());
@@ -3343,8 +3331,6 @@ describe('NetworkController', () => {
     for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraChainId = ChainId[infuraNetworkType];
 
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`if the ID refers to a network client created for the Infura network "${infuraNetworkType}"`, () => {
         refreshNetworkTests({
           expectedNetworkClientConfiguration:
@@ -3370,8 +3356,6 @@ describe('NetworkController', () => {
           },
         });
 
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         it(`sets selectedNetworkClientId in state to "${infuraNetworkType}"`, async () => {
           await withController({}, async ({ controller }) => {
             mockCreateNetworkClient().mockReturnValue(buildFakeClient());
@@ -3865,8 +3849,6 @@ describe('NetworkController', () => {
 
   describe('resetConnection', () => {
     for (const infuraNetworkType of INFURA_NETWORKS) {
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
         refreshNetworkTests({
           expectedNetworkClientConfiguration:
@@ -3981,8 +3963,6 @@ describe('NetworkController', () => {
       for (const infuraNetworkType of INFURA_NETWORKS) {
         const infuraChainId = ChainId[infuraNetworkType];
 
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`given the ID of the Infura-supported chain "${infuraNetworkType}" that a network configuration is filed under`, () => {
           it('returns the network configuration', async () => {
             const registeredNetworkConfiguration =
@@ -4096,8 +4076,6 @@ describe('NetworkController', () => {
       for (const infuraNetworkType of INFURA_NETWORKS) {
         const infuraChainId = ChainId[infuraNetworkType];
 
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`given the ID of a network client that corresponds to an RPC endpoint for the Infura network "${infuraNetworkType}" in a network configuration`, () => {
           it('returns the network configuration', async () => {
             const registeredNetworkConfiguration =
@@ -4204,8 +4182,6 @@ describe('NetworkController', () => {
         expect(() =>
           controller.addNetwork(
             buildAddNetworkFields({
-              // False negative - this is a number.
-              // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
               chainId: toHex(MAX_SAFE_CHAIN_ID + 1),
             }),
           ),
@@ -4355,8 +4331,6 @@ describe('NetworkController', () => {
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraChainId = ChainId[infuraNetworkType];
 
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       it(`throws if rpcEndpoints contains an Infura RPC endpoint which is already present in the network configuration for the Infura-supported chain ${infuraChainId}`, async () => {
         const infuraRpcEndpoint = buildInfuraRpcEndpoint(infuraNetworkType);
 
@@ -4383,8 +4357,6 @@ describe('NetworkController', () => {
                 }),
               ),
             ).toThrow(
-              // This is a string.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `Could not add network that points to same RPC endpoint as existing network for chain ${infuraChainId} ('${infuraNetworkNickname}')`,
             );
           },
@@ -4506,8 +4478,6 @@ describe('NetworkController', () => {
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraChainId = ChainId[infuraNetworkType];
 
-      // This is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       it(`throws if a network configuration for the Infura network "${infuraNetworkNickname}" is already registered under the given chain ID`, async () => {
         await withController(
           {
@@ -4527,8 +4497,6 @@ describe('NetworkController', () => {
                 }),
               ),
             ).toThrow(
-              // This is a string.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `Could not add network for chain ${infuraChainId} as another network for that chain already exists ('${infuraNetworkNickname}')`,
             );
           },
@@ -4567,8 +4535,6 @@ describe('NetworkController', () => {
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraNativeTokenName = NetworksTicker[infuraNetworkType];
 
-      // This is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`given the ID of the Infura-supported chain ${infuraChainId}`, () => {
         it('creates a new network client for not only each custom RPC endpoint, but also the Infura RPC endpoint', async () => {
           uuidV4Mock
@@ -4623,8 +4589,6 @@ describe('NetworkController', () => {
                 name: infuraNetworkNickname,
                 networkClientId: infuraNetworkType,
                 type: RpcEndpointType.Infura as const,
-                // ESLint is mistaken here.
-                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                 url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const,
               };
 
@@ -4771,8 +4735,6 @@ describe('NetworkController', () => {
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
-                    // False negative - this is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const,
                   },
                   {
@@ -4802,8 +4764,6 @@ describe('NetworkController', () => {
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
-                    // False negative - this is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   },
                   {
@@ -4858,8 +4818,6 @@ describe('NetworkController', () => {
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
-                    // False negative - this is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const,
                   },
                 ],
@@ -4878,8 +4836,6 @@ describe('NetworkController', () => {
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
-                    // False negative - this is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   },
                 ],
@@ -4921,8 +4877,6 @@ describe('NetworkController', () => {
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
-                    // False negative - this is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const,
                   },
                 ],
@@ -4941,8 +4895,6 @@ describe('NetworkController', () => {
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
-                    // False negative - this is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   },
                 ],
@@ -5392,8 +5344,6 @@ describe('NetworkController', () => {
             controller.updateNetwork(
               '0x1337',
               buildCustomNetworkConfiguration({
-                // False negative - this is a number.
-                // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
                 chainId: toHex(MAX_SAFE_CHAIN_ID + 1),
               }),
             ),
@@ -5639,8 +5589,6 @@ describe('NetworkController', () => {
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraChainId = ChainId[infuraNetworkType];
 
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       it(`throws if an Infura RPC endpoint is being added which is already present in the network configuration for the Infura-supported chain ${infuraChainId}`, async () => {
         const networkConfigurationToUpdate = buildCustomNetworkConfiguration({
           chainId: '0x1337',
@@ -5669,8 +5617,6 @@ describe('NetworkController', () => {
                 rpcEndpoints: [infuraRpcEndpoint],
               }),
             ).rejects.toThrow(
-              // This is a string.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `Could not update network to point to same RPC endpoint as existing network for chain ${infuraChainId} ('${infuraNetworkNickname}')`,
             );
           },
@@ -6006,8 +5952,6 @@ describe('NetworkController', () => {
       const infuraChainId = ChainId[infuraNetworkType];
       const infuraNativeTokenName = NetworksTicker[infuraNetworkType];
 
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`if the existing chain ID is the Infura-supported chain ${infuraChainId} and is not being changed`, () => {
         describe('when a new Infura RPC endpoint is being added', () => {
           it('creates and registers a new network client for the RPC endpoint', async () => {
@@ -6069,8 +6013,6 @@ describe('NetworkController', () => {
                 const infuraRpcEndpoint: InfuraRpcEndpoint = {
                   failoverUrls: ['https://failover.endpoint'],
                   networkClientId: infuraNetworkType,
-                  // ESLint is mistaken here.
-                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                   url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   type: RpcEndpointType.Infura,
                 };
@@ -6154,8 +6096,6 @@ describe('NetworkController', () => {
                 const infuraRpcEndpoint: InfuraRpcEndpoint = {
                   failoverUrls: ['https://failover.endpoint'],
                   networkClientId: infuraNetworkType,
-                  // ESLint is mistaken here.
-                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                   url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   type: RpcEndpointType.Infura,
                 };
@@ -6219,8 +6159,6 @@ describe('NetworkController', () => {
                 const infuraRpcEndpoint: InfuraRpcEndpoint = {
                   failoverUrls: ['https://failover.endpoint'],
                   networkClientId: infuraNetworkType,
-                  // ESLint is mistaken here.
-                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                   url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   type: RpcEndpointType.Infura,
                 };
@@ -9986,11 +9924,7 @@ describe('NetworkController', () => {
         const anotherInfuraNetworkNickname =
           NetworkNickname[anotherInfuraNetworkType];
 
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`if the chain ID is being changed from a non-Infura-supported chain to the Infura-supported chain ${infuraChainId}`, () => {
-          // False negative - this is a string.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           it(`throws if a network configuration for the Infura network "${infuraNetworkNickname}" is already registered under the new chain ID`, async () => {
             const networkConfigurationToUpdate =
               buildCustomNetworkConfiguration({ chainId: '0x1337' });
@@ -10023,8 +9957,6 @@ describe('NetworkController', () => {
                     chainId: infuraChainId,
                   }),
                 ).rejects.toThrow(
-                  // This is a string.
-                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                   `Cannot move network from chain 0x1337 to ${infuraChainId} as another network for that chain already exists ('${infuraNetworkNickname}')`,
                 );
               },
@@ -10069,8 +10001,6 @@ describe('NetworkController', () => {
                   }),
                 ).rejects.toThrow(
                   new Error(
-                    // This is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     `Could not update network to point to same RPC endpoint as existing network for chain ${anotherInfuraChainId} ('${anotherInfuraNetworkNickname}')`,
                   ),
                 );
@@ -10678,8 +10608,6 @@ describe('NetworkController', () => {
           });
         });
 
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`if the chain ID is being changed from the Infura-supported chain ${infuraChainId} to a non-Infura-supported chain`, () => {
           it('throws if a network configuration for a custom network is already registered under the new chain ID', async () => {
             const networkConfigurationToUpdate =
@@ -10715,8 +10643,6 @@ describe('NetworkController', () => {
                     chainId: '0x1337',
                   }),
                 ).rejects.toThrow(
-                  // False negative - this is a string.
-                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                   `Cannot move network from chain ${infuraChainId} to 0x1337 as another network for that chain already exists ('Some Network')`,
                 );
               },
@@ -10754,8 +10680,6 @@ describe('NetworkController', () => {
                   }),
                 ).rejects.toThrow(
                   new Error(
-                    // This is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     `Could not update network with chain ID 0x1337 and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
                   ),
                 );
@@ -11411,11 +11335,7 @@ describe('NetworkController', () => {
           });
         });
 
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`if the chain ID is being changed from the Infura-supported chain ${infuraChainId} to a different Infura-supported chain ${anotherInfuraChainId}`, () => {
-          // False negative - this is a string.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           it(`throws if a network configuration for the Infura network "${infuraNetworkNickname}" is already registered under the new chain ID`, async () => {
             const networkConfigurationToUpdate =
               buildInfuraNetworkConfiguration(infuraNetworkType);
@@ -11449,8 +11369,6 @@ describe('NetworkController', () => {
                     chainId: anotherInfuraChainId,
                   }),
                 ).rejects.toThrow(
-                  // This is a string.
-                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                   `Cannot move network from chain ${infuraChainId} to ${anotherInfuraChainId} as another network for that chain already exists ('${anotherInfuraNetworkNickname}')`,
                 );
               },
@@ -11488,8 +11406,6 @@ describe('NetworkController', () => {
                   }),
                 ).rejects.toThrow(
                   new Error(
-                    // This is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     `Could not update network with chain ID ${anotherInfuraChainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
                   ),
                 );
@@ -12835,8 +12751,6 @@ describe('NetworkController', () => {
       for (const infuraNetworkType of INFURA_NETWORKS) {
         const infuraChainId = ChainId[infuraNetworkType];
 
-        // This is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`given the ID of the Infura-supported chain ${infuraChainId}`, () => {
           it('makes no updates to state', async () => {
             const existingNetworkConfiguration =
@@ -13182,8 +13096,6 @@ describe('NetworkController', () => {
     for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraChainId = ChainId[infuraNetworkType];
 
-      // This is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`given the ID of the Infura-supported chain ${infuraChainId}`, () => {
         it('removes the existing network configuration from state', async () => {
           await withController(
@@ -13411,8 +13323,6 @@ describe('NetworkController', () => {
   describe('rollbackToPreviousProvider', () => {
     describe('when called not following any network switches', () => {
       for (const infuraNetworkType of INFURA_NETWORKS) {
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
           refreshNetworkTests({
             expectedNetworkClientConfiguration:
@@ -13462,8 +13372,6 @@ describe('NetworkController', () => {
     for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraChainId = ChainId[infuraNetworkType];
 
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`when called following a switch away from the Infura network "${infuraNetworkType}"`, () => {
         it('emits networkWillChange with state payload', async () => {
           await withController(
@@ -13685,8 +13593,6 @@ describe('NetworkController', () => {
           );
         });
 
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         it(`initializes a provider pointed to the "${infuraNetworkType}" Infura network`, async () => {
           const infuraProjectId = 'some-infura-project-id';
 
@@ -16725,8 +16631,6 @@ async function setFakeProvider(
  * @returns A promise that resolves to the list of payloads for the set of
  * events, optionally filtered, when a specific number of them have occurred.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 async function waitForPublishedEvents<E extends NetworkControllerEvents>({
   messenger,
   eventType,
@@ -16789,11 +16693,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
           if (interestingEventPayloads.length === expectedNumberOfEvents) {
             resolve(interestingEventPayloads);
           } else {
-            // Using a string instead of an Error leads to better backtraces.
-            /* eslint-disable-next-line prefer-promise-reject-errors */
             reject(
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `Expected to receive ${expectedNumberOfEvents} ${eventType} event(s), but received ${
                 interestingEventPayloads.length
               } after ${timeBeforeAssumingNoMoreEvents}ms.\n\nAll payloads:\n\n${inspect(
