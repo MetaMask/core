@@ -48,8 +48,13 @@ export type {
   PricingResponse,
   UpdatePaymentMethodOpts,
   BillingPortalResponse,
+  CryptoPaymentMethodError,
+  UpdatePaymentMethodCryptoRequest,
+  UpdatePaymentMethodCardRequest,
+  UpdatePaymentMethodCardResponse,
 } from './types';
 export {
+  CRYPTO_PAYMENT_METHOD_ERRORS,
   SUBSCRIPTION_STATUSES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
