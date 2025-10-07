@@ -7,7 +7,6 @@ import {
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
-import type { Messenger } from '@metamask/base-controller';
 import {
   EthAccountType,
   SolAccountType,
