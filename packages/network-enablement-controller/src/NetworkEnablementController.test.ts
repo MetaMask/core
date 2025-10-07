@@ -60,6 +60,7 @@ const setupController = ({
 } = {}): {
   controller: NetworkEnablementController;
   rootMessenger: RootMessenger;
+  messenger: NetworkEnablementControllerMessenger;
 } => {
   const rootMessenger = getRootMessenger();
 
@@ -114,6 +115,7 @@ const setupController = ({
   return {
     controller,
     rootMessenger,
+    messenger: networkEnablementControllerMessenger,
   };
 };
 
@@ -377,11 +379,10 @@ describe('NetworkEnablementController', () => {
 
   describe('init', () => {
     it('initializes network enablement state from controller configurations', () => {
-      const { controller } = setupController();
+      const { controller, messenger } = setupController();
 
       jest
-        // eslint-disable-next-line dot-notation
-        .spyOn(controller['messenger'], 'call')
+        .spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -453,7 +454,7 @@ describe('NetworkEnablementController', () => {
 
     it('only enables popular networks that exist in NetworkController configurations', () => {
       // Create a separate controller setup for this test to avoid handler conflicts
-      const { controller } = setupController({
+      const { controller, messenger } = setupController({
         config: {
           state: {
             enabledNetworkMap: {
@@ -464,8 +465,7 @@ describe('NetworkEnablementController', () => {
         },
       });
 
-      // eslint-disable-next-line dot-notation
-      jest.spyOn(controller['messenger'], 'call').mockImplementation(
+      jest.spyOn(messenger, 'call').mockImplementation(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -518,11 +518,10 @@ describe('NetworkEnablementController', () => {
     });
 
     it('handles missing MultichainNetworkController gracefully', () => {
-      const { controller } = setupController();
+      const { controller, messenger } = setupController();
 
       jest
-        // eslint-disable-next-line dot-notation
-        .spyOn(controller['messenger'], 'call')
+        .spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -559,11 +558,10 @@ describe('NetworkEnablementController', () => {
     });
 
     it('creates namespace buckets for all configured networks', () => {
-      const { controller } = setupController();
+      const { controller, messenger } = setupController();
 
       jest
-        // eslint-disable-next-line dot-notation
-        .spyOn(controller['messenger'], 'call')
+        .spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -614,7 +612,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('creates new namespace buckets for networks that do not exist', () => {
-      const { controller } = setupController();
+      const { controller, messenger } = setupController();
 
       // Start with empty state to test namespace bucket creation
       // eslint-disable-next-line dot-notation
@@ -623,8 +621,7 @@ describe('NetworkEnablementController', () => {
       });
 
       jest
-        // eslint-disable-next-line dot-notation
-        .spyOn(controller['messenger'], 'call')
+        .spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: unknown[]): any => {
           const responses = {
@@ -671,12 +668,11 @@ describe('NetworkEnablementController', () => {
     });
 
     it('sets Bitcoin testnet to false when it exists in MultichainNetworkController configurations', () => {
-      const { controller } = setupController();
+      const { controller, messenger } = setupController();
 
       // Mock MultichainNetworkController to include Bitcoin testnet BEFORE calling init
       jest
-        // eslint-disable-next-line dot-notation
-        .spyOn(controller['messenger'], 'call')
+        .spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -723,12 +719,11 @@ describe('NetworkEnablementController', () => {
     });
 
     it('sets Bitcoin signet to false when it exists in MultichainNetworkController configurations', () => {
-      const { controller } = setupController();
+      const { controller, messenger } = setupController();
 
       // Mock MultichainNetworkController to include Bitcoin signet BEFORE calling init
       jest
-        // eslint-disable-next-line dot-notation
-        .spyOn(controller['messenger'], 'call')
+        .spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -777,12 +772,11 @@ describe('NetworkEnablementController', () => {
 
   describe('enableAllPopularNetworks', () => {
     it('enables all popular networks that exist in controller configurations and Solana mainnet', () => {
-      const { controller } = setupController();
+      const { controller, messenger } = setupController();
 
       // Mock the network configurations
       jest
-        // eslint-disable-next-line dot-notation
-        .spyOn(controller['messenger'], 'call')
+        .spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -882,11 +876,10 @@ describe('NetworkEnablementController', () => {
     });
 
     it('enables all popular networks from constants', () => {
-      const { controller } = setupController();
+      const { controller, messenger } = setupController();
 
       // Mock all popular networks to be available in configurations
-      // eslint-disable-next-line dot-notation
-      jest.spyOn(controller['messenger'], 'call').mockImplementation(
+      jest.spyOn(messenger, 'call').mockImplementation(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -965,12 +958,11 @@ describe('NetworkEnablementController', () => {
     });
 
     it('disables existing networks and enables only popular networks (exclusive behavior)', async () => {
-      const { controller, rootMessenger } = setupController();
+      const { controller, rootMessenger, messenger } = setupController();
 
       // Mock the network configurations to include popular networks
       jest
-        // eslint-disable-next-line dot-notation
-        .spyOn(controller['messenger'], 'call')
+        .spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -1049,12 +1041,11 @@ describe('NetworkEnablementController', () => {
     });
 
     it('enables Bitcoin mainnet when configured in MultichainNetworkController', () => {
-      const { controller } = setupController();
+      const { controller, messenger } = setupController();
 
       // Mock the network configurations to include Bitcoin
       jest
-        // eslint-disable-next-line dot-notation
-        .spyOn(controller['messenger'], 'call')
+        .spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: unknown[]): any => {
           const responses = {
