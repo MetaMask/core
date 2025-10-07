@@ -9,16 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0]
 
-### Uncategorized
-
-- fix: add missing subscription controller export ([#6785](https://github.com/MetaMask/core/pull/6785))
-
 ### Added
 
 - Added new public method, `getSubscriptionByProduct` which accepts `product` name as parameter and return the relevant subscription. ([#6770](https://github.com/MetaMask/core/pull/6770))
 
 ### Changed
 
+- Updated controller exports. ([#6785](https://github.com/MetaMask/core/pull/6785))
+  - PaymentMethod types (`CryptoPaymentMethodError`, `UpdatePaymentMethodCryptoRequest`, `UpdatePaymentMethodCardRequest`, `UpdatePaymentMethodCardResponse`).
+  - PaymentMethod error constants, `CRYPTO_PAYMENT_METHOD_ERRORS`.
 - **BREAKING**: The `SubscriptionController` now extends `StaticIntervalPollingController`, and the new polling API `startPolling` must be used to initiate polling (`startPolling`, `stopPollingByPollingToken`). ([#6770](https://github.com/MetaMask/core/pull/6770))
 - **BREAKING**: The `SubscriptionController` now accepts an optional `pollingInterval` property in the constructor argument, to enable the configurable polling interval. ([#6770](https://github.com/MetaMask/core/pull/6770))
 - Prevent unnecessary state updates to avoid emitting `:stateChange` in `getSubscriptions` method. ([#6770](https://github.com/MetaMask/core/pull/6770))
