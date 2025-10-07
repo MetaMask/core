@@ -67,7 +67,7 @@ const clearAPICache = () => {
 };
 
 describe('NotificationServicesController', () => {
-  describe('metamask-notifications - constructor()', () => {
+  describe('constructor', () => {
     it('initializes state & override state', () => {
       const controller1 = new NotificationServicesController({
         messenger: mockNotificationMessenger().messenger,
@@ -89,7 +89,7 @@ describe('NotificationServicesController', () => {
     });
   });
 
-  describe('metamask-notifications - init()', () => {
+  describe('init', () => {
     const arrangeMocks = () => {
       const messengerMocks = mockNotificationMessenger();
       jest
@@ -328,7 +328,7 @@ describe('NotificationServicesController', () => {
   });
 
   // See /utils for more in-depth testing
-  describe('metamask-notifications - checkAccountsPresence()', () => {
+  describe('checkAccountsPresence', () => {
     it('returns Record with accounts that have notifications enabled', async () => {
       const { messenger } = mockNotificationMessenger();
       const mockGetConfig = mockGetOnChainNotificationsConfig({
@@ -356,7 +356,7 @@ describe('NotificationServicesController', () => {
     });
   });
 
-  describe('metamask-notifications - setFeatureAnnouncementsEnabled()', () => {
+  describe('setFeatureAnnouncementsEnabled', () => {
     it('flips state when the method is called', async () => {
       const { messenger, mockIsSignedIn } = mockNotificationMessenger();
       mockIsSignedIn.mockReturnValue(true);
@@ -373,7 +373,7 @@ describe('NotificationServicesController', () => {
     });
   });
 
-  describe('metamask-notifications - createOnChainTriggers()', () => {
+  describe('createOnChainTriggers', () => {
     const arrangeMocks = (overrides?: { mockGetConfig: () => nock.Scope }) => {
       const messengerMocks = mockNotificationMessenger();
       const mockGetConfig =
@@ -492,7 +492,7 @@ describe('NotificationServicesController', () => {
     });
   });
 
-  describe('metamask-notifications - disableAccounts()', () => {
+  describe('disableAccounts', () => {
     const arrangeMocks = () => {
       const messengerMocks = mockNotificationMessenger();
       const mockUpdateNotifications = mockUpdateOnChainNotifications();
@@ -532,7 +532,7 @@ describe('NotificationServicesController', () => {
     });
   });
 
-  describe('metamask-notifications - enableAccounts()', () => {
+  describe('enableAccounts', () => {
     const arrangeMocks = () => {
       const messengerMocks = mockNotificationMessenger();
       const mockUpdateNotifications = mockUpdateOnChainNotifications();
@@ -572,7 +572,7 @@ describe('NotificationServicesController', () => {
     });
   });
 
-  describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () => {
+  describe('fetchAndUpdateMetamaskNotifications', () => {
     const arrangeMocks = () => {
       const messengerMocks = mockNotificationMessenger();
 
@@ -711,7 +711,7 @@ describe('NotificationServicesController', () => {
     });
   });
 
-  describe('metamask-notifications - getNotificationsByType', () => {
+  describe('getNotificationsByType', () => {
     it('can fetch notifications by their type', async () => {
       const { messenger } = mockNotificationMessenger();
       const controller = new NotificationServicesController({
@@ -764,7 +764,7 @@ describe('NotificationServicesController', () => {
     });
   });
 
-  describe('metamask-notifications - deleteNotificationsById', () => {
+  describe('deleteNotificationsById', () => {
     it('will delete a notification by its id', async () => {
       const { messenger } = mockNotificationMessenger();
       const processedSnapNotification = processSnapNotification(
@@ -855,7 +855,7 @@ describe('NotificationServicesController', () => {
     });
   });
 
-  describe('metamask-notifications - markMetamaskNotificationsAsRead()', () => {
+  describe('markMetamaskNotificationsAsRead', () => {
     const arrangeMocks = (options?: { onChainMarkAsReadFails: boolean }) => {
       const messengerMocks = mockNotificationMessenger();
 
@@ -937,7 +937,7 @@ describe('NotificationServicesController', () => {
     });
   });
 
-  describe('metamask-notifications - enableMetamaskNotifications()', () => {
+  describe('enableMetamaskNotifications', () => {
     const arrangeMocks = (overrides?: { mockGetConfig: () => nock.Scope }) => {
       const messengerMocks = mockNotificationMessenger();
       const mockGetConfig =
@@ -1030,7 +1030,7 @@ describe('NotificationServicesController', () => {
     });
   });
 
-  describe('metamask-notifications - disableNotificationServices()', () => {
+  describe('disableNotificationServices', () => {
     it('disable notifications and turn off push notifications', async () => {
       const { messenger, mockDisablePushNotifications } =
         mockNotificationMessenger();
@@ -1065,7 +1065,7 @@ describe('NotificationServicesController', () => {
     });
   });
 
-  describe('metamask-notifications - updateMetamaskNotificationsList', () => {
+  describe('updateMetamaskNotificationsList', () => {
     it('can add and process a new notification to the notifications list', async () => {
       const { messenger } = mockNotificationMessenger();
       const controller = new NotificationServicesController({
@@ -1103,7 +1103,7 @@ describe('NotificationServicesController', () => {
     });
   });
 
-  describe('metamask-notifications - enablePushNotifications', () => {
+  describe('enablePushNotifications', () => {
     const arrangeMocks = () => {
       const messengerMocks = mockNotificationMessenger();
       const mockGetConfig = mockGetOnChainNotificationsConfig({
@@ -1156,7 +1156,7 @@ describe('NotificationServicesController', () => {
     });
   });
 
-  describe('metamask-notifications - disablePushNotifications', () => {
+  describe('disablePushNotifications', () => {
     it('calls push controller to disable push notifications', async () => {
       const { messenger, mockDisablePushNotifications } =
         mockNotificationMessenger();
@@ -1174,7 +1174,7 @@ describe('NotificationServicesController', () => {
     });
   });
 
-  describe('metamask-notifications - sendPerpPlaceOrderNotification()', () => {
+  describe('sendPerpPlaceOrderNotification', () => {
     const arrangeMocks = () => {
       const messengerMocks = mockNotificationMessenger();
       const mockCreatePerpAPI = mockCreatePerpNotification({
