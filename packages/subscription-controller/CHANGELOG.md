@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: add missing subscription controller export ([#6785](https://github.com/MetaMask/core/pull/6785))
+
 ### Added
 
 - Added new public method, `getSubscriptionByProduct` which accepts `product` name as parameter and return the relevant subscription. ([#6770](https://github.com/MetaMask/core/pull/6770))
