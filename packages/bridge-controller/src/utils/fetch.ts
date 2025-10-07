@@ -271,7 +271,7 @@ export const fetchAssetPrices = async (
 export async function fetchBridgeQuoteStream(
   fetchFn: FetchFunction,
   request: GenericQuoteRequest,
-  signal: AbortSignal | null,
+  signal: AbortSignal | undefined,
   clientId: string,
   bridgeApiBaseUrl: string,
   serverEventHandlers: {

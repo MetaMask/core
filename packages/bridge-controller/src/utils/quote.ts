@@ -55,7 +55,7 @@ export const isValidQuoteRequest = (
     numberFields.push('slippage');
   }
 
-  const r =
+  return (
     stringFields.every(
       (field) =>
         field in partialRequest &&
@@ -76,8 +76,8 @@ export const isValidQuoteRequest = (
     ) &&
     (requireAmount
       ? Boolean((partialRequest.srcTokenAmount ?? '').match(/^[1-9]\d*$/u))
-      : true);
-  return r;
+      : true)
+  );
 };
 
 /**

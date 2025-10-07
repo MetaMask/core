@@ -267,14 +267,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   }
 
   _executePoll = async (pollingInput: BridgePollingInput) => {
-    const shouldStream = Boolean(
-      getBridgeFeatureFlags(this.messagingSystem).sseEnabled,
-    );
-    if (shouldStream) {
-      await this.#fetchBridgeQuoteStream(pollingInput);
-    } else {
-      await this.#fetchBridgeQuotes(pollingInput);
-    }
+    await this.#fetchBridgeQuotes(pollingInput);
   };
 
   updateBridgeQuoteRequestParams = async (
@@ -391,13 +384,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     this.#trackResponseValidationFailures(validationFailures);
 
-    const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
-    const quotesWithNonEvmFees = await this.#appendNonEvmFees(
-      baseQuotes,
-      quoteRequest.walletAddress,
-    );
-    const quotesWithFees =
-      quotesWithL1GasFees ?? quotesWithNonEvmFees ?? baseQuotes;
+    const quotesWithFees = await this.#appendFees(quoteRequest, baseQuotes);
+
     // Sort perps quotes by increasing estimated processing time (fastest first)
     if (featureId === FeatureId.PERPS) {
       return quotesWithFees.sort((a, b) => {
@@ -407,6 +395,20 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         );
       });
     }
+    return quotesWithFees;
+  };
+
+  readonly #appendFees = async (
+    quoteRequest: GenericQuoteRequest,
+    baseQuotes: QuoteResponse[],
+  ) => {
+    const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
+    const quotesWithNonEvmFees = await this.#appendNonEvmFees(
+      baseQuotes,
+      quoteRequest.walletAddress,
+    );
+    const quotesWithFees =
+      quotesWithL1GasFees ?? quotesWithNonEvmFees ?? baseQuotes;
     return quotesWithFees;
   };
 
@@ -587,9 +589,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
     this.update((state) => {
       state.quotesLoadingStatus = RequestStatus.LOADING;
-      state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
     });
+
+    const { sseEnabled, maxRefreshCount } = getBridgeFeatureFlags(
+      this.messagingSystem,
+    );
+    const shouldStream = Boolean(sseEnabled);
 
     try {
       await this.#trace(
@@ -611,17 +617,49 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           this.#setMinimumBalanceForRentExemptionInLamports(
             updatedQuoteRequest.srcChainId,
           );
-          const quotes = await this.fetchQuotes(
-            updatedQuoteRequest,
-            // AbortController is always defined by this line, because we assign it a few lines above,
-            // not sure why Jest thinks it's not
-            // Linters accurately say that it's defined
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            this.#abortController!.signal as AbortSignal,
-          );
+          if (shouldStream) {
+            await fetchBridgeQuoteStream(
+              this.#fetchFn,
+              updatedQuoteRequest,
+              this.#abortController?.signal,
+              this.#clientId,
+              this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+              {
+                onValidationFailures: (validationFailures: string[]) => {
+                  this.#trackResponseValidationFailures(validationFailures);
+                },
+                onValidQuotesReceived: async (quotes: QuoteResponse[]) => {
+                  const quotesWithFees = await this.#appendFees(
+                    updatedQuoteRequest,
+                    quotes,
+                  );
+                  this.update((state) => {
+                    // If there are no other quotes yet, set initial load time
+                    if (
+                      state.quotes.length === 0 &&
+                      quotesWithFees.length > 0
+                    ) {
+                      state.quotesInitialLoadTime = Date.now();
+                    }
+                    state.quotes.push(...quotesWithFees);
+                  });
+                },
+              },
+            );
+          } else {
+            const quotes = await this.fetchQuotes(
+              updatedQuoteRequest,
+              // AbortController is always defined by this line, because we assign it a few lines above,
+              // not sure why Jest thinks it's not
+              // Linters accurately say that it's defined
+              this.#abortController?.signal as AbortSignal,
+            );
+            this.update((state) => {
+              state.quotes = quotes;
+            });
+          }
 
           this.update((state) => {
-            state.quotes = quotes;
             state.quotesLoadingStatus = RequestStatus.FETCHED;
           });
         },
@@ -641,19 +679,31 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       }
 
       this.update((state) => {
-        state.quoteFetchError =
-          error instanceof Error ? error.message : (error?.toString() ?? null);
+        if (shouldStream) {
+          state.quoteFetchError =
+            this.#clientId === BridgeClientId.MOBILE
+              ? 'generic streaming error'
+              : ((error ?? 'error') as never as string);
+        } else {
+          state.quoteFetchError =
+            error instanceof Error
+              ? error.message
+              : (error?.toString() ?? null);
+        }
+
         state.quotesLoadingStatus = RequestStatus.ERROR;
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
+
       this.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.QuotesError,
         context,
       );
-      console.log('Failed to fetch bridge quotes', error);
+      console.log(
+        `Failed to ${shouldStream ? 'stream' : 'fetch'} bridge quotes`,
+        error,
+      );
     }
-    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
-    const { maxRefreshCount } = bridgeFeatureFlags;
 
     // Stop polling if the maximum number of refreshes has been reached
     if (
@@ -667,137 +717,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     // Update quote fetching stats
     const quotesLastFetched = Date.now();
     this.update((state) => {
-      state.quotesInitialLoadTime =
-        state.quotesRefreshCount === 0 && this.#quotesFirstFetched
-          ? quotesLastFetched - this.#quotesFirstFetched
-          : this.state.quotesInitialLoadTime;
-      state.quotesLastFetched = quotesLastFetched;
-      state.quotesRefreshCount += 1;
-    });
-  };
-
-  readonly #fetchBridgeQuoteStream = async ({
-    networkClientId: _networkClientId,
-    updatedQuoteRequest,
-    context,
-  }: BridgePollingInput) => {
-    this.#abortController?.abort('New quote request');
-    this.#abortController = new AbortController();
-
-    this.trackUnifiedSwapBridgeEvent(
-      UnifiedSwapBridgeEventName.QuotesRequested,
-      context,
-    );
-    this.update((state) => {
-      state.quotesLoadingStatus = RequestStatus.LOADING;
-      state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
-    });
-
-    try {
-      await this.#trace(
-        {
-          name: isCrossChain(
-            updatedQuoteRequest.srcChainId,
-            updatedQuoteRequest.destChainId,
-          )
-            ? TraceName.BridgeQuotesFetched
-            : TraceName.SwapQuotesFetched,
-          data: {
-            srcChainId: formatChainIdToCaip(updatedQuoteRequest.srcChainId),
-            destChainId: formatChainIdToCaip(updatedQuoteRequest.destChainId),
-          },
-        },
-        async () => {
-          // This call is not awaited to prevent blocking quote fetching if the snap takes too long to respond
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          this.#setMinimumBalanceForRentExemptionInLamports(
-            updatedQuoteRequest.srcChainId,
-          );
-          await fetchBridgeQuoteStream(
-            this.#fetchFn,
-            updatedQuoteRequest,
-            // AbortController is always defined by this line, because we assign it a few lines above,
-            // not sure why Jest thinks it's not
-            // Linters accurately say that it's defined
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            this.#abortController!.signal as AbortSignal,
-            this.#clientId,
-            this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
-            {
-              onValidationFailures: (validationFailures: string[]) => {
-                this.#trackResponseValidationFailures(validationFailures);
-              },
-              onValidQuotesReceived: async (quotes: QuoteResponse[]) => {
-                const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);
-                const quotesWithNonEvmFees = await this.#appendNonEvmFees(
-                  quotes,
-                  updatedQuoteRequest.walletAddress,
-                );
-                const quotesWithFees =
-                  quotesWithL1GasFees ?? quotesWithNonEvmFees ?? quotes;
-                this.update((state) => {
-                  // If there are no other quotes yet, set initial load time
-                  if (state.quotes.length === 0 && quotesWithFees.length > 0) {
-                    state.quotesInitialLoadTime = Date.now();
-                  }
-                  state.quotes.push(...quotesWithFees);
-                });
-              },
-            },
-          );
-        },
-      );
-      this.update((state) => {
-        state.quotesLoadingStatus = RequestStatus.FETCHED;
-      });
-    } catch (error) {
-      const isAbortError = (error as Error).name === 'AbortError';
-      if (
-        isAbortError ||
-        [
-          AbortReason.ResetState,
-          AbortReason.NewQuoteRequest,
-          AbortReason.QuoteRequestUpdated,
-        ].includes(error as AbortReason)
-      ) {
-        // Exit the function early to prevent other state updates
-        return;
+      if (!shouldStream) {
+        state.quotesInitialLoadTime =
+          state.quotesRefreshCount === 0 && this.#quotesFirstFetched
+            ? quotesLastFetched - this.#quotesFirstFetched
+            : this.state.quotesInitialLoadTime;
       }
-
-      this.update((state) => {
-        state.quoteFetchError =
-          this.#clientId === BridgeClientId.MOBILE
-            ? 'generic streaming error'
-            : ((error ?? 'error') as never as string);
-        state.quotesLoadingStatus = RequestStatus.ERROR;
-        state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
-      });
-
-      this.trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.QuotesError,
-        context,
-      );
-      console.log('Failed to stream bridge quotes.', error);
-    }
-    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
-    const { maxRefreshCount } = bridgeFeatureFlags;
-
-    // Stop polling if the maximum number of refreshes has been reached
-    if (
-      updatedQuoteRequest.insufficientBal ||
-      (!updatedQuoteRequest.insufficientBal &&
-        this.state.quotesRefreshCount >= maxRefreshCount)
-    ) {
-      this.stopAllPolling();
-    }
-
-    // Update quote fetching stats
-    const quotesLastFetched = Date.now();
-    this.update((state) => {
-      state.quotesInitialLoadTime =
-        state.quotesRefreshCount === 0 && this.#quotesFirstFetched
-          ? quotesLastFetched - this.#quotesFirstFetched
-          : this.state.quotesInitialLoadTime;
       state.quotesLastFetched = quotesLastFetched;
       state.quotesRefreshCount += 1;
     });
