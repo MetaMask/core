@@ -3,6 +3,7 @@ export type {
   SubscriptionControllerState,
   SubscriptionControllerEvents,
   SubscriptionControllerGetSubscriptionsAction,
+  SubscriptionControllerGetSubscriptionByProductAction,
   SubscriptionControllerCancelSubscriptionAction,
   SubscriptionControllerStartShieldSubscriptionWithCardAction,
   SubscriptionControllerGetPricingAction,
