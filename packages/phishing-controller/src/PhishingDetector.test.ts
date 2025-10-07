@@ -1163,6 +1163,28 @@ describe('PhishingDetector', () => {
           },
         );
       });
+
+      describe('blocklistPaths', () => {
+        it('returns true if exact path is blocked', async () => {
+          await withPhishingDetector(
+            [
+              {
+                allowlist: [],
+                blocklist: [],
+                blocklistPaths: {
+                  'example.com': {
+                    path: {},
+                  },
+                },
+              },
+            ],
+            async ({ detector }) => {
+              const out = detector.check('https://example.com/path');
+              expect(out.result).toBe(true);
+            },
+          );
+        });
+      });
     });
 
     describe('with legacy config', () => {
@@ -1222,6 +1244,266 @@ describe('PhishingDetector', () => {
           },
         );
       });
+    });
+
+    describe('path-based blocking', () => {
+      const blocklistPathsOpts = {
+        'sub.example.com': {
+          path1: {
+            path2: {},
+          },
+        },
+      };
+
+      it('blocks on the exact path', async () => {
+        await withPhishingDetector(
+          [
+            {
+              allowlist: [],
+              blocklist: [],
+              blocklistPaths: blocklistPathsOpts,
+            },
+          ],
+          async ({ detector }) => {
+            const result = detector.check(
+              'https://sub.example.com/path1/path2',
+            );
+            expect(result).toStrictEqual({
+              match: 'sub.example.com/path1/path2',
+              name: undefined,
+              result: true,
+              type: PhishingDetectorResultType.Blocklist,
+              version: undefined,
+            });
+          },
+        );
+      });
+
+      it('does not block if not terminal path', async () => {
+        await withPhishingDetector(
+          [
+            {
+              allowlist: [],
+              blocklist: [],
+              blocklistPaths: blocklistPathsOpts,
+            },
+          ],
+          async ({ detector }) => {
+            const result = detector.check('https://sub.example.com/path1');
+            expect(result.result).toBe(false);
+          },
+        );
+      });
+
+      it('blocks if the terminal path is present in the URL', async () => {
+        await withPhishingDetector(
+          [
+            {
+              allowlist: [],
+              blocklist: [],
+              blocklistPaths: blocklistPathsOpts,
+            },
+          ],
+          async ({ detector }) => {
+            const result = detector.check(
+              'https://sub.example.com/path1/path2/path3',
+            );
+            expect(result.result).toBe(true);
+          },
+        );
+      });
+
+      it('blocks a domain with path when version is defined', async () => {
+        await withPhishingDetector(
+          [
+            {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+              blocklistPaths: {
+                'example.com': {
+                  path: {},
+                },
+              },
+              name: 'test-config',
+              version: 1,
+              tolerance: 0,
+            },
+          ],
+          async ({ detector }) => {
+            const result = detector.check('https://example.com/path');
+            expect(result).toStrictEqual({
+              match: 'example.com/path',
+              name: 'test-config',
+              result: true,
+              type: PhishingDetectorResultType.Blocklist,
+              version: '1',
+            });
+          },
+        );
+      });
+
+      it('blocks a domain with path when version is undefined', async () => {
+        await withPhishingDetector(
+          [
+            {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+              blocklistPaths: {
+                'malicious.com': {
+                  phishing: {},
+                },
+              },
+              // version is undefined
+              tolerance: 0,
+            },
+          ],
+          async ({ detector }) => {
+            const result = detector.check('https://malicious.com/phishing');
+            expect(result).toStrictEqual({
+              match: 'malicious.com/phishing',
+              name: undefined,
+              result: true,
+              type: PhishingDetectorResultType.Blocklist,
+              version: undefined,
+            });
+          },
+        );
+      });
+    });
+  });
+
+  describe('blockingPath', () => {
+    const blocklistPathsOpts = {
+      'example.com': {
+        path1: {
+          path2: {},
+        },
+      },
+    };
+
+    it('returns the matching terminal path if URL has an exact match in blocklistPaths', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            blocklistPaths: blocklistPathsOpts,
+            version: 1,
+            tolerance: 2,
+            name: 'test-config',
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.blockingPath(
+            'https://example.com/path1/path2',
+          );
+          expect(result).toBe('example.com/path1/path2');
+        },
+      );
+    });
+
+    it('returns null if the URL path ends at an ancestor path', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            blocklistPaths: blocklistPathsOpts,
+            version: 1,
+            tolerance: 2,
+            name: 'test-config',
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.blockingPath('https://example.com/path1');
+          expect(result).toBeNull();
+        },
+      );
+    });
+
+    it('returns the matching terminal path if the URL path contains a terminal path', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            blocklistPaths: blocklistPathsOpts,
+            version: 1,
+            tolerance: 2,
+            name: 'test-config',
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.blockingPath(
+            'https://example.com/path1/path2/path3',
+          );
+          expect(result).toBe('example.com/path1/path2');
+        },
+      );
+    });
+
+    it('returns null if blocklistPaths is empty', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            blocklistPaths: {},
+            name: 'test-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.blockingPath('https://example.com/path');
+          expect(result).toBeNull();
+        },
+      );
+    });
+
+    it('returns null if blocklistPaths is not defined', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            name: 'test-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.blockingPath('https://example.com/path');
+          expect(result).toBeNull();
+        },
+      );
+    });
+
+    it('returns the matching terminal path if URL matches a blocked path with version undefined', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            blocklistPaths: {
+              'malicious.com': {
+                phishing: {},
+              },
+            },
+            name: 'test-config',
+            // version is undefined
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.blockingPath(
+            'https://malicious.com/phishing',
+          );
+          expect(result).toBe('malicious.com/phishing');
+        },
+      );
     });
   });
 

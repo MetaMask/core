@@ -123,7 +123,7 @@ const MOCK_HD_ACCOUNT_1: Bip44Account<InternalAccount> = {
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
   metadata: {
-    name: 'Account 1',
+    name: '',
     keyring: { type: KeyringTypes.hd },
     importTime: 0,
     lastSelected: 0,
@@ -146,7 +146,7 @@ const MOCK_HD_ACCOUNT_2: Bip44Account<InternalAccount> = {
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
   metadata: {
-    name: 'Account 2',
+    name: '',
     keyring: { type: KeyringTypes.hd },
     importTime: 0,
     lastSelected: 0,
@@ -169,7 +169,7 @@ const MOCK_SNAP_ACCOUNT_1: Bip44Account<InternalAccount> = {
   type: SolAccountType.DataAccount,
   scopes: [SolScope.Mainnet],
   metadata: {
-    name: 'Snap Acc 1',
+    name: '',
     keyring: { type: KeyringTypes.snap },
     snap: MOCK_SNAP_1,
     importTime: 0,
@@ -185,7 +185,7 @@ const MOCK_SNAP_ACCOUNT_2: InternalAccount = {
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
   metadata: {
-    name: 'Snap Acc 2',
+    name: '',
     keyring: { type: KeyringTypes.snap },
     snap: MOCK_SNAP_2,
     importTime: 0,
@@ -208,7 +208,7 @@ const MOCK_TRX_ACCOUNT_1: InternalAccount = {
   type: TrxAccountType.Eoa,
   scopes: [TrxScope.Mainnet],
   metadata: {
-    name: 'Snap Acc 3',
+    name: '',
     keyring: { type: KeyringTypes.snap },
     importTime: 0,
     lastSelected: 0,
@@ -224,7 +224,7 @@ const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
   metadata: {
-    name: 'Hardware Acc 1',
+    name: '',
     keyring: { type: KeyringTypes.ledger },
     importTime: 0,
     lastSelected: 0,
@@ -556,7 +556,7 @@ describe('AccountTreeController', () => {
                   type: AccountGroupType.MultichainAccount,
                   accounts: [MOCK_HD_ACCOUNT_1.id],
                   metadata: {
-                    name: MOCK_HD_ACCOUNT_1.metadata.name,
+                    name: 'Account 1',
                     entropy: {
                       groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
                     },
@@ -1123,7 +1123,7 @@ describe('AccountTreeController', () => {
                   id: walletId1Group,
                   type: AccountGroupType.MultichainAccount,
                   metadata: {
-                    name: mockHdAccount1.metadata.name,
+                    name: 'Account 1',
                     entropy: {
                       groupIndex: mockHdAccount1.options.entropy.groupIndex,
                     },
@@ -1202,7 +1202,7 @@ describe('AccountTreeController', () => {
                   id: walletId1Group2,
                   type: AccountGroupType.MultichainAccount,
                   metadata: {
-                    name: mockHdAccount2.metadata.name,
+                    name: 'Account 2',
                     entropy: {
                       groupIndex: mockHdAccount2.options.entropy.groupIndex,
                     },
@@ -1391,7 +1391,7 @@ describe('AccountTreeController', () => {
                   id: walletId1Group,
                   type: AccountGroupType.MultichainAccount,
                   metadata: {
-                    name: mockHdAccount1.metadata.name,
+                    name: 'Account 1',
                     entropy: {
                       groupIndex: mockHdAccount1.options.entropy.groupIndex,
                     },
@@ -1488,7 +1488,7 @@ describe('AccountTreeController', () => {
                   id: walletId1Group,
                   type: AccountGroupType.MultichainAccount,
                   metadata: {
-                    name: mockHdAccount1.metadata.name,
+                    name: 'Account 1',
                     entropy: {
                       groupIndex: mockHdAccount1.options.entropy.groupIndex,
                     },
@@ -3289,6 +3289,168 @@ describe('AccountTreeController', () => {
       const extractedNumbers = [0, 4, 9];
 
       expect(extractedNumbers).toStrictEqual([0, 4, 9]); // Proves extraction works
+    });
+  });
+
+  describe('Computed names', () => {
+    const mockHdAccount1: Bip44Account<InternalAccount> = {
+      ...MOCK_HD_ACCOUNT_1,
+      options: {
+        ...MOCK_HD_ACCOUNT_1.options,
+        entropy: {
+          ...MOCK_HD_ACCOUNT_1.options.entropy,
+          id: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: 0,
+        },
+      },
+    };
+
+    const mockHdAccount2: Bip44Account<InternalAccount> = {
+      ...MOCK_HD_ACCOUNT_2,
+      options: {
+        ...MOCK_HD_ACCOUNT_2.options,
+        entropy: {
+          ...MOCK_HD_ACCOUNT_2.options.entropy,
+          id: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: 1,
+        },
+      },
+    };
+
+    const mockSolAccount1: Bip44Account<InternalAccount> = {
+      ...MOCK_HD_ACCOUNT_1,
+      id: 'mock-sol-id-1',
+      type: SolAccountType.DataAccount,
+      options: {
+        ...MOCK_HD_ACCOUNT_1.options,
+        entropy: {
+          ...MOCK_HD_ACCOUNT_1.options.entropy,
+          id: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: 0,
+        },
+      },
+      metadata: {
+        ...MOCK_HD_ACCOUNT_1.metadata,
+        snap: {
+          enabled: true,
+          id: MOCK_SNAP_1.id,
+          name: MOCK_SNAP_1.name,
+        },
+      },
+    };
+
+    const expectedWalletId = toMultichainAccountWalletId(
+      MOCK_HD_KEYRING_1.metadata.id,
+    );
+
+    const expectedGroupId1 = toMultichainAccountGroupId(
+      expectedWalletId,
+      mockHdAccount1.options.entropy.groupIndex,
+    );
+
+    const expectedGroupId2 = toMultichainAccountGroupId(
+      expectedWalletId,
+      mockHdAccount2.options.entropy.groupIndex,
+    );
+
+    it('uses computed name (from older accounts)', () => {
+      const mockEvmAccountName1 = 'My super EVM account';
+
+      const mockEvmAccount1 = {
+        ...mockHdAccount1,
+        metadata: {
+          ...mockHdAccount1.metadata,
+          // This name will be used to name the account group.
+          name: mockEvmAccountName1,
+        },
+      };
+      const mockAccount2 = {
+        ...mockHdAccount2,
+        metadata: {
+          ...mockHdAccount2.metadata,
+          // This "older" account has no name, thus, this will trigger the default
+          // naming logic.
+          name: '',
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [mockSolAccount1, mockEvmAccount1, mockAccount2],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const wallet = controller.state.accountTree.wallets[expectedWalletId];
+      const group1 = wallet?.groups[expectedGroupId1];
+      const group2 = wallet?.groups[expectedGroupId2];
+
+      // We used the `account.metadata.name` to compute this name.
+      expect(group1?.metadata.name).toBe(mockEvmAccountName1);
+      // We ysed the default naming logic for this one. (2, because it's the 2nd account).
+      expect(group2?.metadata.name).toBe('Account 2');
+    });
+
+    it('ignores non-EVM existing account name', () => {
+      const mockSolAccountName1 = 'Solana account';
+
+      const mockEvmAccount1 = mockHdAccount1;
+      expect(mockEvmAccount1.metadata.name).toBe('');
+
+      const { controller } = setup({
+        accounts: [mockSolAccount1, mockEvmAccount1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const wallet = controller.state.accountTree.wallets[expectedWalletId];
+      const group1 = wallet?.groups[expectedGroupId1];
+
+      // Solana account name are never used.
+      expect(group1?.metadata.name).not.toBe(mockSolAccountName1);
+      // Since EVM account name was empty, we default to normal account naming.
+      expect(group1?.metadata.name).toBe('Account 1');
+    });
+
+    it('automatically resolve conflicting names if any', () => {
+      const mockSameAccountName = 'Same account';
+
+      const mockEvmAccount1 = {
+        ...mockHdAccount1,
+        metadata: {
+          ...mockHdAccount1.metadata,
+          name: mockSameAccountName,
+        },
+      };
+      const mockEvmAccount2 = {
+        ...mockHdAccount2,
+        metadata: {
+          ...mockHdAccount2.metadata,
+          name: mockSameAccountName,
+        },
+      };
+
+      // Having the same name should not really be an issue in normal scenarios, but
+      // if a user had named some of his accounts with similar name than our new naming
+      // scheme, then that could conflict somehow.
+      expect(mockEvmAccount1.metadata.name).toBe(mockSameAccountName);
+      expect(mockEvmAccount2.metadata.name).toBe(mockSameAccountName);
+
+      const { controller } = setup({
+        accounts: [mockEvmAccount1, mockEvmAccount2],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const wallet = controller.state.accountTree.wallets[expectedWalletId];
+      const group1 = wallet?.groups[expectedGroupId1];
+      const group2 = wallet?.groups[expectedGroupId2];
+
+      // We used the `account.metadata.name` to compute this name.
+      expect(group1?.metadata.name).toBe(mockSameAccountName);
+      expect(group2?.metadata.name).toBe(`${mockSameAccountName} (2)`);
     });
   });
 

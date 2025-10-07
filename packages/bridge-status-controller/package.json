@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-status-controller",
-  "version": "47.2.0",
+  "version": "48.0.0",
   "description": "Manages bridge-related status fetching functionality for MetaMask",
   "keywords": [
     "MetaMask",
@@ -58,11 +58,11 @@
   "devDependencies": {
     "@metamask/accounts-controller": "^33.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/bridge-controller": "^47.2.0",
+    "@metamask/bridge-controller": "^48.0.0",
     "@metamask/gas-fee-controller": "^24.0.0",
     "@metamask/network-controller": "^24.2.0",
     "@metamask/snaps-controllers": "^14.0.1",
-    "@metamask/transaction-controller": "^60.5.0",
+    "@metamask/transaction-controller": "^60.6.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -76,7 +76,7 @@
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^33.0.0",
-    "@metamask/bridge-controller": "^47.0.0",
+    "@metamask/bridge-controller": "^48.0.0",
     "@metamask/gas-fee-controller": "^24.0.0",
     "@metamask/network-controller": "^24.0.0",
     "@metamask/snaps-controllers": "^14.0.0",

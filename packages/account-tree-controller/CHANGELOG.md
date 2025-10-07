@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0]
+
 ### Changed
 
+- Re-introduce computed names for account groups ([#6758](https://github.com/MetaMask/core/pull/6758))
+  - Those names are computed using the old internal account names, allowing to automatically migrate them.
+  - We only consider EVM account names.
+  - This automatically handles conflicting names, similarly to backup & sync (adding a suffix ` (n)` in case of conflicts.
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
 
 ## [1.3.0]
@@ -341,7 +347,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.4.0...HEAD
+[1.4.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.3.0...@metamask/account-tree-controller@1.4.0
 [1.3.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.2.0...@metamask/account-tree-controller@1.3.0
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.1.0...@metamask/account-tree-controller@1.2.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.0.0...@metamask/account-tree-controller@1.1.0
