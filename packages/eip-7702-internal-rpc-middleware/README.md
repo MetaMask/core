@@ -17,15 +17,18 @@ or
 Upgrades an EOA account to a smart account using EIP-7702.
 
 **Parameters:**
+
 - `account` (string): Address of the EOA to upgrade
 - `chainId` (number, optional): Chain ID for the upgrade (defaults to current)
 
 **Returns:**
+
 - `transactionHash` (string): Hash of the EIP-7702 authorization transaction
 - `upgradedAccount` (string): Address of the upgraded account (same as input)
 - `delegatedTo` (string): Address of the contract delegated to
 
 **Example:**
+
 ```json
 {
   "method": "wallet_upgradeAccount",
@@ -43,16 +46,19 @@ Upgrades an EOA account to a smart account using EIP-7702.
 Checks if an account has been upgraded using EIP-7702.
 
 **Parameters:**
+
 - `account` (string): Address of the account to check
 - `chainId` (number, optional): Chain ID for the check (defaults to current)
 
 **Returns:**
+
 - `account` (string): Address of the checked account
 - `isUpgraded` (boolean): Whether the account is upgraded
 - `upgradedAddress` (string | null): Address to which the account is upgraded (null if not upgraded)
 - `chainId` (number): Chain ID where the check was performed
 
 **Example:**
+
 ```json
 {
   "method": "wallet_getAccountUpgradeStatus",
@@ -66,6 +72,7 @@ Checks if an account has been upgraded using EIP-7702.
 ```
 
 **Example Response (Upgraded Account):**
+
 ```json
 {
   "account": "0x1234567890123456789012345678901234567890",
@@ -76,6 +83,7 @@ Checks if an account has been upgraded using EIP-7702.
 ```
 
 **Example Response (Non-Upgraded Account):**
+
 ```json
 {
   "account": "0x1234567890123456789012345678901234567890",
