@@ -637,9 +637,5 @@ export class AccountActivityService {
     this.#messenger.clearEventSubscriptions(
       'AccountActivityService:statusChanged',
     );
-
-    this.#unsubscribeFromAllAccountActivity().catch(() => {
-      // Ignore errors during cleanup - service is being destroyed
-    });
   }
 }
