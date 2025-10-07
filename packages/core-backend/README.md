@@ -62,7 +62,7 @@ const accountActivityService = new AccountActivityService({
 
 // Connect and subscribe to account activity
 await backendWebSocketService.connect();
-await accountActivityService.subscribeAccounts({
+await accountActivityService.subscribe({
   address: 'eip155:0:0x742d35cc6634c0532925a3b8d40c4e0e2c6e4e6',
 });
 
@@ -112,7 +112,7 @@ messenger.subscribe(
   'AccountsController:selectedAccountChange',
   async (selectedAccount) => {
     if (selectedAccount) {
-      await accountActivityService.subscribeAccounts({
+      await accountActivityService.subscribe({
         address: selectedAccount.address,
       });
     }
@@ -244,10 +244,10 @@ sequenceDiagram
       TBC->>HTTP: Fetch balances for new account<br/>(fill transition gap)
     and Account Subscription
       AA->>AA: User switched to different account<br/>(AccountsController:selectedAccountChange)
-      AA->>WS: subscribeAccounts (new account)
+      AA->>WS: subscribe (new account)
       WS->>Backend: {event: 'subscribe', channels: ['account-activity.v1.eip155:0:0x456...']}
       Backend->>WS: {event: 'subscribe-response', subscriptionId: 'sub-789'}
-      AA->>WS: unsubscribeAccounts (previous account)
+      AA->>WS: unsubscribe (previous account)
       WS->>Backend: {event: 'unsubscribe', subscriptionId: 'sub-456'}
       Backend->>WS: {event: 'unsubscribe-response'}
     end
@@ -350,8 +350,8 @@ interface AccountActivityServiceOptions {
 
 #### Methods
 
-- `subscribeAccounts(subscription: AccountSubscription): Promise<void>` - Subscribe to account activity
-- `unsubscribeAccounts(subscription: AccountSubscription): Promise<void>` - Unsubscribe from account activity
+- `subscribe(subscription: SubscriptionOptions): Promise<void>` - Subscribe to account activity
+- `unsubscribe(subscription: SubscriptionOptions): Promise<void>` - Unsubscribe from account activity
 
 #### Events Published
 

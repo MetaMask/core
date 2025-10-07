@@ -11,9 +11,9 @@ import type { AccountActivityService } from './AccountActivityService';
  *
  * @param subscription - Account subscription configuration with address
  */
-export type AccountActivityServiceSubscribeAccountsAction = {
-  type: `AccountActivityService:subscribeAccounts`;
-  handler: AccountActivityService['subscribeAccounts'];
+export type AccountActivityServiceSubscribeAction = {
+  type: `AccountActivityService:subscribe`;
+  handler: AccountActivityService['subscribe'];
 };
 
 /**
@@ -22,14 +22,14 @@ export type AccountActivityServiceSubscribeAccountsAction = {
  *
  * @param subscription - Account subscription configuration with address to unsubscribe
  */
-export type AccountActivityServiceUnsubscribeAccountsAction = {
-  type: `AccountActivityService:unsubscribeAccounts`;
-  handler: AccountActivityService['unsubscribeAccounts'];
+export type AccountActivityServiceUnsubscribeAction = {
+  type: `AccountActivityService:unsubscribe`;
+  handler: AccountActivityService['unsubscribe'];
 };
 
 /**
  * Union of all AccountActivityService action types.
  */
 export type AccountActivityServiceMethodActions =
-  | AccountActivityServiceSubscribeAccountsAction
-  | AccountActivityServiceUnsubscribeAccountsAction;
+  | AccountActivityServiceSubscribeAction
+  | AccountActivityServiceUnsubscribeAction;

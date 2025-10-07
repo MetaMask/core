@@ -31,7 +31,7 @@ export { BackendWebSocketService } from './BackendWebSocketService';
 
 // Account Activity Service
 export type {
-  AccountSubscription,
+  SubscriptionOptions,
   AccountActivityServiceOptions,
   AccountActivityServiceActions,
   AccountActivityServiceAllowedActions,

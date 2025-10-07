@@ -545,9 +545,9 @@ describe('BackendWebSocketService', () => {
             WebSocketState.DISCONNECTED,
           );
 
-          await expect(
+          expect(() =>
             service.sendMessage({ event: 'test', data: { requestId: 'test' } }),
-          ).rejects.toThrow('Cannot send message: WebSocket is disconnected');
+          ).toThrow('Cannot send message: WebSocket is disconnected');
           await expect(
             service.sendRequest({ event: 'test', data: {} }),
           ).rejects.toThrow('Cannot send request: WebSocket is disconnected');
@@ -1269,9 +1269,7 @@ describe('BackendWebSocketService', () => {
         };
 
         // Should handle error and call error handler
-        await expect(service.sendMessage(testMessage)).rejects.toThrow(
-          'Send failed',
-        );
+        expect(() => service.sendMessage(testMessage)).toThrow('Send failed');
       });
     });
 
@@ -1300,12 +1298,14 @@ describe('BackendWebSocketService', () => {
       await withService(async ({ service }) => {
         await service.connect();
 
-        // Mock sendMessage to return a rejected promise with non-Error object
+        // Mock sendMessage to throw a non-Error object
         const sendMessageSpy = jest.spyOn(service, 'sendMessage');
-        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
-        sendMessageSpy.mockReturnValue(Promise.reject('String error'));
+        sendMessageSpy.mockImplementation(() => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          throw 'String error';
+        });
 
-        // Attempt to send a request - this should hit line 550 (error instanceof Error = false)
+        // Attempt to send a request - this should hit line 552 (error instanceof Error = false)
         await expect(
           service.sendRequest({
             event: 'test-event',
@@ -1425,7 +1425,9 @@ describe('BackendWebSocketService', () => {
         // Test sendRequest error handling when message sending fails
         const sendMessageSpy = jest
           .spyOn(service, 'sendMessage')
-          .mockRejectedValue(new Error('Send failed'));
+          .mockImplementation(() => {
+            throw new Error('Send failed');
+          });
 
         await expect(
           service.sendRequest({ event: 'test', data: { test: 'value' } }),

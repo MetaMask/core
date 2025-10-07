@@ -1,7 +1,7 @@
 import { Messenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Hex } from '@metamask/utils';
-import nock, { cleanAll, disableNetConnect, isDone } from 'nock';
+import nock, { isDone } from 'nock';
 
 import type {
   AccountActivityServiceAllowedEvents,
@@ -10,7 +10,7 @@ import type {
 import {
   AccountActivityService,
   type AccountActivityServiceMessenger,
-  type AccountSubscription,
+  type SubscriptionOptions,
   ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
   ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS,
 } from './AccountActivityService';
@@ -312,18 +312,6 @@ async function withService<ReturnValue>(
 }
 
 describe('AccountActivityService', () => {
-  beforeEach(() => {
-    // Set up nock
-    cleanAll();
-    disableNetConnect(); // Disable real network connections
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
-    cleanAll();
-    // Don't re-enable net connect - this was breaking nock!
-  });
-
   // =============================================================================
   // CONSTRUCTOR TESTS
   // =============================================================================
@@ -364,8 +352,8 @@ describe('AccountActivityService', () => {
   // =============================================================================
   // SUBSCRIBE ACCOUNTS TESTS
   // =============================================================================
-  describe('subscribeAccounts', () => {
-    const mockSubscription: AccountSubscription = {
+  describe('subscribe', () => {
+    const mockSubscription: SubscriptionOptions = {
       address: 'eip155:1:0x1234567890123456789012345678901234567890',
     };
 
@@ -388,7 +376,7 @@ describe('AccountActivityService', () => {
           });
           mocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
 
-          await service.subscribeAccounts(mockSubscription);
+          await service.subscribe(mockSubscription);
 
           // Simulate receiving account activity message
           const activityMessage: AccountActivityMessage = {
@@ -482,7 +470,7 @@ describe('AccountActivityService', () => {
         mocks.subscribe.mockRejectedValue(new Error('Subscription failed'));
 
         // Should handle both subscription failure and disconnect failure gracefully - should not throw
-        const result = await service.subscribeAccounts({ address: '0x123abc' });
+        const result = await service.subscribe({ address: '0x123abc' });
         expect(result).toBeUndefined();
 
         // Verify the subscription was attempted
@@ -501,8 +489,8 @@ describe('AccountActivityService', () => {
   // =============================================================================
   // UNSUBSCRIBE ACCOUNTS TESTS
   // =============================================================================
-  describe('unsubscribeAccounts', () => {
-    const mockSubscription: AccountSubscription = {
+  describe('unsubscribe', () => {
+    const mockSubscription: SubscriptionOptions = {
       address: 'eip155:1:0x1234567890123456789012345678901234567890',
     };
 
@@ -512,7 +500,7 @@ describe('AccountActivityService', () => {
         mocks.getSubscriptionsByChannel.mockReturnValue([]);
 
         // This should trigger the early return on line 302
-        await service.unsubscribeAccounts(mockSubscription);
+        await service.unsubscribe(mockSubscription);
 
         // Verify the messenger call was made but early return happened
         expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
@@ -540,8 +528,8 @@ describe('AccountActivityService', () => {
           ]);
           mocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
 
-          // unsubscribeAccounts catches errors and forces reconnection instead of throwing
-          await service.unsubscribeAccounts(mockSubscription);
+          // unsubscribe catches errors and forces reconnection instead of throwing
+          await service.unsubscribe(mockSubscription);
 
           // Should have attempted to force reconnection with exact sequence
           expect(mocks.disconnect).toHaveBeenCalledTimes(1);

@@ -77,10 +77,7 @@ const SERVICE_NAME = 'AccountActivityService';
 
 const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
-const MESSENGER_EXPOSED_METHODS = [
-  'subscribeAccounts',
-  'unsubscribeAccounts',
-] as const;
+const MESSENGER_EXPOSED_METHODS = ['subscribe', 'unsubscribe'] as const;
 
 // Default supported chains used as fallback when API is unavailable
 // This list should match the expected chains from the accounts API v2/supportedNetworks endpoint
@@ -103,7 +100,7 @@ const SUPPORTED_CHAINS_CACHE_TTL = 5 * 60 * 60 * 1000;
 /**
  * Account subscription options
  */
-export type AccountSubscription = {
+export type SubscriptionOptions = {
   address: string; // Should be in CAIP-10 format, e.g., "eip155:0:0x1234..." or "solana:0:ABC123..."
 };
 
@@ -330,7 +327,7 @@ export class AccountActivityService {
    *
    * @param subscription - Account subscription configuration with address
    */
-  async subscribeAccounts(subscription: AccountSubscription): Promise<void> {
+  async subscribe(subscription: SubscriptionOptions): Promise<void> {
     try {
       await this.#messenger.call('BackendWebSocketService:connect');
 
@@ -368,7 +365,7 @@ export class AccountActivityService {
    *
    * @param subscription - Account subscription configuration with address to unsubscribe
    */
-  async unsubscribeAccounts(subscription: AccountSubscription): Promise<void> {
+  async unsubscribe(subscription: SubscriptionOptions): Promise<void> {
     const { address } = subscription;
     try {
       // Find channel for the specified address
@@ -453,7 +450,7 @@ export class AccountActivityService {
       await this.#unsubscribeFromAllAccountActivity();
 
       // Then, subscribe to the new selected account
-      await this.subscribeAccounts({ address: newAddress });
+      await this.subscribe({ address: newAddress });
     } catch (error) {
       log('Account change failed', { error });
     }
@@ -493,7 +490,7 @@ export class AccountActivityService {
 
     if (state === WebSocketState.CONNECTED) {
       // WebSocket connected - resubscribe and set all chains as up
-      await this.#subscribeSelectedAccount();
+      await this.#subscribeToSelectedAccount();
 
       // Publish initial status - all supported chains are up when WebSocket connects
       this.#messenger.publish(`AccountActivityService:statusChanged`, {
@@ -528,7 +525,7 @@ export class AccountActivityService {
   /**
    * Subscribe to the currently selected account only
    */
-  async #subscribeSelectedAccount(): Promise<void> {
+  async #subscribeToSelectedAccount(): Promise<void> {
     const selectedAccount = this.#messenger.call(
       'AccountsController:getSelectedAccount',
     );
@@ -539,7 +536,7 @@ export class AccountActivityService {
 
     // Convert to CAIP-10 format and subscribe
     const address = this.#convertToCaip10Address(selectedAccount);
-    await this.subscribeAccounts({ address });
+    await this.subscribe({ address });
   }
 
   /**
