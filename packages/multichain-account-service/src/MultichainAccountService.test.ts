@@ -211,17 +211,17 @@ describe('MultichainAccountService', () => {
           },
         };
 
-      const { mocks, rootMessenger } = setup({
+      const { mocks, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
         providerConfigs,
       });
 
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
-        rootMessenger,
+        messenger,
         providerConfigs[EvmAccountProvider.NAME],
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
-        rootMessenger,
+        messenger,
         providerConfigs[SolAccountProvider.NAME],
       );
     });
@@ -806,9 +806,9 @@ describe('MultichainAccountService', () => {
   describe('actions', () => {
     it('gets a multichain account with MultichainAccountService:getMultichainAccount', () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
-      const { rootMessenger } = setup({ accounts });
+      const { messenger } = setup({ accounts });
 
-      const group = rootMessenger.call(
+      const group = messenger.call(
         'MultichainAccountService:getMultichainAccountGroup',
         { entropySource: MOCK_HD_KEYRING_1.metadata.id, groupIndex: 0 },
       );
@@ -817,9 +817,9 @@ describe('MultichainAccountService', () => {
 
     it('gets multichain accounts with MultichainAccountService:getMultichainAccounts', () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
-      const { rootMessenger } = setup({ accounts });
+      const { messenger } = setup({ accounts });
 
-      const groups = rootMessenger.call(
+      const groups = messenger.call(
         'MultichainAccountService:getMultichainAccountGroups',
         { entropySource: MOCK_HD_KEYRING_1.metadata.id },
       );
@@ -828,9 +828,9 @@ describe('MultichainAccountService', () => {
 
     it('gets multichain account wallet with MultichainAccountService:getMultichainAccountWallet', () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
-      const { rootMessenger } = setup({ accounts });
+      const { messenger } = setup({ accounts });
 
-      const wallet = rootMessenger.call(
+      const wallet = messenger.call(
         'MultichainAccountService:getMultichainAccountWallet',
         { entropySource: MOCK_HD_KEYRING_1.metadata.id },
       );
@@ -839,9 +839,9 @@ describe('MultichainAccountService', () => {
 
     it('gets multichain account wallet with MultichainAccountService:getMultichainAccountWallets', () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
-      const { rootMessenger } = setup({ accounts });
+      const { messenger } = setup({ accounts });
 
-      const wallets = rootMessenger.call(
+      const wallets = messenger.call(
         'MultichainAccountService:getMultichainAccountWallets',
       );
       expect(wallets.length).toBeGreaterThan(0);
