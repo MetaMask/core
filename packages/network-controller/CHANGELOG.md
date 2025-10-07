@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
+  - Providers accessible either via network clients or global proxies no longer emit events (or inherit from EventEmitter, for that matter).
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
 - Update `@metamask/eth-json-rpc-middleware` from `^17.0.1` to `^18.0.0` ([#6714](https://github.com/MetaMask/core/pull/6714))
 - Bump `@metamask/error-reporting-service` from `^2.1.0` to `^2.2.0` ([#6782](https://github.com/MetaMask/core/pull/6782))
