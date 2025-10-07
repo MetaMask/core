@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `name` and `state` properties to support modular initialization ([#6781](https://github.com/MetaMask/core/pull/6781))
+
 ## [2.1.0]
 
 ### Changed
