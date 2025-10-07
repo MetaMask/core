@@ -168,7 +168,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   #quotesFirstFetched: number | undefined;
 
-  readonly #clientId: string;
+  readonly #clientId: BridgeClientId;
 
   readonly #getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee;
 
@@ -336,7 +336,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             paramsToUpdate.insufficientBal ??
             !(await this.#hasSufficientBalance(updatedQuoteRequest));
         } catch (error) {
-          console.error('===hasSufficientBalance error', error);
+          console.error('Failed to fetch balance', error);
           insufficientBal = false;
         }
       }
@@ -688,7 +688,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
     this.update((state) => {
       state.quotesLoadingStatus = RequestStatus.LOADING;
-      state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
     });
 
@@ -735,8 +734,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
                 const quotesWithFees =
                   quotesWithL1GasFees ?? quotesWithNonEvmFees ?? quotes;
                 this.update((state) => {
+                  // If there are no other quotes yet, set initial load time
+                  if (state.quotes.length === 0 && quotesWithFees.length > 0) {
+                    state.quotesInitialLoadTime = Date.now();
+                  }
                   state.quotes.push(...quotesWithFees);
-                  // TODO if there are no other quotes, set initial load time
                 });
               },
             },
@@ -747,17 +749,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         state.quotesLoadingStatus = RequestStatus.FETCHED;
       });
     } catch (error) {
-      console.log('=====catcherror', error);
-      // on mobile things crash here so fetch error is not logged
-      // cant connect to server
       const isAbortError = (error as Error).name === 'AbortError';
-      console.log(
-        '===catcherror',
-        'isAbortError',
-        isAbortError,
-        (error as Error).message,
-        (error as Error).toString(),
-      );
       if (
         isAbortError ||
         [
@@ -766,30 +758,18 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           AbortReason.QuoteRequestUpdated,
         ].includes(error as AbortReason)
       ) {
-        console.log('===Aborting stream due to abort error.', error);
         // Exit the function early to prevent other state updates
         return;
       }
 
-      console.log('===catcherror', 'updating state');
       this.update((state) => {
-        // Tryhing to fix this on mobile
-        state.quoteFetchError = // (error ?? 'error') as never as string;
-          // // TODO this works on mobile
+        state.quoteFetchError =
           this.#clientId === BridgeClientId.MOBILE
             ? 'generic streaming error'
             : ((error ?? 'error') as never as string);
-        console.log(
-          '===catcherror',
-          'finished setting quoteFetchError',
-          state.quoteFetchError,
-        );
-        // state.quoteFetchError =//this breaks on mobile
-        // error instanceof Error ? error.message : (error?.toString() ?? null);
         state.quotesLoadingStatus = RequestStatus.ERROR;
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
-      console.log('===catcherror', 'publishing event');
 
       this.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.QuotesError,

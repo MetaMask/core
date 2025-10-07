@@ -45,8 +45,6 @@ export type FetchFunction = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<any>;
 
-// export type FetchFunction = typeof fetch;
-
 /**
  * The types of assets that a user can send
  */
