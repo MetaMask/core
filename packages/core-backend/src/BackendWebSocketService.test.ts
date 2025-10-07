@@ -750,35 +750,6 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle messenger publish errors during state changes by logging errors without throwing', async () => {
-      await withService(async ({ service, messenger }) => {
-        // Mock messenger.publish to throw an error
-        const publishSpy = jest
-          .spyOn(messenger, 'publish')
-          .mockImplementation(() => {
-            throw new Error('Messenger publish failed');
-          });
-
-        // Trigger a state change by attempting to connect
-        // This will call #setState which will try to publish and catch the error
-        // The key test is that the service doesn't crash despite the messenger error
-        try {
-          await service.connect();
-        } catch {
-          // Connection might fail, but that's ok - we're testing the publish error handling
-        }
-
-        // Verify that the service is still functional despite the messenger publish error
-        // This ensures the error was caught and handled properly
-        const connectionInfo = service.getConnectionInfo();
-        expect(connectionInfo.state).toBe(WebSocketState.CONNECTED);
-        expect(connectionInfo.reconnectAttempts).toBe(0);
-        expect(connectionInfo.url).toBe('ws://localhost:8080');
-
-        publishSpy.mockRestore();
-      });
-    });
-
     it('should handle concurrent connect calls by awaiting existing connection promise and returning same result', async () => {
       await withService(
         { mockWebSocketOptions: { autoConnect: false } },
@@ -1496,6 +1467,38 @@ describe('BackendWebSocketService', () => {
 
         connectSpy.mockRestore();
       });
+    });
+
+    it('should handle disconnect errors gracefully when user signs out', async () => {
+      await withService(
+        async ({ service, rootMessenger, completeAsyncOperations }) => {
+          // Connect the service first
+          await service.connect();
+
+          // Mock disconnect to throw an error
+          const disconnectSpy = jest
+            .spyOn(service, 'disconnect')
+            .mockImplementationOnce(async () => {
+              throw new Error('Disconnect failed');
+            });
+
+          // Trigger sign out event
+          rootMessenger.publish(
+            'AuthenticationController:stateChange',
+            { isSignedIn: false },
+            [],
+          );
+
+          // Complete async operations to let the catch handler execute
+          await completeAsyncOperations();
+
+          // Verify disconnect was called
+          expect(disconnectSpy).toHaveBeenCalled();
+
+          // Restore the spy so cleanup can work properly
+          disconnectSpy.mockRestore();
+        },
+      );
     });
 
     it('should throw error on authentication setup failure when messenger action registration fails', async () => {

@@ -274,6 +274,8 @@ export class BackendWebSocketService {
 
   #reconnectTimer: NodeJS.Timeout | null = null;
 
+  #connectionTimeout: NodeJS.Timeout | null = null;
+
   // Track the current connection promise to handle concurrent connection attempts
   #connectionPromise: Promise<void> | null = null;
 
@@ -354,7 +356,9 @@ export class BackendWebSocketService {
             // User signed out (wallet locked OR signed out) - disconnect and stop reconnection attempts
             this.#clearTimers();
             this.#reconnectAttempts = 0;
-            this.disconnect();
+            this.disconnect().catch((error) => {
+              log('Failed to disconnect after sign-out', { error });
+            });
           }
         },
         (state: AuthenticationController.AuthenticationControllerState) =>
@@ -771,22 +775,18 @@ export class BackendWebSocketService {
 
     // Create unsubscribe function
     const unsubscribe = async (unsubRequestId?: string): Promise<void> => {
-      try {
-        // Send unsubscribe request first
-        await this.sendRequest({
-          event: 'unsubscribe',
-          data: {
-            subscription: subscriptionId,
-            channels,
-            requestId: unsubRequestId,
-          },
-        });
+      // Send unsubscribe request first
+      await this.sendRequest({
+        event: 'unsubscribe',
+        data: {
+          subscription: subscriptionId,
+          channels,
+          requestId: unsubRequestId,
+        },
+      });
 
-        // Clean up subscription mapping
-        this.#subscriptions.delete(subscriptionId);
-      } catch (error) {
-        throw error;
-      }
+      // Clean up subscription mapping
+      this.#subscriptions.delete(subscriptionId);
     };
 
     const subscription = {
@@ -839,7 +839,7 @@ export class BackendWebSocketService {
 
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(wsUrl);
-      const connectTimeout = setTimeout(() => {
+      this.#connectionTimeout = setTimeout(() => {
         log('WebSocket connection timeout - forcing close', {
           timeout: this.#options.timeout,
         });
@@ -850,7 +850,10 @@ export class BackendWebSocketService {
       }, this.#options.timeout);
 
       ws.onopen = () => {
-        clearTimeout(connectTimeout);
+        if (this.#connectionTimeout) {
+          clearTimeout(this.#connectionTimeout);
+          this.#connectionTimeout = null;
+        }
         this.#ws = ws;
         this.#setState(WebSocketState.CONNECTED);
         this.#connectedAt = Date.now();
@@ -865,7 +868,10 @@ export class BackendWebSocketService {
         log('WebSocket onerror event triggered', { event });
         if (this.#state === WebSocketState.CONNECTING) {
           // Handle connection-phase errors
-          clearTimeout(connectTimeout);
+          if (this.#connectionTimeout) {
+            clearTimeout(this.#connectionTimeout);
+            this.#connectionTimeout = null;
+          }
           const error = new Error(`WebSocket connection error to ${wsUrl}`);
           reject(error);
         } else {
@@ -882,7 +888,10 @@ export class BackendWebSocketService {
         });
         if (this.#state === WebSocketState.CONNECTING) {
           // Handle connection-phase close events
-          clearTimeout(connectTimeout);
+          if (this.#connectionTimeout) {
+            clearTimeout(this.#connectionTimeout);
+            this.#connectionTimeout = null;
+          }
           reject(
             new Error(
               `WebSocket connection closed during connection: ${event.code} ${event.reason}`,
@@ -1025,7 +1034,7 @@ export class BackendWebSocketService {
     const { subscriptionId } = message;
 
     // Only handle if subscriptionId is defined and not null (allows "0" as valid ID)
-    if (subscriptionId != null) {
+    if (subscriptionId !== null && subscriptionId !== undefined) {
       this.#subscriptions.get(subscriptionId)?.callback?.(message);
       return true;
     }
@@ -1115,6 +1124,9 @@ export class BackendWebSocketService {
     });
 
     this.#reconnectTimer = setTimeout(() => {
+      // Clear timer reference first
+      this.#reconnectTimer = null;
+
       // Check if connection is still enabled before reconnecting
       if (this.#isEnabled && !this.#isEnabled()) {
         log('Reconnection disabled by isEnabled - stopping all attempts');
@@ -1136,6 +1148,10 @@ export class BackendWebSocketService {
     if (this.#reconnectTimer) {
       clearTimeout(this.#reconnectTimer);
       this.#reconnectTimer = null;
+    }
+    if (this.#connectionTimeout) {
+      clearTimeout(this.#connectionTimeout);
+      this.#connectionTimeout = null;
     }
   }
 
@@ -1172,14 +1188,11 @@ export class BackendWebSocketService {
       log('WebSocket state changed', { oldState, newState });
 
       // Publish connection state change event
-      try {
-        this.#messenger.publish(
-          'BackendWebSocketService:connectionStateChanged',
-          this.getConnectionInfo(),
-        );
-      } catch (error) {
-        log('Failed to publish WebSocket connection state change', { error });
-      }
+      // Messenger handles listener errors internally, no need for try-catch
+      this.#messenger.publish(
+        'BackendWebSocketService:connectionStateChanged',
+        this.getConnectionInfo(),
+      );
     }
   }
 
