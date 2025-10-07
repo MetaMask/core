@@ -1,15 +1,17 @@
-import { Messenger } from '@metamask/base-controller';
 import { HttpError } from '@metamask/controller-utils';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MockAnyNamespace,
+  type MessengerActions,
+  type MessengerEvents,
+} from '@metamask/messenger';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
 
 import type { SampleGasPricesServiceMessenger } from './sample-gas-prices-service';
 import { SampleGasPricesService } from './sample-gas-prices-service';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../../base-controller/tests/helpers';
 
 describe('SampleGasPricesService', () => {
   let clock: SinonFakeTimers;
@@ -293,8 +295,9 @@ describe('SampleGasPricesService', () => {
  * required by the service under test.
  */
 type RootMessenger = Messenger<
-  ExtractAvailableAction<SampleGasPricesServiceMessenger>,
-  ExtractAvailableEvent<SampleGasPricesServiceMessenger>
+  MockAnyNamespace,
+  MessengerActions<SampleGasPricesServiceMessenger>,
+  MessengerEvents<SampleGasPricesServiceMessenger>
 >;
 
 /**
@@ -304,7 +307,7 @@ type RootMessenger = Messenger<
  * @returns The root messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new Messenger();
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 /**
@@ -317,10 +320,9 @@ function getRootMessenger(): RootMessenger {
 function getMessenger(
   rootMessenger: RootMessenger,
 ): SampleGasPricesServiceMessenger {
-  return rootMessenger.getRestricted({
-    name: 'SampleGasPricesService',
-    allowedActions: [],
-    allowedEvents: [],
+  return new Messenger({
+    namespace: 'SampleGasPricesService',
+    parent: rootMessenger,
   });
 }
 
