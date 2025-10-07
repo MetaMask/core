@@ -16244,6 +16244,8 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
             resolve(interestingEventPayloads);
           } else {
             reject(
+              // False positive - eventType is a string.
+              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `Expected to receive ${expectedNumberOfEvents} ${eventType} event(s), but received ${
                 interestingEventPayloads.length
               } after ${timeBeforeAssumingNoMoreEvents}ms.\n\nAll payloads:\n\n${inspect(
