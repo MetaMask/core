@@ -1,6 +1,7 @@
 import { bytesToHex } from '@noble/hashes/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 
+import { deleteFromTrie, insertToTrie, deepCopyPathTrie } from './PathTrie';
 import type { Hotlist, PhishingListState } from './PhishingController';
 import { ListKeys, phishingListKeyNameMap } from './PhishingController';
 import type {
@@ -48,6 +49,27 @@ const splitStringByPeriod = <Start extends string, End extends string>(
   ];
 };
 
+export const getHostnameAndPathComponents = (
+  url: string,
+): { hostname: string; pathComponents: string[] } => {
+  const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
+  try {
+    const { hostname, pathname } = new URL(urlWithProtocol);
+    return {
+      hostname: hostname.toLowerCase(),
+      pathComponents: pathname
+        .split('/')
+        .filter(Boolean)
+        .map((component) => decodeURIComponent(component)),
+    };
+  } catch {
+    return {
+      hostname: '',
+      pathComponents: [],
+    };
+  }
+};
+
 /**
  * Determines which diffs are applicable to the listState, then applies those diffs.
  *
@@ -85,13 +107,27 @@ export const applyDiffs = (
     fuzzylist: new Set(listState.fuzzylist),
     c2DomainBlocklist: new Set(listState.c2DomainBlocklist),
   };
+
+  // deep copy of blocklistPaths to avoid mutating the original
+  const newBlocklistPaths = deepCopyPathTrie(listState.blocklistPaths);
+
   for (const { isRemoval, targetList, url, timestamp } of diffsToApply) {
     const targetListType = splitStringByPeriod(targetList)[1];
     if (timestamp > latestDiffTimestamp) {
       latestDiffTimestamp = timestamp;
     }
+
     if (isRemoval) {
-      listSets[targetListType].delete(url);
+      if (targetListType === 'blocklistPaths') {
+        deleteFromTrie(url, newBlocklistPaths);
+      } else {
+        listSets[targetListType].delete(url);
+      }
+      continue;
+    }
+
+    if (targetListType === 'blocklistPaths') {
+      insertToTrie(url, newBlocklistPaths);
     } else {
       listSets[targetListType].add(url);
     }
@@ -111,6 +147,7 @@ export const applyDiffs = (
     allowlist: Array.from(listSets.allowlist),
     blocklist: Array.from(listSets.blocklist),
     fuzzylist: Array.from(listSets.fuzzylist),
+    blocklistPaths: newBlocklistPaths,
     version: listState.version,
     name: phishingListKeyNameMap[listKey],
     tolerance: listState.tolerance,
@@ -184,7 +221,6 @@ export const processDomainList = (list: string[]): string[][] => {
  * @param override - the optional override for the configuration.
  * @param override.allowlist - the optional allowlist to override.
  * @param override.blocklist - the optional blocklist to override.
- * @param override.c2DomainBlocklist - the optional c2DomainBlocklist to override.
  * @param override.fuzzylist - the optional fuzzylist to override.
  * @param override.tolerance - the optional tolerance to override.
  * @returns the default phishing detector configuration.
@@ -197,15 +233,18 @@ export const getDefaultPhishingDetectorConfig = ({
 }: {
   allowlist?: string[];
   blocklist?: string[];
-  c2DomainBlocklist?: string[];
   fuzzylist?: string[];
   tolerance?: number;
-}): PhishingDetectorConfiguration => ({
-  allowlist: processDomainList(allowlist),
-  blocklist: processDomainList(blocklist),
-  fuzzylist: processDomainList(fuzzylist),
-  tolerance,
-});
+}): PhishingDetectorConfiguration => {
+  return {
+    allowlist: processDomainList(allowlist),
+    // We can assume that blocklist is already separated into hostname-only entries
+    // and hostname+path entries so we do not need to separate it again.
+    blocklist: processDomainList(blocklist),
+    fuzzylist: processDomainList(fuzzylist),
+    tolerance,
+  };
+};
 
 /**
  * Processes the configurations for the phishing detector, filtering out any invalid configs.
@@ -323,6 +362,15 @@ export const getHostnameFromWebUrl = (url: string): [string, boolean] => {
 
   const hostname = getHostnameFromUrl(url);
   return [hostname || '', Boolean(hostname)];
+};
+
+export const getPathnameFromUrl = (url: string): string => {
+  try {
+    const { pathname } = new URL(url);
+    return pathname;
+  } catch {
+    return '';
+  }
 };
 
 /**

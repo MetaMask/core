@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import * as sinon from 'sinon';
 
 import {
   controllerName,
@@ -22,6 +23,7 @@ import type {
   StartCryptoSubscriptionRequest,
   StartCryptoSubscriptionResponse,
   UpdatePaymentMethodOpts,
+  Product,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -29,6 +31,7 @@ import {
   RECURRING_INTERVALS,
   SUBSCRIPTION_STATUSES,
 } from './types';
+import { advanceTime } from '../../../tests/helpers';
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
@@ -269,6 +272,7 @@ describe('SubscriptionController', () => {
         messenger,
         state: initialState,
         subscriptionService: mockService,
+        pollingInterval: 10_000,
       });
 
       expect(controller).toBeDefined();
@@ -291,7 +295,7 @@ describe('SubscriptionController', () => {
     });
   });
 
-  describe('getSubscription', () => {
+  describe('getSubscriptions', () => {
     it('should fetch and store subscription successfully', async () => {
       await withController(async ({ controller, mockService }) => {
         mockService.getSubscriptions.mockResolvedValue(
@@ -370,6 +374,156 @@ describe('SubscriptionController', () => {
           expect(controller.state.subscriptions[0]?.id).toBe('sub_new');
         },
       );
+    });
+
+    it('should not update state when multiple subscriptions are the same but in different order', async () => {
+      const mockSubscription1 = { ...MOCK_SUBSCRIPTION, id: 'sub_1' };
+      const mockSubscription2 = { ...MOCK_SUBSCRIPTION, id: 'sub_2' };
+      const mockSubscription3 = { ...MOCK_SUBSCRIPTION, id: 'sub_3' };
+
+      await withController(
+        {
+          state: {
+            customerId: 'cus_1',
+            subscriptions: [
+              mockSubscription1,
+              mockSubscription2,
+              mockSubscription3,
+            ],
+          },
+        },
+        async ({ controller, mockService }) => {
+          // Return the same subscriptions but in different order
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [
+              mockSubscription3,
+              mockSubscription1,
+              mockSubscription2,
+            ], // Different order
+            trialedProducts: [],
+          });
+
+          const initialState = [...controller.state.subscriptions];
+          await controller.getSubscriptions();
+
+          // Should not update state since subscriptions are the same (just different order)
+          expect(controller.state.subscriptions).toStrictEqual(initialState);
+        },
+      );
+    });
+
+    it('should not update state when subscriptions are the same but the products are in different order', async () => {
+      const mockProduct1: Product = {
+        // @ts-expect-error - mock data
+        name: 'Product 1',
+        currency: 'usd',
+        unitAmount: 900,
+        unitDecimals: 2,
+      };
+      const mockProduct2: Product = {
+        // @ts-expect-error - mock data
+        name: 'Product 2',
+        currency: 'usd',
+        unitAmount: 900,
+        unitDecimals: 2,
+      };
+      const mockSubscription = {
+        ...MOCK_SUBSCRIPTION,
+        products: [mockProduct1, mockProduct2],
+      };
+
+      await withController(
+        {
+          state: {
+            subscriptions: [mockSubscription],
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_SUBSCRIPTION,
+            subscriptions: [
+              { ...MOCK_SUBSCRIPTION, products: [mockProduct2, mockProduct1] },
+            ],
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
+          });
+          await controller.getSubscriptions();
+          expect(controller.state.subscriptions).toStrictEqual([
+            mockSubscription,
+          ]);
+        },
+      );
+    });
+
+    it('should update state when subscriptions are the same but the trialed products are different', async () => {
+      const mockProduct1: Product = {
+        // @ts-expect-error - mock data
+        name: 'Product 1',
+        currency: 'usd',
+        unitAmount: 900,
+        unitDecimals: 2,
+      };
+      const mockProduct2: Product = {
+        // @ts-expect-error - mock data
+        name: 'Product 2',
+        currency: 'usd',
+        unitAmount: 900,
+        unitDecimals: 2,
+      };
+      const mockSubscription = {
+        ...MOCK_SUBSCRIPTION,
+        products: [mockProduct1, mockProduct2],
+      };
+
+      await withController(
+        {
+          state: {
+            subscriptions: [mockSubscription],
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_SUBSCRIPTION,
+            subscriptions: [
+              { ...MOCK_SUBSCRIPTION, products: [mockProduct1, mockProduct2] },
+            ],
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
+          });
+          await controller.getSubscriptions();
+          expect(controller.state.subscriptions).toStrictEqual([
+            mockSubscription,
+          ]);
+          expect(controller.state.trialedProducts).toStrictEqual([
+            PRODUCT_TYPES.SHIELD,
+          ]);
+        },
+      );
+    });
+  });
+
+  describe('getSubscriptionByProduct', () => {
+    it('should get subscription by product successfully', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller }) => {
+          expect(
+            controller.getSubscriptionByProduct(PRODUCT_TYPES.SHIELD),
+          ).toStrictEqual(MOCK_SUBSCRIPTION);
+        },
+      );
+    });
+
+    it('should return undefined if no subscription is found', async () => {
+      await withController(async ({ controller }) => {
+        expect(
+          controller.getSubscriptionByProduct(PRODUCT_TYPES.SHIELD),
+        ).toBeUndefined();
+      });
     });
   });
 
@@ -696,6 +850,42 @@ describe('SubscriptionController', () => {
           );
         },
       );
+    });
+  });
+
+  describe('startPolling', () => {
+    let clock: sinon.SinonFakeTimers;
+    beforeEach(() => {
+      // eslint-disable-next-line import-x/namespace
+      clock = sinon.useFakeTimers();
+    });
+
+    afterEach(() => {
+      clock.restore();
+    });
+
+    it('should call getSubscriptions with the correct interval', async () => {
+      await withController(async ({ controller }) => {
+        const getSubscriptionsSpy = jest.spyOn(controller, 'getSubscriptions');
+        controller.startPolling({});
+        await advanceTime({ clock, duration: 0 });
+        expect(getSubscriptionsSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should call `triggerAccessTokenRefresh` when the state changes', async () => {
+      await withController(async ({ controller, mockService }) => {
+        mockService.getSubscriptions.mockResolvedValue(
+          MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+        );
+        const triggerAccessTokenRefreshSpy = jest.spyOn(
+          controller,
+          'triggerAccessTokenRefresh',
+        );
+        controller.startPolling({});
+        await advanceTime({ clock, duration: 0 });
+        expect(triggerAccessTokenRefreshSpy).toHaveBeenCalledTimes(1);
+      });
     });
   });
 
