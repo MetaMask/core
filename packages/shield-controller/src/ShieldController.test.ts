@@ -317,7 +317,6 @@ describe('ShieldController', () => {
 
       // Check that backend was called
       expect(components.backend.logSignature).toHaveBeenCalledWith({
-        coverageId: undefined,
         signatureRequest: updatedSignatureRequest,
         signature: '0x00',
         status: 'not_shown',
@@ -406,7 +405,6 @@ describe('ShieldController', () => {
 
       // Check that backend was called
       expect(components.backend.logTransaction).toHaveBeenCalledWith({
-        coverageId: undefined,
         status: 'not_shown',
         transactionHash: '0x00',
         txMeta: updatedTxMeta,
