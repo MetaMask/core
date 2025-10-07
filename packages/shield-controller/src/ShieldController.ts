@@ -3,9 +3,16 @@ import type {
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
-import type {
-  TransactionControllerStateChangeEvent,
-  TransactionMeta,
+import {
+  SignatureRequestStatus,
+  SignatureRequestType,
+  type SignatureRequest,
+  type SignatureStateChange,
+} from '@metamask/signature-controller';
+import {
+  TransactionStatus,
+  type TransactionControllerStateChangeEvent,
+  type TransactionMeta,
 } from '@metamask/transaction-controller';
 
 import { controllerName } from './constants';
@@ -82,7 +89,9 @@ type AllowedActions = never;
 /**
  * The external events available to the ShieldController.
  */
-type AllowedEvents = TransactionControllerStateChangeEvent;
+type AllowedEvents =
+  | SignatureStateChange
+  | TransactionControllerStateChangeEvent;
 
 /**
  * The messenger of the {@link ShieldController}.
@@ -101,12 +110,16 @@ export type ShieldControllerMessenger = RestrictedMessenger<
  */
 const metadata = {
   coverageResults: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   orderedTransactionHistory: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: false,
   },
 };
 
@@ -134,6 +147,11 @@ export class ShieldController extends BaseController<
     previousTransactions: TransactionMeta[] | undefined,
   ) => void;
 
+  readonly #signatureControllerStateChangeHandler: (
+    signatureRequests: Record<string, SignatureRequest>,
+    previousSignatureRequests: Record<string, SignatureRequest> | undefined,
+  ) => void;
+
   constructor(options: ShieldControllerOptions) {
     const {
       messenger,
@@ -157,6 +175,8 @@ export class ShieldController extends BaseController<
     this.#transactionHistoryLimit = transactionHistoryLimit;
     this.#transactionControllerStateChangeHandler =
       this.#handleTransactionControllerStateChange.bind(this);
+    this.#signatureControllerStateChangeHandler =
+      this.#handleSignatureControllerStateChange.bind(this);
   }
 
   start() {
@@ -165,6 +185,12 @@ export class ShieldController extends BaseController<
       this.#transactionControllerStateChangeHandler,
       (state) => state.transactions,
     );
+
+    this.messagingSystem.subscribe(
+      'SignatureController:stateChange',
+      this.#signatureControllerStateChangeHandler,
+      (state) => state.signatureRequests,
+    );
   }
 
   stop() {
@@ -172,6 +198,52 @@ export class ShieldController extends BaseController<
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
     );
+
+    this.messagingSystem.unsubscribe(
+      'SignatureController:stateChange',
+      this.#signatureControllerStateChangeHandler,
+    );
+  }
+
+  #handleSignatureControllerStateChange(
+    signatureRequests: Record<string, SignatureRequest>,
+    previousSignatureRequests: Record<string, SignatureRequest> | undefined,
+  ) {
+    const signatureRequestsArray = Object.values(signatureRequests);
+    const previousSignatureRequestsArray = Object.values(
+      previousSignatureRequests ?? {},
+    );
+    const previousSignatureRequestsById = new Map<string, SignatureRequest>(
+      previousSignatureRequestsArray.map((request) => [request.id, request]),
+    );
+    for (const signatureRequest of signatureRequestsArray) {
+      const previousSignatureRequest = previousSignatureRequestsById.get(
+        signatureRequest.id,
+      );
+
+      // Check coverage if the signature request is new and has type
+      // `personal_sign`.
+      if (
+        !previousSignatureRequest &&
+        signatureRequest.type === SignatureRequestType.PersonalSign
+      ) {
+        this.checkSignatureCoverage(signatureRequest).catch(
+          // istanbul ignore next
+          (error) => log('Error checking coverage:', error),
+        );
+      }
+
+      // Log signature once the signature request has been fulfilled.
+      if (
+        signatureRequest.status === SignatureRequestStatus.Signed &&
+        signatureRequest.status !== previousSignatureRequest?.status
+      ) {
+        this.#logSignature(signatureRequest).catch(
+          // istanbul ignore next
+          (error) => log('Error logging signature:', error),
+        );
+      }
+    }
   }
 
   #handleTransactionControllerStateChange(
@@ -197,6 +269,17 @@ export class ShieldController extends BaseController<
           (error) => log('Error checking coverage:', error),
         );
       }
+
+      // Log transaction once it has been submitted.
+      if (
+        transaction.status === TransactionStatus.submitted &&
+        transaction.status !== previousTransaction?.status
+      ) {
+        this.#logTransaction(transaction).catch(
+          // istanbul ignore next
+          (error) => log('Error logging transaction:', error),
+        );
+      }
     }
   }
 
@@ -208,7 +291,7 @@ export class ShieldController extends BaseController<
    */
   async checkCoverage(txMeta: TransactionMeta): Promise<CoverageResult> {
     // Check coverage
-    const coverageResult = await this.#fetchCoverageResult(txMeta);
+    const coverageResult = await this.#backend.checkCoverage(txMeta);
 
     // Publish coverage result
     this.messagingSystem.publish(
@@ -222,11 +305,38 @@ export class ShieldController extends BaseController<
     return coverageResult;
   }
 
-  async #fetchCoverageResult(txMeta: TransactionMeta): Promise<CoverageResult> {
-    return this.#backend.checkCoverage(txMeta);
+  /**
+   * Checks the coverage of a signature request.
+   *
+   * @param signatureRequest - The signature request to check coverage for.
+   * @returns The coverage result.
+   */
+  async checkSignatureCoverage(
+    signatureRequest: SignatureRequest,
+  ): Promise<CoverageResult> {
+    // Check coverage
+    const coverageResult =
+      await this.#backend.checkSignatureCoverage(signatureRequest);
+
+    // Publish coverage result
+    this.messagingSystem.publish(
+      `${controllerName}:coverageResultReceived`,
+      coverageResult,
+    );
+
+    // Update state
+    this.#addCoverageResult(signatureRequest.id, coverageResult);
+
+    return coverageResult;
   }
 
   #addCoverageResult(txId: string, coverageResult: CoverageResult) {
+    // Assert the coverageId hasn't changed.
+    const latestCoverageId = this.#getLatestCoverageId(txId);
+    if (latestCoverageId && coverageResult.coverageId !== latestCoverageId) {
+      throw new Error('Coverage ID has changed');
+    }
+
     this.update((draft) => {
       // Fetch coverage result entry.
       let newEntry = false;
@@ -265,5 +375,52 @@ export class ShieldController extends BaseController<
         orderedTransactionHistory.unshift(txId);
       }
     });
+  }
+
+  async #logSignature(signatureRequest: SignatureRequest) {
+    const signature = signatureRequest.rawSig;
+    if (!signature) {
+      throw new Error('Signature not found');
+    }
+
+    const { status } = this.#getCoverageStatus(signatureRequest.id);
+
+    await this.#backend.logSignature({
+      signatureRequest,
+      signature,
+      status,
+    });
+  }
+
+  async #logTransaction(txMeta: TransactionMeta) {
+    const transactionHash = txMeta.hash;
+    if (!transactionHash) {
+      throw new Error('Transaction hash not found');
+    }
+
+    const { status } = this.#getCoverageStatus(txMeta.id);
+
+    await this.#backend.logTransaction({
+      txMeta,
+      transactionHash,
+      status,
+    });
+  }
+
+  #getCoverageStatus(itemId: string) {
+    // The status is assigned as follows:
+    // - 'shown' if we have a result
+    // - 'not_shown' if we don't have a result
+    const coverageId = this.#getLatestCoverageId(itemId);
+    let status = 'shown';
+    if (!coverageId) {
+      log('Coverage ID not found for', itemId);
+      status = 'not_shown';
+    }
+    return { status };
+  }
+
+  #getLatestCoverageId(itemId: string): string | undefined {
+    return this.state.coverageResults[itemId]?.results[0]?.coverageId;
   }
 }

@@ -25,7 +25,7 @@ import type { QuoteRequest } from './types';
 import {
   type L1GasFees,
   type GenericQuoteRequest,
-  type SolanaFees,
+  type NonEvmFees,
   type QuoteResponse,
   type TxData,
   type BridgeControllerState,
@@ -38,6 +38,7 @@ import { hasSufficientBalance } from './utils/balance';
 import {
   getDefaultBridgeControllerState,
   isCrossChain,
+  isNonEvmChainId,
   isSolanaChainId,
   sumHexes,
 } from './utils/bridge';
@@ -71,47 +72,65 @@ import type {
 import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
 import { isValidQuoteRequest } from './utils/quote';
 import {
-  getFeeForTransactionRequest,
+  computeFeeRequest,
   getMinimumBalanceForRentExemptionRequest,
 } from './utils/snaps';
 import { FeatureId } from './utils/validators';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotes: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesInitialLoadTime: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesLastFetched: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesLoadingStatus: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quoteFetchError: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesRefreshCount: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   assetExchangeRates: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   minimumBalanceForRentExemptionInLamports: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
 };
 
@@ -248,7 +267,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   updateBridgeQuoteRequestParams = async (
-    paramsToUpdate: Partial<GenericQuoteRequest>,
+    paramsToUpdate: Partial<GenericQuoteRequest> & {
+      walletAddress: GenericQuoteRequest['walletAddress'];
+    },
     context: BridgePollingInput['context'],
   ) => {
     this.stopAllPolling();
@@ -292,7 +313,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       const providerConfig = this.#getSelectedNetworkClient()?.configuration;
 
       let insufficientBal: boolean | undefined;
-      if (isSolanaChainId(updatedQuoteRequest.srcChainId)) {
+      if (isNonEvmChainId(updatedQuoteRequest.srcChainId)) {
         // If the source chain is not an EVM network, use value from params
         insufficientBal = paramsToUpdate.insufficientBal;
       } else if (providerConfig?.rpcUrl?.includes('tenderly')) {
@@ -333,7 +354,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     quoteRequest: GenericQuoteRequest,
     abortSignal: AbortSignal | null = null,
     featureId: FeatureId | null = null,
-  ): Promise<QuoteResponse[]> => {
+  ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
     const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
     // If featureId is specified, retrieve the quoteRequestOverrides for that featureId
     const quoteRequestOverrides = featureId
@@ -349,14 +370,18 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#clientId,
       this.#fetchFn,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+      featureId,
     );
 
     this.#trackResponseValidationFailures(validationFailures);
 
     const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
-    const quotesWithSolanaFees = await this.#appendSolanaFees(baseQuotes);
+    const quotesWithNonEvmFees = await this.#appendNonEvmFees(
+      baseQuotes,
+      quoteRequest.walletAddress,
+    );
     const quotesWithFees =
-      quotesWithL1GasFees ?? quotesWithSolanaFees ?? baseQuotes;
+      quotesWithL1GasFees ?? quotesWithNonEvmFees ?? baseQuotes;
     // Sort perps quotes by increasing estimated processing time (fastest first)
     if (featureId === FeatureId.PERPS) {
       return quotesWithFees.sort((a, b) => {
@@ -463,7 +488,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   readonly #hasSufficientBalance = async (
     quoteRequest: GenericQuoteRequest,
   ) => {
-    const walletAddress = this.#getMultichainSelectedAccount()?.address;
+    // Only check balance for EVM chains
+    if (isNonEvmChainId(quoteRequest.srcChainId)) {
+      return true;
+    }
+
     const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
     const provider = this.#getSelectedNetworkClient()?.provider;
     const normalizedSrcTokenAddress = formatAddressToCaipReference(
@@ -472,13 +501,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     return (
       provider &&
-      walletAddress &&
       normalizedSrcTokenAddress &&
       quoteRequest.srcTokenAmount &&
       srcChainIdInHex &&
       (await hasSufficientBalance(
         provider,
-        walletAddress,
+        quoteRequest.walletAddress,
         normalizedSrcTokenAddress,
         quoteRequest.srcTokenAmount,
         srcChainIdInHex,
@@ -727,64 +755,100 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       : undefined;
   };
 
-  readonly #appendSolanaFees = async (
+  /**
+   * Appends transaction fees for non-EVM chains to quotes
+   *
+   * @param quotes - Array of quote responses to append fees to
+   * @param walletAddress - The wallet address for which the quotes were requested
+   * @returns Array of quotes with fees appended, or undefined if quotes are for EVM chains
+   */
+  readonly #appendNonEvmFees = async (
     quotes: QuoteResponse[],
-  ): Promise<(QuoteResponse & SolanaFees)[] | undefined> => {
-    // Return early if some of the quotes are not for solana
+    walletAddress: GenericQuoteRequest['walletAddress'],
+  ): Promise<(QuoteResponse & NonEvmFees)[] | undefined> => {
     if (
-      quotes.some(({ quote: { srcChainId } }) => !isSolanaChainId(srcChainId))
+      quotes.some(({ quote: { srcChainId } }) => !isNonEvmChainId(srcChainId))
     ) {
       return undefined;
     }
 
-    const solanaFeePromises = Promise.allSettled(
+    const selectedAccount = this.#getMultichainSelectedAccount(walletAddress);
+    const nonEvmFeePromises = Promise.allSettled(
       quotes.map(async (quoteResponse) => {
-        const { trade } = quoteResponse;
-        const selectedAccount = this.#getMultichainSelectedAccount();
+        const { trade, quote } = quoteResponse;
 
         if (selectedAccount?.metadata?.snap?.id && typeof trade === 'string') {
-          const { value: fees } = (await this.messagingSystem.call(
+          const scope = formatChainIdToCaip(quote.srcChainId);
+
+          const response = (await this.messagingSystem.call(
             'SnapController:handleRequest',
-            getFeeForTransactionRequest(
+            computeFeeRequest(
               selectedAccount.metadata.snap?.id,
               trade,
+              selectedAccount.id,
+              scope,
             ),
-          )) as { value: string };
+          )) as {
+            type: 'base' | 'priority';
+            asset: {
+              unit: string;
+              type: string;
+              amount: string;
+              fungible: true;
+            };
+          }[];
+
+          const baseFee = response?.find((fee) => fee.type === 'base');
+          // Store fees in native units as returned by the snap (e.g., SOL, BTC)
+          const feeInNative = baseFee?.asset?.amount || '0';
 
           return {
             ...quoteResponse,
-            solanaFeesInLamports: fees,
+            nonEvmFeesInNative: feeInNative,
           };
         }
         return quoteResponse;
       }),
     );
 
-    const quotesWithSolanaFees = (await solanaFeePromises).reduce<
-      (QuoteResponse & SolanaFees)[]
+    const quotesWithNonEvmFees = (await nonEvmFeePromises).reduce<
+      (QuoteResponse & NonEvmFees)[]
     >((acc, result) => {
       if (result.status === 'fulfilled' && result.value) {
         acc.push(result.value);
       } else if (result.status === 'rejected') {
-        console.error('Error calculating solana fees for quote', result.reason);
+        console.error(
+          'Error calculating non-EVM fees for quote',
+          result.reason,
+        );
       }
       return acc;
     }, []);
 
-    return quotesWithSolanaFees;
+    return quotesWithNonEvmFees;
   };
 
-  #getMultichainSelectedAccount() {
-    return this.messagingSystem.call(
-      'AccountsController:getSelectedMultichainAccount',
+  #getMultichainSelectedAccount(
+    walletAddress?: GenericQuoteRequest['walletAddress'],
+  ) {
+    const addressToUse = walletAddress ?? this.state.quoteRequest.walletAddress;
+    if (!addressToUse) {
+      throw new Error('Account address is required');
+    }
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getAccountByAddress',
+      addressToUse,
     );
+    if (!selectedAccount) {
+      throw new Error('Account not found');
+    }
+    return selectedAccount;
   }
 
   #getSelectedNetworkClientId() {
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
-    // console.log('===selectedNetworkClientId', selectedNetworkClientId);
     return selectedNetworkClientId;
   }
 
@@ -810,14 +874,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getRequestMetadata = (): Omit<
     RequestMetadata,
-    'stx_enabled' | 'usd_amount_source' | 'security_warnings'
+    | 'stx_enabled'
+    | 'usd_amount_source'
+    | 'security_warnings'
+    | 'is_hardware_wallet'
   > => {
     return {
       slippage_limit: this.state.quoteRequest.slippage,
       swap_type: getSwapTypeFromQuote(this.state.quoteRequest),
-      is_hardware_wallet: isHardwareWallet(
-        this.#getMultichainSelectedAccount(),
-      ),
       custom_slippage: isCustomSlippage(this.state.quoteRequest.slippage),
     };
   };
@@ -864,6 +928,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
+          is_hardware_wallet: isHardwareWallet(
+            this.#getMultichainSelectedAccount(),
+          ),
           refresh_count: this.state.quotesRefreshCount,
           ...baseProperties,
         };
@@ -871,6 +938,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return {
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
+          is_hardware_wallet: isHardwareWallet(
+            this.#getMultichainSelectedAccount(),
+          ),
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
         };
@@ -878,6 +948,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return {
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
+          is_hardware_wallet: isHardwareWallet(
+            this.#getMultichainSelectedAccount(),
+          ),
           error_message: this.state.quoteFetchError,
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
@@ -889,13 +962,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
+          is_hardware_wallet: isHardwareWallet(
+            this.#getMultichainSelectedAccount(),
+          ),
           ...baseProperties,
-        };
-      case UnifiedSwapBridgeEventName.SnapConfirmationViewed:
-        return {
-          ...baseProperties,
-          ...this.#getRequestParams(),
-          ...this.#getRequestMetadata(),
         };
       case UnifiedSwapBridgeEventName.Failed: {
         // Populate the properties that the error occurred before the tx was submitted
@@ -994,10 +1064,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     const ethersProvider = new Web3Provider(provider);
     const contract = new Contract(contractAddress, abiERC20, ethersProvider);
-    const { address: walletAddress } =
-      this.#getMultichainSelectedAccount() ?? {};
     const allowance: BigNumber = await contract.allowance(
-      walletAddress,
+      this.state.quoteRequest.walletAddress,
       METABRIDGE_CHAIN_TO_ADDRESS_MAP[chainId],
     );
     return allowance.toString();

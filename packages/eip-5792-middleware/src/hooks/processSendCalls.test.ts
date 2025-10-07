@@ -12,9 +12,10 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
-import type { JsonRpcRequest } from '@metamask/utils';
+import type { Hex, JsonRpcRequest } from '@metamask/utils';
 
 import { processSendCalls } from './processSendCalls';
+import { SupportedCapabilities } from '../constants';
 import type {
   SendCallsPayload,
   SendCallsParams,
@@ -81,6 +82,8 @@ describe('EIP-5792', () => {
     AccountsControllerGetStateAction['handler']
   > = jest.fn();
 
+  const isAuxiliaryFundsSupportedMock: jest.Mock = jest.fn();
+
   let messenger: EIP5792Messenger;
 
   const sendCallsHooks = {
@@ -90,6 +93,7 @@ describe('EIP-5792', () => {
       getDismissSmartAccountSuggestionEnabledMock,
     isAtomicBatchSupported: isAtomicBatchSupportedMock,
     validateSecurity: validateSecurityMock,
+    isAuxiliaryFundsSupported: isAuxiliaryFundsSupportedMock,
   };
 
   beforeEach(() => {
@@ -123,6 +127,8 @@ describe('EIP-5792', () => {
     });
 
     getDismissSmartAccountSuggestionEnabledMock.mockReturnValue(false);
+
+    isAuxiliaryFundsSupportedMock.mockReturnValue(true);
 
     isAtomicBatchSupportedMock.mockResolvedValue([
       {
@@ -431,6 +437,196 @@ describe('EIP-5792', () => {
       ).rejects.toThrow(
         `EIP-7702 upgrade not supported as account type is unknown`,
       );
+    });
+
+    it('validates auxiliary funds with unsupported account type', async () => {
+      await expect(
+        processSendCalls(
+          sendCallsHooks,
+          messenger,
+          {
+            ...SEND_CALLS_MOCK,
+            from: FROM_MOCK_HARDWARE,
+            capabilities: {
+              auxiliaryFunds: {
+                optional: false,
+                requiredAssets: [
+                  {
+                    address: '0x123',
+                    amount: '0x2',
+                    standard: 'erc20',
+                  },
+                  {
+                    address: '0x123',
+                    amount: '0x2',
+                    standard: 'erc20',
+                  },
+                ],
+              },
+            },
+          },
+          REQUEST_MOCK,
+        ),
+      ).rejects.toThrow(
+        `Unsupported non-optional capability: ${SupportedCapabilities.AuxiliaryFunds}`,
+      );
+    });
+
+    it('validates auxiliary funds with unsupported chain', async () => {
+      isAuxiliaryFundsSupportedMock.mockReturnValue(false);
+
+      await expect(
+        processSendCalls(
+          sendCallsHooks,
+          messenger,
+          {
+            ...SEND_CALLS_MOCK,
+            capabilities: {
+              auxiliaryFunds: {
+                optional: false,
+                requiredAssets: [
+                  {
+                    address: '0x123' as Hex,
+                    amount: '0x1' as Hex,
+                    standard: 'erc20',
+                  },
+                ],
+              },
+            },
+          },
+          REQUEST_MOCK,
+        ),
+      ).rejects.toThrow(
+        `The wallet no longer supports auxiliary funds on the requested chain: ${CHAIN_ID_MOCK}`,
+      );
+    });
+
+    it('validates auxiliary funds with unsupported token standard', async () => {
+      await expect(
+        processSendCalls(
+          sendCallsHooks,
+          messenger,
+          {
+            ...SEND_CALLS_MOCK,
+            capabilities: {
+              auxiliaryFunds: {
+                optional: false,
+                requiredAssets: [
+                  {
+                    address: '0x123',
+                    amount: '0x1',
+                    standard: 'erc777',
+                  },
+                ],
+              },
+            },
+          },
+          REQUEST_MOCK,
+        ),
+      ).rejects.toThrow(
+        /The requested asset 0x123 is not available through the wallet.*s auxiliary fund system: unsupported token standard erc777/u,
+      );
+    });
+
+    it('validates auxiliary funds with valid ERC-20 asset', async () => {
+      const result = await processSendCalls(
+        sendCallsHooks,
+        messenger,
+        {
+          ...SEND_CALLS_MOCK,
+          capabilities: {
+            auxiliaryFunds: {
+              optional: true,
+              requiredAssets: [
+                {
+                  address: '0x123',
+                  amount: '0x1',
+                  standard: 'erc20',
+                },
+              ],
+            },
+          },
+        },
+        REQUEST_MOCK,
+      );
+
+      expect(result).toBeDefined();
+    });
+
+    it('validates auxiliary funds with no requiredAssets', async () => {
+      const result = await processSendCalls(
+        sendCallsHooks,
+        messenger,
+        {
+          ...SEND_CALLS_MOCK,
+          capabilities: {
+            auxiliaryFunds: {
+              optional: true,
+            },
+          },
+        },
+        REQUEST_MOCK,
+      );
+
+      expect(result).toBeDefined();
+    });
+
+    it('validates auxiliary funds with optional false and no requiredAssets', async () => {
+      const result = await processSendCalls(
+        sendCallsHooks,
+        messenger,
+        {
+          ...SEND_CALLS_MOCK,
+          capabilities: {
+            auxiliaryFunds: {
+              optional: false,
+            },
+          },
+        },
+        REQUEST_MOCK,
+      );
+
+      expect(result).toBeDefined();
+    });
+
+    it('deduplicates auxiliary funds requiredAssets by address and standard, summing amounts', async () => {
+      const payload: SendCallsPayload = {
+        ...SEND_CALLS_MOCK,
+        capabilities: {
+          auxiliaryFunds: {
+            optional: true,
+            requiredAssets: [
+              {
+                address: '0x123' as Hex,
+                amount: '0x2' as Hex,
+                standard: 'erc20',
+              },
+              {
+                address: '0x123' as Hex,
+                amount: '0x3' as Hex,
+                standard: 'erc20',
+              },
+            ],
+          },
+        },
+      };
+
+      const result = await processSendCalls(
+        sendCallsHooks,
+        messenger,
+        payload,
+        REQUEST_MOCK,
+      );
+
+      expect(result).toBeDefined();
+      const requiredAssets =
+        payload.capabilities?.auxiliaryFunds?.requiredAssets;
+      expect(requiredAssets).toHaveLength(1);
+      expect(requiredAssets?.[0]).toMatchObject({
+        amount: '0x5',
+        address: '0x123',
+        standard: 'erc20',
+      });
     });
   });
 });

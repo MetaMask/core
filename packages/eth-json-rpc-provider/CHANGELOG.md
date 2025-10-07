@@ -9,9 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
+## [5.0.0]
+
+### Changed
+
 - **BREAKING:** Remove `'data'` event ([#6328](https://github.com/MetaMask/core/pull/6328))
   - This event was forwarding the `'notification'` event from the underlying `JsonRpcEngine`. It was rarely used in practice, and is now removed.
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/json-rpc-engine` from `^10.0.3` to `^10.1.0` ([#6678](https://github.com/MetaMask/core/pull/6678))
 
 ## [4.1.8]
 
@@ -195,7 +203,8 @@ Release `v2.0.0` is identical to `v1.0.1` aside from Node.js version requirement
 
 - Initial release, including `providerFromEngine` and `providerFromMiddleware`.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.8...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.8...@metamask/eth-json-rpc-provider@5.0.0
 [4.1.8]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.7...@metamask/eth-json-rpc-provider@4.1.8
 [4.1.7]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.6...@metamask/eth-json-rpc-provider@4.1.7
 [4.1.6]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.5...@metamask/eth-json-rpc-provider@4.1.6

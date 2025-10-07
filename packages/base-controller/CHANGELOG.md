@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
+## [8.4.0]
+
+### Added
+
+- Add optional `captureException` parameter to `deriveStateFromMetadata`, `getPersistentState`, and `getAnonymizedState` ([#6606](https://github.com/MetaMask/core/pull/6606))
+  - This function will be used to capture any errors encountered during state derivation.
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- In experimental `next` export, rename `anonymous` metadata property to `includeInDebugSnapshot` ([#6593](https://github.com/MetaMask/core/pull/6593))
+- In experimental `next` export, make `includeInStateLogs` and `usedInUi` metadata properties required ([#6593](https://github.com/MetaMask/core/pull/6593))
+- In experimental `next` export, remove deprecated exports `getPersistentState` and `getAnonymizedState` ([#6611](https://github.com/MetaMask/core/pull/6611))
+- Stop re-throwing state derivation errors in a `setTimeout` ([#6606](https://github.com/MetaMask/core/pull/6606))
+  - Instead errors are captured with `captureException`, or logged to the console.
+- Bump `@metamask/messenger` from `^0.2.0` to `^0.3.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
 ## [8.3.0]
 
 ### Added
@@ -363,7 +384,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.0...HEAD
+[8.4.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.3.0...@metamask/base-controller@8.4.0
 [8.3.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.2.0...@metamask/base-controller@8.3.0
 [8.2.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.1.0...@metamask/base-controller@8.2.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.0.1...@metamask/base-controller@8.1.0

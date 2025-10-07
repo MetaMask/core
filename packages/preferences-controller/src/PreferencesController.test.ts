@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
 import { getDefaultKeyringState } from '@metamask/keyring-controller';
 import { cloneDeep } from 'lodash';
 
@@ -22,7 +22,7 @@ describe('PreferencesController', () => {
       selectedAddress: '',
       useTokenDetection: true,
       useNftDetection: false,
-      openSeaEnabled: false,
+      displayNftMedia: false,
       securityAlertsEnabled: false,
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
@@ -30,7 +30,7 @@ describe('PreferencesController', () => {
       smartAccountOptInForAccounts: [],
       isIpfsGatewayEnabled: true,
       useTransactionSimulations: true,
-      useMultiRpcMigration: true,
+      showMultiRpcModal: false,
       showIncomingTransactions: Object.values(
         ETHERSCAN_SUPPORTED_CHAIN_IDS,
       ).reduce(
@@ -49,6 +49,7 @@ describe('PreferencesController', () => {
       },
       privacyMode: false,
       dismissSmartAccountSuggestionEnabled: false,
+      tokenNetworkFilter: {},
     });
   });
 
@@ -433,29 +434,38 @@ describe('PreferencesController', () => {
 
   it('should set useNftDetection', () => {
     const controller = setupPreferencesController();
-    controller.setOpenSeaEnabled(true);
+    controller.setDisplayNftMedia(true);
     controller.setUseNftDetection(true);
     expect(controller.state.useNftDetection).toBe(true);
   });
 
-  it('should throw an error when useNftDetection is set and openSeaEnabled is false', () => {
+  it('should throw an error when useNftDetection is set and displayNftMedia is false', () => {
     const controller = setupPreferencesController();
-    controller.setOpenSeaEnabled(false);
+    controller.setDisplayNftMedia(false);
     expect(() => controller.setUseNftDetection(true)).toThrow(
-      'useNftDetection cannot be enabled if openSeaEnabled is false',
+      'useNftDetection cannot be enabled if displayNftMedia is false',
     );
   });
 
   it('should set useMultiRpcMigration', () => {
     const controller = setupPreferencesController();
-    controller.setUseMultiRpcMigration(true);
-    expect(controller.state.useMultiRpcMigration).toBe(true);
+    controller.setShowMultiRpcModal(true);
+    expect(controller.state.showMultiRpcModal).toBe(true);
   });
 
   it('should set useMultiRpcMigration is false value is passed', () => {
     const controller = setupPreferencesController();
-    controller.setUseMultiRpcMigration(false);
-    expect(controller.state.useMultiRpcMigration).toBe(false);
+    controller.setShowMultiRpcModal(false);
+    expect(controller.state.showMultiRpcModal).toBe(false);
+  });
+
+  it('sets tokenNetworkFilter', () => {
+    const controller = setupPreferencesController();
+    controller.setTokenNetworkFilter({ '0x1': true, '0xa': false });
+    expect(controller.state.tokenNetworkFilter).toStrictEqual({
+      '0x1': true,
+      '0xa': false,
+    });
   });
 
   it('should set featureFlags', () => {
@@ -571,6 +581,257 @@ describe('PreferencesController', () => {
     expect(controller.state.smartAccountOptInForAccounts).toHaveLength(0);
     controller.setSmartAccountOptInForAccounts(['0x1', '0x2']);
     expect(controller.state.smartAccountOptInForAccounts[0]).toBe('0x1');
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = setupPreferencesController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
+          "featureFlags": Object {},
+          "isIpfsGatewayEnabled": true,
+          "isMultiAccountBalancesEnabled": true,
+          "privacyMode": false,
+          "securityAlertsEnabled": false,
+          "showIncomingTransactions": Object {
+            "0x1": true,
+            "0x13881": true,
+            "0x38": true,
+            "0x5": true,
+            "0x504": true,
+            "0x505": true,
+            "0x507": true,
+            "0x531": true,
+            "0x61": true,
+            "0x64": true,
+            "0x89": true,
+            "0xa": true,
+            "0xa869": true,
+            "0xa86a": true,
+            "0xaa36a7": true,
+            "0xaa37dc": true,
+            "0xe704": true,
+            "0xe705": true,
+            "0xe708": true,
+            "0xfa": true,
+            "0xfa2": true,
+          },
+          "showMultiRpcModal": false,
+          "showTestNetworks": false,
+          "smartAccountOptIn": true,
+          "smartAccountOptInForAccounts": Array [],
+          "tokenSortConfig": Object {
+            "key": "tokenFiatAmount",
+            "order": "dsc",
+            "sortCallback": "stringNumeric",
+          },
+          "useNftDetection": false,
+          "useSafeChainsListValidation": true,
+          "useTokenDetection": true,
+          "useTransactionSimulations": true,
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = setupPreferencesController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
+          "featureFlags": Object {},
+          "identities": Object {},
+          "ipfsGateway": "https://ipfs.io/ipfs/",
+          "isIpfsGatewayEnabled": true,
+          "isMultiAccountBalancesEnabled": true,
+          "lostIdentities": Object {},
+          "privacyMode": false,
+          "securityAlertsEnabled": false,
+          "selectedAddress": "",
+          "showIncomingTransactions": Object {
+            "0x1": true,
+            "0x13881": true,
+            "0x38": true,
+            "0x5": true,
+            "0x504": true,
+            "0x505": true,
+            "0x507": true,
+            "0x531": true,
+            "0x61": true,
+            "0x64": true,
+            "0x89": true,
+            "0xa": true,
+            "0xa869": true,
+            "0xa86a": true,
+            "0xaa36a7": true,
+            "0xaa37dc": true,
+            "0xe704": true,
+            "0xe705": true,
+            "0xe708": true,
+            "0xfa": true,
+            "0xfa2": true,
+          },
+          "showMultiRpcModal": false,
+          "showTestNetworks": false,
+          "smartAccountOptIn": true,
+          "smartAccountOptInForAccounts": Array [],
+          "smartTransactionsOptInStatus": true,
+          "tokenNetworkFilter": Object {},
+          "tokenSortConfig": Object {
+            "key": "tokenFiatAmount",
+            "order": "dsc",
+            "sortCallback": "stringNumeric",
+          },
+          "useNftDetection": false,
+          "useSafeChainsListValidation": true,
+          "useTokenDetection": true,
+          "useTransactionSimulations": true,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = setupPreferencesController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
+          "featureFlags": Object {},
+          "identities": Object {},
+          "ipfsGateway": "https://ipfs.io/ipfs/",
+          "isIpfsGatewayEnabled": true,
+          "isMultiAccountBalancesEnabled": true,
+          "lostIdentities": Object {},
+          "privacyMode": false,
+          "securityAlertsEnabled": false,
+          "selectedAddress": "",
+          "showIncomingTransactions": Object {
+            "0x1": true,
+            "0x13881": true,
+            "0x38": true,
+            "0x5": true,
+            "0x504": true,
+            "0x505": true,
+            "0x507": true,
+            "0x531": true,
+            "0x61": true,
+            "0x64": true,
+            "0x89": true,
+            "0xa": true,
+            "0xa869": true,
+            "0xa86a": true,
+            "0xaa36a7": true,
+            "0xaa37dc": true,
+            "0xe704": true,
+            "0xe705": true,
+            "0xe708": true,
+            "0xfa": true,
+            "0xfa2": true,
+          },
+          "showMultiRpcModal": false,
+          "showTestNetworks": false,
+          "smartAccountOptIn": true,
+          "smartAccountOptInForAccounts": Array [],
+          "smartTransactionsOptInStatus": true,
+          "tokenNetworkFilter": Object {},
+          "tokenSortConfig": Object {
+            "key": "tokenFiatAmount",
+            "order": "dsc",
+            "sortCallback": "stringNumeric",
+          },
+          "useNftDetection": false,
+          "useSafeChainsListValidation": true,
+          "useTokenDetection": true,
+          "useTransactionSimulations": true,
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = setupPreferencesController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
+          "featureFlags": Object {},
+          "identities": Object {},
+          "ipfsGateway": "https://ipfs.io/ipfs/",
+          "isIpfsGatewayEnabled": true,
+          "isMultiAccountBalancesEnabled": true,
+          "privacyMode": false,
+          "securityAlertsEnabled": false,
+          "selectedAddress": "",
+          "showIncomingTransactions": Object {
+            "0x1": true,
+            "0x13881": true,
+            "0x38": true,
+            "0x5": true,
+            "0x504": true,
+            "0x505": true,
+            "0x507": true,
+            "0x531": true,
+            "0x61": true,
+            "0x64": true,
+            "0x89": true,
+            "0xa": true,
+            "0xa869": true,
+            "0xa86a": true,
+            "0xaa36a7": true,
+            "0xaa37dc": true,
+            "0xe704": true,
+            "0xe705": true,
+            "0xe708": true,
+            "0xfa": true,
+            "0xfa2": true,
+          },
+          "showMultiRpcModal": false,
+          "showTestNetworks": false,
+          "smartAccountOptIn": true,
+          "smartAccountOptInForAccounts": Array [],
+          "smartTransactionsOptInStatus": true,
+          "tokenNetworkFilter": Object {},
+          "tokenSortConfig": Object {
+            "key": "tokenFiatAmount",
+            "order": "dsc",
+            "sortCallback": "stringNumeric",
+          },
+          "useNftDetection": false,
+          "useSafeChainsListValidation": true,
+          "useTokenDetection": true,
+          "useTransactionSimulations": true,
+        }
+      `);
+    });
   });
 });
 

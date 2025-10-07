@@ -2,9 +2,14 @@ export type {
   MethodData,
   Result,
   TransactionControllerActions,
+  TransactionControllerAddTransactionAction,
+  TransactionControllerAddTransactionBatchAction,
+  TransactionControllerConfirmExternalTransactionAction,
   TransactionControllerEvents,
   TransactionControllerEstimateGasAction,
+  TransactionControllerGetNonceLockAction,
   TransactionControllerGetStateAction,
+  TransactionControllerGetTransactionsAction,
   TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerPostTransactionBalanceUpdatedEvent,
   TransactionControllerSpeedupTransactionAddedEvent,
@@ -23,6 +28,7 @@ export type {
   TransactionControllerTransactionSubmittedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionControllerUpdateCustodialTransactionAction,
+  TransactionControllerUpdateTransactionAction,
   TransactionControllerMessenger,
   TransactionControllerOptions,
 } from './TransactionController';
@@ -32,6 +38,7 @@ export {
   TransactionController,
 } from './TransactionController';
 export type {
+  AddTransactionOptions,
   AfterAddHook,
   AfterSimulateHook,
   Authorization,

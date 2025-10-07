@@ -8,6 +8,7 @@ import {
 import { SubscriptionServiceError } from './errors';
 import type {
   AuthUtils,
+  BillingPortalResponse,
   GetSubscriptionsResponse,
   ISubscriptionService,
   PricingResponse,
@@ -15,6 +16,10 @@ import type {
   StartCryptoSubscriptionResponse,
   StartSubscriptionRequest,
   StartSubscriptionResponse,
+  Subscription,
+  UpdatePaymentMethodCardRequest,
+  UpdatePaymentMethodCardResponse,
+  UpdatePaymentMethodCryptoRequest,
 } from './types';
 
 export type SubscriptionServiceConfig = {
@@ -40,9 +45,18 @@ export class SubscriptionService implements ISubscriptionService {
     return await this.#makeRequest(path);
   }
 
-  async cancelSubscription(params: { subscriptionId: string }): Promise<void> {
-    const path = `subscriptions/${params.subscriptionId}`;
-    return await this.#makeRequest(path, 'DELETE');
+  async cancelSubscription(params: {
+    subscriptionId: string;
+  }): Promise<Subscription> {
+    const path = `subscriptions/${params.subscriptionId}/cancel`;
+    return await this.#makeRequest(path, 'POST', {});
+  }
+
+  async unCancelSubscription(params: {
+    subscriptionId: string;
+  }): Promise<Subscription> {
+    const path = `subscriptions/${params.subscriptionId}/uncancel`;
+    return await this.#makeRequest(path, 'POST', {});
   }
 
   async startSubscriptionWithCard(
@@ -63,6 +77,28 @@ export class SubscriptionService implements ISubscriptionService {
   ): Promise<StartCryptoSubscriptionResponse> {
     const path = 'subscriptions/crypto';
     return await this.#makeRequest(path, 'POST', request);
+  }
+
+  async updatePaymentMethodCard(
+    request: UpdatePaymentMethodCardRequest,
+  ): Promise<UpdatePaymentMethodCardResponse> {
+    const path = `subscriptions/${request.subscriptionId}/payment-method/card`;
+    return await this.#makeRequest<UpdatePaymentMethodCardResponse>(
+      path,
+      'PATCH',
+      {
+        ...request,
+        subscriptionId: undefined,
+      },
+    );
+  }
+
+  async updatePaymentMethodCrypto(request: UpdatePaymentMethodCryptoRequest) {
+    const path = `subscriptions/${request.subscriptionId}/payment-method/crypto`;
+    await this.#makeRequest(path, 'PATCH', {
+      ...request,
+      subscriptionId: undefined,
+    });
   }
 
   async #makeRequest<Result>(
@@ -101,5 +137,10 @@ export class SubscriptionService implements ISubscriptionService {
   async getPricing(): Promise<PricingResponse> {
     const path = 'pricing';
     return await this.#makeRequest<PricingResponse>(path);
+  }
+
+  async getBillingPortalUrl(): Promise<BillingPortalResponse> {
+    const path = 'billing-portal';
+    return await this.#makeRequest<BillingPortalResponse>(path);
   }
 }

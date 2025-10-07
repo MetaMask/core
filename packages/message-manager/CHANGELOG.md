@@ -9,10 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
+## [13.0.0]
+
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6473](https://github.com/MetaMask/core/pull/6473))
+
+### Changed
+
 - **BREAKING:** `AbstractMessageManager` now expects a `Name extends string` generic parameter to define the name of the message manager ([#6469](https://github.com/MetaMask/core/pull/6469))
   - The type is used as namespace for `BaseController` and `Messenger` events and actions.
-- Bump `@metamask/base-controller` from `^8.0.1` to `^8.3.0` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
-- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.4.0` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.14.0` ([#6303](https://github.com/MetaMask/core/pull/6303), [#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
 ## [12.0.2]
 
@@ -384,7 +395,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.2...@metamask/message-manager@13.0.0
 [12.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.1...@metamask/message-manager@12.0.2
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.0...@metamask/message-manager@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.3...@metamask/message-manager@12.0.0
