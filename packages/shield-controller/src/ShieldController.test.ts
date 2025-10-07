@@ -11,7 +11,7 @@ import {
 } from '@metamask/transaction-controller';
 
 import { ShieldController } from './ShieldController';
-import { createMockBackend, MOCK_COVERAGE_ID } from '../tests/mocks/backend';
+import { createMockBackend } from '../tests/mocks/backend';
 import { createMockMessenger } from '../tests/mocks/messenger';
 import {
   generateMockSignatureRequest,
