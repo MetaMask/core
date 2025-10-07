@@ -1,14 +1,14 @@
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedMessenger,
-  StateMetadata,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import {
+  BaseController,
+  type StateMetadata,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+} from '@metamask/base-controller/next';
 import {
   safelyExecute,
   safelyExecuteWithTimeout,
 } from '@metamask/controller-utils';
+import { type Messenger } from '@metamask/messenger';
 import type {
   TransactionControllerStateChangeEvent,
   TransactionMeta,
@@ -238,49 +238,49 @@ const metadata: StateMetadata<PhishingControllerState> = {
   phishingLists: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   whitelist: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   whitelistPaths: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   hotlistLastFetched: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   stalelistLastFetched: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   c2DomainBlocklistLastFetched: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   urlScanCache: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   tokenScanCache: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -399,12 +399,10 @@ type AllowedActions = never;
  */
 export type AllowedEvents = TransactionControllerStateChangeEvent;
 
-export type PhishingControllerMessenger = RestrictedMessenger<
+export type PhishingControllerMessenger = Messenger<
   typeof controllerName,
   PhishingControllerActions | AllowedActions,
-  PhishingControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  PhishingControllerEvents | AllowedEvents
 >;
 
 /**
@@ -521,7 +519,7 @@ export class PhishingController extends BaseController<
   }
 
   #subscribeToTransactionControllerStateChange() {
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
     );
@@ -532,22 +530,22 @@ export class PhishingController extends BaseController<
    * actions.
    */
   #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:maybeUpdateState` as const,
       this.maybeUpdateState.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:testOrigin` as const,
       this.test.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:bulkScanUrls` as const,
       this.bulkScanUrls.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:bulkScanTokens` as const,
       this.bulkScanTokens.bind(this),
     );
