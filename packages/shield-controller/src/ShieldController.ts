@@ -383,13 +383,10 @@ export class ShieldController extends BaseController<
       throw new Error('Signature not found');
     }
 
-    const { coverageId, status } = this.#getCoverageIdAndStatus(
-      signatureRequest.id,
-    );
+    const { status } = this.#getCoverageStatus(signatureRequest.id);
 
     await this.#backend.logSignature({
-      coverageId,
-      signatureRequest: coverageId ? undefined : signatureRequest,
+      signatureRequest,
       signature,
       status,
     });
@@ -401,17 +398,16 @@ export class ShieldController extends BaseController<
       throw new Error('Transaction hash not found');
     }
 
-    const { coverageId, status } = this.#getCoverageIdAndStatus(txMeta.id);
+    const { status } = this.#getCoverageStatus(txMeta.id);
 
     await this.#backend.logTransaction({
-      coverageId,
-      txMeta: coverageId ? undefined : txMeta,
+      txMeta,
       transactionHash,
       status,
     });
   }
 
-  #getCoverageIdAndStatus(itemId: string) {
+  #getCoverageStatus(itemId: string) {
     // The status is assigned as follows:
     // - 'shown' if we have a result
     // - 'not_shown' if we don't have a result
@@ -421,7 +417,7 @@ export class ShieldController extends BaseController<
       log('Coverage ID not found for', itemId);
       status = 'not_shown';
     }
-    return { coverageId, status };
+    return { status };
   }
 
   #getLatestCoverageId(itemId: string): string | undefined {

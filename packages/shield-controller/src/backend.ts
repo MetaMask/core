@@ -101,13 +101,11 @@ export class ShieldRemoteBackend implements ShieldBackend {
   }
 
   async logSignature(req: LogSignatureRequest): Promise<void> {
+    const initBody = makeInitSignatureCoverageCheckBody(req.signatureRequest);
     const body = {
-      coverageId: req.coverageId,
       signature: req.signature,
       status: req.status,
-      ...(req.signatureRequest
-        ? makeInitSignatureCoverageCheckBody(req.signatureRequest)
-        : {}),
+      ...initBody,
     };
 
     const res = await this.#fetch(
@@ -124,11 +122,11 @@ export class ShieldRemoteBackend implements ShieldBackend {
   }
 
   async logTransaction(req: LogTransactionRequest): Promise<void> {
+    const initBody = makeInitCoverageCheckBody(req.txMeta);
     const body = {
-      coverageId: req.coverageId,
       transactionHash: req.transactionHash,
       status: req.status,
-      ...(req.txMeta ? makeInitCoverageCheckBody(req.txMeta) : {}),
+      ...initBody,
     };
 
     const res = await this.#fetch(

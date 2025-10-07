@@ -10,15 +10,13 @@ export const coverageStatuses = ['covered', 'malicious', 'unknown'] as const;
 export type CoverageStatus = (typeof coverageStatuses)[number];
 
 export type LogSignatureRequest = {
-  coverageId?: string;
-  signatureRequest?: SignatureRequest;
+  signatureRequest: SignatureRequest;
   signature: string;
   status: string;
 };
 
 export type LogTransactionRequest = {
-  coverageId?: string;
-  txMeta?: TransactionMeta;
+  txMeta: TransactionMeta;
   transactionHash: string;
   status: string;
 };

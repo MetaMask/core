@@ -295,11 +295,11 @@ describe('ShieldController', () => {
     it('logs a signature', async () => {
       const components = setup();
 
-      await runTest(components);
+      const { updatedSignatureRequest } = await runTest(components);
 
       // Check that backend was called
       expect(components.backend.logSignature).toHaveBeenCalledWith({
-        coverageId: MOCK_COVERAGE_ID,
+        signatureRequest: updatedSignatureRequest,
         signature: '0x00',
         status: 'shown',
       });
@@ -384,11 +384,11 @@ describe('ShieldController', () => {
 
     it('logs a transaction', async () => {
       const components = setup();
-      await runTest(components);
+      const { updatedTxMeta } = await runTest(components);
 
       // Check that backend was called
       expect(components.backend.logTransaction).toHaveBeenCalledWith({
-        coverageId: MOCK_COVERAGE_ID,
+        txMeta: updatedTxMeta,
         status: 'shown',
         transactionHash: '0x00',
       });
