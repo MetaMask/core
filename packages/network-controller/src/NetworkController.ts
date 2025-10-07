@@ -706,8 +706,8 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
     }
 
     const rpcEndpointUrl =
-      // This ESLint rule mistakenly produces an error.
-
+      // False positive - this is a string.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const;
 
     const networkConfiguration: NetworkConfiguration = {
