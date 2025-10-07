@@ -1,7 +1,6 @@
 import { assertIsBip44Account, type Bip44Account } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { BtcAccountType, BtcScope } from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { SnapId } from '@metamask/snaps-sdk';
@@ -77,7 +76,7 @@ export class BtcAccountProvider extends SnapAccountProvider {
 
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
     return (
-      account.metadata.keyring.type === KeyringTypes.snap &&
+      account.type === BtcAccountType.P2wpkh &&
       Object.values<string>(BtcAccountType).includes(account.type)
     );
   }
@@ -91,26 +90,18 @@ export class BtcAccountProvider extends SnapAccountProvider {
   }): Promise<Bip44Account<KeyringAccount>[]> {
     const createAccount = await this.getRestrictedSnapAccountCreator();
 
-    const createBitcoinAccount = async (addressType: BtcAccountType) =>
-      await withTimeout(
-        createAccount({
-          entropySource,
-          index,
-          addressType,
-          scope: BtcScope.Mainnet,
-        }),
-        this.#config.createAccounts.timeoutMs,
-      );
+    const account = await withTimeout(
+      createAccount({
+        entropySource,
+        index,
+        addressType: BtcAccountType.P2wpkh,
+        scope: BtcScope.Mainnet,
+      }),
+      this.#config.createAccounts.timeoutMs,
+    );
 
-    const [p2wpkh, p2tr] = await Promise.all([
-      createBitcoinAccount(BtcAccountType.P2wpkh),
-      createBitcoinAccount(BtcAccountType.P2tr),
-    ]);
-
-    assertIsBip44Account(p2wpkh);
-    assertIsBip44Account(p2tr);
-
-    return [p2tr, p2wpkh];
+    assertIsBip44Account(account);
+    return [account];
   }
 
   async discoverAccounts({
