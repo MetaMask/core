@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Upda BTC account provider  to only create/discover Native SegWit (P2wpkh) accounts. ([#6783](https://github.com/MetaMask/core/pull/6783))
+- Upda BTC account provider to only create/discover Native SegWit (P2wpkh) accounts. ([#6783](https://github.com/MetaMask/core/pull/6783))
 
 ## [1.5.0]
 
