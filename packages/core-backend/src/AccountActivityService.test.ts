@@ -76,7 +76,7 @@ const getMessenger = () => {
   const mockSubscribe = jest.fn();
   const mockChannelHasSubscription = jest.fn();
   const mockGetSubscriptionsByChannel = jest.fn();
-  const mockFindSubscriptionsByChannelPrefix = jest.fn();
+  const mockFindSubscriptionsByChannelPrefix = jest.fn().mockReturnValue([]);
   const mockAddChannelCallback = jest.fn();
   const mockRemoveChannelCallback = jest.fn();
 

@@ -348,16 +348,13 @@ export class BackendWebSocketService {
             // Clear any pending reconnection timer since we're attempting connection
             this.#clearTimers();
             this.connect().catch((error) => {
-              console.warn(
-                `[${SERVICE_NAME}] Failed to connect after sign-in:`,
-                error,
-              );
+              log('Failed to connect after sign-in', { error });
             });
           } else {
-            // User signed out (wallet locked OR signed out) - stop reconnection attempts
+            // User signed out (wallet locked OR signed out) - disconnect and stop reconnection attempts
             this.#clearTimers();
             this.#reconnectAttempts = 0;
-            // Note: Don't disconnect here - let the app lifecycle manager handle disconnection
+            this.disconnect();
           }
         },
         (state: AuthenticationController.AuthenticationControllerState) =>
@@ -666,9 +663,6 @@ export class BackendWebSocketService {
 
     // Check if callback already exists for this channel
     if (this.#channelCallbacks.has(options.channelName)) {
-      console.debug(
-        `[${SERVICE_NAME}] Channel callback already exists for '${options.channelName}', skipping`,
-      );
       return;
     }
 
@@ -791,7 +785,6 @@ export class BackendWebSocketService {
         // Clean up subscription mapping
         this.#subscriptions.delete(subscriptionId);
       } catch (error) {
-        console.error(`[${SERVICE_NAME}] Failed to unsubscribe:`, error);
         throw error;
       }
     };
@@ -1031,8 +1024,8 @@ export class BackendWebSocketService {
   #handleSubscriptionNotification(message: ServerNotificationMessage): boolean {
     const { subscriptionId } = message;
 
-    // Only handle if subscriptionId is truthy
-    if (subscriptionId) {
+    // Only handle if subscriptionId is defined and not null (allows "0" as valid ID)
+    if (subscriptionId != null) {
       this.#subscriptions.get(subscriptionId)?.callback?.(message);
       return true;
     }

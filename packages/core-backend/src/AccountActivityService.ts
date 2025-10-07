@@ -307,8 +307,6 @@ export class AccountActivityService {
       return this.#supportedChains;
     }
 
-    this.#supportedChainsExpiresAt = Date.now() + SUPPORTED_CHAINS_CACHE_TTL;
-
     try {
       // Try to fetch from API
       this.#supportedChains = await fetchSupportedChainsInCaipFormat();
@@ -316,6 +314,8 @@ export class AccountActivityService {
       // Fallback to hardcoded list and cache it with timestamp
       this.#supportedChains = Array.from(DEFAULT_SUPPORTED_CHAINS);
     }
+
+    this.#supportedChainsExpiresAt = Date.now() + SUPPORTED_CHAINS_CACHE_TTL;
 
     return this.#supportedChains;
   }
@@ -552,12 +552,9 @@ export class AccountActivityService {
       this.#options.subscriptionNamespace,
     );
 
-    // Ensure we have an array before iterating
-    if (Array.isArray(accountActivitySubscriptions)) {
-      // Unsubscribe from all matching subscriptions
-      for (const subscription of accountActivitySubscriptions) {
-        await subscription.unsubscribe();
-      }
+    // Unsubscribe from all matching subscriptions
+    for (const subscription of accountActivitySubscriptions) {
+      await subscription.unsubscribe();
     }
   }
 
