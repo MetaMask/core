@@ -9,19 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of @metamask/eip-7702-internal-rpc-middleware
-- `wallet_upgradeAccount` JSON-RPC method for upgrading EOA accounts to smart accounts using EIP-7702
-- `wallet_getAccountUpgradeStatus` JSON-RPC method for checking account upgrade status
-- Hook-based architecture with `upgradeAccount` and `getAccountUpgradeStatus` hooks
-- Comprehensive TypeScript type definitions
-- Security restrictions limiting access to preinstalled snaps only
-- Full test coverage with Jest
-- Documentation and examples
-
-### Changed
-
-- Return the address to which an account is upgraded to in `wallet_getAccountUpgradeStatus` response
-- Update package configuration and dependencies
-- Fix linter issues and improve code quality
+- Initial release of @metamask/eip-7702-internal-rpc-middleware ([#6789](https://github.com/MetaMask/core/pull/6789))
+- `wallet_upgradeAccount` JSON-RPC method for upgrading EOA accounts to smart accounts using EIP-7702 ([#6789](https://github.com/MetaMask/core/pull/6789))
+- `wallet_getAccountUpgradeStatus` JSON-RPC method for checking account upgrade status ([#6789](https://github.com/MetaMask/core/pull/6789))
+- Hook-based architecture with `upgradeAccount` and `getAccountUpgradeStatus` hooks ([#6789](https://github.com/MetaMask/core/pull/6789))
+- Comprehensive TypeScript type definitions ([#6789](https://github.com/MetaMask/core/pull/6789))
+- Full test coverage with Jest ([#6789](https://github.com/MetaMask/core/pull/6789))
+- Documentation and examples ([#6789](https://github.com/MetaMask/core/pull/6789))
 
 [Unreleased]: https://github.com/MetaMask/core/
