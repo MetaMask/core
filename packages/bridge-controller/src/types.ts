@@ -39,21 +39,13 @@ import type {
   TxDataSchema,
 } from './utils/validators';
 
-/**
- * Additional options accepted by the extension's fetchWithCache function
- */
-type FetchWithCacheOptions = {
-  cacheOptions?: {
-    cacheRefreshTime: number;
-  };
-  functionName?: string;
-};
-
 export type FetchFunction = (
-  input: string | RequestInfo | URL,
-  init?: RequestInit & FetchWithCacheOptions,
+  input: RequestInfo | URL | string,
+  init?: RequestInit,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<any>;
+
+// export type FetchFunction = typeof fetch;
 
 /**
  * The types of assets that a user can send

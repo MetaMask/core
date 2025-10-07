@@ -10,8 +10,8 @@ import type { TransactionController } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { numberToHex, type Hex } from '@metamask/utils';
 
+import { BridgeClientId } from './constants/bridge';
 import {
-  type BridgeClientId,
   BRIDGE_CONTROLLER_NAME,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
@@ -724,11 +724,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
             {
               onValidationFailures: (validationFailures: string[]) => {
-                console.log('===validationFailures', validationFailures);
                 this.#trackResponseValidationFailures(validationFailures);
               },
               onValidQuotesReceived: async (quotes: QuoteResponse[]) => {
-                console.log('===event', quotes);
                 const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);
                 const quotesWithNonEvmFees = await this.#appendNonEvmFees(
                   quotes,
@@ -738,12 +736,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
                   quotesWithL1GasFees ?? quotesWithNonEvmFees ?? quotes;
                 this.update((state) => {
                   state.quotes.push(...quotesWithFees);
+                  // TODO if there are no other quotes, set initial load time
                 });
-              },
-              // Catches errors thrown by onmessage (network errors)
-              onError: (event) => {
-                console.error('===onError', event);
-                throw new Error(event.message);
               },
             },
           );
@@ -754,7 +748,16 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       });
     } catch (error) {
       console.log('=====catcherror', error);
+      // on mobile things crash here so fetch error is not logged
+      // cant connect to server
       const isAbortError = (error as Error).name === 'AbortError';
+      console.log(
+        '===catcherror',
+        'isAbortError',
+        isAbortError,
+        (error as Error).message,
+        (error as Error).toString(),
+      );
       if (
         isAbortError ||
         [
@@ -768,12 +771,26 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return;
       }
 
+      console.log('===catcherror', 'updating state');
       this.update((state) => {
-        state.quoteFetchError =
-          error instanceof Error ? error.message : (error?.toString() ?? null);
+        // Tryhing to fix this on mobile
+        state.quoteFetchError = // (error ?? 'error') as never as string;
+          // // TODO this works on mobile
+          this.#clientId === BridgeClientId.MOBILE
+            ? 'generic streaming error'
+            : ((error ?? 'error') as never as string);
+        console.log(
+          '===catcherror',
+          'finished setting quoteFetchError',
+          state.quoteFetchError,
+        );
+        // state.quoteFetchError =//this breaks on mobile
+        // error instanceof Error ? error.message : (error?.toString() ?? null);
         state.quotesLoadingStatus = RequestStatus.ERROR;
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
+      console.log('===catcherror', 'publishing event');
+
       this.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.QuotesError,
         context,

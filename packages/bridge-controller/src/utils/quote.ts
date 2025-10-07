@@ -77,7 +77,6 @@ export const isValidQuoteRequest = (
     (requireAmount
       ? Boolean((partialRequest.srcTokenAmount ?? '').match(/^[1-9]\d*$/u))
       : true);
-  console.log('====isValidQuoteRequest', r, partialRequest);
   return r;
 };
 

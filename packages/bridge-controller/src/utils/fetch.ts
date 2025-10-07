@@ -1,6 +1,5 @@
 import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
-import { Duration } from '@metamask/utils';
 import type { EventSourceMessage } from '@microsoft/fetch-event-source';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 
@@ -22,8 +21,6 @@ import type {
   QuoteRequest,
   BridgeAsset,
 } from '../types';
-
-const CACHE_REFRESH_TEN_MINUTES = 10 * Duration.Minute;
 
 export const getClientIdHeader = (clientId: string) => ({
   'X-Client-Id': clientId,
@@ -52,8 +49,6 @@ export async function fetchBridgeTokens(
   // note that the Assets controller won't be able to provide tokens. In extension we fetch+cache the token list from bridge-api to handle this
   const tokens = await fetchFn(url, {
     headers: getClientIdHeader(clientId),
-    cacheOptions: { cacheRefreshTime: CACHE_REFRESH_TEN_MINUTES },
-    functionName: 'fetchBridgeTokens',
   });
 
   const transformedTokens: Record<string, BridgeAsset> = {};
@@ -124,8 +119,6 @@ export async function fetchBridgeQuotes(
   const quotes: unknown[] = await fetchFn(url, {
     headers: getClientIdHeader(clientId),
     signal,
-    cacheOptions: { cacheRefreshTime: 0 },
-    functionName: 'fetchBridgeQuotes',
   });
 
   const uniqueValidationFailures: Set<string> = new Set<string>([]);
@@ -189,10 +182,7 @@ const fetchAssetPricesForCurrency = async (request: {
   const url = `https://price.api.cx.metamask.io/v3/spot-prices?${queryParams}`;
   const priceApiResponse = (await fetchFn(url, {
     headers: getClientIdHeader(clientId),
-    cacheOptions: { cacheRefreshTime: Number(Duration.Second * 30) },
-    functionName: 'fetchAssetExchangeRates',
   })) as Record<CaipAssetType, { [currency: string]: number }>;
-
   if (!priceApiResponse || typeof priceApiResponse !== 'object') {
     return {};
   }
@@ -270,7 +260,6 @@ export const fetchAssetPrices = async (
  * @param serverEventHandlers - The server event handlers
  * @param serverEventHandlers.onValidationFailures - The function to handle validation failures
  * @param serverEventHandlers.onValidQuotesReceived - The function to handle valid quotes
- * @param serverEventHandlers.onError - The function to handle errors
  * @returns A list of bridge tx quotes
  */
 export async function fetchBridgeQuoteStream(
@@ -282,7 +271,6 @@ export async function fetchBridgeQuoteStream(
   serverEventHandlers: {
     onValidationFailures: (validationFailures: string[]) => void;
     onValidQuotesReceived: (quotes: QuoteResponse[]) => Promise<void>;
-    onError?: (event: Error) => void;
   },
 ): Promise<void> {
   const destWalletAddress = request.destWalletAddress ?? request.walletAddress;
@@ -333,7 +321,6 @@ export async function fetchBridgeQuoteStream(
       serverEventHandlers
         .onValidQuotesReceived([quoteResponse])
         .then((v) => {
-          console.log('===onValidQuotesReceived success');
           return v;
         })
         .catch(() => {
@@ -368,7 +355,11 @@ export async function fetchBridgeQuoteStream(
     },
     signal,
     onmessage: onMessage,
-    onerror: serverEventHandlers.onError,
+    onerror: (e) => {
+      // Rethrow error to prevent silent fetch failures
+      throw new Error(e.toString());
+    },
+    openWhenHidden: false, // cancel request when document is hidden, will restart when visible
     onclose: () => {
       console.log('===onclose');
     },
