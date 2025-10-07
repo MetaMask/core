@@ -267,7 +267,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   }
 
   _executePoll = async (pollingInput: BridgePollingInput) => {
-    const shouldStream = true;
+    const shouldStream = Boolean(
+      getBridgeFeatureFlags(this.messagingSystem).sseEnabled,
+    );
     if (shouldStream) {
       await this.#fetchBridgeQuoteStream(pollingInput);
     } else {
