@@ -16,10 +16,6 @@ import {
 } from '@metamask/transaction-controller';
 
 import { controllerName } from './constants';
-import {
-  calculateSignatureCoverageId,
-  calculateTransactionCoverageId,
-} from './coverageId';
 import { projectLogger, createModuleLogger } from './logger';
 import type { CoverageResult, ShieldBackend } from './types';
 
@@ -389,11 +385,11 @@ export class ShieldController extends BaseController<
 
     const { coverageId, status } = this.#getCoverageIdAndStatus(
       signatureRequest.id,
-      () => calculateSignatureCoverageId(signatureRequest),
     );
 
     await this.#backend.logSignature({
       coverageId,
+      signatureRequest: coverageId ? undefined : signatureRequest,
       signature,
       status,
     });
@@ -405,32 +401,30 @@ export class ShieldController extends BaseController<
       throw new Error('Transaction hash not found');
     }
 
-    const { coverageId, status } = this.#getCoverageIdAndStatus(txMeta.id, () =>
-      calculateTransactionCoverageId(txMeta),
-    );
+    const { coverageId, status } = this.#getCoverageIdAndStatus(txMeta.id);
 
     await this.#backend.logTransaction({
       coverageId,
+      txMeta: coverageId ? undefined : txMeta,
       transactionHash,
       status,
     });
   }
 
-  #getCoverageIdAndStatus(itemId: string, calculateCoverageId: () => string) {
+  #getCoverageIdAndStatus(itemId: string) {
     // The status is assigned as follows:
     // - 'shown' if we have a result
     // - 'not_shown' if we don't have a result
-    let coverageId = this.#getLatestCoverageId(itemId);
+    const coverageId = this.#getLatestCoverageId(itemId);
     let status = 'shown';
     if (!coverageId) {
       log('Coverage ID not found for', itemId);
-      coverageId = calculateCoverageId();
       status = 'not_shown';
     }
     return { coverageId, status };
   }
 
-  #getLatestCoverageId(itemId: string) {
+  #getLatestCoverageId(itemId: string): string | undefined {
     return this.state.coverageResults[itemId]?.results[0]?.coverageId;
   }
 }

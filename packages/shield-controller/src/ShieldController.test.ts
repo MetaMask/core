@@ -10,10 +10,6 @@ import {
   type TransactionControllerState,
 } from '@metamask/transaction-controller';
 
-import {
-  calculateSignatureCoverageId,
-  calculateTransactionCoverageId,
-} from './coverageId';
 import { ShieldController } from './ShieldController';
 import { createMockBackend, MOCK_COVERAGE_ID } from '../tests/mocks/backend';
 import { createMockMessenger } from '../tests/mocks/messenger';
@@ -293,7 +289,7 @@ describe('ShieldController', () => {
         undefined as never,
       );
 
-      return { signatureRequest };
+      return { signatureRequest, updatedSignatureRequest };
     }
 
     it('logs a signature', async () => {
@@ -317,13 +313,12 @@ describe('ShieldController', () => {
         status: 'unknown',
       });
 
-      const { signatureRequest } = await runTest(components);
+      const { updatedSignatureRequest } = await runTest(components);
 
       // Check that backend was called
-      const calculatedCoverageId =
-        calculateSignatureCoverageId(signatureRequest);
       expect(components.backend.logSignature).toHaveBeenCalledWith({
-        coverageId: calculatedCoverageId,
+        coverageId: undefined,
+        signatureRequest: updatedSignatureRequest,
         signature: '0x00',
         status: 'not_shown',
       });
@@ -384,7 +379,7 @@ describe('ShieldController', () => {
         undefined as never,
       );
 
-      return { txMeta };
+      return { txMeta, updatedTxMeta };
     }
 
     it('logs a transaction', async () => {
@@ -407,14 +402,14 @@ describe('ShieldController', () => {
         status: 'unknown',
       });
 
-      const { txMeta } = await runTest(components);
+      const { updatedTxMeta } = await runTest(components);
 
       // Check that backend was called
-      const calculatedCoverageId = calculateTransactionCoverageId(txMeta);
       expect(components.backend.logTransaction).toHaveBeenCalledWith({
-        coverageId: calculatedCoverageId,
+        coverageId: undefined,
         status: 'not_shown',
         transactionHash: '0x00',
+        txMeta: updatedTxMeta,
       });
     });
 

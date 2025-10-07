@@ -200,6 +200,21 @@ describe('ShieldRemoteBackend', () => {
       expect(getAccessToken).toHaveBeenCalledTimes(1);
     });
 
+    it('logs signature without coverageId', async () => {
+      const { backend, fetchMock, getAccessToken } = setup();
+
+      fetchMock.mockResolvedValueOnce({ status: 200 } as unknown as Response);
+
+      await backend.logSignature({
+        coverageId: undefined,
+        signatureRequest: generateMockSignatureRequest(),
+        signature: '0x00',
+        status: 'not_shown',
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(getAccessToken).toHaveBeenCalledTimes(1);
+    });
+
     it('throws on status 500', async () => {
       const { backend, fetchMock } = setup();
 
@@ -225,6 +240,21 @@ describe('ShieldRemoteBackend', () => {
         coverageId: 'coverageId',
         transactionHash: '0x00',
         status: 'shown',
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(getAccessToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs transaction without coverageId', async () => {
+      const { backend, fetchMock, getAccessToken } = setup();
+
+      fetchMock.mockResolvedValueOnce({ status: 200 } as unknown as Response);
+
+      await backend.logTransaction({
+        coverageId: undefined,
+        txMeta: generateMockTxMeta(),
+        transactionHash: '0x00',
+        status: 'not_shown',
       });
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(getAccessToken).toHaveBeenCalledTimes(1);
