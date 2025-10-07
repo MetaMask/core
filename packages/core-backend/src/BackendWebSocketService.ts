@@ -1086,12 +1086,10 @@ export class BackendWebSocketService {
     const shouldReconnect = this.#shouldReconnectOnClose(event.code);
 
     if (shouldReconnect) {
-      log('Connection lost unexpectedly, will attempt reconnection');
+      log('Connection lost unexpectedly, will attempt reconnection', {
+        code: event.code,
+      });
       this.#scheduleReconnect();
-    } else {
-      // Non-recoverable error - set error state
-      log('Non-recoverable error', { code: event.code });
-      this.#setState(WebSocketState.ERROR);
     }
   }
 

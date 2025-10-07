@@ -615,27 +615,5 @@ export class AccountActivityService {
       'BackendWebSocketService:removeChannelCallback',
       `system-notifications.v1.${this.#options.subscriptionNamespace}`,
     );
-
-    // Unregister action handlers to prevent stale references
-    this.#messenger.unregisterActionHandler(
-      'AccountActivityService:subscribeAccounts',
-    );
-    this.#messenger.unregisterActionHandler(
-      'AccountActivityService:unsubscribeAccounts',
-    );
-
-    // Clear our own event subscriptions (events we publish)
-    this.#messenger.clearEventSubscriptions(
-      'AccountActivityService:transactionUpdated',
-    );
-    this.#messenger.clearEventSubscriptions(
-      'AccountActivityService:balanceUpdated',
-    );
-    this.#messenger.clearEventSubscriptions(
-      'AccountActivityService:subscriptionError',
-    );
-    this.#messenger.clearEventSubscriptions(
-      'AccountActivityService:statusChanged',
-    );
   }
 }

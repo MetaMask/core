@@ -630,14 +630,18 @@ describe('BackendWebSocketService', () => {
           mockWs.simulateClose(1000, 'Normal closure');
           await completeAsyncOperations(0);
 
-          // Service should be in ERROR state (non-recoverable)
-          expect(service.getConnectionInfo().state).toBe(WebSocketState.ERROR);
+          // Service should be in DISCONNECTED state (normal closure, not an error)
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
 
           // Advance time - should NOT attempt reconnection
           await completeAsyncOperations(200);
 
-          // Should still be in ERROR state
-          expect(service.getConnectionInfo().state).toBe(WebSocketState.ERROR);
+          // Should still be in DISCONNECTED state (no reconnection for normal closures)
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
         },
       );
     });
