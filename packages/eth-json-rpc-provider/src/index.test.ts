@@ -4,7 +4,7 @@ describe('Package exports', () => {
   it('has expected exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
       Array [
-        "SafeEventEmitterProvider",
+        "InternalProvider",
         "providerFromEngine",
         "providerFromMiddleware",
       ]

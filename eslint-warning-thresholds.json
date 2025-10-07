@@ -152,12 +152,6 @@
   "packages/eip-5792-middleware/src/hooks/processSendCalls.ts": {
     "@typescript-eslint/no-misused-promises": 1
   },
-  "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.test.ts": {
-    "import-x/namespace": 1
-  },
-  "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.ts": {
-    "@typescript-eslint/prefer-readonly": 1
-  },
   "packages/gas-fee-controller/src/GasFeeController.test.ts": {
     "import-x/namespace": 2,
     "import-x/order": 1

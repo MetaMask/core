@@ -1,6 +1,5 @@
 import type { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { JsonRpcError } from '@metamask/rpc-errors';
-import SafeEventEmitter from '@metamask/safe-event-emitter';
 import type {
   Json,
   JsonRpcId,
@@ -52,17 +51,16 @@ export function convertEip1193RequestToJsonRpcRequest<
  * This provider loosely follows conventions that pre-date EIP-1193.
  * It is not compliant with any Ethereum provider standard.
  */
-export class SafeEventEmitterProvider extends SafeEventEmitter {
-  #engine: JsonRpcEngine;
+export class InternalProvider {
+  readonly #engine: JsonRpcEngine;
 
   /**
-   * Construct a SafeEventEmitterProvider from a JSON-RPC engine.
+   * Construct a InternalProvider from a JSON-RPC engine.
    *
    * @param options - Options.
    * @param options.engine - The JSON-RPC engine used to process requests.
    */
   constructor({ engine }: { engine: JsonRpcEngine }) {
-    super();
     this.#engine = engine;
   }
 

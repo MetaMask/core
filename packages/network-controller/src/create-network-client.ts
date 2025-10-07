@@ -12,7 +12,7 @@ import {
   createFetchMiddleware,
   createRetryOnEmptyMiddleware,
 } from '@metamask/eth-json-rpc-middleware';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import {
   providerFromEngine,
   providerFromMiddleware,
@@ -208,7 +208,7 @@ function createBlockTracker({
   getOptions: (
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
-  provider: SafeEventEmitterProvider;
+  provider: InternalProvider;
 }) {
   const testOptions =
     process.env.IN_TEST && networkClientType === NetworkClientType.Custom
@@ -240,7 +240,7 @@ function createInfuraNetworkMiddleware({
 }: {
   blockTracker: PollingBlockTracker;
   network: InfuraNetworkType;
-  rpcProvider: SafeEventEmitterProvider;
+  rpcProvider: InternalProvider;
   rpcApiMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
 }) {
   return mergeMiddleware([
