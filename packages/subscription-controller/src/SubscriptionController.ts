@@ -291,25 +291,36 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   async getSubscriptions() {
     const currentSubscriptions = this.state.subscriptions;
     const currentTrialedProducts = this.state.trialedProducts;
+    const currentCustomerId = this.state.customerId;
     const {
+      customerId: newCustomerId,
       subscriptions: newSubscriptions,
-      customerId,
       trialedProducts: newTrialedProducts,
     } = await this.#subscriptionService.getSubscriptions();
 
+    // check if the new subscriptions are different from the current subscriptions
     const areSubscriptionsEqual = this.#areSubscriptionsEqual(
       currentSubscriptions,
       newSubscriptions,
     );
+    // check if the new trialed products are different from the current trialed products
     const areTrialedProductsEqual = this.#areTrialedProductsEqual(
       currentTrialedProducts,
       newTrialedProducts,
     );
 
-    if (!areSubscriptionsEqual || !areTrialedProductsEqual) {
+    const areCustomerIdsEqual = currentCustomerId === newCustomerId;
+
+    // only update the state if the subscriptions or trialed products are different
+    // this prevents unnecessary state updates events, easier for the clients to handle
+    if (
+      !areSubscriptionsEqual ||
+      !areTrialedProductsEqual ||
+      !areCustomerIdsEqual
+    ) {
       this.update((state) => {
         state.subscriptions = newSubscriptions;
-        state.customerId = customerId;
+        state.customerId = newCustomerId;
         state.trialedProducts = newTrialedProducts;
       });
     }

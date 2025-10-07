@@ -384,6 +384,7 @@ describe('SubscriptionController', () => {
       await withController(
         {
           state: {
+            customerId: 'cus_1',
             subscriptions: [
               mockSubscription1,
               mockSubscription2,
