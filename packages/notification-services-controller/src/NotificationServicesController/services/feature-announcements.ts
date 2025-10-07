@@ -1,6 +1,5 @@
 import { documentToHtmlString } from '@contentful/rich-text-html-renderer';
 import type { Entry, Asset, EntryCollection } from 'contentful';
-import { gt, lt } from 'semver';
 
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import { processFeatureAnnouncement } from '../processors/process-feature-announcement';
@@ -16,6 +15,7 @@ import type {
   TypeMobileLinkFields,
 } from '../types/feature-announcement/type-links';
 import type { INotification } from '../types/notification/notification';
+import { isVersionInBounds } from '../utils/isVersionInBounds';
 
 const DEFAULT_SPACE_ID = ':space_id';
 const DEFAULT_ACCESS_TOKEN = ':access_token';
@@ -166,33 +166,11 @@ const fetchFeatureAnnouncementNotifications = async (
   const filteredRawNotifications = rawNotifications.filter((n) => {
     const minVersion = n.data?.[versionKeys[env.platform].min];
     const maxVersion = n.data?.[versionKeys[env.platform].max];
-
-    // If no platform version is provided, show all notifications
-    if (!env.platformVersion) {
-      return true;
-    }
-
-    // min/max filtering
-    try {
-      let showNotification = true;
-
-      // Check minimum version: current version must be greater than minimum
-      if (minVersion) {
-        showNotification =
-          showNotification && gt(env.platformVersion, minVersion);
-      }
-
-      // Check maximum version: current version must be less than maximum
-      if (maxVersion) {
-        showNotification =
-          showNotification && lt(env.platformVersion, maxVersion);
-      }
-
-      return showNotification;
-    } catch {
-      // something went wrong filtering, do not show notification
-      return false;
-    }
+    return isVersionInBounds({
+      currentVersion: env.platformVersion,
+      minVersion,
+      maxVersion,
+    });
   });
 
   return filteredRawNotifications;

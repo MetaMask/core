@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add exported util `isVersionInBounds` to validate version number is in bounds ([#6793](https://github.com/MetaMask/core/pull/6793))
+
 ## [18.2.0]
 
 ### Added
