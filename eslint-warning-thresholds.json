@@ -254,12 +254,6 @@
     "@typescript-eslint/no-explicit-any": 1,
     "jsdoc/match-description": 9
   },
-  "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.test.ts": {
-    "import-x/namespace": 1
-  },
-  "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.ts": {
-    "@typescript-eslint/prefer-readonly": 1
-  },
   "packages/gas-fee-controller/src/GasFeeController.test.ts": {
     "import-x/namespace": 2,
     "import-x/order": 1
