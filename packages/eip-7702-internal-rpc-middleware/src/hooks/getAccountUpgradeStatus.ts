@@ -8,6 +8,7 @@ import type {
   Hex,
 } from '@metamask/utils';
 
+import { DELEGATION_INDICATOR_PREFIX } from '../constants';
 import type {
   GetAccountUpgradeStatusParams,
   GetAccountUpgradeStatusResult,
@@ -20,10 +21,26 @@ const isAccountUpgraded = async (
   address: string,
   networkClientId: string,
   getCode: (address: string, networkClientId: string) => Promise<string | null>,
-): Promise<boolean> => {
+): Promise<{ isUpgraded: boolean; upgradedAddress: Hex | null }> => {
   // This is a mock implementation - in real usage this would come from @metamask/eip7702-utils
   const code = await getCode(address, networkClientId);
-  return code !== null && code !== '0x';
+  if (!code || code === '0x' || code.length <= 2) {
+    return { isUpgraded: false, upgradedAddress: null };
+  }
+
+  if (!code.startsWith(DELEGATION_INDICATOR_PREFIX)) {
+    return { isUpgraded: false, upgradedAddress: null };
+  }
+
+  const expectedLength = DELEGATION_INDICATOR_PREFIX.length + 40; // 0xef0100 + 40 hex chars
+  if (code.length !== expectedLength) {
+    return { isUpgraded: false, upgradedAddress: null };
+  }
+
+  // Extract the 20-byte address (40 hex characters after the prefix)
+  const upgradedAddress = `0x${code.slice(8, 48)}` as Hex;
+
+  return { isUpgraded: true, upgradedAddress };
 };
 
 /**
@@ -109,7 +126,7 @@ export async function getAccountUpgradeStatus(
     }
 
     // Check if the account is upgraded using the EIP7702 utils
-    const isUpgraded = await isAccountUpgraded(
+    const { isUpgraded, upgradedAddress } = await isAccountUpgraded(
       normalizedAccount as Hex,
       networkClientId,
       getCode,
@@ -118,6 +135,7 @@ export async function getAccountUpgradeStatus(
     return {
       account: normalizedAccount,
       isUpgraded,
+      upgradedAddress,
       chainId: targetChainId,
     };
   } catch (error) {

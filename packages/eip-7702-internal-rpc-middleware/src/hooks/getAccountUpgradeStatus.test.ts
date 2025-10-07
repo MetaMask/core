@@ -65,7 +65,7 @@ describe('getAccountUpgradeStatus', () => {
     const { getCode, getCurrentChainIdForDomain, response, handler } =
       createStatusHandler();
 
-    // Mock getCode to return non-empty code to simulate upgraded account
+    // Mock getCode to return non-delegation code to simulate non-upgraded account
     getCode.mockResolvedValue('0x1234567890abcdef');
 
     await handler({
@@ -80,7 +80,8 @@ describe('getAccountUpgradeStatus', () => {
     expect(getCode).toHaveBeenCalledWith(TEST_ACCOUNT, NETWORK_CLIENT_ID);
     expect(response.result).toStrictEqual({
       account: TEST_ACCOUNT,
-      isUpgraded: true,
+      isUpgraded: false,
+      upgradedAddress: null,
       chainId: 1,
     });
   });
@@ -111,6 +112,7 @@ describe('getAccountUpgradeStatus', () => {
     expect(response.result).toStrictEqual({
       account: TEST_ACCOUNT,
       isUpgraded: false,
+      upgradedAddress: null,
       chainId: 0xaa36a7,
     });
   });
@@ -349,5 +351,76 @@ describe('getAccountUpgradeStatus', () => {
     });
 
     expect(end).toHaveBeenCalledWith(rpcError);
+  });
+
+  it('returns upgraded address when account is upgraded with valid delegation code', async () => {
+    const { getCode, response, handler } = createStatusHandler();
+
+    // Mock getCode to return valid delegation code (0xef0100 + 40 hex chars for address)
+    const upgradedAddress = '0xabcdef1234567890abcdef1234567890abcdef12';
+    const delegationCode = `0xef0100${upgradedAddress.slice(2)}`;
+    getCode.mockResolvedValue(delegationCode);
+
+    await handler({
+      id: 1,
+      method: 'wallet_getAccountUpgradeStatus',
+      jsonrpc: '2.0',
+      origin: 'npm:@metamask/gator-permissions-snap',
+      params: [{ account: TEST_ACCOUNT }],
+    });
+
+    expect(getCode).toHaveBeenCalledWith(TEST_ACCOUNT, NETWORK_CLIENT_ID);
+    expect(response.result).toStrictEqual({
+      account: TEST_ACCOUNT,
+      isUpgraded: true,
+      upgradedAddress,
+      chainId: 1,
+    });
+  });
+
+  it('returns null upgraded address when account has code but not delegation code', async () => {
+    const { getCode, response, handler } = createStatusHandler();
+
+    // Mock getCode to return non-delegation code
+    getCode.mockResolvedValue('0x1234567890abcdef');
+
+    await handler({
+      id: 1,
+      method: 'wallet_getAccountUpgradeStatus',
+      jsonrpc: '2.0',
+      origin: 'npm:@metamask/gator-permissions-snap',
+      params: [{ account: TEST_ACCOUNT }],
+    });
+
+    expect(getCode).toHaveBeenCalledWith(TEST_ACCOUNT, NETWORK_CLIENT_ID);
+    expect(response.result).toStrictEqual({
+      account: TEST_ACCOUNT,
+      isUpgraded: false,
+      upgradedAddress: null,
+      chainId: 1,
+    });
+  });
+
+  it('returns null upgraded address when delegation code has wrong length', async () => {
+    const { getCode, response, handler } = createStatusHandler();
+
+    // Mock getCode to return delegation code with wrong length
+    getCode.mockResolvedValue('0xef0100abcdef'); // Too short
+
+    await handler({
+      id: 1,
+      method: 'wallet_getAccountUpgradeStatus',
+      jsonrpc: '2.0',
+      origin: 'npm:@metamask/gator-permissions-snap',
+      params: [{ account: TEST_ACCOUNT }],
+    });
+
+    expect(getCode).toHaveBeenCalledWith(TEST_ACCOUNT, NETWORK_CLIENT_ID);
+    expect(response.result).toStrictEqual({
+      account: TEST_ACCOUNT,
+      isUpgraded: false,
+      upgradedAddress: null,
+      chainId: 1,
+    });
   });
 });

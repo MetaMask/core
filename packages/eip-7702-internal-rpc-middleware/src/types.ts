@@ -30,6 +30,7 @@ export type GetAccountUpgradeStatusParams = Infer<
 export type GetAccountUpgradeStatusResult = {
   account: string; // Address of the checked account
   isUpgraded: boolean; // Whether the account is upgraded
+  upgradedAddress: string | null; // Address to which the account is upgraded
   chainId: number; // Chain ID where the check was performed
 };
 

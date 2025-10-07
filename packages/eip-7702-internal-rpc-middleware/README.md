@@ -49,6 +49,7 @@ Checks if an account has been upgraded using EIP-7702.
 **Returns:**
 - `account` (string): Address of the checked account
 - `isUpgraded` (boolean): Whether the account is upgraded
+- `upgradedAddress` (string | null): Address to which the account is upgraded (null if not upgraded)
 - `chainId` (number): Chain ID where the check was performed
 
 **Example:**
@@ -61,6 +62,26 @@ Checks if an account has been upgraded using EIP-7702.
       "chainId": 1
     }
   ]
+}
+```
+
+**Example Response (Upgraded Account):**
+```json
+{
+  "account": "0x1234567890123456789012345678901234567890",
+  "isUpgraded": true,
+  "upgradedAddress": "0xabcdef1234567890abcdef1234567890abcdef12",
+  "chainId": 1
+}
+```
+
+**Example Response (Non-Upgraded Account):**
+```json
+{
+  "account": "0x1234567890123456789012345678901234567890",
+  "isUpgraded": false,
+  "upgradedAddress": null,
+  "chainId": 1
 }
 ```
 
