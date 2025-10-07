@@ -1,6 +1,13 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { RpcEndpointType } from '@metamask/network-controller';
 import {
   TransactionStatus,
@@ -16,14 +23,33 @@ import { useFakeTimers } from 'sinon';
 
 import { POPULAR_NETWORKS } from './constants';
 import { NetworkEnablementController } from './NetworkEnablementController';
-import type {
-  NetworkEnablementControllerActions,
-  NetworkEnablementControllerEvents,
-  AllowedEvents,
-  AllowedActions,
-  NetworkEnablementControllerMessenger,
-} from './NetworkEnablementController';
+import type { NetworkEnablementControllerMessenger } from './NetworkEnablementController';
 import { advanceTime } from '../../../tests/helpers';
+
+const controllerName = 'NetworkEnablementController';
+
+type AllNetworkEnablementControllerActions =
+  MessengerActions<NetworkEnablementControllerMessenger>;
+
+type AllNetworkEnablementControllerEvents =
+  MessengerEvents<NetworkEnablementControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllNetworkEnablementControllerActions,
+  AllNetworkEnablementControllerEvents
+>;
+
+/**
+ * Creates and returns a root messenger for testing
+ *
+ * @returns A messenger instance
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+}
 
 const setupController = ({
   config,
@@ -31,27 +57,36 @@ const setupController = ({
   config?: Partial<
     ConstructorParameters<typeof NetworkEnablementController>[0]
   >;
-} = {}) => {
-  const messenger = new Messenger<
-    NetworkEnablementControllerActions | AllowedActions,
-    NetworkEnablementControllerEvents | AllowedEvents
-  >();
+} = {}): {
+  controller: NetworkEnablementController;
+  rootMessenger: RootMessenger;
+} => {
+  const rootMessenger = getRootMessenger();
 
-  const networkEnablementControllerMessenger: NetworkEnablementControllerMessenger =
-    messenger.getRestricted({
-      name: 'NetworkEnablementController',
-      allowedActions: [
-        'NetworkController:getState',
-        'MultichainNetworkController:getState',
-      ],
-      allowedEvents: [
-        'NetworkController:networkAdded',
-        'NetworkController:networkRemoved',
-        'TransactionController:transactionSubmitted',
-      ],
-    });
+  const networkEnablementControllerMessenger = new Messenger<
+    typeof controllerName,
+    AllNetworkEnablementControllerActions,
+    AllNetworkEnablementControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
 
-  messenger.registerActionHandler(
+  rootMessenger.delegate({
+    messenger: networkEnablementControllerMessenger,
+    actions: [
+      'NetworkController:getState',
+      'MultichainNetworkController:getState',
+    ],
+    events: [
+      'NetworkController:networkAdded',
+      'NetworkController:networkRemoved',
+      'TransactionController:transactionSubmitted',
+    ],
+  });
+
+  rootMessenger.registerActionHandler(
     'NetworkController:getState',
     jest.fn().mockImplementation(() => ({
       networkConfigurationsByChainId: {
@@ -78,18 +113,8 @@ const setupController = ({
 
   return {
     controller,
-    messenger,
+    rootMessenger,
   };
-};
-
-// Helper function to setup controller with default state (no init needed)
-const setupInitializedController = (
-  config?: Partial<
-    ConstructorParameters<typeof NetworkEnablementController>[0]
-  >,
-) => {
-  const setup = setupController({ config });
-  return setup;
 };
 
 describe('NetworkEnablementController', () => {
@@ -133,12 +158,12 @@ describe('NetworkEnablementController', () => {
   });
 
   it('subscribes to NetworkController:networkAdded', async () => {
-    const { controller, messenger } = setupInitializedController();
+    const { controller, rootMessenger } = setupController();
 
     // Publish an update with avax network added
     // Avalanche is a popular network, and we already have >2 popular networks enabled
     // So the new behavior should keep current selection (add but don't enable)
-    messenger.publish('NetworkController:networkAdded', {
+    rootMessenger.publish('NetworkController:networkAdded', {
       chainId: '0xa86a',
       blockExplorerUrls: [],
       defaultRpcEndpointIndex: 0,
@@ -183,10 +208,10 @@ describe('NetworkEnablementController', () => {
   });
 
   it('subscribes to NetworkController:networkRemoved', async () => {
-    const { controller, messenger } = setupInitializedController();
+    const { controller, rootMessenger } = setupController();
 
     // Publish an update with linea network removed
-    messenger.publish('NetworkController:networkRemoved', {
+    rootMessenger.publish('NetworkController:networkRemoved', {
       chainId: '0xe708', // Linea Mainnet
       blockExplorerUrls: [],
       defaultRpcEndpointIndex: 0,
@@ -229,12 +254,12 @@ describe('NetworkEnablementController', () => {
   });
 
   it('handles TransactionController:transactionSubmitted with missing chainId gracefully', async () => {
-    const { controller, messenger } = setupInitializedController();
+    const { controller, rootMessenger } = setupController();
 
     const initialState = { ...controller.state };
 
     // Publish a transaction submitted event without chainId
-    messenger.publish('TransactionController:transactionSubmitted', {
+    rootMessenger.publish('TransactionController:transactionSubmitted', {
       transactionMeta: {
         networkClientId: 'test-network',
         id: 'test-tx-id',
@@ -256,13 +281,13 @@ describe('NetworkEnablementController', () => {
   });
 
   it('handles TransactionController:transactionSubmitted with malformed structure gracefully', async () => {
-    const { controller, messenger } = setupInitializedController();
+    const { controller, rootMessenger } = setupController();
 
     const initialState = { ...controller.state };
 
     // Publish a transaction submitted event with malformed structure
     // @ts-expect-error - Testing runtime safety for malformed payload
-    messenger.publish('TransactionController:transactionSubmitted', {
+    rootMessenger.publish('TransactionController:transactionSubmitted', {
       // Missing transactionMeta entirely
     });
 
@@ -273,12 +298,12 @@ describe('NetworkEnablementController', () => {
   });
 
   it('handles TransactionController:transactionSubmitted with null/undefined transactionMeta gracefully', async () => {
-    const { controller, messenger } = setupInitializedController();
+    const { controller, rootMessenger } = setupController();
 
     const initialState = { ...controller.state };
 
     // Test with null transactionMeta
-    messenger.publish('TransactionController:transactionSubmitted', {
+    rootMessenger.publish('TransactionController:transactionSubmitted', {
       // @ts-expect-error - Testing runtime safety for null transactionMeta
       transactionMeta: null,
     });
@@ -289,7 +314,7 @@ describe('NetworkEnablementController', () => {
     expect(controller.state).toStrictEqual(initialState);
 
     // Test with undefined transactionMeta
-    messenger.publish('TransactionController:transactionSubmitted', {
+    rootMessenger.publish('TransactionController:transactionSubmitted', {
       // @ts-expect-error - Testing runtime safety for undefined transactionMeta
       transactionMeta: undefined,
     });
@@ -301,14 +326,14 @@ describe('NetworkEnablementController', () => {
   });
 
   it('does fallback to ethereum when removing the last enabled network', async () => {
-    const { controller, messenger } = setupInitializedController();
+    const { controller, rootMessenger } = setupController();
 
     // disable all networks except linea
     controller.disableNetwork('0x1'); // Ethereum Mainnet
     controller.disableNetwork('0x2105'); // Base Mainnet
 
     // Publish an update with linea network removed
-    messenger.publish('NetworkController:networkRemoved', {
+    rootMessenger.publish('NetworkController:networkRemoved', {
       chainId: '0xe708', // Linea Mainnet
       blockExplorerUrls: [],
       defaultRpcEndpointIndex: 0,
@@ -356,7 +381,7 @@ describe('NetworkEnablementController', () => {
 
       jest
         // eslint-disable-next-line dot-notation
-        .spyOn(controller['messagingSystem'], 'call')
+        .spyOn(controller['messenger'], 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -428,7 +453,7 @@ describe('NetworkEnablementController', () => {
 
     it('only enables popular networks that exist in NetworkController configurations', () => {
       // Create a separate controller setup for this test to avoid handler conflicts
-      const { controller, messenger } = setupController({
+      const { controller } = setupController({
         config: {
           state: {
             enabledNetworkMap: {
@@ -439,7 +464,8 @@ describe('NetworkEnablementController', () => {
         },
       });
 
-      jest.spyOn(messenger, 'call').mockImplementation(
+      // eslint-disable-next-line dot-notation
+      jest.spyOn(controller['messenger'], 'call').mockImplementation(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -492,10 +518,11 @@ describe('NetworkEnablementController', () => {
     });
 
     it('handles missing MultichainNetworkController gracefully', () => {
-      const { controller, messenger } = setupController();
+      const { controller } = setupController();
 
       jest
-        .spyOn(messenger, 'call')
+        // eslint-disable-next-line dot-notation
+        .spyOn(controller['messenger'], 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -536,7 +563,7 @@ describe('NetworkEnablementController', () => {
 
       jest
         // eslint-disable-next-line dot-notation
-        .spyOn(controller['messagingSystem'], 'call')
+        .spyOn(controller['messenger'], 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -597,7 +624,7 @@ describe('NetworkEnablementController', () => {
 
       jest
         // eslint-disable-next-line dot-notation
-        .spyOn(controller['messagingSystem'], 'call')
+        .spyOn(controller['messenger'], 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: unknown[]): any => {
           const responses = {
@@ -649,7 +676,7 @@ describe('NetworkEnablementController', () => {
       // Mock MultichainNetworkController to include Bitcoin testnet BEFORE calling init
       jest
         // eslint-disable-next-line dot-notation
-        .spyOn(controller['messagingSystem'], 'call')
+        .spyOn(controller['messenger'], 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -701,7 +728,7 @@ describe('NetworkEnablementController', () => {
       // Mock MultichainNetworkController to include Bitcoin signet BEFORE calling init
       jest
         // eslint-disable-next-line dot-notation
-        .spyOn(controller['messagingSystem'], 'call')
+        .spyOn(controller['messenger'], 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -750,12 +777,12 @@ describe('NetworkEnablementController', () => {
 
   describe('enableAllPopularNetworks', () => {
     it('enables all popular networks that exist in controller configurations and Solana mainnet', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Mock the network configurations
       jest
         // eslint-disable-next-line dot-notation
-        .spyOn(controller['messagingSystem'], 'call')
+        .spyOn(controller['messenger'], 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -855,10 +882,11 @@ describe('NetworkEnablementController', () => {
     });
 
     it('enables all popular networks from constants', () => {
-      const { controller, messenger } = setupController();
+      const { controller } = setupController();
 
       // Mock all popular networks to be available in configurations
-      jest.spyOn(messenger, 'call').mockImplementation(
+      // eslint-disable-next-line dot-notation
+      jest.spyOn(controller['messenger'], 'call').mockImplementation(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -937,12 +965,12 @@ describe('NetworkEnablementController', () => {
     });
 
     it('disables existing networks and enables only popular networks (exclusive behavior)', async () => {
-      const { controller, messenger } = setupInitializedController();
+      const { controller, rootMessenger } = setupController();
 
       // Mock the network configurations to include popular networks
       jest
         // eslint-disable-next-line dot-notation
-        .spyOn(controller['messagingSystem'], 'call')
+        .spyOn(controller['messenger'], 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           // eslint-disable-next-line jest/no-conditional-in-test
@@ -981,7 +1009,7 @@ describe('NetworkEnablementController', () => {
         });
 
       // Add a non-popular network
-      messenger.publish('NetworkController:networkAdded', {
+      rootMessenger.publish('NetworkController:networkAdded', {
         chainId: '0x2', // A network not in POPULAR_NETWORKS
         blockExplorerUrls: [],
         defaultRpcEndpointIndex: 0,
@@ -1026,7 +1054,7 @@ describe('NetworkEnablementController', () => {
       // Mock the network configurations to include Bitcoin
       jest
         // eslint-disable-next-line dot-notation
-        .spyOn(controller['messagingSystem'], 'call')
+        .spyOn(controller['messenger'], 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: unknown[]): any => {
           const responses = {
@@ -1071,7 +1099,7 @@ describe('NetworkEnablementController', () => {
 
   describe('enableNetwork', () => {
     it('enables a network and clears all others in all namespaces', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Disable a popular network (Ethereum Mainnet)
       controller.disableNetwork('0x1');
@@ -1131,10 +1159,10 @@ describe('NetworkEnablementController', () => {
     });
 
     it('enables any network and clears all others (exclusive behavior)', async () => {
-      const { controller, messenger } = setupInitializedController();
+      const { controller, rootMessenger } = setupController();
 
       // Add a non-popular network
-      messenger.publish('NetworkController:networkAdded', {
+      rootMessenger.publish('NetworkController:networkAdded', {
         chainId: '0x2',
         blockExplorerUrls: [],
         defaultRpcEndpointIndex: 0,
@@ -1311,10 +1339,10 @@ describe('NetworkEnablementController', () => {
     });
 
     it('handle no namespace bucket', async () => {
-      const { controller, messenger } = setupController();
+      const { controller, rootMessenger } = setupController();
 
       // add new network with no namespace bucket
-      messenger.publish('NetworkController:networkAdded', {
+      rootMessenger.publish('NetworkController:networkAdded', {
         // @ts-expect-error Intentionally passing an invalid chain ID
         chainId: 'bip122:000000000019d6689c085ae165831e93',
         blockExplorerUrls: [],
@@ -1361,7 +1389,7 @@ describe('NetworkEnablementController', () => {
 
   describe('disableNetwork', () => {
     it('disables an EVM network using hex chain ID', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Disable a network (but not the last one)
       controller.disableNetwork('0xe708'); // Linea Mainnet
@@ -1402,7 +1430,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('disables the last active network for an EVM namespace', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // disable all networks except one
       controller.disableNetwork('0xe708'); // Linea Mainnet
@@ -1456,7 +1484,7 @@ describe('NetworkEnablementController', () => {
 
   describe('isNetworkEnabled', () => {
     it('returns true for enabled networks using hex chain ID', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Test default enabled networks
       expect(controller.isNetworkEnabled('0x1')).toBe(true); // Ethereum Mainnet
@@ -1465,7 +1493,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('returns false for disabled networks using hex chain ID', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Disable a network and test
       controller.disableNetwork('0xe708'); // Linea Mainnet (not the last one)
@@ -1477,7 +1505,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('returns true for enabled networks using CAIP chain ID', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Test EVM networks with CAIP format
       expect(controller.isNetworkEnabled('eip155:1')).toBe(true); // Ethereum Mainnet
@@ -1491,7 +1519,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('returns false for disabled networks using CAIP chain ID', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Disable a network using hex and test with CAIP
       controller.disableNetwork('0xe708'); // Linea Mainnet (not the last one)
@@ -1526,7 +1554,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('works correctly after enabling/disabling networks', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Initially enabled
       expect(controller.isNetworkEnabled('0xe708')).toBe(true);
@@ -1541,7 +1569,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('maintains consistency between hex and CAIP formats for same network', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Both formats should return the same result for the same network
       expect(controller.isNetworkEnabled('0x1')).toBe(
@@ -1563,14 +1591,14 @@ describe('NetworkEnablementController', () => {
     });
 
     it('works with dynamically added networks', async () => {
-      const { controller, messenger } = setupController();
+      const { controller, rootMessenger } = setupController();
 
       // Initially, Avalanche network should not be enabled (doesn't exist)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(false);
 
       // Add Avalanche network (popular network in popular mode)
       // Should keep current selection (add but don't enable)
-      messenger.publish('NetworkController:networkAdded', {
+      rootMessenger.publish('NetworkController:networkAdded', {
         chainId: '0xa86a',
         blockExplorerUrls: [],
         defaultRpcEndpointIndex: 0,
@@ -1593,7 +1621,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('handles disabling networks across different namespaces independently, but adding networks has exclusive behavior', async () => {
-      const { controller, messenger } = setupController();
+      const { controller, rootMessenger } = setupController();
 
       // EVM networks should not affect Solana network status when disabling
       expect(
@@ -1610,7 +1638,7 @@ describe('NetworkEnablementController', () => {
       ).toBe(true);
 
       // Add a Bitcoin network (this triggers enabling, which disables all others)
-      messenger.publish('NetworkController:networkAdded', {
+      rootMessenger.publish('NetworkController:networkAdded', {
         // @ts-expect-error Intentionally testing with Bitcoin network
         chainId: 'bip122:000000000019d6689c085ae165831e93',
         blockExplorerUrls: [],
@@ -1814,10 +1842,10 @@ describe('NetworkEnablementController', () => {
     });
 
     it('handles Bitcoin network addition dynamically', async () => {
-      const { controller, messenger } = setupController();
+      const { controller, rootMessenger } = setupController();
 
       // Add Bitcoin testnet dynamically
-      messenger.publish('NetworkController:networkAdded', {
+      rootMessenger.publish('NetworkController:networkAdded', {
         // @ts-expect-error Testing with Bitcoin network
         chainId: BtcScope.Testnet,
         blockExplorerUrls: [],
@@ -2048,10 +2076,10 @@ describe('NetworkEnablementController', () => {
     });
 
     it('handles Tron network addition dynamically', async () => {
-      const { controller, messenger } = setupController();
+      const { controller, rootMessenger } = setupController();
 
       // Add Tron Nile dynamically
-      messenger.publish('NetworkController:networkAdded', {
+      rootMessenger.publish('NetworkController:networkAdded', {
         // @ts-expect-error Testing with Tron network
         chainId: TrxScope.Nile,
         blockExplorerUrls: [],
@@ -2116,7 +2144,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('enables a Tron network in the Tron namespace', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Enable Tron Nile in the Tron namespace
       controller.enableNetworkInNamespace(
@@ -2138,7 +2166,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('throws error when Tron chainId namespace does not match provided namespace', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Try to enable Tron network in Solana namespace
       expect(() => {
@@ -2161,7 +2189,7 @@ describe('NetworkEnablementController', () => {
 
   describe('enableNetworkInNamespace', () => {
     it('enables a network in the specified namespace and disables others in same namespace', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Initially multiple EVM networks are enabled
       expect(controller.isNetworkEnabled('0x1')).toBe(true);
@@ -2183,7 +2211,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('enables a network using CAIP chain ID in the specified namespace', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Enable Ethereum mainnet using CAIP format
       controller.enableNetworkInNamespace(
@@ -2198,7 +2226,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('enables a Solana network in the Solana namespace', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Enable Solana testnet in the Solana namespace
       controller.enableNetworkInNamespace(
@@ -2219,7 +2247,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('enables a Bitcoin network in the Bitcoin namespace', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Enable Bitcoin testnet in the Bitcoin namespace
       controller.enableNetworkInNamespace(
@@ -2240,7 +2268,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('throws error when chainId namespace does not match provided namespace', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Try to enable Ethereum network in Solana namespace
       expect(() => {
@@ -2271,7 +2299,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('throws error with CAIP chain ID when namespace does not match', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Try to enable Ethereum network using CAIP format in Solana namespace
       expect(() => {
@@ -2284,7 +2312,7 @@ describe('NetworkEnablementController', () => {
       );
     });
     it('handles enabling an already enabled network', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Ethereum mainnet is already enabled
       expect(controller.isNetworkEnabled('0x1')).toBe(true);
@@ -2317,7 +2345,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('maintains consistency between hex and CAIP formats', () => {
-      const { controller } = setupInitializedController();
+      const { controller } = setupController();
 
       // Enable using hex format
       controller.enableNetworkInNamespace('0x1', KnownCaipNamespace.Eip155);
@@ -2368,7 +2396,7 @@ describe('NetworkEnablementController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
         Object {
@@ -2512,7 +2540,7 @@ describe('NetworkEnablementController', () => {
 
   describe('new onAddNetwork behavior', () => {
     it('switches to newly added popular network when NOT in popular networks mode', async () => {
-      const { controller, messenger } = setupController();
+      const { controller, rootMessenger } = setupController();
 
       // Start with only 1 popular network enabled (not in popular networks mode)
       controller.disableNetwork('0xe708'); // Disable Linea
@@ -2524,7 +2552,7 @@ describe('NetworkEnablementController', () => {
       expect(controller.isNetworkEnabled('0x2105')).toBe(false);
 
       // Add Avalanche (popular network) when NOT in popular networks mode
-      messenger.publish('NetworkController:networkAdded', {
+      rootMessenger.publish('NetworkController:networkAdded', {
         chainId: '0xa86a', // Avalanche - popular network
         blockExplorerUrls: [],
         defaultRpcEndpointIndex: 0,
@@ -2549,7 +2577,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('switches to newly added non-popular network even when in popular networks mode', async () => {
-      const { controller, messenger } = setupInitializedController();
+      const { controller, rootMessenger } = setupController();
 
       // Default state has 3 popular networks enabled (in popular networks mode)
       expect(controller.isNetworkEnabled('0x1')).toBe(true);
@@ -2557,7 +2585,7 @@ describe('NetworkEnablementController', () => {
       expect(controller.isNetworkEnabled('0x2105')).toBe(true);
 
       // Add a non-popular network when in popular networks mode
-      messenger.publish('NetworkController:networkAdded', {
+      rootMessenger.publish('NetworkController:networkAdded', {
         chainId: '0x999', // Non-popular network
         blockExplorerUrls: [],
         defaultRpcEndpointIndex: 0,
@@ -2582,7 +2610,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('keeps current selection when adding popular network in popular networks mode', async () => {
-      const { controller, messenger } = setupInitializedController();
+      const { controller, rootMessenger } = setupController();
 
       // Default state has 3 popular networks enabled (in popular networks mode)
       expect(controller.isNetworkEnabled('0x1')).toBe(true);
@@ -2590,7 +2618,7 @@ describe('NetworkEnablementController', () => {
       expect(controller.isNetworkEnabled('0x2105')).toBe(true);
 
       // Add another popular network when in popular networks mode
-      messenger.publish('NetworkController:networkAdded', {
+      rootMessenger.publish('NetworkController:networkAdded', {
         chainId: '0x89', // Polygon - popular network
         blockExplorerUrls: [],
         defaultRpcEndpointIndex: 0,
@@ -2615,7 +2643,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('handles edge case: exactly 2 popular networks enabled (not in popular mode)', async () => {
-      const { controller, messenger } = setupController();
+      const { controller, rootMessenger } = setupController();
 
       // Start with exactly 2 popular networks enabled (not >2, so not in popular mode)
       controller.disableNetwork('0x2105'); // Disable Base, keep only Ethereum and Linea
@@ -2624,7 +2652,7 @@ describe('NetworkEnablementController', () => {
       expect(controller.isNetworkEnabled('0x2105')).toBe(false);
 
       // Add another popular network when NOT in popular networks mode (exactly 2 enabled)
-      messenger.publish('NetworkController:networkAdded', {
+      rootMessenger.publish('NetworkController:networkAdded', {
         chainId: '0xa86a', // Avalanche - popular network
         blockExplorerUrls: [],
         defaultRpcEndpointIndex: 0,
