@@ -222,7 +222,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
   readonly #includeStakedAssets: boolean;
 
-  readonly #accountsApiChainIds: ChainIdHex[];
+  readonly #accountsApiChainIds: () => ChainIdHex[];
 
   readonly #getStakedBalanceForChain: AssetsContractController['getStakedBalanceForChain'];
 
@@ -237,7 +237,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param options.messenger - The controller messaging system.
    * @param options.getStakedBalanceForChain - The function to get the staked native asset balance for a chain.
    * @param options.includeStakedAssets - Whether to include staked assets in the account balances.
-   * @param options.accountsApiChainIds - Array of chainIds that should use Accounts-API strategy (if supported by API).
+   * @param options.accountsApiChainIds - Function that returns array of chainIds that should use Accounts-API strategy (if supported by API).
    * @param options.allowExternalServices - Disable external HTTP calls (privacy / offline mode).
    */
   constructor({
@@ -246,7 +246,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     messenger,
     getStakedBalanceForChain,
     includeStakedAssets = false,
-    accountsApiChainIds = [],
+    accountsApiChainIds = () => [],
     allowExternalServices = () => true,
   }: {
     interval?: number;
@@ -254,7 +254,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     messenger: AccountTrackerControllerMessenger;
     getStakedBalanceForChain: AssetsContractController['getStakedBalanceForChain'];
     includeStakedAssets?: boolean;
-    accountsApiChainIds?: ChainIdHex[];
+    accountsApiChainIds?: () => ChainIdHex[];
     allowExternalServices?: () => boolean;
   }) {
     const { selectedNetworkClientId } = messenger.call(
@@ -280,11 +280,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     this.#getStakedBalanceForChain = getStakedBalanceForChain;
 
     this.#includeStakedAssets = includeStakedAssets;
-    this.#accountsApiChainIds = [...accountsApiChainIds];
+    this.#accountsApiChainIds = accountsApiChainIds;
 
     // Initialize balance fetchers - Strategy order: API first, then RPC fallback
     this.#balanceFetchers = [
-      ...(accountsApiChainIds.length > 0 && allowExternalServices()
+      ...(accountsApiChainIds().length > 0 && allowExternalServices()
         ? [this.#createAccountsApiFetcher()]
         : []),
       createAccountTrackerRpcBalanceFetcher(
@@ -413,7 +413,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         // 1. In our specified accountsApiChainIds array
         // 2. Actually supported by the AccountsApi
         return (
-          this.#accountsApiChainIds.includes(chainId) &&
+          this.#accountsApiChainIds().includes(chainId) &&
           originalFetcher.supports(chainId)
         );
       },
