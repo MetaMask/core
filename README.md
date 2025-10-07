@@ -37,6 +37,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/delegation-controller`](packages/delegation-controller)
 - [`@metamask/earn-controller`](packages/earn-controller)
 - [`@metamask/eip-5792-middleware`](packages/eip-5792-middleware)
+- [`@metamask/eip-7702-internal-rpc-middleware`](packages/eip-7702-internal-rpc-middleware)
 - [`@metamask/eip1193-permission-middleware`](packages/eip1193-permission-middleware)
 - [`@metamask/ens-controller`](packages/ens-controller)
 - [`@metamask/error-reporting-service`](packages/error-reporting-service)
@@ -101,6 +102,7 @@ linkStyle default opacity:0.5
   delegation_controller(["@metamask/delegation-controller"]);
   earn_controller(["@metamask/earn-controller"]);
   eip_5792_middleware(["@metamask/eip-5792-middleware"]);
+  eip_7702_internal_rpc_middleware(["@metamask/eip-7702-internal-rpc-middleware"]);
   eip1193_permission_middleware(["@metamask/eip1193-permission-middleware"]);
   ens_controller(["@metamask/ens-controller"]);
   error_reporting_service(["@metamask/error-reporting-service"]);
@@ -264,6 +266,7 @@ linkStyle default opacity:0.5
   permission_log_controller --> json_rpc_engine;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
+  phishing_controller --> transaction_controller;
   polling_controller --> base_controller;
   polling_controller --> controller_utils;
   polling_controller --> network_controller;
@@ -292,6 +295,7 @@ linkStyle default opacity:0.5
   signature_controller --> controller_utils;
   signature_controller --> accounts_controller;
   signature_controller --> approval_controller;
+  signature_controller --> gator_permissions_controller;
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
   signature_controller --> network_controller;
