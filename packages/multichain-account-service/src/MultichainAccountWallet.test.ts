@@ -347,8 +347,31 @@ describe('MultichainAccountWallet', () => {
       expect(
         await wallet.createMultichainAccountGroup(groupIndex),
       ).toBeDefined();
-      await new Promise(process.nextTick);
       expect(mockSolProviderError).toHaveBeenCalled();
+    });
+
+    it('fails to create an account group if any of the provider fails to create its account and waitForAllProvidersToFinishCreatingAccounts is true', async () => {
+      const groupIndex = 1;
+
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const { wallet, providers } = setup({
+        accounts: [[mockEvmAccount]], // 1 provider
+      });
+      const [provider] = providers;
+      provider.createAccounts.mockRejectedValueOnce(
+        new Error('Unable to create accounts'),
+      );
+
+      await expect(
+        wallet.createMultichainAccountGroup(groupIndex, {
+          waitForAllProvidersToFinishCreatingAccounts: true,
+        }),
+      ).rejects.toThrow(
+        'Unable to create multichain account group for index: 1',
+      );
     });
   });
 
