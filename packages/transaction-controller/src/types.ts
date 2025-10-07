@@ -875,6 +875,11 @@ export enum TransactionType {
    * Increase the allowance by a given increment
    */
   tokenMethodIncreaseAllowance = 'increaseAllowance',
+
+  /**
+   * A token approval transaction subscribing to the shield insurance service
+   */
+  shieldSubscriptionApprove = 'shieldSubscriptionApprove',
 }
 
 export enum TransactionContainerType {

@@ -1,6 +1,6 @@
 import { documentToHtmlString } from '@contentful/rich-text-html-renderer';
 import type { Entry, Asset, EntryCollection } from 'contentful';
-import { gte } from 'semver';
+import { gt, lt } from 'semver';
 
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import { processFeatureAnnouncement } from '../processors/process-feature-announcement';
@@ -144,27 +144,53 @@ const fetchFeatureAnnouncementNotifications = async (
           },
           extensionMinimumVersionNumber: fields.extensionMinimumVersionNumber,
           mobileMinimumVersionNumber: fields.mobileMinimumVersionNumber,
+          extensionMaximumVersionNumber: fields.extensionMaximumVersionNumber,
+          mobileMaximumVersionNumber: fields.mobileMaximumVersionNumber,
         },
       };
 
       return notification;
     });
 
-  const versionKey = {
-    extension: 'extensionMinimumVersionNumber',
-    mobile: 'mobileMinimumVersionNumber',
+  const versionKeys = {
+    extension: {
+      min: 'extensionMinimumVersionNumber',
+      max: 'extensionMaximumVersionNumber',
+    },
+    mobile: {
+      min: 'mobileMinimumVersionNumber',
+      max: 'mobileMaximumVersionNumber',
+    },
   } as const;
 
   const filteredRawNotifications = rawNotifications.filter((n) => {
-    const notificationVersion = n.data?.[versionKey[env.platform]];
-    if (!env.platformVersion || !notificationVersion) {
+    const minVersion = n.data?.[versionKeys[env.platform].min];
+    const maxVersion = n.data?.[versionKeys[env.platform].max];
+
+    // If no platform version is provided, show all notifications
+    if (!env.platformVersion) {
       return true;
     }
 
+    // min/max filtering
     try {
-      return gte(env.platformVersion, notificationVersion);
+      let showNotification = true;
+
+      // Check minimum version: current version must be greater than minimum
+      if (minVersion) {
+        showNotification =
+          showNotification && gt(env.platformVersion, minVersion);
+      }
+
+      // Check maximum version: current version must be less than maximum
+      if (maxVersion) {
+        showNotification =
+          showNotification && lt(env.platformVersion, maxVersion);
+      }
+
+      return showNotification;
     } catch {
-      // something went wrong filtering, do not show notif
+      // something went wrong filtering, do not show notification
       return false;
     }
   });

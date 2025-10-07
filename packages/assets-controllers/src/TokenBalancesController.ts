@@ -151,11 +151,12 @@ export type TokenBalancesControllerOptions = {
   /** When `true`, balances for *all* known accounts are queried. */
   queryMultipleAccounts?: boolean;
   /** Array of chainIds that should use Accounts-API strategy (if supported by API). */
-  accountsApiChainIds?: ChainIdHex[];
+  accountsApiChainIds?: () => ChainIdHex[];
   /** Disable external HTTP calls (privacy / offline mode). */
   allowExternalServices?: () => boolean;
   /** Custom logger. */
   log?: (...args: unknown[]) => void;
+  platform?: 'extension' | 'mobile';
 };
 // endregion
 
@@ -179,9 +180,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   TokenBalancesControllerState,
   TokenBalancesControllerMessenger
 > {
+  readonly #platform: 'extension' | 'mobile';
+
   readonly #queryAllAccounts: boolean;
 
-  readonly #accountsApiChainIds: ChainIdHex[];
+  readonly #accountsApiChainIds: () => ChainIdHex[];
 
   readonly #balanceFetchers: BalanceFetcher[];
 
@@ -210,8 +213,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chainPollingIntervals = {},
     state = {},
     queryMultipleAccounts = true,
-    accountsApiChainIds = [],
+    accountsApiChainIds = () => [],
     allowExternalServices = () => true,
+    platform,
   }: TokenBalancesControllerOptions) {
     super({
       name: CONTROLLER,
@@ -220,14 +224,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       state: { tokenBalances: {}, ...state },
     });
 
+    this.#platform = platform ?? 'extension';
     this.#queryAllAccounts = queryMultipleAccounts;
-    this.#accountsApiChainIds = [...accountsApiChainIds];
+    this.#accountsApiChainIds = accountsApiChainIds;
     this.#defaultInterval = interval;
     this.#chainPollingConfig = { ...chainPollingIntervals };
 
     // Strategy order: API first, then RPC fallback
     this.#balanceFetchers = [
-      ...(accountsApiChainIds.length > 0 && allowExternalServices()
+      ...(accountsApiChainIds().length > 0 && allowExternalServices()
         ? [this.#createAccountsApiFetcher()]
         : []),
       new RpcBalanceFetcher(this.#getProvider, this.#getNetworkClient, () => ({
@@ -315,7 +320,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    */
   readonly #createAccountsApiFetcher = (): BalanceFetcher => {
     const originalFetcher = new AccountsApiBalanceFetcher(
-      'extension',
+      this.#platform,
       this.#getProvider,
     );
 
@@ -325,7 +330,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         // 1. In our specified accountsApiChainIds array
         // 2. Actually supported by the AccountsApi
         return (
-          this.#accountsApiChainIds.includes(chainId) &&
+          this.#accountsApiChainIds().includes(chainId) &&
           originalFetcher.supports(chainId)
         );
       },
@@ -684,17 +689,20 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         }
       }
 
-      // Get staking contract addresses for filtering
-      const stakingContractAddresses = Object.values(
-        STAKING_CONTRACT_ADDRESS_BY_CHAINID,
-      ).map((addr) => addr.toLowerCase());
-
       // Filter and update staked balances in a single batch operation for better performance
       const stakedBalances = aggregated.filter((r) => {
+        if (!r.success || r.token === ZERO_ADDRESS) {
+          return false;
+        }
+
+        // Check if the chainId and token address match any staking contract
+        const stakingContractAddress =
+          STAKING_CONTRACT_ADDRESS_BY_CHAINID[
+            r.chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
+          ];
         return (
-          r.success &&
-          r.token !== ZERO_ADDRESS &&
-          stakingContractAddresses.includes(r.token.toLowerCase())
+          stakingContractAddress &&
+          stakingContractAddress.toLowerCase() === r.token.toLowerCase()
         );
       });
 
