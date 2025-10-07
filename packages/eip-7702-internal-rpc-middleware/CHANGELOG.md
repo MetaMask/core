@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0]
-
 ### Added
 
 - Initial release of @metamask/eip-7702-internal-rpc-middleware
@@ -20,5 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Full test coverage with Jest
 - Documentation and examples
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-7702-internal-rpc-middleware@1.0.0...HEAD
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/eip-7702-internal-rpc-middleware@1.0.0
+### Changed
+
+- Return the address to which an account is upgraded to in `wallet_getAccountUpgradeStatus` response
+- Update package configuration and dependencies
+- Fix linter issues and improve code quality
+
+[Unreleased]: https://github.com/MetaMask/core/
