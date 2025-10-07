@@ -1,5 +1,11 @@
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
-import type { TransactionControllerStateChangeEvent } from '@metamask/transaction-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { strict as assert } from 'assert';
 import nock, { cleanAll, isDone, pendingMocks } from 'nock';
 import sinon from 'sinon';
@@ -10,8 +16,6 @@ import {
   METAMASK_STALELIST_FILE,
   PhishingController,
   PHISHING_CONFIG_BASE_URL,
-  type PhishingControllerActions,
-  type PhishingControllerEvents,
   type PhishingControllerOptions,
   CLIENT_SIDE_DETECION_BASE_URL,
   C2_DOMAIN_BLOCKLIST_ENDPOINT,
@@ -19,6 +23,7 @@ import {
   PHISHING_DETECTION_SCAN_ENDPOINT,
   PHISHING_DETECTION_BULK_SCAN_ENDPOINT,
   type BulkPhishingDetectionScanResponse,
+  type PhishingControllerMessenger,
 } from './PhishingController';
 import {
   createMockStateChangePayload,
@@ -32,24 +37,58 @@ import { getHostnameFromUrl } from './utils';
 
 const controllerName = 'PhishingController';
 
+type AllPhishingControllerActions =
+  MessengerActions<PhishingControllerMessenger>;
+
+type AllPhishingControllerEvents = MessengerEvents<PhishingControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllPhishingControllerActions,
+  AllPhishingControllerEvents
+>;
+
 /**
- * Constructs a restricted messenger with transaction events enabled.
+ * Creates and returns a root messenger for testing
  *
- * @returns A restricted messenger that can listen to TransactionController events.
+ * @returns A messenger instance
  */
-function getRestrictedMessengerWithTransactionEvents() {
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+}
+
+/**
+ * Constructs a messenger for use in PhishingController tests.
+ *
+ * @returns A messenger and the root messenger.
+ */
+function setupMessenger(): {
+  messenger: PhishingControllerMessenger;
+  rootMessenger: RootMessenger;
+} {
+  const rootMessenger = getRootMessenger();
+
   const messenger = new Messenger<
-    PhishingControllerActions,
-    PhishingControllerEvents | TransactionControllerStateChangeEvent
-  >();
+    typeof controllerName,
+    AllPhishingControllerActions,
+    AllPhishingControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
+
+  rootMessenger.delegate({
+    actions: [],
+    events: ['TransactionController:stateChange'],
+    messenger,
+  });
 
   return {
-    messenger: messenger.getRestricted({
-      name: controllerName,
-      allowedActions: [],
-      allowedEvents: ['TransactionController:stateChange'],
-    }),
-    globalMessenger: messenger,
+    messenger,
+    rootMessenger,
   };
 }
 
@@ -60,8 +99,9 @@ function getRestrictedMessengerWithTransactionEvents() {
  * @returns The constructed Phishing Controller.
  */
 function getPhishingController(options?: Partial<PhishingControllerOptions>) {
+  const { messenger } = setupMessenger();
   return new PhishingController({
-    messenger: getRestrictedMessengerWithTransactionEvents().messenger,
+    messenger,
     ...options,
   });
 }
@@ -407,8 +447,9 @@ describe('PhishingController', () => {
     });
 
     it('replaces existing phishing lists with completely new list from phishing detection API', async () => {
+      const { messenger } = setupMessenger();
       const controller = new PhishingController({
-        messenger: getRestrictedMessengerWithTransactionEvents().messenger,
+        messenger,
         stalelistRefreshInterval: 10,
         state: {
           phishingLists: [
@@ -3495,7 +3536,7 @@ describe('URL Scan Cache', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
@@ -3561,18 +3602,16 @@ describe('URL Scan Cache', () => {
 
   describe('Transaction Controller State Change Integration', () => {
     let controller: PhishingController;
-    let globalMessenger: Messenger<
-      PhishingControllerActions,
-      PhishingControllerEvents | TransactionControllerStateChangeEvent
-    >;
+    let globalMessenger: RootMessenger;
     let bulkScanTokensSpy: jest.SpyInstance;
 
     beforeEach(() => {
-      const messengerSetup = getRestrictedMessengerWithTransactionEvents();
-      globalMessenger = messengerSetup.globalMessenger;
+      const { messenger, rootMessenger } = setupMessenger();
+
+      globalMessenger = rootMessenger;
 
       controller = new PhishingController({
-        messenger: messengerSetup.messenger,
+        messenger,
       });
 
       bulkScanTokensSpy = jest
