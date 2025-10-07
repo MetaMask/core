@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Log `not_shown` if result is not available ([#6667](https://github.com/MetaMask/core/pull/6667))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
@@ -18,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6504](https://github.com/MetaMask/core/pull/6504))
 - Add signature coverage checking ([#6501](https://github.com/MetaMask/core/pull/6501))
 - Add transaction and signature logging ([#6633](https://github.com/MetaMask/core/pull/6633))
-- Log `not_shown` if result is not available ([#6667](https://github.com/MetaMask/core/pull/6667))
 
 ### Changed
 
