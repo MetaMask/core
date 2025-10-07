@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix duplicate native token entries in `AccountsApiBalanceFetcher` by ensuring consistent address checksumming ([#6794](https://github.com/MetaMask/core/pull/6794))
+
 ### Changed
 
 - Bump `@metamask/multichain-account-service` from `^1.5.0` to `^1.6.0` ([#6786](https://github.com/MetaMask/core/pull/6786))
