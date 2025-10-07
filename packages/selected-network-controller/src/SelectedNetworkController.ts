@@ -18,7 +18,10 @@ import type {
   GetSubjects as PermissionControllerGetSubjectsAction,
   HasPermissions as PermissionControllerHasPermissions,
 } from '@metamask/permission-controller';
-import { createSwappableProxy } from '@metamask/swappable-obj-proxy';
+import {
+  createEventEmitterProxy,
+  createSwappableProxy,
+} from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
 
 const controllerName = 'SelectedNetworkController';
@@ -220,7 +223,6 @@ export class SelectedNetworkController extends BaseController<
                 );
               } else if (patch.op === 'replace') {
                 // If the network was updated, redirect to the network's default endpoint
-
                 const updatedChainId = patch.path[1] as Hex;
                 if (!chainIdForDomain || chainIdForDomain === updatedChainId) {
                   const network =
@@ -366,7 +368,9 @@ export class SelectedNetworkController extends BaseController<
       }
       networkProxy = {
         provider: createSwappableProxy(networkClient.provider),
-        blockTracker: createSwappableProxy(networkClient.blockTracker),
+        blockTracker: createEventEmitterProxy(networkClient.blockTracker, {
+          eventFilter: 'skipInternal',
+        }),
       };
       this.#domainProxyMap.set(domain, networkProxy);
     }
