@@ -21,7 +21,10 @@ import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/erro
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
 import { errorCodes } from '@metamask/rpc-errors';
-import { createSwappableProxy } from '@metamask/swappable-obj-proxy';
+import {
+  createEventEmitterProxy,
+  createSwappableProxy,
+} from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
 import { hasProperty, isPlainObject, isStrictHexString } from '@metamask/utils';
@@ -72,8 +75,6 @@ export type NetworkMetadata = {
   /**
    * EIPs supported by the network.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   EIPS: {
     [eipNumber: number]: boolean;
   };
@@ -292,8 +293,6 @@ export type UpdateNetworkFields = Omit<NetworkConfiguration, 'rpcEndpoints'> & {
  * @returns The keys of an object, typed according to the type of the object
  * itself.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
 export function knownKeysOf<K extends PropertyKey>(
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1236,8 +1235,6 @@ export class NetworkController extends BaseController<
       );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       `${this.name}:getEthQuery`,
       () => {
         return this.#ethQuery;
@@ -1245,50 +1242,36 @@ export class NetworkController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       `${this.name}:getNetworkClientById`,
       this.getNetworkClientById.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       `${this.name}:getEIP1559Compatibility`,
       this.getEIP1559Compatibility.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       `${this.name}:setActiveNetwork`,
       this.setActiveNetwork.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       `${this.name}:setProviderType`,
       this.setProviderType.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       `${this.name}:findNetworkClientIdByChainId`,
       this.findNetworkClientIdByChainId.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       `${this.name}:getNetworkConfigurationByChainId`,
       this.getNetworkConfigurationByChainId.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // ESLint is mistaken here; `name` is a string.
-
       `${this.name}:getNetworkConfigurationByNetworkClientId`,
       this.getNetworkConfigurationByNetworkClientId.bind(this),
     );
@@ -1304,22 +1287,16 @@ export class NetworkController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      // ESLint is mistaken here; `name` is a string.
-
       `${this.name}:addNetwork`,
       this.addNetwork.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // ESLint is mistaken here; `name` is a string.
-
       `${this.name}:removeNetwork`,
       this.removeNetwork.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // ESLint is mistaken here; `name` is a string.
-
       `${this.name}:updateNetwork`,
       this.updateNetwork.bind(this),
     );
@@ -1496,8 +1473,6 @@ export class NetworkController extends BaseController<
       /* istanbul ignore if */
       if (!infuraNetworkClient) {
         throw new Error(
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
           `No Infura network client was found with the ID "${networkClientId}".`,
         );
       }
@@ -1510,8 +1485,6 @@ export class NetworkController extends BaseController<
       ];
     if (!customNetworkClient) {
       throw new Error(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
         `No custom network client was found with the ID "${networkClientId}".`,
       );
     }
@@ -1882,8 +1855,6 @@ export class NetworkController extends BaseController<
   async setProviderType(type: InfuraNetworkType) {
     if ((type as unknown) === NetworkType.rpc) {
       throw new Error(
-        // This ESLint rule mistakenly produces an error.
-
         `NetworkController - cannot call "setProviderType" with type "${NetworkType.rpc}". Use "setActiveNetwork"`,
       );
     }
@@ -2318,8 +2289,6 @@ export class NetworkController extends BaseController<
       })
     ) {
       throw new Error(
-        // This ESLint rule mistakenly produces an error.
-
         `Could not update network: Cannot update RPC endpoints in such a way that the selected network '${this.state.selectedNetworkClientId}' would be removed without a replacement. Choose a different RPC endpoint as the selected network via the \`replacementSelectedRpcEndpointIndex\` option.`,
       );
     }
@@ -2562,14 +2531,10 @@ export class NetworkController extends BaseController<
       if (existingNetworkConfigurationViaChainId !== undefined) {
         if (existingNetworkConfiguration === null) {
           throw new Error(
-            // This ESLint rule mistakenly produces an error.
-
             `Could not add network for chain ${args.networkFields.chainId} as another network for that chain already exists ('${existingNetworkConfigurationViaChainId.name}')`,
           );
         } else {
           throw new Error(
-            // This ESLint rule mistakenly produces an error.
-
             `Cannot move network from chain ${existingNetworkConfiguration.chainId} to ${networkFields.chainId} as another network for that chain already exists ('${existingNetworkConfigurationViaChainId.name}')`,
           );
         }
@@ -2598,8 +2563,6 @@ export class NetworkController extends BaseController<
     for (const rpcEndpointFields of networkFields.rpcEndpoints) {
       if (!isValidUrl(rpcEndpointFields.url)) {
         throw new Error(
-          // This ESLint rule mistakenly produces an error.
-
           `${errorMessagePrefix}: An entry in \`rpcEndpoints\` has invalid URL '${rpcEndpointFields.url}'`,
         );
       }
@@ -2614,8 +2577,6 @@ export class NetworkController extends BaseController<
         isInfuraNetworkType(networkClientId)
       ) {
         throw new Error(
-          // This is a string.
-
           `${errorMessagePrefix}: Custom RPC endpoint '${rpcEndpointFields.url}' has invalid network client ID '${networkClientId}'`,
         );
       }
@@ -2629,8 +2590,6 @@ export class NetworkController extends BaseController<
         )
       ) {
         throw new Error(
-          // This is a string.
-
           `${errorMessagePrefix}: RPC endpoint '${rpcEndpointFields.url}' refers to network client '${networkClientId}' that does not exist`,
         );
       }
@@ -2663,14 +2622,10 @@ export class NetworkController extends BaseController<
         if (rpcEndpoint) {
           if (mode === 'update') {
             throw new Error(
-              // This ESLint rule mistakenly produces an error.
-
               `Could not update network to point to same RPC endpoint as existing network for chain ${networkConfiguration.chainId} ('${networkConfiguration.name}')`,
             );
           } else {
             throw new Error(
-              // This ESLint rule mistakenly produces an error.
-
               `Could not add network that points to same RPC endpoint as existing network for chain ${networkConfiguration.chainId} ('${networkConfiguration.name}')`,
             );
           }
@@ -2723,12 +2678,8 @@ export class NetworkController extends BaseController<
       if (networkFields.chainId !== infuraChainId) {
         throw new Error(
           mode === 'add'
-            ? // This is a string.
-
-              `Could not add network with chain ID ${networkFields.chainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`
-            : // This is a string.
-
-              `Could not update network with chain ID ${networkFields.chainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
+            ? `Could not add network with chain ID ${networkFields.chainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`
+            : `Could not update network with chain ID ${networkFields.chainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
         );
       }
     }
@@ -3166,8 +3117,11 @@ export class NetworkController extends BaseController<
         this.#autoManagedNetworkClient.blockTracker,
       );
     } else {
-      this.#blockTrackerProxy = createSwappableProxy(
+      this.#blockTrackerProxy = createEventEmitterProxy(
         this.#autoManagedNetworkClient.blockTracker,
+        {
+          eventFilter: 'skipInternal',
+        },
       );
     }
 
