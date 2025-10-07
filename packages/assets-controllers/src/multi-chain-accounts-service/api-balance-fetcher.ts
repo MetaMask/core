@@ -296,10 +296,11 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     // Process regular API balances
     if (balances) {
       const apiBalances = balances.flatMap((b) => {
-        const account = checksum(b.accountAddress?.split(':')[2] || '');
-        if (!account) {
+        const addressPart = b.accountAddress?.split(':')[2];
+        if (!addressPart) {
           return [];
         }
+        const account = checksum(addressPart);
         const token = checksum(b.address);
         const chainId = toHex(b.chainId) as ChainIdHex;
 
