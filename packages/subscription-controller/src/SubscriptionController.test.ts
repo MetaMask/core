@@ -454,6 +454,31 @@ describe('SubscriptionController', () => {
     });
   });
 
+  describe('getSubscriptionByProduct', () => {
+    it('should get subscription by product successfully', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller }) => {
+          expect(
+            controller.getSubscriptionByProduct(PRODUCT_TYPES.SHIELD),
+          ).toStrictEqual(MOCK_SUBSCRIPTION);
+        },
+      );
+    });
+
+    it('should return undefined if no subscription is found', async () => {
+      await withController(async ({ controller }) => {
+        expect(
+          controller.getSubscriptionByProduct(PRODUCT_TYPES.SHIELD),
+        ).toBeUndefined();
+      });
+    });
+  });
+
   describe('cancelSubscription', () => {
     it('should cancel subscription successfully', async () => {
       const mockSubscription2 = { ...MOCK_SUBSCRIPTION, id: 'sub_2' };

@@ -43,6 +43,10 @@ export type SubscriptionControllerGetSubscriptionsAction = {
   type: `${typeof controllerName}:getSubscriptions`;
   handler: SubscriptionController['getSubscriptions'];
 };
+export type SubscriptionControllerGetSubscriptionByProductAction = {
+  type: `${typeof controllerName}:getSubscriptionByProduct`;
+  handler: SubscriptionController['getSubscriptionByProduct'];
+};
 export type SubscriptionControllerCancelSubscriptionAction = {
   type: `${typeof controllerName}:cancelSubscription`;
   handler: SubscriptionController['cancelSubscription'];
@@ -78,6 +82,7 @@ export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
 >;
 export type SubscriptionControllerActions =
   | SubscriptionControllerGetSubscriptionsAction
+  | SubscriptionControllerGetSubscriptionByProductAction
   | SubscriptionControllerCancelSubscriptionAction
   | SubscriptionControllerStartShieldSubscriptionWithCardAction
   | SubscriptionControllerGetPricingAction
@@ -230,6 +235,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     );
 
     this.messagingSystem.registerActionHandler(
+      'SubscriptionController:getSubscriptionByProduct',
+      this.getSubscriptionByProduct.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       'SubscriptionController:cancelSubscription',
       this.cancelSubscription.bind(this),
     );
@@ -295,6 +305,18 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     }
 
     return newSubscriptions;
+  }
+
+  /**
+   * Get the subscription by product.
+   *
+   * @param product - The product type.
+   * @returns The subscription.
+   */
+  getSubscriptionByProduct(product: ProductType): Subscription | undefined {
+    return this.state.subscriptions.find((subscription) =>
+      subscription.products.some((p) => p.name === product),
+    );
   }
 
   async cancelSubscription(request: { subscriptionId: string }) {
