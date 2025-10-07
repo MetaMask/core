@@ -194,6 +194,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 > {
   readonly #subscriptionService: ISubscriptionService;
 
+  #shouldCallRefreshAuthToken: boolean = false;
+
   /**
    * Creates a new SubscriptionController instance.
    *
@@ -323,6 +325,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         state.customerId = newCustomerId;
         state.trialedProducts = newTrialedProducts;
       });
+      this.#shouldCallRefreshAuthToken = true;
     }
 
     return newSubscriptions;
@@ -476,6 +479,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
   async _executePoll(): Promise<void> {
     await this.getSubscriptions();
+    if (this.#shouldCallRefreshAuthToken) {
+      this.triggerAccessTokenRefresh();
+      this.#shouldCallRefreshAuthToken = false;
+    }
   }
 
   /**

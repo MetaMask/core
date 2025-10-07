@@ -872,6 +872,21 @@ describe('SubscriptionController', () => {
         expect(getSubscriptionsSpy).toHaveBeenCalledTimes(1);
       });
     });
+
+    it('should call `triggerAccessTokenRefresh` when the state changes', async () => {
+      await withController(async ({ controller, mockService }) => {
+        mockService.getSubscriptions.mockResolvedValue(
+          MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+        );
+        const triggerAccessTokenRefreshSpy = jest.spyOn(
+          controller,
+          'triggerAccessTokenRefresh',
+        );
+        controller.startPolling({});
+        await advanceTime({ clock, duration: 0 });
+        expect(triggerAccessTokenRefreshSpy).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 
   describe('integration scenarios', () => {
