@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING:** Remove `ethersProviderAsMiddleware` ([#415](https://github.com/MetaMask/eth-json-rpc-middleware/pull/415))
+
 ## [18.0.0]
 
 ### Changed
