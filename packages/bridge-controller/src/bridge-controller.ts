@@ -332,7 +332,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             !(await this.#hasSufficientBalance(updatedQuoteRequest));
         } catch (error) {
           console.error('Failed to fetch balance', error);
-          insufficientBal = false;
+          insufficientBal = true; // fallback to true for backend simulations
         }
       }
 
@@ -589,6 +589,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
     this.update((state) => {
       state.quotesLoadingStatus = RequestStatus.LOADING;
+      // TODO remove this since it's not needed
+      state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
     });
 
