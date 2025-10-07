@@ -275,9 +275,6 @@
     "import-x/no-named-as-default-member": 1,
     "promise/catch-or-return": 1
   },
-  "packages/permission-controller/src/Permission.ts": {
-    "prettier/prettier": 11
-  },
   "packages/permission-controller/src/PermissionController.test.ts": {
     "jest/no-conditional-in-test": 4
   },
