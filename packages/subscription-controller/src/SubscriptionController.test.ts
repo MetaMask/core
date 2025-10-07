@@ -436,6 +436,7 @@ describe('SubscriptionController', () => {
         {
           state: {
             subscriptions: [mockSubscription],
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
           },
         },
         async ({ controller, mockService }) => {
@@ -444,10 +445,56 @@ describe('SubscriptionController', () => {
             subscriptions: [
               { ...MOCK_SUBSCRIPTION, products: [mockProduct2, mockProduct1] },
             ],
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
           });
           await controller.getSubscriptions();
           expect(controller.state.subscriptions).toStrictEqual([
             mockSubscription,
+          ]);
+        },
+      );
+    });
+
+    it('should update state when subscriptions are the same but the trialed products are different', async () => {
+      const mockProduct1: Product = {
+        // @ts-expect-error - mock data
+        name: 'Product 1',
+        currency: 'usd',
+        unitAmount: 900,
+        unitDecimals: 2,
+      };
+      const mockProduct2: Product = {
+        // @ts-expect-error - mock data
+        name: 'Product 2',
+        currency: 'usd',
+        unitAmount: 900,
+        unitDecimals: 2,
+      };
+      const mockSubscription = {
+        ...MOCK_SUBSCRIPTION,
+        products: [mockProduct1, mockProduct2],
+      };
+
+      await withController(
+        {
+          state: {
+            subscriptions: [mockSubscription],
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_SUBSCRIPTION,
+            subscriptions: [
+              { ...MOCK_SUBSCRIPTION, products: [mockProduct1, mockProduct2] },
+            ],
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
+          });
+          await controller.getSubscriptions();
+          expect(controller.state.subscriptions).toStrictEqual([
+            mockSubscription,
+          ]);
+          expect(controller.state.trialedProducts).toStrictEqual([
+            PRODUCT_TYPES.SHIELD,
           ]);
         },
       );

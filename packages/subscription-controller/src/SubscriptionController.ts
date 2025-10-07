@@ -290,17 +290,27 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
   async getSubscriptions() {
     const currentSubscriptions = this.state.subscriptions;
+    const currentTrialedProducts = this.state.trialedProducts;
     const {
       subscriptions: newSubscriptions,
       customerId,
-      trialedProducts,
+      trialedProducts: newTrialedProducts,
     } = await this.#subscriptionService.getSubscriptions();
 
-    if (!this.#areSubscriptionsEqual(currentSubscriptions, newSubscriptions)) {
+    const areSubscriptionsEqual = this.#areSubscriptionsEqual(
+      currentSubscriptions,
+      newSubscriptions,
+    );
+    const areTrialedProductsEqual = this.#areTrialedProductsEqual(
+      currentTrialedProducts,
+      newTrialedProducts,
+    );
+
+    if (!areSubscriptionsEqual || !areTrialedProductsEqual) {
       this.update((state) => {
         state.subscriptions = newSubscriptions;
         state.customerId = customerId;
-        state.trialedProducts = trialedProducts;
+        state.trialedProducts = newTrialedProducts;
       });
     }
 
@@ -547,6 +557,25 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    */
   async getBillingPortalUrl(): Promise<BillingPortalResponse> {
     return await this.#subscriptionService.getBillingPortalUrl();
+  }
+
+  /**
+   * Determines whether two trialed products arrays are equal by comparing all products in the arrays.
+   *
+   * @param oldTrialedProducts - The first trialed products array to compare.
+   * @param newTrialedProducts - The second trialed products array to compare.
+   * @returns True if the trialed products arrays are equal, false otherwise.
+   */
+  #areTrialedProductsEqual(
+    oldTrialedProducts: ProductType[],
+    newTrialedProducts: ProductType[],
+  ): boolean {
+    return (
+      oldTrialedProducts.length === newTrialedProducts?.length &&
+      oldTrialedProducts.every((product) =>
+        newTrialedProducts?.includes(product),
+      )
+    );
   }
 
   /**
