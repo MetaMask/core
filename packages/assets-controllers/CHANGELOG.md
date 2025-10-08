@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- add `pepu` to list of `SUPPORTED_CURRENCIES` and PEPE unchained v2 network chainId to `SUPPORTED_CHAIN_IDS` in `codefi-v2.ts` to allow
+the `tokenRatesController`to fetch native prices. ([#6803](https://github.com/MetaMask/core/pull/6803))
+
 ## [78.0.1]
 
 ### Changed
