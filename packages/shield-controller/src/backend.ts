@@ -42,8 +42,8 @@ export type GetCoverageResultRequest = {
 };
 
 export type GetCoverageResultResponse = {
-  message: string;
-  reasonCode: string;
+  message?: string;
+  reasonCode?: string;
   status: CoverageStatus;
 };
 
