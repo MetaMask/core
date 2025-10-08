@@ -160,8 +160,18 @@ export type MultichainAssetsRatesPollingInput = {
 };
 
 const metadata = {
-  conversionRates: { persist: true, anonymous: true },
-  historicalPrices: { persist: false, anonymous: true },
+  conversionRates: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  historicalPrices: {
+    includeInStateLogs: false,
+    persist: false,
+    anonymous: true,
+    usedInUi: true,
+  },
 };
 
 export type ConversionRatesWithMarketData = {
@@ -236,10 +246,12 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 
     this.messagingSystem.subscribe(
       'CurrencyRateController:stateChange',
-      async (currencyRatesState: CurrencyRateState) => {
-        this.#currentCurrency = currencyRatesState.currentCurrency;
+      async (currentCurrency: string) => {
+        this.#currentCurrency = currentCurrency;
         await this.updateAssetsRates();
       },
+      (currencyRateControllerState) =>
+        currencyRateControllerState.currentCurrency,
     );
 
     this.messagingSystem.subscribe(
@@ -344,6 +356,11 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   ): Promise<
     Record<string, UnifiedAssetConversion & { currency: CaipAssetType }>
   > {
+    // Do not attempt to retrieve rates from Snap if there are no assets
+    if (!assets.length) {
+      return {};
+    }
+
     // Build the conversions array
     const conversions = this.#buildConversions(assets);
 
@@ -352,7 +369,12 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       snapId: account?.metadata.snap?.id as SnapId,
       handler: HandlerType.OnAssetsConversion,
       params: conversions,
-    })) as OnAssetsConversionResponse;
+    })) as OnAssetsConversionResponse | null;
+
+    // If the snap request failed, return empty rates
+    if (!accountRatesResponse) {
+      return {};
+    }
 
     // Prepare assets param for onAssetsMarketData
     const currentCurrencyCaip =
@@ -366,7 +388,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       snapId: account?.metadata.snap?.id as SnapId,
       handler: HandlerType.OnAssetsMarketData,
       params: assetsParam as OnAssetsMarketDataArguments,
-    })) as OnAssetsMarketDataResponse;
+    })) as OnAssetsMarketDataResponse | null;
 
     // Merge market data into conversion rates if available
     const mergedRates = this.#mergeMarketDataIntoConversionRates(
@@ -417,14 +439,22 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
           'AccountsController:getSelectedMultichainAccount',
         );
       try {
-        const historicalPricesResponse = await this.#handleSnapRequest({
-          snapId: selectedAccount?.metadata.snap?.id as SnapId,
-          handler: HandlerType.OnAssetHistoricalPrice,
-          params: {
-            from: asset,
-            to: currentCaipCurrency,
+        const historicalPricesResponse = await this.messagingSystem.call(
+          'SnapController:handleRequest',
+          {
+            snapId: selectedAccount?.metadata.snap?.id as SnapId,
+            origin: 'metamask',
+            handler: HandlerType.OnAssetHistoricalPrice,
+            request: {
+              jsonrpc: '2.0',
+              method: HandlerType.OnAssetHistoricalPrice,
+              params: {
+                from: asset,
+                to: currentCaipCurrency,
+              },
+            },
           },
-        });
+        );
 
         // skip state update if no historical prices are returned
         if (!historicalPricesResponse) {
@@ -544,8 +574,12 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    * @returns A flattened rates object.
    */
   #flattenRates(
-    assetsConversionResponse: ConversionRatesWithMarketData,
+    assetsConversionResponse: ConversionRatesWithMarketData | null,
   ): Record<CaipAssetType, UnifiedAssetConversion | null> {
+    if (!assetsConversionResponse?.conversionRates) {
+      return {};
+    }
+
     const { conversionRates } = assetsConversionResponse;
 
     return Object.fromEntries(
@@ -633,28 +667,38 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     | OnAssetsConversionResponse
     | OnAssetHistoricalPriceResponse
     | OnAssetsMarketDataResponse
-    | null
+    | undefined
   > {
-    return this.messagingSystem.call('SnapController:handleRequest', {
-      snapId,
-      origin: 'metamask',
-      handler,
-      request: {
-        jsonrpc: '2.0',
-        method: handler,
+    try {
+      return (await this.messagingSystem.call('SnapController:handleRequest', {
+        snapId,
+        origin: 'metamask',
+        handler,
+        request: {
+          jsonrpc: '2.0',
+          method: handler,
+          params,
+        },
+      })) as
+        | OnAssetsConversionResponse
+        | OnAssetHistoricalPriceResponse
+        | OnAssetsMarketDataResponse
+        | undefined;
+    } catch (error) {
+      console.error(`Snap request failed for ${handler}:`, {
+        snapId,
+        handler,
+        message: (error as Error).message,
         params,
-      },
-    }) as Promise<
-      | OnAssetsConversionResponse
-      | OnAssetHistoricalPriceResponse
-      | OnAssetsMarketDataResponse
-      | null
-    >;
+      });
+      // Ignore
+      return undefined;
+    }
   }
 
   #mergeMarketDataIntoConversionRates(
     accountRatesResponse: OnAssetsConversionResponse,
-    marketDataResponse: OnAssetsMarketDataResponse,
+    marketDataResponse: OnAssetsMarketDataResponse | null,
   ): ConversionRatesWithMarketData {
     // Early return if no market data to merge
     if (!marketDataResponse?.marketData) {

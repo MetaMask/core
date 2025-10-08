@@ -7,9 +7,131 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [60.6.0]
+
+### Added
+
+- Expose `addTransaction` and `addTransactionBatch` methods through the messenger ([#6749](https://github.com/MetaMask/core/pull/6749))
+  - Add types:
+    - `AddTransactionOptions`
+    - `TransactionControllerAddTransactionAction`
+    - `TransactionControllerAddTransactionBatchAction`
+- Add new `shieldSubscriptionApprove` transaction type for shield subscription confirmation ([#6769](https://github.com/MetaMask/core/pull/6769))
+
+## [60.5.0]
+
+### Added
+
+- Add `predictBuy`, `predictClaim`, `predictDeposit` and `predictSell` to `TransactionType` ([#6690](https://github.com/MetaMask/core/pull/6690))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
+### Fixed
+
+- Update `isFirstTimeInteraction` to be determined using recipient if token transfer. ([#6686](https://github.com/MetaMask/core/pull/6686))
+
+## [60.4.0]
+
+### Added
+
+- Expose `confirmExternalTransaction`, `getNonceLock`, `getTransactions`, and `updateTransaction` actions through the messenger ([#6615](https://github.com/MetaMask/core/pull/6615))
+  - Like other action methods, they are callable as `TransactionController:*`
+  - Also add associated types:
+    - `TransactionControllerConfirmExternalTransactionAction`
+    - `TransactionControllerGetNonceLockAction`
+    - `TransactionControllerGetTransactionsAction`
+    - `TransactionControllerUpdateTransactionAction`
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
+## [60.3.0]
+
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6473](https://github.com/MetaMask/core/pull/6473))
+
+### Changed
+
+- Update nonce of existing transaction if converted to batch via `batchTransactions` but not first transaction ([#6528](https://github.com/MetaMask/core/pull/6528))
+- Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
+
+## [60.2.0]
+
+### Added
+
+- Add `isGasFeeIncluded` to `TransactionMeta`, `TransactionBatchRequest` and `addTransaction` options so the client can signal that MetaMask is compensated for the gas fee by the transaction ([#6428](https://github.com/MetaMask/core/pull/6428))
+- Add optional `gasUsed` property to `TransactionMeta`, returned by the transaction simulation result ([#6410](https://github.com/MetaMask/core/pull/6410))
+
+## [60.1.0]
+
+### Added
+
+- Add optional `batchTransactionsOptions` to `TransactionMeta` ([#6368](https://github.com/MetaMask/core/pull/6368))
+  - Add optional `isAfter` property to `batchTransactions` entries in `TransactionMeta`.
+  - Add `BatchTransaction` type.
+- Add optional `metamaskPay` and `requiredTransactionIds` properties to `TransactionMeta` ([#6361](https://github.com/MetaMask/core/pull/6361))
+  - Add `updateRequiredTransactionIds` method.
+- Add `getSimulationConfig` constructor property ([#6281](https://github.com/MetaMask/core/pull/6281))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+
+## [60.0.0]
+
+### Added
+
+- Add `isGasFeeSponsored` property to `TransactionMeta` type ([#6244](https://github.com/MetaMask/core/pull/6244))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` from `^32.0.0` to `^33.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+
+## [59.2.0]
+
+### Added
+
+- Add optional `updateType` property to disable `type` update in `updateEditableParams` method ([#6289](https://github.com/MetaMask/core/pull/6289))
+- Add `perpsDeposit` to `TransactionType` ([#6282](https://github.com/MetaMask/core/pull/6282))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+
+## [59.1.0]
+
+### Added
+
+- Add `assetsFiatValues` property on `addTransaction` options ([#6178](https://github.com/MetaMask/core/pull/6178))
+  - `assetsFiatValues.sending` is total fiat value of sent assets
+  - `assetsFiatValues.receiving` is total fiat value of recieved assets
+- Add and export `AddTransactionOptions` type ([#6178](https://github.com/MetaMask/core/pull/6178))
+
+### Fixed
+
+- Preserve provided `origin` in `transactions` when calling `addTransactionBatch` ([#6178](https://github.com/MetaMask/core/pull/6178))
+
+## [59.0.0]
+
 ### Added
 
 - Add fallback to the sequential hook when `publishBatchHook` returns empty ([#6063](https://github.com/MetaMask/core/pull/6063))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^32.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
+
+### Fixed
+
+- Preserve provided `type` in `transactions` when calling `addTransactionBatch` ([#6056](https://github.com/MetaMask/core/pull/6056))
+- Normalize transaction `data` to ensure case-insensitive detection ([#6102](https://github.com/MetaMask/core/pull/6102))
 
 ## [58.1.1]
 
@@ -1721,7 +1843,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@58.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.6.0...HEAD
+[60.6.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.5.0...@metamask/transaction-controller@60.6.0
+[60.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.4.0...@metamask/transaction-controller@60.5.0
+[60.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.3.0...@metamask/transaction-controller@60.4.0
+[60.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.2.0...@metamask/transaction-controller@60.3.0
+[60.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.1.0...@metamask/transaction-controller@60.2.0
+[60.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.0.0...@metamask/transaction-controller@60.1.0
+[60.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@59.2.0...@metamask/transaction-controller@60.0.0
+[59.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@59.1.0...@metamask/transaction-controller@59.2.0
+[59.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@59.0.0...@metamask/transaction-controller@59.1.0
+[59.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@58.1.1...@metamask/transaction-controller@59.0.0
 [58.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@58.1.0...@metamask/transaction-controller@58.1.1
 [58.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@58.0.0...@metamask/transaction-controller@58.1.0
 [58.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@57.4.0...@metamask/transaction-controller@58.0.0

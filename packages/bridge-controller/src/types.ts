@@ -1,4 +1,4 @@
-import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
+import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 import type {
   GetCurrencyRateState,
   MultichainAssetsRatesControllerGetStateAction,
@@ -29,6 +29,7 @@ import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 import type {
   BridgeAssetSchema,
   ChainConfigurationSchema,
+  FeatureId,
   FeeDataSchema,
   PlatformConfigSchema,
   ProtocolSchema,
@@ -77,8 +78,8 @@ export type L1GasFees = {
   l1GasFeesInHexWei?: string; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
 };
 
-export type SolanaFees = {
-  solanaFeesInLamports?: string; // solana fees in lamports, appended by BridgeController.#appendSolanaFees
+export type NonEvmFees = {
+  nonEvmFeesInNative?: string; // Non-EVM chain fees in native units (SOL for Solana, BTC for Bitcoin)
 };
 
 /**
@@ -118,13 +119,24 @@ export type QuoteMetadata = {
    * If gas is included, this is the value of the src or dest token that was used to pay for the gas
    */
   includedTxFees?: TokenAmountValues | null;
-  gasFee: TokenAmountValues;
+  /**
+   * The gas fee for the bridge transaction.
+   * effective is the gas fee that is shown to the user. If this value is not
+   * included in the trade, the calculation falls back to the gasLimit (total)
+   * total is the gas fee that is spent by the user, including refunds.
+   * max is the max gas fee that will be used by the transaction.
+   */
+  gasFee: Record<'effective' | 'total' | 'max', TokenAmountValues>;
   totalNetworkFee: TokenAmountValues; // estimatedGasFees + relayerFees
   totalMaxNetworkFee: TokenAmountValues; // maxGasFees + relayerFees
   /**
    * The amount that the user will receive (destTokenAmount)
    */
   toTokenAmount: TokenAmountValues;
+  /**
+   * The minimum amount that the user will receive (minDestTokenAmount)
+   */
+  minToTokenAmount: TokenAmountValues;
   /**
    * If gas is included: toTokenAmount
    * Otherwise: toTokenAmount - totalNetworkFee
@@ -175,6 +187,7 @@ export type GasMultiplierByChainId = Record<DecimalChainId, number>;
 
 export type FeatureFlagResponse = Infer<typeof PlatformConfigSchema>;
 
+// TODO move definition to validators.ts
 /**
  * This is the interface for the quote request sent to the bridge-api
  * and should only be used by the fetchBridgeQuotes utility function
@@ -207,6 +220,11 @@ export type QuoteRequest<
    * and the current network has STX support
    */
   gasIncluded: boolean;
+  /**
+   * Whether to request quotes that use EIP-7702 delegated gasless execution
+   */
+  gasIncluded7702: boolean;
+  noFee?: boolean;
 };
 
 export enum StatusTypes {
@@ -247,6 +265,7 @@ export type QuoteResponse<TxDataType = TxData> = Infer<
 > & {
   trade: TxDataType;
   approval?: TxData;
+  featureId?: FeatureId;
 };
 
 export enum ChainId {
@@ -260,6 +279,7 @@ export enum ChainId {
   AVALANCHE = 43114,
   LINEA = 59144,
   SOLANA = 1151111081099710,
+  BTC = 20000000000001,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
@@ -279,11 +299,12 @@ export enum BridgeBackgroundAction {
   GET_BRIDGE_ERC20_ALLOWANCE = 'getBridgeERC20Allowance',
   TRACK_METAMETRICS_EVENT = 'trackUnifiedSwapBridgeEvent',
   STOP_POLLING_FOR_QUOTES = 'stopPollingForQuotes',
+  FETCH_QUOTES = 'fetchQuotes',
 }
 
 export type BridgeControllerState = {
   quoteRequest: Partial<GenericQuoteRequest>;
-  quotes: (QuoteResponse & L1GasFees & SolanaFees)[];
+  quotes: (QuoteResponse & L1GasFees & NonEvmFees)[];
   quotesInitialLoadTime: number | null;
   quotesLastFetched: number | null;
   quotesLoadingStatus: RequestStatus | null;
@@ -314,6 +335,7 @@ export type BridgeControllerActions =
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
+  | BridgeControllerAction<BridgeBackgroundAction.FETCH_QUOTES>
   | BridgeControllerAction<BridgeUserAction.UPDATE_QUOTE_PARAMS>;
 
 export type BridgeControllerEvents = ControllerStateChangeEvent<
@@ -322,7 +344,7 @@ export type BridgeControllerEvents = ControllerStateChangeEvent<
 >;
 
 export type AllowedActions =
-  | AccountsControllerGetSelectedMultichainAccountAction
+  | AccountsControllerGetAccountByAddressAction
   | GetCurrencyRateState
   | TokenRatesControllerGetStateAction
   | MultichainAssetsRatesControllerGetStateAction

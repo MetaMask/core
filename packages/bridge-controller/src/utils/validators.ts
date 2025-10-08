@@ -25,6 +25,10 @@ export enum FeeType {
   TX_FEE = 'txFee',
 }
 
+export enum FeatureId {
+  PERPS = 'perps',
+}
+
 export enum ActionTypes {
   BRIDGE = 'bridge',
   SWAP = 'swap',
@@ -76,24 +80,63 @@ export const BridgeAssetSchema = type({
   iconUrl: optional(nullable(string())),
 });
 
+const DefaultPairSchema = type({
+  /**
+   * The standard default pairs. Use this if the pair is only set once.
+   * The key is the CAIP asset type of the src token and the value is the CAIP asset type of the dest token.
+   */
+  standard: record(string(), string()),
+  /**
+   * The other default pairs. Use this if the dest token depends on the src token and can be set multiple times.
+   * The key is the CAIP asset type of the src token and the value is the CAIP asset type of the dest token.
+   */
+  other: record(string(), string()),
+});
+
 export const ChainConfigurationSchema = type({
   isActiveSrc: boolean(),
   isActiveDest: boolean(),
   refreshRate: optional(number()),
   topAssets: optional(array(string())),
+  stablecoins: optional(array(string())),
   isUnifiedUIEnabled: optional(boolean()),
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
+  isGaslessSwapEnabled: optional(boolean()),
+  noFeeAssets: optional(array(string())),
+  defaultPairs: optional(DefaultPairSchema),
 });
+
+export const PriceImpactThresholdSchema = type({
+  gasless: number(),
+  normal: number(),
+});
+
+const GenericQuoteRequestSchema = type({
+  aggIds: optional(array(string())),
+  bridgeIds: optional(array(string())),
+  noFee: optional(boolean()),
+});
+
+const FeatureIdSchema = enums(Object.values(FeatureId));
 
 /**
  * This is the schema for the feature flags response from the RemoteFeatureFlagController
  */
 export const PlatformConfigSchema = type({
+  priceImpactThreshold: optional(PriceImpactThresholdSchema),
+  quoteRequestOverrides: optional(
+    record(FeatureIdSchema, optional(GenericQuoteRequestSchema)),
+  ),
   minimumVersion: string(),
   refreshRate: number(),
   maxRefreshCount: number(),
   support: boolean(),
   chains: record(string(), ChainConfigurationSchema),
+  /**
+   * The bip44 default pairs for the chains
+   * Key is the CAIP chainId namespace
+   */
+  bip44DefaultPairs: optional(record(string(), optional(DefaultPairSchema))),
 });
 
 export const validateFeatureFlagsResponse = (
@@ -147,6 +190,10 @@ export const QuoteSchema = type({
    * The amount received, in atomic amount
    */
   destTokenAmount: string(),
+  /**
+   * The minimum amount that will be received, in atomic amount
+   */
+  minDestTokenAmount: string(),
   feeData: type({
     [FeeType.METABRIDGE]: FeeDataSchema,
     /**
@@ -164,6 +211,10 @@ export const QuoteSchema = type({
     ),
   }),
   gasIncluded: optional(boolean()),
+  /**
+   * Whether the quote can use EIP-7702 delegated gasless execution
+   */
+  gasIncluded7702: optional(boolean()),
   bridgeId: string(),
   bridges: array(string()),
   steps: array(StepSchema),
@@ -173,6 +224,7 @@ export const QuoteSchema = type({
       totalFromAmountUsd: optional(string()),
       totalToAmountUsd: optional(string()),
       priceImpact: optional(string()),
+      totalFeeAmountUsd: optional(string()),
     }),
   ),
 });
@@ -184,18 +236,38 @@ export const TxDataSchema = type({
   value: HexStringSchema,
   data: HexStringSchema,
   gasLimit: nullable(number()),
+  effectiveGas: optional(number()),
+});
+
+export const BitcoinTradeDataSchema = type({
+  unsignedPsbtBase64: string(),
+  inputsToSign: nullable(array(type({}))),
 });
 
 export const QuoteResponseSchema = type({
   quote: QuoteSchema,
   estimatedProcessingTimeInSeconds: number(),
   approval: optional(TxDataSchema),
-  trade: union([TxDataSchema, string()]),
+  trade: union([TxDataSchema, BitcoinTradeDataSchema, string()]),
+});
+
+export const BitcoinQuoteResponseSchema = type({
+  quote: QuoteSchema,
+  estimatedProcessingTimeInSeconds: number(),
+  approval: optional(TxDataSchema),
+  trade: BitcoinTradeDataSchema,
 });
 
 export const validateQuoteResponse = (
   data: unknown,
 ): data is Infer<typeof QuoteResponseSchema> => {
   assert(data, QuoteResponseSchema);
+  return true;
+};
+
+export const validateBitcoinQuoteResponse = (
+  data: unknown,
+): data is Infer<typeof BitcoinQuoteResponseSchema> => {
+  assert(data, BitcoinQuoteResponseSchema);
   return true;
 };

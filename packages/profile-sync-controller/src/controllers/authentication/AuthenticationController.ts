@@ -11,6 +11,7 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { Json } from '@metamask/utils';
 
 import {
   createSnapPublicKeyRequest,
@@ -21,7 +22,7 @@ import type {
   LoginResponse,
   SRPInterface,
   UserProfile,
-  UserProfileMetaMetrics,
+  UserProfileLineage,
 } from '../../sdk';
 import {
   assertMessageStartsWithMetamask,
@@ -43,12 +44,38 @@ export const defaultState: AuthenticationControllerState = {
 };
 const metadata: StateMetadata<AuthenticationControllerState> = {
   isSignedIn: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
   srpSessionData: {
+    // Remove access token from state logs
+    includeInStateLogs: (srpSessionData) => {
+      // Unreachable branch, included just to fix a type error for the case where this property is
+      // unset. The type gets collapsed to include `| undefined` even though `undefined` is never
+      // set here, because we don't yet use `exactOptionalPropertyTypes`.
+      // TODO: Remove branch after enabling `exactOptionalPropertyTypes`
+      // ref: https://github.com/MetaMask/core/issues/6565
+      if (srpSessionData === null || srpSessionData === undefined) {
+        return null;
+      }
+      return Object.entries(srpSessionData).reduce<Record<string, Json>>(
+        (sanitizedSrpSessionData, [key, value]) => {
+          const { accessToken: _unused, ...tokenWithoutAccessToken } =
+            value.token;
+          sanitizedSrpSessionData[key] = {
+            ...value,
+            token: tokenWithoutAccessToken,
+          };
+          return sanitizedSrpSessionData;
+        },
+        {},
+      );
+    },
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 };
 
@@ -68,7 +95,7 @@ type ActionsObj = CreateActionsObj<
   | 'performSignOut'
   | 'getBearerToken'
   | 'getSessionProfile'
-  | 'getUserProfileMetaMetrics'
+  | 'getUserProfileLineage'
   | 'isSignedIn'
 >;
 export type Actions =
@@ -85,8 +112,8 @@ export type AuthenticationControllerGetBearerToken =
   ActionsObj['getBearerToken'];
 export type AuthenticationControllerGetSessionProfile =
   ActionsObj['getSessionProfile'];
-export type AuthenticationControllerGetUserProfileMetaMetrics =
-  ActionsObj['getUserProfileMetaMetrics'];
+export type AuthenticationControllerGetUserProfileLineage =
+  ActionsObj['getUserProfileLineage'];
 export type AuthenticationControllerIsSignedIn = ActionsObj['isSignedIn'];
 
 export type AuthenticationControllerStateChangeEvent =
@@ -238,8 +265,8 @@ export default class AuthenticationController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      'AuthenticationController:getUserProfileMetaMetrics',
-      this.getUserProfileMetaMetrics.bind(this),
+      'AuthenticationController:getUserProfileLineage',
+      this.getUserProfileLineage.bind(this),
     );
   }
 
@@ -342,9 +369,9 @@ export default class AuthenticationController extends BaseController<
     return await this.#auth.getUserProfile(entropySourceId);
   }
 
-  public async getUserProfileMetaMetrics(): Promise<UserProfileMetaMetrics> {
-    this.#assertIsUnlocked('getUserProfileMetaMetrics');
-    return await this.#auth.getUserProfileMetaMetrics();
+  public async getUserProfileLineage(): Promise<UserProfileLineage> {
+    this.#assertIsUnlocked('getUserProfileLineage');
+    return await this.#auth.getUserProfileLineage();
   }
 
   public isSignedIn(): boolean {

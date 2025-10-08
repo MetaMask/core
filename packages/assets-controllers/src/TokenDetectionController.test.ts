@@ -177,6 +177,8 @@ function buildTokenDetectionControllerMessenger(
       'TokensController:addDetectedTokens',
       'TokenListController:getState',
       'PreferencesController:getState',
+      'TokensController:addTokens',
+      'NetworkController:findNetworkClientIdByChainId',
     ],
     allowedEvents: [
       'AccountsController:selectedEvmAccountChange',
@@ -420,12 +422,9 @@ describe('TokenDetectionController', () => {
           await controller.start();
 
           expect(callActionSpy).toHaveBeenCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [sampleTokenA],
-            {
-              chainId: ChainId.mainnet,
-              selectedAddress: selectedAccount.address,
-            },
+            'mainnet',
           );
         },
       );
@@ -528,6 +527,7 @@ describe('TokenDetectionController', () => {
           mockTokenListGetState,
           mockNetworkState,
           mockGetNetworkClientById,
+          mockFindNetworkClientIdByChainId,
           callActionSpy,
         }) => {
           mockMultiChainAccountsService();
@@ -541,7 +541,7 @@ describe('TokenDetectionController', () => {
                 configuration: { chainId: '0x89' },
               }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
           );
-
+          mockFindNetworkClientIdByChainId(() => 'polygon');
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -565,12 +565,9 @@ describe('TokenDetectionController', () => {
           await controller.start();
 
           expect(callActionSpy).toHaveBeenCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [sampleTokenA],
-            {
-              chainId: '0x89',
-              selectedAddress: selectedAccount.address,
-            },
+            'polygon',
           );
         },
       );
@@ -633,12 +630,9 @@ describe('TokenDetectionController', () => {
           await advanceTime({ clock, duration: interval });
 
           expect(callActionSpy).toHaveBeenCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [sampleTokenA, sampleTokenB],
-            {
-              chainId: ChainId.mainnet,
-              selectedAddress: selectedAccount.address,
-            },
+            'mainnet',
           );
         },
       );
@@ -811,12 +805,9 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(callActionSpy).toHaveBeenCalledWith(
-              'TokensController:addDetectedTokens',
+              'TokensController:addTokens',
               [sampleTokenA],
-              {
-                chainId: ChainId.mainnet,
-                selectedAddress: secondSelectedAccount.address,
-              },
+              'mainnet',
             );
           },
         );
@@ -1091,12 +1082,9 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(callActionSpy).toHaveBeenLastCalledWith(
-              'TokensController:addDetectedTokens',
+              'TokensController:addTokens',
               [sampleTokenA],
-              {
-                chainId: ChainId.mainnet,
-                selectedAddress: secondSelectedAccount.address,
-              },
+              'mainnet',
             );
           },
         );
@@ -1233,12 +1221,9 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(callActionSpy).toHaveBeenCalledWith(
-              'TokensController:addDetectedTokens',
+              'TokensController:addTokens',
               [sampleTokenA],
-              {
-                chainId: ChainId.mainnet,
-                selectedAddress: selectedAccount.address,
-              },
+              'mainnet',
             );
           },
         );
@@ -1927,12 +1912,9 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(callActionSpy).toHaveBeenCalledWith(
-              'TokensController:addDetectedTokens',
+              'TokensController:addTokens',
               [sampleTokenA],
-              {
-                chainId: ChainId.mainnet,
-                selectedAddress: selectedAccount.address,
-              },
+              'mainnet',
             );
           },
         );
@@ -2485,7 +2467,7 @@ describe('TokenDetectionController', () => {
             selectedAddress: selectedAccount.address,
           });
           expect(callActionSpy).toHaveBeenLastCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             Object.values(STATIC_MAINNET_TOKEN_LIST).map((token) => {
               const { iconUrl, ...tokenMetadata } = token;
               return {
@@ -2494,10 +2476,7 @@ describe('TokenDetectionController', () => {
                 isERC721: false,
               };
             }),
-            {
-              selectedAddress: selectedAccount.address,
-              chainId: ChainId.mainnet,
-            },
+            'mainnet',
           );
         },
       );
@@ -2550,12 +2529,9 @@ describe('TokenDetectionController', () => {
           });
 
           expect(callActionSpy).toHaveBeenCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [sampleTokenA],
-            {
-              chainId: ChainId.mainnet,
-              selectedAddress: selectedAccount.address,
-            },
+            'mainnet',
           );
         },
       );
@@ -2677,7 +2653,7 @@ describe('TokenDetectionController', () => {
           });
 
           expect(callActionSpy).toHaveBeenLastCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [
               {
                 address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
@@ -2702,7 +2678,7 @@ describe('TokenDetectionController', () => {
                 symbol: 'LINK',
               },
             ],
-            { chainId: '0x1', selectedAddress: '' },
+            'mainnet',
           );
         },
       );
@@ -2862,17 +2838,14 @@ describe('TokenDetectionController', () => {
 
       const assertAddedTokens = (token: Token) =>
         expect(callAction).toHaveBeenCalledWith(
-          'TokensController:addDetectedTokens',
+          'TokensController:addTokens',
           [token],
-          {
-            chainId: ChainId.mainnet,
-            selectedAddress: selectedAccount.address,
-          },
+          'mainnet',
         );
 
       const assertTokensNeverAdded = () =>
         expect(callAction).not.toHaveBeenCalledWith(
-          'TokensController:addDetectedTokens',
+          'TokensController:addTokens',
         );
 
       return {
@@ -3085,15 +3058,481 @@ describe('TokenDetectionController', () => {
           await advanceTime({ clock, duration: 1 });
 
           expect(callActionSpy).toHaveBeenCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [sampleTokenA],
-            {
-              chainId: ChainId.mainnet,
-              selectedAddress: secondSelectedAccount.address,
-            },
+            'mainnet',
           );
         },
       );
+    });
+  });
+
+  describe('constructor options', () => {
+    describe('useTokenDetection', () => {
+      it('should disable token detection when useTokenDetection is false', async () => {
+        const mockGetBalancesInSingleCall = jest.fn();
+
+        await withController(
+          {
+            options: {
+              useTokenDetection: () => false,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller }) => {
+            // Try to detect tokens
+            await controller.detectTokens();
+
+            // Should not call getBalancesInSingleCall when useTokenDetection is false
+            expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should enable token detection when useTokenDetection is true (default)', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({});
+
+        await withController(
+          {
+            options: {
+              useTokenDetection: () => true,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller, mockTokenListGetState }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                      occurrences: 11,
+                    },
+                  },
+                },
+              },
+            });
+
+            // Try to detect tokens
+            await controller.detectTokens();
+
+            // Should call getBalancesInSingleCall when useTokenDetection is true
+            expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should not start polling when useTokenDetection is false', async () => {
+        const mockGetBalancesInSingleCall = jest.fn();
+
+        await withController(
+          {
+            options: {
+              useTokenDetection: () => false,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller }) => {
+            await controller.start();
+
+            // Should not call getBalancesInSingleCall during start when useTokenDetection is false
+            expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should start polling when useTokenDetection is true (default)', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({});
+
+        await withController(
+          {
+            options: {
+              useTokenDetection: () => true,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller, mockTokenListGetState }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                      occurrences: 11,
+                    },
+                  },
+                },
+              },
+            });
+
+            await controller.start();
+
+            // Should call getBalancesInSingleCall during start when useTokenDetection is true
+            expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+          },
+        );
+      });
+    });
+
+    describe('useExternalServices', () => {
+      it('should not use external services when useExternalServices is false (default)', async () => {
+        const mockFetchSupportedNetworks = jest.spyOn(
+          MutliChainAccountsServiceModule,
+          'fetchSupportedNetworks',
+        );
+
+        await withController(
+          {
+            options: {
+              useExternalServices: () => false,
+              disabled: false,
+              useAccountsAPI: true,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller }) => {
+            await controller.detectTokens();
+
+            // Should not call fetchSupportedNetworks when useExternalServices is false
+            expect(mockFetchSupportedNetworks).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should use external services when useExternalServices is true', async () => {
+        const mockFetchSupportedNetworks = jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchSupportedNetworks')
+          .mockResolvedValue([1, 137]); // Mainnet and Polygon
+
+        jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchMultiChainBalances')
+          .mockResolvedValue({
+            count: 1,
+            balances: [
+              {
+                object: 'token_balance',
+                address: sampleTokenA.address,
+                symbol: sampleTokenA.symbol,
+                name: sampleTokenA.name,
+                decimals: sampleTokenA.decimals,
+                chainId: 1,
+                balance: '1000000000000000000',
+              },
+            ],
+            unprocessedNetworks: [],
+          });
+
+        await withController(
+          {
+            options: {
+              useExternalServices: () => true,
+              disabled: false,
+              useAccountsAPI: true,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller, mockTokenListGetState }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                      occurrences: 11,
+                    },
+                  },
+                },
+              },
+            });
+
+            await controller.detectTokens();
+
+            // Should call fetchSupportedNetworks when useExternalServices is true
+            expect(mockFetchSupportedNetworks).toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should not use external services when useAccountsAPI is false, regardless of useExternalServices', async () => {
+        const mockFetchSupportedNetworks = jest.spyOn(
+          MutliChainAccountsServiceModule,
+          'fetchSupportedNetworks',
+        );
+
+        await withController(
+          {
+            options: {
+              useExternalServices: () => true,
+              disabled: false,
+              useAccountsAPI: false,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller }) => {
+            await controller.detectTokens();
+
+            // Should not call fetchSupportedNetworks when useAccountsAPI is false
+            expect(mockFetchSupportedNetworks).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should use external services when both useExternalServices and useAccountsAPI are true', async () => {
+        const mockFetchSupportedNetworks = jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchSupportedNetworks')
+          .mockResolvedValue([1, 137]);
+
+        jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchMultiChainBalances')
+          .mockResolvedValue({
+            count: 1,
+            balances: [
+              {
+                object: 'token_balance',
+                address: sampleTokenA.address,
+                symbol: sampleTokenA.symbol,
+                name: sampleTokenA.name,
+                decimals: sampleTokenA.decimals,
+                chainId: 1,
+                balance: '1000000000000000000',
+              },
+            ],
+            unprocessedNetworks: [],
+          });
+
+        await withController(
+          {
+            options: {
+              useExternalServices: () => true,
+              disabled: false,
+              useAccountsAPI: true,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller, mockTokenListGetState }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                      occurrences: 11,
+                    },
+                  },
+                },
+              },
+            });
+
+            await controller.detectTokens();
+
+            // Should call both external service methods when both flags are true
+            expect(mockFetchSupportedNetworks).toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should fall back to RPC detection when external services fail', async () => {
+        const mockFetchSupportedNetworks = jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchSupportedNetworks')
+          .mockResolvedValue([1, 137]);
+
+        const mockFetchMultiChainBalances = jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchMultiChainBalances')
+          .mockRejectedValue(new Error('API Error'));
+
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+
+        await withController(
+          {
+            options: {
+              useExternalServices: () => true,
+              useAccountsAPI: true,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller, mockTokenListGetState }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                      occurrences: 11,
+                    },
+                  },
+                },
+              },
+            });
+
+            await controller.detectTokens();
+
+            // Should call external services first
+            expect(mockFetchSupportedNetworks).toHaveBeenCalled();
+            expect(mockFetchMultiChainBalances).toHaveBeenCalled();
+
+            // Should fall back to RPC detection when external services fail
+            expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+          },
+        );
+      });
+    });
+
+    describe('useTokenDetection and useExternalServices combination', () => {
+      it('should not use external services when useTokenDetection is false, regardless of useExternalServices', async () => {
+        const mockFetchSupportedNetworks = jest.spyOn(
+          MutliChainAccountsServiceModule,
+          'fetchSupportedNetworks',
+        );
+
+        await withController(
+          {
+            options: {
+              useTokenDetection: () => false,
+              useExternalServices: () => true,
+              disabled: false,
+              useAccountsAPI: true,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller }) => {
+            await controller.detectTokens();
+
+            // Should not call external services when token detection is disabled
+            expect(mockFetchSupportedNetworks).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should use external services when both useTokenDetection and useExternalServices are true', async () => {
+        const mockFetchSupportedNetworks = jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchSupportedNetworks')
+          .mockResolvedValue([1, 137]);
+
+        jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchMultiChainBalances')
+          .mockResolvedValue({
+            count: 1,
+            balances: [
+              {
+                object: 'token_balance',
+                address: sampleTokenA.address,
+                symbol: sampleTokenA.symbol,
+                name: sampleTokenA.name,
+                decimals: sampleTokenA.decimals,
+                chainId: 1,
+                balance: '1000000000000000000',
+              },
+            ],
+            unprocessedNetworks: [],
+          });
+
+        await withController(
+          {
+            options: {
+              useTokenDetection: () => true,
+              useExternalServices: () => true,
+              disabled: false,
+              useAccountsAPI: true,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller, mockTokenListGetState }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                      occurrences: 11,
+                    },
+                  },
+                },
+              },
+            });
+
+            await controller.detectTokens();
+
+            // Should call external services when both flags are true
+            expect(mockFetchSupportedNetworks).toHaveBeenCalled();
+          },
+        );
+      });
     });
   });
 });
@@ -3146,6 +3585,9 @@ type WithControllerCallback<ReturnValue> = ({
     handler: (networkClientId: NetworkClientId) => NetworkConfiguration,
   ) => void;
   mockNetworkState: (state: NetworkState) => void;
+  mockFindNetworkClientIdByChainId: (
+    handler: (chainId: Hex) => NetworkClientId,
+  ) => void;
   callActionSpy: jest.SpyInstance;
   triggerKeyringUnlock: () => void;
   triggerKeyringLock: () => void;
@@ -3257,6 +3699,13 @@ async function withController<ReturnValue>(
       ...getDefaultPreferencesState(),
     }),
   );
+
+  const mockFindNetworkClientIdByChainId = jest.fn<NetworkClientId, [Hex]>();
+  messenger.registerActionHandler(
+    'NetworkController:findNetworkClientIdByChainId',
+    mockFindNetworkClientIdByChainId.mockReturnValue('mainnet'),
+  );
+
   messenger.registerActionHandler(
     'TokensController:addDetectedTokens',
     jest
@@ -3266,6 +3715,17 @@ async function withController<ReturnValue>(
       >()
       .mockResolvedValue(undefined),
   );
+
+  messenger.registerActionHandler(
+    'TokensController:addTokens',
+    jest
+      .fn<
+        ReturnType<TokensController['addTokens']>,
+        Parameters<TokensController['addTokens']>
+      >()
+      .mockResolvedValue(undefined),
+  );
+
   const callActionSpy = jest.spyOn(messenger, 'call');
 
   const controller = new TokenDetectionController({
@@ -3303,6 +3763,11 @@ async function withController<ReturnValue>(
         ) => AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
       ) => {
         mockGetNetworkClientById.mockImplementation(handler);
+      },
+      mockFindNetworkClientIdByChainId: (
+        handler: (chainId: Hex) => NetworkClientId,
+      ) => {
+        mockFindNetworkClientIdByChainId.mockImplementation(handler);
       },
       mockGetNetworkConfigurationByNetworkClientId: (
         handler: (networkClientId: NetworkClientId) => NetworkConfiguration,

@@ -1,12 +1,8 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
-import type {
-  ExportableKeyEncryptor,
-  KeyringControllerLockEvent,
-  KeyringControllerUnlockEvent,
-} from '@metamask/keyring-controller';
-import type { NodeAuthTokens } from '@metamask/toprf-secure-backup';
+import type { ExportableKeyEncryptor } from '@metamask/keyring-controller';
+import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
 import type {
@@ -150,6 +146,15 @@ export type SeedlessOnboardingControllerState =
       revokeToken?: string;
 
       /**
+       * The refresh token and revoke token to be revoked.
+       * This is persisted in state to revoke old refresh token when possible.
+       */
+      pendingToBeRevokedTokens?: {
+        refreshToken: string;
+        revokeToken: string;
+      }[];
+
+      /**
        * The encrypted seedless encryption key used to encrypt the seedless vault.
        */
       encryptedSeedlessEncryptionKey?: string;
@@ -170,6 +175,11 @@ export type SeedlessOnboardingControllerState =
        * This token is used to access the metadata service before the vault is created or unlocked.
        */
       metadataAccessToken?: string;
+
+      /**
+       * Whether the user is authenticated with social login and TOPRF service.
+       */
+      isSeedlessOnboardingUserAuthenticated: boolean;
     };
 
 // Actions
@@ -181,7 +191,7 @@ export type SeedlessOnboardingControllerGetStateAction =
 export type SeedlessOnboardingControllerActions =
   SeedlessOnboardingControllerGetStateAction;
 
-export type AllowedActions = never;
+type AllowedActions = never;
 
 // Events
 export type SeedlessOnboardingControllerStateChangeEvent =
@@ -192,9 +202,7 @@ export type SeedlessOnboardingControllerStateChangeEvent =
 export type SeedlessOnboardingControllerEvents =
   SeedlessOnboardingControllerStateChangeEvent;
 
-export type AllowedEvents =
-  | KeyringControllerLockEvent
-  | KeyringControllerUnlockEvent;
+type AllowedEvents = never;
 
 // Messenger
 export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<
@@ -245,7 +253,15 @@ export type RefreshJWTToken = (params: {
 export type RevokeRefreshToken = (params: {
   connection: AuthConnection;
   revokeToken: string;
-}) => Promise<{ newRevokeToken: string; newRefreshToken: string }>;
+}) => Promise<void>;
+
+export type RenewRefreshToken = (params: {
+  connection: AuthConnection;
+  revokeToken: string;
+}) => Promise<{
+  newRevokeToken: string;
+  newRefreshToken: string;
+}>;
 
 /**
  * Seedless Onboarding Controller Options.
@@ -276,9 +292,13 @@ export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
 
   /**
    * A function to revoke the refresh token.
-   * And get new refresh token and revoke token.
    */
   revokeRefreshToken: RevokeRefreshToken;
+
+  /**
+   * A function to renew the refresh token and get new revoke token.
+   */
+  renewRefreshToken: RenewRefreshToken;
 
   /**
    * Optional key derivation interface for the TOPRF client.
@@ -298,6 +318,13 @@ export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
    * @default Web3AuthNetwork.Mainnet
    */
   network?: Web3AuthNetwork;
+
+  /**
+   * The TTL of the password outdated cache in milliseconds.
+   *
+   * @default PASSWORD_OUTDATED_CACHE_TTL_MS
+   */
+  passwordOutdatedCacheTTL?: number;
 };
 
 /**
@@ -317,10 +344,6 @@ export type MutuallyExclusiveCallback<Result> = ({
  */
 export type VaultData = {
   /**
-   * The node auth tokens from OAuth User authentication after the Social login.
-   */
-  authTokens: NodeAuthTokens;
-  /**
    * The encryption key to encrypt the seed phrase.
    */
   toprfEncryptionKey: string;
@@ -334,12 +357,22 @@ export type VaultData = {
   toprfAuthKeyPair: string;
   /**
    * The revoke token to revoke refresh token and get new refresh token and new revoke token.
+   * The revoke token may no longer be available after a large number of password changes. In this case, re-authentication is advised.
    */
-  revokeToken: string;
+  revokeToken?: string;
   /**
    * The access token used for pairing with profile sync auth service and to access other services.
    */
   accessToken: string;
+};
+
+export type DeserializedVaultData = Pick<
+  VaultData,
+  'accessToken' | 'revokeToken'
+> & {
+  toprfEncryptionKey: Uint8Array;
+  toprfPwEncryptionKey: Uint8Array;
+  toprfAuthKeyPair: KeyPair;
 };
 
 export type SecretDataType = Uint8Array | string | number;

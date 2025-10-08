@@ -2,6 +2,7 @@ import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { TxData } from '@metamask/bridge-controller';
 import {
   ChainId,
+  formatChainIdToCaip,
   formatChainIdToHex,
   getEthUsdtResetData,
   isCrossChain,
@@ -10,7 +11,6 @@ import {
   type QuoteResponse,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
-import { SolScope } from '@metamask/keyring-api';
 import type {
   BatchTransactionParams,
   TransactionController,
@@ -25,8 +25,9 @@ import { BigNumber } from 'bignumber.js';
 import { v4 as uuid } from 'uuid';
 
 import { calculateGasFees } from './gas';
+import { createClientTransactionRequest } from './snaps';
 import type { TransactionBatchSingleRequest } from '../../../transaction-controller/src/types';
-import { LINEA_DELAY_MS } from '../constants';
+import { APPROVAL_DELAY_MS } from '../constants';
 import type {
   BridgeStatusControllerMessenger,
   SolanaTransactionMeta,
@@ -36,7 +37,7 @@ export const generateActionId = () => (Date.now() + Math.random()).toString();
 
 export const getUSDTAllowanceResetTx = async (
   messagingSystem: BridgeStatusControllerMessenger,
-  quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
+  quoteResponse: QuoteResponse<TxData | string> & Partial<QuoteMetadata>,
 ) => {
   const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
   if (
@@ -51,7 +52,7 @@ export const getUSDTAllowanceResetTx = async (
       ),
     );
     const shouldResetApproval =
-      allowance.lt(quoteResponse.sentAmount.amount) && allowance.gt(0);
+      allowance.lt(quoteResponse.sentAmount?.amount ?? '0') && allowance.gt(0);
     if (shouldResetApproval) {
       return { ...quoteResponse.approval, data: getEthUsdtResetData() };
     }
@@ -78,10 +79,19 @@ export const getTxMetaFields = (
   approvalTxId?: string,
 ): Omit<
   TransactionMeta,
-  'networkClientId' | 'status' | 'time' | 'txParams' | 'id'
+  'networkClientId' | 'status' | 'time' | 'txParams' | 'id' | 'chainId'
 > => {
+  // Handle destination chain ID - should always be convertible for EVM destinations
+  let destinationChainId;
+  try {
+    destinationChainId = formatChainIdToHex(quoteResponse.quote.destChainId);
+  } catch {
+    // Fallback for non-EVM destination (shouldn't happen for BTC->EVM)
+    destinationChainId = '0x1' as `0x${string}`; // Default to mainnet
+  }
+
   return {
-    destinationChainId: formatChainIdToHex(quoteResponse.quote.destChainId),
+    destinationChainId,
     sourceTokenAmount: quoteResponse.quote.srcTokenAmount,
     sourceTokenSymbol: quoteResponse.quote.srcAsset.symbol,
     sourceTokenDecimals: quoteResponse.quote.srcAsset.decimals,
@@ -92,19 +102,34 @@ export const getTxMetaFields = (
     destinationTokenDecimals: quoteResponse.quote.destAsset.decimals,
     destinationTokenAddress: quoteResponse.quote.destAsset.address,
 
-    chainId: formatChainIdToHex(quoteResponse.quote.srcChainId),
+    // chainId is now excluded from this function and handled by the caller
     approvalTxId,
     // this is the decimal (non atomic) amount (not USD value) of source token to swap
     swapTokenValue: quoteResponse.sentAmount.amount,
   };
 };
 
-export const handleSolanaTxResponse = (
+/**
+ * Handles the response from non-EVM transaction submission
+ * Works with the new unified ClientRequest:signAndSendTransaction interface
+ * Supports Solana, Bitcoin, and other non-EVM chains
+ *
+ * @param snapResponse - The response from the snap after transaction submission
+ * @param quoteResponse - The quote response containing trade details and metadata
+ * @param selectedAccount - The selected account information
+ * @returns The transaction metadata including non-EVM specific fields
+ */
+export const handleNonEvmTxResponse = (
   snapResponse:
     | string
+    | { transactionId: string } // New unified interface response
     | { result: Record<string, string> }
     | { signature: string },
-  quoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata,
+  quoteResponse: Omit<
+    QuoteResponse<string | { unsignedPsbtBase64: string }>,
+    'approval'
+  > &
+    QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
 ): TransactionMeta & SolanaTransactionMeta => {
   const selectedAccountAddress = selectedAccount.address;
@@ -114,9 +139,10 @@ export const handleSolanaTxResponse = (
   if (typeof snapResponse === 'string') {
     hash = snapResponse;
   } else if (snapResponse && typeof snapResponse === 'object') {
-    // If it's an object with result property, try to get the signature
-    if (
-      typeof snapResponse === 'object' &&
+    // Check for new unified interface response format first
+    if ('transactionId' in snapResponse && snapResponse.transactionId) {
+      hash = snapResponse.transactionId;
+    } else if (
       'result' in snapResponse &&
       snapResponse.result &&
       typeof snapResponse.result === 'object'
@@ -127,9 +153,7 @@ export const handleSolanaTxResponse = (
         snapResponse.result.txid ||
         snapResponse.result.hash ||
         snapResponse.result.txHash;
-    }
-    if (
-      typeof snapResponse === 'object' &&
+    } else if (
       'signature' in snapResponse &&
       snapResponse.signature &&
       typeof snapResponse.signature === 'string'
@@ -138,66 +162,108 @@ export const handleSolanaTxResponse = (
     }
   }
 
-  const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
   const isBridgeTx = isCrossChain(
     quoteResponse.quote.srcChainId,
     quoteResponse.quote.destChainId,
   );
 
+  let hexChainId;
+  try {
+    hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
+  } catch {
+    // TODO: Fix chain ID activity list handling for Bitcoin
+    // Fallback to Ethereum mainnet for now
+    hexChainId = '0x1' as `0x${string}`;
+  }
+
+  // Extract the transaction data for storage
+  const tradeData =
+    typeof quoteResponse.trade === 'string'
+      ? quoteResponse.trade
+      : quoteResponse.trade.unsignedPsbtBase64;
+
   // Create a transaction meta object with bridge-specific fields
   return {
     ...getTxMetaFields(quoteResponse),
     time: Date.now(),
-    id: uuid(),
+    id: hash ?? uuid(),
     chainId: hexChainId,
     networkClientId: snapId ?? hexChainId,
-    txParams: { from: selectedAccountAddress, data: quoteResponse.trade },
+    txParams: { from: selectedAccountAddress, data: tradeData },
     type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
     status: TransactionStatus.submitted,
     hash, // Add the transaction signature as hash
     origin: snapId,
-    // Add an explicit bridge flag to mark this as a Solana transaction
-    isSolana: true, // TODO deprecate this and use chainId
+    // Add an explicit flag to mark this as a non-EVM transaction
+    isSolana: true, // TODO deprecate this and use chainId to detect non-EVM chains
     isBridgeTx,
   };
 };
 
-export const handleLineaDelay = async (
+export const handleApprovalDelay = async (
   quoteResponse: QuoteResponse<TxData | string>,
 ) => {
-  if (ChainId.LINEA === quoteResponse.quote.srcChainId) {
+  if ([ChainId.LINEA, ChainId.BASE].includes(quoteResponse.quote.srcChainId)) {
     const debugLog = createProjectLogger('bridge');
     debugLog(
-      'Delaying submitting bridge tx to make Linea confirmation more likely',
+      'Delaying submitting bridge tx to make Linea and Base confirmation more likely',
     );
     const waitPromise = new Promise((resolve) =>
-      setTimeout(resolve, LINEA_DELAY_MS),
+      setTimeout(resolve, APPROVAL_DELAY_MS),
     );
     await waitPromise;
   }
 };
 
+/**
+ * Adds a delay for hardware wallet transactions on mobile to fix an issue
+ * where the Ledger does not get prompted for the 2nd approval.
+ * Extension does not have this issue.
+ *
+ * @param requireApproval - Whether the delay should be applied
+ */
+export const handleMobileHardwareWalletDelay = async (
+  requireApproval: boolean,
+) => {
+  if (requireApproval) {
+    const mobileHardwareWalletDelay = new Promise((resolve) =>
+      setTimeout(resolve, 1000),
+    );
+    await mobileHardwareWalletDelay;
+  }
+};
+
+/**
+ * Creates a request to sign and send a transaction for non-EVM chains
+ * Uses the new unified ClientRequest:signAndSendTransaction interface
+ *
+ * @param quoteResponse - The quote response containing trade details and metadata
+ * @param selectedAccount - The selected account information
+ * @returns The snap request object for signing and sending transaction
+ */
 export const getClientRequest = (
-  quoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata,
+  quoteResponse: Omit<
+    QuoteResponse<string | { unsignedPsbtBase64: string }>,
+    'approval'
+  > &
+    QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
 ) => {
-  const clientReqId = uuid();
+  const scope = formatChainIdToCaip(quoteResponse.quote.srcChainId);
 
-  return {
-    origin: 'metamask',
-    snapId: selectedAccount.metadata.snap?.id as never,
-    handler: 'onClientRequest' as never,
-    request: {
-      id: clientReqId,
-      jsonrpc: '2.0',
-      method: 'signAndSendTransactionWithoutConfirmation',
-      params: {
-        account: { address: selectedAccount.address },
-        transaction: quoteResponse.trade,
-        scope: SolScope.Mainnet,
-      },
-    },
-  };
+  // Extract the transaction data - Bitcoin uses unsignedPsbtBase64, others use string
+  const transactionData =
+    typeof quoteResponse.trade === 'string'
+      ? quoteResponse.trade
+      : quoteResponse.trade.unsignedPsbtBase64;
+
+  // Use the new unified interface
+  return createClientTransactionRequest(
+    selectedAccount.metadata.snap?.id as string,
+    transactionData,
+    scope,
+    selectedAccount.id,
+  );
 };
 
 export const toBatchTxParams = (
@@ -237,7 +303,10 @@ export const getAddTransactionBatchParams = async ({
     quote: {
       feeData: { txFee },
       gasIncluded,
+      gasIncluded7702,
     },
+    sentAmount,
+    toTokenAmount,
   },
   requireApproval = false,
   estimateGasFeeFn,
@@ -245,12 +314,14 @@ export const getAddTransactionBatchParams = async ({
   messagingSystem: BridgeStatusControllerMessenger;
   isBridgeTx: boolean;
   trade: TxData;
-  quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> & QuoteMetadata;
+  quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> &
+    Partial<QuoteMetadata>;
   estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
   approval?: TxData;
   resetApproval?: TxData;
   requireApproval?: boolean;
 }) => {
+  const isGasless = gasIncluded || gasIncluded7702;
   const selectedAccount = messagingSystem.call(
     'AccountsController:getAccountByAddress',
     trade.from,
@@ -266,8 +337,9 @@ export const getAddTransactionBatchParams = async ({
     hexChainId,
   );
 
-  // 7702 enables gasless txs for smart accounts, so we disable it for now
-  const disable7702 = true;
+  // When an active quote has gasIncluded7702 set to true,
+  // enable 7702 gasless txs for smart accounts
+  const disable7702 = gasIncluded7702 !== true;
   const transactions: TransactionBatchSingleRequest[] = [];
   if (resetApproval) {
     const gasFees = await calculateGasFees(
@@ -277,7 +349,7 @@ export const getAddTransactionBatchParams = async ({
       resetApproval,
       networkClientId,
       hexChainId,
-      gasIncluded ? txFee : undefined,
+      isGasless ? txFee : undefined,
     );
     transactions.push({
       type: isBridgeTx
@@ -294,7 +366,7 @@ export const getAddTransactionBatchParams = async ({
       approval,
       networkClientId,
       hexChainId,
-      gasIncluded ? txFee : undefined,
+      isGasless ? txFee : undefined,
     );
     transactions.push({
       type: isBridgeTx
@@ -310,16 +382,21 @@ export const getAddTransactionBatchParams = async ({
     trade,
     networkClientId,
     hexChainId,
-    gasIncluded ? txFee : undefined,
+    isGasless ? txFee : undefined,
   );
   transactions.push({
     type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
     params: toBatchTxParams(disable7702, trade, gasFees),
+    assetsFiatValues: {
+      sending: sentAmount?.valueInCurrency?.toString(),
+      receiving: toTokenAmount?.valueInCurrency?.toString(),
+    },
   });
   const transactionParams: Parameters<
     TransactionController['addTransactionBatch']
   >[0] = {
     disable7702,
+    isGasFeeIncluded: Boolean(gasIncluded7702),
     networkClientId,
     requireApproval,
     origin: 'metamask',
@@ -355,9 +432,41 @@ export const findAndUpdateTransactionsInBatch = ({
   // This is a workaround to update the tx type after the tx is signed
   // TODO: remove this once the tx type for batch txs is preserved in the tx controller
   Object.entries(txDataByType).forEach(([txType, txData]) => {
-    const txMeta = txs.find(
-      (tx) => tx.batchId === batchId && tx.txParams.data === txData,
-    );
+    // Find transaction by batchId and either matching data or delegation characteristics
+    const txMeta = txs.find((tx) => {
+      if (tx.batchId !== batchId) {
+        return false;
+      }
+
+      // For 7702 delegated transactions, check for delegation-specific fields
+      // These transactions might have authorizationList or delegationAddress
+      const is7702Transaction =
+        (Array.isArray(tx.txParams.authorizationList) &&
+          tx.txParams.authorizationList.length > 0) ||
+        Boolean(tx.delegationAddress);
+
+      if (is7702Transaction) {
+        // For 7702 transactions, we need to match based on transaction type
+        // since the data field might be different (batch execute call)
+        if (
+          txType === TransactionType.swap &&
+          tx.type === TransactionType.batch
+        ) {
+          return true;
+        }
+        // Also check if it's an approval transaction for 7702
+        if (
+          txType === TransactionType.swapApproval &&
+          tx.txParams.data === txData
+        ) {
+          return true;
+        }
+      }
+
+      // Default matching logic for non-7702 transactions
+      return tx.txParams.data === txData;
+    });
+
     if (txMeta) {
       const updatedTx = { ...txMeta, type: txType as TransactionType };
       updateTransactionFn(updatedTx, `Update tx type to ${txType}`);

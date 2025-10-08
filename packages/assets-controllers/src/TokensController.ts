@@ -90,16 +90,22 @@ export type TokensControllerState = {
 
 const metadata = {
   allTokens: {
+    includeInStateLogs: false,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   allIgnoredTokens: {
+    includeInStateLogs: false,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   allDetectedTokens: {
+    includeInStateLogs: false,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 };
 
@@ -107,7 +113,8 @@ const controllerName = 'TokensController';
 
 export type TokensControllerActions =
   | TokensControllerGetStateAction
-  | TokensControllerAddDetectedTokensAction;
+  | TokensControllerAddDetectedTokensAction
+  | TokensControllerAddTokensAction;
 
 export type TokensControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -117,6 +124,11 @@ export type TokensControllerGetStateAction = ControllerGetStateAction<
 export type TokensControllerAddDetectedTokensAction = {
   type: `${typeof controllerName}:addDetectedTokens`;
   handler: TokensController['addDetectedTokens'];
+};
+
+export type TokensControllerAddTokensAction = {
+  type: `${typeof controllerName}:addTokens`;
+  handler: TokensController['addTokens'];
 };
 
 /**
@@ -215,6 +227,11 @@ export class TokensController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:addDetectedTokens` as const,
       this.addDetectedTokens.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:addTokens` as const,
+      this.addTokens.bind(this),
     );
 
     this.messagingSystem.subscribe(

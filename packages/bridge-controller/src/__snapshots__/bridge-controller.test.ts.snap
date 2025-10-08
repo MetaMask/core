@@ -55,7 +55,7 @@ Array [
   Array [
     "Unified SwapBridge Completed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "actual_time_minutes": 10,
       "approval_transaction": "PENDING",
       "chain_id_destination": "eip155:10",
@@ -63,13 +63,13 @@ Array [
       "custom_slippage": true,
       "destination_transaction": "PENDING",
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 6,
       "provider": "provider_bridge",
       "quote_vs_execution_ratio": 1,
       "quoted_time_minutes": 0,
       "quoted_vs_used_gas_ratio": 1,
-      "security_warnings": Array [],
       "source_transaction": "PENDING",
       "stx_enabled": false,
       "swap_type": "crosschain",
@@ -92,17 +92,17 @@ Array [
   Array [
     "Unified SwapBridge Failed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "actual_time_minutes": 10,
       "allowance_reset_transaction": "PENDING",
       "approval_transaction": "PENDING",
-      "can_submit": true,
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
       "destination_transaction": "PENDING",
       "error_message": "error_message",
       "gas_included": false,
+      "gas_included_7702": false,
       "initial_load_time_all_quotes": 0,
       "is_hardware_wallet": false,
       "price_impact": 0,
@@ -132,13 +132,13 @@ Array [
   Array [
     "Unified SwapBridge Failed",
     Object {
-      "action_type": "crosschain-v1",
-      "can_submit": true,
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": true,
       "error_message": "Failed to submit tx",
       "gas_included": false,
+      "gas_included_7702": false,
       "initial_load_time_all_quotes": 0,
       "is_hardware_wallet": false,
       "price_impact": 12,
@@ -164,26 +164,15 @@ Array [
 ]
 `;
 
-exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the SnapConfirmationViewed event 1`] = `
+exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the StatusValidationFailed event 1`] = `
 Array [
   Array [
-    "Unified SwapBridge Snap Confirmation Page Viewed",
+    "Unified SwapBridge Status Failed Validation",
     Object {
-      "action_type": "crosschain-v1",
-      "chain_id_destination": null,
-      "chain_id_source": "eip155:1",
-      "custom_slippage": false,
-      "gas_included": false,
-      "is_hardware_wallet": false,
-      "price_impact": 0,
-      "provider": "provider_bridge",
-      "quoted_time_minutes": 0,
-      "slippage_limit": undefined,
-      "swap_type": "crosschain",
-      "token_address_destination": null,
-      "token_address_source": "eip155:1/slip44:60",
-      "usd_quoted_gas": 0,
-      "usd_quoted_return": 0,
+      "action_type": "swapbridge-v1",
+      "failures": Array [
+        "Failed to submit tx",
+      ],
     },
   ],
 ]
@@ -194,27 +183,19 @@ Array [
   Array [
     "Unified SwapBridge Submitted",
     Object {
-      "action_type": "crosschain-v1",
-      "can_submit": true,
-      "chain_id_destination": "eip155:10",
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-      "custom_slippage": true,
+      "custom_slippage": false,
       "gas_included": false,
-      "initial_load_time_all_quotes": 0,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 12,
       "provider": "provider_bridge",
       "quoted_time_minutes": 2,
-      "quotes_count": 2,
-      "quotes_list": Array [
-        "lifi_mayan",
-        "lifi_mayanMCTP",
-      ],
       "slippage_limit": 0.5,
       "stx_enabled": false,
       "swap_type": "crosschain",
-      "token_address_destination": "eip155:10/erc20:0x1234",
-      "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:NATIVE",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -230,7 +211,7 @@ Array [
   Array [
     "Unified SwapBridge All Quotes Opened",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "can_submit": true,
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
@@ -258,7 +239,7 @@ Array [
   Array [
     "Unified SwapBridge All Quotes Sorted",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
       "can_submit": true,
       "chain_id_destination": null,
@@ -283,12 +264,28 @@ Array [
 ]
 `;
 
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the AssetDetailTooltipClicked event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Asset Detail Tooltip Clicked",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id": "1",
+      "chain_name": "Ethereum",
+      "token_contract": "0x123",
+      "token_name": "ETH",
+      "token_symbol": "ETH",
+    },
+  ],
+]
+`;
+
 exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the ButtonClicked event 1`] = `
 Array [
   Array [
     "Unified SwapBridge Button Clicked",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "location": "Main View",
@@ -304,9 +301,9 @@ Array [
 exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the InputSourceDestinationFlipped event 1`] = `
 Array [
   Array [
-    "Unified SwapBridge Source Destination Flipped",
+    "Unified SwapBridge Source Destination Switched",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
       "security_warnings": Array [
@@ -327,7 +324,7 @@ Array [
     "Unified SwapBridge Page Viewed",
     Object {
       "abc": 1,
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "token_address_destination": null,
@@ -342,13 +339,14 @@ Array [
   Array [
     "Unified SwapBridge Quote Selected",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
-      "can_submit": true,
+      "can_submit": false,
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "initial_load_time_all_quotes": 0,
       "is_best_quote": true,
       "is_hardware_wallet": false,
@@ -371,15 +369,32 @@ Array [
 exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the QuotesReceived event 1`] = `
 Array [
   Array [
+    "NetworkController:getState",
+  ],
+  Array [
+    "NetworkController:getNetworkClientById",
+    "selectedNetworkClientId",
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0x123",
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the QuotesReceived event 2`] = `
+Array [
+  Array [
     "Unified SwapBridge Quotes Received",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
       "can_submit": true,
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "initial_load_time_all_quotes": 0,
       "is_hardware_wallet": false,
       "price_impact": 0,
@@ -407,39 +422,39 @@ Array [
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "chain_source",
-      "value": "eip155:1",
+      "input_value": "eip155:1",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "chain_destination",
-      "value": "eip155:10",
+      "input_value": "eip155:10",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "token_destination",
-      "value": "eip155:10/erc20:0x123",
+      "input_value": "eip155:10/erc20:0x123",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "slippage",
-      "value": 0.5,
+      "input_value": 0.5,
     },
   ],
   Array [
     "Unified SwapBridge Quotes Requested",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -460,13 +475,14 @@ Array [
   Array [
     "Unified SwapBridge Quotes Received",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
-      "can_submit": false,
+      "can_submit": true,
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
       "gas_included": false,
+      "gas_included_7702": false,
       "initial_load_time_all_quotes": 11000,
       "is_hardware_wallet": false,
       "price_impact": 0,
@@ -532,11 +548,14 @@ Array [
   Array [
     "SnapController:handleRequest",
     Object {
-      "handler": "onRpcRequest",
+      "handler": "onClientRequest",
       "origin": "metamask",
       "request": Object {
-        "method": "getFeeForTransaction",
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "computeFee",
         "params": Object {
+          "accountId": "account1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
         },
@@ -547,11 +566,14 @@ Array [
   Array [
     "SnapController:handleRequest",
     Object {
-      "handler": "onRpcRequest",
+      "handler": "onClientRequest",
       "origin": "metamask",
       "request": Object {
-        "method": "getFeeForTransaction",
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "computeFee",
         "params": Object {
+          "accountId": "account1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
         },
@@ -588,11 +610,14 @@ Array [
   Array [
     "SnapController:handleRequest",
     Object {
-      "handler": "onRpcRequest",
+      "handler": "onClientRequest",
       "origin": "metamask",
       "request": Object {
-        "method": "getFeeForTransaction",
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "computeFee",
         "params": Object {
+          "accountId": "account1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
         },
@@ -603,11 +628,14 @@ Array [
   Array [
     "SnapController:handleRequest",
     Object {
-      "handler": "onRpcRequest",
+      "handler": "onClientRequest",
       "origin": "metamask",
       "request": Object {
-        "method": "getFeeForTransaction",
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "computeFee",
         "params": Object {
+          "accountId": "account1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
         },
@@ -644,11 +672,14 @@ Array [
   Array [
     "SnapController:handleRequest",
     Object {
-      "handler": "onRpcRequest",
+      "handler": "onClientRequest",
       "origin": "metamask",
       "request": Object {
-        "method": "getFeeForTransaction",
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "computeFee",
         "params": Object {
+          "accountId": "account1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
         },
@@ -659,11 +690,14 @@ Array [
   Array [
     "SnapController:handleRequest",
     Object {
-      "handler": "onRpcRequest",
+      "handler": "onClientRequest",
       "origin": "metamask",
       "request": Object {
-        "method": "getFeeForTransaction",
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "computeFee",
         "params": Object {
+          "accountId": "account1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
         },
@@ -700,11 +734,14 @@ Array [
   Array [
     "SnapController:handleRequest",
     Object {
-      "handler": "onRpcRequest",
+      "handler": "onClientRequest",
       "origin": "metamask",
       "request": Object {
-        "method": "getFeeForTransaction",
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "computeFee",
         "params": Object {
+          "accountId": "account1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
         },
@@ -715,11 +752,14 @@ Array [
   Array [
     "SnapController:handleRequest",
     Object {
-      "handler": "onRpcRequest",
+      "handler": "onClientRequest",
       "origin": "metamask",
       "request": Object {
-        "method": "getFeeForTransaction",
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "computeFee",
         "params": Object {
+          "accountId": "account1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
         },
@@ -791,39 +831,39 @@ Array [
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "chain_source",
-      "value": "eip155:1",
+      "input_value": "eip155:1",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "chain_destination",
-      "value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "token_destination",
-      "value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "slippage",
-      "value": 0.5,
+      "input_value": 0.5,
     },
   ],
   Array [
     "Unified SwapBridge Quotes Requested",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -844,7 +884,7 @@ Array [
   Array [
     "Unified SwapBridge Quotes Requested",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -865,7 +905,7 @@ Array [
   Array [
     "Unified SwapBridge Quotes Requested",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -884,9 +924,9 @@ Array [
     },
   ],
   Array [
-    "Unified SwapBridge Quote Error",
+    "Unified SwapBridge Quotes Error",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -908,7 +948,7 @@ Array [
   Array [
     "Unified SwapBridge Quotes Requested",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -932,9 +972,9 @@ Array [
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "chain_source",
-      "value": "eip155:1",
+      "input_value": "eip155:1",
     },
   ],
   Array [
@@ -942,15 +982,15 @@ Array [
     Object {
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
-      "value": "eip155:10",
+      "input_value": "eip155:10",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "slippage",
-      "value": 0.5,
+      "input_value": 0.5,
     },
   ],
 ]
@@ -987,11 +1027,14 @@ Array [
   Array [
     "SnapController:handleRequest",
     Object {
-      "handler": "onRpcRequest",
+      "handler": "onClientRequest",
       "origin": "metamask",
       "request": Object {
-        "method": "getFeeForTransaction",
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "computeFee",
         "params": Object {
+          "accountId": "account1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
         },
@@ -1002,16 +1045,73 @@ Array [
   Array [
     "SnapController:handleRequest",
     Object {
-      "handler": "onRpcRequest",
+      "handler": "onClientRequest",
       "origin": "metamask",
       "request": Object {
-        "method": "getFeeForTransaction",
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "computeFee",
         "params": Object {
+          "accountId": "account1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
         },
       },
       "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should append solanaFees for Solana quotes 2`] = `Array []`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should handle malformed quotes 1`] = `
+Array [
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should handle malformed quotes 2`] = `
+Array [
+  Array [
+    "Unified SwapBridge Quotes Failed Validation",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "failures": Array [
+        "socket|quote.srcAsset.decimals",
+        "socket|quote.destAsset.address",
+        "lifi|quote.srcAsset.decimals",
+      ],
+      "refresh_count": 0,
+      "token_address_destination": "eip155:1/slip44:60",
+      "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:NATIVE",
     },
   ],
 ]
@@ -1048,4 +1148,8 @@ Array [
 ]
 `;
 
+exports[`BridgeController updateBridgeQuoteRequestParams: should handle mixed Solana and non-Solana quotes by not appending fees 2`] = `Array []`;
+
 exports[`BridgeController updateBridgeQuoteRequestParams: should not append solanaFees if selected account is not a snap 1`] = `Array []`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should not append solanaFees if selected account is not a snap 2`] = `Array []`;

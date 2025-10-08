@@ -36,22 +36,27 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/delegation-controller`](packages/delegation-controller)
 - [`@metamask/earn-controller`](packages/earn-controller)
+- [`@metamask/eip-5792-middleware`](packages/eip-5792-middleware)
 - [`@metamask/eip1193-permission-middleware`](packages/eip1193-permission-middleware)
 - [`@metamask/ens-controller`](packages/ens-controller)
 - [`@metamask/error-reporting-service`](packages/error-reporting-service)
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
 - [`@metamask/foundryup`](packages/foundryup)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
+- [`@metamask/gator-permissions-controller`](packages/gator-permissions-controller)
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
+- [`@metamask/messenger`](packages/messenger)
+- [`@metamask/multichain-account-service`](packages/multichain-account-service)
 - [`@metamask/multichain-api-middleware`](packages/multichain-api-middleware)
 - [`@metamask/multichain-network-controller`](packages/multichain-network-controller)
 - [`@metamask/multichain-transactions-controller`](packages/multichain-transactions-controller)
 - [`@metamask/name-controller`](packages/name-controller)
 - [`@metamask/network-controller`](packages/network-controller)
+- [`@metamask/network-enablement-controller`](packages/network-enablement-controller)
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
@@ -64,7 +69,9 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/sample-controllers`](packages/sample-controllers)
 - [`@metamask/seedless-onboarding-controller`](packages/seedless-onboarding-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
+- [`@metamask/shield-controller`](packages/shield-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
+- [`@metamask/subscription-controller`](packages/subscription-controller)
 - [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
@@ -93,22 +100,27 @@ linkStyle default opacity:0.5
   controller_utils(["@metamask/controller-utils"]);
   delegation_controller(["@metamask/delegation-controller"]);
   earn_controller(["@metamask/earn-controller"]);
+  eip_5792_middleware(["@metamask/eip-5792-middleware"]);
   eip1193_permission_middleware(["@metamask/eip1193-permission-middleware"]);
   ens_controller(["@metamask/ens-controller"]);
   error_reporting_service(["@metamask/error-reporting-service"]);
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
   foundryup(["@metamask/foundryup"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
+  gator_permissions_controller(["@metamask/gator-permissions-controller"]);
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
+  messenger(["@metamask/messenger"]);
+  multichain_account_service(["@metamask/multichain-account-service"]);
   multichain_api_middleware(["@metamask/multichain-api-middleware"]);
   multichain_network_controller(["@metamask/multichain-network-controller"]);
   multichain_transactions_controller(["@metamask/multichain-transactions-controller"]);
   name_controller(["@metamask/name-controller"]);
   network_controller(["@metamask/network-controller"]);
+  network_enablement_controller(["@metamask/network-enablement-controller"]);
   notification_services_controller(["@metamask/notification-services-controller"]);
   permission_controller(["@metamask/permission-controller"]);
   permission_log_controller(["@metamask/permission-log-controller"]);
@@ -121,14 +133,19 @@ linkStyle default opacity:0.5
   sample_controllers(["@metamask/sample-controllers"]);
   seedless_onboarding_controller(["@metamask/seedless-onboarding-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
+  shield_controller(["@metamask/shield-controller"]);
   signature_controller(["@metamask/signature-controller"]);
+  subscription_controller(["@metamask/subscription-controller"]);
   token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
   account_tree_controller --> base_controller;
   account_tree_controller --> accounts_controller;
   account_tree_controller --> keyring_controller;
+  account_tree_controller --> multichain_account_service;
+  account_tree_controller --> profile_sync_controller;
   accounts_controller --> base_controller;
+  accounts_controller --> controller_utils;
   accounts_controller --> keyring_controller;
   accounts_controller --> network_controller;
   address_book_controller --> base_controller;
@@ -139,14 +156,17 @@ linkStyle default opacity:0.5
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
   assets_controllers --> polling_controller;
+  assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;
   assets_controllers --> keyring_controller;
+  assets_controllers --> multichain_account_service;
   assets_controllers --> network_controller;
   assets_controllers --> permission_controller;
   assets_controllers --> phishing_controller;
   assets_controllers --> preferences_controller;
   assets_controllers --> transaction_controller;
+  base_controller --> messenger;
   base_controller --> json_rpc_engine;
   bridge_controller --> base_controller;
   bridge_controller --> controller_utils;
@@ -162,7 +182,6 @@ linkStyle default opacity:0.5
   bridge_status_controller --> base_controller;
   bridge_status_controller --> controller_utils;
   bridge_status_controller --> polling_controller;
-  bridge_status_controller --> user_operation_controller;
   bridge_status_controller --> accounts_controller;
   bridge_status_controller --> bridge_controller;
   bridge_status_controller --> gas_fee_controller;
@@ -178,9 +197,11 @@ linkStyle default opacity:0.5
   delegation_controller --> keyring_controller;
   earn_controller --> base_controller;
   earn_controller --> controller_utils;
-  earn_controller --> accounts_controller;
+  earn_controller --> account_tree_controller;
   earn_controller --> network_controller;
   earn_controller --> transaction_controller;
+  eip_5792_middleware --> transaction_controller;
+  eip_5792_middleware --> keyring_controller;
   eip1193_permission_middleware --> chain_agnostic_permission;
   eip1193_permission_middleware --> controller_utils;
   eip1193_permission_middleware --> json_rpc_engine;
@@ -194,12 +215,16 @@ linkStyle default opacity:0.5
   gas_fee_controller --> controller_utils;
   gas_fee_controller --> polling_controller;
   gas_fee_controller --> network_controller;
+  gator_permissions_controller --> base_controller;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
   logging_controller --> base_controller;
   logging_controller --> controller_utils;
   message_manager --> base_controller;
   message_manager --> controller_utils;
+  multichain_account_service --> base_controller;
+  multichain_account_service --> accounts_controller;
+  multichain_account_service --> keyring_controller;
   multichain_api_middleware --> chain_agnostic_permission;
   multichain_api_middleware --> controller_utils;
   multichain_api_middleware --> json_rpc_engine;
@@ -222,6 +247,11 @@ linkStyle default opacity:0.5
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
   network_controller --> error_reporting_service;
+  network_enablement_controller --> base_controller;
+  network_enablement_controller --> controller_utils;
+  network_enablement_controller --> multichain_network_controller;
+  network_enablement_controller --> network_controller;
+  network_enablement_controller --> transaction_controller;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
   notification_services_controller --> keyring_controller;
@@ -241,9 +271,8 @@ linkStyle default opacity:0.5
   preferences_controller --> controller_utils;
   preferences_controller --> keyring_controller;
   profile_sync_controller --> base_controller;
-  profile_sync_controller --> accounts_controller;
+  profile_sync_controller --> address_book_controller;
   profile_sync_controller --> keyring_controller;
-  profile_sync_controller --> network_controller;
   rate_limit_controller --> base_controller;
   remote_feature_flag_controller --> base_controller;
   remote_feature_flag_controller --> controller_utils;
@@ -256,6 +285,9 @@ linkStyle default opacity:0.5
   selected_network_controller --> json_rpc_engine;
   selected_network_controller --> network_controller;
   selected_network_controller --> permission_controller;
+  shield_controller --> base_controller;
+  shield_controller --> signature_controller;
+  shield_controller --> transaction_controller;
   signature_controller --> base_controller;
   signature_controller --> controller_utils;
   signature_controller --> accounts_controller;
@@ -263,6 +295,9 @@ linkStyle default opacity:0.5
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
   signature_controller --> network_controller;
+  subscription_controller --> base_controller;
+  subscription_controller --> controller_utils;
+  subscription_controller --> profile_sync_controller;
   token_search_discovery_controller --> base_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;

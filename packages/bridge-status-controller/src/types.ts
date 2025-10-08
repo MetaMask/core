@@ -1,7 +1,4 @@
-import type {
-  AccountsControllerGetAccountByAddressAction,
-  AccountsControllerGetSelectedMultichainAccountAction,
-} from '@metamask/accounts-controller';
+import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -11,6 +8,7 @@ import type {
   BridgeBackgroundAction,
   BridgeControllerAction,
   ChainId,
+  FeatureId,
   Quote,
   QuoteMetadata,
   QuoteResponse,
@@ -118,7 +116,8 @@ export type BridgeHistoryItem = {
      */
     amountSent: QuoteMetadata['sentAmount']['amount'];
     amountSentInUsd?: QuoteMetadata['sentAmount']['usd'];
-    quotedGasInUsd?: QuoteMetadata['gasFee']['usd'];
+    quotedGasInUsd?: QuoteMetadata['gasFee']['effective']['usd'];
+    quotedGasAmount?: QuoteMetadata['gasFee']['effective']['amount'];
     quotedReturnInUsd?: QuoteMetadata['toTokenAmount']['usd'];
     quotedRefuelSrcAmountInUsd?: string;
     quotedRefuelDestAmountInUsd?: string;
@@ -128,7 +127,16 @@ export type BridgeHistoryItem = {
   account: string;
   hasApprovalTx: boolean;
   approvalTxId?: string;
+  featureId?: FeatureId;
   isStxEnabled?: boolean;
+  /**
+   * Attempts tracking for exponential backoff on failed fetches.
+   * We track the number of attempts and the last attempt time for each txMetaId that has failed at least once
+   */
+  attempts?: {
+    counter: number;
+    lastAttemptTime: number; // timestamp in ms
+  };
 };
 
 export enum BridgeStatusAction {
@@ -137,6 +145,8 @@ export enum BridgeStatusAction {
   GET_STATE = 'getState',
   RESET_STATE = 'resetState',
   SUBMIT_TX = 'submitTx',
+  RESTART_POLLING_FOR_FAILED_ATTEMPTS = 'restartPollingForFailedAttempts',
+  GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID = 'getBridgeHistoryItemByTxMetaId',
 }
 
 export type TokenAmountValuesSerialized = {
@@ -186,6 +196,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
   approvalTxId?: BridgeHistoryItem['approvalTxId'];
   isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
+  accountAddress: string;
 };
 
 /**
@@ -197,7 +208,7 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
   StartPollingForBridgeTxStatusArgs,
   'quoteResponse'
 > & {
-  quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata;
+  quoteResponse: QuoteResponse<string | TxData> & Partial<QuoteMetadata>;
 };
 
 export type SourceChainTxMetaId = string;
@@ -232,12 +243,20 @@ export type BridgeStatusControllerResetStateAction =
 export type BridgeStatusControllerSubmitTxAction =
   BridgeStatusControllerAction<BridgeStatusAction.SUBMIT_TX>;
 
+export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
+  BridgeStatusControllerAction<BridgeStatusAction.RESTART_POLLING_FOR_FAILED_ATTEMPTS>;
+
+export type BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction =
+  BridgeStatusControllerAction<BridgeStatusAction.GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID>;
+
 export type BridgeStatusControllerActions =
   | BridgeStatusControllerStartPollingForBridgeTxStatusAction
   | BridgeStatusControllerWipeBridgeStatusAction
   | BridgeStatusControllerResetStateAction
   | BridgeStatusControllerGetStateAction
-  | BridgeStatusControllerSubmitTxAction;
+  | BridgeStatusControllerSubmitTxAction
+  | BridgeStatusControllerRestartPollingForFailedAttemptsAction
+  | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -255,7 +274,6 @@ type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | AccountsControllerGetSelectedMultichainAccountAction
   | HandleSnapRequest
   | TransactionControllerGetStateAction
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>

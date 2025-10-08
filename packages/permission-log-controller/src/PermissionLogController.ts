@@ -106,12 +106,16 @@ export class PermissionLogController extends BaseController<
       name,
       metadata: {
         permissionHistory: {
+          includeInStateLogs: true,
           persist: true,
           anonymous: false,
+          usedInUi: true,
         },
         permissionActivityLog: {
-          persist: true,
+          includeInStateLogs: true,
+          persist: false,
           anonymous: false,
+          usedInUi: false,
         },
       },
       state: { ...defaultState, ...state },

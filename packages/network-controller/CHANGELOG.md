@@ -9,6 +9,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+- Update `@metamask/eth-json-rpc-middleware` from `^17.0.1` to `^18.0.0` ([#6714](https://github.com/MetaMask/core/pull/6714))
+- Bump `@metamask/error-reporting-service` from `^2.1.0` to `^2.2.0` ([#6782](https://github.com/MetaMask/core/pull/6782))
+
+## [24.2.0]
+
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
+- Add `lookupNetwork` option to `initializeProvider`, to allow for skipping the request used to populate metadata for the globally selected network ([#6575](https://github.com/MetaMask/core/pull/6575), [#6607](https://github.com/MetaMask/core/pull/6607))
+  - If `lookupNetwork` is set to `false`, the function is fully synchronous, and does not return a promise.
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.4.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
+- Rephrase "circuit broken" errors so they are more user-friendly ([#6423](https://github.com/MetaMask/core/pull/6423))
+  - These are errors produced when a request is made to an RPC endpoint after it returns too many consecutive 5xx responses and the underlying circuit is open.
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/json-rpc-engine` from `^10.0.3` to `^10.1.0` ([#6678](https://github.com/MetaMask/core/pull/6678))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.8` to `^5.0.0` ([#6678](https://github.com/MetaMask/core/pull/6678))
+
+### Deprecated
+
+- Deprecate `lookupNetworkByClientId` ([#6308](https://github.com/MetaMask/core/pull/6308))
+  - `lookupNetwork` already supports passing in a network client ID; please use this going forward instead.
+
+## [24.1.0]
+
+### Added
+
+- The object in the `NetworkController:rpcEndpointDegraded` event payload now includes an `error` property, which can be used to access the error produced by the last request when the maximum number of retries is exceeded ([#6188](https://github.com/MetaMask/core/pull/6188))
+  - This `error` property will be `undefined` if the degraded event merely represents a slow request
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+  - This effectively changes the `onDegraded` property on `AbstractRpcService` so that the event listener payload may be an object with either a `endpointUrl` property, `error` + `endpointUrl` properties, or `value` + `endpointUrl` properties
+  - **NOTE:** Although `error` and `value` are new, optional properties, this change makes an inadvertent breaking change to the signature of the event listener due to how TypeScript compares function types. We have conciously decided not to re-release this change under a major version, so be advised.
+
+## [24.0.1]
+
+### Changed
+
 - Requests to an RPC endpoint that returns a 502 response ("bad gateway") will now be retried ([#5923](https://github.com/MetaMask/core/pull/5923))
 - All JSON-RPC errors that represent 4xx and 5xx responses from RPC endpoints now include the HTTP status code under `data.httpStatus` ([#5923](https://github.com/MetaMask/core/pull/5923))
 - 3xx responses from RPC endpoints are no longer treated as errors ([#5923](https://github.com/MetaMask/core/pull/5923))
@@ -903,7 +948,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.0...HEAD
+[24.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.1.0...@metamask/network-controller@24.2.0
+[24.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.1...@metamask/network-controller@24.1.0
+[24.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.0...@metamask/network-controller@24.0.1
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.6.0...@metamask/network-controller@24.0.0
 [23.6.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.1...@metamask/network-controller@23.6.0
 [23.5.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.0...@metamask/network-controller@23.5.1

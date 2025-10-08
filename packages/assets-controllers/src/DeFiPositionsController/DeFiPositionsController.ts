@@ -23,7 +23,7 @@ import {
 } from './group-defi-positions';
 import { reduceInBatchesSerially } from '../assetsUtil';
 
-const TEN_MINUTES_IN_MS = 60_000;
+const TEN_MINUTES_IN_MS = 600_000;
 
 const FETCH_POSITIONS_BATCH_SIZE = 10;
 
@@ -68,12 +68,16 @@ export type DeFiPositionsControllerState = {
 
 const controllerMetadata: StateMetadata<DeFiPositionsControllerState> = {
   allDeFiPositions: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   allDeFiPositionsCount: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: false,
+    usedInUi: false,
   },
 };
 

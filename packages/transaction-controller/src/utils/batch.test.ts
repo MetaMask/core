@@ -1,6 +1,7 @@
 import { ORIGIN_METAMASK, type AddResult } from '@metamask/approval-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { rpcErrors, errorCodes } from '@metamask/rpc-errors';
+import { cloneDeep } from 'lodash';
 
 import {
   ERROR_MESSAGE_NO_UPGRADE_CONTRACT,
@@ -78,18 +79,23 @@ const TRANSACTION_HASH_MOCK = '0x123';
 const TRANSACTION_HASH_2_MOCK = '0x456';
 const TRANSACTION_SIGNATURE_MOCK = '0xabc';
 const TRANSACTION_SIGNATURE_2_MOCK = '0xdef';
+const TRANSACTION_SIGNATURE_3_MOCK = '0xdef123';
 const ERROR_MESSAGE_MOCK = 'Test error';
 const SECURITY_ALERT_ID_MOCK = '123-456';
 const ORIGIN_MOCK = 'test.com';
 const UPGRADE_CONTRACT_ADDRESS_MOCK =
   '0xfedfedfedfedfedfedfedfedfedfedfedfedfedf';
+const NONCE_PREVIOUS_MOCK = '0x110';
+const NONCE_MOCK = '0x111';
+const NONCE_MOCK_2 = '0x112';
 
 const TRANSACTION_META_MOCK = {
   id: BATCH_ID_CUSTOM_MOCK,
   txParams: {
-    from: FROM_MOCK,
-    to: TO_MOCK,
     data: DATA_MOCK,
+    from: FROM_MOCK,
+    nonce: NONCE_MOCK,
+    to: TO_MOCK,
     value: VALUE_MOCK,
   },
 } as unknown as TransactionMeta;
@@ -278,16 +284,27 @@ describe('Batch Utils', () => {
 
     let getGasFeesMock: jest.Mock;
 
+    let getTransactionMock: jest.MockedFn<
+      AddBatchTransactionOptions['getTransaction']
+    >;
+
+    let signTransactionMock: jest.MockedFn<
+      AddBatchTransactionOptions['signTransaction']
+    >;
+
     let request: AddBatchTransactionOptions;
 
     beforeEach(() => {
       jest.resetAllMocks();
+
       addTransactionMock = jest.fn();
       getChainIdMock = jest.fn();
+      getTransactionMock = jest.fn();
       updateTransactionMock = jest.fn();
       publishTransactionMock = jest.fn();
       getPendingTransactionTrackerMock = jest.fn();
       updateMock = jest.fn();
+      signTransactionMock = jest.fn();
 
       getGasFeeEstimatesMock = jest
         .fn()
@@ -327,30 +344,34 @@ describe('Batch Utils', () => {
 
       doesChainSupportEIP7702Mock.mockReturnValue(true);
 
+      signTransactionMock.mockResolvedValue(TRANSACTION_SIGNATURE_3_MOCK);
+
       request = {
         addTransaction: addTransactionMock,
         getChainId: getChainIdMock,
         getEthQuery: GET_ETH_QUERY_MOCK,
+        getGasFeeEstimates: getGasFeeEstimatesMock,
         getInternalAccounts: GET_INTERNAL_ACCOUNTS_MOCK,
-        getTransaction: jest.fn(),
+        getPendingTransactionTracker: getPendingTransactionTrackerMock,
+        getSimulationConfig: jest.fn(),
+        getTransaction: getTransactionMock,
         isSimulationEnabled: jest.fn().mockReturnValue(true),
         messenger: MESSENGER_MOCK,
         publicKeyEIP7702: PUBLIC_KEY_MOCK,
+        publishTransaction: publishTransactionMock,
         request: {
           from: FROM_MOCK,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           origin: ORIGIN_MOCK,
           requireApproval: true,
-          transactions: TRANSACTIONS_BATCH_MOCK,
+          transactions: cloneDeep(TRANSACTIONS_BATCH_MOCK),
           disable7702: false,
           disableHook: false,
           disableSequential: false,
         },
-        updateTransaction: updateTransactionMock,
-        publishTransaction: publishTransactionMock,
-        getPendingTransactionTracker: getPendingTransactionTrackerMock,
+        signTransaction: signTransactionMock,
         update: updateMock,
-        getGasFeeEstimates: getGasFeeEstimatesMock,
+        updateTransaction: updateTransactionMock,
       };
     });
 
@@ -368,6 +389,101 @@ describe('Batch Utils', () => {
       const result = await addTransactionBatch(request);
 
       expect(result.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
+    });
+
+    it('preserves nested transaction types when disable7702 is true', async () => {
+      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+      mockRequestApproval(MESSENGER_MOCK, {
+        state: 'approved',
+      });
+
+      addTransactionMock
+        .mockResolvedValueOnce({
+          transactionMeta: {
+            ...TRANSACTION_META_MOCK,
+            id: TRANSACTION_ID_MOCK,
+          },
+          result: Promise.resolve(''),
+        })
+        .mockResolvedValueOnce({
+          transactionMeta: {
+            ...TRANSACTION_META_MOCK,
+            id: TRANSACTION_ID_2_MOCK,
+          },
+          result: Promise.resolve(''),
+        });
+      addTransactionBatch({
+        ...request,
+        publishBatchHook,
+        request: {
+          ...request.request,
+          transactions: [
+            {
+              ...request.request.transactions[0],
+              type: TransactionType.swap,
+            },
+            {
+              ...request.request.transactions[1],
+              type: TransactionType.bridge,
+            },
+          ],
+          disable7702: true,
+        },
+      }).catch(() => {
+        // Intentionally empty
+      });
+
+      await flushPromises();
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(2);
+      expect(addTransactionMock.mock.calls[0][1].type).toBe('swap');
+      expect(addTransactionMock.mock.calls[1][1].type).toBe('bridge');
+    });
+
+    it('preserves nested transaction types when disable7702 is false', async () => {
+      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      const result = await addTransactionBatch({
+        ...request,
+        publishBatchHook,
+        request: {
+          ...request.request,
+          transactions: [
+            {
+              ...request.request.transactions[0],
+              type: TransactionType.swapApproval,
+            },
+            {
+              ...request.request.transactions[1],
+              type: TransactionType.bridgeApproval,
+            },
+          ],
+          disable7702: false,
+        },
+      });
+
+      expect(result.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock.mock.calls[0][1].type).toStrictEqual(
+        TransactionType.batch,
+      );
+
+      expect(
+        addTransactionMock.mock.calls[0][1].nestedTransactions?.[0].type,
+      ).toBe(TransactionType.swapApproval);
+      expect(
+        addTransactionMock.mock.calls[0][1].nestedTransactions?.[1].type,
+      ).toBe(TransactionType.bridgeApproval);
     });
 
     it('returns provided batch ID', async () => {
@@ -419,6 +535,82 @@ describe('Batch Utils', () => {
           requireApproval: true,
         }),
       );
+    });
+
+    it('uses existing nonce if EIP-7702 and existing transaction specified', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      request.request.transactions[0].existingTransaction = {
+        id: TRANSACTION_ID_2_MOCK,
+        signedTransaction: TRANSACTION_SIGNATURE_MOCK,
+      };
+
+      getTransactionMock.mockReturnValueOnce({
+        txParams: {
+          nonce: NONCE_MOCK,
+        },
+      } as TransactionMeta);
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nonce: NONCE_MOCK,
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('invokes existing transaction onPublish if EIP-7702', async () => {
+      const onPublish = jest.fn();
+
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      request.request.transactions[0].existingTransaction = {
+        id: TRANSACTION_ID_2_MOCK,
+        signedTransaction: TRANSACTION_SIGNATURE_MOCK,
+        onPublish,
+      };
+
+      getTransactionMock.mockReturnValueOnce({} as TransactionMeta);
+
+      addTransactionMock.mockReset();
+      addTransactionMock.mockResolvedValue({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(TRANSACTION_HASH_MOCK),
+      });
+
+      await addTransactionBatch(request);
+
+      expect(onPublish).toHaveBeenCalledTimes(1);
+      expect(onPublish).toHaveBeenCalledWith({
+        transactionHash: TRANSACTION_HASH_MOCK,
+      });
     });
 
     it('uses type 4 transaction if not upgraded', async () => {
@@ -595,6 +787,33 @@ describe('Batch Utils', () => {
       );
     });
 
+    it.each([true, false])(
+      'passes isGasFeeIncluded flag (%s) through to addTransaction when provided (EIP-7702 path)',
+      async (isGasFeeIncluded) => {
+        isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+          delegationAddress: undefined,
+          isSupported: true,
+        });
+
+        addTransactionMock.mockResolvedValueOnce({
+          transactionMeta: TRANSACTION_META_MOCK,
+          result: Promise.resolve(''),
+        });
+
+        request.request.isGasFeeIncluded = isGasFeeIncluded;
+
+        await addTransactionBatch(request);
+
+        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+        expect(addTransactionMock).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({
+            isGasFeeIncluded,
+          }),
+        );
+      },
+    );
+
     describe('validates security', () => {
       it('using transaction params', async () => {
         isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
@@ -723,11 +942,14 @@ describe('Batch Utils', () => {
             maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
           },
           {
+            assetsFiatValues: undefined,
             batchId: expect.any(String),
             disableGasBuffer: true,
             networkClientId: NETWORK_CLIENT_ID_MOCK,
+            origin: ORIGIN_MOCK,
             publishHook: expect.any(Function),
             requireApproval: false,
+            type: undefined,
           },
         );
       });
@@ -921,21 +1143,13 @@ describe('Batch Utils', () => {
           gasLimit: GAS_TOTAL_MOCK,
         });
 
-        addTransactionMock
-          .mockResolvedValueOnce({
-            transactionMeta: {
-              ...TRANSACTION_META_MOCK,
-              id: TRANSACTION_ID_MOCK,
-            },
-            result: Promise.resolve(''),
-          })
-          .mockResolvedValueOnce({
-            transactionMeta: {
-              ...TRANSACTION_META_MOCK,
-              id: TRANSACTION_ID_2_MOCK,
-            },
-            result: Promise.resolve(''),
-          });
+        addTransactionMock.mockResolvedValueOnce({
+          transactionMeta: {
+            ...TRANSACTION_META_MOCK,
+            id: TRANSACTION_ID_MOCK,
+          },
+          result: Promise.resolve(''),
+        });
 
         publishBatchHook.mockResolvedValue({
           results: [
@@ -947,6 +1161,12 @@ describe('Batch Utils', () => {
             },
           ],
         });
+
+        getTransactionMock.mockReturnValueOnce({
+          txParams: {
+            nonce: NONCE_PREVIOUS_MOCK,
+          },
+        } as TransactionMeta);
 
         addTransactionBatch({
           ...request,
@@ -1047,6 +1267,12 @@ describe('Batch Utils', () => {
           ],
         });
 
+        getTransactionMock.mockReturnValueOnce({
+          txParams: {
+            nonce: NONCE_MOCK,
+          },
+        } as TransactionMeta);
+
         addTransactionBatch({
           ...request,
           publishBatchHook,
@@ -1087,6 +1313,115 @@ describe('Batch Utils', () => {
         expect(updateTransactionMock).toHaveBeenCalledTimes(1);
         expect(existingTransactionMock).toStrictEqual({
           batchId: expect.any(String),
+        });
+      });
+
+      it('re-signs transaction if existing transaction is not first in batch', async () => {
+        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+        const onPublish = jest.fn();
+
+        const EXISTING_TRANSACTION_MOCK = {
+          id: TRANSACTION_ID_2_MOCK,
+          onPublish,
+          signedTransaction: TRANSACTION_SIGNATURE_2_MOCK,
+        } as TransactionBatchSingleRequest['existingTransaction'];
+
+        simulateGasBatchMock.mockResolvedValueOnce({
+          gasLimit: GAS_TOTAL_MOCK,
+        });
+
+        addTransactionMock.mockResolvedValue({
+          transactionMeta: {
+            ...TRANSACTION_META_MOCK,
+            id: TRANSACTION_ID_MOCK,
+          },
+          result: Promise.resolve(''),
+        });
+
+        publishBatchHook.mockResolvedValue({
+          results: [
+            {
+              transactionHash: TRANSACTION_HASH_MOCK,
+            },
+            {
+              transactionHash: TRANSACTION_HASH_2_MOCK,
+            },
+          ],
+        });
+
+        getTransactionMock
+          .mockReturnValueOnce({
+            txParams: {
+              nonce: NONCE_MOCK,
+            },
+          } as TransactionMeta)
+          .mockReturnValueOnce({
+            txParams: {
+              nonce: NONCE_MOCK_2,
+            },
+          } as TransactionMeta)
+          .mockReturnValueOnce({
+            txParams: {
+              nonce: NONCE_MOCK_2,
+            },
+          } as TransactionMeta);
+
+        addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: {
+            ...request.request,
+            disable7702: true,
+            transactions: [
+              request.request.transactions[0],
+              {
+                ...request.request.transactions[1],
+                existingTransaction: EXISTING_TRANSACTION_MOCK,
+              },
+            ],
+          },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        const publishHooks = addTransactionMock.mock.calls.map(
+          ([, options]) => options.publishHook,
+        );
+
+        publishHooks[0]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+
+        expect(publishBatchHook).toHaveBeenCalledTimes(1);
+        expect(publishBatchHook).toHaveBeenCalledWith({
+          from: FROM_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          transactions: [
+            {
+              id: TRANSACTION_ID_MOCK,
+              params: TRANSACTION_BATCH_PARAMS_MOCK,
+              signedTx: TRANSACTION_SIGNATURE_MOCK,
+            },
+            {
+              id: TRANSACTION_ID_2_MOCK,
+              params: TRANSACTION_BATCH_PARAMS_MOCK,
+              signedTx: TRANSACTION_SIGNATURE_3_MOCK,
+            },
+          ],
+        });
+
+        expect(onPublish).toHaveBeenCalledTimes(1);
+        expect(onPublish).toHaveBeenCalledWith({
+          transactionHash: TRANSACTION_HASH_2_MOCK,
         });
       });
 
@@ -1520,6 +1855,7 @@ describe('Batch Utils', () => {
         expect(simulateGasBatchMock).toHaveBeenCalledWith({
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
+          getSimulationConfig: request.getSimulationConfig,
           transactions: TRANSACTIONS_BATCH_MOCK,
         });
         expect(getGasFeesMock).toHaveBeenCalledTimes(1);

@@ -1,11 +1,11 @@
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 
-import type { MessageParamsPersonal, MessageParamsTyped } from '../types';
 import {
   normalizeParam,
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
 } from './normalize';
+import type { MessageParamsPersonal, MessageParamsTyped } from '../types';
 
 describe('Normalize Utils', () => {
   describe('normalizePersonalMessageParams', () => {

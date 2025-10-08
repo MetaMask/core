@@ -319,14 +319,8 @@ describe('validators', () => {
     ])(
       'should throw for invalid response for $description',
       ({ input }: { input: unknown }) => {
-        const mockConsoleError = jest
-          .spyOn(console, 'error')
-          .mockImplementation((_message: string) => jest.fn());
-
         // eslint-disable-next-line jest/require-to-throw-message
         expect(() => validateBridgeStatusResponse(input)).toThrow();
-        // eslint-disable-next-line jest/no-restricted-matchers
-        expect(mockConsoleError.mock.calls).toMatchSnapshot();
       },
     );
   });

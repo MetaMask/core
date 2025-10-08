@@ -16,32 +16,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Fetch tags
         run: git fetch --prune --unshallow --tags
-      - name: Create Issues
+      - name: Create issues
+        run: ./scripts/create-update-issues.sh --no-dry-run
         env:
           GH_TOKEN: ${{ secrets.CORE_CREATE_UPDATE_ISSUES_TOKEN }}
-        run: |
-          IFS=$'\n' read -r -d '' -a tag_array < <(git tag --points-at HEAD && printf '\0')
-
-          for tag in "${tag_array[@]}"; do
-            if [[ "${tag}" == @metamask/*  ]] ; then
-              # Extract package name without the leading '@'
-              package_name="${tag#@}"
-              package_name="${package_name%@*}"
-
-              # Extract version number
-              version="${tag##*@}"
-
-              # Check if version number ends with .0.0
-              if [[ $version == *.0.0 ]]; then
-                # Fetch responsible teams from file
-                teams=$(jq -r --arg key "$package_name" '.[$key]' teams.json)
-                labels="client-controller-update"
-                if [[ $teams != "null" ]]; then
-                  labels+=",$teams"
-                fi
-                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-extension" --label "$labels"
-                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-mobile" --label "$labels"
-              fi
-            fi
-          done
-        shell: bash

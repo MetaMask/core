@@ -9,6 +9,9 @@
     },
     {
       "path": "../json-rpc-engine"
+    },
+    {
+      "path": "../messenger"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

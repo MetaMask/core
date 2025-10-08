@@ -4,15 +4,21 @@ import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
-import { getCachedKeyBySalt, setCachedKey } from './cache';
+import {
+  getCachedKeyBySalt,
+  getCachedKeyGeneratedWithSharedSalt,
+  setCachedKey,
+} from './cache';
 import {
   ALGORITHM_KEY_SIZE,
   ALGORITHM_NONCE_SIZE,
+  MAX_KDF_PROMISE_CACHE_SIZE,
   SCRYPT_N,
   SCRYPT_N_V2,
   SCRYPT_p,
   SCRYPT_r,
   SCRYPT_SALT_SIZE,
+  SHARED_SALT,
   SHARED_SALT_V2,
 } from './constants';
 import {
@@ -46,6 +52,12 @@ export type EncryptedPayload = {
 };
 
 class EncryptorDecryptor {
+  // Promise cache for ongoing KDF operations to prevent duplicate work
+  readonly #kdfPromiseCache = new Map<
+    string,
+    Promise<{ key: Uint8Array; salt: Uint8Array }>
+  >();
+
   async encryptString(
     plaintext: string,
     password: string,
@@ -263,13 +275,18 @@ class EncryptorDecryptor {
     salt?: Uint8Array,
     nativeScryptCrypto?: NativeScrypt,
   ) {
+    // Use enhanced password hashing that includes scrypt params to prevent cache collisions
+    // between different scrypt configurations (important for security when supporting multiple N values)
     const hashedPassword = createSHA256Hash(
       `${password}.${o.N}.${o.r}.${o.p}.${o.dkLen}`,
     );
 
     const targetSalt = salt ?? SHARED_SALT_V2;
 
-    const cachedKey = getCachedKeyBySalt(hashedPassword, targetSalt);
+    // Check if we already have the key cached
+    const cachedKey = salt
+      ? getCachedKeyBySalt(hashedPassword, salt)
+      : getCachedKeyBySalt(hashedPassword, targetSalt);
 
     if (cachedKey) {
       return {
@@ -278,21 +295,82 @@ class EncryptorDecryptor {
       };
     }
 
+    // Create a unique cache key for this KDF operation to prevent duplicate work
     const newSalt = targetSalt;
+    const cacheKey = this.#createKdfCacheKey(
+      hashedPassword,
+      o,
+      newSalt,
+      nativeScryptCrypto,
+    );
 
+    // Check if there's already an ongoing KDF operation with the same parameters
+    const existingPromise = this.#kdfPromiseCache.get(cacheKey);
+    if (existingPromise) {
+      return existingPromise;
+    }
+
+    // Limit cache size to prevent unbounded growth
+    if (this.#kdfPromiseCache.size >= MAX_KDF_PROMISE_CACHE_SIZE) {
+      // Remove the oldest entry (first inserted)
+      const firstKey = this.#kdfPromiseCache.keys().next().value;
+      if (firstKey) {
+        this.#kdfPromiseCache.delete(firstKey);
+      }
+    }
+
+    // Create and cache the promise for the KDF operation
+    const kdfPromise = this.#performKdfOperation(
+      password,
+      o,
+      newSalt,
+      hashedPassword,
+      nativeScryptCrypto,
+    );
+
+    // Cache the promise and set up cleanup
+    this.#kdfPromiseCache.set(cacheKey, kdfPromise);
+
+    // Clean up the cache after completion (both success and failure)
+    // eslint-disable-next-line no-void
+    void kdfPromise.finally(() => {
+      this.#kdfPromiseCache.delete(cacheKey);
+    });
+
+    return kdfPromise;
+  }
+
+  #createKdfCacheKey(
+    hashedPassword: string,
+    o: EncryptedPayload['o'],
+    salt: Uint8Array,
+    nativeScryptCrypto?: NativeScrypt,
+  ): string {
+    const saltStr = byteArrayToBase64(salt);
+    const hasNative = Boolean(nativeScryptCrypto);
+    return `${hashedPassword}:${o.N}:${o.r}:${o.p}:${o.dkLen}:${saltStr}:${hasNative}`;
+  }
+
+  async #performKdfOperation(
+    password: string,
+    o: EncryptedPayload['o'],
+    salt: Uint8Array,
+    hashedPassword: string,
+    nativeScryptCrypto?: NativeScrypt,
+  ): Promise<{ key: Uint8Array; salt: Uint8Array }> {
     let newKey: Uint8Array;
 
     if (nativeScryptCrypto) {
       newKey = await nativeScryptCrypto(
         stringToByteArray(password),
-        newSalt,
+        salt,
         o.N,
         o.r,
         o.p,
         o.dkLen,
       );
     } else {
-      newKey = await scryptAsync(password, newSalt, {
+      newKey = await scryptAsync(password, salt, {
         N: o.N,
         r: o.r,
         p: o.p,
@@ -300,11 +378,11 @@ class EncryptorDecryptor {
       });
     }
 
-    setCachedKey(hashedPassword, newSalt, newKey);
+    setCachedKey(hashedPassword, salt, newKey);
 
     return {
       key: newKey,
-      salt: newSalt,
+      salt,
     };
   }
 }
