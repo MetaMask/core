@@ -1,6 +1,8 @@
 import type {
   AccountsControllerAccountAddedEvent,
+  AccountsControllerGetSelectedAccountAction,
   AccountsControllerListAccountsAction,
+  AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
@@ -109,7 +111,9 @@ export type DeFiPositionsControllerStateChangeEvent =
 /**
  * The external actions available to the {@link DeFiPositionsController}.
  */
-export type AllowedActions = AccountsControllerListAccountsAction;
+export type AllowedActions =
+  | AccountsControllerListAccountsAction
+  | AccountsControllerGetSelectedAccountAction;
 
 /**
  * The external events available to the {@link DeFiPositionsController}.
@@ -118,7 +122,8 @@ export type AllowedEvents =
   | KeyringControllerUnlockEvent
   | KeyringControllerLockEvent
   | TransactionControllerTransactionConfirmedEvent
-  | AccountsControllerAccountAddedEvent;
+  | AccountsControllerAccountAddedEvent
+  | AccountsControllerSelectedAccountChangeEvent;
 
 /**
  * The messenger of the {@link DeFiPositionsController}.
@@ -146,6 +151,8 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
   readonly #isEnabled: () => boolean;
 
   readonly #trackEvent?: TrackEventHook;
+
+  readonly #viewedAccounts: Set<string>;
 
   /**
    * DeFiPositionsController constuctor
@@ -176,7 +183,18 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     this.#fetchPositions = buildPositionFetcher();
     this.#isEnabled = isEnabled;
 
+    this.#viewedAccounts = new Set();
+
     this.messagingSystem.subscribe('KeyringController:unlock', () => {
+      try {
+        const account = this.messagingSystem.call(
+          'AccountsController:getSelectedAccount',
+        );
+        this.#viewedAccounts.add(account.address);
+      } catch {
+        // Can throw if there is no evm account
+      }
+
       this.startPolling(null);
     });
 
@@ -187,7 +205,10 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     this.messagingSystem.subscribe(
       'TransactionController:transactionConfirmed',
       async (transactionMeta) => {
-        if (!this.#isEnabled()) {
+        if (
+          !this.#isEnabled() ||
+          !this.#viewedAccounts.has(transactionMeta.txParams.from)
+        ) {
           return;
         }
 
@@ -196,12 +217,8 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     );
 
     this.messagingSystem.subscribe(
-      'AccountsController:accountAdded',
+      'AccountsController:selectedAccountChange',
       async (account) => {
-        if (!this.#isEnabled() || !account.type.startsWith('eip155:')) {
-          return;
-        }
-
         await this.#updateAccountPositions(account.address);
       },
     );
@@ -214,10 +231,6 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
       return;
     }
 
-    const accounts = this.messagingSystem.call(
-      'AccountsController:listAccounts',
-    );
-
     const initialResult: {
       accountAddress: string;
       positions: GroupedDeFiPositionsPerChain | null;
@@ -225,23 +238,19 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
 
     const results = await reduceInBatchesSerially({
       initialResult,
-      values: accounts,
+      values: Array.from(this.#viewedAccounts),
       batchSize: FETCH_POSITIONS_BATCH_SIZE,
       eachBatch: async (workingResult, batch) => {
         const batchResults = (
           await Promise.all(
-            batch.map(async ({ address: accountAddress, type }) => {
-              if (type.startsWith('eip155:')) {
-                const positions =
-                  await this.#fetchAccountPositions(accountAddress);
+            batch.map(async (accountAddress) => {
+              const positions =
+                await this.#fetchAccountPositions(accountAddress);
 
-                return {
-                  accountAddress,
-                  positions,
-                };
-              }
-
-              return undefined;
+              return {
+                accountAddress,
+                positions,
+              };
             }),
           )
         ).filter(Boolean) as {
@@ -267,6 +276,8 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
   }
 
   async #updateAccountPositions(accountAddress: string): Promise<void> {
+    this.#viewedAccounts.add(accountAddress);
+
     const accountPositionsPerChain =
       await this.#fetchAccountPositions(accountAddress);
 
