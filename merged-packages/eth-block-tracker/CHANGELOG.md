@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.2.0]
+
 ### Changed
 
 - `PollingBlockTracker.getLatestBlock()` now accepts an optional parameter `useCache` ([#340](https://github.com/MetaMask/eth-block-tracker/pull/340))
@@ -298,7 +300,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add RpcBlockTracker
 
-[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v12.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v12.2.0...HEAD
+[12.2.0]: https://github.com/MetaMask/eth-block-tracker/compare/v12.1.0...v12.2.0
 [12.1.0]: https://github.com/MetaMask/eth-block-tracker/compare/v12.0.1...v12.1.0
 [12.0.1]: https://github.com/MetaMask/eth-block-tracker/compare/v12.0.0...v12.0.1
 [12.0.0]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.4...v12.0.0
