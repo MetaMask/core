@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reduce NFT detection API calls by 83% (from 6 calls to 1 call per 100 tokens) by eliminating collection endpoint requests
   - Remove unused collection metadata fields: `contractDeployedAt`, `creator`, and `topBid`
 
+## [78.0.1]
+
+### Changed
+
+- Bump `@metamask/multichain-account-service` from `^1.5.0` to `^1.6.0` ([#6786](https://github.com/MetaMask/core/pull/6786))
+
+### Fixed
+
+- Fix duplicate native token entries in `AccountsApiBalanceFetcher` by ensuring consistent address checksumming ([#6794](https://github.com/MetaMask/core/pull/6794))
+
+## [78.0.1]
+
+### Changed
+
+- Bump `@metamask/multichain-account-service` from `^1.5.0` to `^1.6.0` ([#6786](https://github.com/MetaMask/core/pull/6786))
+
+### Fixed
+
+- Fix duplicate native token entries in `AccountsApiBalanceFetcher` by ensuring consistent address checksumming ([#6794](https://github.com/MetaMask/core/pull/6794))
+
 ## [78.0.0]
 
 ### Added
@@ -2092,7 +2112,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@78.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@78.0.1...HEAD
+[78.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@78.0.0...@metamask/assets-controllers@78.0.1
 [78.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@77.0.2...@metamask/assets-controllers@78.0.0
 [77.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@77.0.1...@metamask/assets-controllers@77.0.2
 [77.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@77.0.0...@metamask/assets-controllers@77.0.1
