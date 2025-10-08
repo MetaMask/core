@@ -627,18 +627,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
               this.#clientId,
               this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
               {
-                onValidationFailures: (validationFailures: string[]) => {
-                  this.#trackResponseValidationFailures(validationFailures);
-                },
+                onValidationFailures: this.#trackResponseValidationFailures,
                 onValidQuotesReceived: async (quotes: QuoteResponse[]) => {
                   const quotesWithFees = await this.#appendFees(
                     updatedQuoteRequest,
                     quotes,
                   );
                   this.update((state) => {
-                    // If there are no other quotes yet, set initial load time
+                    // Set initial load time when first quotes are received
                     if (
-                      state.quotes.length === 0 &&
+                      state.quotesInitialLoadTime ===
+                        DEFAULT_BRIDGE_CONTROLLER_STATE.quotesInitialLoadTime &&
                       quotesWithFees.length > 0
                     ) {
                       state.quotesInitialLoadTime = Date.now();
@@ -684,7 +683,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         state.quoteFetchError =
           this.#clientId === BridgeClientId.MOBILE
             ? 'generic mobile error'
-            : ((error ?? 'error') as never as string);
+            : (((error as Error)?.message ??
+                'Unknown error') as never as string);
 
         state.quotesLoadingStatus = RequestStatus.ERROR;
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
