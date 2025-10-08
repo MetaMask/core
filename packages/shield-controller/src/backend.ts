@@ -42,6 +42,8 @@ export type GetCoverageResultRequest = {
 };
 
 export type GetCoverageResultResponse = {
+  message: string;
+  reasonCode: string;
   status: CoverageStatus;
 };
 
@@ -87,7 +89,12 @@ export class ShieldRemoteBackend implements ShieldBackend {
     }
 
     const coverageResult = await this.#getCoverageResult(coverageId);
-    return { coverageId, status: coverageResult.status };
+    return {
+      coverageId,
+      message: coverageResult.message,
+      reasonCode: coverageResult.reasonCode,
+      status: coverageResult.status,
+    };
   }
 
   async checkSignatureCoverage(
@@ -103,7 +110,12 @@ export class ShieldRemoteBackend implements ShieldBackend {
     }
 
     const coverageResult = await this.#getCoverageResult(coverageId);
-    return { coverageId, status: coverageResult.status };
+    return {
+      coverageId,
+      message: coverageResult.message,
+      reasonCode: coverageResult.reasonCode,
+      status: coverageResult.status,
+    };
   }
 
   async logSignature(req: LogSignatureRequest): Promise<void> {

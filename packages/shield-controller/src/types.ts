@@ -3,6 +3,8 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 
 export type CoverageResult = {
   coverageId: string;
+  message: string;
+  reasonCode: string;
   status: CoverageStatus;
 };
 
