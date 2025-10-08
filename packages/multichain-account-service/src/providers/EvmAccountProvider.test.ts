@@ -1,6 +1,5 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import { publicToAddress } from '@ethereumjs/util';
-import type { Messenger } from '@metamask/base-controller';
 import { type KeyringMetadata } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
@@ -22,13 +21,8 @@ import {
   MOCK_HD_ACCOUNT_2,
   MOCK_HD_KEYRING_1,
   MockAccountBuilder,
+  type RootMessenger,
 } from '../tests';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  MultichainAccountServiceActions,
-  MultichainAccountServiceEvents,
-} from '../types';
 
 jest.mock('@ethereumjs/util', () => ({
   publicToAddress: jest.fn(),
@@ -127,20 +121,14 @@ function setup({
   accounts = [],
   discovery,
 }: {
-  messenger?: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  messenger?: RootMessenger;
   accounts?: InternalAccount[];
   discovery?: {
     transactionCount: string;
   };
 } = {}): {
   provider: EvmAccountProvider;
-  messenger: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  messenger: RootMessenger;
   keyring: MockEthKeyring;
   mocks: {
     getAccountByAddress: jest.Mock;
