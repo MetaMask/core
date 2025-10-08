@@ -2,6 +2,8 @@ import type { SignatureRequest } from '@metamask/signature-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import type {
+  CheckCoverageRequest,
+  CheckSignatureCoverageRequest,
   CoverageResult,
   CoverageStatus,
   LogSignatureRequest,
@@ -74,27 +76,31 @@ export class ShieldRemoteBackend implements ShieldBackend {
     this.#fetch = fetchFn;
   }
 
-  async checkCoverage(txMeta: TransactionMeta): Promise<CoverageResult> {
-    const reqBody = makeInitCoverageCheckBody(txMeta);
-
-    const { coverageId } = await this.#initCoverageCheck(
-      'v1/transaction/coverage/init',
-      reqBody,
-    );
+  async checkCoverage(req: CheckCoverageRequest): Promise<CoverageResult> {
+    let { coverageId } = req;
+    if (!coverageId) {
+      const reqBody = makeInitCoverageCheckBody(req.txMeta);
+      ({ coverageId } = await this.#initCoverageCheck(
+        'v1/transaction/coverage/init',
+        reqBody,
+      ));
+    }
 
     const coverageResult = await this.#getCoverageResult(coverageId);
     return { coverageId, status: coverageResult.status };
   }
 
   async checkSignatureCoverage(
-    signatureRequest: SignatureRequest,
+    req: CheckSignatureCoverageRequest,
   ): Promise<CoverageResult> {
-    const reqBody = makeInitSignatureCoverageCheckBody(signatureRequest);
-
-    const { coverageId } = await this.#initCoverageCheck(
-      'v1/signature/coverage/init',
-      reqBody,
-    );
+    let { coverageId } = req;
+    if (!coverageId) {
+      const reqBody = makeInitSignatureCoverageCheckBody(req.signatureRequest);
+      ({ coverageId } = await this.#initCoverageCheck(
+        'v1/signature/coverage/init',
+        reqBody,
+      ));
+    }
 
     const coverageResult = await this.#getCoverageResult(coverageId);
     return { coverageId, status: coverageResult.status };

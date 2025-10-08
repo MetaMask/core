@@ -21,11 +21,21 @@ export type LogTransactionRequest = {
   status: string;
 };
 
+export type CheckCoverageRequest = {
+  coverageId?: string;
+  txMeta: TransactionMeta;
+};
+
+export type CheckSignatureCoverageRequest = {
+  coverageId?: string;
+  signatureRequest: SignatureRequest;
+};
+
 export type ShieldBackend = {
   logSignature: (req: LogSignatureRequest) => Promise<void>;
   logTransaction: (req: LogTransactionRequest) => Promise<void>;
-  checkCoverage: (txMeta: TransactionMeta) => Promise<CoverageResult>;
+  checkCoverage: (req: CheckCoverageRequest) => Promise<CoverageResult>;
   checkSignatureCoverage: (
-    signatureRequest: SignatureRequest,
+    req: CheckSignatureCoverageRequest,
   ) => Promise<CoverageResult>;
 };
