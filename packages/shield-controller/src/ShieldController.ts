@@ -291,7 +291,11 @@ export class ShieldController extends BaseController<
    */
   async checkCoverage(txMeta: TransactionMeta): Promise<CoverageResult> {
     // Check coverage
-    const coverageResult = await this.#backend.checkCoverage(txMeta);
+    const coverageId = this.#getLatestCoverageId(txMeta.id);
+    const coverageResult = await this.#backend.checkCoverage({
+      txMeta,
+      coverageId,
+    });
 
     // Publish coverage result
     this.messagingSystem.publish(
@@ -315,8 +319,11 @@ export class ShieldController extends BaseController<
     signatureRequest: SignatureRequest,
   ): Promise<CoverageResult> {
     // Check coverage
-    const coverageResult =
-      await this.#backend.checkSignatureCoverage(signatureRequest);
+    const coverageId = this.#getLatestCoverageId(signatureRequest.id);
+    const coverageResult = await this.#backend.checkSignatureCoverage({
+      signatureRequest,
+      coverageId,
+    });
 
     // Publish coverage result
     this.messagingSystem.publish(
