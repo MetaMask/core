@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0]
 
-### Uncategorized
-
-- Revert "Update Release 606.0.0 (#6798)" ([#6798](https://github.com/MetaMask/core/pull/6798))
-- Update Release 606.0.0 ([#6798](https://github.com/MetaMask/core/pull/6798))
-
 ### Added
 
 - **Initial release of `@metamask/core-backend` package** - Core backend services for MetaMask serving as the data layer between Backend services and Frontend applications ([#6722](https://github.com/MetaMask/core/pull/6722))
