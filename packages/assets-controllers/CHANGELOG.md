@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Change name of token-selector field from `type` to `accountType` to avoid conflicts with existing types. ([#6804](https://github.com/MetaMask/core/pull/6804))
+
 ## [78.0.1]
 
 ### Changed
