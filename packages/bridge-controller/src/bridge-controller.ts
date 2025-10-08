@@ -681,17 +681,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       }
 
       this.update((state) => {
-        if (shouldStream) {
-          state.quoteFetchError =
-            this.#clientId === BridgeClientId.MOBILE
-              ? 'generic streaming error'
-              : ((error ?? 'error') as never as string);
-        } else {
-          state.quoteFetchError =
-            error instanceof Error
-              ? error.message
-              : (error?.toString() ?? null);
-        }
+        state.quoteFetchError =
+          this.#clientId === BridgeClientId.MOBILE
+            ? 'generic mobile error'
+            : ((error ?? 'error') as never as string);
 
         state.quotesLoadingStatus = RequestStatus.ERROR;
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
