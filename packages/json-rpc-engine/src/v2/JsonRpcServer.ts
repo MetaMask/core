@@ -60,7 +60,8 @@ export class JsonRpcServer {
    * @param options - The options for the server.
    * @param options.onError - The callback to handle errors thrown by the
    * engine. Errors always result in a failed response object, containing a
-   * JSON-RPC 2.0 serialized version of the original error.
+   * JSON-RPC 2.0 serialized version of the original error. If you need to
+   * access the original error, use the `onError` callback.
    * @param options.engine - The engine to use. Mutually exclusive with
    * `middleware`.
    * @param options.middleware - The middleware to use. Mutually exclusive with
@@ -69,7 +70,8 @@ export class JsonRpcServer {
   constructor(options: Options) {
     this.#onError = options.onError;
 
-    if ('engine' in options) {
+    if (hasProperty(options, 'engine')) {
+      // @ts-expect-error - hasProperty fails to narrow the type.
       this.#engine = options.engine;
     } else {
       this.#engine = new JsonRpcEngineV2({ middleware: options.middleware });

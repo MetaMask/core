@@ -232,7 +232,7 @@ an error:
 const engine = new JsonRpcEngineV2({
   middleware: [
     ({ request, next }) => {
-      // Modifying either proeprty will cause an error
+      // Modifying either property will cause an error
       return next({
         ...request,
         jsonrpc: '3.0',
@@ -487,6 +487,7 @@ const engine = new JsonRpcEngine({ middleware });
 
 const server = new JsonRpcServer({
   engine,
+  // onError receives the raw error, before it is coerced into a JSON-RPC error.
   onError: (error) => console.error('Server error:', error),
 });
 
@@ -509,10 +510,10 @@ await server.handle(notification); // Returns undefined
 
 The server accepts any object with a `method` property and validates JSON-RPC 2.0
 compliance.
-Errors occurring during request validation or processing (by the engine) are passed
-to `onError`.
 Response objects are returned for requests but not notifications, and contain
 the `result` in case of success and `error` in case of failure.
+Errors thrown by the underlying engine are passed to `onError` before being serialized
+and attached to the response object via the `error` property.
 
 ## Contributing
 

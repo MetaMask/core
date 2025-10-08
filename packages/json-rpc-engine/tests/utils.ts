@@ -1,5 +1,7 @@
 import type { JsonRpcRequest } from '@metamask/utils';
 
+import { requestProps } from '../src/v2/compatibility-utils';
+
 export const makeRequest = <Request extends Partial<JsonRpcRequest>>(
   params: Request = {} as Request,
 ) =>
@@ -10,8 +12,6 @@ export const makeRequest = <Request extends Partial<JsonRpcRequest>>(
     params: [],
     ...params,
   }) as const satisfies JsonRpcRequest;
-
-const requestProps = ['jsonrpc', 'method', 'params', 'id'] as const;
 
 /**
  * Get the keys of a request that are not part of the standard JSON-RPC request

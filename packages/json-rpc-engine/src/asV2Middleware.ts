@@ -1,6 +1,7 @@
 import { serializeError } from '@metamask/rpc-errors';
 import type { JsonRpcFailure, JsonRpcResponse } from '@metamask/utils';
 import {
+  hasProperty,
   type Json,
   type JsonRpcParams,
   type JsonRpcRequest,
@@ -63,9 +64,9 @@ export function asV2Middleware<
     });
     propagateToContext(req, context);
 
-    if ('error' in response) {
+    if (hasProperty(response, 'error')) {
       throw unserializeError(response.error);
-    } else if ('result' in response) {
+    } else if (hasProperty(response, 'result')) {
       return response.result as Result;
     }
     return next(fromLegacyRequest(req as Request));

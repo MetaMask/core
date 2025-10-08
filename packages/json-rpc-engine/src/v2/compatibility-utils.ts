@@ -23,7 +23,7 @@ export const deepClone = rfdc({
 /**
  * Standard JSON-RPC request properties.
  */
-const requestProps = ['jsonrpc', 'method', 'params', 'id'];
+export const requestProps = ['jsonrpc', 'method', 'params', 'id'];
 
 /**
  * Make a JSON-RPC request from a legacy request. Clones the params to avoid
