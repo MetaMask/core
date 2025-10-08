@@ -111,9 +111,11 @@ export class PollingBlockTracker
     return this._currentBlock;
   }
 
-  async getLatestBlock(): Promise<string> {
+  async getLatestBlock({
+    useCache = true,
+  }: { useCache?: boolean } = {}): Promise<string> {
     // return if available
-    if (this._currentBlock) {
+    if (this._currentBlock && useCache) {
       return this._currentBlock;
     }
 
@@ -126,31 +128,42 @@ export class PollingBlockTracker
     });
     this.#pendingLatestBlock = { reject, promise };
 
-    try {
+    if (this._isRunning) {
+      try {
+        // If tracker is running, wait for next block with timeout
+        const onLatestBlock = (value: string) => {
+          this.#removeInternalListener(onLatestBlock);
+          this.removeListener('latest', onLatestBlock);
+          resolve(value);
+        };
+
+        this.#addInternalListener(onLatestBlock);
+        this.once('latest', onLatestBlock);
+
+        return await promise;
+      } catch (error) {
+        reject(error);
+        throw error;
+      } finally {
+        this.#pendingLatestBlock = undefined;
+      }
+    } else {
       // If tracker isn't running, just fetch directly
-      if (!this._isRunning) {
-        const latestBlock = await this._fetchLatestBlock();
-        this._newPotentialLatest(latestBlock);
+      try {
+        const latestBlock = await this._updateLatestBlock();
         resolve(latestBlock);
         return latestBlock;
+      } catch (error) {
+        reject(error);
+        throw error;
+      } finally {
+        // We want to rate limit calls to this method if we made a direct fetch
+        // for the block number because the BlockTracker was not running. We
+        // achieve this by delaying the unsetting of the #pendingLatestBlock promise.
+        setTimeout(() => {
+          this.#pendingLatestBlock = undefined;
+        }, this._pollingInterval);
       }
-
-      // If tracker is running, wait for next block with timeout
-      const onLatestBlock = (value: string) => {
-        this.#removeInternalListener(onLatestBlock);
-        this.removeListener('latest', onLatestBlock);
-        resolve(value);
-      };
-
-      this.#addInternalListener(onLatestBlock);
-      this.once('latest', onLatestBlock);
-
-      return await promise;
-    } catch (error) {
-      reject(error);
-      throw error;
-    } finally {
-      this.#pendingLatestBlock = undefined;
     }
   }
 
@@ -287,6 +300,13 @@ export class PollingBlockTracker
     this._currentBlock = null;
   }
 
+  /**
+   * Checks for the latest block, updates the internal state,  and returns the
+   * value immediately rather than waiting for the next polling interval.
+   *
+   * @deprecated Use {@link getLatestBlock} instead.
+   * @returns A promise that resolves to the latest block number.
+   */
   async checkForLatestBlock() {
     await this._updateLatestBlock();
     return await this.getLatestBlock();
@@ -302,10 +322,13 @@ export class PollingBlockTracker
     this._clearPollingTimeout();
   }
 
-  private async _updateLatestBlock(): Promise<void> {
+  private async _updateLatestBlock(): Promise<string> {
     // fetch + set latest block
     const latestBlock = await this._fetchLatestBlock();
     this._newPotentialLatest(latestBlock);
+    // _newPotentialLatest() ensures that this._currentBlock is not null
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return this._currentBlock!;
   }
 
   private async _fetchLatestBlock(): Promise<string> {
