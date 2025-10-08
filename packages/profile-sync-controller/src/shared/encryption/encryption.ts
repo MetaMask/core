@@ -1,14 +1,10 @@
 import { gcm } from '@noble/ciphers/aes';
 import { randomBytes } from '@noble/ciphers/webcrypto';
 import { scryptAsync } from '@noble/hashes/scrypt';
-import { sha256 } from '@noble/hashes/sha256';
+import { sha256 } from '@noble/hashes/sha2';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
-import {
-  getCachedKeyBySalt,
-  getCachedKeyGeneratedWithSharedSalt,
-  setCachedKey,
-} from './cache';
+import { getCachedKeyBySalt, setCachedKey } from './cache';
 import {
   ALGORITHM_KEY_SIZE,
   ALGORITHM_NONCE_SIZE,
@@ -275,18 +271,18 @@ class EncryptorDecryptor {
     salt?: Uint8Array,
     nativeScryptCrypto?: NativeScrypt,
   ) {
-    // Use enhanced password hashing that includes scrypt params to prevent cache collisions
-    // between different scrypt configurations (important for security when supporting multiple N values)
-    const hashedPassword = createSHA256Hash(
-      `${password}.${o.N}.${o.r}.${o.p}.${o.dkLen}`,
-    );
-
     const targetSalt = salt ?? SHARED_SALT_V2;
 
-    // Check if we already have the key cached
-    const cachedKey = salt
-      ? getCachedKeyBySalt(hashedPassword, salt)
-      : getCachedKeyBySalt(hashedPassword, targetSalt);
+    // Create a unique cache key for this KDF operation that includes all parameters
+    const cacheKey = this.#createKdfCacheKey(
+      password,
+      o,
+      targetSalt,
+      nativeScryptCrypto,
+    );
+
+    // Check if we already have the key cached using the cache key as identifier
+    const cachedKey = getCachedKeyBySalt(cacheKey, targetSalt);
 
     if (cachedKey) {
       return {
@@ -294,15 +290,6 @@ class EncryptorDecryptor {
         salt: cachedKey.salt,
       };
     }
-
-    // Create a unique cache key for this KDF operation to prevent duplicate work
-    const newSalt = targetSalt;
-    const cacheKey = this.#createKdfCacheKey(
-      hashedPassword,
-      o,
-      newSalt,
-      nativeScryptCrypto,
-    );
 
     // Check if there's already an ongoing KDF operation with the same parameters
     const existingPromise = this.#kdfPromiseCache.get(cacheKey);
@@ -323,8 +310,8 @@ class EncryptorDecryptor {
     const kdfPromise = this.#performKdfOperation(
       password,
       o,
-      newSalt,
-      hashedPassword,
+      targetSalt,
+      cacheKey,
       nativeScryptCrypto,
     );
 
@@ -341,21 +328,24 @@ class EncryptorDecryptor {
   }
 
   #createKdfCacheKey(
-    hashedPassword: string,
+    password: string,
     o: EncryptedPayload['o'],
     salt: Uint8Array,
     nativeScryptCrypto?: NativeScrypt,
   ): string {
+    const hashedPassword = createSHA256Hash(
+      `${password}.${o.N}.${o.r}.${o.p}.${o.dkLen}`,
+    );
     const saltStr = byteArrayToBase64(salt);
     const hasNative = Boolean(nativeScryptCrypto);
-    return `${hashedPassword}:${o.N}:${o.r}:${o.p}:${o.dkLen}:${saltStr}:${hasNative}`;
+    return `${hashedPassword}:${saltStr}:${hasNative}`;
   }
 
   async #performKdfOperation(
     password: string,
     o: EncryptedPayload['o'],
     salt: Uint8Array,
-    hashedPassword: string,
+    cacheKey: string,
     nativeScryptCrypto?: NativeScrypt,
   ): Promise<{ key: Uint8Array; salt: Uint8Array }> {
     let newKey: Uint8Array;
@@ -378,7 +368,7 @@ class EncryptorDecryptor {
       });
     }
 
-    setCachedKey(hashedPassword, salt, newKey);
+    setCachedKey(cacheKey, salt, newKey);
 
     return {
       key: newKey,
