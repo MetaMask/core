@@ -119,7 +119,7 @@ export {
 
 export { calcLatestSrcBalance } from './utils/balance';
 
-export { fetchBridgeTokens } from './utils/fetch';
+export { fetchBridgeTokens, getClientHeaders } from './utils/fetch';
 
 export {
   formatChainIdToCaip,
