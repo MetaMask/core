@@ -244,17 +244,17 @@ describe('MultichainAccountService', () => {
           // No `EVM_ACCOUNT_PROVIDER_NAME`, cause it's optional in this test.
         };
 
-      const { mocks, rootMessenger } = setup({
+      const { mocks, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
         providerConfigs,
       });
 
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
-        rootMessenger,
+        messenger,
         undefined,
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
-        rootMessenger,
+        messenger,
         providerConfigs[SolAccountProvider.NAME],
       );
     });
