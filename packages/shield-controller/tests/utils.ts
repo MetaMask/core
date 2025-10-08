@@ -67,6 +67,19 @@ export function getRandomCoverageStatus(): CoverageStatus {
 }
 
 /**
+ * Get a random coverage result.
+ *
+ * @returns A random coverage result.
+ */
+export function getRandomCoverageResult() {
+  return {
+    status: getRandomCoverageStatus(),
+    message: 'message',
+    reasonCode: 'reasonCode',
+  };
+}
+
+/**
  * Setup a coverage result received handler.
  *
  * @param baseMessenger - The base messenger.
