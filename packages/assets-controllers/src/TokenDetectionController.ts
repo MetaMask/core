@@ -1048,6 +1048,65 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     });
   }
 
+  // Same as above, but we don't perform any balance fetching
+  async addWSDetectedTokens({
+    // list of new ERC-20 tokens
+    // - filter out old native tokens?
+    // - make sure they aren't tokens we've already added?
+    tokensSlice,
+    // We can get this from the network controller (basically uuid that points to network)
+    networkClientId,
+    // Hex chain Id
+    chainId,
+  }: {
+    tokensSlice: string[];
+    networkClientId: NetworkClientId;
+    chainId: Hex;
+  }) {
+    const tokensWithBalance: Token[] = [];
+    const eventTokensDetails: string[] = [];
+    for (const nonZeroTokenAddress of tokensSlice) {
+      // Check map of validated tokens
+      const { decimals, symbol, aggregators, iconUrl, name } =
+        this.#tokensChainsCache[chainId].data[nonZeroTokenAddress];
+
+      // Push to lists
+      eventTokensDetails.push(`${symbol} - ${nonZeroTokenAddress}`);
+      tokensWithBalance.push({
+        address: nonZeroTokenAddress,
+        decimals,
+        symbol,
+        aggregators,
+        image: iconUrl,
+        isERC721: false,
+        name,
+      });
+    }
+
+    // perform addition
+    if (tokensWithBalance.length) {
+      this.#trackMetaMetricsEvent({
+        event: 'Token Detected',
+        category: 'Wallet',
+        properties: {
+          tokens: eventTokensDetails,
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          token_standard: ERC20,
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          asset_type: ASSET_TYPES.TOKEN,
+        },
+      });
+
+      await this.messagingSystem.call(
+        'TokensController:addTokens',
+        tokensWithBalance,
+        networkClientId,
+      );
+    }
+  }
+
   #getSelectedAccount() {
     return this.messagingSystem.call('AccountsController:getSelectedAccount');
   }
