@@ -16,7 +16,7 @@ const createUpgradeHandler = () => {
   const upgradeAccountFn = jest.fn();
   const getCurrentChainIdForDomain = jest.fn().mockReturnValue('0x1');
   const getAccounts = jest.fn().mockResolvedValue([TEST_ACCOUNT]);
-  const isAtomicBatchSupported = jest
+  const isEip7702Supported = jest
     .fn()
     .mockImplementation(async ({ chainIds }: { chainIds: string[] }) => {
       return chainIds.map((chainId: string) => {
@@ -46,7 +46,7 @@ const createUpgradeHandler = () => {
       const result = await upgradeAccount(request, response, {
         upgradeAccount: upgradeAccountFn,
         getCurrentChainIdForDomain,
-        isAtomicBatchSupported,
+        isEip7702Supported,
         getAccounts,
       });
       response.result = result;
@@ -60,7 +60,7 @@ const createUpgradeHandler = () => {
     next,
     upgradeAccount: upgradeAccountFn,
     getCurrentChainIdForDomain,
-    isAtomicBatchSupported,
+    isEip7702Supported,
     getAccounts,
     response,
     handler,
@@ -343,8 +343,8 @@ describe('upgradeAccount', () => {
   });
 
   it('rejects chain with delegation address but not supported', async () => {
-    const { end, isAtomicBatchSupported, handler } = createUpgradeHandler();
-    isAtomicBatchSupported.mockResolvedValue([
+    const { end, isEip7702Supported, handler } = createUpgradeHandler();
+    isEip7702Supported.mockResolvedValue([
       {
         chainId: '0x1',
         isSupported: false, // Not supported

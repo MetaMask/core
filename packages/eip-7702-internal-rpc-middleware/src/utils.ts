@@ -4,7 +4,7 @@ import { validate } from '@metamask/superstruct';
 import type { Hex, JsonRpcRequest } from '@metamask/utils';
 
 /**
- * Validates and normalizes address for EIP-7702 operations.
+ * Validates address format, checks user eth_accounts permission, and normalizes to lowercase.
  *
  * @param address - The Ethereum address to validate and normalize.
  * @param req - The JSON-RPC request object for permission checking.

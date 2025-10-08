@@ -41,7 +41,7 @@ export type UpgradeAccountHooks = {
     chainId?: number,
   ) => Promise<{ transactionHash: string; delegatedTo: string }>;
   getCurrentChainIdForDomain: (origin: string) => string;
-  isAtomicBatchSupported: (request: {
+  isEip7702Supported: (request: {
     address: string;
     chainIds: string[];
   }) => Promise<

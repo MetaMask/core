@@ -17,7 +17,7 @@ describe('walletUpgradeAccount', () => {
     const hooks = {
       upgradeAccount: jest.fn(),
       getCurrentChainIdForDomain: jest.fn(),
-      isAtomicBatchSupported: jest.fn(),
+      isEip7702Supported: jest.fn(),
       getAccounts: jest.fn(),
     };
 
@@ -41,7 +41,7 @@ describe('walletUpgradeAccount', () => {
       upgradeAccount:
         undefined as unknown as UpgradeAccountHooks['upgradeAccount'],
       getCurrentChainIdForDomain: jest.fn(),
-      isAtomicBatchSupported: jest.fn(),
+      isEip7702Supported: jest.fn(),
       getAccounts: jest.fn(),
     };
 

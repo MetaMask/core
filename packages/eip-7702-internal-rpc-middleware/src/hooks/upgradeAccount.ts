@@ -23,7 +23,7 @@ import { validateParams, validateAndNormalizeAddress } from '../utils';
  * @param options - Configuration object containing required functions.
  * @param options.upgradeAccount - Function to perform the account upgrade.
  * @param options.getCurrentChainIdForDomain - Function to get the current chain ID for a domain.
- * @param options.isAtomicBatchSupported - Function to check if atomic batch is supported.
+ * @param options.isEip7702Supported - Function to check if EIP-7702 is supported.
  * @param options.getAccounts - Function to get accounts for the requester.
  * @returns Promise that resolves to the upgrade result containing transaction hash and delegation info.
  */
@@ -33,7 +33,7 @@ export async function upgradeAccount(
   {
     upgradeAccount: upgradeAccountFn,
     getCurrentChainIdForDomain,
-    isAtomicBatchSupported,
+    isEip7702Supported,
     getAccounts,
   }: UpgradeAccountHooks,
 ): Promise<UpgradeAccountResult> {
@@ -67,7 +67,7 @@ export async function upgradeAccount(
   try {
     // Get the EIP7702 network configuration for the target chain
     const hexChainId = toHex(targetChainId);
-    const atomicBatchSupport = await isAtomicBatchSupported({
+    const atomicBatchSupport = await isEip7702Supported({
       address: normalizedAccount,
       chainIds: [hexChainId],
     });
