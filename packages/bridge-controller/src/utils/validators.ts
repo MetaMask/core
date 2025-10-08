@@ -227,6 +227,7 @@ export const QuoteSchema = type({
       totalFeeAmountUsd: optional(string()),
     }),
   ),
+  gasSponsored: optional(boolean()),
 });
 
 export const TxDataSchema = type({
