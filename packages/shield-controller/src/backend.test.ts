@@ -63,7 +63,7 @@ describe('ShieldRemoteBackend', () => {
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
-    const coverageResult = await backend.checkCoverage(txMeta);
+    const coverageResult = await backend.checkCoverage({ txMeta });
     expect(coverageResult).toStrictEqual({ coverageId, status });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(getAccessToken).toHaveBeenCalledTimes(2);
@@ -95,7 +95,7 @@ describe('ShieldRemoteBackend', () => {
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
-    const coverageResult = await backend.checkCoverage(txMeta);
+    const coverageResult = await backend.checkCoverage({ txMeta });
     expect(coverageResult).toStrictEqual({ coverageId, status });
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(getAccessToken).toHaveBeenCalledTimes(2);
@@ -113,7 +113,7 @@ describe('ShieldRemoteBackend', () => {
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
-    await expect(backend.checkCoverage(txMeta)).rejects.toThrow(
+    await expect(backend.checkCoverage({ txMeta })).rejects.toThrow(
       `Failed to init coverage check: ${status}`,
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -139,7 +139,7 @@ describe('ShieldRemoteBackend', () => {
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
-    await expect(backend.checkCoverage(txMeta)).rejects.toThrow(
+    await expect(backend.checkCoverage({ txMeta })).rejects.toThrow(
       'Timeout waiting for coverage result',
     );
 
@@ -167,8 +167,9 @@ describe('ShieldRemoteBackend', () => {
       } as unknown as Response);
 
       const signatureRequest = generateMockSignatureRequest();
-      const coverageResult =
-        await backend.checkSignatureCoverage(signatureRequest);
+      const coverageResult = await backend.checkSignatureCoverage({
+        signatureRequest,
+      });
       expect(coverageResult).toStrictEqual({ coverageId, status });
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(getAccessToken).toHaveBeenCalledTimes(2);
@@ -180,7 +181,7 @@ describe('ShieldRemoteBackend', () => {
       const signatureRequest = generateMockSignatureRequest();
       signatureRequest.messageParams.data = [];
       await expect(
-        backend.checkSignatureCoverage(signatureRequest),
+        backend.checkSignatureCoverage({ signatureRequest }),
       ).rejects.toThrow('Signature data must be a string');
     });
   });
