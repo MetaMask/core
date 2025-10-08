@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.2.0]
+
 ### Added
 
+- Add max bound version segmentation for feature announcements ([#6773](https://github.com/MetaMask/core/pull/6773))
+  - Add `extensionMaximumVersionNumber` and `mobileMaximumVersionNumber` properties to feature announcements
 - Add optional `platformVersion` property to `NotificationServicesController` `FeatureAnnouncementEnv` type ([#6568](https://github.com/MetaMask/core/pull/6568))
 - Filtering logic to filter feature annonucements by version number ([#6568](https://github.com/MetaMask/core/pull/6568))
 - Add package `semver@^7.7.2` to handle semver version comparisons for announcement notification filtering ([#6568](https://github.com/MetaMask/core/pull/6568))
@@ -17,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
-- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.1` ([#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
 - Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
 
 ## [18.1.0]
@@ -561,7 +565,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.2.0...HEAD
+[18.2.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.1.0...@metamask/notification-services-controller@18.2.0
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.0.0...@metamask/notification-services-controller@18.1.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@17.0.0...@metamask/notification-services-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@16.0.0...@metamask/notification-services-controller@17.0.0

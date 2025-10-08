@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-api-middleware",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "JSON-RPC methods and middleware to support the MetaMask Multichain API",
   "keywords": [
     "MetaMask",
@@ -54,7 +54,7 @@
     "@metamask/network-controller": "^24.2.0",
     "@metamask/permission-controller": "^11.0.6",
     "@metamask/rpc-errors": "^7.0.2",
-    "@metamask/utils": "^11.8.0",
+    "@metamask/utils": "^11.8.1",
     "@open-rpc/meta-schema": "^1.14.6",
     "@open-rpc/schema-utils-js": "^2.0.5",
     "jsonschema": "^1.4.1"

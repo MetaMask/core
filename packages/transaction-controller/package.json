@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "60.4.0",
+  "version": "60.6.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -60,7 +60,7 @@
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/nonce-tracker": "^6.0.0",
     "@metamask/rpc-errors": "^7.0.2",
-    "@metamask/utils": "^11.8.0",
+    "@metamask/utils": "^11.8.1",
     "async-mutex": "^0.5.0",
     "bn.js": "^5.2.1",
     "eth-method-registry": "^4.0.0",

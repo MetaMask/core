@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.1.0]
+
+### Added
+
+- Add path-based blocking [#6416](https://github.com/MetaMask/core/pull/6416)
+  - Add `blocklistPaths` to `PhishingDetectorList`
+  - Add `blocklistPaths` to `PhishingDetectorConfiguration`
+  - Add `whitelistPaths` to `PhishingControllerState`
+  - Adds a type called PathTrie
+
+### Fixed
+
+- Fixed phishing detector initialization failure when domain lists contain invalid values (numbers, null, undefined) by filtering them out ([#6767](https://github.com/MetaMask/core/pull/6767))
+
+## [14.0.0]
+
 ### Added
 
 - Add bulk token scanning functionality to detect malicious tokens ([#6483](https://github.com/MetaMask/core/pull/6483))
@@ -15,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `tokenScanCache` to `PhishingControllerState`
   - Add proper action registration for `bulkScanTokens` method as `PhishingControllerBulkScanTokensAction`
   - Support for multiple chains including Ethereum, Polygon, BSC, Arbitrum, Avalanche, Base, Optimism, ect...
+- Add token screening from transaction simulation data ([#6617](https://github.com/MetaMask/core/pull/6617))
+  - Add `#onTransactionControllerStateChange` method to handle transaction state changes
+  - Add `#scanTokensFromSimulation` method to extract and scan tokens from transaction simulation data
+  - Add `start` and `stop` methods to manage Transaction Controller state change subscription
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6587](https://github.com/MetaMask/core/pull/6587))
 
 ### Changed
@@ -410,7 +430,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@13.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.0...HEAD
+[14.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.0.0...@metamask/phishing-controller@14.1.0
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@13.1.0...@metamask/phishing-controller@14.0.0
 [13.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@13.0.0...@metamask/phishing-controller@13.1.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.6.0...@metamask/phishing-controller@13.0.0
 [12.6.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.5.0...@metamask/phishing-controller@12.6.0

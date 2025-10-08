@@ -267,7 +267,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   updateBridgeQuoteRequestParams = async (
-    paramsToUpdate: Partial<GenericQuoteRequest>,
+    paramsToUpdate: Partial<GenericQuoteRequest> & {
+      walletAddress: GenericQuoteRequest['walletAddress'];
+    },
     context: BridgePollingInput['context'],
   ) => {
     this.stopAllPolling();
@@ -352,7 +354,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     quoteRequest: GenericQuoteRequest,
     abortSignal: AbortSignal | null = null,
     featureId: FeatureId | null = null,
-  ): Promise<QuoteResponse[]> => {
+  ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
     const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
     // If featureId is specified, retrieve the quoteRequestOverrides for that featureId
     const quoteRequestOverrides = featureId
@@ -368,12 +370,16 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#clientId,
       this.#fetchFn,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+      featureId,
     );
 
     this.#trackResponseValidationFailures(validationFailures);
 
     const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
-    const quotesWithNonEvmFees = await this.#appendNonEvmFees(baseQuotes);
+    const quotesWithNonEvmFees = await this.#appendNonEvmFees(
+      baseQuotes,
+      quoteRequest.walletAddress,
+    );
     const quotesWithFees =
       quotesWithL1GasFees ?? quotesWithNonEvmFees ?? baseQuotes;
     // Sort perps quotes by increasing estimated processing time (fastest first)
@@ -482,8 +488,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   readonly #hasSufficientBalance = async (
     quoteRequest: GenericQuoteRequest,
   ) => {
-    const walletAddress = this.#getMultichainSelectedAccount()?.address;
-
     // Only check balance for EVM chains
     if (isNonEvmChainId(quoteRequest.srcChainId)) {
       return true;
@@ -497,13 +501,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     return (
       provider &&
-      walletAddress &&
       normalizedSrcTokenAddress &&
       quoteRequest.srcTokenAmount &&
       srcChainIdInHex &&
       (await hasSufficientBalance(
         provider,
-        walletAddress,
+        quoteRequest.walletAddress,
         normalizedSrcTokenAddress,
         quoteRequest.srcTokenAmount,
         srcChainIdInHex,
@@ -756,10 +759,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * Appends transaction fees for non-EVM chains to quotes
    *
    * @param quotes - Array of quote responses to append fees to
+   * @param walletAddress - The wallet address for which the quotes were requested
    * @returns Array of quotes with fees appended, or undefined if quotes are for EVM chains
    */
   readonly #appendNonEvmFees = async (
     quotes: QuoteResponse[],
+    walletAddress: GenericQuoteRequest['walletAddress'],
   ): Promise<(QuoteResponse & NonEvmFees)[] | undefined> => {
     if (
       quotes.some(({ quote: { srcChainId } }) => !isNonEvmChainId(srcChainId))
@@ -767,10 +772,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       return undefined;
     }
 
+    const selectedAccount = this.#getMultichainSelectedAccount(walletAddress);
     const nonEvmFeePromises = Promise.allSettled(
       quotes.map(async (quoteResponse) => {
         const { trade, quote } = quoteResponse;
-        const selectedAccount = this.#getMultichainSelectedAccount();
 
         if (selectedAccount?.metadata?.snap?.id && typeof trade === 'string') {
           const scope = formatChainIdToCaip(quote.srcChainId);
@@ -823,17 +828,27 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return quotesWithNonEvmFees;
   };
 
-  #getMultichainSelectedAccount() {
-    return this.messagingSystem.call(
-      'AccountsController:getSelectedMultichainAccount',
+  #getMultichainSelectedAccount(
+    walletAddress?: GenericQuoteRequest['walletAddress'],
+  ) {
+    const addressToUse = walletAddress ?? this.state.quoteRequest.walletAddress;
+    if (!addressToUse) {
+      throw new Error('Account address is required');
+    }
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getAccountByAddress',
+      addressToUse,
     );
+    if (!selectedAccount) {
+      throw new Error('Account not found');
+    }
+    return selectedAccount;
   }
 
   #getSelectedNetworkClientId() {
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
-    // console.log('===selectedNetworkClientId', selectedNetworkClientId);
     return selectedNetworkClientId;
   }
 
@@ -859,14 +874,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getRequestMetadata = (): Omit<
     RequestMetadata,
-    'stx_enabled' | 'usd_amount_source' | 'security_warnings'
+    | 'stx_enabled'
+    | 'usd_amount_source'
+    | 'security_warnings'
+    | 'is_hardware_wallet'
   > => {
     return {
       slippage_limit: this.state.quoteRequest.slippage,
       swap_type: getSwapTypeFromQuote(this.state.quoteRequest),
-      is_hardware_wallet: isHardwareWallet(
-        this.#getMultichainSelectedAccount(),
-      ),
       custom_slippage: isCustomSlippage(this.state.quoteRequest.slippage),
     };
   };
@@ -913,6 +928,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
+          is_hardware_wallet: isHardwareWallet(
+            this.#getMultichainSelectedAccount(),
+          ),
           refresh_count: this.state.quotesRefreshCount,
           ...baseProperties,
         };
@@ -920,6 +938,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return {
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
+          is_hardware_wallet: isHardwareWallet(
+            this.#getMultichainSelectedAccount(),
+          ),
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
         };
@@ -927,6 +948,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return {
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
+          is_hardware_wallet: isHardwareWallet(
+            this.#getMultichainSelectedAccount(),
+          ),
           error_message: this.state.quoteFetchError,
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
@@ -938,13 +962,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
+          is_hardware_wallet: isHardwareWallet(
+            this.#getMultichainSelectedAccount(),
+          ),
           ...baseProperties,
-        };
-      case UnifiedSwapBridgeEventName.SnapConfirmationViewed:
-        return {
-          ...baseProperties,
-          ...this.#getRequestParams(),
-          ...this.#getRequestMetadata(),
         };
       case UnifiedSwapBridgeEventName.Failed: {
         // Populate the properties that the error occurred before the tx was submitted
@@ -1043,10 +1064,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     const ethersProvider = new Web3Provider(provider);
     const contract = new Contract(contractAddress, abiERC20, ethersProvider);
-    const { address: walletAddress } =
-      this.#getMultichainSelectedAccount() ?? {};
     const allowance: BigNumber = await contract.allowance(
-      walletAddress,
+      this.state.quoteRequest.walletAddress,
       METABRIDGE_CHAIN_TO_ADDRESS_MAP[chainId],
     );
     return allowance.toString();
