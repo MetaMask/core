@@ -132,7 +132,8 @@ JSON-RPC requests come in two flavors:
 - [Requests](https://www.jsonrpc.org/specification#request_object), i.e. request objects with an `id`
 - [Notifications](https://www.jsonrpc.org/specification#notification), i.e. request objects _without_ an `id`
 
-Requests must return a non-`undefined` result, or the engine will error:
+For requests, one of the engine's middleware must "end" the request by returning a non-`undefined` result, or `.handle()`
+will throw an error:
 
 ```ts
 const engine = new JsonRpcEngineV2({
@@ -156,7 +157,8 @@ try {
 }
 ```
 
-Notifications, on the other hand, may only return `undefined`:
+For notifications, on the other hand, every middleware must return `undefined`, and non-`undefined` return values
+will cause an error:
 
 ```ts
 const notification = { jsonrpc: '2.0', method: 'hello' };
@@ -182,7 +184,7 @@ import {
 const engine = new JsonRpcEngineV2({
   middleware: [
     async ({ request, next }) => {
-      if (isRequest(request)) {
+      if (isRequest(request) && request.method === 'everything') {
         return 42;
       }
       return next();
@@ -192,7 +194,7 @@ const engine = new JsonRpcEngineV2({
         console.log(`Received notification: ${request.method}`);
         return undefined;
       }
-      return 'Hello, World!';
+      return null;
     },
   ],
 });

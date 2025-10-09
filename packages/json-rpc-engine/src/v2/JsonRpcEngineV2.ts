@@ -54,6 +54,19 @@ type HandleOptions = {
  *
  * Give it a stack of middleware, pass it requests, and get back responses.
  *
+ * #### Requests vs. notifications
+ *
+ * JSON-RPC requests come in two flavors:
+ *
+ * - [Requests](https://www.jsonrpc.org/specification#request_object), i.e. request objects with an `id`
+ * - [Notifications](https://www.jsonrpc.org/specification#notification), i.e. request objects _without_ an `id`
+ *
+ * For requests, one of the engine's middleware must "end" the request by returning a non-`undefined` result,
+ * or {@link handle} will throw an error:
+ *
+ * For notifications, on the other hand, every middleware must return `undefined`, and non-`undefined` return values
+ * will cause an error:
+ *
  * @template Request - The type of request to handle.
  * @template Result - The type of result to return.
  *
