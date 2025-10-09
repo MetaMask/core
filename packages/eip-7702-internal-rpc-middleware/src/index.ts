@@ -6,7 +6,6 @@ export { walletGetAccountUpgradeStatus } from './wallet_getAccountUpgradeStatus'
 export {
   validateParams,
   validateAndNormalizeAddress,
-  resemblesAddress,
 } from './utils';
 
 // Constants
