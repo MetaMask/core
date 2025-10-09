@@ -27,14 +27,14 @@ export async function validateAndNormalizeAddress(
     // does not have the `eth_accounts` permission.
     const accounts = await getPermittedAccountsForOrigin(origin);
 
-    const normalizedAccounts: string[] = accounts.map((_address) =>
-      _address.toLowerCase(),
+    const normalizedAccounts: Hex[] = accounts.map(
+      (accountAddress) => accountAddress.toLowerCase() as Hex,
     );
 
-    const normalizedAddress = address.toLowerCase();
+    const normalizedAddress = address.toLowerCase() as Hex;
 
     if (normalizedAccounts.includes(normalizedAddress)) {
-      return normalizedAddress as Hex;
+      return normalizedAddress;
     }
 
     throw providerErrors.unauthorized();
