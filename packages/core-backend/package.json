@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/bridge-status-controller",
-  "version": "49.0.0",
-  "description": "Manages bridge-related status fetching functionality for MetaMask",
+  "name": "@metamask/core-backend",
+  "version": "1.0.0",
+  "description": "Core backend services for MetaMask",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/bridge-status-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/core-backend#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -37,10 +37,10 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/bridge-status-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/bridge-status-controller",
-    "publish:preview": "yarn npm publish --tag preview",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/core-backend",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/core-backend",
     "since-latest-release": "../../scripts/since-latest-release.sh",
+    "publish:preview": "yarn npm publish --tag preview",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
@@ -49,38 +49,26 @@
   "dependencies": {
     "@metamask/base-controller": "^8.4.0",
     "@metamask/controller-utils": "^11.14.0",
-    "@metamask/polling-controller": "^14.0.0",
-    "@metamask/superstruct": "^3.1.0",
+    "@metamask/profile-sync-controller": "^25.1.0",
     "@metamask/utils": "^11.8.1",
-    "bignumber.js": "^9.1.2",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/accounts-controller": "^33.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/bridge-controller": "^49.0.0",
-    "@metamask/gas-fee-controller": "^24.0.0",
-    "@metamask/network-controller": "^24.2.0",
-    "@metamask/snaps-controllers": "^14.0.1",
-    "@metamask/transaction-controller": "^60.6.0",
+    "@ts-bridge/cli": "^0.6.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
-    "jest-environment-jsdom": "^27.5.1",
-    "lodash": "^4.17.21",
     "nock": "^13.3.1",
+    "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^33.0.0",
-    "@metamask/bridge-controller": "^49.0.0",
-    "@metamask/gas-fee-controller": "^24.0.0",
-    "@metamask/network-controller": "^24.0.0",
-    "@metamask/snaps-controllers": "^14.0.0",
-    "@metamask/transaction-controller": "^60.0.0"
+    "@metamask/accounts-controller": "^33.1.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

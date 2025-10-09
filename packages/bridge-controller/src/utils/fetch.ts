@@ -23,8 +23,9 @@ import type {
 
 const CACHE_REFRESH_TEN_MINUTES = 10 * Duration.Minute;
 
-export const getClientIdHeader = (clientId: string) => ({
+export const getClientHeaders = (clientId: string, clientVersion?: string) => ({
   'X-Client-Id': clientId,
+  ...(clientVersion ? { 'Client-Version': clientVersion } : {}),
 });
 
 /**
@@ -34,6 +35,7 @@ export const getClientIdHeader = (clientId: string) => ({
  * @param clientId - The client ID for metrics
  * @param fetchFn - The fetch function to use
  * @param bridgeApiBaseUrl - The base URL for the bridge API
+ * @param clientVersion - The client version for metrics (optional)
  * @returns A list of enabled (unblocked) tokens
  */
 export async function fetchBridgeTokens(
@@ -41,6 +43,7 @@ export async function fetchBridgeTokens(
   clientId: string,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
+  clientVersion?: string,
 ): Promise<Record<string, BridgeAsset>> {
   // TODO make token api v2 call
   const url = `${bridgeApiBaseUrl}/getTokens?chainId=${formatChainIdToDec(chainId)}`;
@@ -49,7 +52,7 @@ export async function fetchBridgeTokens(
   // If we allow selecting dest networks which the user has not imported,
   // note that the Assets controller won't be able to provide tokens. In extension we fetch+cache the token list from bridge-api to handle this
   const tokens = await fetchFn(url, {
-    headers: getClientIdHeader(clientId),
+    headers: getClientHeaders(clientId, clientVersion),
     cacheOptions: { cacheRefreshTime: CACHE_REFRESH_TEN_MINUTES },
     functionName: 'fetchBridgeTokens',
   });
@@ -73,6 +76,7 @@ export async function fetchBridgeTokens(
  * @param fetchFn - The fetch function to use
  * @param bridgeApiBaseUrl - The base URL for the bridge API
  * @param featureId - The feature ID to append to each quote
+ * @param clientVersion - The client version for metrics (optional)
  * @returns A list of bridge tx quotes
  */
 export async function fetchBridgeQuotes(
@@ -82,6 +86,7 @@ export async function fetchBridgeQuotes(
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
   featureId: FeatureId | null,
+  clientVersion?: string,
 ): Promise<{
   quotes: QuoteResponse[];
   validationFailures: string[];
@@ -120,7 +125,7 @@ export async function fetchBridgeQuotes(
   });
   const url = `${bridgeApiBaseUrl}/getQuote?${queryParams}`;
   const quotes: unknown[] = await fetchFn(url, {
-    headers: getClientIdHeader(clientId),
+    headers: getClientHeaders(clientId, clientVersion),
     signal,
     cacheOptions: { cacheRefreshTime: 0 },
     functionName: 'fetchBridgeQuotes',
@@ -172,9 +177,10 @@ const fetchAssetPricesForCurrency = async (request: {
   currency: string;
   assetIds: Set<CaipAssetType>;
   clientId: string;
+  clientVersion?: string;
   fetchFn: FetchFunction;
 }): Promise<Record<CaipAssetType, { [currency: string]: string }>> => {
-  const { currency, assetIds, clientId, fetchFn } = request;
+  const { currency, assetIds, clientId, clientVersion, fetchFn } = request;
   const validAssetIds = Array.from(assetIds).filter(Boolean);
   if (validAssetIds.length === 0) {
     return {};
@@ -186,7 +192,7 @@ const fetchAssetPricesForCurrency = async (request: {
   });
   const url = `https://price.api.cx.metamask.io/v3/spot-prices?${queryParams}`;
   const priceApiResponse = (await fetchFn(url, {
-    headers: getClientIdHeader(clientId),
+    headers: getClientHeaders(clientId, clientVersion),
     cacheOptions: { cacheRefreshTime: Number(Duration.Second * 30) },
     functionName: 'fetchAssetExchangeRates',
   })) as Record<CaipAssetType, { [currency: string]: number }>;

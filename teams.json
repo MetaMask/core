@@ -12,6 +12,7 @@
   "metamask/build-utils": "team-wallet-framework",
   "metamask/chain-agnostic-permission": "team-wallet-api-platform",
   "metamask/composable-controller": "team-wallet-framework",
+  "metamask/core-backend": "team-assets,team-wallet-framework",
   "metamask/controller-utils": "team-wallet-framework",
   "metamask/delegation-controller": "team-vault",
   "metamask/eip-5792-middleware": "team-wallet-api-platform",
