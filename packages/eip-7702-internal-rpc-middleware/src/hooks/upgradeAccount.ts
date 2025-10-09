@@ -50,7 +50,7 @@ export async function upgradeAccount(
     getAccounts,
   });
 
-  // Use current chain ID if not provided
+  // Use current app selected chain ID if not passed as a param
   let targetChainId: number;
   if (chainId !== undefined) {
     targetChainId = chainId;
