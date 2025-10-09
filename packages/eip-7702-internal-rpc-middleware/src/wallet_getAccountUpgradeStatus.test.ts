@@ -22,15 +22,14 @@ const createTestHooks = (): TestHooks => {
   const getPermittedAccountsForOrigin = jest
     .fn()
     .mockResolvedValue([TEST_ACCOUNT]);
-  const getNetworkConfigurationByChainId = jest.fn().mockReturnValue({
-    rpcEndpoints: [{ networkClientId: NETWORK_CLIENT_ID }],
-    defaultRpcEndpointIndex: 0,
-  });
+  const getSelectedNetworkClientIdForChain = jest
+    .fn()
+    .mockReturnValue(NETWORK_CLIENT_ID);
 
   return {
     getCode,
     getCurrentChainIdForDomain,
-    getNetworkConfigurationByChainId,
+    getSelectedNetworkClientIdForChain,
     getPermittedAccountsForOrigin,
   };
 };
@@ -67,6 +66,9 @@ describe('walletGetAccountUpgradeStatus', () => {
     await walletGetAccountUpgradeStatus(req, res, hooks);
 
     expect(hooks.getCurrentChainIdForDomain).toHaveBeenCalledWith(req.origin);
+    expect(hooks.getSelectedNetworkClientIdForChain).toHaveBeenCalledWith(
+      '0x1',
+    );
     expect(hooks.getCode).toHaveBeenCalledWith(TEST_ACCOUNT, NETWORK_CLIENT_ID);
     expect(res.result).toStrictEqual({
       account: TEST_ACCOUNT,
@@ -89,6 +91,9 @@ describe('walletGetAccountUpgradeStatus', () => {
     await walletGetAccountUpgradeStatus(req, res, hooks);
 
     expect(hooks.getCurrentChainIdForDomain).toHaveBeenCalledWith(req.origin);
+    expect(hooks.getSelectedNetworkClientIdForChain).toHaveBeenCalledWith(
+      '0x1',
+    );
     expect(hooks.getCode).toHaveBeenCalledWith(TEST_ACCOUNT, NETWORK_CLIENT_ID);
     expect(res.result).toStrictEqual({
       account: TEST_ACCOUNT,
@@ -111,7 +116,7 @@ describe('walletGetAccountUpgradeStatus', () => {
     await walletGetAccountUpgradeStatus(req, res, hooks);
 
     expect(hooks.getCurrentChainIdForDomain).not.toHaveBeenCalled();
-    expect(hooks.getNetworkConfigurationByChainId).toHaveBeenCalledWith(
+    expect(hooks.getSelectedNetworkClientIdForChain).toHaveBeenCalledWith(
       '0xaa36a7',
     );
     expect(hooks.getCode).toHaveBeenCalledWith(TEST_ACCOUNT, NETWORK_CLIENT_ID);
@@ -133,21 +138,6 @@ describe('walletGetAccountUpgradeStatus', () => {
     ).rejects.toThrow('Invalid parameters');
   });
 
-  it('propagates network configuration errors', async () => {
-    const hooks = createTestHooks();
-    const req = createTestRequest([
-      { account: TEST_ACCOUNT, chainId: '0x999' },
-    ]);
-    const res = createTestResponse();
-
-    // Mock network configuration to return null (network not found)
-    hooks.getNetworkConfigurationByChainId.mockReturnValue(null);
-
-    await expect(
-      walletGetAccountUpgradeStatus(req, res, hooks),
-    ).rejects.toThrow('Network not found for chain ID 0x999');
-  });
-
   it('throws error when current chain ID cannot be determined', async () => {
     const hooks = createTestHooks();
     const req = createTestRequest(); // No chainId provided, should use current
@@ -163,40 +153,27 @@ describe('walletGetAccountUpgradeStatus', () => {
     );
   });
 
-  it('throws error when network configuration is invalid (missing rpcEndpoints)', async () => {
+  it('calls getSelectedNetworkClientIdForChain with current chain ID when no chainId provided', async () => {
     const hooks = createTestHooks();
-    const req = createTestRequest([
-      { account: TEST_ACCOUNT, chainId: '0x999' },
-    ]);
+    const req = createTestRequest(); // No chainId provided, should use current
     const res = createTestResponse();
 
-    // Mock network configuration with missing rpcEndpoints
-    hooks.getNetworkConfigurationByChainId.mockReturnValue({
-      rpcEndpoints: undefined,
-      defaultRpcEndpointIndex: 0,
+    // Mock getCode to return empty code (non-upgraded account)
+    hooks.getCode.mockResolvedValue('0x');
+
+    await walletGetAccountUpgradeStatus(req, res, hooks);
+
+    expect(hooks.getCurrentChainIdForDomain).toHaveBeenCalledWith(req.origin);
+    expect(hooks.getSelectedNetworkClientIdForChain).toHaveBeenCalledWith(
+      '0x1',
+    );
+    expect(hooks.getCode).toHaveBeenCalledWith(TEST_ACCOUNT, NETWORK_CLIENT_ID);
+    expect(res.result).toStrictEqual({
+      account: TEST_ACCOUNT,
+      isUpgraded: false,
+      upgradedAddress: null,
+      chainId: '0x1',
     });
-
-    await expect(
-      walletGetAccountUpgradeStatus(req, res, hooks),
-    ).rejects.toThrow('Network configuration invalid for chain ID 0x999');
-  });
-
-  it('throws error when network configuration is invalid (invalid defaultRpcEndpointIndex)', async () => {
-    const hooks = createTestHooks();
-    const req = createTestRequest([
-      { account: TEST_ACCOUNT, chainId: '0x999' },
-    ]);
-    const res = createTestResponse();
-
-    // Mock network configuration with invalid defaultRpcEndpointIndex
-    hooks.getNetworkConfigurationByChainId.mockReturnValue({
-      rpcEndpoints: [{ networkClientId: NETWORK_CLIENT_ID }],
-      defaultRpcEndpointIndex: 5, // Out of bounds
-    });
-
-    await expect(
-      walletGetAccountUpgradeStatus(req, res, hooks),
-    ).rejects.toThrow('Network configuration invalid for chain ID 0x999');
   });
 
   it('throws error when network client ID is missing', async () => {
@@ -206,11 +183,8 @@ describe('walletGetAccountUpgradeStatus', () => {
     ]);
     const res = createTestResponse();
 
-    // Mock network configuration with missing networkClientId
-    hooks.getNetworkConfigurationByChainId.mockReturnValue({
-      rpcEndpoints: [{}] as { networkClientId: string }[],
-      defaultRpcEndpointIndex: 0,
-    });
+    // Mock getSelectedNetworkClientIdForChain to return null (network not found)
+    hooks.getSelectedNetworkClientIdForChain.mockReturnValue(null);
 
     await expect(
       walletGetAccountUpgradeStatus(req, res, hooks),
@@ -228,6 +202,10 @@ describe('walletGetAccountUpgradeStatus', () => {
 
     await walletGetAccountUpgradeStatus(req, res, hooks);
 
+    expect(hooks.getCurrentChainIdForDomain).toHaveBeenCalledWith(req.origin);
+    expect(hooks.getSelectedNetworkClientIdForChain).toHaveBeenCalledWith(
+      '0x1',
+    );
     expect(res.result).toStrictEqual({
       account: TEST_ACCOUNT,
       isUpgraded: false,

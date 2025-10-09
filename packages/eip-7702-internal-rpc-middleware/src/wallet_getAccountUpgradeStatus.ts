@@ -15,10 +15,7 @@ import { validateParams, validateAndNormalizeAddress } from './utils';
 export type WalletGetAccountUpgradeStatusHooks = {
   getCurrentChainIdForDomain: (origin: string) => Hex | null;
   getCode: (address: string, networkClientId: string) => Promise<string | null>;
-  getNetworkConfigurationByChainId: (chainId: string) => {
-    rpcEndpoints?: { networkClientId: string }[];
-    defaultRpcEndpointIndex?: number;
-  } | null;
+  getSelectedNetworkClientIdForChain: (chainId: string) => string | null;
   getPermittedAccountsForOrigin: (origin: string) => Promise<string[]>;
 };
 
@@ -90,30 +87,8 @@ export async function walletGetAccountUpgradeStatus(
   try {
     // Get the network configuration for the target chain
     const hexChainId = targetChainId;
-    const networkConfiguration =
-      hooks.getNetworkConfigurationByChainId(hexChainId);
-
-    if (!networkConfiguration) {
-      throw rpcErrors.invalidParams({
-        message: `Network not found for chain ID ${targetChainId}`,
-      });
-    }
-
-    // Get the network client ID from the network configuration
-    const { rpcEndpoints, defaultRpcEndpointIndex } = networkConfiguration;
-
-    if (
-      !rpcEndpoints ||
-      defaultRpcEndpointIndex === undefined ||
-      defaultRpcEndpointIndex < 0 ||
-      defaultRpcEndpointIndex >= rpcEndpoints.length
-    ) {
-      throw rpcErrors.invalidParams({
-        message: `Network configuration invalid for chain ID ${targetChainId}`,
-      });
-    }
-
-    const { networkClientId } = rpcEndpoints[defaultRpcEndpointIndex];
+    const networkClientId =
+      hooks.getSelectedNetworkClientIdForChain(hexChainId);
 
     if (!networkClientId) {
       throw rpcErrors.invalidParams({
