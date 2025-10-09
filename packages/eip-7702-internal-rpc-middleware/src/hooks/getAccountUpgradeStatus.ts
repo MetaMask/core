@@ -86,7 +86,7 @@ export async function getAccountUpgradeStatus(
     const currentChainIdForDomain = getCurrentChainIdForDomain(origin);
     if (!currentChainIdForDomain) {
       throw rpcErrors.invalidParams({
-        message: `No network configuration found for origin: ${origin}`,
+        message: `Could not determine current chain ID for origin: ${origin}`,
       });
     }
     targetChainId = parseInt(currentChainIdForDomain, 16);
