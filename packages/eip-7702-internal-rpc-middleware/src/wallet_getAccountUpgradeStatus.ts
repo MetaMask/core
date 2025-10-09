@@ -12,14 +12,14 @@ import { DELEGATION_INDICATOR_PREFIX } from './constants';
 import { GetAccountUpgradeStatusParamsStruct } from './types';
 import { validateParams, validateAndNormalizeAddress } from './utils';
 
-export type WalletGetAccountUpgradeStatusDependencies = {
-  getCurrentChainIdForDomain: jest.MockedFunction<(origin: string) => Hex | null>;
-  getCode: jest.MockedFunction<(address: string, networkClientId: string) => Promise<string | null>>;
-  getNetworkConfigurationByChainId: jest.MockedFunction<(chainId: string) => {
+export type WalletGetAccountUpgradeStatusHooks = {
+  getCurrentChainIdForDomain: (origin: string) => Hex | null;
+  getCode: (address: string, networkClientId: string) => Promise<string | null>;
+  getNetworkConfigurationByChainId: (chainId: string) => {
     rpcEndpoints?: { networkClientId: string }[];
     defaultRpcEndpointIndex?: number;
-  } | null>;
-  getAccounts: jest.MockedFunction<(req: JsonRpcRequest) => Promise<string[]>>;
+  } | null;
+  getPermittedAccountsForOrigin: (origin: string) => Promise<string[]>;
 };
 
 const isAccountUpgraded = async (
@@ -52,12 +52,12 @@ const isAccountUpgraded = async (
  *
  * @param req - The JSON RPC request's end callback.
  * @param res - The JSON RPC request's pending response object.
- * @param dependencies - The dependencies required for account upgrade status checking.
+ * @param hooks - The hooks required for account upgrade status checking.
  */
 export async function walletGetAccountUpgradeStatus(
   req: JsonRpcRequest<Json[]> & { origin: string },
   res: PendingJsonRpcResponse,
-  dependencies: WalletGetAccountUpgradeStatusDependencies,
+  hooks: WalletGetAccountUpgradeStatusHooks,
 ): Promise<void> {
   const { params, origin } = req;
 
@@ -67,16 +67,18 @@ export async function walletGetAccountUpgradeStatus(
   const [{ account, chainId }] = params;
 
   // Validate and normalize the account address with authorization check
-  const normalizedAccount = await validateAndNormalizeAddress(account, req, {
-    getAccounts: dependencies.getAccounts,
-  });
+  const normalizedAccount = await validateAndNormalizeAddress(
+    account,
+    origin,
+    hooks.getPermittedAccountsForOrigin,
+  );
 
   // Use current chain ID if not provided
   let targetChainId: Hex;
   if (chainId !== undefined) {
     targetChainId = chainId;
   } else {
-    const currentChainIdForDomain = dependencies.getCurrentChainIdForDomain(origin);
+    const currentChainIdForDomain = hooks.getCurrentChainIdForDomain(origin);
     if (!currentChainIdForDomain) {
       throw rpcErrors.invalidParams({
         message: `Could not determine current chain ID for origin: ${origin}`,
@@ -88,7 +90,8 @@ export async function walletGetAccountUpgradeStatus(
   try {
     // Get the network configuration for the target chain
     const hexChainId = targetChainId;
-    const networkConfiguration = dependencies.getNetworkConfigurationByChainId(hexChainId);
+    const networkConfiguration =
+      hooks.getNetworkConfigurationByChainId(hexChainId);
 
     if (!networkConfiguration) {
       throw rpcErrors.invalidParams({
@@ -122,7 +125,7 @@ export async function walletGetAccountUpgradeStatus(
     const { isUpgraded, upgradedAddress } = await isAccountUpgraded(
       normalizedAccount,
       networkClientId,
-      dependencies.getCode,
+      hooks.getCode,
     );
 
     res.result = {

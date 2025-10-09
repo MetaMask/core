@@ -7,20 +7,17 @@ import type {
   Hex,
 } from '@metamask/utils';
 
-import type {
-  UpgradeAccountParams,
-} from './types';
 import { UpgradeAccountParamsStruct } from './types';
 import { validateParams, validateAndNormalizeAddress } from './utils';
 
-export type WalletUpgradeAccountDependencies = {
-  upgradeAccount: jest.MockedFunction<(
+export type WalletUpgradeAccountHooks = {
+  upgradeAccount: (
     address: string,
     upgradeContractAddress: string,
     chainId?: Hex,
-  ) => Promise<{ transactionHash: string; delegatedTo: string }>>;
-  getCurrentChainIdForDomain: jest.MockedFunction<(origin: string) => Hex | null>;
-  isEip7702Supported: jest.MockedFunction<(request: {
+  ) => Promise<{ transactionHash: string; delegatedTo: string }>;
+  getCurrentChainIdForDomain: (origin: string) => Hex | null;
+  isEip7702Supported: (request: {
     address: string;
     chainIds: string[];
   }) => Promise<
@@ -30,8 +27,8 @@ export type WalletUpgradeAccountDependencies = {
       delegationAddress?: string;
       upgradeContractAddress?: string;
     }[]
-  >>;
-  getAccounts: jest.MockedFunction<(req: JsonRpcRequest) => Promise<string[]>>;
+  >;
+  getPermittedAccountsForOrigin: (origin: string) => Promise<string[]>;
 };
 
 /**
@@ -39,32 +36,33 @@ export type WalletUpgradeAccountDependencies = {
  *
  * @param req - The JSON RPC request's end callback.
  * @param res - The JSON RPC request's pending response object.
- * @param dependencies - The dependencies required for account upgrade functionality.
+ * @param hooks - The hooks required for account upgrade functionality.
  */
 export async function walletUpgradeAccount(
   req: JsonRpcRequest<Json[]> & { origin: string },
   res: PendingJsonRpcResponse,
-  dependencies: WalletUpgradeAccountDependencies,
+  hooks: WalletUpgradeAccountHooks,
 ): Promise<void> {
   const { params, origin } = req;
 
   // Validate parameters using Superstruct
   validateParams(params, tuple([UpgradeAccountParamsStruct]));
 
-  const [upgradeParams] = params as [UpgradeAccountParams];
-  const { account, chainId } = upgradeParams;
+  const [{ account, chainId }] = params;
 
   // Validate and normalize the account address with authorization check
-  const normalizedAccount = await validateAndNormalizeAddress(account, req, {
-    getAccounts: dependencies.getAccounts,
-  });
+  const normalizedAccount = await validateAndNormalizeAddress(
+    account,
+    origin,
+    hooks.getPermittedAccountsForOrigin,
+  );
 
   // Use current app selected chain ID if not passed as a param
   let targetChainId: Hex;
   if (chainId !== undefined) {
     targetChainId = chainId;
   } else {
-    const currentChainIdForDomain = dependencies.getCurrentChainIdForDomain(origin);
+    const currentChainIdForDomain = hooks.getCurrentChainIdForDomain(origin);
     if (!currentChainIdForDomain) {
       throw rpcErrors.invalidParams({
         message: `No network configuration found for origin: ${origin}`,
@@ -76,7 +74,7 @@ export async function walletUpgradeAccount(
   try {
     // Get the EIP7702 network configuration for the target chain
     const hexChainId = targetChainId;
-    const atomicBatchSupport = await dependencies.isEip7702Supported({
+    const atomicBatchSupport = await hooks.isEip7702Supported({
       address: normalizedAccount,
       chainIds: [hexChainId],
     });
@@ -99,7 +97,7 @@ export async function walletUpgradeAccount(
     const { upgradeContractAddress } = atomicBatchChainSupport;
 
     // Perform the upgrade using existing EIP-7702 functionality
-    const result = await dependencies.upgradeAccount(
+    const result = await hooks.upgradeAccount(
       normalizedAccount,
       upgradeContractAddress,
       targetChainId,

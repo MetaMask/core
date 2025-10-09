@@ -1,23 +1,22 @@
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Struct, StructError } from '@metamask/superstruct';
 import { validate } from '@metamask/superstruct';
-import type { Hex, JsonRpcRequest } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 /**
  * Validates address format, checks user eth_accounts permissions, and normalizes to lowercase.
  *
  * @param address - The Ethereum address to validate and normalize.
- * @param req - The JSON-RPC request object for permission checking.
- * @param options - Configuration object containing the getAccounts function.
- * @param options.getAccounts - Function to retrieve accounts for the requester.
+ * @param origin - The origin string for permission checking.
+ * @param getPermittedAccountsForOrigin - Function to retrieve permitted accounts for the origin.
  * @returns A normalized (lowercase) hex address if valid and authorized.
  * @throws JsonRpcError with unauthorized error if the requester doesn't have permission to access the address.
  * @throws JsonRpcError with invalid params if the address format is invalid.
  */
 export async function validateAndNormalizeAddress(
   address: Hex,
-  req: JsonRpcRequest,
-  { getAccounts }: { getAccounts: (req: JsonRpcRequest) => Promise<string[]> },
+  origin: string,
+  getPermittedAccountsForOrigin: (origin: string) => Promise<string[]>,
 ): Promise<Hex> {
   if (
     typeof address === 'string' &&
@@ -26,7 +25,7 @@ export async function validateAndNormalizeAddress(
   ) {
     // Ensure that an "unauthorized" error is thrown if the requester
     // does not have the `eth_accounts` permission.
-    const accounts = await getAccounts(req);
+    const accounts = await getPermittedAccountsForOrigin(origin);
 
     const normalizedAccounts: string[] = accounts.map((_address) =>
       _address.toLowerCase(),

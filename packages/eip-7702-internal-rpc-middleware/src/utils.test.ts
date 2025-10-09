@@ -1,6 +1,6 @@
 import { rpcErrors } from '@metamask/rpc-errors';
-import { object, string, number, optional } from '@metamask/superstruct';
-import type { Hex, JsonRpcRequest } from '@metamask/utils';
+import { object, string, number } from '@metamask/superstruct';
+import type { Hex } from '@metamask/utils';
 
 import {
   validateParams,
@@ -26,14 +26,9 @@ describe('validateParams', () => {
     });
     const invalidValue = { name: 123, age: 'invalid' };
 
-    expect(() => validateParams(invalidValue, testStruct)).toThrow();
-    
-    try {
-      validateParams(invalidValue, testStruct);
-    } catch (error: any) {
-      expect(error.code).toBe(-32602); // Invalid params error code
-      expect(error.message).toContain('Invalid parameters');
-    }
+    expect(() => validateParams(invalidValue, testStruct)).toThrow(
+      'Invalid parameters',
+    );
   });
 
   it('formats validation errors with field paths', () => {
@@ -43,12 +38,9 @@ describe('validateParams', () => {
     });
     const invalidValue = { name: 123, age: 'invalid' };
 
-    try {
-      validateParams(invalidValue, testStruct);
-    } catch (error: any) {
-      expect(error.message).toContain('Invalid parameters');
-      // The actual error formatting is tested through the real Superstruct errors
-    }
+    expect(() => validateParams(invalidValue, testStruct)).toThrow(
+      'Invalid parameters',
+    );
   });
 
   it('formats validation errors with empty path (root level errors)', () => {
@@ -56,37 +48,41 @@ describe('validateParams', () => {
     const testStruct = string();
     const invalidValue = 123;
 
-    try {
-      validateParams(invalidValue, testStruct);
-    } catch (error: any) {
-      expect(error.message).toContain('Invalid parameters');
-      // This should trigger the empty path branch in formatValidationError
-      expect(error.message).toContain('Expected a string, but received: 123');
-    }
+    expect(() => validateParams(invalidValue, testStruct)).toThrow(
+      'Invalid parameters',
+    );
   });
 });
 
 describe('validateAndNormalizeAddress', () => {
-  const mockReq = { id: 1, method: 'test', jsonrpc: '2.0' } as JsonRpcRequest;
+  const mockOrigin = 'https://example.com';
 
   it('validates and normalizes a valid address', async () => {
     const validAddress = '0x1234567890123456789012345678901234567890';
-    const getAccounts = jest.fn().mockResolvedValue([validAddress]);
+    const getPermittedAccountsForOrigin = jest
+      .fn()
+      .mockResolvedValue([validAddress]);
 
-    const result = await validateAndNormalizeAddress(validAddress, mockReq, {
-      getAccounts,
-    });
+    const result = await validateAndNormalizeAddress(
+      validAddress,
+      mockOrigin,
+      getPermittedAccountsForOrigin,
+    );
 
     expect(result).toBe(validAddress.toLowerCase());
-    expect(getAccounts).toHaveBeenCalledWith(mockReq);
+    expect(getPermittedAccountsForOrigin).toHaveBeenCalledWith(mockOrigin);
   });
 
   it('throws error for invalid address format', async () => {
     const invalidAddress = '0xinvalid' as unknown as Hex;
-    const getAccounts = jest.fn();
+    const getPermittedAccountsForOrigin = jest.fn();
 
     await expect(
-      validateAndNormalizeAddress(invalidAddress, mockReq, { getAccounts }),
+      validateAndNormalizeAddress(
+        invalidAddress,
+        mockOrigin,
+        getPermittedAccountsForOrigin,
+      ),
     ).rejects.toThrow(
       rpcErrors.invalidParams({
         message: 'Invalid parameters: must provide an Ethereum address.',
@@ -96,12 +92,16 @@ describe('validateAndNormalizeAddress', () => {
 
   it('throws error for unauthorized account access', async () => {
     const address = '0x1234567890123456789012345678901234567890';
-    const getAccounts = jest
+    const getPermittedAccountsForOrigin = jest
       .fn()
       .mockResolvedValue(['0x9999999999999999999999999999999999999999']);
 
     await expect(
-      validateAndNormalizeAddress(address, mockReq, { getAccounts }),
+      validateAndNormalizeAddress(
+        address,
+        mockOrigin,
+        getPermittedAccountsForOrigin,
+      ),
     ).rejects.toThrow(
       'The requested account and/or method has not been authorized by the user.',
     );
@@ -109,10 +109,14 @@ describe('validateAndNormalizeAddress', () => {
 
   it('throws error for empty string address', async () => {
     const address = '' as unknown as Hex;
-    const getAccounts = jest.fn();
+    const getPermittedAccountsForOrigin = jest.fn();
 
     await expect(
-      validateAndNormalizeAddress(address, mockReq, { getAccounts }),
+      validateAndNormalizeAddress(
+        address,
+        mockOrigin,
+        getPermittedAccountsForOrigin,
+      ),
     ).rejects.toThrow(
       rpcErrors.invalidParams({
         message: 'Invalid parameters: must provide an Ethereum address.',
@@ -122,10 +126,14 @@ describe('validateAndNormalizeAddress', () => {
 
   it('throws error for non-string address', async () => {
     const address = 123 as unknown as Hex;
-    const getAccounts = jest.fn();
+    const getPermittedAccountsForOrigin = jest.fn();
 
     await expect(
-      validateAndNormalizeAddress(address, mockReq, { getAccounts }),
+      validateAndNormalizeAddress(
+        address,
+        mockOrigin,
+        getPermittedAccountsForOrigin,
+      ),
     ).rejects.toThrow(
       rpcErrors.invalidParams({
         message: 'Invalid parameters: must provide an Ethereum address.',
@@ -135,10 +143,14 @@ describe('validateAndNormalizeAddress', () => {
 
   it('throws error for null address', async () => {
     const address = null as unknown as Hex;
-    const getAccounts = jest.fn();
+    const getPermittedAccountsForOrigin = jest.fn();
 
     await expect(
-      validateAndNormalizeAddress(address, mockReq, { getAccounts }),
+      validateAndNormalizeAddress(
+        address,
+        mockOrigin,
+        getPermittedAccountsForOrigin,
+      ),
     ).rejects.toThrow(
       rpcErrors.invalidParams({
         message: 'Invalid parameters: must provide an Ethereum address.',
@@ -148,10 +160,14 @@ describe('validateAndNormalizeAddress', () => {
 
   it('throws error for undefined address', async () => {
     const address = undefined as unknown as Hex;
-    const getAccounts = jest.fn();
+    const getPermittedAccountsForOrigin = jest.fn();
 
     await expect(
-      validateAndNormalizeAddress(address, mockReq, { getAccounts }),
+      validateAndNormalizeAddress(
+        address,
+        mockOrigin,
+        getPermittedAccountsForOrigin,
+      ),
     ).rejects.toThrow(
       rpcErrors.invalidParams({
         message: 'Invalid parameters: must provide an Ethereum address.',

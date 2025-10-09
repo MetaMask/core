@@ -33,4 +33,3 @@ export type GetAccountUpgradeStatusResult = {
   upgradedAddress: string | null; // Address to which the account is upgraded
   chainId: Hex; // Chain ID where the check was performed
 };
-
