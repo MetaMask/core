@@ -2,8 +2,8 @@ import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { Json, JsonRpcParams } from '@metamask/utils';
 
+import type { InternalProvider } from './internal-provider';
 import { providerFromEngine } from './provider-from-engine';
-import type { SafeEventEmitterProvider } from './safe-event-emitter-provider';
 
 /**
  * Construct an Ethereum provider from the given middleware.
@@ -14,9 +14,9 @@ import type { SafeEventEmitterProvider } from './safe-event-emitter-provider';
 export function providerFromMiddleware<
   Params extends JsonRpcParams,
   Result extends Json,
->(middleware: JsonRpcMiddleware<Params, Result>): SafeEventEmitterProvider {
+>(middleware: JsonRpcMiddleware<Params, Result>): InternalProvider {
   const engine: JsonRpcEngine = new JsonRpcEngine();
   engine.push(middleware);
-  const provider: SafeEventEmitterProvider = providerFromEngine(engine);
+  const provider: InternalProvider = providerFromEngine(engine);
   return provider;
 }

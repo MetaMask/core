@@ -6,12 +6,13 @@ import { providerErrors } from '@metamask/rpc-errors';
 import { type JsonRpcRequest, type Json } from '@metamask/utils';
 import { BrowserProvider } from 'ethers';
 import { promisify } from 'util';
+// eslint-disable-next-line import-x/namespace
 import * as uuid from 'uuid';
 
 import {
-  SafeEventEmitterProvider,
+  InternalProvider,
   convertEip1193RequestToJsonRpcRequest,
-} from './safe-event-emitter-provider';
+} from './internal-provider';
 
 jest.mock('uuid');
 
@@ -34,9 +35,9 @@ function createMockEngine(method: string, response: Json) {
   return engine;
 }
 
-describe('SafeEventEmitterProvider', () => {
+describe('InternalProvider', () => {
   it('returns the correct block number with @metamask/eth-query', async () => {
-    const provider = new SafeEventEmitterProvider({
+    const provider = new InternalProvider({
       engine: createMockEngine('eth_blockNumber', 42),
     });
     const ethQuery = new EthQuery(provider);
@@ -47,7 +48,7 @@ describe('SafeEventEmitterProvider', () => {
   });
 
   it('returns the correct block number with @metamask/ethjs-query', async () => {
-    const provider = new SafeEventEmitterProvider({
+    const provider = new InternalProvider({
       engine: createMockEngine('eth_blockNumber', 42),
     });
     const ethJsQuery = new EthJsQuery(provider);
@@ -58,7 +59,7 @@ describe('SafeEventEmitterProvider', () => {
   });
 
   it('returns the correct block number with Web3Provider', async () => {
-    const provider = new SafeEventEmitterProvider({
+    const provider = new InternalProvider({
       engine: createMockEngine('eth_blockNumber', 42),
     });
     const web3Provider = new Web3Provider(provider);
@@ -69,7 +70,7 @@ describe('SafeEventEmitterProvider', () => {
   });
 
   it('returns the correct block number with BrowserProvider', async () => {
-    const provider = new SafeEventEmitterProvider({
+    const provider = new InternalProvider({
       engine: createMockEngine('eth_blockNumber', 42),
     });
     const browserProvider = new BrowserProvider(provider);
@@ -88,7 +89,7 @@ describe('SafeEventEmitterProvider', () => {
         res.result = 42;
         end();
       });
-      const provider = new SafeEventEmitterProvider({ engine });
+      const provider = new InternalProvider({ engine });
       const exampleRequest = {
         id: 1,
         jsonrpc: '2.0' as const,
@@ -121,7 +122,7 @@ describe('SafeEventEmitterProvider', () => {
         res.result = 42;
         end();
       });
-      const provider = new SafeEventEmitterProvider({ engine });
+      const provider = new InternalProvider({ engine });
       const exampleRequest = {
         method: 'test',
         params: {
@@ -158,7 +159,7 @@ describe('SafeEventEmitterProvider', () => {
           }),
         );
       });
-      const provider = new SafeEventEmitterProvider({ engine });
+      const provider = new InternalProvider({ engine });
       const exampleRequest = {
         id: 1,
         jsonrpc: '2.0' as const,
@@ -172,9 +173,7 @@ describe('SafeEventEmitterProvider', () => {
           code: 1001,
           message: 'Test error',
           data: { cause: 'Test cause' },
-          stack: expect.stringContaining(
-            'safe-event-emitter-provider.test.ts:',
-          ),
+          stack: expect.stringContaining('internal-provider.test.ts:'),
         }),
       );
     });
@@ -184,7 +183,7 @@ describe('SafeEventEmitterProvider', () => {
       engine.push(() => {
         throw new Error('Test error');
       });
-      const provider = new SafeEventEmitterProvider({ engine });
+      const provider = new InternalProvider({ engine });
       const exampleRequest = {
         id: 1,
         jsonrpc: '2.0' as const,
@@ -199,9 +198,7 @@ describe('SafeEventEmitterProvider', () => {
           message: 'Test error',
           data: {
             cause: expect.objectContaining({
-              stack: expect.stringContaining(
-                'safe-event-emitter-provider.test.ts:',
-              ),
+              stack: expect.stringContaining('internal-provider.test.ts:'),
               message: 'Test error',
             }),
           },
@@ -219,7 +216,7 @@ describe('SafeEventEmitterProvider', () => {
         res.result = 42;
         end();
       });
-      const provider = new SafeEventEmitterProvider({ engine });
+      const provider = new InternalProvider({ engine });
       const promisifiedSendAsync = promisify(provider.sendAsync);
       const exampleRequest = {
         id: 1,
@@ -253,7 +250,7 @@ describe('SafeEventEmitterProvider', () => {
         res.result = 42;
         end();
       });
-      const provider = new SafeEventEmitterProvider({ engine });
+      const provider = new InternalProvider({ engine });
       const promisifiedSendAsync = promisify(provider.sendAsync);
       const exampleRequest = {
         method: 'test',
@@ -283,7 +280,7 @@ describe('SafeEventEmitterProvider', () => {
       engine.push((_req, _res, _next, _end) => {
         throw new Error('Test error');
       });
-      const provider = new SafeEventEmitterProvider({ engine });
+      const provider = new InternalProvider({ engine });
       const promisifiedSendAsync = promisify(provider.sendAsync);
       const exampleRequest = {
         id: 1,
@@ -300,7 +297,7 @@ describe('SafeEventEmitterProvider', () => {
   describe('send', () => {
     it('throws if a callback is not provided', () => {
       const engine = new JsonRpcEngine();
-      const provider = new SafeEventEmitterProvider({ engine });
+      const provider = new InternalProvider({ engine });
       const exampleRequest = {
         id: 1,
         jsonrpc: '2.0' as const,
@@ -320,7 +317,7 @@ describe('SafeEventEmitterProvider', () => {
         res.result = 42;
         end();
       });
-      const provider = new SafeEventEmitterProvider({ engine });
+      const provider = new InternalProvider({ engine });
       const promisifiedSend = promisify(provider.send);
       const exampleRequest = {
         id: 1,
@@ -354,7 +351,7 @@ describe('SafeEventEmitterProvider', () => {
         res.result = 42;
         end();
       });
-      const provider = new SafeEventEmitterProvider({ engine });
+      const provider = new InternalProvider({ engine });
       const promisifiedSend = promisify(provider.send);
       const exampleRequest = {
         method: 'test',
@@ -384,7 +381,7 @@ describe('SafeEventEmitterProvider', () => {
       engine.push((_req, _res, _next, _end) => {
         throw new Error('Test error');
       });
-      const provider = new SafeEventEmitterProvider({ engine });
+      const provider = new InternalProvider({ engine });
       const promisifiedSend = promisify(provider.send);
       const exampleRequest = {
         id: 1,

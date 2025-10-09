@@ -2,7 +2,7 @@ import { BigNumber } from '@ethersproject/bignumber';
 import { AddressZero } from '@ethersproject/constants';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 
 import * as balanceUtils from './balance';
@@ -11,7 +11,7 @@ import { FakeProvider } from '../../../../tests/fake-provider';
 
 declare global {
   // eslint-disable-next-line no-var
-  var ethereumProvider: SafeEventEmitterProvider;
+  var ethereumProvider: InternalProvider;
 }
 
 jest.mock('@ethersproject/contracts', () => {
