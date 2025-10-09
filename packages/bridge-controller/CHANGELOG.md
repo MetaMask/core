@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [49.0.0]
+
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^78.0.0` to `^79.0.0` ([#6806](https://github.com/MetaMask/core/pull/6806))
 - Add optional `Client-Version` header to bridge API requests ([#6791](https://github.com/MetaMask/core/pull/6791))
 
 ## [48.0.0]
@@ -677,7 +680,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@48.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@49.0.0...HEAD
+[49.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@48.0.0...@metamask/bridge-controller@49.0.0
 [48.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@47.2.0...@metamask/bridge-controller@48.0.0
 [47.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@47.1.0...@metamask/bridge-controller@47.2.0
 [47.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@47.0.0...@metamask/bridge-controller@47.1.0
