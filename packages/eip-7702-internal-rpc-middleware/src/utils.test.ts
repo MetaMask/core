@@ -2,11 +2,7 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import { object, string, number } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
 
-import {
-  validateParams,
-  validateAndNormalizeAddress,
-  resemblesAddress,
-} from './utils';
+import { validateParams, validateAndNormalizeAddress } from './utils';
 
 describe('validateParams', () => {
   it('does not throw for valid parameters', () => {
@@ -173,25 +169,5 @@ describe('validateAndNormalizeAddress', () => {
         message: 'Invalid parameters: must provide an Ethereum address.',
       }),
     );
-  });
-});
-
-describe('resemblesAddress', () => {
-  it('checks address-like format', () => {
-    expect(resemblesAddress('0x1234567890123456789012345678901234567890')).toBe(
-      true,
-    );
-    expect(resemblesAddress('0xABCDEFabcdef1234567890123456789012345678')).toBe(
-      true,
-    );
-  });
-
-  it('rejects non-address-like format', () => {
-    expect(resemblesAddress('invalid')).toBe(false);
-    expect(resemblesAddress('0x123')).toBe(false);
-    expect(resemblesAddress('1234567890123456789012345678901234567890')).toBe(
-      false,
-    );
-    expect(resemblesAddress('')).toBe(false);
   });
 });
