@@ -587,17 +587,18 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       UnifiedSwapBridgeEventName.QuotesRequested,
       context,
     );
+
+    const { sseEnabled, maxRefreshCount } = getBridgeFeatureFlags(
+      this.messagingSystem,
+    );
+    const shouldStream = Boolean(sseEnabled);
+
     this.update((state) => {
       state.quotesLoadingStatus = RequestStatus.LOADING;
       // TODO remove this since it's not needed
       state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
     });
-
-    const { sseEnabled, maxRefreshCount } = getBridgeFeatureFlags(
-      this.messagingSystem,
-    );
-    const shouldStream = Boolean(sseEnabled);
 
     try {
       await this.#trace(
@@ -627,20 +628,28 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
               this.#clientId,
               this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
               {
+                onOpen: async () => {
+                  // Clear quotes when first quote in stream is received
+                  this.update((state) => {
+                    state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
+                  });
+                  return Promise.resolve();
+                },
                 onValidationFailures: this.#trackResponseValidationFailures,
-                onValidQuotesReceived: async (quotes: QuoteResponse[]) => {
+                onValidQuotesReceived: async (quote: QuoteResponse) => {
                   const quotesWithFees = await this.#appendFees(
                     updatedQuoteRequest,
-                    quotes,
+                    [quote],
                   );
                   this.update((state) => {
-                    // Set initial load time when first quotes are received
                     if (
                       state.quotesInitialLoadTime ===
                         DEFAULT_BRIDGE_CONTROLLER_STATE.quotesInitialLoadTime &&
-                      quotesWithFees.length > 0
+                      quotesWithFees.length > 0 &&
+                      this.#quotesFirstFetched
                     ) {
-                      state.quotesInitialLoadTime = Date.now();
+                      state.quotesInitialLoadTime =
+                        Date.now() - this.#quotesFirstFetched;
                     }
                     state.quotes.push(...quotesWithFees);
                   });

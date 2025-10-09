@@ -266,6 +266,7 @@ export const fetchAssetPrices = async (
  * @param serverEventHandlers - The server event handlers
  * @param serverEventHandlers.onValidationFailures - The function to handle validation failures
  * @param serverEventHandlers.onValidQuotesReceived - The function to handle valid quotes
+ * @param serverEventHandlers.onOpen - The function to handle the open event
  * @returns A list of bridge tx quotes
  */
 export async function fetchBridgeQuoteStream(
@@ -275,8 +276,9 @@ export async function fetchBridgeQuoteStream(
   clientId: string,
   bridgeApiBaseUrl: string,
   serverEventHandlers: {
+    onOpen: (event: Response) => Promise<void>;
     onValidationFailures: (validationFailures: string[]) => void;
-    onValidQuotesReceived: (quotes: QuoteResponse[]) => Promise<void>;
+    onValidQuotesReceived: (quotes: QuoteResponse) => Promise<void>;
   },
 ): Promise<void> {
   const queryParams = formatQueryParams(request);
@@ -292,7 +294,7 @@ export async function fetchBridgeQuoteStream(
       validateQuoteResponse(quoteResponse);
 
       serverEventHandlers
-        .onValidQuotesReceived([quoteResponse])
+        .onValidQuotesReceived(quoteResponse)
         .then((v) => {
           return v;
         })
@@ -330,6 +332,7 @@ export async function fetchBridgeQuoteStream(
       // Rethrow error to prevent silent fetch failures
       throw new Error(e.toString());
     },
+    onopen: serverEventHandlers.onOpen,
     openWhenHidden: false, // cancel request when document is hidden, will restart when visible
     fetch: fetchFn,
   });
