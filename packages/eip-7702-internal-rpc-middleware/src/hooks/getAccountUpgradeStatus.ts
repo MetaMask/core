@@ -144,7 +144,8 @@ export async function getAccountUpgradeStatus(
       throw error as unknown as Error;
     }
     throw rpcErrors.internal({
-      message: `Failed to get account upgrade status: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Failed to get account upgrade status: ${getErrorMessage(error)}`,
+
     });
   }
 }
