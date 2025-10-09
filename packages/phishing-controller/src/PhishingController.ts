@@ -17,6 +17,12 @@ import type { Patch } from 'immer';
 import { toASCII } from 'punycode/punycode.js';
 
 import { CacheManager, type CacheEntry } from './CacheManager';
+import {
+  type PathTrie,
+  convertListToTrie,
+  insertToTrie,
+  matchedPathPrefix,
+} from './PathTrie';
 import { PhishingDetector } from './PhishingDetector';
 import {
   PhishingDetectorResultType,
@@ -37,6 +43,7 @@ import {
   buildCacheKey,
   splitCacheHits,
   resolveChainName,
+  getPathnameFromUrl,
 } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
@@ -79,6 +86,7 @@ export const C2_DOMAIN_BLOCKLIST_URL = `${CLIENT_SIDE_DETECION_BASE_URL}${C2_DOM
 export type ListTypes =
   | 'fuzzylist'
   | 'blocklist'
+  | 'blocklistPaths'
   | 'allowlist'
   | 'c2DomainBlocklist';
 
@@ -116,18 +124,21 @@ export type C2DomainBlocklistResponse = {
 };
 
 /**
- * @type PhishingStalelist
+ * PhishingStalelist defines the expected type of the stalelist from the API.
  *
- * type defining expected type of the stalelist.json file.
- * @property eth_phishing_detect_config - Stale list sourced from eth-phishing-detect's config.json.
- * @property tolerance - Fuzzy match tolerance level
- * @property lastUpdated - Timestamp of last update.
- * @property version - Stalelist data structure iteration.
+ * allowlist - List of approved origins.
+ * blocklist - List of unapproved origins (hostname-only entries).
+ * blocklistPaths - Trie of unapproved origins with paths (hostname + path entries).
+ * fuzzylist - List of fuzzy-matched unapproved origins.
+ * tolerance - Fuzzy match tolerance level
+ * lastUpdated - Timestamp of last update.
+ * version - Stalelist data structure iteration.
  */
 export type PhishingStalelist = {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  eth_phishing_detect_config: Record<ListTypes, string[]>;
+  allowlist: string[];
+  blocklist: string[];
+  blocklistPaths: string[];
+  fuzzylist: string[];
   tolerance: number;
   version: number;
   lastUpdated: number;
@@ -139,6 +150,7 @@ export type PhishingStalelist = {
  * type defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
  * @property allowlist - List of approved origins (legacy naming "whitelist")
  * @property blocklist - List of unapproved origins (legacy naming "blacklist")
+ * @property blocklistPaths - Trie of unapproved origins with paths (hostname + path, no query params).
  * @property c2DomainBlocklist - List of hashed hostnames that C2 requests are blocked against.
  * @property fuzzylist - List of fuzzy-matched unapproved origins
  * @property tolerance - Fuzzy match tolerance level
@@ -149,6 +161,7 @@ export type PhishingStalelist = {
 export type PhishingListState = {
   allowlist: string[];
   blocklist: string[];
+  blocklistPaths: PathTrie;
   c2DomainBlocklist: string[];
   fuzzylist: string[];
   tolerance: number;
@@ -173,8 +186,6 @@ export type HotlistDiff = {
   isRemoval?: boolean;
 };
 
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export type DataResultWrapper<T> = {
   data: T;
 };
@@ -236,6 +247,12 @@ const metadata: StateMetadata<PhishingControllerState> = {
     anonymous: false,
     usedInUi: false,
   },
+  whitelistPaths: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: false,
+  },
   hotlistLastFetched: {
     includeInStateLogs: true,
     persist: true,
@@ -270,12 +287,14 @@ const metadata: StateMetadata<PhishingControllerState> = {
 
 /**
  * Get a default empty state for the controller.
+ *
  * @returns The default empty state.
  */
 const getDefaultState = (): PhishingControllerState => {
   return {
     phishingLists: [],
     whitelist: [],
+    whitelistPaths: {},
     hotlistLastFetched: 0,
     stalelistLastFetched: 0,
     c2DomainBlocklistLastFetched: 0,
@@ -288,12 +307,18 @@ const getDefaultState = (): PhishingControllerState => {
  * @type PhishingControllerState
  *
  * Phishing controller state
- * @property phishing - eth-phishing-detect configuration
- * @property whitelist - array of temporarily-approved origins
+ * phishingLists - array of phishing lists
+ * whitelist - origins that bypass the phishing detector
+ * whitelistPaths - origins with paths that bypass the phishing detector
+ * hotlistLastFetched - timestamp of the last hotlist fetch
+ * stalelistLastFetched - timestamp of the last stalelist fetch
+ * c2DomainBlocklistLastFetched - timestamp of the last c2 domain blocklist fetch
+ * urlScanCache - cache of scan results
  */
 export type PhishingControllerState = {
   phishingLists: PhishingListState[];
   whitelist: string[];
+  whitelistPaths: PathTrie;
   hotlistLastFetched: number;
   stalelistLastFetched: number;
   c2DomainBlocklistLastFetched: number;
@@ -765,6 +790,12 @@ export class PhishingController extends BaseController<
   test(origin: string): PhishingDetectorResult {
     const punycodeOrigin = toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
+    const hostnameWithPaths = hostname + getPathnameFromUrl(origin);
+
+    if (matchedPathPrefix(hostnameWithPaths, this.state.whitelistPaths)) {
+      return { result: false, type: PhishingDetectorResultType.All };
+    }
+
     if (this.state.whitelist.includes(hostname || punycodeOrigin)) {
       return { result: false, type: PhishingDetectorResultType.All }; // Same as whitelisted match returned by detector.check(...).
     }
@@ -798,10 +829,24 @@ export class PhishingController extends BaseController<
   bypass(origin: string) {
     const punycodeOrigin = toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
-    const { whitelist } = this.state;
-    if (whitelist.includes(hostname || punycodeOrigin)) {
+    const hostnameWithPaths = hostname + getPathnameFromUrl(origin);
+    const { whitelist, whitelistPaths } = this.state;
+    const whitelistPath = matchedPathPrefix(hostnameWithPaths, whitelistPaths);
+
+    if (whitelist.includes(hostname || punycodeOrigin) || whitelistPath) {
       return;
     }
+
+    // If the origin was blocked by a path, then we only want to add it to the whitelistPaths since
+    // other paths with the same hostname may not be blocked.
+    const blockingPath = this.#detector.blockingPath(origin);
+    if (blockingPath) {
+      this.update((draftState) => {
+        insertToTrie(blockingPath, draftState.whitelistPaths);
+      });
+      return;
+    }
+
     this.update((draftState) => {
       draftState.whitelist.push(hostname || punycodeOrigin);
     });
@@ -1276,7 +1321,9 @@ export class PhishingController extends BaseController<
       if (stalelistResponse?.data && stalelistResponse.data.lastUpdated > 0) {
         hotlistDiffsResponse = await this.#queryConfig<
           DataResultWrapper<Hotlist>
-        >(`${METAMASK_HOTLIST_DIFF_URL}/${stalelistResponse.data.lastUpdated}`);
+        >(
+          `${METAMASK_HOTLIST_DIFF_URL}/${stalelistResponse.data.lastUpdated}?blocklistPaths=true`,
+        );
       }
     } finally {
       // Set `stalelistLastFetched` and `hotlistLastFetched` even for failed requests to prevent server
@@ -1293,13 +1340,14 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    const { eth_phishing_detect_config, ...partialState } =
-      stalelistResponse.data;
-
     const metamaskListState: PhishingListState = {
-      ...eth_phishing_detect_config,
-      ...partialState,
+      allowlist: stalelistResponse.data.allowlist,
+      fuzzylist: stalelistResponse.data.fuzzylist,
+      tolerance: stalelistResponse.data.tolerance,
+      version: stalelistResponse.data.version,
+      lastUpdated: stalelistResponse.data.lastUpdated,
+      blocklist: stalelistResponse.data.blocklist,
+      blocklistPaths: convertListToTrie(stalelistResponse.data.blocklistPaths),
       c2DomainBlocklist: c2DomainBlocklistResponse
         ? c2DomainBlocklistResponse.recentlyAdded
         : [],
@@ -1337,7 +1385,7 @@ export class PhishingController extends BaseController<
       );
 
       hotlistResponse = await this.#queryConfig<DataResultWrapper<Hotlist>>(
-        `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
+        `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}?blocklistPaths=true`,
       );
     } finally {
       // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with

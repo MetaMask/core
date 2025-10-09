@@ -5,5 +5,6 @@ export const projectLogger = createProjectLogger('multichain-account-service');
 export { createModuleLogger };
 
 export const WARNING_PREFIX = 'WARNING --';
+export const ERROR_PREFIX = 'ERROR --';
 
 export type Logger = typeof projectLogger;
