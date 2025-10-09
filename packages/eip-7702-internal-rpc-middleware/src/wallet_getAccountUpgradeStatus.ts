@@ -1,16 +1,14 @@
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import { tuple } from '@metamask/superstruct';
-import type {
-  JsonRpcRequest,
-  PendingJsonRpcResponse,
-  Json,
-  Hex,
+import {
+  type JsonRpcRequest,
+  type PendingJsonRpcResponse,
+  type Json,
+  type Hex,
+  getErrorMessage,
 } from '@metamask/utils';
 
 import { DELEGATION_INDICATOR_PREFIX } from './constants';
-import type {
-  GetAccountUpgradeStatusResult,
-} from './types';
 import { GetAccountUpgradeStatusParamsStruct } from './types';
 import { validateParams, validateAndNormalizeAddress } from './utils';
 
@@ -81,7 +79,7 @@ export async function walletGetAccountUpgradeStatus(
     const currentChainIdForDomain = dependencies.getCurrentChainIdForDomain(origin);
     if (!currentChainIdForDomain) {
       throw rpcErrors.invalidParams({
-        message: `No network configuration found for origin: ${origin}`,
+        message: `Could not determine current chain ID for origin: ${origin}`,
       });
     }
     targetChainId = currentChainIdForDomain;
@@ -139,7 +137,7 @@ export async function walletGetAccountUpgradeStatus(
       throw error;
     }
     throw rpcErrors.internal({
-      message: `Failed to get account upgrade status: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Failed to get account upgrade status: ${getErrorMessage(error)}`,
     });
   }
 }
