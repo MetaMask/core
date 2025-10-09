@@ -173,4 +173,37 @@ describe('walletUpgradeAccount', () => {
       walletUpgradeAccount(req, res, dependencies),
     ).rejects.toThrow('Failed to upgrade account: Upgrade failed');
   });
+
+  it('throws error when chain has delegation address but is not supported', async () => {
+    const dependencies = createTestDependencies();
+    const req = createTestRequest([{ account: TEST_ACCOUNT, chainId: '0x999' }]);
+    const res = createTestResponse();
+
+    // Mock chain with delegation address but not supported
+    dependencies.isEip7702Supported.mockImplementation(async ({ chainIds }: { chainIds: string[] }) => {
+      return chainIds.map((chainId: string) => ({
+        chainId,
+        isSupported: false,
+        delegationAddress: '0xdelegation123',
+        upgradeContractAddress: UPGRADE_CONTRACT,
+      }));
+    });
+
+    await expect(
+      walletUpgradeAccount(req, res, dependencies),
+    ).rejects.toThrow('Account upgrade not supported on chain ID 0x999');
+  });
+
+  it('handles non-Error objects in error handling', async () => {
+    const dependencies = createTestDependencies();
+    const req = createTestRequest();
+    const res = createTestResponse();
+
+    // Mock upgrade function to throw a non-Error object
+    dependencies.upgradeAccount.mockRejectedValue('String error');
+
+    await expect(
+      walletUpgradeAccount(req, res, dependencies),
+    ).rejects.toThrow('Failed to upgrade account: String error');
+  });
 });
