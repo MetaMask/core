@@ -9,16 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0]
 
-### Uncategorized
-
-- chore: bump multichain accounts deps ([#6560](https://github.com/MetaMask/core/pull/6560))
-
 ### Changed
 
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.1` ([#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
-- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.1` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629), [#6807](https://github.com/MetaMask/core/pull/6807))
 - Add return type annotation to `getCaip25PermissionFromLegacyPermissions` to make its return output assignable to `RequestedPermissions` ([#6382](https://github.com/MetaMask/core/pull/6382))
-- Bump `@metamask/network-controller` from `^24.1.0` to `^24.2.0` ([#6678](https://github.com/MetaMask/core/pull/6678))
+- Bump `@metamask/network-controller` from `^24.1.0` to `^24.2.1` ([#6678](https://github.com/MetaMask/core/pull/6678), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/polling-controller` from `^11.0.0` to `^11.1.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [1.1.1]
 

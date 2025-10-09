@@ -9,26 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [39.1.0]
 
-### Uncategorized
-
-- Release/597.0.0 ([#6771](https://github.com/MetaMask/core/pull/6771))
-- Release/586.0.0 ([#6733](https://github.com/MetaMask/core/pull/6733))
-- Release/573.0.0 ([#6678](https://github.com/MetaMask/core/pull/6678))
-- Release 561.0.0 ([#6641](https://github.com/MetaMask/core/pull/6641))
-- Release/549.0.0 ([#6590](https://github.com/MetaMask/core/pull/6590))
-- Release 543.0.0 ([#6561](https://github.com/MetaMask/core/pull/6561))
-- Release/529.0.0 ([#6440](https://github.com/MetaMask/core/pull/6440))
-- Release 513.0.0 ([#6381](https://github.com/MetaMask/core/pull/6381))
-
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6473](https://github.com/MetaMask/core/pull/6473))
 
 ### Changed
 
-- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
-- Bump `@metamask/base-controller` from `^8.1.0` to `^8.4.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.1` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.4.1` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.1` ([#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/polling-controller` from `^14.0.0` to `^14.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [39.0.0]
 

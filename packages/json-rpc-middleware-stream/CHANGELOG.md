@@ -9,14 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.0.8]
 
-### Uncategorized
-
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
-
 ### Changed
 
 - Bump `@metamask/utils` from `^11.2.0` to `^11.8.1` ([#6054](https://github.com/MetaMask/core/pull/6054), [#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
-- Bump `@metamask/json-rpc-engine` from `^10.0.3` to `^10.1.0` ([#6678](https://github.com/MetaMask/core/pull/6678))
+- Bump `@metamask/json-rpc-engine` from `^10.0.3` to `^10.1.1` ([#6678](https://github.com/MetaMask/core/pull/6678), [#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [8.0.7]
 
@@ -223,13 +219,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.2...@metamask/json-rpc-middleware-stream@7.0.0
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.1...@metamask/json-rpc-middleware-stream@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.0...@metamask/json-rpc-middleware-stream@6.0.1
-[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@5.0.1...@metamask/json-rpc-middleware-stream@6.0.0
-[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@5.0.0...@metamask/json-rpc-middleware-stream@5.0.1
-[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@4.2.3...@metamask/json-rpc-middleware-stream@5.0.0
-[4.2.3]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@4.2.2...@metamask/json-rpc-middleware-stream@4.2.3
-[4.2.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@4.2.1...@metamask/json-rpc-middleware-stream@4.2.2
-[4.2.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@4.2.0...@metamask/json-rpc-middleware-stream@4.2.1
-[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@4.1.0...@metamask/json-rpc-middleware-stream@4.2.0
-[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@4.0.0...@metamask/json-rpc-middleware-stream@4.1.0
-[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@3.0.0...@metamask/json-rpc-middleware-stream@4.0.0
-[3.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/json-rpc-middleware-stream@3.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@5.0.1...@metamask/json-rpc-middleware-stream@6.0.0
+[5.0.1]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@5.0.0...json-rpc-middleware-stream@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@4.2.3...json-rpc-middleware-stream@5.0.0
+[4.2.3]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@4.2.2...json-rpc-middleware-stream@4.2.3
+[4.2.2]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@4.2.1...json-rpc-middleware-stream@4.2.2
+[4.2.1]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@4.2.0...json-rpc-middleware-stream@4.2.1
+[4.2.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@4.1.0...json-rpc-middleware-stream@4.2.0
+[4.1.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@4.0.0...json-rpc-middleware-stream@4.1.0
+[4.0.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@3.0.0...json-rpc-middleware-stream@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/releases/tag/json-rpc-middleware-stream@3.0.0

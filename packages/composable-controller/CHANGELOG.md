@@ -9,19 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [11.1.0]
 
-### Uncategorized
-
-- Release/573.0.0 ([#6678](https://github.com/MetaMask/core/pull/6678))
-- chore: Inline `isBaseController` in `ComposableController` ([#6342](https://github.com/MetaMask/core/pull/6342))
-- chore: Rename `BaseControllerV2` module to `BaseController` ([#6128](https://github.com/MetaMask/core/pull/6128))
-
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^8.0.0` to `^8.4.0` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.4.1` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632),[#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [11.0.0]
 
