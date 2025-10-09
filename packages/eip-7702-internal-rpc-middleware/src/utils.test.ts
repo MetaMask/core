@@ -14,10 +14,6 @@ jest.mock('@metamask/superstruct', () => ({
 }));
 
 describe('validateParams', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   it('validates parameters successfully', () => {
     const mockStruct = any();
     const mockValue = { test: 'value' };
