@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/gas-fee-controller` from `^24.0.0` to `^24.1.0` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/multichain-network-controller` from `^1.0.0` to `^1.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/polling-controller` from `^14.0.0` to `^14.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
 ## [49.0.0]
 
 ### Changed
