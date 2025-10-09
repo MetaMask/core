@@ -1,6 +1,6 @@
 {
   "name": "@metamask/account-tree-controller",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Controller to group account together based on some pre-defined rules",
   "keywords": [
     "MetaMask",
@@ -61,8 +61,8 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-api": "^21.0.0",
     "@metamask/keyring-controller": "^23.1.1",
-    "@metamask/multichain-account-service": "^1.6.0",
-    "@metamask/profile-sync-controller": "^25.1.0",
+    "@metamask/multichain-account-service": "^1.6.1",
+    "@metamask/profile-sync-controller": "^25.1.1",
     "@metamask/providers": "^22.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
     "@types/jest": "^27.4.1",
