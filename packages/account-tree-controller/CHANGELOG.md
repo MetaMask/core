@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Ensure `isLegacyAccountSyncingDisabled` is always set in `UserStorageSyncedWallet` after one successful full sync ([#6805](https://github.com/MetaMask/core/pull/6805))
-  - We now verify this field is correctly set, and also catch empty objects for `UserStorageSyncedWallet`
+  - This was not set in some rare edge case scenarios, and created situations were legacy syncs would always be re-triggered during full syncs.
+  - We now verify this field is correctly set, and also catch empty objects for `UserStorageSyncedWallet`.
 
 ## [1.4.0]
 
