@@ -111,12 +111,14 @@ describe('asLegacyMiddleware', () => {
     });
 
     const legacyEngine = new JsonRpcEngine();
+    legacyEngine.push((req, _res, next, _end) => {
+      expect(req.method).toBe('test_request');
+      next();
+    });
     legacyEngine.push(asLegacyMiddleware(v2Engine));
     legacyEngine.push((req, res, _next, end) => {
-      res.result = null;
-
       expect(req.method).toBe('test_request_2');
-
+      res.result = null;
       end();
     });
 
