@@ -300,15 +300,10 @@ export async function fetchBridgeQuoteStream(
 
     try {
       validateQuoteResponse(quoteResponse);
-
-      serverEventHandlers
-        .onValidQuoteReceived(quoteResponse)
-        .then((v) => {
-          return v;
-        })
-        .catch((e) => {
-          console.error('Error validating quote', e);
-        });
+      // eslint-disable-next-line promise/catch-or-return, @typescript-eslint/no-floating-promises
+      serverEventHandlers.onValidQuoteReceived(quoteResponse).then((v) => {
+        return v;
+      });
     } catch (error) {
       if (error instanceof StructError) {
         error.failures().forEach(({ branch, path }) => {

@@ -2569,6 +2569,40 @@ describe('BridgeController', function () {
       expect(bridgeController.state).toStrictEqual(expectedControllerState);
     });
 
+    it('should throw error if account is not found', async () => {
+      const fetchBridgeQuotesSpy = jest
+        .spyOn(fetchUtils, 'fetchBridgeQuotes')
+        .mockResolvedValueOnce({
+          quotes: quotesByDecreasingProcessingTime as never,
+          validationFailures: [],
+        });
+      const expectedControllerState = bridgeController.state;
+
+      await expect(
+        bridgeController.fetchQuotes(
+          {
+            srcChainId: SolScope.Mainnet,
+            destChainId: '1',
+            srcTokenAddress: 'NATIVE',
+            destTokenAddress: '0x1234',
+            srcTokenAmount: '1000000',
+            // walletAddress: '0x123',
+            slippage: 0.5,
+            aggIds: ['other'],
+            bridgeIds: ['other', 'debridge'],
+            gasIncluded: false,
+            gasIncluded7702: false,
+            noFee: false,
+          } as never,
+          null,
+          FeatureId.PERPS,
+        ),
+      ).rejects.toThrow('Account address is required');
+
+      expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+      expect(bridgeController.state).toStrictEqual(expectedControllerState);
+    });
+
     it('should add aggIds and noFee to perps request', async () => {
       const fetchBridgeQuotesSpy = jest
         .spyOn(fetchUtils, 'fetchBridgeQuotes')
