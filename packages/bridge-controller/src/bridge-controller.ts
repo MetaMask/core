@@ -281,36 +281,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     },
     context: BridgePollingInput['context'],
   ) => {
-    this.stopAllPolling();
-    this.#abortController?.abort(AbortReason.QuoteRequestUpdated);
-
     this.#trackInputChangedEvents(paramsToUpdate);
-
+    this.resetState(AbortReason.QuoteRequestUpdated);
     const updatedQuoteRequest = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest,
       ...paramsToUpdate,
     };
-
     this.update((state) => {
       state.quoteRequest = updatedQuoteRequest;
-      state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
-      state.quotesLastFetched =
-        DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched;
-      state.quotesLoadingStatus =
-        DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus;
-      state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
-      state.quotesRefreshCount =
-        DEFAULT_BRIDGE_CONTROLLER_STATE.quotesRefreshCount;
-      state.quotesInitialLoadTime =
-        DEFAULT_BRIDGE_CONTROLLER_STATE.quotesInitialLoadTime;
-      // Reset required minimum balance if the source chain is not Solana
-      if (
-        updatedQuoteRequest.srcChainId &&
-        !isSolanaChainId(updatedQuoteRequest.srcChainId)
-      ) {
-        state.minimumBalanceForRentExemptionInLamports =
-          DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
-      }
     });
 
     await this.#fetchAssetExchangeRates(updatedQuoteRequest).catch((error) =>
@@ -544,9 +522,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#abortController?.abort(reason);
   };
 
-  resetState = () => {
-    this.stopPollingForQuotes(AbortReason.ResetState);
-
+  resetState = (reason = AbortReason.ResetState) => {
+    this.stopPollingForQuotes(reason);
     this.update((state) => {
       // Cannot do direct assignment to state, i.e. state = {... }, need to manually assign each field
       state.quoteRequest = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest;
@@ -683,6 +660,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         },
       );
     } catch (error) {
+      this.update((state) => {
+        state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
+      });
       const isAbortError = (error as Error).name === 'AbortError';
       if (
         isAbortError ||
@@ -702,9 +682,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             ? 'generic mobile error'
             : (((error as Error)?.message ??
                 'Unknown error') as never as string);
-
         state.quotesLoadingStatus = RequestStatus.ERROR;
-        state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
 
       this.trackUnifiedSwapBridgeEvent(
