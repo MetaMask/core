@@ -49,7 +49,9 @@ export function createBlockRefMiddleware({
     }
 
     // lookup latest block
-    const latestBlockNumber = await blockTracker.getLatestBlock();
+    const latestBlockNumber = await blockTracker.getLatestBlock({
+      useCache: false,
+    });
     log(
       `blockRef is "latest", setting param ${blockRefIndex} to latest block ${latestBlockNumber}`,
     );
