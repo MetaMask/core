@@ -68,10 +68,6 @@ const createUpgradeHandler = () => {
 };
 
 describe('upgradeAccount', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   it('upgrades account with current chain ID', async () => {
     const {
       upgradeAccount: upgradeAccountFn,
