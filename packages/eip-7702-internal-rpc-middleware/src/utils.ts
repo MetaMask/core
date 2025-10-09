@@ -33,10 +33,11 @@ export async function validateAndNormalizeAddress(
       accountAddress.toLowerCase(),
     );
 
-    const normalizedAddress = address.toLowerCase() as Hex;
+    const normalizedAddress = address.toLowerCase();
 
     if (normalizedAccounts.includes(normalizedAddress)) {
-      return normalizedAddress;
+      // we know that normalizedAddress is a valid Hex string because of isHexAddress
+      return normalizedAddress as Hex;
     }
 
     throw providerErrors.unauthorized();
