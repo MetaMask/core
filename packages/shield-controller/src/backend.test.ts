@@ -2,7 +2,7 @@ import { ShieldRemoteBackend } from './backend';
 import {
   generateMockSignatureRequest,
   generateMockTxMeta,
-  getRandomCoverageStatus,
+  getRandomCoverageResult,
 } from '../tests/utils';
 
 /**
@@ -52,19 +52,19 @@ describe('ShieldRemoteBackend', () => {
     const coverageId = 'coverageId';
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+      json: jest.fn().mockResolvedValue({ coverageId }),
     } as unknown as Response);
 
     // Mock get coverage result.
-    const status = getRandomCoverageStatus();
+    const result = getRandomCoverageResult();
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue({ status }),
+      json: jest.fn().mockResolvedValue(result),
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
-    const coverageResult = await backend.checkCoverage(txMeta);
-    expect(coverageResult).toStrictEqual({ coverageId, status });
+    const coverageResult = await backend.checkCoverage({ txMeta });
+    expect(coverageResult).toStrictEqual({ coverageId, ...result });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(getAccessToken).toHaveBeenCalledTimes(2);
   });
@@ -88,15 +88,18 @@ describe('ShieldRemoteBackend', () => {
     } as unknown as Response);
 
     // Mock get coverage result: result available.
-    const status = getRandomCoverageStatus();
+    const result = getRandomCoverageResult();
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue({ status }),
+      json: jest.fn().mockResolvedValue(result),
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
-    const coverageResult = await backend.checkCoverage(txMeta);
-    expect(coverageResult).toStrictEqual({ coverageId, status });
+    const coverageResult = await backend.checkCoverage({ txMeta });
+    expect(coverageResult).toStrictEqual({
+      coverageId,
+      ...result,
+    });
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(getAccessToken).toHaveBeenCalledTimes(2);
   });
@@ -113,7 +116,7 @@ describe('ShieldRemoteBackend', () => {
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
-    await expect(backend.checkCoverage(txMeta)).rejects.toThrow(
+    await expect(backend.checkCoverage({ txMeta })).rejects.toThrow(
       `Failed to init coverage check: ${status}`,
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -139,7 +142,7 @@ describe('ShieldRemoteBackend', () => {
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
-    await expect(backend.checkCoverage(txMeta)).rejects.toThrow(
+    await expect(backend.checkCoverage({ txMeta })).rejects.toThrow(
       'Timeout waiting for coverage result',
     );
 
@@ -160,16 +163,20 @@ describe('ShieldRemoteBackend', () => {
       } as unknown as Response);
 
       // Mock get coverage result.
-      const status = getRandomCoverageStatus();
+      const result = getRandomCoverageResult();
       fetchMock.mockResolvedValueOnce({
         status: 200,
-        json: jest.fn().mockResolvedValue({ status }),
+        json: jest.fn().mockResolvedValue(result),
       } as unknown as Response);
 
       const signatureRequest = generateMockSignatureRequest();
-      const coverageResult =
-        await backend.checkSignatureCoverage(signatureRequest);
-      expect(coverageResult).toStrictEqual({ coverageId, status });
+      const coverageResult = await backend.checkSignatureCoverage({
+        signatureRequest,
+      });
+      expect(coverageResult).toStrictEqual({
+        coverageId,
+        ...result,
+      });
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(getAccessToken).toHaveBeenCalledTimes(2);
     });
@@ -180,7 +187,7 @@ describe('ShieldRemoteBackend', () => {
       const signatureRequest = generateMockSignatureRequest();
       signatureRequest.messageParams.data = [];
       await expect(
-        backend.checkSignatureCoverage(signatureRequest),
+        backend.checkSignatureCoverage({ signatureRequest }),
       ).rejects.toThrow('Signature data must be a string');
     });
   });

@@ -2574,7 +2574,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controllers@npm:^78.0.1, @metamask/assets-controllers@workspace:packages/assets-controllers":
+"@metamask/assets-controllers@npm:^79.0.0, @metamask/assets-controllers@workspace:packages/assets-controllers":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
@@ -2723,7 +2723,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^48.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^49.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2733,7 +2733,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/accounts-controller": "npm:^33.1.0"
-    "@metamask/assets-controllers": "npm:^78.0.1"
+    "@metamask/assets-controllers": "npm:^79.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.0"
     "@metamask/controller-utils": "npm:^11.14.0"
@@ -2765,7 +2765,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^33.0.0
-    "@metamask/assets-controllers": ^78.0.0
+    "@metamask/assets-controllers": ^79.0.0
     "@metamask/network-controller": ^24.0.0
     "@metamask/remote-feature-flag-controller": ^1.6.0
     "@metamask/snaps-controllers": ^14.0.0
@@ -2780,7 +2780,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^33.1.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.0"
-    "@metamask/bridge-controller": "npm:^48.0.0"
+    "@metamask/bridge-controller": "npm:^49.0.0"
     "@metamask/controller-utils": "npm:^11.14.0"
     "@metamask/gas-fee-controller": "npm:^24.0.0"
     "@metamask/network-controller": "npm:^24.2.0"
@@ -2803,7 +2803,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^33.0.0
-    "@metamask/bridge-controller": ^48.0.0
+    "@metamask/bridge-controller": ^49.0.0
     "@metamask/gas-fee-controller": ^24.0.0
     "@metamask/network-controller": ^24.0.0
     "@metamask/snaps-controllers": ^14.0.0
@@ -2916,6 +2916,32 @@ __metadata:
     typescript: "npm:~5.2.2"
   peerDependencies:
     "@babel/runtime": ^7.0.0
+  languageName: unknown
+  linkType: soft
+
+"@metamask/core-backend@workspace:packages/core-backend":
+  version: 0.0.0-use.local
+  resolution: "@metamask/core-backend@workspace:packages/core-backend"
+  dependencies:
+    "@metamask/accounts-controller": "npm:^33.1.0"
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^8.4.0"
+    "@metamask/controller-utils": "npm:^11.14.0"
+    "@metamask/profile-sync-controller": "npm:^25.1.0"
+    "@metamask/utils": "npm:^11.8.1"
+    "@ts-bridge/cli": "npm:^0.6.1"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    nock: "npm:^13.3.1"
+    sinon: "npm:^9.2.4"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+    uuid: "npm:^8.3.2"
+  peerDependencies:
+    "@metamask/accounts-controller": ^33.1.0
   languageName: unknown
   linkType: soft
 

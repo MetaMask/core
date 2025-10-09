@@ -81,12 +81,13 @@ describe('fetch', () => {
         BridgeClientId.EXTENSION,
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
+        '1.0.0',
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getTokens?chainId=10',
         {
-          headers: { 'X-Client-Id': 'extension' },
+          headers: { 'X-Client-Id': 'extension', 'Client-Version': '1.0.0' },
         },
       );
 
@@ -141,6 +142,7 @@ describe('fetch', () => {
           BridgeClientId.EXTENSION,
           mockFetchFn,
           BRIDGE_PROD_API_BASE_URL,
+          '1.0.0',
         ),
       ).rejects.toThrow(mockError);
     });
@@ -171,12 +173,13 @@ describe('fetch', () => {
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
         null,
+        '1.0.0',
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&destWalletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasIncluded7702=false&slippage=0.5',
         {
-          headers: { 'X-Client-Id': 'extension' },
+          headers: { 'X-Client-Id': 'extension', 'Client-Version': '1.0.0' },
           signal,
         },
       );
@@ -189,6 +192,7 @@ describe('fetch', () => {
       );
       expect(result.validationFailures).toStrictEqual([]);
       expect(mockConsoleWarn).not.toHaveBeenCalled();
+      mockConsoleWarn.mockRestore();
     });
 
     it('should fetch bridge quotes successfully, with approvals', async () => {
@@ -227,12 +231,13 @@ describe('fetch', () => {
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
         null,
+        '1.0.0',
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&destWalletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasIncluded7702=false&slippage=0.5',
         {
-          headers: { 'X-Client-Id': 'extension' },
+          headers: { 'X-Client-Id': 'extension', 'Client-Version': '1.0.0' },
           signal,
         },
       );
@@ -248,6 +253,7 @@ describe('fetch', () => {
         'socket|trade',
       ]);
       expect(mockConsoleWarn).toHaveBeenCalledTimes(1);
+      mockConsoleWarn.mockRestore();
     });
 
     it('should filter out malformed bridge quotes', async () => {
@@ -301,12 +307,13 @@ describe('fetch', () => {
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
         null,
+        '1.0.0',
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&destWalletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasIncluded7702=false&slippage=0.5',
         {
-          headers: { 'X-Client-Id': 'extension' },
+          headers: { 'X-Client-Id': 'extension', 'Client-Version': '1.0.0' },
           signal,
         },
       );
@@ -344,6 +351,7 @@ describe('fetch', () => {
       `);
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockConsoleWarn.mock.calls).toMatchSnapshot();
+      mockConsoleWarn.mockRestore();
     });
 
     it('should fetch bridge quotes successfully, with aggIds, bridgeIds and noFee=true', async () => {
@@ -370,12 +378,13 @@ describe('fetch', () => {
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
         FeatureId.PERPS,
+        '1.0.0',
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&destWalletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasIncluded7702=false&slippage=0.5&noFee=true&aggIds=socket%2Clifi&bridgeIds=bridge1%2Cbridge2',
         {
-          headers: { 'X-Client-Id': 'extension' },
+          headers: { 'X-Client-Id': 'extension', 'Client-Version': '1.0.0' },
           signal,
         },
       );
@@ -415,6 +424,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
@@ -439,13 +449,13 @@ describe('fetch', () => {
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://price.api.cx.metamask.io/v3/spot-prices?assetIds=eip155%3A1%2Ferc20%3A0x123%2Ceip155%3A1%2Ferc20%3A0x456&vsCurrency=USD',
         {
-          headers: { 'X-Client-Id': 'test' },
+          headers: { 'X-Client-Id': 'test', 'Client-Version': '1.0.0' },
         },
       );
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://price.api.cx.metamask.io/v3/spot-prices?assetIds=eip155%3A1%2Ferc20%3A0x123%2Ceip155%3A1%2Ferc20%3A0x456&vsCurrency=EUR',
         {
-          headers: { 'X-Client-Id': 'test' },
+          headers: { 'X-Client-Id': 'test', 'Client-Version': '1.0.0' },
         },
       );
     });
@@ -456,6 +466,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
@@ -480,6 +491,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
@@ -505,6 +517,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
@@ -541,6 +554,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
@@ -571,6 +585,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
@@ -597,6 +612,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
@@ -615,6 +631,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([]) as Set<CaipAssetType>,
       };
 
@@ -635,6 +652,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
