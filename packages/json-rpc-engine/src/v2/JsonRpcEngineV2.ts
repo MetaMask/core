@@ -231,6 +231,8 @@ export class JsonRpcEngineV2<
 
         const { value: nextMiddleware, done } = middlewareIterator.next();
         if (done) {
+          // This will cause the last middleware to return `undefined`. See the class
+          // JSDoc or package README for more details.
           return undefined;
         }
 
