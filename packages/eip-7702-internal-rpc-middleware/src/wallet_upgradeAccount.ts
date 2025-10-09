@@ -1,42 +1,52 @@
-import { toHex } from '@metamask/controller-utils';
-import { rpcErrors } from '@metamask/rpc-errors';
+import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import { tuple } from '@metamask/superstruct';
 import type {
   JsonRpcRequest,
   PendingJsonRpcResponse,
   Json,
+  Hex,
 } from '@metamask/utils';
 
 import type {
   UpgradeAccountParams,
   UpgradeAccountResult,
-  UpgradeAccountHooks,
-} from '../types';
-import { UpgradeAccountParamsStruct } from '../types';
-import { validateParams, validateAndNormalizeAddress } from '../utils';
+} from './types';
+import { UpgradeAccountParamsStruct } from './types';
+import { validateParams, validateAndNormalizeAddress } from './utils';
+
+export type WalletUpgradeAccountDependencies = {
+  upgradeAccount: jest.MockedFunction<(
+    address: string,
+    upgradeContractAddress: string,
+    chainId?: Hex,
+  ) => Promise<{ transactionHash: string; delegatedTo: string }>>;
+  getCurrentChainIdForDomain: jest.MockedFunction<(origin: string) => Hex | null>;
+  isEip7702Supported: jest.MockedFunction<(request: {
+    address: string;
+    chainIds: string[];
+  }) => Promise<
+    {
+      chainId: string;
+      isSupported: boolean;
+      delegationAddress?: string;
+      upgradeContractAddress?: string;
+    }[]
+  >>;
+  getAccounts: jest.MockedFunction<(req: JsonRpcRequest) => Promise<string[]>>;
+};
 
 /**
- * Upgrades an EOA account to a smart account using EIP-7702.
+ * The RPC method handler middleware for `wallet_upgradeAccount`
  *
- * @param req - The JSON-RPC request object containing the upgrade parameters.
- * @param _res - The JSON-RPC response object (unused).
- * @param options - Configuration object containing required functions.
- * @param options.upgradeAccount - Function to perform the account upgrade.
- * @param options.getCurrentChainIdForDomain - Function to get the current chain ID for a domain.
- * @param options.isEip7702Supported - Function to check if EIP-7702 is supported.
- * @param options.getAccounts - Function to get accounts for the requester.
- * @returns Promise that resolves to the upgrade result containing transaction hash and delegation info.
+ * @param req - The JSON RPC request's end callback.
+ * @param res - The JSON RPC request's pending response object.
+ * @param dependencies - The dependencies required for account upgrade functionality.
  */
-export async function upgradeAccount(
+export async function walletUpgradeAccount(
   req: JsonRpcRequest<Json[]> & { origin: string },
-  _res: PendingJsonRpcResponse,
-  {
-    upgradeAccount: upgradeAccountFn,
-    getCurrentChainIdForDomain,
-    isEip7702Supported,
-    getAccounts,
-  }: UpgradeAccountHooks,
-): Promise<UpgradeAccountResult> {
+  res: PendingJsonRpcResponse,
+  dependencies: WalletUpgradeAccountDependencies,
+): Promise<void> {
   const { params, origin } = req;
 
   // Validate parameters using Superstruct
@@ -47,27 +57,27 @@ export async function upgradeAccount(
 
   // Validate and normalize the account address with authorization check
   const normalizedAccount = await validateAndNormalizeAddress(account, req, {
-    getAccounts,
+    getAccounts: dependencies.getAccounts,
   });
 
   // Use current chain ID if not provided
-  let targetChainId: number;
+  let targetChainId: Hex;
   if (chainId !== undefined) {
     targetChainId = chainId;
   } else {
-    const currentChainIdForDomain = getCurrentChainIdForDomain(origin);
+    const currentChainIdForDomain = dependencies.getCurrentChainIdForDomain(origin);
     if (!currentChainIdForDomain) {
       throw rpcErrors.invalidParams({
         message: `No network configuration found for origin: ${origin}`,
       });
     }
-    targetChainId = parseInt(currentChainIdForDomain, 16);
+    targetChainId = currentChainIdForDomain;
   }
 
   try {
     // Get the EIP7702 network configuration for the target chain
-    const hexChainId = toHex(targetChainId);
-    const atomicBatchSupport = await isEip7702Supported({
+    const hexChainId = targetChainId;
+    const atomicBatchSupport = await dependencies.isEip7702Supported({
       address: normalizedAccount,
       chainIds: [hexChainId],
     });
@@ -90,21 +100,21 @@ export async function upgradeAccount(
     const { upgradeContractAddress } = atomicBatchChainSupport;
 
     // Perform the upgrade using existing EIP-7702 functionality
-    const result = await upgradeAccountFn(
+    const result = await dependencies.upgradeAccount(
       normalizedAccount,
       upgradeContractAddress,
       targetChainId,
     );
 
-    return {
+    res.result = {
       transactionHash: result.transactionHash,
       upgradedAccount: normalizedAccount,
       delegatedTo: result.delegatedTo,
     };
   } catch (error) {
     // Re-throw RPC errors as-is
-    if (error && typeof error === 'object' && 'code' in error) {
-      throw error as unknown as Error;
+    if (error instanceof JsonRpcError) {
+      throw error;
     }
     throw rpcErrors.internal({
       message: `Failed to upgrade account: ${error instanceof Error ? error.message : String(error)}`,

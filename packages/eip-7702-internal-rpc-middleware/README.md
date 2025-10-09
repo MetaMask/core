@@ -19,7 +19,7 @@ Upgrades an EOA account to a smart account using EIP-7702.
 **Parameters:**
 
 - `account` (string): Address of the EOA to upgrade
-- `chainId` (number, optional): Chain ID for the upgrade (defaults to current)
+- `chainId` (string, optional): Chain ID for the upgrade (defaults to current)
 
 **Returns:**
 
@@ -35,7 +35,7 @@ Upgrades an EOA account to a smart account using EIP-7702.
   "params": [
     {
       "account": "0x1234567890123456789012345678901234567890",
-      "chainId": 1
+      "chainId": "0x1"
     }
   ]
 }
@@ -48,14 +48,14 @@ Checks if an account has been upgraded using EIP-7702.
 **Parameters:**
 
 - `account` (string): Address of the account to check
-- `chainId` (number, optional): Chain ID for the check (defaults to current)
+- `chainId` (string, optional): Chain ID for the check (defaults to current)
 
 **Returns:**
 
 - `account` (string): Address of the checked account
 - `isUpgraded` (boolean): Whether the account is upgraded
 - `upgradedAddress` (string | null): Address to which the account is upgraded (null if not upgraded)
-- `chainId` (number): Chain ID where the check was performed
+- `chainId` (string): Chain ID where the check was performed
 
 **Example:**
 
@@ -65,7 +65,7 @@ Checks if an account has been upgraded using EIP-7702.
   "params": [
     {
       "account": "0x1234567890123456789012345678901234567890",
-      "chainId": 1
+      "chainId": "0x1"
     }
   ]
 }
@@ -78,7 +78,7 @@ Checks if an account has been upgraded using EIP-7702.
   "account": "0x1234567890123456789012345678901234567890",
   "isUpgraded": true,
   "upgradedAddress": "0xabcdef1234567890abcdef1234567890abcdef12",
-  "chainId": 1
+  "chainId": "0x1"
 }
 ```
 
@@ -89,7 +89,7 @@ Checks if an account has been upgraded using EIP-7702.
   "account": "0x1234567890123456789012345678901234567890",
   "isUpgraded": false,
   "upgradedAddress": null,
-  "chainId": 1
+  "chainId": "0x1"
 }
 ```
 
