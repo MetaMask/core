@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix address format compatibility between `TokenBalancesController` and `AccountTrackerController` in `AccountsApiBalanceFetcher` ([#6812](https://github.com/MetaMask/core/pull/6812))
+
 ## [79.0.1]
 
 ### Changed
