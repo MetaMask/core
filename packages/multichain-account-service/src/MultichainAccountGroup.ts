@@ -14,9 +14,13 @@ import {
   createModuleLogger,
   WARNING_PREFIX,
 } from './logger';
+import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { NamedAccountProvider } from './providers';
+import type { BaseBip44AccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
+
+export type GroupState =
+  ServiceState[StateKeys['entropySource']][StateKeys['groupIndex']];
 
 /**
  * A multichain account group that holds multiple accounts.
@@ -31,23 +35,16 @@ export class MultichainAccountGroup<
 
   readonly #groupIndex: number;
 
-  readonly #providers: NamedAccountProvider<Account>[];
+  readonly #providers: BaseBip44AccountProvider[];
 
-  readonly #providerToAccounts: Map<
-    NamedAccountProvider<Account>,
-    Account['id'][]
-  >;
+  readonly #providerToAccounts: Map<BaseBip44AccountProvider, Account['id'][]>;
 
-  readonly #accountToProvider: Map<
-    Account['id'],
-    NamedAccountProvider<Account>
-  >;
+  readonly #accountToProvider: Map<Account['id'], BaseBip44AccountProvider>;
 
   readonly #messenger: MultichainAccountServiceMessenger;
 
   readonly #log: Logger;
 
-  // eslint-disable-next-line @typescript-eslint/prefer-readonly
   #initialized = false;
 
   constructor({
@@ -58,7 +55,7 @@ export class MultichainAccountGroup<
   }: {
     groupIndex: number;
     wallet: MultichainAccountWallet<Account>;
-    providers: NamedAccountProvider<Account>[];
+    providers: BaseBip44AccountProvider[];
     messenger: MultichainAccountServiceMessenger;
   }) {
     this.#id = toMultichainAccountGroupId(wallet.id, groupIndex);
@@ -70,52 +67,41 @@ export class MultichainAccountGroup<
     this.#accountToProvider = new Map();
 
     this.#log = createModuleLogger(log, `[${this.#id}]`);
-
-    this.sync();
-    this.#initialized = true;
   }
 
   /**
-   * Force multichain account synchronization.
+   * Initialize the multichain account group and construct the internal representation of accounts.
    *
-   * This can be used if account providers got new accounts that the multichain
-   * account doesn't know about.
+   * Note: This method can be called multiple times to update the group state.
+   *
+   * @param groupState - The group state.
    */
-  sync(): void {
-    this.#log('Synchronizing with account providers...');
-    // Clear reverse mapping and re-construct it entirely based on the refreshed
-    // list of accounts from each providers.
-    this.#accountToProvider.clear();
-
+  init(groupState: GroupState) {
+    this.#log('Initializing group state...');
     for (const provider of this.#providers) {
-      // Filter account only for that index.
-      const accounts = [];
-      for (const account of provider.getAccounts()) {
-        if (
-          account.options.entropy.id === this.wallet.entropySource &&
-          account.options.entropy.groupIndex === this.groupIndex
-        ) {
-          // We only use IDs to always fetch the latest version of accounts.
-          accounts.push(account.id);
-        }
-      }
-      this.#providerToAccounts.set(provider, accounts);
+      const accountIds = groupState[provider.getName()];
 
-      // Reverse-mapping for fast indexing.
-      for (const id of accounts) {
-        this.#accountToProvider.set(id, provider);
+      if (accountIds) {
+        this.#providerToAccounts.set(provider, accountIds);
+        // Add the accounts to the provider's internal list of account IDs
+        provider.addAccounts(accountIds);
+
+        for (const accountId of accountIds) {
+          this.#accountToProvider.set(accountId, provider);
+        }
       }
     }
 
-    // Emit update event when group is synced (only if initialized)
-    if (this.#initialized) {
+    if (!this.#initialized) {
+      this.#initialized = true;
+    } else {
       this.#messenger.publish(
         'MultichainAccountService:multichainAccountGroupUpdated',
         this,
       );
     }
 
-    this.#log('Synchronized');
+    this.#log('Finished initializing group state...');
   }
 
   /**
@@ -180,12 +166,22 @@ export class MultichainAccountGroup<
           // If for some reason we cannot get this account from the provider, it
           // might means it has been deleted or something, so we just filter it
           // out.
-          allAccounts.push(account);
+          // We cast here because TS cannot infer the type of the account from the provider
+          allAccounts.push(account as Account);
         }
       }
     }
 
     return allAccounts;
+  }
+
+  /**
+   * Gets the account IDs for this multichain account.
+   *
+   * @returns The account IDs.
+   */
+  getAccountIds(): Account['id'][] {
+    return [...this.#providerToAccounts.values()].flat();
   }
 
   /**
@@ -202,7 +198,9 @@ export class MultichainAccountGroup<
     if (!provider) {
       return undefined;
     }
-    return provider.getAccount(id);
+
+    // We cast here because TS cannot infer the type of the account from the provider
+    return provider.getAccount(id) as Account;
   }
 
   /**
@@ -249,12 +247,33 @@ export class MultichainAccountGroup<
 
           return created;
         }
-        return Promise.resolve();
+        return Promise.reject(new Error('Already aligned'));
       }),
     );
 
-    if (results.some((result) => result.status === 'rejected')) {
-      const message = `Failed to fully align multichain account group for entropy ID: ${this.wallet.entropySource} and group index: ${this.groupIndex}, some accounts might be missing`;
+    let failureMessage = '';
+    let failureCount = 0;
+    const groupState = results.reduce<GroupState>((state, result, idx) => {
+      if (result.status === 'fulfilled') {
+        state[this.#providers[idx].getName()] = result.value.map(
+          (account) => account.id,
+        );
+      } else if (
+        result.status === 'rejected' &&
+        result.reason.message !== 'Already aligned'
+      ) {
+        failureCount += 1;
+        failureMessage += `\n- ${this.#providers[idx].getName()}: ${result.reason.message}`;
+      }
+      return state;
+    }, {});
+
+    // Update group state
+    this.init(groupState);
+
+    if (failureCount > 0) {
+      const hasMultipleFailures = failureCount > 1;
+      const message = `Failed to fully align multichain account group for entropy ID: ${this.wallet.entropySource} and group index: ${this.groupIndex}, some accounts might be missing. ${hasMultipleFailures ? 'Providers' : 'Provider'} threw the following ${hasMultipleFailures ? 'errors' : 'error'}:${failureMessage}`;
 
       this.#log(`${WARNING_PREFIX} ${message}`);
       console.warn(message);
