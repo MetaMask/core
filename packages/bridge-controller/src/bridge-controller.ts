@@ -642,8 +642,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
                   });
                   return Promise.resolve();
                 },
-                onValidationFailures: this.#trackResponseValidationFailures,
-                onValidQuotesReceived: async (quote: QuoteResponse) => {
+                onValidationFailure: this.#trackResponseValidationFailures,
+                onValidQuoteReceived: async (quote: QuoteResponse) => {
                   const quotesWithFees = await this.#appendFees(
                     updatedQuoteRequest,
                     [quote],

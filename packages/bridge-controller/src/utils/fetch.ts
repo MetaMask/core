@@ -270,9 +270,9 @@ export const fetchAssetPrices = async (
  * @param clientId - The client ID for metrics
  * @param bridgeApiBaseUrl - The base URL for the bridge API
  * @param serverEventHandlers - The server event handlers
- * @param serverEventHandlers.onValidationFailures - The function to handle validation failures
- * @param serverEventHandlers.onValidQuotesReceived - The function to handle valid quotes
- * @param serverEventHandlers.onOpen - The function to handle the open event
+ * @param serverEventHandlers.onValidationFailure - The function to handle validation failures
+ * @param serverEventHandlers.onValidQuoteReceived - The function to handle valid quotes
+ * @param serverEventHandlers.onOpen - The function that runs when the first quote is received
  * @param clientVersion - The client version for metrics (optional)
  * @returns A list of bridge tx quotes
  */
@@ -284,8 +284,8 @@ export async function fetchBridgeQuoteStream(
   bridgeApiBaseUrl: string,
   serverEventHandlers: {
     onOpen: (event: Response) => Promise<void>;
-    onValidationFailures: (validationFailures: string[]) => void;
-    onValidQuotesReceived: (quotes: QuoteResponse) => Promise<void>;
+    onValidationFailure: (validationFailures: string[]) => void;
+    onValidQuoteReceived: (quotes: QuoteResponse) => Promise<void>;
   },
   clientVersion?: string,
 ): Promise<void> {
@@ -302,11 +302,13 @@ export async function fetchBridgeQuoteStream(
       validateQuoteResponse(quoteResponse);
 
       serverEventHandlers
-        .onValidQuotesReceived(quoteResponse)
+        .onValidQuoteReceived(quoteResponse)
         .then((v) => {
           return v;
         })
-        .catch(() => {});
+        .catch((e) => {
+          console.error('Error validating quote', e);
+        });
     } catch (error) {
       if (error instanceof StructError) {
         error.failures().forEach(({ branch, path }) => {
@@ -323,7 +325,7 @@ export async function fetchBridgeQuoteStream(
       const validationFailures = Array.from(uniqueValidationFailures);
       if (uniqueValidationFailures.size > 0) {
         console.warn('Quote validation failed', validationFailures);
-        serverEventHandlers.onValidationFailures(validationFailures);
+        serverEventHandlers.onValidationFailure(validationFailures);
       }
     }
   };

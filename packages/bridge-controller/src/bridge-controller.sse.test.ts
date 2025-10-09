@@ -250,8 +250,8 @@ describe('BridgeController SSE tests', function () {
       BRIDGE_PROD_API_BASE_URL,
       {
         onOpen: expect.any(Function),
-        onValidationFailures: expect.any(Function),
-        onValidQuotesReceived: expect.any(Function),
+        onValidationFailure: expect.any(Function),
+        onValidQuoteReceived: expect.any(Function),
       },
       '1.0.0',
     );
@@ -335,7 +335,6 @@ describe('BridgeController SSE tests', function () {
       thirdFetchTime,
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     ).toBeGreaterThan(secondFetchTime!);
-    // expect(consoleLogSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy).toHaveBeenCalledWith(
       'Failed to stream bridge quotes',
       new Error('Network error'),
