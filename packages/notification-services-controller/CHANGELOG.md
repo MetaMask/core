@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test: remove redundant "metamask-notifications" prefix from test descriptions in `NotificationServicesController` ([#6787](https://github.com/MetaMask/core/pull/6787))
+
 ### Added
 
 - Add exported util `isVersionInBounds` to validate version number is in bounds ([#6793](https://github.com/MetaMask/core/pull/6793))
