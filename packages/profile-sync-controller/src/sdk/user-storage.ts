@@ -1,7 +1,7 @@
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import { NotFoundError, UserStorageError } from './errors';
+import type { EncryptedPayload } from '../shared/encryption';
 import encryption, { createSHA256Hash } from '../shared/encryption';
-import { SHARED_SALT } from '../shared/encryption/constants';
 import type { Env } from '../shared/env';
 import { getEnvUrls } from '../shared/env';
 import type {
@@ -39,6 +39,8 @@ export type GetUserStorageAllFeatureEntriesResponse = {
 export type UserStorageMethodOptions = {
   nativeScryptCrypto?: NativeScrypt;
   entropySourceId?: string;
+  onEncrypt?: (encryptedData: Omit<EncryptedPayload, 'd'>) => Promise<void>;
+  onDecrypt?: (encryptedData: Omit<EncryptedPayload, 'd'>) => Promise<void>;
 };
 
 type ErrorMessage = {
@@ -141,11 +143,10 @@ export class UserStorage {
     try {
       const headers = await this.#getAuthorizationHeader(entropySourceId);
       const storageKey = await this.getStorageKey(entropySourceId);
-      const encryptedData = await encryption.encryptString(
-        data,
-        storageKey,
-        options?.nativeScryptCrypto,
-      );
+      const encryptedData = await encryption.encryptString(data, storageKey, {
+        nativeScryptCrypto: options?.nativeScryptCrypto,
+        onEncrypt: options?.onEncrypt,
+      });
       const encryptedPath = createEntryPath(path, storageKey);
 
       const url = new URL(STORAGE_URL(this.env, encryptedPath));
@@ -196,11 +197,10 @@ export class UserStorage {
         data.map(async (d) => {
           return [
             this.#createEntryKey(d[0], storageKey),
-            await encryption.encryptString(
-              d[1],
-              storageKey,
-              options?.nativeScryptCrypto,
-            ),
+            await encryption.encryptString(d[1], storageKey, {
+              nativeScryptCrypto: options?.nativeScryptCrypto,
+              onEncrypt: options?.onEncrypt,
+            }),
           ];
         }),
       );
@@ -315,12 +315,14 @@ export class UserStorage {
       const decryptedData = await encryption.decryptString(
         encryptedData,
         storageKey,
-        options?.nativeScryptCrypto,
+        {
+          nativeScryptCrypto: options?.nativeScryptCrypto,
+          onDecrypt: options?.onDecrypt,
+        },
       );
 
-      // Re-encrypt the entry if it was encrypted with a random salt
-      const salt = encryption.getSalt(encryptedData);
-      if (salt.toString() !== SHARED_SALT.toString()) {
+      // Data migration
+      if (encryption.doesEntryNeedReEncryption(encryptedData)) {
         await this.#upsertUserStorage(path, decryptedData, options);
       }
 
@@ -381,24 +383,23 @@ export class UserStorage {
         }
 
         try {
-          const data = await encryption.decryptString(
-            entry.Data,
-            storageKey,
-            options?.nativeScryptCrypto,
-          );
+          const data = await encryption.decryptString(entry.Data, storageKey, {
+            nativeScryptCrypto: options?.nativeScryptCrypto,
+            onDecrypt: options?.onDecrypt,
+          });
           decryptedData.push(data);
 
-          // Re-encrypt the entry was encrypted with a random salt
-          const salt = encryption.getSalt(entry.Data);
-          if (salt.toString() !== SHARED_SALT.toString()) {
-            reEncryptedEntries.push([
-              entry.HashedKey,
-              await encryption.encryptString(
-                data,
-                storageKey,
-                options?.nativeScryptCrypto,
-              ),
-            ]);
+          // Data migration
+          if (encryption.doesEntryNeedReEncryption(entry.Data)) {
+            const reEncryptedData = await encryption.encryptString(
+              data,
+              storageKey,
+              {
+                nativeScryptCrypto: options?.nativeScryptCrypto,
+                onEncrypt: options?.onEncrypt,
+              },
+            );
+            reEncryptedEntries.push([entry.HashedKey, reEncryptedData]);
           }
         } catch {
           // do nothing

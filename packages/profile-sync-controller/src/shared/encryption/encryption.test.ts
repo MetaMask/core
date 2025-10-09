@@ -1,4 +1,12 @@
-import { MAX_KDF_PROMISE_CACHE_SIZE } from './constants';
+import {
+  ALGORITHM_KEY_SIZE,
+  SCRYPT_N,
+  SCRYPT_N_V2,
+  SCRYPT_p,
+  SCRYPT_r,
+  SCRYPT_SALT_SIZE,
+  MAX_KDF_PROMISE_CACHE_SIZE,
+} from './constants';
 import encryption, { createSHA256Hash } from './encryption';
 
 describe('encryption tests', () => {
@@ -31,6 +39,29 @@ describe('encryption tests', () => {
     const encryptedData = `{"v":"1","t":"scrypt","d":"WNEp1QXUZsxCfW9b27uzZ18CtsMvKP6+cqLq8NLAItXeYcFcUjtKprfvedHxf5JN9Q7pe50qnA==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}`;
     const result = await encryption.decryptString(encryptedData, PASSWORD);
     expect(result).toBe(DATA1);
+  });
+
+  it('should derive and use a different key for entries that have the same password but different encryption options', async () => {
+    // Test decryption of old format (N:2^17 with SHARED_SALT)
+    const data1EncryptedWithOldN =
+      '{"v":"1","t":"scrypt","d":"AAECAwQFBgcICQoLDA0OD5rMiKCTz61h5abF98yn50UPflCq6Ozov3NAk+y4h6o5bp0jJLJ0rw==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}';
+
+    const data1EncryptedWithNewN = await encryption.encryptString(
+      DATA1,
+      PASSWORD,
+    );
+
+    const decrypted1 = await encryption.decryptString(
+      data1EncryptedWithOldN,
+      PASSWORD,
+    );
+    const decrypted2 = await encryption.decryptString(
+      data1EncryptedWithNewN,
+      PASSWORD,
+    );
+
+    expect(decrypted1).toBe(DATA1);
+    expect(decrypted2).toBe(DATA1);
   });
 
   it('should sha-256 hash a value and should be deterministic', () => {
@@ -82,34 +113,62 @@ describe('encryption tests', () => {
     expect(decryptedData).toBe(ACCOUNTS_DECRYPTED_DATA);
   });
 
-  describe('getIfEntriesHaveDifferentSalts()', () => {
-    it('should return true if entries have different salts', () => {
-      const entries = [
-        '{"v":"1","t":"scrypt","d":"1yC/ZXarV57HbqEZ46nH0JWgXfPl86nTHD7kai2g5gm290FM9tw5QjOaAAwIuQESEE8TIM/J9pIj7nmlGi+BZrevTtK3DXWXwnUQsCP7amKd5Q4gs3EEQgXpA0W+WJUgyElj869rwIv/C6tl5E2pK4j/0EAjMSIm1TGoj9FPohyRgZsOIt8VhZfb7w0GODsjPwPIkN6zazvJ3gAFYFPh7yRtebFs86z3fzqCWZ9zakdCHntchC2oZiaApXR9yzaPlGgnPg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
-        '{"v":"1","t":"scrypt","d":"x7QqsdqsdEtUo7q/jG+UNkD/HOxQARGGRXsGPrLsDlkwDfgfoYlPI0To/M3pJRBlKD0RLEFIPHtHBEA5bv/2izB21VljvhMnhHfo0KgQ+e8Uq1t7grwa+r+ge3qbPNY+w78Xt8GtC+Hkrw5fORKvCn+xjzaCHYV6RxKYbp1TpyCJq7hDrr1XiyL8kqbpE0hAHALrrQOoV9/WXJi9pC5J118kquXx8CNA1P5wO/BXKp1AbryGR6kVW3lsp1sy3lYE/TApa5lTj+","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
-      ];
+  it('should fire the onEncrypt callback if provided', async () => {
+    const onEncrypt = jest.fn();
+    const encryptedData = await encryption.encryptString(DATA1, PASSWORD, {
+      onEncrypt,
+    });
+    expect(onEncrypt).toHaveBeenCalledWith({
+      v: '1',
+      t: 'scrypt',
+      o: {
+        N: SCRYPT_N_V2,
+        r: SCRYPT_r,
+        p: SCRYPT_p,
+        dkLen: ALGORITHM_KEY_SIZE,
+      },
+      saltLen: SCRYPT_SALT_SIZE,
+    });
+    expect(encryptedData).toBeDefined();
+  });
 
-      const result = encryption.getIfEntriesHaveDifferentSalts(entries);
+  it('should fire the onDecrypt callback if provided', async () => {
+    const onDecrypt = jest.fn();
+    const decryptedData = await encryption.decryptString(
+      ACCOUNTS_ENCRYPTED_DATA_WITH_SALT,
+      ACCOUNTS_PASSWORD,
+      { onDecrypt },
+    );
+    const encryptedData = JSON.parse(ACCOUNTS_ENCRYPTED_DATA_WITH_SALT);
+    expect(onDecrypt).toHaveBeenCalledWith({
+      v: encryptedData.v,
+      t: encryptedData.t,
+      o: encryptedData.o,
+      saltLen: encryptedData.saltLen,
+    });
+    expect(decryptedData).toBe(ACCOUNTS_DECRYPTED_DATA);
+  });
+
+  describe('doesEntryNeedReEncryption()', () => {
+    it('should return true if entry uses a random salt', () => {
+      const entry =
+        '{"v":"1","t":"scrypt","d":"1yC/ZXarV57HbqEZ46nH0JWgXfPl86nTHD7kai2g5gm290FM9tw5QjOaAAwIuQESEE8TIM/J9pIj7nmlGi+BZrevTtK3DXWXwnUQsCP7amKd5Q4gs3EEQgXpA0W+WJUgyElj869rwIv/C6tl5E2pK4j/0EAjMSIm1TGoj9FPohyRgZsOIt8VhZfb7w0GODsjPwPIkN6zazvJ3gAFYFPh7yRtebFs86z3fzqCWZ9zakdCHntchC2oZiaApXR9yzaPlGgnPg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}';
+
+      const result = encryption.doesEntryNeedReEncryption(entry);
       expect(result).toBe(true);
     });
 
-    it('should return false if entries have the same salts', () => {
-      const entries = [
-        '{"v":"1","t":"scrypt","d":"+nhJkMMjQljyyyytsnhO4dIzFL/hGR4Y6hb2qUGrPb/hjxHVJUk1jcJAyHP9eUzgZQ==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
-        '{"v":"1","t":"scrypt","d":"+nhJkMMjQljyyyytsnhO4XYxpF0N3IXuhCpPM9dAyw5pO2gcqcXNucJs60rBtgKttA==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
-      ];
+    it('should return true if entry uses the old scrypt N parameter', () => {
+      const entry = `{"v":"1","t":"scrypt","d":"x7QqsdqsdEtUo7q/jG+UNkD/HOxQARGGRXsGPrLsDlkwDfgfoYlPI0To/M3pJRBlKD0RLEFIPHtHBEA5bv/2izB21VljvhMnhHfo0KgQ+e8Uq1t7grwa+r+ge3qbPNY+w78Xt8GtC+Hkrw5fORKvCn+xjzaCHYV6RxKYbp1TpyCJq7hDrr1XiyL8kqbpE0hAHALrrQOoV9/WXJi9pC5J118kquXx8CNA1P5wO/BXKp1AbryGR6kVW3lsp1sy3lYE/TApa5lTj+","o":{"N":${SCRYPT_N},"r":8,"p":1,"dkLen":16},"saltLen":16}`;
 
-      const result = encryption.getIfEntriesHaveDifferentSalts(entries);
-      expect(result).toBe(false);
+      const result = encryption.doesEntryNeedReEncryption(entry);
+      expect(result).toBe(true);
     });
 
-    it('should return false if entries do not have salts', () => {
-      const entries = [
-        '{"v":"1","t":"scrypt","d":"CgHcOM6xCaaNFnPCr0etqyxCq4xoJNQ9gfP9+GRn94hGtKurbOuXzyDoHJgzaJxDKd1zQHJhDwLjnH6oCZvC8XKvZZ6RcrN9BicZHpzpojon+HwpcPHceM/pvoMabYfiXqbokYHXZymGTxE5X+TjFo+HB7/Y6xOCU1usz47bru9vfyZrdQ66qGlMO2MUFx00cnh8xHOksDNC","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":0}',
-        '{"v":"1","t":"scrypt","d":"OCrYnCFkt7a33cjaAL65D/WypM+oVxIiGVwMk+mjijcpnG4r3vzPl6OzFpx2LNKHj6YN59wcLje3QK2hISU0R8iXyZubdkeAiY89SsI7owLda96ysF+q6PuyxnWfNfWe+5a1+4O8BVkR8p/9PYimwTN0QGhX2lkfLt5r0aYgsLnWld/5k9G7cB4yqoduIopzpojS5ZGI8PFW","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":0}',
-      ];
+    it('should return false if entry uses new scrypt N parameter', async () => {
+      const entry = await encryption.encryptString(DATA1, PASSWORD);
 
-      const result = encryption.getIfEntriesHaveDifferentSalts(entries);
+      const result = encryption.doesEntryNeedReEncryption(entry);
       expect(result).toBe(false);
     });
   });

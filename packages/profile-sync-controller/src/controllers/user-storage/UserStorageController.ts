@@ -30,6 +30,7 @@ import { BACKUPANDSYNC_FEATURES } from './constants';
 import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
 import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
 import type {
+  EncryptedPayload,
   UserStorageGenericFeatureKey,
   UserStorageGenericPathWithFeatureAndKey,
   UserStorageGenericPathWithFeatureOnly,
@@ -114,6 +115,10 @@ const metadata: StateMetadata<UserStorageControllerState> = {
 
 type ControllerConfig = {
   env: Env;
+  encryption?: {
+    onEncrypt?: (encryptedData: Omit<EncryptedPayload, 'd'>) => Promise<void>;
+    onDecrypt?: (encryptedData: Omit<EncryptedPayload, 'd'>) => Promise<void>;
+  };
   contactSyncing?: {
     /**
      * Callback that fires when contact sync updates a contact.
@@ -418,6 +423,8 @@ export default class UserStorageController extends BaseController<
     return await this.#userStorage.getItem(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
       entropySourceId,
+      onDecrypt: this.#config.encryption?.onDecrypt,
+      onEncrypt: this.#config.encryption?.onEncrypt,
     });
   }
 
@@ -436,6 +443,8 @@ export default class UserStorageController extends BaseController<
     return await this.#userStorage.getAllFeatureItems(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
       entropySourceId,
+      onDecrypt: this.#config.encryption?.onDecrypt,
+      onEncrypt: this.#config.encryption?.onEncrypt,
     });
   }
 
@@ -456,6 +465,8 @@ export default class UserStorageController extends BaseController<
     return await this.#userStorage.setItem(path, value, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
       entropySourceId,
+      onDecrypt: this.#config.encryption?.onDecrypt,
+      onEncrypt: this.#config.encryption?.onEncrypt,
     });
   }
 
@@ -476,6 +487,8 @@ export default class UserStorageController extends BaseController<
     return await this.#userStorage.batchSetItems(path, values, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
       entropySourceId,
+      onDecrypt: this.#config.encryption?.onDecrypt,
+      onEncrypt: this.#config.encryption?.onEncrypt,
     });
   }
 
