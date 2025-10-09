@@ -273,6 +273,7 @@ export const fetchAssetPrices = async (
  * @param serverEventHandlers.onValidationFailures - The function to handle validation failures
  * @param serverEventHandlers.onValidQuotesReceived - The function to handle valid quotes
  * @param serverEventHandlers.onOpen - The function to handle the open event
+ * @param clientVersion - The client version for metrics (optional)
  * @returns A list of bridge tx quotes
  */
 export async function fetchBridgeQuoteStream(
@@ -286,6 +287,7 @@ export async function fetchBridgeQuoteStream(
     onValidationFailures: (validationFailures: string[]) => void;
     onValidQuotesReceived: (quotes: QuoteResponse) => Promise<void>;
   },
+  clientVersion?: string,
 ): Promise<void> {
   const queryParams = formatQueryParams(request);
 
@@ -329,7 +331,7 @@ export async function fetchBridgeQuoteStream(
   const urlStream = `${bridgeApiBaseUrl}/getQuoteStream?${queryParams}`;
   await fetchEventSource(urlStream, {
     headers: {
-      ...getClientIdHeader(clientId),
+      ...getClientHeaders(clientId, clientVersion),
       'Content-Type': 'text/event-stream',
     },
     signal,

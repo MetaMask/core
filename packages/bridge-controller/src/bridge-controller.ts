@@ -662,6 +662,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
                   });
                 },
               },
+              this.#clientVersion,
             );
           } else {
             const quotes = await this.fetchQuotes(

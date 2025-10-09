@@ -53,6 +53,7 @@ describe('BridgeController SSE tests', function () {
       clientId: BridgeClientId.EXTENSION,
       fetchFn: mockFetchFn,
       trackMetaMetricsFn,
+      clientVersion: '1.0.0',
     });
     messengerMock.call.mockReturnValue({
       address: '0x123',
@@ -252,6 +253,7 @@ describe('BridgeController SSE tests', function () {
         onValidationFailures: expect.any(Function),
         onValidQuotesReceived: expect.any(Function),
       },
+      '1.0.0',
     );
     expect(bridgeController.state.quotesLastFetched).toBeNull();
     expect(bridgeController.state).toMatchSnapshot();
