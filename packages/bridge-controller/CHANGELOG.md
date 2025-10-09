@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add optional `Client-Version` header to bridge API requests ([#6791](https://github.com/MetaMask/core/pull/6791))
+
 ## [48.0.0]
 
 ### Changed
