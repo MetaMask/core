@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.1.0]
+
 ### Uncategorized
 
 - Release/597.0.0 ([#6771](https://github.com/MetaMask/core/pull/6771))
@@ -466,7 +468,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.1.0...HEAD
+[39.1.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.0.0...@metamask/user-operation-controller@39.1.0
 [39.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@38.0.0...@metamask/user-operation-controller@39.0.0
 [38.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@37.0.0...@metamask/user-operation-controller@38.0.0
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@36.0.0...@metamask/user-operation-controller@37.0.0

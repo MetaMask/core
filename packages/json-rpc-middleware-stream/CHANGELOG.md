@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.8]
+
 ### Uncategorized
 
 - feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
@@ -206,7 +208,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - TypeScript typings ([#11](https://github.com/MetaMask/json-rpc-middleware-stream/pull/11))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.7...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.8...HEAD
+[8.0.8]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.7...@metamask/json-rpc-middleware-stream@8.0.8
 [8.0.7]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.6...@metamask/json-rpc-middleware-stream@8.0.7
 [8.0.6]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.5...@metamask/json-rpc-middleware-stream@8.0.6
 [8.0.5]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.4...@metamask/json-rpc-middleware-stream@8.0.5

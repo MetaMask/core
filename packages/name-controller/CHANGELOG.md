@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.1.0]
+
 ### Uncategorized
 
 - Revert "Release 319.0.0 (#5437)" ([#5437](https://github.com/MetaMask/core/pull/5437))
@@ -179,7 +181,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1647](https://github.com/MetaMask/core/pull/1647))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.3...@metamask/name-controller@8.1.0
 [8.0.3]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.2...@metamask/name-controller@8.0.3
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.1...@metamask/name-controller@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.0...@metamask/name-controller@8.0.1

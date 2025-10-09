@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.1.0]
+
 ### Uncategorized
 
 - chore: update accounts/snaps deps ([#5871](https://github.com/MetaMask/core/pull/5871))
@@ -347,7 +349,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.6...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.1.0...HEAD
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.6...@metamask/permission-controller@11.1.0
 [11.0.6]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.5...@metamask/permission-controller@11.0.6
 [11.0.5]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.4...@metamask/permission-controller@11.0.5
 [11.0.4]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.3...@metamask/permission-controller@11.0.4

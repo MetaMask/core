@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.3.0]
+
 ### Uncategorized
 
 - test: remove redundant "metamask-notifications" prefix from test descriptions in `NotificationServicesController` ([#6787](https://github.com/MetaMask/core/pull/6787))
@@ -573,7 +575,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.3.0...HEAD
+[18.3.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.2.0...@metamask/notification-services-controller@18.3.0
 [18.2.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.1.0...@metamask/notification-services-controller@18.2.0
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.0.0...@metamask/notification-services-controller@18.1.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@17.0.0...@metamask/notification-services-controller@18.0.0

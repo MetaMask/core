@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.1.0]
+
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6524](https://github.com/MetaMask/core/pull/6524))
@@ -184,7 +186,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.3...@metamask/announcement-controller@7.1.0
 [7.0.3]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.2...@metamask/announcement-controller@7.0.3
 [7.0.2]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.1...@metamask/announcement-controller@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.0...@metamask/announcement-controller@7.0.1

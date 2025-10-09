@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.4]
+
 ### Uncategorized
 
 - feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
@@ -89,7 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#3577](https://github.com/MetaMask/core/pull/3577) [#3588](https://github.com/MetaMask/core/pull/3588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.4...HEAD
+[3.0.4]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.3...@metamask/build-utils@3.0.4
 [3.0.3]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.2...@metamask/build-utils@3.0.3
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.1...@metamask/build-utils@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.0...@metamask/build-utils@3.0.1
