@@ -220,7 +220,6 @@ export class MultichainAccountService {
         serviceState[keys.entropySource][keys.groupIndex] ??= {};
         serviceState[keys.entropySource][keys.groupIndex][keys.providerName] ??=
           [];
-        // ok to cast here because at this point we know that the account is BIP-44 compatible
         serviceState[keys.entropySource][keys.groupIndex][
           keys.providerName
         ].push(account.id);
