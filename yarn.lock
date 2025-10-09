@@ -3125,7 +3125,7 @@ __metadata:
     "@metamask/eslint-config-jest": "npm:^14.0.0"
     "@metamask/eslint-config-nodejs": "npm:^14.0.0"
     "@metamask/eslint-config-typescript": "npm:^14.0.0"
-    "@metamask/eth-block-tracker": "npm:^12.0.1"
+    "@metamask/eth-block-tracker": "npm:^12.2.0"
     "@metamask/eth-json-rpc-provider": "npm:^5.0.1"
     "@metamask/json-rpc-engine": "npm:^10.1.1"
     "@metamask/utils": "npm:^11.8.1"
@@ -3413,16 +3413,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-block-tracker@npm:^12.0.0, @metamask/eth-block-tracker@npm:^12.0.1":
-  version: 12.0.1
-  resolution: "@metamask/eth-block-tracker@npm:12.0.1"
+"@metamask/eth-block-tracker@npm:^12.0.1, @metamask/eth-block-tracker@npm:^12.2.0":
+  version: 12.2.0
+  resolution: "@metamask/eth-block-tracker@npm:12.2.0"
   dependencies:
-    "@metamask/eth-json-rpc-provider": "npm:^4.1.5"
+    "@metamask/eth-json-rpc-provider": "npm:^5.0.0"
     "@metamask/safe-event-emitter": "npm:^3.1.1"
     "@metamask/utils": "npm:^11.0.1"
     json-rpc-random-id: "npm:^1.0.1"
     pify: "npm:^5.0.0"
-  checksum: 10/732dc58819bfb3593e2bde88f0cde5049db70d11ffffbe4ec18353edf2621328741f6ebb2ec5e6f6db26411c15b827941f88ca6eb739b2591624f85cfa5f687b
+  checksum: 10/b25bcb173f931c98e12266e25c0e807b6d01ea95271e85ce8883e217159f59cca0c8e86dc9e509a8907fea2f05dd08d99bda46dc966c268c77c1007d17008b21
   languageName: node
   linkType: hard
 
@@ -3454,26 +3454,26 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-infura@npm:^10.2.0":
-  version: 10.2.0
-  resolution: "@metamask/eth-json-rpc-infura@npm:10.2.0"
+"@metamask/eth-json-rpc-infura@npm:^10.3.0":
+  version: 10.3.0
+  resolution: "@metamask/eth-json-rpc-infura@npm:10.3.0"
   dependencies:
-    "@metamask/eth-json-rpc-provider": "npm:^4.1.7"
-    "@metamask/json-rpc-engine": "npm:^10.0.2"
+    "@metamask/eth-json-rpc-provider": "npm:^5.0.0"
+    "@metamask/json-rpc-engine": "npm:^10.1.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^11.0.1"
-  checksum: 10/f3e2ac8f8657259978923bdb08cee660ae8e1f6a3f2a67c9e8b93a55030c42b0a8ba45e9321dd6d52f7a4309d1c4241745c2c292d6be0596dd4954ac38d586f6
+  checksum: 10/164c9ef1285a0895db668f3949d9258df721d348c857c4337b964f147000221d69fd103851c6483d8dd6bfe851c76cc5299155a8818eac0b92334469c40ccaef
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-middleware@npm:^18.0.0":
-  version: 18.0.0
-  resolution: "@metamask/eth-json-rpc-middleware@npm:18.0.0"
+"@metamask/eth-json-rpc-middleware@npm:^19.0.0":
+  version: 19.0.0
+  resolution: "@metamask/eth-json-rpc-middleware@npm:19.0.0"
   dependencies:
-    "@metamask/eth-block-tracker": "npm:^12.0.0"
-    "@metamask/eth-json-rpc-provider": "npm:^4.1.7"
+    "@metamask/eth-block-tracker": "npm:^12.2.0"
+    "@metamask/eth-json-rpc-provider": "npm:^5.0.0"
     "@metamask/eth-sig-util": "npm:^8.1.2"
-    "@metamask/json-rpc-engine": "npm:^10.0.2"
+    "@metamask/json-rpc-engine": "npm:^10.1.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.7.0"
@@ -3482,24 +3482,11 @@ __metadata:
     klona: "npm:^2.0.6"
     pify: "npm:^5.0.0"
     safe-stable-stringify: "npm:^2.4.3"
-  checksum: 10/e25f7e4575d08a23070a46e1653e94b295f8b63816d7cd82f7f2bc8ed9777d4d16d6241016e9f8afe3c5b5e17b400de48e9751d64b3cc0478982f787ec2e586c
+  checksum: 10/01c6c41ea05c5ab3d857a5a69bb496783a20509b227585df8c0b0b7866b1cc7607171d4cb4252625df5a3a0be7edad531044c2bb3bb562b3ae908727672e7292
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-provider@npm:^4.1.5, @metamask/eth-json-rpc-provider@npm:^4.1.7":
-  version: 4.1.8
-  resolution: "@metamask/eth-json-rpc-provider@npm:4.1.8"
-  dependencies:
-    "@metamask/json-rpc-engine": "npm:^10.0.3"
-    "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/safe-event-emitter": "npm:^3.0.0"
-    "@metamask/utils": "npm:^11.1.0"
-    uuid: "npm:^8.3.2"
-  checksum: 10/8247f22a23ec0cae7f80c7755b00bfa337a27cc4d2ea416ed08f65a898cd6110057a3710e55e0454db7406c114a4a570b9a286baa8136db6f1c485f62a6c2800
-  languageName: node
-  linkType: hard
-
-"@metamask/eth-json-rpc-provider@npm:^5.0.1, @metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider":
+"@metamask/eth-json-rpc-provider@npm:^5.0.0, @metamask/eth-json-rpc-provider@npm:^5.0.1, @metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider":
   version: 0.0.0-use.local
   resolution: "@metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider"
   dependencies:
@@ -3815,7 +3802,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/json-rpc-engine@npm:^10.0.0, @metamask/json-rpc-engine@npm:^10.0.2, @metamask/json-rpc-engine@npm:^10.0.3, @metamask/json-rpc-engine@npm:^10.1.1, @metamask/json-rpc-engine@workspace:packages/json-rpc-engine":
+"@metamask/json-rpc-engine@npm:^10.0.0, @metamask/json-rpc-engine@npm:^10.0.2, @metamask/json-rpc-engine@npm:^10.1.0, @metamask/json-rpc-engine@npm:^10.1.1, @metamask/json-rpc-engine@workspace:packages/json-rpc-engine":
   version: 0.0.0-use.local
   resolution: "@metamask/json-rpc-engine@workspace:packages/json-rpc-engine"
   dependencies:
@@ -4203,9 +4190,9 @@ __metadata:
     "@metamask/base-controller": "npm:^8.4.1"
     "@metamask/controller-utils": "npm:^11.14.1"
     "@metamask/error-reporting-service": "npm:^2.2.1"
-    "@metamask/eth-block-tracker": "npm:^12.0.1"
-    "@metamask/eth-json-rpc-infura": "npm:^10.2.0"
-    "@metamask/eth-json-rpc-middleware": "npm:^18.0.0"
+    "@metamask/eth-block-tracker": "npm:^12.2.0"
+    "@metamask/eth-json-rpc-infura": "npm:^10.3.0"
+    "@metamask/eth-json-rpc-middleware": "npm:^19.0.0"
     "@metamask/eth-json-rpc-provider": "npm:^5.0.1"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/json-rpc-engine": "npm:^10.1.1"
@@ -5024,7 +5011,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.1"
     "@metamask/controller-utils": "npm:^11.14.1"
-    "@metamask/eth-block-tracker": "npm:^12.0.1"
+    "@metamask/eth-block-tracker": "npm:^12.2.0"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/gas-fee-controller": "npm:^24.1.0"
     "@metamask/keyring-controller": "npm:^23.1.1"
