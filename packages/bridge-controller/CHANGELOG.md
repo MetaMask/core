@@ -9,12 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [49.0.0]
 
-### Uncategorized
-
-- Release/605.0.0 ([#6795](https://github.com/MetaMask/core/pull/6795))
-
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^78.0.0` to `^79.0.0` ([#6806](https://github.com/MetaMask/core/pull/6806))
 - Add optional `Client-Version` header to bridge API requests ([#6791](https://github.com/MetaMask/core/pull/6791))
 
 ## [48.0.0]
