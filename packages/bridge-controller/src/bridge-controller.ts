@@ -166,6 +166,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #clientId: string;
 
+  readonly #clientVersion: string | undefined;
+
   readonly #getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee;
 
   readonly #fetchFn: FetchFunction;
@@ -188,6 +190,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     messenger,
     state,
     clientId,
+    clientVersion,
     getLayer1GasFee,
     fetchFn,
     config,
@@ -197,6 +200,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
     clientId: BridgeClientId;
+    clientVersion?: string;
     getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee;
     fetchFn: FetchFunction;
     config?: {
@@ -226,6 +230,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#abortController = new AbortController();
     this.#getLayer1GasFee = getLayer1GasFee;
     this.#clientId = clientId;
+    this.#clientVersion = clientVersion;
     this.#fetchFn = fetchFn;
     this.#trackMetaMetricsFn = trackMetaMetricsFn;
     this.#config = config ?? {};
@@ -354,7 +359,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     quoteRequest: GenericQuoteRequest,
     abortSignal: AbortSignal | null = null,
     featureId: FeatureId | null = null,
-  ): Promise<QuoteResponse[]> => {
+  ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
     const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
     // If featureId is specified, retrieve the quoteRequestOverrides for that featureId
     const quoteRequestOverrides = featureId
@@ -370,6 +375,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#clientId,
       this.#fetchFn,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+      featureId,
+      this.#clientVersion,
     );
 
     this.#trackResponseValidationFailures(validationFailures);
@@ -473,6 +480,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       assetIds,
       currencies: new Set([currency]),
       clientId: this.#clientId,
+      clientVersion: this.#clientVersion,
       fetchFn: this.#fetchFn,
     });
     const exchangeRates = toExchangeRates(currency, pricesByAssetId);

@@ -7,9 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [78.0.1]
+
+### Changed
+
+- Bump `@metamask/multichain-account-service` from `^1.5.0` to `^1.6.0` ([#6786](https://github.com/MetaMask/core/pull/6786))
+
+### Fixed
+
+- Fix duplicate native token entries in `AccountsApiBalanceFetcher` by ensuring consistent address checksumming ([#6794](https://github.com/MetaMask/core/pull/6794))
+
+## [78.0.0]
+
+### Added
+
+- add `platform` property to `TokenBalancesController` to send better analytics for which platform is hitting out APIs ([#6768](https://github.com/MetaMask/core/pull/6768))
+
+### Changed
+
+- **BREAKING:** Change `accountsApiChainIds` parameter from `ChainIdHex[]` to `() => ChainIdHex[]` in both `AccountTrackerController` and `TokenBalancesController` ([#6776](https://github.com/MetaMask/core/pull/6776))
+
+  - Enables dynamic configuration of chains that should use Accounts API strategy
+  - Allows runtime determination of supported chain IDs instead of static array
+
+### Fixed
+
+- Fix staked balance update on the `TokenBalancesController` , it's now filtered by supported chains ([#6776](https://github.com/MetaMask/core/pull/6776))
+
+## [77.0.2]
+
+### Changed
+
+- Bump `@metamask/multichain-account-service` from `^1.2.0` to `^1.3.0` ([#6748](https://github.com/MetaMask/core/pull/6748))
+
+### Fixed
+
+- Fix token balance updates not respecting account selection parameter ([#6738](https://github.com/MetaMask/core/pull/6738))
+
+## [77.0.1]
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
+### Fixed
+
+- Fix unnecessary balance updates in `TokenBalancesController` by skipping updates when values haven't changed ([#6743](https://github.com/MetaMask/core/pull/6743))
+  - Prevents unnecessary state mutations for token balances when values are identical
+  - Improves performance by reducing redundant processing and re-renders
 
 ## [77.0.0]
 
@@ -2028,7 +2073,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@77.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@78.0.1...HEAD
+[78.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@78.0.0...@metamask/assets-controllers@78.0.1
+[78.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@77.0.2...@metamask/assets-controllers@78.0.0
+[77.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@77.0.1...@metamask/assets-controllers@77.0.2
+[77.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@77.0.0...@metamask/assets-controllers@77.0.1
 [77.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@76.0.0...@metamask/assets-controllers@77.0.0
 [76.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.2.0...@metamask/assets-controllers@76.0.0
 [75.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.1.0...@metamask/assets-controllers@75.2.0

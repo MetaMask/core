@@ -79,6 +79,7 @@ describe('BridgeController', function () {
       messenger: messengerMock,
       getLayer1GasFee: getLayer1GasFeeMock,
       clientId: BridgeClientId.EXTENSION,
+      clientVersion: '1.0.0',
       fetchFn: mockFetchFn,
       trackMetaMetricsFn,
     });
@@ -427,6 +428,8 @@ describe('BridgeController', function () {
       BridgeClientId.EXTENSION,
       mockFetchFn,
       BRIDGE_PROD_API_BASE_URL,
+      null,
+      '1.0.0',
     );
     expect(bridgeController.state.quotesLastFetched).toBeNull();
 
@@ -928,6 +931,8 @@ describe('BridgeController', function () {
       BridgeClientId.EXTENSION,
       mockFetchFn,
       BRIDGE_PROD_API_BASE_URL,
+      null,
+      '1.0.0',
     );
     expect(bridgeController.state.quotesLastFetched).toBeNull();
 
@@ -1236,6 +1241,7 @@ describe('BridgeController', function () {
       const controller = new BridgeController({
         messenger: mockMessenger,
         clientId: BridgeClientId.EXTENSION,
+        clientVersion: '1.0.0',
         getLayer1GasFee: jest.fn(),
         fetchFn: mockFetchFn,
         trackMetaMetricsFn,
@@ -1391,6 +1397,8 @@ describe('BridgeController', function () {
         BridgeClientId.EXTENSION,
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
+        null,
+        '1.0.0',
       );
       expect(bridgeController.state.quotesLastFetched).toBeNull();
 
@@ -2188,6 +2196,7 @@ describe('BridgeController', function () {
         messenger: messengerMock,
         getLayer1GasFee: getLayer1GasFeeMock,
         clientId: BridgeClientId.EXTENSION,
+        clientVersion: '1.0.0',
         fetchFn: mockFetchFn,
         trackMetaMetricsFn,
         state: {
@@ -2303,6 +2312,7 @@ describe('BridgeController', function () {
         messenger: messengerMock,
         getLayer1GasFee: getLayer1GasFeeMock,
         clientId: BridgeClientId.EXTENSION,
+        clientVersion: '1.0.0',
         fetchFn: mockFetchFn,
         trackMetaMetricsFn,
         state: {
@@ -2346,6 +2356,7 @@ describe('BridgeController', function () {
         messenger: messengerMock,
         getLayer1GasFee: getLayer1GasFeeMock,
         clientId: BridgeClientId.EXTENSION,
+        clientVersion: '1.0.0',
         fetchFn: mockFetchFn,
         trackMetaMetricsFn,
         state: {
@@ -2549,6 +2560,8 @@ describe('BridgeController', function () {
             "extension",
             [Function],
             "https://bridge.api.cx.metamask.io",
+            "perps",
+            "1.0.0",
           ],
         ]
       `);
@@ -2609,6 +2622,8 @@ describe('BridgeController', function () {
             "extension",
             [Function],
             "https://bridge.api.cx.metamask.io",
+            "perps",
+            "1.0.0",
           ],
         ]
       `);
@@ -2659,6 +2674,8 @@ describe('BridgeController', function () {
             "extension",
             [Function],
             "https://bridge.api.cx.metamask.io",
+            null,
+            "1.0.0",
           ],
         ]
       `);

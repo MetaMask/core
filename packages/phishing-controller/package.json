@@ -1,6 +1,6 @@
 {
   "name": "@metamask/phishing-controller",
-  "version": "14.0.0",
+  "version": "14.1.0",
   "description": "Maintains a periodically updated list of approved and unapproved website origins",
   "keywords": [
     "MetaMask",
@@ -57,7 +57,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/transaction-controller": "^60.4.0",
+    "@metamask/transaction-controller": "^60.6.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
