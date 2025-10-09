@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/eth-block-tracker` from `^12.0.0` to `^12.2.0` ([#404](https://github.com/MetaMask/eth-json-rpc-middleware/pull/413))
-- Bump `@metamask/eth-json-rpc-provider` from `^4.1.7` to `^5.0.0` ([#404](https://github.com/MetaMask/eth-json-rpc-middleware/pull/413))
-- Bump `@metamask/json-rpc-engine` from `^10.0.2` to `^10.1.0` ([#404](https://github.com/MetaMask/eth-json-rpc-middleware/pull/413))
+- Bump `@metamask/eth-block-tracker` from `^12.0.0` to `^12.2.0` ([#413](https://github.com/MetaMask/eth-json-rpc-middleware/pull/413))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.7` to `^5.0.0` ([#413](https://github.com/MetaMask/eth-json-rpc-middleware/pull/413))
+- Bump `@metamask/json-rpc-engine` from `^10.0.2` to `^10.1.0` ([#413](https://github.com/MetaMask/eth-json-rpc-middleware/pull/413))
 - Change all `PollingBlockTracker.getLatestBlock()` calls to include `useCache: true` ([#416](https://github.com/MetaMask/eth-json-rpc-middleware/pull/416))
 
 ### Removed
