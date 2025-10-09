@@ -143,6 +143,8 @@ export const SUPPORTED_CURRENCIES = [
   'bits',
   // Satoshi
   'sats',
+  // PEPE Unchained v2
+  'pepu',
 ] as const;
 
 /**
@@ -261,6 +263,8 @@ export const SUPPORTED_CHAIN_IDS = [
   '0x92',
   // Monad Mainnet
   '0x8f',
+  // PEPE unchained v2
+  '0x17dcd',
 ] as const;
 
 /**
