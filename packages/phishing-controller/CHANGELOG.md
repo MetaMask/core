@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fetches the hotlist endpoint with a query param for blocklistPaths ([#6808](https://github.com/MetaMask/core/pull/6808))
+
 ## [14.1.0]
 
 ### Added
