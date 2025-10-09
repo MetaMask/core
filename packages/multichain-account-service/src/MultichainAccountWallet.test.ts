@@ -76,6 +76,7 @@ function setup({
       return setupNamedAccountProvider({
         name: `Mocked Provider ${i}`,
         accounts: providerAccounts,
+        index: i,
       });
     })) as MockAccountProvider[];
 
@@ -181,41 +182,41 @@ describe('MultichainAccountWallet', () => {
   });
 
   describe('createMultichainAccountGroup', () => {
-    it('creates a multichain account group for a given index', async () => {
-      const groupIndex = 1;
-
-      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(0)
-        .get();
+    it('creates a multichain account group for a given index (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
+      const groupIndex = 0;
 
       const { wallet, providers } = setup({
-        accounts: [[mockEvmAccount]], // 1 provider
+        accounts: [[], []], // 1 provider
       });
 
-      const [provider] = providers;
-      const mockNextEvmAccount = MockAccountBuilder.from(mockEvmAccount)
+      const [evmProvider, solProvider] = providers;
+      const mockNextEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(groupIndex)
         .get();
       // 1. Create the accounts for the new index and returns their IDs.
-      provider.createAccounts.mockResolvedValueOnce([mockNextEvmAccount]);
+      evmProvider.createAccounts.mockResolvedValueOnce([mockNextEvmAccount]);
       // 2. When the wallet creates a new multichain account group, it will query
       // all accounts for this given index (so similar to the one we just created).
-      provider.getAccounts.mockReturnValueOnce([mockNextEvmAccount]);
+      evmProvider.getAccounts.mockReturnValueOnce([mockNextEvmAccount]);
       // 3. Required when we call `getAccounts` (below) on the multichain account.
-      provider.getAccount.mockReturnValueOnce(mockNextEvmAccount);
+      evmProvider.getAccount.mockReturnValueOnce(mockNextEvmAccount);
+
+      solProvider.createAccounts.mockResolvedValueOnce([MOCK_SOL_ACCOUNT_1]);
+      solProvider.getAccounts.mockReturnValueOnce([MOCK_SOL_ACCOUNT_1]);
+      solProvider.getAccount.mockReturnValueOnce(MOCK_SOL_ACCOUNT_1);
 
       const specificGroup =
         await wallet.createMultichainAccountGroup(groupIndex);
       expect(specificGroup.groupIndex).toBe(groupIndex);
 
       const internalAccounts = specificGroup.getAccounts();
-      expect(internalAccounts).toHaveLength(1);
+      expect(internalAccounts).toHaveLength(2);
       expect(internalAccounts[0].type).toBe(EthAccountType.Eoa);
+      expect(internalAccounts[1].type).toBe(SolAccountType.DataAccount);
     });
 
-    it('returns the same reference when re-creating using the same index', async () => {
+    it('returns the same reference when re-creating using the same index (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
       const { wallet } = setup({
         accounts: [[MOCK_HD_ACCOUNT_1]],
       });
@@ -226,7 +227,7 @@ describe('MultichainAccountWallet', () => {
       expect(newGroup).toBe(group);
     });
 
-    it('fails to create an account beyond the next index', async () => {
+    it('fails to create an account beyond the next index (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
       const { wallet } = setup({
         accounts: [[MOCK_HD_ACCOUNT_1]],
       });
@@ -239,7 +240,7 @@ describe('MultichainAccountWallet', () => {
       );
     });
 
-    it('creates an account group if only some of the providers fail to create its account', async () => {
+    it('creates an account group if only some of the providers fail to create its account (waitForAllProvidersToFinishCreatingAccounts = true)', async () => {
       const groupIndex = 1;
 
       // Baseline accounts at index 0 for two providers
@@ -276,7 +277,9 @@ describe('MultichainAccountWallet', () => {
       succeedingProvider.getAccount.mockReturnValueOnce(mockNextSolAccount);
 
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      const group = await wallet.createMultichainAccountGroup(groupIndex);
+      const group = await wallet.createMultichainAccountGroup(groupIndex, {
+        waitForAllProvidersToFinishCreatingAccounts: true,
+      });
 
       // Should warn about partial failure but still create the group
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -288,7 +291,7 @@ describe('MultichainAccountWallet', () => {
       expect(internalAccounts[0]).toStrictEqual(mockNextSolAccount);
     });
 
-    it('fails to create an account group if all providers fail to create their accounts', async () => {
+    it('fails to create an account group if all providers fail to create their accounts (waitForAllProvidersToFinishCreatingAccounts = true)', async () => {
       const { wallet, providers } = setup({
         accounts: [[], []],
       });
@@ -303,11 +306,38 @@ describe('MultichainAccountWallet', () => {
         new Error('Unable to create accounts'),
       );
 
-      await expect(wallet.createMultichainAccountGroup(0)).rejects.toThrow(
+      await expect(
+        wallet.createMultichainAccountGroup(0, {
+          waitForAllProvidersToFinishCreatingAccounts: true,
+        }),
+      ).rejects.toThrow(
         'Unable to create multichain account group for index: 0 due to provider failures:\n- Mocked Provider 0: Unable to create accounts\n- Mocked Provider 1: Unable to create accounts',
       );
 
       expect(wallet.getAccountGroups()).toHaveLength(0);
+    });
+
+    it('logs an error if a non-EVM provider fails to create its account (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
+      const { wallet, providers } = setup({
+        accounts: [[], []],
+      });
+
+      const [succeedingProvider, failingProvider] = providers;
+
+      succeedingProvider.createAccounts.mockResolvedValueOnce([
+        MOCK_HD_ACCOUNT_1,
+      ]);
+
+      failingProvider.createAccounts.mockRejectedValueOnce(
+        new Error('Unable to create accounts'),
+      );
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      await wallet.createMultichainAccountGroup(0);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Unable to create some accounts for group index: 0 with provider "Mocked Provider 1". Error: Unable to create accounts',
+      );
     });
   });
 

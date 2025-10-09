@@ -371,6 +371,9 @@ export class MultichainAccountWallet<
           'EVM account provider must be first',
         );
 
+        // Create the group here because the EVM provider will not fail.
+        // There isn't a failure scenario here since this function is only used by createNextMultichainAccountGroup (no throw on gap error).
+        // We have to deterministically create the group here because otherwise we can't set the group in state.
         group = new MultichainAccountGroup({
           wallet: this,
           providers: this.#providers,
@@ -389,6 +392,7 @@ export class MultichainAccountWallet<
           })
           .catch((error) => {
             const errorMessage = `Unable to create some accounts for group index: ${groupIndex} with provider "${evmProvider.getName()}". Error: ${(error as Error).message}`;
+            console.warn(errorMessage);
             this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
           });
 
@@ -407,6 +411,7 @@ export class MultichainAccountWallet<
             .catch((error) => {
               // Log errors from background providers but don't fail the operation
               const errorMessage = `Unable to create some accounts for group index: ${groupIndex} with provider "${provider.getName()}". Error: ${(error as Error).message}`;
+              console.warn(errorMessage);
               this.#log(`${WARNING_PREFIX} ${errorMessage}:`, error);
             });
         });

@@ -214,7 +214,7 @@ describe('BtcAccountProvider', () => {
   });
 
   it('returns true if an account is compatible', () => {
-    const account = MOCK_BTC_P2TR_ACCOUNT_1;
+    const account = MOCK_BTC_P2WPKH_ACCOUNT_1;
     const { provider } = setup({
       accounts: [account],
     });
