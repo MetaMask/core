@@ -312,15 +312,16 @@ export class JsonRpcEngineV2<
    * Destroy the engine. Calls the `destroy()` method of any middleware that has
    * one. Attempting to use the engine after destroying it will throw an error.
    */
-  destroy(): void {
+  async destroy(): Promise<void> {
     if (this.#isDestroyed) {
       return;
     }
-
     this.#isDestroyed = true;
-    Promise.all(
+
+    const destructionPromise = Promise.all(
       this.#middleware.map(async (middleware) => {
         if (
+          // Intentionally using `in` to walk the prototype chain.
           'destroy' in middleware &&
           typeof middleware.destroy === 'function'
         ) {
@@ -328,10 +329,9 @@ export class JsonRpcEngineV2<
         }
         return undefined;
       }),
-    ).catch((error) => {
-      console.error('Error destroying middleware:', error);
-    });
+    );
     this.#middleware = [] as never;
+    await destructionPromise;
   }
 
   #assertIsNotDestroyed(): void {
