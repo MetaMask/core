@@ -475,7 +475,7 @@ console.log('Result:', result);
 // Result: success
 
 // ATTN: This will throw "Nothing ended request"
-const result2 = await loggingEngine.handle(request):
+const result2 = await loggingEngine.handle(request);
 ```
 
 ### `JsonRpcServer`
