@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update hotlist endpoint from v1 to v2 for blocklistPaths support
+  - Changed `METAMASK_HOTLIST_DIFF_FILE` from `/v1/diffsSince` to `/v2/diffsSince`
+  - Removed query parameter approach for blocklistPaths in favor of v2 endpoint
+
 ## [14.1.1]
 
 ### Changed
