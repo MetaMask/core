@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING**: `BackendWebSocketService` - Simplified connection management and added KeyringController event integration ([#6819](https://github.com/MetaMask/core/pull/6819))
+  - Added `KeyringController:lock` and `KeyringController:unlock` event subscriptions to automatically manage WebSocket connections based on wallet lock state
+  - Renamed internal method `setupAuthentication()` to `subscribeEvents()` to reflect broader event handling responsibilities
+  - Simplified reconnection logic: auto-reconnect on any unexpected disconnect, stay disconnected on manual disconnects (tracked via `#manualDisconnect` flag)
+  - Removed `shouldReconnectOnClose()` method - reconnection decisions now based solely on manual disconnect flag rather than close codes
+  - Updated `connect()` to reset manual disconnect flag, allowing reconnection after previous manual disconnects
+  - Updated `disconnect()` to set manual disconnect flag, preventing automatic reconnection
+  - Improved error handling in `connect()` to properly rethrow errors to callers
+- **BREAKING**: `AccountActivityService` - Replaced API-based chain support detection with system notification-driven chain tracking ([#6819](https://github.com/MetaMask/core/pull/6819))
+  - Removed `getSupportedChains()` public method and all related API fetching logic
+  - Removed hardcoded `DEFAULT_SUPPORTED_CHAINS` fallback list and cache expiration mechanism
+  - Added internal `#chainsUp` Set to track chains reported as 'up' via system notifications
+  - Updated system notification handler to dynamically track chain status (add to set when 'up', remove when 'down')
+  - Updated WebSocket state change handler to flush all tracked chains as 'down' on disconnect/error (instead of using hardcoded list)
+  - Chain status is now entirely driven by backend system notifications rather than proactive API calls
+- **BREAKING**: Updated `Transaction` type definition - renamed `hash` field to `id` for consistency with backend API ([#6819](https://github.com/MetaMask/core/pull/6819))
+- **BREAKING**: Updated `Asset` type definition - added required `decimals` field for proper token amount formatting ([#6819](https://github.com/MetaMask/core/pull/6819))
+- Updated documentation (README.md) to reflect new connection management model and chain tracking behavior ([#6819](https://github.com/MetaMask/core/pull/6819))
+  - Added "WebSocket Connection Management" section explaining connection requirements and behavior
+  - Updated sequence diagram to show system notification-driven chain status flow
+  - Updated key flow characteristics to reflect internal chain tracking mechanism
+
+### Removed
+
+- Removed `nock` test dependency - no longer needed after removing API-based chain support fetching ([#6819](https://github.com/MetaMask/core/pull/6819))
+
 ## [1.0.1]
 
 ### Changed
