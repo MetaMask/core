@@ -49,7 +49,7 @@ import {
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.api.cx.metamask.io';
 export const METAMASK_STALELIST_FILE = '/v1/stalelist';
-export const METAMASK_HOTLIST_DIFF_FILE = '/v1/diffsSince';
+export const METAMASK_HOTLIST_DIFF_FILE = '/v2/diffsSince';
 
 export const CLIENT_SIDE_DETECION_BASE_URL =
   'https://client-side-detection.api.cx.metamask.io';
@@ -1321,9 +1321,7 @@ export class PhishingController extends BaseController<
       if (stalelistResponse?.data && stalelistResponse.data.lastUpdated > 0) {
         hotlistDiffsResponse = await this.#queryConfig<
           DataResultWrapper<Hotlist>
-        >(
-          `${METAMASK_HOTLIST_DIFF_URL}/${stalelistResponse.data.lastUpdated}?blocklistPaths=true`,
-        );
+        >(`${METAMASK_HOTLIST_DIFF_URL}/${stalelistResponse.data.lastUpdated}`);
       }
     } finally {
       // Set `stalelistLastFetched` and `hotlistLastFetched` even for failed requests to prevent server
@@ -1385,7 +1383,7 @@ export class PhishingController extends BaseController<
       );
 
       hotlistResponse = await this.#queryConfig<DataResultWrapper<Hotlist>>(
-        `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}?blocklistPaths=true`,
+        `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
       );
     } finally {
       // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with
