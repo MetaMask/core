@@ -27,8 +27,7 @@ import {
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import nock from 'nock';
-import * as sinon from 'sinon';
-import { useFakeTimers } from 'sinon';
+import sinon from 'sinon';
 
 import { formatAggregatorNames } from './assetsUtil';
 import * as MutliChainAccountsServiceModule from './multi-chain-accounts-service';
@@ -42,6 +41,7 @@ import type {
   AllowedActions,
   AllowedEvents,
   TokenDetectionControllerMessenger,
+  TokenDetectionControllerActions,
 } from './TokenDetectionController';
 import {
   STATIC_MAINNET_TOKEN_LIST,
@@ -151,7 +151,7 @@ const mockNetworkConfigurations: Record<string, NetworkConfiguration> = {
 };
 
 type MainMessenger = Messenger<
-  AllowedActions | AddApprovalRequest,
+  AllowedActions | AddApprovalRequest | TokenDetectionControllerActions,
   AllowedEvents
 >;
 
@@ -744,7 +744,7 @@ describe('TokenDetectionController', () => {
   describe('AccountsController:selectedAccountChange', () => {
     let clock: sinon.SinonFakeTimers;
     beforeEach(() => {
-      clock = useFakeTimers();
+      clock = sinon.useFakeTimers();
     });
 
     afterEach(() => {
@@ -2592,10 +2592,10 @@ describe('TokenDetectionController', () => {
             properties: {
               tokens: [`${sampleTokenA.symbol} - ${sampleTokenA.address}`],
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
+
               token_standard: 'ERC20',
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
+
               asset_type: 'TOKEN',
             },
           });
@@ -2735,6 +2735,7 @@ describe('TokenDetectionController', () => {
     /**
      * Test Utility - Arrange and Act `detectTokens()` with the Accounts API feature
      * RPC flow will return `sampleTokenA` and the Accounts API flow will use `sampleTokenB`
+     *
      * @param props - options to modify these tests
      * @param props.overrideMockTokensCache - change the tokens cache
      * @param props.mockMultiChainAPI - change the Accounts API responses
@@ -3535,6 +3536,347 @@ describe('TokenDetectionController', () => {
       });
     });
   });
+
+  describe('addDetectedTokensViaWs', () => {
+    it('should add tokens detected from websocket with metadata from cache', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0x1';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+          },
+        },
+        async ({
+          controller,
+          mockTokenListGetState,
+          callActionSpy,
+          triggerTokenListStateChange,
+        }) => {
+          const tokenListState = {
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          };
+
+          mockTokenListGetState(tokenListState);
+          triggerTokenListStateChange(tokenListState);
+
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            [
+              {
+                address: mockTokenAddress,
+                decimals: 6,
+                symbol: 'USDC',
+                aggregators: [],
+                image: 'https://example.com/usdc.png',
+                isERC721: false,
+                name: 'USD Coin',
+              },
+            ],
+            'mainnet',
+          );
+        },
+      );
+    });
+
+    it('should skip tokens not found in cache and log warning', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0x1';
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+          },
+        },
+        async ({
+          controller,
+          mockTokenListGetState,
+          callActionSpy,
+          triggerTokenListStateChange,
+        }) => {
+          // Empty token cache - token not found
+          const tokenListState = {
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {},
+              },
+            },
+          };
+
+          mockTokenListGetState(tokenListState);
+          triggerTokenListStateChange(tokenListState);
+
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          // Should log warning about missing token metadata
+          expect(consoleSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Token metadata not found in cache'),
+          );
+
+          // Should not call addTokens if no tokens have metadata
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+
+          consoleSpy.mockRestore();
+        },
+      );
+    });
+
+    it('should add all tokens provided without filtering (filtering is caller responsibility)', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const secondTokenAddress = '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c';
+      const chainId = '0x1';
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({
+          controller,
+          mockTokenListGetState,
+          callActionSpy,
+          triggerTokenListStateChange,
+        }) => {
+          // Set up token list with both tokens
+          const tokenListState = {
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                  [secondTokenAddress]: {
+                    name: 'Bancor',
+                    symbol: 'BNT',
+                    decimals: 18,
+                    address: secondTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/bnt.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          };
+
+          mockTokenListGetState(tokenListState);
+          triggerTokenListStateChange(tokenListState);
+
+          // Add both tokens via websocket
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [mockTokenAddress, secondTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          // Should add both tokens (no filtering in addDetectedTokensViaWs)
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            [
+              {
+                address: mockTokenAddress,
+                decimals: 6,
+                symbol: 'USDC',
+                aggregators: [],
+                image: 'https://example.com/usdc.png',
+                isERC721: false,
+                name: 'USD Coin',
+              },
+              {
+                address: secondTokenAddress,
+                decimals: 18,
+                symbol: 'BNT',
+                aggregators: [],
+                image: 'https://example.com/bnt.png',
+                isERC721: false,
+                name: 'Bancor',
+              },
+            ],
+            'mainnet',
+          );
+        },
+      );
+    });
+
+    it('should track metrics when adding tokens from websocket', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0x1';
+      const mockTrackMetricsEvent = jest.fn();
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            trackMetaMetricsEvent: mockTrackMetricsEvent,
+          },
+        },
+        async ({
+          controller,
+          mockTokenListGetState,
+          callActionSpy,
+          triggerTokenListStateChange,
+        }) => {
+          const tokenListState = {
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          };
+
+          mockTokenListGetState(tokenListState);
+          triggerTokenListStateChange(tokenListState);
+
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          // Should track metrics event
+          expect(mockTrackMetricsEvent).toHaveBeenCalledWith({
+            event: 'Token Detected',
+            category: 'Wallet',
+            properties: {
+              tokens: [`USDC - ${mockTokenAddress}`],
+              token_standard: 'ERC20',
+              asset_type: 'TOKEN',
+            },
+          });
+
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('should be callable directly as a public method on the controller instance', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0x1';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+          },
+        },
+        async ({
+          controller,
+          mockTokenListGetState,
+          callActionSpy,
+          triggerTokenListStateChange,
+        }) => {
+          const tokenListState = {
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          };
+
+          mockTokenListGetState(tokenListState);
+          triggerTokenListStateChange(tokenListState);
+
+          // Call the public method directly on the controller instance
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            [
+              {
+                address: mockTokenAddress,
+                decimals: 6,
+                symbol: 'USDC',
+                aggregators: [],
+                image: 'https://example.com/usdc.png',
+                isERC721: false,
+                name: 'USD Coin',
+              },
+            ],
+            'mainnet',
+          );
+        },
+      );
+    });
+  });
 });
 
 /**
@@ -3551,6 +3893,7 @@ function getTokensPath(chainId: Hex) {
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
+  messenger,
   mockGetAccount,
   mockGetSelectedAccount,
   mockKeyringGetState,
@@ -3570,6 +3913,7 @@ type WithControllerCallback<ReturnValue> = ({
   triggerTransactionConfirmed,
 }: {
   controller: TokenDetectionController;
+  messenger: MainMessenger;
   mockGetAccount: (internalAccount: InternalAccount) => void;
   mockGetSelectedAccount: (address: string) => void;
   mockKeyringGetState: (state: KeyringControllerState) => void;
@@ -3739,6 +4083,7 @@ async function withController<ReturnValue>(
   try {
     return await fn({
       controller,
+      messenger,
       mockGetAccount: (internalAccount: InternalAccount) => {
         mockGetAccount.mockReturnValue(internalAccount);
       },
