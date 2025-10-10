@@ -31,6 +31,7 @@
 
 ## Delegation Team
 /packages/gator-permissions-controller @MetaMask/delegation
+/packages/eip-7702-internal-rpc-middleware @MetaMask/delegation @MetaMask/core-platform
 
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
