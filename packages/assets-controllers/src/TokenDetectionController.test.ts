@@ -1,4 +1,3 @@
-import type { AddApprovalRequest } from '@metamask/approval-controller';
 import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
@@ -41,7 +40,6 @@ import type {
   AllowedActions,
   AllowedEvents,
   TokenDetectionControllerMessenger,
-  TokenDetectionControllerActions,
 } from './TokenDetectionController';
 import {
   STATIC_MAINNET_TOKEN_LIST,
@@ -150,10 +148,7 @@ const mockNetworkConfigurations: Record<string, NetworkConfiguration> = {
   },
 };
 
-type MainMessenger = Messenger<
-  AllowedActions | AddApprovalRequest | TokenDetectionControllerActions,
-  AllowedEvents
->;
+type MainMessenger = Messenger<AllowedActions, AllowedEvents>;
 
 /**
  * Builds a messenger that `TokenDetectionController` can use to communicate with other controllers.

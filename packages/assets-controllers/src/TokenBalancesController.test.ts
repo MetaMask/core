@@ -18,7 +18,11 @@ import type {
   TokenBalancesControllerEvents,
   TokenBalancesControllerState,
 } from './TokenBalancesController';
-import { TokenBalancesController } from './TokenBalancesController';
+import {
+  TokenBalancesController,
+  caipChainIdToHex,
+  parseAssetType,
+} from './TokenBalancesController';
 import type { TokensControllerState } from './TokensController';
 import { advanceTime, flushPromises } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
@@ -176,6 +180,85 @@ const setupController = ({
     messenger,
   };
 };
+
+describe('Utility Functions', () => {
+  describe('caipChainIdToHex', () => {
+    it('should convert valid CAIP chain ID to hex', () => {
+      expect(caipChainIdToHex('eip155:1')).toBe('0x1');
+      expect(caipChainIdToHex('eip155:137')).toBe('0x89');
+      expect(caipChainIdToHex('eip155:42161')).toBe('0xa4b1');
+    });
+
+    it('should return hex string unchanged if already in hex format', () => {
+      expect(caipChainIdToHex('0x1')).toBe('0x1');
+      expect(caipChainIdToHex('0x89')).toBe('0x89');
+      expect(caipChainIdToHex('0xa4b1')).toBe('0xa4b1');
+    });
+
+    it('should throw error for invalid CAIP chain ID format', () => {
+      expect(() => caipChainIdToHex('invalid-chain-id')).toThrow(
+        'caipChainIdToHex - Failed to provide CAIP-2 or Hex chainId',
+      );
+      expect(() => caipChainIdToHex('eip155')).toThrow(
+        'caipChainIdToHex - Failed to provide CAIP-2 or Hex chainId',
+      );
+      expect(() => caipChainIdToHex('not-caip-format')).toThrow(
+        'caipChainIdToHex - Failed to provide CAIP-2 or Hex chainId',
+      );
+    });
+
+    it('should throw error for empty string', () => {
+      expect(() => caipChainIdToHex('')).toThrow(
+        'caipChainIdToHex - Failed to provide CAIP-2 or Hex chainId',
+      );
+    });
+  });
+
+  describe('parseAssetType', () => {
+    it('should parse ERC20 token asset type correctly', () => {
+      const result = parseAssetType(
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+      );
+      expect(result).toStrictEqual([
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        false,
+      ]);
+    });
+
+    it('should parse native token asset type (slip44) correctly', () => {
+      const result = parseAssetType('eip155:1/slip44:60');
+      expect(result).toStrictEqual([
+        '0x0000000000000000000000000000000000000000',
+        true,
+      ]);
+    });
+
+    it('should return null for invalid CAIP asset type format', () => {
+      expect(parseAssetType('not-a-caip-format')).toBeNull();
+      expect(parseAssetType('eip155:1')).toBeNull();
+      expect(parseAssetType('invalid/format')).toBeNull();
+      expect(parseAssetType('')).toBeNull();
+    });
+
+    it('should return null for unsupported asset namespace', () => {
+      const result = parseAssetType('eip155:1/unknown:0x123');
+      expect(result).toBeNull();
+    });
+
+    it('should handle different chain references', () => {
+      expect(
+        parseAssetType(
+          'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+        ),
+      ).toStrictEqual(['0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', false]);
+
+      expect(parseAssetType('eip155:137/slip44:60')).toStrictEqual([
+        '0x0000000000000000000000000000000000000000',
+        true,
+      ]);
+    });
+  });
+});
 
 describe('TokenBalancesController', () => {
   let clock: sinon.SinonFakeTimers;

@@ -33,6 +33,8 @@ import type {
 } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import {
+  isCaipAssetType,
+  isCaipChainId,
   isStrictHexString,
   parseCaipAssetType,
   parseCaipChainId,
@@ -187,15 +189,23 @@ const checksum = (addr: string): ChecksumAddress =>
   toChecksumHexAddress(addr) as ChecksumAddress;
 
 /**
- * Convert CAIP chain ID reference to hex chain ID
- * Assumes the reference is always in decimal format (e.g., "1")
+ * Convert CAIP chain ID or hex chain ID to hex chain ID
+ * Handles both CAIP-2 format (e.g., "eip155:1") and hex format (e.g., "0x1")
  *
- * @param caipChainId - CAIP chain ID (e.g., "eip155:1")
+ * @param chainId - CAIP chain ID (e.g., "eip155:1") or hex chain ID (e.g., "0x1")
  * @returns Hex chain ID (e.g., "0x1")
+ * @throws {Error} If chainId is neither a valid CAIP-2 chain ID nor a hex string
  */
-const caipChainIdToHex = (caipChainId: string): ChainIdHex => {
-  const { reference } = parseCaipChainId(caipChainId as `${string}:${string}`);
-  return `0x${parseInt(reference, 10).toString(16)}` as ChainIdHex;
+export const caipChainIdToHex = (chainId: string): ChainIdHex => {
+  if (isStrictHexString(chainId)) {
+    return chainId;
+  }
+
+  if (isCaipChainId(chainId)) {
+    return toHex(parseCaipChainId(chainId).reference);
+  }
+
+  throw new Error('caipChainIdToHex - Failed to provide CAIP-2 or Hex chainId');
 };
 
 /**
@@ -205,26 +215,24 @@ const caipChainIdToHex = (caipChainId: string): ChainIdHex => {
  * @param assetType - Asset type string (e.g., 'eip155:1/erc20:0x...' or 'eip155:1/slip44:60')
  * @returns Tuple of [tokenAddress, isNativeToken] or null if invalid
  */
-const parseAssetType = (assetType: string): [string, boolean] | null => {
-  try {
-    const parsed = parseCaipAssetType(
-      assetType as `${string}:${string}/${string}:${string}`,
-    );
-
-    // ERC20 token (e.g., "eip155:1/erc20:0x...")
-    if (parsed.assetNamespace === 'erc20') {
-      return [parsed.assetReference, false];
-    }
-
-    // Native token (e.g., "eip155:1/slip44:60")
-    if (parsed.assetNamespace === 'slip44') {
-      return [ZERO_ADDRESS, true];
-    }
-
-    return null;
-  } catch {
+export const parseAssetType = (assetType: string): [string, boolean] | null => {
+  if (!isCaipAssetType(assetType)) {
     return null;
   }
+
+  const parsed = parseCaipAssetType(assetType);
+
+  // ERC20 token (e.g., "eip155:1/erc20:0x...")
+  if (parsed.assetNamespace === 'erc20') {
+    return [parsed.assetReference, false];
+  }
+
+  // Native token (e.g., "eip155:1/slip44:60")
+  if (parsed.assetNamespace === 'slip44') {
+    return [ZERO_ADDRESS, true];
+  }
+
+  return null;
 };
 // endregion
 
