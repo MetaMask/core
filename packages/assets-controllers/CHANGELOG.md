@@ -7,8 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add real-time balance updates via WebSocket integration with `AccountActivityService` to `TokenBalancesController` ([#6784](https://github.com/MetaMask/core/pull/6784))
+  - Add `@metamask/core-backend` as a dependency and peer dependency ([#6784](https://github.com/MetaMask/core/pull/6784))
+  - Controller now subscribes to `AccountActivityService:balanceUpdated` events for instant balance updates
+    - Add support for real-time balance updates for both ERC20 tokens and native tokens
+    - Add `TokenDetectionController:addDetectedTokensViaWs` action handler for adding tokens detected via WebSocket
+  - Controller now subscribes to `AccountActivityService:statusChanged` events to dynamically adjust polling intervals
+    - When WebSocket service is "up", polling interval increases to backup interval (5 minutes)
+    - When WebSocket service is "down", polling interval restores to default interval (30 seconds)
+    - Status changes are debounced (5 seconds) and jittered to prevent thundering herd
+    - Add fallback to polling when balance updates contain errors or unsupported asset types
+
 ### Changed
 
+- **BREAKING:** `TokenBalancesController` messenger must now allow `AccountActivityService:balanceUpdated` and `AccountActivityService:statusChanged` events ([#6784](https://github.com/MetaMask/core/pull/6784))
+- **BREAKING:** `TokenBalancesController` messenger must now allow `TokenDetectionController:addDetectedTokensViaWs` action ([#6784](https://github.com/MetaMask/core/pull/6784))
+- **BREAKING:** Change `TokenBalancesController` default polling interval to 30 seconds (was 180 seconds) ([#6784](https://github.com/MetaMask/core/pull/6784))
+  - With real-time WebSocket updates, the default interval only applies when WebSocket is disconnected
+  - When WebSocket is connected, polling automatically adjusts to 5 minutes as a backup
+- Update `TokenBalancesController` README documentation to mention real-time balance updates via WebSocket and intelligent polling management ([#6784](https://github.com/MetaMask/core/pull/6784))
+- `TokenDetectionController` code cleanup: remove unused private properties and ESLint disable comments ([#6784](https://github.com/MetaMask/core/pull/6784))
 - **Performance Optimization:** Remove collection API calls from NFT detection process ([#6762](https://github.com/MetaMask/core/pull/6762))
   - Reduce NFT detection API calls by 83% (from 6 calls to 1 call per 100 tokens) by eliminating collection endpoint requests
   - Remove unused collection metadata fields: `contractDeployedAt`, `creator`, and `topBid`
