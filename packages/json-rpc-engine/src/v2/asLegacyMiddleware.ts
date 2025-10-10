@@ -1,4 +1,4 @@
-import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
+import type { JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
 import {
   deepClone,
@@ -6,7 +6,7 @@ import {
   makeContext,
   propagateToRequest,
 } from './compatibility-utils';
-import type { JsonRpcEngineV2 } from './JsonRpcEngineV2';
+import type { JsonRpcEngineV2, ResultConstraint } from './JsonRpcEngineV2';
 import { createAsyncMiddleware } from '..';
 import type { JsonRpcMiddleware as LegacyMiddleware } from '..';
 
@@ -19,7 +19,7 @@ import type { JsonRpcMiddleware as LegacyMiddleware } from '..';
 export function asLegacyMiddleware<
   Params extends JsonRpcParams,
   Request extends JsonRpcRequest<Params>,
-  Result extends Json,
+  Result extends ResultConstraint<Request>,
 >(engine: JsonRpcEngineV2<Request, Result>): LegacyMiddleware<Params, Result> {
   const middleware = engine.asMiddleware();
   return createAsyncMiddleware(async (req, res, next) => {
@@ -32,7 +32,7 @@ export function asLegacyMiddleware<
       context,
       next: (finalRequest) => {
         modifiedRequest = finalRequest;
-        return Promise.resolve();
+        return Promise.resolve(undefined);
       },
     });
 

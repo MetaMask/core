@@ -2,7 +2,6 @@ import { serializeError } from '@metamask/rpc-errors';
 import type { JsonRpcFailure, JsonRpcResponse } from '@metamask/utils';
 import {
   hasProperty,
-  type Json,
   type JsonRpcParams,
   type JsonRpcRequest,
 } from '@metamask/utils';
@@ -19,9 +18,13 @@ import {
   propagateToRequest,
   unserializeError,
 } from './v2/compatibility-utils';
-// JsonRpcEngineV2 is used in docs.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { JsonRpcMiddleware, JsonRpcEngineV2 } from './v2/JsonRpcEngineV2';
+import type {
+  // JsonRpcEngineV2 is used in docs.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  JsonRpcEngineV2,
+  JsonRpcMiddleware,
+  ResultConstraint,
+} from './v2/JsonRpcEngineV2';
 
 /**
  * Convert a legacy {@link JsonRpcEngine} into a {@link JsonRpcEngineV2} middleware.
@@ -32,10 +35,10 @@ import type { JsonRpcMiddleware, JsonRpcEngineV2 } from './v2/JsonRpcEngineV2';
 export function asV2Middleware<
   Params extends JsonRpcParams,
   Request extends JsonRpcRequest<Params>,
-  Result extends Json,
+  Result extends ResultConstraint<Request>,
 >(engine: JsonRpcEngine): JsonRpcMiddleware<Request, Result> {
   const middleware = engine.asMiddleware();
-  return async ({ request, context, next }): Promise<Result | void> => {
+  return async ({ request, context, next }): Promise<Result | undefined> => {
     const req = deepClone(request) as JsonRpcRequest<Params>;
     propagateToRequest(req, context);
 

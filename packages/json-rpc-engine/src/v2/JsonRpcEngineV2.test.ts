@@ -11,7 +11,7 @@ import {
   type JsonRpcNotification,
   type JsonRpcRequest,
 } from './utils';
-import { makeRequest } from '../../tests/utils';
+import { makeNotification, makeRequest } from '../../tests/utils';
 
 const jsonrpc = '2.0' as const;
 
@@ -936,6 +936,36 @@ describe('JsonRpcEngineV2', () => {
 
         await expect(engine2.handle(makeRequest())).rejects.toThrow(
           new Error('test'),
+        );
+      });
+    });
+
+    describe('request- and notification-only engines', () => {
+      it('constructs a request-only engine', async () => {
+        const engine = new JsonRpcEngineV2<JsonRpcRequest, null>({
+          middleware: [() => null],
+        });
+
+        expect(await engine.handle(makeRequest())).toBeNull();
+        // @ts-expect-error This is invalid and should cause a type error
+        await expect(engine.handle(makeNotification())).rejects.toThrow(
+          new JsonRpcEngineError(
+            `Result returned for notification: ${stringify(makeNotification())}`,
+          ),
+        );
+      });
+
+      it('constructs a notification-only engine', async () => {
+        const engine = new JsonRpcEngineV2<JsonRpcNotification, void>({
+          middleware: [() => undefined],
+        });
+
+        expect(await engine.handle(makeNotification())).toBeUndefined();
+        // TODO: This should cause a type error
+        await expect(engine.handle(makeRequest())).rejects.toThrow(
+          new JsonRpcEngineError(
+            `Nothing ended request: ${stringify(makeRequest())}`,
+          ),
         );
       });
     });

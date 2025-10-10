@@ -22,7 +22,7 @@ type Options = {
       engine: JsonRpcEngineV2;
     }
   | {
-      middleware: NonEmptyArray<JsonRpcMiddleware<JsonRpcCall, Json>>;
+      middleware: NonEmptyArray<JsonRpcMiddleware<JsonRpcCall, Json | void>>;
     }
 );
 
