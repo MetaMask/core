@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [80.0.0]
+
 ### Added
 
 - Add real-time balance updates via WebSocket integration with `AccountActivityService` to `TokenBalancesController` ([#6784](https://github.com/MetaMask/core/pull/6784))
@@ -27,8 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Change `TokenBalancesController` default polling interval to 30 seconds (was 180 seconds) ([#6784](https://github.com/MetaMask/core/pull/6784))
   - With real-time WebSocket updates, the default interval only applies when WebSocket is disconnected
   - When WebSocket is connected, polling automatically adjusts to 5 minutes as a backup
-- Update `TokenBalancesController` README documentation to mention real-time balance updates via WebSocket and intelligent polling management ([#6784](https://github.com/MetaMask/core/pull/6784))
-- `TokenDetectionController` code cleanup: remove unused private properties and ESLint disable comments ([#6784](https://github.com/MetaMask/core/pull/6784))
 - **Performance Optimization:** Remove collection API calls from NFT detection process ([#6762](https://github.com/MetaMask/core/pull/6762))
   - Reduce NFT detection API calls by 83% (from 6 calls to 1 call per 100 tokens) by eliminating collection endpoint requests
   - Remove unused collection metadata fields: `contractDeployedAt`, `creator`, and `topBid`
@@ -2117,7 +2117,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@79.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@80.0.0...HEAD
+[80.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@79.0.1...@metamask/assets-controllers@80.0.0
 [79.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@79.0.0...@metamask/assets-controllers@79.0.1
 [79.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@78.0.1...@metamask/assets-controllers@79.0.0
 [78.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@78.0.0...@metamask/assets-controllers@78.0.1
