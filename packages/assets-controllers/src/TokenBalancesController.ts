@@ -734,12 +734,14 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           const newBalance = toHex(value);
           const tokenAddress = checksum(token);
           const currentBalance =
-            d.tokenBalances[account]?.[chainId]?.[tokenAddress];
+            d.tokenBalances[account as ChecksumAddress]?.[chainId]?.[
+              tokenAddress
+            ];
 
           // Only update if the balance has actually changed
           if (currentBalance !== newBalance) {
-            ((d.tokenBalances[account] ??= {})[chainId] ??= {})[tokenAddress] =
-              newBalance;
+            ((d.tokenBalances[account as ChecksumAddress] ??= {})[chainId] ??=
+              {})[tokenAddress] = newBalance;
           }
         }
       });

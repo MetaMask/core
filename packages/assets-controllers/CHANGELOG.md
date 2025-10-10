@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reduce NFT detection API calls by 83% (from 6 calls to 1 call per 100 tokens) by eliminating collection endpoint requests
   - Remove unused collection metadata fields: `contractDeployedAt`, `creator`, and `topBid`
 
+### Fixed
+
+- Fix address format compatibility between `TokenBalancesController` and `AccountTrackerController` in `AccountsApiBalanceFetcher` ([#6812](https://github.com/MetaMask/core/pull/6812))
+
 ## [79.0.1]
 
 ### Changed
