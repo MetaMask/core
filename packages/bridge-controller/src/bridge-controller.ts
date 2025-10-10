@@ -10,7 +10,7 @@ import type { TransactionController } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { numberToHex, type Hex } from '@metamask/utils';
 
-import { BridgeClientId } from './constants/bridge';
+import type { BridgeClientId } from './constants/bridge';
 import {
   BRIDGE_CONTROLLER_NAME,
   BRIDGE_PROD_API_BASE_URL,
@@ -656,6 +656,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.update((state) => {
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
+      // Ignore abort errors
       const isAbortError = (error as Error).name === 'AbortError';
       if (
         isAbortError ||
@@ -669,15 +670,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return;
       }
 
+      // Update error states, track event and log error
       this.update((state) => {
-        state.quoteFetchError =
-          this.#clientId === BridgeClientId.MOBILE
-            ? 'generic mobile error'
-            : (((error as Error)?.message ??
-                'Unknown error') as never as string);
         state.quotesLoadingStatus = RequestStatus.ERROR;
+        // The error object reference is not guaranteed to exist on mobile so reading
+        // the message directly could cause an error.
+        let errorMessage;
+        try {
+          errorMessage =
+            (error as Error)?.message ?? (error as Error).toString();
+        } catch {
+          // Intentionally empty
+        } finally {
+          state.quoteFetchError = errorMessage ?? 'Unknown error';
+        }
       });
-
       this.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.QuotesError,
         context,
@@ -688,6 +695,22 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       );
     }
 
+    // Update quote fetching stats
+    this.update((state) => {
+      state.quotesLastFetched = Date.now();
+      state.quotesRefreshCount += 1;
+      // If SSE is disabled, calculate initial load time after first quote fetch is done
+      // When SSE is enabled, this value is set when the first quote is received
+      if (
+        !shouldStream &&
+        state.quotesRefreshCount === 1 &&
+        this.#quotesFirstFetched
+      ) {
+        state.quotesInitialLoadTime =
+          state.quotesLastFetched - this.#quotesFirstFetched;
+      }
+    });
+
     // Stop polling if the maximum number of refreshes has been reached
     if (
       updatedQuoteRequest.insufficientBal ||
@@ -696,22 +719,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     ) {
       this.stopAllPolling();
     }
-
-    // Update quote fetching stats
-    this.update((state) => {
-      state.quotesLastFetched = Date.now();
-      // If SSE is disabled, calculate initial load time after first quote fetch is done
-      // When SSE is enabled, this value is set when the first quote is received
-      if (
-        !shouldStream &&
-        !state.quotesRefreshCount &&
-        this.#quotesFirstFetched
-      ) {
-        state.quotesInitialLoadTime =
-          state.quotesLastFetched - this.#quotesFirstFetched;
-      }
-      state.quotesRefreshCount += 1;
-    });
   };
 
   readonly #appendL1GasFees = async (
