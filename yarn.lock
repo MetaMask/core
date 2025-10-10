@@ -2403,7 +2403,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/account-tree-controller@npm:^1.4.1, @metamask/account-tree-controller@workspace:packages/account-tree-controller":
+"@metamask/account-tree-controller@npm:^1.4.2, @metamask/account-tree-controller@workspace:packages/account-tree-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/account-tree-controller@workspace:packages/account-tree-controller"
   dependencies:
@@ -2587,7 +2587,7 @@ __metadata:
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/abi-utils": "npm:^2.0.3"
     "@metamask/account-api": "npm:^0.12.0"
-    "@metamask/account-tree-controller": "npm:^1.4.1"
+    "@metamask/account-tree-controller": "npm:^1.4.2"
     "@metamask/accounts-controller": "npm:^33.1.1"
     "@metamask/approval-controller": "npm:^7.2.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
@@ -2605,7 +2605,7 @@ __metadata:
     "@metamask/multichain-account-service": "npm:^1.6.1"
     "@metamask/network-controller": "npm:^24.2.1"
     "@metamask/permission-controller": "npm:^11.1.0"
-    "@metamask/phishing-controller": "npm:^14.1.1"
+    "@metamask/phishing-controller": "npm:^14.1.2"
     "@metamask/polling-controller": "npm:^14.0.1"
     "@metamask/preferences-controller": "npm:^20.0.2"
     "@metamask/providers": "npm:^22.1.0"
@@ -3078,7 +3078,7 @@ __metadata:
   dependencies:
     "@ethersproject/bignumber": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/account-tree-controller": "npm:^1.4.1"
+    "@metamask/account-tree-controller": "npm:^1.4.2"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.1"
     "@metamask/controller-utils": "npm:^11.14.1"
@@ -4233,7 +4233,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/phishing-controller@npm:^14.1.1, @metamask/phishing-controller@workspace:packages/phishing-controller":
+"@metamask/phishing-controller@npm:^14.1.2, @metamask/phishing-controller@workspace:packages/phishing-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/phishing-controller@workspace:packages/phishing-controller"
   dependencies:

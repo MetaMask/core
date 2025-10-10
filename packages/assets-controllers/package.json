@@ -80,7 +80,7 @@
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
     "@metamask/account-api": "^0.12.0",
-    "@metamask/account-tree-controller": "^1.4.1",
+    "@metamask/account-tree-controller": "^1.4.2",
     "@metamask/accounts-controller": "^33.1.1",
     "@metamask/approval-controller": "^7.2.0",
     "@metamask/auto-changelog": "^3.4.4",
@@ -92,7 +92,7 @@
     "@metamask/multichain-account-service": "^1.6.1",
     "@metamask/network-controller": "^24.2.1",
     "@metamask/permission-controller": "^11.1.0",
-    "@metamask/phishing-controller": "^14.1.1",
+    "@metamask/phishing-controller": "^14.1.2",
     "@metamask/preferences-controller": "^20.0.2",
     "@metamask/providers": "^22.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
