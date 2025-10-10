@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add real-time balance updates via WebSocket integration with `AccountActivityService` to `TokenBalancesController` ([#6784](https://github.com/MetaMask/core/pull/6784))
+  - Add `@metamask/core-backend` as a dependency and peer dependency ([#6784](https://github.com/MetaMask/core/pull/6784))
+  - Controller now subscribes to `AccountActivityService:balanceUpdated` events for instant balance updates
+    - Add support for real-time balance updates for both ERC20 tokens and native tokens
+    - Add `TokenDetectionController:addDetectedTokensViaWs` action handler for adding tokens detected via WebSocket
+  - Controller now subscribes to `AccountActivityService:statusChanged` events to dynamically adjust polling intervals
+    - When WebSocket service is "up", polling interval increases to backup interval (5 minutes)
+    - When WebSocket service is "down", polling interval restores to default interval (30 seconds)
+    - Status changes are debounced (5 seconds) and jittered to prevent thundering herd
+    - Add fallback to polling when balance updates contain errors or unsupported asset types
+
+### Changed
+
+- **BREAKING:** `TokenBalancesController` messenger must now allow `AccountActivityService:balanceUpdated` and `AccountActivityService:statusChanged` events ([#6784](https://github.com/MetaMask/core/pull/6784))
+- **BREAKING:** `TokenBalancesController` messenger must now allow `TokenDetectionController:addDetectedTokensViaWs` action ([#6784](https://github.com/MetaMask/core/pull/6784))
+- **BREAKING:** Change `TokenBalancesController` default polling interval to 30 seconds (was 180 seconds) ([#6784](https://github.com/MetaMask/core/pull/6784))
+  - With real-time WebSocket updates, the default interval only applies when WebSocket is disconnected
+  - When WebSocket is connected, polling automatically adjusts to 5 minutes as a backup
+- Update `TokenBalancesController` README documentation to mention real-time balance updates via WebSocket and intelligent polling management ([#6784](https://github.com/MetaMask/core/pull/6784))
+- `TokenDetectionController` code cleanup: remove unused private properties and ESLint disable comments ([#6784](https://github.com/MetaMask/core/pull/6784))
+- **Performance Optimization:** Remove collection API calls from NFT detection process ([#6762](https://github.com/MetaMask/core/pull/6762))
+  - Reduce NFT detection API calls by 83% (from 6 calls to 1 call per 100 tokens) by eliminating collection endpoint requests
+  - Remove unused collection metadata fields: `contractDeployedAt`, `creator`, and `topBid`
+
+### Fixed
+
+- Fix address format compatibility between `TokenBalancesController` and `AccountTrackerController` in `AccountsApiBalanceFetcher` ([#6812](https://github.com/MetaMask/core/pull/6812))
+
+## [79.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/polling-controller` from `^14.0.0` to `^14.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
 ## [79.0.0]
 
 ### Changed
@@ -2079,7 +2117,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@79.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@79.0.1...HEAD
+[79.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@79.0.0...@metamask/assets-controllers@79.0.1
 [79.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@78.0.1...@metamask/assets-controllers@79.0.0
 [78.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@78.0.0...@metamask/assets-controllers@78.0.1
 [78.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@77.0.2...@metamask/assets-controllers@78.0.0
