@@ -63,6 +63,12 @@ export async function fetchBridgeTokens(
   return transformedTokens;
 }
 
+/**
+ * Converts the generic quote request to the type that the bridge-api expects
+ *
+ * @param request - The quote request
+ * @returns A URLSearchParams object with the query parameters
+ */
 const formatQueryParams = (request: GenericQuoteRequest): URLSearchParams => {
   const destWalletAddress = request.destWalletAddress ?? request.walletAddress;
   // Transform the generic quote request into QuoteRequest
@@ -100,8 +106,7 @@ const formatQueryParams = (request: GenericQuoteRequest): URLSearchParams => {
 };
 
 /**
- * Converts the generic quote request to the type that the bridge-api expects
- * then fetches quotes from the bridge-api
+ * Fetches quotes from the bridge-api's getQuote endpoint
  *
  * @param request - The quote request
  * @param signal - The abort signal

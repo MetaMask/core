@@ -314,8 +314,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             paramsToUpdate.insufficientBal ??
             !(await this.#hasSufficientBalance(updatedQuoteRequest));
         } catch (error) {
-          console.error('Failed to fetch balance', error);
-          insufficientBal = true; // fallback to true for backend simulations
+          console.warn('Failed to fetch balance', error);
+          insufficientBal = true;
         }
       }
 
@@ -574,7 +574,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     this.update((state) => {
       state.quotesLoadingStatus = RequestStatus.LOADING;
-      // TODO remove this since it's not needed
       state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
     });
@@ -622,8 +621,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
                   );
                   this.update((state) => {
                     if (
-                      state.quotesInitialLoadTime ===
-                        DEFAULT_BRIDGE_CONTROLLER_STATE.quotesInitialLoadTime &&
+                      !state.quotesInitialLoadTime &&
                       quotesWithFees.length > 0 &&
                       this.#quotesFirstFetched
                     ) {
@@ -700,15 +698,18 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     }
 
     // Update quote fetching stats
-    const quotesLastFetched = Date.now();
     this.update((state) => {
-      if (!shouldStream) {
+      state.quotesLastFetched = Date.now();
+      // If SSE is disabled, calculate initial load time after first quote fetch is done
+      // When SSE is enabled, this value is set when the first quote is received
+      if (
+        !shouldStream &&
+        !state.quotesRefreshCount &&
+        this.#quotesFirstFetched
+      ) {
         state.quotesInitialLoadTime =
-          state.quotesRefreshCount === 0 && this.#quotesFirstFetched
-            ? quotesLastFetched - this.#quotesFirstFetched
-            : this.state.quotesInitialLoadTime;
+          state.quotesLastFetched - this.#quotesFirstFetched;
       }
-      state.quotesLastFetched = quotesLastFetched;
       state.quotesRefreshCount += 1;
     });
   };
