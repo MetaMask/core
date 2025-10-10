@@ -134,7 +134,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -168,7 +168,7 @@ describe('PhishingController', () => {
           version: 0,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     getPhishingController();
@@ -179,7 +179,7 @@ describe('PhishingController', () => {
   it('should not re-request when an update is in progress', async () => {
     const clock = sinon.useFakeTimers();
     const nockScope = nock(PHISHING_CONFIG_BASE_URL)
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .delay(500) // delay promise resolution to generate "pending" state that lasts long enough to test.
       .reply(200, {
         data: [
@@ -243,7 +243,7 @@ describe('PhishingController', () => {
             lastUpdated: 1,
           },
         })
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
         .reply(200, {
           data: [
             {
@@ -361,7 +361,7 @@ describe('PhishingController', () => {
 
     it('should not have hotlist be out of date immediately after maybeUpdateState is called', async () => {
       nockScope = nock(PHISHING_CONFIG_BASE_URL)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
         .reply(200, {
           data: [
             {
@@ -447,7 +447,7 @@ describe('PhishingController', () => {
             lastUpdated: 2,
           },
         })
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${2}`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${2}?blocklistPaths=true`)
         .reply(200, {
           data: [],
         });
@@ -775,7 +775,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -809,7 +809,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     const controller = getPhishingController();
@@ -834,7 +834,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     const controller = getPhishingController();
@@ -859,7 +859,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -893,7 +893,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -929,7 +929,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -965,7 +965,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, {
         data: [
           {
@@ -1011,7 +1011,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(500);
 
     const controller = getPhishingController();
@@ -1040,7 +1040,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -1074,7 +1074,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -1108,7 +1108,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
     const controller = getPhishingController();
     await controller.updateStalelist();
@@ -1136,7 +1136,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -1176,7 +1176,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -1217,7 +1217,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -1257,7 +1257,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -1297,7 +1297,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -1395,7 +1395,7 @@ describe('PhishingController', () => {
             lastUpdated: 1,
           },
         })
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
         .reply(200, {
           data: [
             {
@@ -1451,7 +1451,7 @@ describe('PhishingController', () => {
             lastUpdated: 1,
           },
         })
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
         .reply(200, {
           data: [
             {
@@ -1508,7 +1508,7 @@ describe('PhishingController', () => {
             lastUpdated: 1,
           },
         })
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
         .reply(200, { data: [] });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -1544,7 +1544,7 @@ describe('PhishingController', () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
         .reply(304)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
         .reply(304);
 
       const controller = getPhishingController({
@@ -1585,7 +1585,7 @@ describe('PhishingController', () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
         .reply(500)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
         .reply(500);
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -1630,7 +1630,7 @@ describe('PhishingController', () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
         .replyWithError('network error')
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
         .replyWithError('network error');
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -1658,7 +1658,7 @@ describe('PhishingController', () => {
               lastUpdated: 1,
             },
           })
-          .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+          .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
           .delay(100)
           .reply(200, { data: [] });
 
@@ -1691,7 +1691,7 @@ describe('PhishingController', () => {
               lastUpdated: 1,
             },
           })
-          .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+          .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
           .delay(100)
           .reply(200, { data: [] });
 
@@ -1712,7 +1712,7 @@ describe('PhishingController', () => {
     it('should update phishing lists if hotlist fetch returns 200', async () => {
       const testBlockedDomain = 'some-test-blocked-url.com';
       nock(PHISHING_CONFIG_BASE_URL)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}?blocklistPaths=true`)
         .reply(200, {
           data: [
             {
@@ -1759,7 +1759,7 @@ describe('PhishingController', () => {
 
     it('should not update phishing lists if hotlist fetch returns 404', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}?blocklistPaths=true`)
         .reply(404);
 
       const controller = getPhishingController({
@@ -1792,7 +1792,7 @@ describe('PhishingController', () => {
     it('should not make API calls to update hotlist when phishingLists array is empty', async () => {
       const testBlockedDomain = 'some-test-blocked-url.com';
       const hotlistNock = nock(PHISHING_CONFIG_BASE_URL)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}?blocklistPaths=true`)
         .reply(200, {
           data: [
             {
@@ -1815,7 +1815,7 @@ describe('PhishingController', () => {
 
     it('should handle empty hotlist and request blocklist responses gracefully', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0?blocklistPaths=true`)
         .reply(200, { data: [] });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -1866,7 +1866,7 @@ describe('PhishingController', () => {
         '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
 
       nock(PHISHING_CONFIG_BASE_URL)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0?blocklistPaths=true`)
         .replyWithError('network error');
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -1917,7 +1917,7 @@ describe('PhishingController', () => {
         '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
 
       nock(PHISHING_CONFIG_BASE_URL)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0?blocklistPaths=true`)
         .reply(500);
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -2269,7 +2269,7 @@ describe('PhishingController', () => {
             lastUpdated: 1,
           },
         })
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
         .reply(200, { data: [] });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -2304,7 +2304,7 @@ describe('PhishingController', () => {
             lastUpdated: 1,
           },
         })
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
         .reply(200, { data: [] });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -2373,7 +2373,7 @@ describe('PhishingController', () => {
             lastUpdated: 1,
           },
         })
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
         .reply(200, { data: [] });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -2423,7 +2423,7 @@ describe('PhishingController', () => {
           lastUpdated: 1,
         },
       })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}?blocklistPaths=true`)
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
