@@ -72,7 +72,7 @@ import type {
 import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
 import { isValidQuoteRequest } from './utils/quote';
 import { appendFeesToQuotes } from './utils/quote-fees';
-import { getMinimumBalanceForRentExemptionRequest } from './utils/snaps';
+import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
 import { FeatureId } from './utils/validators';
 
 const metadata: StateMetadata<BridgeControllerState> = {
@@ -578,10 +578,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           },
         },
         async () => {
+          const selectedAccount = this.#getMultichainSelectedAccount(
+            updatedQuoteRequest.walletAddress,
+          );
           // This call is not awaited to prevent blocking quote fetching if the snap takes too long to respond
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           this.#setMinimumBalanceForRentExemptionInLamports(
             updatedQuoteRequest.srcChainId,
+            selectedAccount.metadata?.snap?.id,
           );
           if (shouldStream) {
             await fetchBridgeQuoteStream(
@@ -604,9 +608,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
                     [quote],
                     this.messagingSystem,
                     this.#getLayer1GasFee,
-                    this.#getMultichainSelectedAccount(
-                      updatedQuoteRequest.walletAddress,
-                    ),
+                    selectedAccount,
                   );
                   this.update((state) => {
                     if (
@@ -710,36 +712,22 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     }
   };
 
-  // TODO move to snap utils
-  readonly #setMinimumBalanceForRentExemptionInLamports = (
+  readonly #setMinimumBalanceForRentExemptionInLamports = async (
     srcChainId: GenericQuoteRequest['srcChainId'],
-  ): Promise<void> | undefined => {
-    const selectedAccount = this.#getMultichainSelectedAccount();
-
-    return isSolanaChainId(srcChainId) && selectedAccount?.metadata?.snap?.id
-      ? this.messagingSystem
-          .call(
-            'SnapController:handleRequest',
-            getMinimumBalanceForRentExemptionRequest(
-              selectedAccount.metadata.snap?.id,
-            ),
-          ) // eslint-disable-next-line promise/always-return
-          .then((result) => {
-            this.update((state) => {
-              state.minimumBalanceForRentExemptionInLamports = String(result);
-            });
-          })
-          .catch((error) => {
-            console.error(
-              'Error setting minimum balance for rent exemption',
-              error,
-            );
-            this.update((state) => {
-              state.minimumBalanceForRentExemptionInLamports =
-                DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
-            });
-          })
-      : undefined;
+    snapId?: string,
+  ) => {
+    if (!isSolanaChainId(srcChainId) || !snapId) {
+      return;
+    }
+    const minimumBalanceForRentExemptionInLamports =
+      await getMinimumBalanceForRentExemptionInLamports(
+        snapId,
+        this.messagingSystem,
+      );
+    this.update((state) => {
+      state.minimumBalanceForRentExemptionInLamports =
+        minimumBalanceForRentExemptionInLamports;
+    });
   };
 
   #getMultichainSelectedAccount(
