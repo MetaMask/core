@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/613.0.0 ([#6816](https://github.com/MetaMask/core/pull/6816))
+- Release/612.0.0 ([#6814](https://github.com/MetaMask/core/pull/6814))
+
 ### Added
 
 - Add real-time balance updates via WebSocket integration with `AccountActivityService` to `TokenBalancesController` ([#6784](https://github.com/MetaMask/core/pull/6784))
