@@ -16,6 +16,20 @@ import {
 } from './utils';
 import type { JsonRpcCall } from './utils';
 
+// Helper to forbid `id` on notifications
+type WithoutId<Request extends JsonRpcCall> = Request & { id?: never };
+
+// Helper to enable JsonRpcCall overload of handle()
+type MixedParam<Request extends JsonRpcCall> = [
+  Extract<Request, JsonRpcRequest>,
+] extends [never]
+  ? never
+  : [Extract<Request, JsonRpcNotification>] extends [never]
+    ? never
+    :
+        | Extract<Request, JsonRpcRequest>
+        | WithoutId<Extract<Request, JsonRpcNotification>>;
+
 export type ResultConstraint<Request extends JsonRpcCall> =
   Request extends JsonRpcRequest ? Json : void;
 
@@ -115,7 +129,7 @@ export class JsonRpcEngineV2<
    * @returns The JSON-RPC response.
    */
   async handle(
-    request: Request & JsonRpcRequest,
+    request: Extract<Request, JsonRpcRequest>,
     options?: HandleOptions,
   ): Promise<Result>;
 
@@ -127,9 +141,24 @@ export class JsonRpcEngineV2<
    * @param options.context - The context to pass to the middleware.
    */
   async handle(
-    notification: Request & JsonRpcNotification,
+    notification: Extract<Request, JsonRpcNotification> extends never
+      ? never
+      : WithoutId<Extract<Request, JsonRpcNotification>>,
     options?: HandleOptions,
   ): Promise<void>;
+
+  /**
+   * Handle a JSON-RPC call (i.e. request or notification).
+   *
+   * @param call - The JSON-RPC call to handle.
+   * @param options - The options for the handle operation.
+   * @param options.context - The context to pass to the middleware.
+   * @returns The JSON-RPC response, or `void` if the call is a notification.
+   */
+  async handle(
+    call: MixedParam<Request>,
+    options?: HandleOptions,
+  ): Promise<Result | void>;
 
   async handle(
     request: Request,
@@ -144,25 +173,6 @@ export class JsonRpcEngineV2<
       );
     }
     return result;
-  }
-
-  /**
-   * Handle a JSON-RPC call (i.e. request or notification).
-   *
-   * This exists because a {@link JsonRpcCall} overload of {@link handle} cannot
-   * coexist with the other overloads of that method. In particular, such an
-   * overload will always return `void`.
-   *
-   * @param request - The JSON-RPC call to handle.
-   * @param options - The options for the handle operation.
-   * @param options.context - The context to pass to the middleware.
-   * @returns The JSON-RPC response, or `void` if the call is a notification.
-   */
-  async handleAny(
-    request: JsonRpcCall & Request,
-    options?: HandleOptions,
-  ): Promise<Result | void> {
-    return this.handle(request, options);
   }
 
   /**

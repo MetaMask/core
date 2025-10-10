@@ -99,7 +99,7 @@ export class JsonRpcServer {
 
     try {
       const request = this.#coerceRequest(rawRequest, isRequest);
-      const result = await this.#engine.handleAny(request);
+      const result = await this.#engine.handle(request);
 
       if (result !== undefined) {
         return {

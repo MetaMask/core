@@ -5,6 +5,7 @@ import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import { MiddlewareContext } from './MiddlewareContext';
 import {
+  isRequest,
   JsonRpcEngineError,
   stringify,
   type JsonRpcCall,
@@ -567,42 +568,6 @@ describe('JsonRpcEngineV2', () => {
     });
   });
 
-  describe('handleAny', () => {
-    it(`proxies to 'handle()'`, async () => {
-      const engine = new JsonRpcEngineV2({
-        middleware: [jest.fn(() => null)],
-      });
-      const handleSpy = jest.spyOn(engine, 'handle');
-      const request = makeRequest();
-
-      const result = await engine.handleAny(request);
-
-      expect(result).toBeNull();
-      expect(handleSpy).toHaveBeenCalledTimes(1);
-      expect(handleSpy).toHaveBeenCalledWith(request, undefined);
-    });
-
-    it(`proxies to 'handle()' (with context)`, async () => {
-      const initialContext = new MiddlewareContext();
-      initialContext.set('foo', 'bar');
-      const engine = new JsonRpcEngineV2({
-        middleware: [({ context }) => context.assertGet<string>('foo')],
-      });
-      const handleSpy = jest.spyOn(engine, 'handle');
-      const request = makeRequest();
-
-      const result = await engine.handleAny(request, {
-        context: initialContext,
-      });
-
-      expect(result).toBe('bar');
-      expect(handleSpy).toHaveBeenCalledTimes(1);
-      expect(handleSpy).toHaveBeenCalledWith(request, {
-        context: initialContext,
-      });
-    });
-  });
-
   describe('composition', () => {
     describe('asMiddleware', () => {
       it('ends a request if it returns a value', async () => {
@@ -947,7 +912,9 @@ describe('JsonRpcEngineV2', () => {
         });
 
         expect(await engine.handle(makeRequest())).toBeNull();
-        // @ts-expect-error This is invalid and should cause a type error
+        // @ts-expect-error Valid at runtime, but should cause a type error
+        expect(await engine.handle(makeRequest() as JsonRpcCall)).toBeNull();
+        // @ts-expect-error Invalid at runtime and should cause a type error
         await expect(engine.handle(makeNotification())).rejects.toThrow(
           new JsonRpcEngineError(
             `Result returned for notification: ${stringify(makeNotification())}`,
@@ -961,12 +928,36 @@ describe('JsonRpcEngineV2', () => {
         });
 
         expect(await engine.handle(makeNotification())).toBeUndefined();
-        // TODO: This should cause a type error
-        await expect(engine.handle(makeRequest())).rejects.toThrow(
+        await expect(
+          // @ts-expect-error Invalid at runtime and should cause a type error
+          engine.handle({ id: '1', jsonrpc, method: 'test_request' }),
+        ).rejects.toThrow(
+          new JsonRpcEngineError(
+            `Nothing ended request: ${stringify({ id: '1', jsonrpc, method: 'test_request' })}`,
+          ),
+        );
+        await expect(
+          // @ts-expect-error Invalid at runtime and should cause a type error
+          engine.handle(makeRequest() as JsonRpcRequest),
+        ).rejects.toThrow(
           new JsonRpcEngineError(
             `Nothing ended request: ${stringify(makeRequest())}`,
           ),
         );
+      });
+
+      it('constructs a mixed engine', async () => {
+        const engine = new JsonRpcEngineV2<JsonRpcCall, null | void>({
+          middleware: [
+            // This is a much-needed conditional, actually
+            // eslint-disable-next-line jest/no-conditional-in-test
+            ({ request }) => (isRequest(request) ? null : undefined),
+          ],
+        });
+
+        expect(await engine.handle(makeRequest())).toBeNull();
+        expect(await engine.handle(makeNotification())).toBeUndefined();
+        expect(await engine.handle(makeRequest() as JsonRpcCall)).toBeNull();
       });
     });
   });
