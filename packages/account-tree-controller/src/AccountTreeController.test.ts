@@ -1280,7 +1280,7 @@ describe('AccountTreeController', () => {
       controller.setAccountWalletName(walletId, 'My Custom Wallet');
 
       // Verify custom metadata was set
-      expect(controller.state.accountWalletsMetadata[walletId]).toEqual({
+      expect(controller.state.accountWalletsMetadata[walletId]).toStrictEqual({
         name: {
           value: 'My Custom Wallet',
           lastUpdatedAt: expect.any(Number),
@@ -1293,7 +1293,7 @@ describe('AccountTreeController', () => {
       // Verify both wallet and its metadata are completely removed
       expect(controller.state.accountTree.wallets[walletId]).toBeUndefined();
       expect(controller.state.accountWalletsMetadata[walletId]).toBeUndefined();
-      expect(controller.state.accountWalletsMetadata).toEqual({});
+      expect(controller.state.accountWalletsMetadata).toStrictEqual({});
     });
 
     it('does not remove account if init has not been called', () => {
