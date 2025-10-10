@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix wallet metadata cleanup when wallets are completely removed ([#6813](https://github.com/MetaMask/core/pull/6813))
+
 ## [1.4.2]
 
 ### Fixed
