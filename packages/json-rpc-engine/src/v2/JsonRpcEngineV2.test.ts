@@ -949,7 +949,7 @@ describe('JsonRpcEngineV2', () => {
       it('constructs a mixed engine', async () => {
         const engine = new JsonRpcEngineV2<JsonRpcCall, null | void>({
           middleware: [
-            // This is a much-needed conditional, actually
+            // We need this conditional
             // eslint-disable-next-line jest/no-conditional-in-test
             ({ request }) => (isRequest(request) ? null : undefined),
           ],
@@ -958,6 +958,41 @@ describe('JsonRpcEngineV2', () => {
         expect(await engine.handle(makeRequest())).toBeNull();
         expect(await engine.handle(makeNotification())).toBeUndefined();
         expect(await engine.handle(makeRequest() as JsonRpcCall)).toBeNull();
+      });
+
+      it('composes a pipeline of request- and notification-only engines', async () => {
+        const requestEngine = new JsonRpcEngineV2<JsonRpcRequest, null>({
+          middleware: [() => null],
+        });
+
+        const notificationEngine = new JsonRpcEngineV2<
+          JsonRpcNotification,
+          void
+        >({
+          middleware: [() => undefined],
+        });
+
+        const orchestratorEngine = new JsonRpcEngineV2<
+          JsonRpcCall,
+          null | void
+        >({
+          middleware: [
+            ({ request, context }) =>
+              // We need this conditional
+              // eslint-disable-next-line jest/no-conditional-in-test
+              isRequest(request)
+                ? requestEngine.handle(request, { context })
+                : notificationEngine.handle(request as JsonRpcNotification, {
+                    context,
+                  }),
+          ],
+        });
+
+        const result1 = await orchestratorEngine.handle(makeRequest());
+        const result2 = await orchestratorEngine.handle(makeNotification());
+
+        expect(result1).toBeNull();
+        expect(result2).toBeUndefined();
       });
     });
   });
