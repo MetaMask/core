@@ -1,4 +1,8 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
+import type {
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import { getErrorMessage } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
@@ -217,6 +221,8 @@ export type BackendWebSocketServiceAllowedActions =
 
 export type BackendWebSocketServiceAllowedEvents =
   | AuthenticationController.AuthenticationControllerStateChangeEvent
+  | KeyringControllerLockEvent
+  | KeyringControllerUnlockEvent
   | BackendWebSocketServiceConnectionStateChangedEvent;
 
 // Event types for WebSocket connection state changes
@@ -239,18 +245,24 @@ export type BackendWebSocketServiceMessenger = RestrictedMessenger<
 /**
  * WebSocket Service with automatic reconnection, session management and direct callback routing
  *
+ * Connection Management:
+ * - Automatically subscribes to AuthenticationController:stateChange (sign in/out)
+ * - Automatically subscribes to KeyringController:lock/unlock events
+ * - Idempotent connect() function safe for multiple rapid calls
+ * - Auto-reconnects on unexpected disconnects (manualDisconnect = false)
+ *
+ * Platform Responsibilities:
+ * - Call connect() when app opens/foregrounds
+ * - Call disconnect() when app closes/backgrounds
+ * - Provide isEnabled() callback (feature flag)
+ * - Call destroy() on app termination
+ *
  * Real-Time Performance Optimizations:
  * - Fast path message routing (zero allocations)
  * - Production mode removes try-catch overhead
  * - Optimized JSON parsing with fail-fast
  * - Direct callback routing bypasses event emitters
  * - Memory cleanup and resource management
- *
- * Mobile Integration:
- * Mobile apps should handle lifecycle events (background/foreground) by:
- * 1. Calling disconnect() when app goes to background
- * 2. Calling connect() when app returns to foreground
- * 3. Calling destroy() on app termination
  */
 export class BackendWebSocketService {
   /**
@@ -290,6 +302,9 @@ export class BackendWebSocketService {
 
   #connectedAt: number | null = null;
 
+  // Track manual disconnects to prevent automatic reconnection
+  #manualDisconnect = false;
+
   // Simplified subscription storage (single flat map)
   // Key: subscription ID string (e.g., 'sub_abc123def456')
   // Value: WebSocketSubscription object with channels, callback and metadata
@@ -321,8 +336,8 @@ export class BackendWebSocketService {
       requestTimeout: options.requestTimeout ?? 30000,
     };
 
-    // Setup authentication (always enabled)
-    this.#setupAuthentication();
+    // Subscribe to authentication and keyring controller events
+    this.#subscribeEvents();
 
     // Register action handlers using the method actions pattern
     this.#messenger.registerMethodActionHandlers(
@@ -332,41 +347,41 @@ export class BackendWebSocketService {
   }
 
   /**
-   * Setup authentication event handling - simplified approach using AuthenticationController
-   * AuthenticationController.isSignedIn includes both wallet unlock AND identity provider auth.
-   * App lifecycle (AppStateWebSocketManager) handles WHEN to connect/disconnect for resources.
+   * Setup event handling for authentication and wallet lock state
    *
+   * Three event sources trigger connection/disconnection:
+   * 1. AuthenticationController:stateChange (sign in/out)
+   * 2. KeyringController:unlock (wallet unlocked)
+   * 3. KeyringController:lock (wallet locked)
+   *
+   * All connect() calls are idempotent and validate all requirements.
    */
-  #setupAuthentication(): void {
-    try {
-      // Subscribe to authentication state changes - this includes wallet unlock state
-      // AuthenticationController can only be signed in if wallet is unlocked
-      // Using selector to only listen for isSignedIn property changes for better performance
-      this.#messenger.subscribe(
-        'AuthenticationController:stateChange',
-        (isSignedIn: boolean) => {
-          if (isSignedIn) {
-            // User signed in (wallet unlocked + authenticated) - try to connect
-            // Clear any pending reconnection timer since we're attempting connection
-            this.#clearTimers();
-            this.connect().catch((error) => {
-              log('Failed to connect after sign-in', { error });
-            });
-          } else {
-            // User signed out (wallet locked OR signed out) - disconnect and stop reconnection attempts
-            this.#clearTimers();
-            this.#reconnectAttempts = 0;
-            this.disconnect().catch((error) => {
-              log('Failed to disconnect after sign-out', { error });
-            });
-          }
-        },
-        (state: AuthenticationController.AuthenticationControllerState) =>
-          state.isSignedIn,
-      );
-    } catch (error) {
-      throw new Error(`Authentication setup failed: ${getErrorMessage(error)}`);
-    }
+  #subscribeEvents(): void {
+    // Subscribe to authentication state changes (sign in/out)
+    this.#messenger.subscribe(
+      'AuthenticationController:stateChange',
+      (state: AuthenticationController.AuthenticationControllerState) => {
+        if (state.isSignedIn) {
+          // eslint-disable-next-line no-void
+          void this.connect();
+        } else {
+          // eslint-disable-next-line no-void
+          void this.disconnect();
+        }
+      },
+    );
+
+    // Subscribe to wallet unlock event
+    this.#messenger.subscribe('KeyringController:unlock', () => {
+      // eslint-disable-next-line no-void
+      void this.connect();
+    });
+
+    // Subscribe to wallet lock event
+    this.#messenger.subscribe('KeyringController:lock', () => {
+      // eslint-disable-next-line no-void
+      void this.disconnect();
+    });
   }
 
   // =============================================================================
@@ -376,18 +391,24 @@ export class BackendWebSocketService {
   /**
    * Establishes WebSocket connection with smart reconnection behavior
    *
-   * Simplified Priority System (using AuthenticationController):
-   * 1. App closed/backgrounded → Stop all attempts (save resources)
-   * 2. User not signed in (wallet locked OR not authenticated) → Keep retrying
-   * 3. User signed in (wallet unlocked + authenticated) → Connect successfully
+   * Connection Requirements (all must be true):
+   * 1. Feature enabled (isEnabled() = true)
+   * 2. Wallet unlocked (checked by getBearerToken)
+   * 3. User signed in (checked by getBearerToken)
+   *
+   * Platform code should call this when app opens/foregrounds.
+   * Automatically called on KeyringController:unlock event.
    *
    * @returns Promise that resolves when connection is established
    */
   async connect(): Promise<void> {
-    // Priority 1: Check if connection is enabled via callback (app lifecycle check)
-    // If app is closed/backgrounded, stop all connection attempts to save resources
+    // Reset manual disconnect flag when explicitly connecting
+    this.#manualDisconnect = false;
+
+    // Priority 1: Check if feature is enabled via callback (feature flag check)
+    // If feature is disabled, stop all connection attempts
     if (this.#isEnabled && !this.#isEnabled()) {
-      // Clear any pending reconnection attempts since app is disabled
+      // Clear any pending reconnection attempts since feature is disabled
       this.#clearTimers();
       this.#reconnectAttempts = 0;
       return;
@@ -404,10 +425,9 @@ export class BackendWebSocketService {
       return;
     }
 
-    // Priority 2: Check authentication requirements (simplified - just check if signed in)
+    // Priority 2: Check authentication requirements (signed in)
     let bearerToken: string;
     try {
-      // AuthenticationController.getBearerToken() handles wallet unlock checks internally
       const token = await this.#messenger.call(
         'AuthenticationController:getBearerToken',
       );
@@ -417,9 +437,11 @@ export class BackendWebSocketService {
       }
       bearerToken = token;
     } catch (error) {
-      log('Failed to check authentication requirements', { error });
+      log('Failed to get bearer token (wallet locked or not signed in)', {
+        error,
+      });
 
-      // If we can't connect for ANY reason, schedule a retry
+      // Can't connect - schedule retry
       this.#scheduleReconnect();
       return;
     }
@@ -436,7 +458,8 @@ export class BackendWebSocketService {
       log('Connection attempt failed', { errorMessage, error });
       this.#setState(WebSocketState.ERROR);
 
-      throw new Error(`Failed to connect to WebSocket: ${errorMessage}`);
+      // Rethrow to propagate error to caller
+      throw error;
     } finally {
       // Clear the connection promise when done (success or failure)
       this.#connectionPromise = null;
@@ -456,6 +479,9 @@ export class BackendWebSocketService {
       return;
     }
 
+    // Mark this as a manual disconnect to prevent automatic reconnection
+    this.#manualDisconnect = true;
+
     this.#setState(WebSocketState.DISCONNECTING);
     this.#clearTimers();
     this.#clearPendingRequests(new Error('WebSocket disconnected'));
@@ -467,7 +493,6 @@ export class BackendWebSocketService {
       this.#ws.close(1000, 'Normal closure');
     }
 
-    this.#setState(WebSocketState.DISCONNECTED);
     log('WebSocket manually disconnected');
   }
 
@@ -751,6 +776,9 @@ export class BackendWebSocketService {
     if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
       this.#ws.close(1000, 'Service cleanup');
     }
+
+    // Set state to disconnected immediately
+    this.#setState(WebSocketState.DISCONNECTED);
   }
 
   /**
@@ -826,13 +854,6 @@ export class BackendWebSocketService {
 
     const { subscriptionId } = subscriptionResponse;
 
-    // Check for failures
-    if (subscriptionResponse.failed && subscriptionResponse.failed.length > 0) {
-      throw new Error(
-        `Subscription failed for channels: ${subscriptionResponse.failed.join(', ')}`,
-      );
-    }
-
     // Create unsubscribe function
     const unsubscribe = async (unsubRequestId?: string): Promise<void> => {
       // Send unsubscribe request first
@@ -905,7 +926,9 @@ export class BackendWebSocketService {
         });
         ws.close();
         reject(
-          new Error(`Connection timeout after ${this.#options.timeout}ms`),
+          new Error(
+            `Failed to connect to WebSocket: Connection timeout after ${this.#options.timeout}ms`,
+          ),
         );
       }, this.#options.timeout);
 
@@ -926,24 +949,19 @@ export class BackendWebSocketService {
 
       ws.onerror = (event: Event) => {
         log('WebSocket onerror event triggered', { event });
-        if (this.#state === WebSocketState.CONNECTING) {
-          // Handle connection-phase errors
-          if (this.#connectionTimeout) {
-            clearTimeout(this.#connectionTimeout);
-            this.#connectionTimeout = null;
-          }
-          const error = new Error(`WebSocket connection error to ${wsUrl}`);
-          reject(error);
-        } else {
-          // Handle runtime errors
-          this.#handleError(new Error(`WebSocket error: ${event.type}`));
+        // Handle connection-phase errors
+        if (this.#connectionTimeout) {
+          clearTimeout(this.#connectionTimeout);
+          this.#connectionTimeout = null;
         }
+        const error = new Error(`WebSocket connection error to ${wsUrl}`);
+        reject(error);
       };
 
       ws.onclose = (event: CloseEvent) => {
         log('WebSocket onclose event triggered', {
           code: event.code,
-          reason: event.reason || 'none',
+          reason: event.reason,
           wasClean: event.wasClean,
         });
         if (this.#state === WebSocketState.CONNECTING) {
@@ -1135,24 +1153,23 @@ export class BackendWebSocketService {
     this.#clearPendingRequests(new Error('WebSocket connection closed'));
     this.#clearSubscriptions();
 
-    if (this.#state === WebSocketState.DISCONNECTING) {
-      // Manual disconnect
-      this.#setState(WebSocketState.DISCONNECTED);
+    // Update state to disconnected
+    this.#setState(WebSocketState.DISCONNECTED);
+
+    // Check if this was a manual disconnect
+    if (this.#manualDisconnect) {
+      // Manual disconnect - don't reconnect
+      log('WebSocket closed due to manual disconnect, not reconnecting');
       return;
     }
 
-    // For unexpected disconnects, update the state to reflect that we're disconnected
-    this.#setState(WebSocketState.DISCONNECTED);
-
-    // Check if we should attempt reconnection based on close code
-    const shouldReconnect = this.#shouldReconnectOnClose(event.code);
-
-    if (shouldReconnect) {
-      log('Connection lost unexpectedly, will attempt reconnection', {
-        code: event.code,
-      });
-      this.#scheduleReconnect();
-    }
+    // For any unexpected disconnects, attempt reconnection
+    // The manualDisconnect flag is the only gate - if it's false, we reconnect
+    log('Connection lost unexpectedly, will attempt reconnection', {
+      code: event.code,
+      reason: event.reason,
+    });
+    this.#scheduleReconnect();
   }
 
   /**
@@ -1254,20 +1271,5 @@ export class BackendWebSocketService {
         this.getConnectionInfo(),
       );
     }
-  }
-
-  // =============================================================================
-  // 7. UTILITY METHODS (PRIVATE)
-  // =============================================================================
-
-  /**
-   * Determines if reconnection should be attempted based on close code
-   *
-   * @param code - WebSocket close code
-   * @returns True if reconnection should be attempted
-   */
-  #shouldReconnectOnClose(code: number): boolean {
-    // Don't reconnect only on normal closure (manual disconnect)
-    return code !== 1000;
   }
 }

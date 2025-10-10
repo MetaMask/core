@@ -77,6 +77,8 @@ const setupController = ({
       'PreferencesController:stateChange',
       'TokensController:stateChange',
       'KeyringController:accountRemoved',
+      'KeyringController:lock',
+      'KeyringController:unlock',
       'AccountActivityService:balanceUpdated',
       'AccountActivityService:statusChanged',
     ],

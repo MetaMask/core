@@ -19,7 +19,11 @@ import type {
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceStatusChangedEvent,
 } from '@metamask/core-backend';
-import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerAccountRemovedEvent,
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -136,6 +140,8 @@ export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
   | NetworkControllerStateChangeEvent
   | KeyringControllerAccountRemovedEvent
+  | KeyringControllerLockEvent
+  | KeyringControllerUnlockEvent
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceStatusChangedEvent;
 
@@ -286,6 +292,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     pendingChanges: new Map(),
   };
 
+  /** Track wallet unlock state */
+  #isUnlocked = false;
+
   constructor({
     messenger,
     interval = DEFAULT_INTERVAL_MS,
@@ -359,13 +368,25 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       this.getChainPollingConfig.bind(this),
     );
 
+    // Subscribe to KeyringController lock/unlock events
+    // Track unlock state to only process WebSocket events when wallet is unlocked
+    this.messagingSystem.subscribe('KeyringController:unlock', () => {
+      this.#isUnlocked = true;
+    });
+
+    this.messagingSystem.subscribe('KeyringController:lock', () => {
+      this.#isUnlocked = false;
+    });
+
     // Subscribe to AccountActivityService balance updates for real-time updates
+    // Events are only processed when wallet is unlocked (see handler implementation)
     this.messagingSystem.subscribe(
       'AccountActivityService:balanceUpdated',
       this.#onAccountActivityBalanceUpdate.bind(this),
     );
 
     // Subscribe to AccountActivityService status changes for dynamic polling management
+    // Events are only processed when wallet is unlocked (see handler implementation)
     this.messagingSystem.subscribe(
       'AccountActivityService:statusChanged',
       this.#onAccountActivityStatusChanged.bind(this),
@@ -1108,6 +1129,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    * Handle real-time balance updates from AccountActivityService
    * Processes balance updates and updates the token balance state
    * If any balance update has an error, triggers fallback polling for the chain
+   * Only processes updates when wallet is unlocked
    *
    * @param options0 - Balance update parameters
    * @param options0.address - Account address
@@ -1123,6 +1145,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chain: string;
     updates: BalanceUpdate[];
   }) => {
+    // Only process balance updates when wallet is unlocked
+    if (!this.#isUnlocked) {
+      return;
+    }
+
     const chainId = caipChainIdToHex(chain);
     const account = checksum(address);
 
@@ -1180,6 +1207,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   /**
    * Handle status changes from AccountActivityService
    * Uses aggressive debouncing to prevent excessive HTTP calls from rapid up/down changes
+   * Only processes updates when wallet is unlocked
    *
    * @param options0 - Status change event data
    * @param options0.chainIds - Array of chain identifiers
@@ -1192,6 +1220,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chainIds: string[];
     status: 'up' | 'down';
   }) => {
+    // Only process status changes when wallet is unlocked
+    if (!this.#isUnlocked) {
+      return;
+    }
+
     // Update pending changes (latest status wins for each chain)
     for (const chainId of chainIds) {
       this.#statusChangeDebouncer.pendingChanges.set(chainId, status);
