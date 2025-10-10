@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/611.0.0 ([#6810](https://github.com/MetaMask/core/pull/6810))
+
 ### Changed
 
 - Update hotlist endpoint from v1 to v2 for blocklistPaths support ([#6815](https://github.com/MetaMask/core/pull/6815))
