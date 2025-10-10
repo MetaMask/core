@@ -17,17 +17,10 @@ export type WalletUpgradeAccountHooks = {
     chainId?: Hex,
   ) => Promise<{ transactionHash: string; delegatedTo: string }>;
   getCurrentChainIdForDomain: (origin: string) => Hex | null;
-  isEip7702Supported: (request: {
-    address: string;
-    chainIds: string[];
-  }) => Promise<
-    {
-      chainId: string;
-      isSupported: boolean;
-      delegationAddress?: string;
-      upgradeContractAddress?: string;
-    }[]
-  >;
+  isEip7702Supported: (request: { address: string; chainId: Hex }) => Promise<{
+    isSupported: boolean;
+    upgradeContractAddress?: string;
+  }>;
   getPermittedAccountsForOrigin: (origin: string) => Promise<string[]>;
 };
 
@@ -74,27 +67,23 @@ export async function walletUpgradeAccount(
   try {
     // Get the EIP7702 network configuration for the target chain
     const hexChainId = targetChainId;
-    const atomicBatchSupport = await hooks.isEip7702Supported({
-      address: normalizedAccount,
-      chainIds: [hexChainId],
-    });
+    const { isSupported, upgradeContractAddress } =
+      await hooks.isEip7702Supported({
+        address: normalizedAccount,
+        chainId: hexChainId,
+      });
 
-    const atomicBatchChainSupport = atomicBatchSupport.find(
-      (result) => result.chainId.toLowerCase() === hexChainId.toLowerCase(),
-    );
-
-    const isChainSupported =
-      atomicBatchChainSupport &&
-      (!atomicBatchChainSupport.delegationAddress ||
-        atomicBatchChainSupport.isSupported);
-
-    if (!isChainSupported || !atomicBatchChainSupport?.upgradeContractAddress) {
+    if (!isSupported) {
       throw rpcErrors.invalidParams({
         message: `Account upgrade not supported on chain ID ${targetChainId}`,
       });
     }
 
-    const { upgradeContractAddress } = atomicBatchChainSupport;
+    if (!upgradeContractAddress) {
+      throw rpcErrors.invalidParams({
+        message: `No upgrade contract address available for chain ID ${targetChainId}`,
+      });
+    }
 
     // Perform the upgrade using existing EIP-7702 functionality
     const result = await hooks.upgradeAccount(

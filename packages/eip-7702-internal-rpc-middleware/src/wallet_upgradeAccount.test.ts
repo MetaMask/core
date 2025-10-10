@@ -24,21 +24,19 @@ const createTestHooks = (): TestHooks => {
     .mockResolvedValue([TEST_ACCOUNT]);
   const isEip7702Supported = jest
     .fn()
-    .mockImplementation(async ({ chainIds }: { chainIds: string[] }) => {
-      return chainIds.map((chainId: string) => {
+    .mockImplementation(
+      async ({ chainId }: { address: string; chainId: string }) => {
         if (chainId === '0x1' || chainId === '0xaa36a7') {
           return {
-            chainId,
             isSupported: true,
             upgradeContractAddress: UPGRADE_CONTRACT,
           };
         }
         return {
-          chainId,
           isSupported: false,
         };
-      });
-    });
+      },
+    );
 
   return {
     upgradeAccount,
@@ -85,7 +83,7 @@ describe('walletUpgradeAccount', () => {
     expect(hooks.getCurrentChainIdForDomain).toHaveBeenCalledWith(req.origin);
     expect(hooks.isEip7702Supported).toHaveBeenCalledWith({
       address: TEST_ACCOUNT,
-      chainIds: ['0x1'],
+      chainId: '0x1',
     });
     expect(hooks.upgradeAccount).toHaveBeenCalledWith(
       TEST_ACCOUNT,
@@ -117,7 +115,7 @@ describe('walletUpgradeAccount', () => {
     expect(hooks.getCurrentChainIdForDomain).not.toHaveBeenCalled();
     expect(hooks.isEip7702Supported).toHaveBeenCalledWith({
       address: TEST_ACCOUNT,
-      chainIds: ['0xaa36a7'],
+      chainId: '0xaa36a7',
     });
     expect(hooks.upgradeAccount).toHaveBeenCalledWith(
       TEST_ACCOUNT,
@@ -150,12 +148,9 @@ describe('walletUpgradeAccount', () => {
 
     // Mock unsupported chain
     hooks.isEip7702Supported.mockImplementation(
-      async ({ chainIds }: { chainIds: string[] }) => {
-        return chainIds.map((chainId: string) => ({
-          chainId,
-          isSupported: false,
-        }));
-      },
+      async (_: { address: string; chainId: string }) => ({
+        isSupported: false,
+      }),
     );
 
     await expect(walletUpgradeAccount(req, res, hooks)).rejects.toThrow(
@@ -198,14 +193,10 @@ describe('walletUpgradeAccount', () => {
 
     // Mock chain with delegation address but not supported
     hooks.isEip7702Supported.mockImplementation(
-      async ({ chainIds }: { chainIds: string[] }) => {
-        return chainIds.map((chainId: string) => ({
-          chainId,
-          isSupported: false,
-          delegationAddress: '0xdelegation123',
-          upgradeContractAddress: UPGRADE_CONTRACT,
-        }));
-      },
+      async (_: { address: string; chainId: string }) => ({
+        isSupported: false,
+        upgradeContractAddress: UPGRADE_CONTRACT,
+      }),
     );
 
     await expect(walletUpgradeAccount(req, res, hooks)).rejects.toThrow(
@@ -223,6 +214,22 @@ describe('walletUpgradeAccount', () => {
 
     await expect(walletUpgradeAccount(req, res, hooks)).rejects.toThrow(
       'Failed to upgrade account: String error',
+    );
+  });
+
+  it('throws error when upgrade contract address is missing', async () => {
+    const hooks = createTestHooks();
+    const req = createTestRequest();
+    const res = createTestResponse();
+
+    // Mock isEip7702Supported to return supported but without upgradeContractAddress
+    hooks.isEip7702Supported.mockResolvedValue({
+      isSupported: true,
+      // upgradeContractAddress is undefined
+    });
+
+    await expect(walletUpgradeAccount(req, res, hooks)).rejects.toThrow(
+      'No upgrade contract address available for chain ID 0x1',
     );
   });
 });

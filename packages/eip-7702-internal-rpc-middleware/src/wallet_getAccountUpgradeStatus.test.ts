@@ -25,12 +25,17 @@ const createTestHooks = (): TestHooks => {
   const getSelectedNetworkClientIdForChain = jest
     .fn()
     .mockReturnValue(NETWORK_CLIENT_ID);
+  const isEip7702Supported = jest.fn().mockResolvedValue({
+    isSupported: true,
+    upgradeContractAddress: '0x1234567890123456789012345678901234567890',
+  });
 
   return {
     getCode,
     getCurrentChainIdForDomain,
     getSelectedNetworkClientIdForChain,
     getPermittedAccountsForOrigin,
+    isEip7702Supported,
   };
 };
 
@@ -66,12 +71,17 @@ describe('walletGetAccountUpgradeStatus', () => {
     await walletGetAccountUpgradeStatus(req, res, hooks);
 
     expect(hooks.getCurrentChainIdForDomain).toHaveBeenCalledWith(req.origin);
+    expect(hooks.isEip7702Supported).toHaveBeenCalledWith({
+      address: TEST_ACCOUNT,
+      chainId: '0x1',
+    });
     expect(hooks.getSelectedNetworkClientIdForChain).toHaveBeenCalledWith(
       '0x1',
     );
     expect(hooks.getCode).toHaveBeenCalledWith(TEST_ACCOUNT, NETWORK_CLIENT_ID);
     expect(res.result).toStrictEqual({
       account: TEST_ACCOUNT,
+      isSupported: true,
       isUpgraded: false,
       upgradedAddress: null,
       chainId: '0x1',
@@ -91,12 +101,17 @@ describe('walletGetAccountUpgradeStatus', () => {
     await walletGetAccountUpgradeStatus(req, res, hooks);
 
     expect(hooks.getCurrentChainIdForDomain).toHaveBeenCalledWith(req.origin);
+    expect(hooks.isEip7702Supported).toHaveBeenCalledWith({
+      address: TEST_ACCOUNT,
+      chainId: '0x1',
+    });
     expect(hooks.getSelectedNetworkClientIdForChain).toHaveBeenCalledWith(
       '0x1',
     );
     expect(hooks.getCode).toHaveBeenCalledWith(TEST_ACCOUNT, NETWORK_CLIENT_ID);
     expect(res.result).toStrictEqual({
       account: TEST_ACCOUNT,
+      isSupported: true,
       isUpgraded: true,
       upgradedAddress,
       chainId: '0x1',
@@ -116,12 +131,17 @@ describe('walletGetAccountUpgradeStatus', () => {
     await walletGetAccountUpgradeStatus(req, res, hooks);
 
     expect(hooks.getCurrentChainIdForDomain).not.toHaveBeenCalled();
+    expect(hooks.isEip7702Supported).toHaveBeenCalledWith({
+      address: TEST_ACCOUNT,
+      chainId: '0xaa36a7',
+    });
     expect(hooks.getSelectedNetworkClientIdForChain).toHaveBeenCalledWith(
       '0xaa36a7',
     );
     expect(hooks.getCode).toHaveBeenCalledWith(TEST_ACCOUNT, NETWORK_CLIENT_ID);
     expect(res.result).toStrictEqual({
       account: TEST_ACCOUNT,
+      isSupported: true,
       isUpgraded: false,
       upgradedAddress: null,
       chainId: '0xaa36a7',
@@ -164,12 +184,17 @@ describe('walletGetAccountUpgradeStatus', () => {
     await walletGetAccountUpgradeStatus(req, res, hooks);
 
     expect(hooks.getCurrentChainIdForDomain).toHaveBeenCalledWith(req.origin);
+    expect(hooks.isEip7702Supported).toHaveBeenCalledWith({
+      address: TEST_ACCOUNT,
+      chainId: '0x1',
+    });
     expect(hooks.getSelectedNetworkClientIdForChain).toHaveBeenCalledWith(
       '0x1',
     );
     expect(hooks.getCode).toHaveBeenCalledWith(TEST_ACCOUNT, NETWORK_CLIENT_ID);
     expect(res.result).toStrictEqual({
       account: TEST_ACCOUNT,
+      isSupported: true,
       isUpgraded: false,
       upgradedAddress: null,
       chainId: '0x1',
@@ -203,11 +228,16 @@ describe('walletGetAccountUpgradeStatus', () => {
     await walletGetAccountUpgradeStatus(req, res, hooks);
 
     expect(hooks.getCurrentChainIdForDomain).toHaveBeenCalledWith(req.origin);
+    expect(hooks.isEip7702Supported).toHaveBeenCalledWith({
+      address: TEST_ACCOUNT,
+      chainId: '0x1',
+    });
     expect(hooks.getSelectedNetworkClientIdForChain).toHaveBeenCalledWith(
       '0x1',
     );
     expect(res.result).toStrictEqual({
       account: TEST_ACCOUNT,
+      isSupported: true,
       isUpgraded: false,
       upgradedAddress: null,
       chainId: '0x1',
@@ -225,5 +255,80 @@ describe('walletGetAccountUpgradeStatus', () => {
     await expect(
       walletGetAccountUpgradeStatus(req, res, hooks),
     ).rejects.toThrow('Failed to get account upgrade status: Network error');
+  });
+
+  it('returns early when EIP-7702 is not supported', async () => {
+    const hooks = createTestHooks();
+    const req = createTestRequest();
+    const res = createTestResponse();
+
+    // Mock isEip7702Supported to return false
+    hooks.isEip7702Supported.mockResolvedValue({
+      isSupported: false,
+    });
+
+    await walletGetAccountUpgradeStatus(req, res, hooks);
+
+    expect(hooks.getCurrentChainIdForDomain).toHaveBeenCalledWith(req.origin);
+    expect(hooks.isEip7702Supported).toHaveBeenCalledWith({
+      address: TEST_ACCOUNT,
+      chainId: '0x1',
+    });
+    // Should not call getSelectedNetworkClientIdForChain or getCode when not supported
+    expect(hooks.getSelectedNetworkClientIdForChain).not.toHaveBeenCalled();
+    expect(hooks.getCode).not.toHaveBeenCalled();
+    expect(res.result).toStrictEqual({
+      account: TEST_ACCOUNT,
+      isSupported: false,
+      isUpgraded: false,
+      upgradedAddress: null,
+      chainId: '0x1',
+    });
+  });
+
+  it('returns early when EIP-7702 is not supported with specific chain ID', async () => {
+    const hooks = createTestHooks();
+    const req = createTestRequest([
+      { account: TEST_ACCOUNT, chainId: '0xaa36a7' },
+    ]);
+    const res = createTestResponse();
+
+    // Mock isEip7702Supported to return false
+    hooks.isEip7702Supported.mockResolvedValue({
+      isSupported: false,
+    });
+
+    await walletGetAccountUpgradeStatus(req, res, hooks);
+
+    expect(hooks.getCurrentChainIdForDomain).not.toHaveBeenCalled();
+    expect(hooks.isEip7702Supported).toHaveBeenCalledWith({
+      address: TEST_ACCOUNT,
+      chainId: '0xaa36a7',
+    });
+    // Should not call getSelectedNetworkClientIdForChain or getCode when not supported
+    expect(hooks.getSelectedNetworkClientIdForChain).not.toHaveBeenCalled();
+    expect(hooks.getCode).not.toHaveBeenCalled();
+    expect(res.result).toStrictEqual({
+      account: TEST_ACCOUNT,
+      isSupported: false,
+      isUpgraded: false,
+      upgradedAddress: null,
+      chainId: '0xaa36a7',
+    });
+  });
+
+  it('handles isEip7702Supported hook errors', async () => {
+    const hooks = createTestHooks();
+    const req = createTestRequest();
+    const res = createTestResponse();
+
+    // Mock isEip7702Supported to throw an error
+    hooks.isEip7702Supported.mockRejectedValue(
+      new Error('EIP-7702 check failed'),
+    );
+
+    await expect(
+      walletGetAccountUpgradeStatus(req, res, hooks),
+    ).rejects.toThrow('EIP-7702 check failed');
   });
 });

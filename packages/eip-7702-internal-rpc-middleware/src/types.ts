@@ -29,7 +29,8 @@ export type GetAccountUpgradeStatusParams = Infer<
 
 export type GetAccountUpgradeStatusResult = {
   account: string; // Address of the checked account
+  chainId: Hex; // Chain ID where the check was performed
+  isSupported: boolean; // Whether upgrade to smart account is supported on the chain
   isUpgraded: boolean; // Whether the account is upgraded
   upgradedAddress: string | null; // Address to which the account is upgraded
-  chainId: Hex; // Chain ID where the check was performed
 };

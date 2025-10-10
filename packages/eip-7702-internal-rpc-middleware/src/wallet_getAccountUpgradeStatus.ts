@@ -17,6 +17,10 @@ export type WalletGetAccountUpgradeStatusHooks = {
   getCode: (address: string, networkClientId: string) => Promise<string | null>;
   getSelectedNetworkClientIdForChain: (chainId: string) => string | null;
   getPermittedAccountsForOrigin: (origin: string) => Promise<string[]>;
+  isEip7702Supported: (request: { address: string; chainId: Hex }) => Promise<{
+    isSupported: boolean;
+    upgradeContractAddress?: string;
+  }>;
 };
 
 const isAccountUpgraded = async (
@@ -84,6 +88,22 @@ export async function walletGetAccountUpgradeStatus(
     targetChainId = currentChainIdForDomain;
   }
 
+  const { isSupported } = await hooks.isEip7702Supported({
+    address: normalizedAccount,
+    chainId: targetChainId,
+  });
+
+  if (!isSupported) {
+    res.result = {
+      isSupported,
+      account: normalizedAccount,
+      isUpgraded: false,
+      upgradedAddress: null,
+      chainId: targetChainId,
+    };
+    return;
+  }
+
   try {
     // Get the network configuration for the target chain
     const hexChainId = targetChainId;
@@ -104,6 +124,7 @@ export async function walletGetAccountUpgradeStatus(
     );
 
     res.result = {
+      isSupported,
       account: normalizedAccount,
       isUpgraded,
       upgradedAddress,
