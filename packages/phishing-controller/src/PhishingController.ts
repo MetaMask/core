@@ -1321,7 +1321,9 @@ export class PhishingController extends BaseController<
       if (stalelistResponse?.data && stalelistResponse.data.lastUpdated > 0) {
         hotlistDiffsResponse = await this.#queryConfig<
           DataResultWrapper<Hotlist>
-        >(`${METAMASK_HOTLIST_DIFF_URL}/${stalelistResponse.data.lastUpdated}`);
+        >(
+          `${METAMASK_HOTLIST_DIFF_URL}/${stalelistResponse.data.lastUpdated}?blocklistPaths=true`,
+        );
       }
     } finally {
       // Set `stalelistLastFetched` and `hotlistLastFetched` even for failed requests to prevent server
@@ -1383,7 +1385,7 @@ export class PhishingController extends BaseController<
       );
 
       hotlistResponse = await this.#queryConfig<DataResultWrapper<Hotlist>>(
-        `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
+        `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}?blocklistPaths=true`,
       );
     } finally {
       // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with
