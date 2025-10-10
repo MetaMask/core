@@ -70,10 +70,10 @@ import type {
   RequiredEventContextFromClient,
 } from './utils/metrics/types';
 import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
-import { isValidQuoteRequest } from './utils/quote';
+import { isValidQuoteRequest, sortQuotes } from './utils/quote';
 import { appendFeesToQuotes } from './utils/quote-fees';
 import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
-import { FeatureId } from './utils/validators';
+import type { FeatureId } from './utils/validators';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
@@ -369,16 +369,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#getMultichainSelectedAccount(quoteRequest.walletAddress),
     );
 
-    // Sort perps quotes by increasing estimated processing time (fastest first)
-    if (featureId === FeatureId.PERPS) {
-      return quotesWithFees.sort((a, b) => {
-        return (
-          a.estimatedProcessingTimeInSeconds -
-          b.estimatedProcessingTimeInSeconds
-        );
-      });
-    }
-    return quotesWithFees;
+    return sortQuotes(quotesWithFees, featureId);
   };
 
   readonly #trackResponseValidationFailures = (
