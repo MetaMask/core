@@ -58,6 +58,8 @@ export async function syncWalletMetadataAndCheckIfPushNeeded(
 
   shouldPushWallet ||= shouldPushForName;
 
+  // Avoid re-triggering legacy-syncing (in case this field is missing on the remote
+  // wallet object).
   const shouldPushForMissingLegacyField = !Object.prototype.hasOwnProperty.call(
     walletFromUserStorage,
     'isLegacyAccountSyncingDisabled',
