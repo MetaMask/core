@@ -121,7 +121,7 @@ export class JsonRpcEngineV2<
   }
 
   /**
-   * Handle a JSON-RPC request. A result will be returned.
+   * Handle a JSON-RPC request.
    *
    * @param request - The JSON-RPC request to handle.
    * @param options - The options for the handle operation.
@@ -134,7 +134,7 @@ export class JsonRpcEngineV2<
   ): Promise<Result>;
 
   /**
-   * Handle a JSON-RPC notification. No result will be returned.
+   * Handle a JSON-RPC notification. Notifications do not return a result.
    *
    * @param notification - The JSON-RPC notification to handle.
    * @param options - The options for the handle operation.
@@ -148,12 +148,13 @@ export class JsonRpcEngineV2<
   ): Promise<void>;
 
   /**
-   * Handle a JSON-RPC call (i.e. request or notification).
+   * Handle a JSON-RPC call, i.e. request or notification. Requests return a
+   * result, notifications do not.
    *
    * @param call - The JSON-RPC call to handle.
    * @param options - The options for the handle operation.
    * @param options.context - The context to pass to the middleware.
-   * @returns The JSON-RPC response, or `void` if the call is a notification.
+   * @returns The JSON-RPC response, or `undefined` if the call is a notification.
    */
   async handle(
     call: MixedParam<Request>,
