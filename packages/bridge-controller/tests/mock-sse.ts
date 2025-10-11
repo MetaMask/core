@@ -21,7 +21,19 @@ const mockOnOpen = (onOpen?: (response: Response) => Promise<void>) =>
   }, 1000);
 
 /**
+ * Generates a unique event id for the server event. This matches the id
+ * used by the bridge-api
+ *
+ * @param index - the index of the event
+ * @returns a unique event id
+ */
+const getEventId = (index: number) => {
+  return `${Date.now().toString()}-${index}`;
+};
+
+/**
  * This simulates responses from the fetchEventSource function for unit tests
+ * onopen, onmessage and onerror callbacks are executed based on this sequence: https://github.com/Azure/fetch-event-source/blob/main/src/fetch.ts#L102-L127
  *
  * @param mockQuotes1 - a list of quotes to stream
  * @param mockQuotes2 - a list of quotes to stream
@@ -42,7 +54,7 @@ export const mockSseEventSource = (
           onmessage?.({
             data: JSON.stringify(quote),
             event: 'quote',
-            id: (id + 1).toString(),
+            id: getEventId(id + 1),
           });
         });
         onclose?.();
@@ -55,7 +67,7 @@ export const mockSseEventSource = (
         onmessage?.({
           data: JSON.stringify(mockQuotes2[0]),
           event: 'quote',
-          id: '1',
+          id: getEventId(1),
         });
       }, 9000);
       await Promise.resolve();
@@ -63,7 +75,7 @@ export const mockSseEventSource = (
         onmessage?.({
           data: JSON.stringify(mockQuotes2[1]),
           event: 'quote',
-          id: '2',
+          id: getEventId(2),
         });
         onclose?.();
       }, 9000);
@@ -81,11 +93,14 @@ export const mockSseEventSource = (
           onmessage?.({
             data: JSON.stringify(quote),
             event: 'quote',
-            id: (id + 1).toString(),
+            id: getEventId(id + 1),
           });
+          Promise.resolve().catch(() => {});
+          if (id === mockQuotes1.length - 1) {
+            onclose?.();
+          }
         }, 2000 + id);
       });
-      onclose?.();
     })
     // Returns valid and invalid quotes
     .mockImplementationOnce(async (_, { onopen, onmessage, onclose }) => {
@@ -97,21 +112,21 @@ export const mockSseEventSource = (
             trade: { abc: '123' },
           }),
           event: 'quote',
-          id: '1',
+          id: 'invalidId',
         });
       }, 2000);
       setTimeout(() => {
         onmessage?.({
           data: '',
           event: 'quote',
-          id: '2',
+          id: getEventId(2),
         });
       }, 3000);
       setTimeout(() => {
         onmessage?.({
           data: JSON.stringify(mockQuotes2[0]),
           event: 'quote',
-          id: '/e',
+          id: getEventId(3),
         });
       }, 4000);
       setTimeout(() => {
@@ -119,8 +134,8 @@ export const mockSseEventSource = (
         onmessage?.({
           data: JSON.stringify(rest),
           event: 'quote',
-          id: '4',
+          id: getEventId(4),
         });
+        onclose?.();
       }, 6000);
-      onclose?.();
     });

@@ -160,7 +160,6 @@ Object {
   },
   "quotes": Array [],
   "quotesInitialLoadTime": null,
-  "quotesLastFetched": null,
   "quotesLoadingStatus": 0,
   "quotesRefreshCount": 0,
 }

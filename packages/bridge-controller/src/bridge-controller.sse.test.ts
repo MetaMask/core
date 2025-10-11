@@ -171,14 +171,17 @@ describe('BridgeController SSE', function () {
       BridgeClientId.EXTENSION,
       BRIDGE_PROD_API_BASE_URL,
       {
-        onOpen: expect.any(Function),
         onValidationFailure: expect.any(Function),
         onValidQuoteReceived: expect.any(Function),
+        onClose: expect.any(Function),
       },
       '1.0.0',
     );
+    const { quotesLastFetched: t1, ...stateWithoutTimestamp } =
+      bridgeController.state;
     // eslint-disable-next-line jest/no-restricted-matchers
-    expect(bridgeController.state).toMatchSnapshot();
+    expect(stateWithoutTimestamp).toMatchSnapshot();
+    expect(t1).toBeCloseTo(Date.now() - 1000);
 
     // After first fetch
     jest.advanceTimersByTime(5000);
@@ -193,7 +196,7 @@ describe('BridgeController SSE', function () {
       })),
       quotesRefreshCount: 1,
       quotesLoadingStatus: 1,
-      quotesLastFetched: Date.now(),
+      quotesLastFetched: t1,
     });
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy).toHaveBeenCalledTimes(0);
@@ -222,7 +225,7 @@ describe('BridgeController SSE', function () {
       quotesInitialLoadTime: 5000,
       quoteRequest: { ...quoteRequest, insufficientBal: false },
       quotes: [mockBridgeQuotesNativeErc20Eth[0]],
-      quotesLoadingStatus: 1,
+      quotesLoadingStatus: RequestStatus.LOADING,
       quotesRefreshCount: 2,
       assetExchangeRates,
     };
@@ -232,8 +235,7 @@ describe('BridgeController SSE', function () {
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
     expect(bridgeController.state).toStrictEqual({
       ...expectedState,
-      quotes: [mockBridgeQuotesNativeErc20Eth[0]],
-      quotesLastFetched: Date.now(),
+      quotesLastFetched: expect.any(Number),
     });
     const t2 = bridgeController.state.quotesLastFetched;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -245,6 +247,8 @@ describe('BridgeController SSE', function () {
       ...expectedState,
       quotes: mockBridgeQuotesNativeErc20Eth,
       quotesLastFetched: t2,
+      quotesRefreshCount: 2,
+      quotesLoadingStatus: RequestStatus.FETCHED,
     });
 
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
@@ -262,11 +266,13 @@ describe('BridgeController SSE', function () {
     await flushPromises();
     expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
+    expect(bridgeController.state.quotesInitialLoadTime).toBe(25000);
 
     // 2nd fetch
     await advanceToNthTimerThenFlush();
     await advanceToNthTimerThenFlush(2);
     expect(bridgeController.state.quotesRefreshCount).toBe(2);
+    expect(bridgeController.state.quotesInitialLoadTime).toBe(25000);
     expect(bridgeController.state.quotes).toStrictEqual(
       mockBridgeQuotesNativeErc20Eth,
     );
@@ -309,7 +315,7 @@ describe('BridgeController SSE', function () {
     consoleLogSpy.mockImplementationOnce(jest.fn());
     hasSufficientBalanceSpy.mockRejectedValue(new Error('Balance error'));
     // 1st fetch
-    jest.advanceTimersByTime(20000);
+    jest.advanceTimersByTime(5000);
     await flushPromises();
     expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
@@ -318,6 +324,8 @@ describe('BridgeController SSE', function () {
     await advanceToNthTimerThenFlush();
     expect(bridgeController.state.quotesRefreshCount).toBe(2);
     await advanceToNthTimerThenFlush(2);
+    expect(bridgeController.state.quotesRefreshCount).toBe(2);
+    const t2 = bridgeController.state.quotesLastFetched;
 
     // 3nd fetch throws an error
     await advanceToNthTimerThenFlush();
@@ -325,15 +333,14 @@ describe('BridgeController SSE', function () {
     expect(bridgeController.state.quotesRefreshCount).toBe(3);
     expect(bridgeController.state.quotes).toStrictEqual([]);
     expect(consoleLogSpy).toHaveBeenCalledTimes(1);
-
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(t5).toBeGreaterThan(t2!);
     const expectedState = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
       quoteRequest: {
         ...quoteRequest,
         srcTokenAmount: '10',
-        insufficientBal: true,
       },
-      quotesLoadingStatus: RequestStatus.LOADING,
       assetExchangeRates,
     };
     // Start new quote request
@@ -347,9 +354,20 @@ describe('BridgeController SSE', function () {
       },
     );
     // Right after state update, before fetch has started
-    advanceToNthTimer(2);
     expect(bridgeController.state).toStrictEqual(expectedState);
-
+    advanceToNthTimer();
+    expect(bridgeController.state).toStrictEqual({
+      ...expectedState,
+      quoteRequest: {
+        ...quoteRequest,
+        srcTokenAmount: '10',
+        insufficientBal: true,
+      },
+      quotesLastFetched: Date.now(),
+      quotesLoadingStatus: RequestStatus.LOADING,
+    });
+    const t1 = bridgeController.state.quotesLastFetched;
+    advanceToNthTimer(1);
     // 1st quote is received
     await advanceToNthTimerThenFlush();
     const expectedStateAfterFirstQuote = {
@@ -357,15 +375,20 @@ describe('BridgeController SSE', function () {
       quotesInitialLoadTime: 2000,
       quotes: [{ ...mockBridgeQuotesNativeErc20[0], l1GasFeesInHexWei: '0x1' }],
       quotesRefreshCount: 1,
-      quotesLoadingStatus: RequestStatus.FETCHED,
-      quotesLastFetched: Date.now(),
+      quotesLoadingStatus: RequestStatus.LOADING,
+      quoteRequest: {
+        ...quoteRequest,
+        srcTokenAmount: '10',
+        insufficientBal: true,
+      },
+      quotesLastFetched: t1,
     };
     expect(bridgeController.state.quotes).toHaveLength(1);
     expect(bridgeController.state).toStrictEqual({
       ...expectedStateAfterFirstQuote,
     });
     const t4 = bridgeController.state.quotesLastFetched;
-    expect(t4).toBeGreaterThan(
+    expect(t4).toBe(
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       t5!,
     );
@@ -373,6 +396,7 @@ describe('BridgeController SSE', function () {
     await advanceToNthTimerThenFlush(3);
     expect(bridgeController.state).toStrictEqual({
       ...expectedStateAfterFirstQuote,
+      quotesLoadingStatus: RequestStatus.FETCHED,
       quotes: [
         ...mockBridgeQuotesNativeErc20,
         ...mockBridgeQuotesNativeErc20,
@@ -409,8 +433,8 @@ describe('BridgeController SSE', function () {
 
     // 2nd fetch
     await advanceToNthTimerThenFlush();
-    expect(bridgeController.state.quotesRefreshCount).toBe(2);
     await advanceToNthTimerThenFlush(2);
+    expect(bridgeController.state.quotesRefreshCount).toBe(2);
 
     // 3nd fetch throws an error
     await advanceToNthTimerThenFlush();
@@ -433,10 +457,11 @@ describe('BridgeController SSE', function () {
     // 1st quote is received
     await advanceToNthTimerThenFlush(3);
     const t4 = bridgeController.state.quotesLastFetched;
-    expect(t4).toBeGreaterThan(
+    expect(t4).toBe(
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       t5!,
     );
+    expect(bridgeController.state.quotesRefreshCount).toBe(1);
     // 2nd quote is received
     await advanceToNthTimerThenFlush(3);
     expect(bridgeController.state.quotes).toStrictEqual(
@@ -447,7 +472,8 @@ describe('BridgeController SSE', function () {
         }),
       ),
     );
-    const t8 = bridgeController.state.quotesLastFetched;
+
+    // 2nd fetch after request is updated
     // Iterate through a list of received valid and invalid quotes
     // Invalid quotes received
     advanceToNthTimer(2);
@@ -464,20 +490,21 @@ describe('BridgeController SSE', function () {
       quotes: [mockBridgeQuotesNativeErc20Eth[0]],
       quotesRefreshCount: 2,
       quoteFetchError: null,
-      quotesLoadingStatus: RequestStatus.FETCHED,
+      quotesLoadingStatus: RequestStatus.LOADING,
       assetExchangeRates,
-      quotesLastFetched: Date.now(),
+      quotesLastFetched: expect.any(Number),
     };
+    const t6 = bridgeController.state.quotesLastFetched;
+    expect(t6).toBeCloseTo(Date.now() - 2000);
     // Empty event.data
     await advanceToNthTimerThenFlush();
     // Valid quote
     await advanceToNthTimerThenFlush();
-
     expect(bridgeController.state).toStrictEqual(expectedState);
     const t7 = bridgeController.state.quotesLastFetched;
-    expect(t7).toBeGreaterThan(
+    expect(t7).toBe(
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      t8!,
+      t6!,
     );
     expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
     expect(consoleWarnSpy.mock.calls[0]).toMatchInlineSnapshot(`
@@ -498,7 +525,11 @@ describe('BridgeController SSE', function () {
     `);
     // Invalid quote
     await advanceToNthTimerThenFlush();
-    expect(bridgeController.state).toStrictEqual(expectedState);
+    expect(bridgeController.state).toStrictEqual({
+      ...expectedState,
+      quotesRefreshCount: 2,
+      quotesLoadingStatus: RequestStatus.FETCHED,
+    });
     expect(bridgeController.state.quotesLastFetched).toBe(
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       t7!,
