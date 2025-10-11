@@ -95,6 +95,7 @@ export const mockSseEventSource = (
             event: 'quote',
             id: getEventId(id + 1),
           });
+          // eslint-disable-next-line no-empty-function
           Promise.resolve().catch(() => {});
           if (id === mockQuotes1.length - 1) {
             onclose?.();

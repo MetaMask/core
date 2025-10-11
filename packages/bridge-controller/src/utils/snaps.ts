@@ -1,9 +1,9 @@
 import { SolScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/utils';
-import type { BridgeControllerMessenger } from 'src/types';
 import { v4 as uuid } from 'uuid';
 
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../constants/bridge';
+import type { BridgeControllerMessenger } from '../types';
 
 export const getMinimumBalanceForRentExemptionRequest = (snapId: string) => {
   return {
@@ -43,7 +43,8 @@ export const getMinimumBalanceForRentExemptionInLamports = async (
         'SnapController:handleRequest',
         getMinimumBalanceForRentExemptionRequest(snapId),
       )
-      .catch((error) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .catch((error: any) => {
         console.error(
           'Error setting minimum balance for rent exemption',
           error,
