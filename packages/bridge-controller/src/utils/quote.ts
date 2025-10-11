@@ -6,6 +6,7 @@ import {
 import { BigNumber } from 'bignumber.js';
 
 import { isNativeAddress, isNonEvmChainId } from './bridge';
+import { FeatureId } from './validators';
 import type {
   BridgeAsset,
   ExchangeRate,
@@ -464,4 +465,19 @@ export const formatEtaInMinutes = (
     return `< 1`;
   }
   return (estimatedProcessingTimeInSeconds / 60).toFixed();
+};
+
+export const sortQuotes = (
+  quotes: QuoteResponse[],
+  featureId: FeatureId | null,
+) => {
+  // Sort perps quotes by increasing estimated processing time (fastest first)
+  if (featureId === FeatureId.PERPS) {
+    return quotes.sort((a, b) => {
+      return (
+        a.estimatedProcessingTimeInSeconds - b.estimatedProcessingTimeInSeconds
+      );
+    });
+  }
+  return quotes;
 };

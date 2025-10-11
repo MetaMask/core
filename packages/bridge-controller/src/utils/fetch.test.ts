@@ -87,10 +87,6 @@ describe('fetch', () => {
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getTokens?chainId=10',
         {
-          cacheOptions: {
-            cacheRefreshTime: 600000,
-          },
-          functionName: 'fetchBridgeTokens',
           headers: { 'X-Client-Id': 'extension', 'Client-Version': '1.0.0' },
         },
       );
@@ -183,10 +179,6 @@ describe('fetch', () => {
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&destWalletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasIncluded7702=false&slippage=0.5',
         {
-          cacheOptions: {
-            cacheRefreshTime: 0,
-          },
-          functionName: 'fetchBridgeQuotes',
           headers: { 'X-Client-Id': 'extension', 'Client-Version': '1.0.0' },
           signal,
         },
@@ -245,10 +237,6 @@ describe('fetch', () => {
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&destWalletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasIncluded7702=false&slippage=0.5',
         {
-          cacheOptions: {
-            cacheRefreshTime: 0,
-          },
-          functionName: 'fetchBridgeQuotes',
           headers: { 'X-Client-Id': 'extension', 'Client-Version': '1.0.0' },
           signal,
         },
@@ -325,10 +313,6 @@ describe('fetch', () => {
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&destWalletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasIncluded7702=false&slippage=0.5',
         {
-          cacheOptions: {
-            cacheRefreshTime: 0,
-          },
-          functionName: 'fetchBridgeQuotes',
           headers: { 'X-Client-Id': 'extension', 'Client-Version': '1.0.0' },
           signal,
         },
@@ -400,10 +384,6 @@ describe('fetch', () => {
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&destWalletAddress=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasIncluded7702=false&slippage=0.5&noFee=true&aggIds=socket%2Clifi&bridgeIds=bridge1%2Cbridge2',
         {
-          cacheOptions: {
-            cacheRefreshTime: 0,
-          },
-          functionName: 'fetchBridgeQuotes',
           headers: { 'X-Client-Id': 'extension', 'Client-Version': '1.0.0' },
           signal,
         },
@@ -470,16 +450,12 @@ describe('fetch', () => {
         'https://price.api.cx.metamask.io/v3/spot-prices?assetIds=eip155%3A1%2Ferc20%3A0x123%2Ceip155%3A1%2Ferc20%3A0x456&vsCurrency=USD',
         {
           headers: { 'X-Client-Id': 'test', 'Client-Version': '1.0.0' },
-          cacheOptions: { cacheRefreshTime: 30000 },
-          functionName: 'fetchAssetExchangeRates',
         },
       );
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://price.api.cx.metamask.io/v3/spot-prices?assetIds=eip155%3A1%2Ferc20%3A0x123%2Ceip155%3A1%2Ferc20%3A0x456&vsCurrency=EUR',
         {
           headers: { 'X-Client-Id': 'test', 'Client-Version': '1.0.0' },
-          cacheOptions: { cacheRefreshTime: 30000 },
-          functionName: 'fetchAssetExchangeRates',
         },
       );
     });

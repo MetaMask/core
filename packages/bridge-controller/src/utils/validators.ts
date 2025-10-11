@@ -137,6 +137,7 @@ export const PlatformConfigSchema = type({
    * Key is the CAIP chainId namespace
    */
   bip44DefaultPairs: optional(record(string(), optional(DefaultPairSchema))),
+  sseEnabled: optional(boolean()),
 });
 
 export const validateFeatureFlagsResponse = (

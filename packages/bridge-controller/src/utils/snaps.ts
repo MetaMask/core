@@ -2,6 +2,9 @@ import { SolScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
+import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../constants/bridge';
+import type { BridgeControllerMessenger } from '../types';
+
 export const getMinimumBalanceForRentExemptionRequest = (snapId: string) => {
   return {
     snapId: snapId as never,
@@ -21,6 +24,34 @@ export const getMinimumBalanceForRentExemptionRequest = (snapId: string) => {
       },
     },
   };
+};
+
+/**
+ * Gets the minimum balance for rent exemption in lamports for a given chain ID and selected account
+ *
+ * @param snapId - The snap ID to send the request to
+ * @param messenger - The messaging system to use to call the snap controller
+ * @returns The minimum balance for rent exemption in lamports
+ */
+export const getMinimumBalanceForRentExemptionInLamports = async (
+  snapId: string,
+  messenger: BridgeControllerMessenger,
+) => {
+  return String(
+    await messenger
+      .call(
+        'SnapController:handleRequest',
+        getMinimumBalanceForRentExemptionRequest(snapId),
+      )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .catch((error: any) => {
+        console.error(
+          'Error setting minimum balance for rent exemption',
+          error,
+        );
+        return DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
+      }),
+  );
 };
 
 /**

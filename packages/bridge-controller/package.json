@@ -60,6 +60,7 @@
     "@metamask/multichain-network-controller": "^1.0.1",
     "@metamask/polling-controller": "^14.0.1",
     "@metamask/utils": "^11.8.1",
+    "@microsoft/fetch-event-source": "^2.0.1",
     "bignumber.js": "^9.1.2",
     "reselect": "^5.1.1",
     "uuid": "^8.3.2"
