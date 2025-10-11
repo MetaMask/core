@@ -3,6 +3,7 @@ import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { StateMetadata } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -549,9 +550,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const shouldStream = Boolean(sseEnabled);
 
     this.update((state) => {
-      state.quotesLoadingStatus = RequestStatus.LOADING;
       state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
+      state.quotesLastFetched = Date.now();
+      state.quotesLoadingStatus = RequestStatus.LOADING;
     });
 
     try {
@@ -578,63 +580,36 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             updatedQuoteRequest.srcChainId,
             selectedAccount.metadata?.snap?.id,
           );
+          // Use SSE if enabled and return early
           if (shouldStream) {
-            await fetchBridgeQuoteStream(
-              this.#fetchFn,
+            await this.#handleQuoteStreaming(
               updatedQuoteRequest,
-              this.#abortController?.signal,
-              this.#clientId,
-              this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
-              {
-                onOpen: async () => {
-                  // Clear quotes when first quote in stream is received
-                  this.update((state) => {
-                    state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
-                  });
-                  return Promise.resolve();
-                },
-                onValidationFailure: this.#trackResponseValidationFailures,
-                onValidQuoteReceived: async (quote: QuoteResponse) => {
-                  const quotesWithFees = await appendFeesToQuotes(
-                    [quote],
-                    this.messagingSystem,
-                    this.#getLayer1GasFee,
-                    selectedAccount,
-                  );
-                  this.update((state) => {
-                    if (
-                      !state.quotesInitialLoadTime &&
-                      quotesWithFees.length > 0 &&
-                      this.#quotesFirstFetched
-                    ) {
-                      state.quotesInitialLoadTime =
-                        Date.now() - this.#quotesFirstFetched;
-                    }
-                    state.quotes.push(...quotesWithFees);
-                  });
-                },
-              },
-              this.#clientVersion,
+              selectedAccount,
             );
-          } else {
-            const quotes = await this.fetchQuotes(
-              updatedQuoteRequest,
-              // AbortController is always defined by this line, because we assign it a few lines above,
-              // not sure why Jest thinks it's not
-              // Linters accurately say that it's defined
-              this.#abortController?.signal as AbortSignal,
-            );
-            this.update((state) => {
-              state.quotes = quotes;
-            });
+            return;
           }
-
+          // Otherwise use regular fetch
+          const quotes = await this.fetchQuotes(
+            updatedQuoteRequest,
+            this.#abortController?.signal,
+          );
           this.update((state) => {
+            // Set the initial load time if this is the first fetch
+            if (
+              state.quotesRefreshCount ===
+                DEFAULT_BRIDGE_CONTROLLER_STATE.quotesRefreshCount &&
+              this.#quotesFirstFetched
+            ) {
+              state.quotesInitialLoadTime =
+                Date.now() - this.#quotesFirstFetched;
+            }
+            state.quotes = quotes;
             state.quotesLoadingStatus = RequestStatus.FETCHED;
           });
         },
       );
     } catch (error) {
+      // Reset the quotes list if the fetch fails to avoid showing stale quotes
       this.update((state) => {
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
@@ -652,9 +627,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return;
       }
 
-      // Update error states, track event and log error
+      // Update loading status and error message
       this.update((state) => {
-        state.quotesLoadingStatus = RequestStatus.ERROR;
         // The error object reference is not guaranteed to exist on mobile so reading
         // the message directly could cause an error.
         let errorMessage;
@@ -666,7 +640,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         } finally {
           state.quoteFetchError = errorMessage ?? 'Unknown error';
         }
+        state.quotesLoadingStatus = RequestStatus.ERROR;
       });
+      // Track event and log error
       this.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.QuotesError,
         context,
@@ -677,22 +653,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       );
     }
 
-    // Update quote fetching stats
+    // Update refresh count after fetching, validation and fee calculation have completed
     this.update((state) => {
-      state.quotesLastFetched = Date.now();
       state.quotesRefreshCount += 1;
-      // If SSE is disabled, calculate initial load time after first quote fetch is done
-      // When SSE is enabled, this value is set when the first quote is received
-      if (
-        !shouldStream &&
-        state.quotesRefreshCount === 1 &&
-        this.#quotesFirstFetched
-      ) {
-        state.quotesInitialLoadTime =
-          state.quotesLastFetched - this.#quotesFirstFetched;
-      }
     });
-
     // Stop polling if the maximum number of refreshes has been reached
     if (
       updatedQuoteRequest.insufficientBal ||
@@ -701,6 +665,66 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     ) {
       this.stopAllPolling();
     }
+  };
+
+  readonly #handleQuoteStreaming = async (
+    updatedQuoteRequest: GenericQuoteRequest,
+    selectedAccount: InternalAccount,
+  ) => {
+    /**
+     * Tracks the number of valid quotes received from the current stream, which is used
+     * to determine when to clear the quotes list and set the initial load time
+     */
+    let validQuotesCounter = 0;
+
+    await fetchBridgeQuoteStream(
+      this.#fetchFn,
+      updatedQuoteRequest,
+      this.#abortController?.signal,
+      this.#clientId,
+      this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+      {
+        onValidationFailure: this.#trackResponseValidationFailures,
+        onValidQuoteReceived: async (quote: QuoteResponse) => {
+          const quotesWithFees = await appendFeesToQuotes(
+            [quote],
+            this.messagingSystem,
+            this.#getLayer1GasFee,
+            selectedAccount,
+          );
+          if (quotesWithFees.length > 0) {
+            validQuotesCounter += 1;
+          }
+          this.update((state) => {
+            // Clear previous quotes and quotes load time when first quote in the current
+            // polling loop is received
+            // This enables clients to continue showing the previous quotes while new
+            // quotes are loading
+            // Note: If there are no valid quotes until the 2nd fetch, quotesInitialLoadTime will be > refreshRate
+            if (validQuotesCounter === 1) {
+              state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
+              if (!state.quotesInitialLoadTime && this.#quotesFirstFetched) {
+                // Set the initial load time after the first quote is received
+                state.quotesInitialLoadTime =
+                  Date.now() - this.#quotesFirstFetched;
+              }
+            }
+            state.quotes = [...state.quotes, ...quotesWithFees];
+          });
+        },
+        onClose: () => {
+          this.update((state) => {
+            // If there are no valid quotes in the current stream, clear the quotes list
+            // to remove quotes from the previous stream
+            if (validQuotesCounter === 0) {
+              state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
+            }
+            state.quotesLoadingStatus = RequestStatus.FETCHED;
+          });
+        },
+      },
+      this.#clientVersion,
+    );
   };
 
   readonly #setMinimumBalanceForRentExemptionInLamports = async (

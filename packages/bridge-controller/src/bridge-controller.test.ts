@@ -431,7 +431,9 @@ describe('BridgeController', function () {
       null,
       '1.0.0',
     );
-    expect(bridgeController.state.quotesLastFetched).toBeNull();
+    expect(bridgeController.state.quotesLastFetched).toBeCloseTo(
+      Date.now() - 1000,
+    );
 
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
@@ -708,7 +710,7 @@ describe('BridgeController', function () {
         quoteFetchError: null,
         assetExchangeRates: {},
         quotesRefreshCount: 1,
-        quotesInitialLoadTime: expect.any(Number),
+        quotesInitialLoadTime: 2900,
         quotesLastFetched: expect.any(Number),
       }),
     );
@@ -934,13 +936,17 @@ describe('BridgeController', function () {
       null,
       '1.0.0',
     );
-    expect(bridgeController.state.quotesLastFetched).toBeNull();
+    expect(bridgeController.state.quotesLastFetched).toBeCloseTo(
+      Date.now() - 1000,
+    );
+    const t1 = bridgeController.state.quotesLastFetched;
 
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: true },
         quotes: [],
         quotesLoadingStatus: 0,
+        quotesLastFetched: t1,
       }),
     );
 
@@ -990,6 +996,7 @@ describe('BridgeController', function () {
       }),
     );
     const secondFetchTime = bridgeController.state.quotesLastFetched;
+    expect(secondFetchTime).toStrictEqual(t1);
     expect(secondFetchTime).toStrictEqual(firstFetchTime);
     expect(getLayer1GasFeeMock).not.toHaveBeenCalled();
   });
@@ -1400,7 +1407,9 @@ describe('BridgeController', function () {
         null,
         '1.0.0',
       );
-      expect(bridgeController.state.quotesLastFetched).toBeNull();
+      expect(bridgeController.state.quotesLastFetched).toBeCloseTo(
+        Date.now() - 500,
+      );
 
       expect(bridgeController.state).toStrictEqual(
         expect.objectContaining({
@@ -1532,7 +1541,7 @@ describe('BridgeController', function () {
 
     expect(stateWithoutQuotes).toMatchSnapshot();
     expect(quotes).toStrictEqual(mockBridgeQuotesNativeErc20Eth);
-    expect(quotesLastFetched).toBeCloseTo(Date.now());
+    expect(quotesLastFetched).toBeCloseTo(Date.now() - 10000);
 
     jest.advanceTimersByTime(10000);
     await flushPromises();
@@ -1608,7 +1617,9 @@ describe('BridgeController', function () {
     expect(bridgeController.state.quotesLoadingStatus).toBe(
       RequestStatus.LOADING,
     );
-    expect(bridgeController.state.quotesLastFetched).toBeNull();
+    expect(bridgeController.state.quotesLastFetched).toBeCloseTo(
+      Date.now() - 1000,
+    );
     expect(bridgeController.state.quotesRefreshCount).toBe(0);
     expect(bridgeController.state.quotes).toStrictEqual([]);
   });

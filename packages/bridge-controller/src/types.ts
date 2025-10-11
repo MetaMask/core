@@ -295,10 +295,30 @@ export enum BridgeBackgroundAction {
 export type BridgeControllerState = {
   quoteRequest: Partial<GenericQuoteRequest>;
   quotes: (QuoteResponse & L1GasFees & NonEvmFees)[];
+  /**
+   * The time elapsed between the initial quote fetch and when the first valid quote was received
+   */
   quotesInitialLoadTime: number | null;
+  /**
+   * The timestamp of when the latest quote fetch started
+   */
   quotesLastFetched: number | null;
+  /**
+   * The status of the quote fetch, including fee calculations and validations
+   * This is set to
+   * - LOADING when the quote fetch starts
+   * - FETCHED when the process completes successfully, including when quotes are empty
+   * - ERROR when any errors occur
+   *
+   * When SSE is enabled, this is set to LOADING even when a quote is available. It is only
+   * set to FETCHED when the stream is closed and all quotes have been received
+   */
   quotesLoadingStatus: RequestStatus | null;
   quoteFetchError: string | null;
+  /**
+   * The number of times the quotes have been refreshed, starts at 0 and is
+   * incremented at the end of each quote fetch
+   */
   quotesRefreshCount: number;
   /**
    * Asset exchange rates for EVM and multichain assets that are not indexed by the assets controllers
