@@ -3,7 +3,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionPayPublishHookMessenger } from '..';
 import { TransactionPayStrategy } from '../constants';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
-import { TestStrategy } from '../strategy/TestStrategy';
+import { TestStrategy } from '../strategy/test/TestStrategy';
 import type { PayStrategy } from '../types';
 
 /**

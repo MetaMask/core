@@ -1,16 +1,22 @@
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../logger';
-import type { PayStrategy, QuoteRequest, TransactionPayQuote } from '../types';
+import { projectLogger } from '../../logger';
+import type {
+  PayStrategy,
+  PayStrategyExecuteRequest,
+  PayStrategyGetQuotesRequest,
+  QuoteRequest,
+  TransactionPayQuote,
+} from '../../types';
 
 const log = createModuleLogger(projectLogger, 'test-strategy');
 
 export class TestStrategy implements PayStrategy<void> {
-  async getQuotes({
-    requests,
-  }: {
-    requests: QuoteRequest[];
-  }): Promise<TransactionPayQuote<void>[]> {
+  async getQuotes(
+    request: PayStrategyGetQuotesRequest,
+  ): Promise<TransactionPayQuote<void>[]> {
+    const { requests } = request;
+
     log('Getting quotes', requests);
 
     await this.#timeout(5000);
@@ -30,12 +36,11 @@ export class TestStrategy implements PayStrategy<void> {
     ];
   }
 
-  async execute({
-    quotes,
-  }: {
-    quotes: TransactionPayQuote<void>[];
-  }): Promise<void> {
+  async execute(request: PayStrategyExecuteRequest<void>): Promise<void> {
+    const { quotes } = request;
+
     log('Executing', quotes);
+
     await this.#timeout(5000);
   }
 

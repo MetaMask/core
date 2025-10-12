@@ -7,13 +7,13 @@ import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@meta
 import { TransactionPayPublishHook } from './TransactionPayPublishHook';
 import type { TransactionPayPublishHookMessenger } from './TransactionPayPublishHook';
 import { TransactionPayStrategy } from '../constants';
-import { TestStrategy } from '../strategy/TestStrategy';
+import { TestStrategy } from '../strategy/test/TestStrategy';
 import type {
-  TransactionBridgeQuote,
   TransactionPayControllerGetStateAction,
+  TransactionPayQuote,
 } from '../types';
 
-jest.mock('../strategy/TestStrategy');
+jest.mock('../strategy/test/TestStrategy');
 
 const TRANSACTION_META_MOCK = {
   id: '123-456',
@@ -22,7 +22,7 @@ const TRANSACTION_META_MOCK = {
   },
 } as TransactionMeta;
 
-const QUOTE_MOCK = {} as TransactionBridgeQuote;
+const QUOTE_MOCK = {} as TransactionPayQuote<unknown>;
 
 describe('TransactionPayPublishHook', () => {
   const isSmartTransactionMock = jest.fn();

@@ -8,7 +8,6 @@ import type { TokensControllerGetStateAction } from '@metamask/assets-controller
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
-import type { QuoteResponse } from '@metamask/bridge-controller';
 import type { BridgeControllerActions } from '@metamask/bridge-controller';
 import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
 import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
@@ -91,26 +90,6 @@ export type TransactionData = {
   sourceAmounts?: SourceAmountValues[];
   tokens: TransactionToken[];
   totals?: TransactionPayTotals;
-};
-
-export type BridgeQuoteRequest = {
-  attemptsMax: number;
-  bufferInitial: number;
-  bufferStep: number;
-  bufferSubsequent: number;
-  from: Hex;
-  slippage: number;
-  sourceBalanceRaw: string;
-  sourceChainId: Hex;
-  sourceTokenAddress: Hex;
-  sourceTokenAmount: string;
-  targetAmountMinimum: string;
-  targetChainId: Hex;
-  targetTokenAddress: Hex;
-};
-
-export type TransactionBridgeQuote = QuoteResponse & {
-  request: BridgeQuoteRequest;
 };
 
 export type TransactionTokenRequired = {
