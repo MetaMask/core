@@ -17,10 +17,11 @@ import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/netw
 import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@metamask/transaction-controller';
 import type { TransactionControllerGetStateAction } from '@metamask/transaction-controller';
 import type { TransactionControllerStateChangeEvent } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-export const controllerName = 'TransactionPayController';
+import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
 
 export type AllowedActions =
   | BridgeControllerActions
@@ -40,24 +41,30 @@ export type AllowedEvents =
   | TransactionControllerUnapprovedTransactionAddedEvent;
 
 export type TransactionPayControllerGetStateAction = ControllerGetStateAction<
-  typeof controllerName,
+  typeof CONTROLLER_NAME,
   TransactionPayControllerState
 >;
 
+export type TransactionPayControllerGetStrategyAction = {
+  type: `${typeof CONTROLLER_NAME}:getStrategy`;
+  handler: (transaction: TransactionMeta) => Promise<TransactionPayStrategy>;
+};
+
 export type TransactionPayControllerStateChangeEvent =
   ControllerStateChangeEvent<
-    typeof controllerName,
+    typeof CONTROLLER_NAME,
     TransactionPayControllerState
   >;
 
 export type TransactionPayControllerActions =
-  TransactionPayControllerGetStateAction;
+  | TransactionPayControllerGetStateAction
+  | TransactionPayControllerGetStrategyAction;
 
 export type TransactionPayControllerEvents =
   TransactionPayControllerStateChangeEvent;
 
 export type TransactionPayControllerMessenger = RestrictedMessenger<
-  typeof controllerName,
+  typeof CONTROLLER_NAME,
   TransactionPayControllerActions | AllowedActions,
   TransactionPayControllerEvents | AllowedEvents,
   AllowedActions['type'],
@@ -65,6 +72,9 @@ export type TransactionPayControllerMessenger = RestrictedMessenger<
 >;
 
 export type TransactionPayControllerOptions = {
+  getStrategy?: (
+    transaction: TransactionMeta,
+  ) => Promise<TransactionPayStrategy>;
   messenger: TransactionPayControllerMessenger;
   state?: Partial<TransactionPayControllerState>;
 };

@@ -1,9 +1,11 @@
 import { BaseController } from '@metamask/base-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import type { Draft } from 'immer';
 import { noop } from 'lodash';
 
 import { updatePaymentToken } from './actions/update-payment-token';
+import { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
 import { projectLogger } from './logger';
 import type {
   TransactionData,
@@ -11,7 +13,6 @@ import type {
   TransactionPayControllerOptions,
   TransactionPayControllerState,
 } from './types';
-import { controllerName } from './types';
 import { updateQuotes } from './utils/bridge-quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
@@ -27,17 +28,29 @@ const getDefaultState = () => ({
 const log = projectLogger;
 
 export class TransactionPayController extends BaseController<
-  typeof controllerName,
+  typeof CONTROLLER_NAME,
   TransactionPayControllerState,
   TransactionPayControllerMessenger
 > {
-  constructor({ messenger, state }: TransactionPayControllerOptions) {
+  readonly #getStrategy?: (
+    transaction: TransactionMeta,
+  ) => Promise<TransactionPayStrategy>;
+
+  constructor({
+    getStrategy,
+    messenger,
+    state,
+  }: TransactionPayControllerOptions) {
     super({
-      name: controllerName,
+      name: CONTROLLER_NAME,
       metadata: stateMetadata,
       messenger,
       state: { ...getDefaultState(), ...state },
     });
+
+    this.#getStrategy = getStrategy;
+
+    this.#registerActionHandlers();
 
     pollTransactionChanges(messenger, this.#updateTransactionData.bind(this));
   }
@@ -108,5 +121,12 @@ export class TransactionPayController extends BaseController<
         updateTransactionData: this.#updateTransactionData.bind(this),
       }).catch(noop);
     }
+  }
+
+  #registerActionHandlers() {
+    this.messagingSystem.registerActionHandler(
+      'TransactionPayController:getStrategy',
+      this.#getStrategy ?? (async () => TransactionPayStrategy.Test),
+    );
   }
 }

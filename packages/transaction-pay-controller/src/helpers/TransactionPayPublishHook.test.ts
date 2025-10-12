@@ -6,14 +6,14 @@ import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@meta
 
 import { TransactionPayPublishHook } from './TransactionPayPublishHook';
 import type { TransactionPayPublishHookMessenger } from './TransactionPayPublishHook';
+import { TransactionPayStrategy } from '../constants';
+import { TestStrategy } from '../strategy/TestStrategy';
 import type {
   TransactionBridgeQuote,
   TransactionPayControllerGetStateAction,
 } from '../types';
-import { submitBridgeQuotes } from '../utils/submit';
-import { get } from 'lodash';
 
-jest.mock('../utils/submit');
+jest.mock('../strategy/TestStrategy');
 
 const TRANSACTION_META_MOCK = {
   id: '123-456',
@@ -24,14 +24,10 @@ const TRANSACTION_META_MOCK = {
 
 const QUOTE_MOCK = {} as TransactionBridgeQuote;
 
-/**
- *
- */
-
 describe('TransactionPayPublishHook', () => {
-  const submitBridgeQuotesMock = jest.mocked(submitBridgeQuotes);
   const isSmartTransactionMock = jest.fn();
   const getControllerStateMock = jest.fn();
+  const executeMock = jest.fn();
 
   let messenger: TransactionPayPublishHookMessenger;
   let hook: TransactionPayPublishHook;
@@ -59,11 +55,19 @@ describe('TransactionPayPublishHook', () => {
       messenger,
     });
 
-    submitBridgeQuotesMock.mockResolvedValue(undefined);
-
     messenger.registerActionHandler('TransactionPayController:getState', () =>
       getControllerStateMock(),
     );
+
+    messenger.registerActionHandler(
+      'TransactionPayController:getStrategy',
+      async () => TransactionPayStrategy.Test,
+    );
+
+    jest.mocked(TestStrategy).mockReturnValue({
+      execute: executeMock,
+      getQuotes: jest.fn(),
+    } as unknown as TestStrategy);
 
     isSmartTransactionMock.mockReturnValue(false);
 
@@ -76,41 +80,11 @@ describe('TransactionPayPublishHook', () => {
     });
   });
 
-  it('submits bridge quotes matching transaction ID', async () => {
+  it('executes strategy with quotes', async () => {
     await runHook();
 
-    expect(submitBridgeQuotesMock).toHaveBeenCalledWith({
-      from: TRANSACTION_META_MOCK.txParams.from as string,
-      isSmartTransaction: false,
-      messenger,
+    expect(executeMock).toHaveBeenCalledWith({
       quotes: [QUOTE_MOCK, QUOTE_MOCK],
-      updateTransaction: expect.any(Function),
-    });
-  });
-
-  it('submits if no quotes', async () => {
-    getControllerStateMock.mockReturnValue({
-      transactionData: {
-        [TRANSACTION_META_MOCK.id]: {},
-      },
-    });
-
-    await runHook();
-
-    expect(submitBridgeQuotesMock).toHaveBeenCalled();
-  });
-
-  it('uses callback to determine if smart transaction', async () => {
-    isSmartTransactionMock.mockReturnValue(true);
-
-    await runHook();
-
-    expect(submitBridgeQuotesMock).toHaveBeenCalledWith({
-      from: TRANSACTION_META_MOCK.txParams.from as string,
-      isSmartTransaction: true,
-      messenger,
-      quotes: [QUOTE_MOCK, QUOTE_MOCK],
-      updateTransaction: expect.any(Function),
     });
   });
 
@@ -121,7 +95,7 @@ describe('TransactionPayPublishHook', () => {
   });
 
   it('throws errors from submit', async () => {
-    submitBridgeQuotesMock.mockRejectedValue(new Error('Test error'));
+    executeMock.mockRejectedValue(new Error('Test error'));
 
     await expect(runHook()).rejects.toThrow('Test error');
   });

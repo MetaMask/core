@@ -139,8 +139,17 @@ describe('Submit Utils', () => {
     it('submits matching quotes to bridge status controller', async () => {
       await submitBridgeQuotes(request);
 
-      expect(submitTransactionMock).toHaveBeenCalledWith(QUOTE_MOCK, false);
-      expect(submitTransactionMock).toHaveBeenCalledWith(QUOTE_2_MOCK, false);
+      expect(submitTransactionMock).toHaveBeenCalledWith(
+        FROM_MOCK,
+        expect.objectContaining(QUOTE_MOCK),
+        false,
+      );
+
+      expect(submitTransactionMock).toHaveBeenCalledWith(
+        FROM_MOCK,
+        expect.objectContaining(QUOTE_2_MOCK),
+        false,
+      );
     });
 
     it('indicates if smart transactions is enabled', async () => {
@@ -149,10 +158,13 @@ describe('Submit Utils', () => {
       await submitBridgeQuotes(request);
 
       expect(submitTransactionMock).toHaveBeenCalledWith(
+        FROM_MOCK,
         expect.objectContaining(QUOTE_MOCK),
         true,
       );
+
       expect(submitTransactionMock).toHaveBeenCalledWith(
+        FROM_MOCK,
         expect.objectContaining(QUOTE_2_MOCK),
         true,
       );

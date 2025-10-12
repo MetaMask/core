@@ -10,7 +10,11 @@ import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
 import { TestStrategy } from '../strategy/TestStrategy';
-import type { TransactionPayControllerGetStateAction } from '../types';
+import type {
+  PayStrategy,
+  TransactionPayControllerGetStateAction,
+  TransactionPayControllerGetStrategyAction,
+} from '../types';
 
 const log = createModuleLogger(projectLogger, 'pay-publish-hook');
 
@@ -19,7 +23,9 @@ const EMPTY_RESULT = {
 };
 
 export type TransactionPayPublishHookMessenger = Messenger<
-  BridgeStatusControllerActions | TransactionPayControllerGetStateAction,
+  | BridgeStatusControllerActions
+  | TransactionPayControllerGetStateAction
+  | TransactionPayControllerGetStrategyAction,
   | BridgeStatusControllerStateChangeEvent
   | TransactionControllerUnapprovedTransactionAddedEvent
 >;
@@ -70,8 +76,20 @@ export class TransactionPayPublishHook {
     const quotes =
       (controllerState.transactionData?.[transactionId]?.quotes as never) ?? [];
 
-    await new TestStrategy().execute({ quotes });
+    const strategy = await this.#getStrategy(transactionMeta);
+    await strategy.execute({ quotes });
 
     return EMPTY_RESULT;
+  }
+
+  async #getStrategy(
+    transaction: TransactionMeta,
+  ): Promise<PayStrategy<unknown>> {
+    const _strategyName = await this.#messenger.call(
+      'TransactionPayController:getStrategy',
+      transaction,
+    );
+
+    return new TestStrategy() as PayStrategy<unknown>;
   }
 }

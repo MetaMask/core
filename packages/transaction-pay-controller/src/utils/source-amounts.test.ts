@@ -47,6 +47,7 @@ describe('Source Amounts Utils', () => {
   describe('updateSourceAmounts', () => {
     it('updated source amounts', () => {
       const transactionData: TransactionData = {
+        isLoading: false,
         paymentToken: PAYMENT_TOKEN_MOCK,
         tokens: [TRANSACTION_TOKEN_MOCK],
       };
@@ -57,12 +58,14 @@ describe('Source Amounts Utils', () => {
         {
           sourceAmountHuman: '2',
           sourceAmountRaw: '2000000',
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
         },
       ]);
     });
 
     it('returns empty array if payment token matches', () => {
       const transactionData: TransactionData = {
+        isLoading: false,
         paymentToken: PAYMENT_TOKEN_MOCK,
         tokens: [
           {
@@ -80,6 +83,7 @@ describe('Source Amounts Utils', () => {
 
     it('returns empty array if skipIfBalance and has balance', () => {
       const transactionData: TransactionData = {
+        isLoading: false,
         paymentToken: PAYMENT_TOKEN_MOCK,
         tokens: [
           {
@@ -97,6 +101,7 @@ describe('Source Amounts Utils', () => {
 
     it('returns empty array if no payment token fiat rate', () => {
       const transactionData: TransactionData = {
+        isLoading: false,
         paymentToken: PAYMENT_TOKEN_MOCK,
         tokens: [TRANSACTION_TOKEN_MOCK],
       };
@@ -110,6 +115,7 @@ describe('Source Amounts Utils', () => {
 
     it('does nothing if no payment token', () => {
       const transactionData: TransactionData = {
+        isLoading: false,
         tokens: [TRANSACTION_TOKEN_MOCK],
       };
 
@@ -120,6 +126,7 @@ describe('Source Amounts Utils', () => {
 
     it('does nothing if no tokens', () => {
       const transactionData: TransactionData = {
+        isLoading: false,
         paymentToken: PAYMENT_TOKEN_MOCK,
         tokens: [],
       };
