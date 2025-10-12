@@ -50,14 +50,19 @@ export function calculateTotals(
     (quote) => quote.fees.targetNetwork.usd,
   );
 
+  const amountFiat = sumProperty(tokens, (token) => token.amountFiat);
+  const amountUsd = sumProperty(tokens, (token) => token.amountUsd);
+
   const totalFiat = new BigNumber(providerFeeFiat)
     .plus(sourceNetworkFeeFiat)
     .plus(targetNetworkFeeFiat)
+    .plus(amountFiat)
     .toString(10);
 
   const totalUsd = new BigNumber(providerFeeUsd)
     .plus(sourceNetworkFeeUsd)
     .plus(targetNetworkFeeUsd)
+    .plus(amountUsd)
     .toString(10);
 
   const estimatedDuration = Number(
@@ -88,17 +93,17 @@ export function calculateTotals(
 }
 
 /**
- * Sum a specific property from a list of quotes.
+ * Sum a specific property from a list of items.
  *
- * @param quotes - List of bridge quotes.
- * @param getProperty - Function to extract the property to sum from each quote.
+ * @param data - List of items.
+ * @param getProperty - Function to extract the property to sum from each item.
  * @returns The summed value as a string.
  */
-function sumProperty(
-  quotes: TransactionPayQuote<unknown>[],
-  getProperty: (quote: TransactionPayQuote<unknown>) => BigNumber.Value,
+function sumProperty<T>(
+  data: T[],
+  getProperty: (item: T) => BigNumber.Value,
 ): string {
-  return quotes
+  return data
     .map(getProperty)
     .reduce<BigNumber>((total, value) => total.plus(value), new BigNumber(0))
     .toString(10);
