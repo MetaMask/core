@@ -25,8 +25,6 @@ const getDefaultState = () => ({
   transactionData: {},
 });
 
-const log = projectLogger;
-
 export class TransactionPayController extends BaseController<
   typeof CONTROLLER_NAME,
   TransactionPayControllerState,

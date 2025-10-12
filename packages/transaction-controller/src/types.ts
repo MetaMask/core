@@ -2063,6 +2063,9 @@ export type AddTransactionOptions = {
   /** Whether the transaction requires approval by the user, defaults to true unless explicitly disabled. */
   requireApproval?: boolean | undefined;
 
+  /** Assets required for the transaction to succeed. */
+  requiredAssets?: RequiredAsset[];
+
   /** Response from security validator. */
   securityAlertResponse?: SecurityAlertResponse;
 

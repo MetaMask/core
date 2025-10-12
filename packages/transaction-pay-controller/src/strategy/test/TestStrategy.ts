@@ -5,7 +5,6 @@ import type {
   PayStrategy,
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
-  QuoteRequest,
   TransactionPayQuote,
 } from '../../types';
 

@@ -5,7 +5,6 @@ import { calculateFiat } from './required-fiat';
 import { parseRequiredTokens } from './required-tokens';
 import { projectLogger } from '../logger';
 import type {
-  TransactionData,
   TransactionPayControllerMessenger,
   TransactionToken,
   TransactionTokenFiat,

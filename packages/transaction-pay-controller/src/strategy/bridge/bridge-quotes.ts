@@ -1,6 +1,5 @@
 import type { GenericQuoteRequest } from '@metamask/bridge-controller';
 import type { QuoteResponse } from '@metamask/bridge-controller';
-import { FeeType } from '@metamask/bridge-controller';
 import { toChecksumHexAddress, toHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -18,6 +17,11 @@ import { getTokenFiatRate } from '../../utils/token';
 
 const ERROR_MESSAGE_NO_QUOTES = 'No quotes found';
 const ERROR_MESSAGE_ALL_QUOTES_UNDER_MINIMUM = 'All quotes under minimum';
+const ATTEMPTS_MAX_DEFAULT = 5;
+const BUFFER_INITIAL_DEFAULT = 0.04;
+const BUFFER_STEP_DEFAULT = 0.04;
+const BUFFER_SUBSEQUENT_DEFAULT = 0.05;
+const SLIPPAGE_DEFAULT = 0.005;
 
 const log = createModuleLogger(projectLogger, 'bridge-strategy');
 
@@ -287,16 +291,20 @@ function getFinalRequests(
 /**
  * Get feature flags for bridge quotes.
  *
- * @param _messenger - Controller messenger.
+ * @param messenger - Controller messenger.
  * @returns Feature flags.
  */
-function getFeatureFlags(_messenger: TransactionPayControllerMessenger) {
+function getFeatureFlags(messenger: TransactionPayControllerMessenger) {
+  const featureFlags = messenger.call('RemoteFeatureFlagController:getState')
+    .remoteFeatureFlags.confirmation_pay as Record<string, number> | undefined;
+
   return {
-    attemptsMax: 5,
-    bufferInitial: 0.05,
-    bufferStep: 0.05,
-    bufferSubsequent: 0.05,
-    slippage: 0.005,
+    attemptsMax: featureFlags?.attemptsMax ?? ATTEMPTS_MAX_DEFAULT,
+    bufferInitial: featureFlags?.bufferInitial ?? BUFFER_INITIAL_DEFAULT,
+    bufferStep: featureFlags?.bufferStep ?? BUFFER_STEP_DEFAULT,
+    bufferSubsequent:
+      featureFlags?.bufferSubsequent ?? BUFFER_SUBSEQUENT_DEFAULT,
+    slippage: featureFlags?.slippage ?? SLIPPAGE_DEFAULT,
   };
 }
 
