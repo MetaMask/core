@@ -6,14 +6,13 @@ import { noop } from 'lodash';
 
 import { updatePaymentToken } from './actions/update-payment-token';
 import { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
-import { projectLogger } from './logger';
 import type {
   TransactionData,
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
   TransactionPayControllerState,
 } from './types';
-import { updateQuotes } from './utils/bridge-quotes';
+import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
 

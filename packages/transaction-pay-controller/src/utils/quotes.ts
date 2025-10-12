@@ -33,45 +33,52 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
 
   const transaction = getTransaction(transactionId, messenger);
 
+  log('Updating quotes', { transactionId });
+
   if (!transaction || !transactionData) {
     throw new Error('Transaction not found');
   }
 
   const { paymentToken, sourceAmounts, tokens } = transactionData;
 
-  if (!paymentToken || !sourceAmounts?.length) {
-    throw new Error(
-      'Cannot update quotes without payment token and source amounts',
-    );
+  if (!paymentToken) {
+    return;
   }
 
-  const requests: QuoteRequest[] = sourceAmounts.map((sourceAmount, i) => {
-    const token = tokens[i];
+  const requests: QuoteRequest[] = (sourceAmounts ?? []).map(
+    (sourceAmount, i) => {
+      const token = tokens[i];
 
-    return {
-      from: transaction.txParams.from as Hex,
-      sourceBalanceRaw: paymentToken.balanceRaw,
-      sourceTokenAmount: sourceAmount.sourceAmountRaw,
-      sourceChainId: paymentToken.chainId,
-      sourceTokenAddress: paymentToken.address,
-      targetAmountMinimum: token.amountRaw,
-      targetChainId: token.chainId,
-      targetTokenAddress: token.address,
-    };
-  });
+      return {
+        from: transaction.txParams.from as Hex,
+        sourceBalanceRaw: paymentToken.balanceRaw,
+        sourceTokenAmount: sourceAmount.sourceAmountRaw,
+        sourceChainId: paymentToken.chainId,
+        sourceTokenAddress: paymentToken.address,
+        targetAmountMinimum: token.amountRaw,
+        targetChainId: token.chainId,
+        targetTokenAddress: token.address,
+      };
+    },
+  );
+
+  if (!requests?.length) {
+    log('No quote requests', { transactionId });
+  }
 
   let quotes: TransactionPayQuote<Json>[] | undefined;
 
   const strategy = await getStrategy(messenger as never, transaction);
 
   try {
-    quotes = (await strategy.getQuotes({
-      messenger,
-      requests,
-    })) as TransactionPayQuote<Json>[];
+    quotes = requests?.length
+      ? ((await strategy.getQuotes({
+          messenger,
+          requests,
+        })) as TransactionPayQuote<Json>[])
+      : [];
   } catch (error) {
     log('Error fetching quotes', { error, transactionId });
-    return;
   }
 
   log('Updated', { transactionId, quotes });

@@ -73,10 +73,14 @@ function calculateSourceAmount(
     token.chainId === paymentToken.chainId;
 
   if (token.skipIfBalance && hasBalance) {
+    log('Skipping token as sufficient balance', {
+      tokenAddress: token.address,
+    });
     return undefined;
   }
 
   if (isSameTokenSelected) {
+    log('Skipping token as same as payment token');
     return undefined;
   }
 
@@ -89,6 +93,11 @@ function calculateSourceAmount(
   const sourceAmountRaw = sourceAmountHumanValue
     .shiftedBy(paymentToken.decimals)
     .toFixed(0);
+
+  if (token.amountRaw === '0') {
+    log('Skipping token as zero amount', { tokenAddress: token.address });
+    return undefined;
+  }
 
   return {
     sourceAmountHuman,

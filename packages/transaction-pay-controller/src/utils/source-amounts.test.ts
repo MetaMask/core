@@ -113,6 +113,23 @@ describe('Source Amounts Utils', () => {
       expect(transactionData.sourceAmounts).toStrictEqual([]);
     });
 
+    it('returns empty array if zero amount', () => {
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            amountRaw: '0',
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, {} as never);
+
+      expect(transactionData.sourceAmounts).toStrictEqual([]);
+    });
+
     it('does nothing if no payment token', () => {
       const transactionData: TransactionData = {
         isLoading: false,
