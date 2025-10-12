@@ -9,12 +9,11 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
-import { TestStrategy } from '../strategy/TestStrategy';
 import type {
-  PayStrategy,
   TransactionPayControllerGetStateAction,
   TransactionPayControllerGetStrategyAction,
 } from '../types';
+import { getStrategy } from '../utils/strategy';
 
 const log = createModuleLogger(projectLogger, 'pay-publish-hook');
 
@@ -31,7 +30,6 @@ export type TransactionPayPublishHookMessenger = Messenger<
 >;
 
 export class TransactionPayPublishHook {
-  // eslint-disable-next-line no-unused-private-class-members
   readonly #isSmartTransaction: (chainId: Hex) => boolean;
 
   readonly #messenger: TransactionPayPublishHookMessenger;
@@ -76,20 +74,15 @@ export class TransactionPayPublishHook {
     const quotes =
       (controllerState.transactionData?.[transactionId]?.quotes as never) ?? [];
 
-    const strategy = await this.#getStrategy(transactionMeta);
-    await strategy.execute({ quotes });
+    const strategy = await getStrategy(this.#messenger, transactionMeta);
+
+    await strategy.execute({
+      isSmartTransaction: this.#isSmartTransaction,
+      quotes,
+      messenger: this.#messenger,
+      transaction: transactionMeta,
+    });
 
     return EMPTY_RESULT;
-  }
-
-  async #getStrategy(
-    transaction: TransactionMeta,
-  ): Promise<PayStrategy<unknown>> {
-    const _strategyName = await this.#messenger.call(
-      'TransactionPayController:getStrategy',
-      transaction,
-    );
-
-    return new TestStrategy() as PayStrategy<unknown>;
   }
 }

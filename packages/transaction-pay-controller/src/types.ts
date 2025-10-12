@@ -21,6 +21,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
+import type { TransactionPayPublishHookMessenger } from '.';
 import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
 
 export type AllowedActions =
@@ -186,18 +187,24 @@ export type TransactionPayQuote<OriginalQuote> = {
   request: QuoteRequest;
 };
 
-export type PayStrategy<OriginalQuote> = {
-  getQuotes: ({
-    requests,
-  }: {
-    requests: QuoteRequest[];
-  }) => Promise<TransactionPayQuote<OriginalQuote>[]>;
+export type PayStrategyGetQuotesRequest = {
+  messenger: TransactionPayControllerMessenger;
+  requests: QuoteRequest[];
+};
 
-  execute: ({
-    quotes,
-  }: {
-    quotes: TransactionPayQuote<OriginalQuote>[];
-  }) => Promise<void>;
+export type PayStrategyExecuteRequest<OriginalRequest> = {
+  isSmartTransaction: (chainId: Hex) => boolean;
+  messenger: TransactionPayPublishHookMessenger;
+  quotes: TransactionPayQuote<OriginalRequest>[];
+  transaction: TransactionMeta;
+};
+
+export type PayStrategy<OriginalQuote> = {
+  getQuotes: (
+    request: PayStrategyGetQuotesRequest,
+  ) => Promise<TransactionPayQuote<OriginalQuote>[]>;
+
+  execute: (request: PayStrategyExecuteRequest<OriginalQuote>) => Promise<void>;
 };
 
 export type FiatValue = {

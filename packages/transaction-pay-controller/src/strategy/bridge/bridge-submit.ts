@@ -1,32 +1,24 @@
-import type { Messenger } from '@metamask/base-controller';
 import { StatusTypes } from '@metamask/bridge-controller';
 import type { QuoteMetadata } from '@metamask/bridge-controller';
+import type { QuoteResponse } from '@metamask/bridge-controller';
 import type { BridgeHistoryItem } from '@metamask/bridge-status-controller';
-import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
-import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
 import { toHex } from '@metamask/controller-utils';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { projectLogger } from '../logger';
-import type { TransactionBridgeQuote } from '../types';
+import type { TransactionPayPublishHookMessenger } from '../..';
+import { projectLogger } from '../../logger';
+import type { TransactionPayQuote } from '../../types';
 
-const log = createModuleLogger(projectLogger, 'submit');
-
-export type SubmitMessenger = Messenger<
-  BridgeStatusControllerActions,
-  | BridgeStatusControllerStateChangeEvent
-  | TransactionControllerUnapprovedTransactionAddedEvent
->;
+const log = createModuleLogger(projectLogger, 'bridge-strategy');
 
 export type SubmitBridgeQuotesRequest = {
   from: Hex;
-  isSmartTransaction: boolean;
-  messenger: SubmitMessenger;
-  quotes: TransactionBridgeQuote[];
+  isSmartTransaction: (chainId: Hex) => boolean;
+  messenger: TransactionPayPublishHookMessenger;
+  quotes: TransactionPayQuote<QuoteResponse>[];
   updateTransaction: (fn: (transactionMeta: TransactionMeta) => void) => void;
 };
 
@@ -48,10 +40,14 @@ export async function submitBridgeQuotes(
 
   // Currently we only support a single source meaning we only check the first quote.
   const isSameChain =
-    quotes[0].quote.srcChainId === quotes[0].quote.destChainId;
+    quotes[0].original.quote.srcChainId ===
+    quotes[0].original.quote.destChainId;
 
   if (isSameChain) {
-    log('Ignoring quotes as source is same chain', quotes[0].quote.srcChainId);
+    log(
+      'Ignoring quotes as source is same chain',
+      quotes[0].original.quote.srcChainId,
+    );
     return;
   }
 
@@ -60,9 +56,7 @@ export async function submitBridgeQuotes(
   for (const quote of quotes) {
     log('Submitting bridge', index, quote);
 
-    const finalQuote = quote;
-
-    await submitBridgeTransaction(request, finalQuote);
+    await submitBridgeTransaction(request, quote.original);
 
     index += 1;
   }
@@ -76,11 +70,12 @@ export async function submitBridgeQuotes(
  */
 async function submitBridgeTransaction(
   request: SubmitBridgeQuotesRequest,
-  originalQuote: TransactionBridgeQuote,
+  originalQuote: QuoteResponse,
 ): Promise<void> {
   const { isSmartTransaction, messenger, from, updateTransaction } = request;
   const quote = cloneDeep(originalQuote);
   const sourceChainId = toHex(quote.quote.srcChainId);
+  const isSTX = isSmartTransaction(sourceChainId);
 
   const bridgeTransactionIdCollector = collectTransactionIds(
     sourceChainId,
@@ -122,7 +117,7 @@ async function submitBridgeTransaction(
     'BridgeStatusController:submitTx',
     from,
     { ...quote, ...metadata },
-    isSmartTransaction,
+    isSTX,
   );
 
   bridgeTransactionIdCollector.end();
@@ -144,7 +139,7 @@ async function submitBridgeTransaction(
  */
 async function waitForBridgeCompletion(
   bridgeTransactionId: string,
-  messenger: SubmitMessenger,
+  messenger: TransactionPayPublishHookMessenger,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const handler = (bridgeHistory: BridgeHistoryItem) => {
@@ -186,7 +181,7 @@ async function waitForBridgeCompletion(
 function collectTransactionIds(
   chainId: Hex,
   from: Hex,
-  messenger: SubmitMessenger,
+  messenger: TransactionPayPublishHookMessenger,
   onTransaction: (transactionId: string) => void,
 ): { end: () => void } {
   const listener = (tx: TransactionMeta) => {

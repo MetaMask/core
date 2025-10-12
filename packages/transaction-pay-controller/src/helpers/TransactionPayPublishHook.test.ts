@@ -83,9 +83,11 @@ describe('TransactionPayPublishHook', () => {
   it('executes strategy with quotes', async () => {
     await runHook();
 
-    expect(executeMock).toHaveBeenCalledWith({
-      quotes: [QUOTE_MOCK, QUOTE_MOCK],
-    });
+    expect(executeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        quotes: [QUOTE_MOCK, QUOTE_MOCK],
+      }),
+    );
   });
 
   it('returns empty result', async () => {

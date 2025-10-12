@@ -1,5 +1,6 @@
 import { Messenger } from '@metamask/base-controller';
 import { StatusTypes } from '@metamask/bridge-controller';
+import type { QuoteResponse } from '@metamask/bridge-controller';
 import type { BridgeStatusController } from '@metamask/bridge-status-controller';
 import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
 import type { BridgeStatusControllerEvents } from '@metamask/bridge-status-controller';
@@ -10,9 +11,9 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@metamask/transaction-controller';
 import { cloneDeep, noop } from 'lodash';
 
-import type { SubmitBridgeQuotesRequest } from './submit';
-import { submitBridgeQuotes } from './submit';
-import type { TransactionBridgeQuote } from '../types';
+import type { SubmitBridgeQuotesRequest } from './bridge-submit';
+import { submitBridgeQuotes } from './bridge-submit';
+import type { TransactionPayQuote } from '../../types';
 
 const FROM_MOCK = '0x123';
 const CHAIN_ID_MOCK = toHex(123);
@@ -20,16 +21,21 @@ const BRIDGE_TRANSACTION_ID_MOCK = '456-789';
 const BRIDGE_TRANSACTION_ID_2_MOCK = '789-012';
 
 const QUOTE_MOCK = {
-  quote: {
-    srcChainId: 123,
+  original: {
+    quote: {
+      srcChainId: 123,
+    },
+    trade: { gasLimit: 2000 },
   },
-  trade: { gasLimit: 2000 },
-} as TransactionBridgeQuote;
+} as TransactionPayQuote<QuoteResponse>;
 
 const QUOTE_2_MOCK = {
   ...QUOTE_MOCK,
-  approval: { gasLimit: 3000 },
-} as TransactionBridgeQuote;
+  original: {
+    ...QUOTE_MOCK.original,
+    approval: { gasLimit: 3000 },
+  },
+} as TransactionPayQuote<QuoteResponse>;
 
 const BRIDGE_TRANSACTION_META_MOCK = {
   id: BRIDGE_TRANSACTION_ID_MOCK,
@@ -39,7 +45,7 @@ const BRIDGE_TRANSACTION_META_2_MOCK = {
   id: BRIDGE_TRANSACTION_ID_2_MOCK,
 } as TransactionMeta;
 
-describe('Submit Utils', () => {
+describe('Bridge Submit Utils', () => {
   let messengerMock: Messenger<
     BridgeStatusControllerActions,
     | BridgeStatusControllerEvents
@@ -128,7 +134,7 @@ describe('Submit Utils', () => {
 
     request = {
       from: FROM_MOCK,
-      isSmartTransaction: false,
+      isSmartTransaction: () => false,
       messenger: messengerMock,
       quotes: cloneDeep([QUOTE_MOCK, QUOTE_2_MOCK]),
       updateTransaction: noop,
@@ -141,31 +147,31 @@ describe('Submit Utils', () => {
 
       expect(submitTransactionMock).toHaveBeenCalledWith(
         FROM_MOCK,
-        expect.objectContaining(QUOTE_MOCK),
+        expect.objectContaining(QUOTE_MOCK.original),
         false,
       );
 
       expect(submitTransactionMock).toHaveBeenCalledWith(
         FROM_MOCK,
-        expect.objectContaining(QUOTE_2_MOCK),
+        expect.objectContaining(QUOTE_2_MOCK.original),
         false,
       );
     });
 
     it('indicates if smart transactions is enabled', async () => {
-      request.isSmartTransaction = true;
+      request.isSmartTransaction = () => true;
 
       await submitBridgeQuotes(request);
 
       expect(submitTransactionMock).toHaveBeenCalledWith(
         FROM_MOCK,
-        expect.objectContaining(QUOTE_MOCK),
+        expect.objectContaining(QUOTE_MOCK.original),
         true,
       );
 
       expect(submitTransactionMock).toHaveBeenCalledWith(
         FROM_MOCK,
-        expect.objectContaining(QUOTE_2_MOCK),
+        expect.objectContaining(QUOTE_2_MOCK.original),
         true,
       );
     });
@@ -179,7 +185,8 @@ describe('Submit Utils', () => {
     });
 
     it('does nothing if first quote has same source and target chain', async () => {
-      request.quotes[0].quote.destChainId = QUOTE_MOCK.quote.srcChainId;
+      request.quotes[0].original.quote.destChainId =
+        QUOTE_MOCK.original.quote.srcChainId;
 
       await submitBridgeQuotes(request);
 
@@ -220,7 +227,7 @@ describe('Submit Utils', () => {
     it('does not update required transaction IDs if chain ID does not match', async () => {
       const updateTransactionMock = jest.fn();
       request.updateTransaction = updateTransactionMock;
-      request.quotes[0].quote.srcChainId = 321;
+      request.quotes[0].original.quote.srcChainId = 321;
 
       await submitBridgeQuotes(request);
 
