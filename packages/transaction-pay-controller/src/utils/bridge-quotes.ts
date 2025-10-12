@@ -1,22 +1,25 @@
-import { FeatureId } from '@metamask/bridge-controller';
 import type { GenericQuoteRequest } from '@metamask/bridge-controller';
 import type { QuoteResponse } from '@metamask/bridge-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { orderBy } from 'lodash';
 
+import { calculateTotals } from './totals';
 import { getTransaction } from './transaction';
 import { projectLogger } from '../logger';
+import { TestStrategy } from '../strategy/TestStrategy';
 import type {
   BridgeQuoteRequest,
+  PayStrategy,
+  QuoteRequest,
   TransactionBridgeQuote,
   TransactionData,
   TransactionPayControllerMessenger,
+  TransactionPayQuote,
   UpdateTransactionDataCallback,
 } from '../types';
-import { calculateTotals } from './totals';
 
 const ERROR_MESSAGE_NO_QUOTES = 'No quotes found';
 const ERROR_MESSAGE_ALL_QUOTES_UNDER_MINIMUM = 'All quotes under minimum';
@@ -53,32 +56,27 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
     );
   }
 
-  const bridgeRequests: BridgeQuoteRequest[] = sourceAmounts.map(
-    (sourceAmount, i) => {
-      const token = tokens[i];
+  const requests: QuoteRequest[] = sourceAmounts.map((sourceAmount, i) => {
+    const token = tokens[i];
 
-      return {
-        attemptsMax: 5,
-        bufferStep: 0.04,
-        bufferInitial: 0.04,
-        bufferSubsequent: 0.05,
-        from: transaction.txParams.from as Hex,
-        slippage: 0.005,
-        sourceBalanceRaw: paymentToken.balanceRaw,
-        sourceTokenAmount: sourceAmount.sourceAmountRaw,
-        sourceChainId: paymentToken.chainId,
-        sourceTokenAddress: paymentToken.address,
-        targetAmountMinimum: token.amountRaw,
-        targetChainId: token.chainId,
-        targetTokenAddress: token.address,
-      };
-    },
-  );
+    return {
+      from: transaction.txParams.from as Hex,
+      sourceBalanceRaw: paymentToken.balanceRaw,
+      sourceTokenAmount: sourceAmount.sourceAmountRaw,
+      sourceChainId: paymentToken.chainId,
+      sourceTokenAddress: paymentToken.address,
+      targetAmountMinimum: token.amountRaw,
+      targetChainId: token.chainId,
+      targetTokenAddress: token.address,
+    };
+  });
 
-  let quotes: TransactionBridgeQuote[] | undefined;
+  let quotes: TransactionPayQuote<Json>[] | undefined;
+
+  const strategy = new TestStrategy() as unknown as PayStrategy<Json>;
 
   try {
-    quotes = await getBridgeQuotes(bridgeRequests, messenger);
+    quotes = await strategy.getQuotes({ requests });
   } catch (error) {
     log('Error fetching quotes', { error, transactionId });
     return;
@@ -87,8 +85,9 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
   log('Updated', { transactionId, quotes });
 
   updateTransactionData(transactionId, (data) => {
-    data.quotes = quotes;
-    data.totals = calculateTotals(quotes ?? [], data.tokens, messenger);
+    data.quotes = quotes as never;
+    data.totals = calculateTotals(quotes as never, tokens, messenger);
+    data.isLoading = false;
   });
 }
 

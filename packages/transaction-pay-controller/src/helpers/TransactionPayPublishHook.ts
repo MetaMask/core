@@ -7,12 +7,10 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { PublishHookResult } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
-import { noop } from 'lodash';
 
 import { projectLogger } from '../logger';
+import { TestStrategy } from '../strategy/TestStrategy';
 import type { TransactionPayControllerGetStateAction } from '../types';
-import type { SubmitMessenger } from '../utils/submit';
-import { submitBridgeQuotes } from '../utils/submit';
 
 const log = createModuleLogger(projectLogger, 'pay-publish-hook');
 
@@ -27,6 +25,7 @@ export type TransactionPayPublishHookMessenger = Messenger<
 >;
 
 export class TransactionPayPublishHook {
+  // eslint-disable-next-line no-unused-private-class-members
   readonly #isSmartTransaction: (chainId: Hex) => boolean;
 
   readonly #messenger: TransactionPayPublishHookMessenger;
@@ -62,25 +61,16 @@ export class TransactionPayPublishHook {
     transactionMeta: TransactionMeta,
     _signedTx: string,
   ): Promise<PublishHookResult> {
-    const { id: transactionId, chainId } = transactionMeta;
-    const from = transactionMeta.txParams.from as Hex;
+    const { id: transactionId } = transactionMeta;
 
     const controllerState = this.#messenger.call(
       'TransactionPayController:getState',
     );
 
     const quotes =
-      controllerState.transactionData?.[transactionId]?.quotes ?? [];
+      (controllerState.transactionData?.[transactionId]?.quotes as never) ?? [];
 
-    const isSmartTransaction = this.#isSmartTransaction(chainId);
-
-    await submitBridgeQuotes({
-      from,
-      isSmartTransaction,
-      messenger: this.#messenger as SubmitMessenger,
-      quotes,
-      updateTransaction: noop,
-    });
+    await new TestStrategy().execute({ quotes });
 
     return EMPTY_RESULT;
   }

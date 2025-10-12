@@ -17,9 +17,8 @@ import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/netw
 import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@metamask/transaction-controller';
 import type { TransactionControllerGetStateAction } from '@metamask/transaction-controller';
 import type { TransactionControllerStateChangeEvent } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
-
-import type { TransactionTotals } from './utils/totals';
+import type { Hex, Json } from '@metamask/utils';
+import type { Draft } from 'immer';
 
 export const controllerName = 'TransactionPayController';
 
@@ -75,11 +74,12 @@ export type TransactionPayControllerState = {
 };
 
 export type TransactionData = {
+  isLoading: boolean;
   paymentToken?: TransactionPaymentToken;
-  quotes?: TransactionBridgeQuote[];
+  quotes?: TransactionPayQuote<Json>[];
   sourceAmounts?: SourceAmountValues[];
   tokens: TransactionToken[];
-  totals?: TransactionTotals;
+  totals?: TransactionPayTotals;
 };
 
 export type BridgeQuoteRequest = {
@@ -125,6 +125,7 @@ export type TransactionTokenFiat = {
 export type SourceAmountValues = {
   sourceAmountHuman: string;
   sourceAmountRaw: string;
+  targetTokenAddress: Hex;
 };
 
 export type TransactionToken = TransactionTokenRequired & TransactionTokenFiat;
@@ -142,10 +143,60 @@ export type TransactionPaymentToken = {
 
 export type UpdateTransactionDataCallback = (
   transactionId: string,
-  fn: (data: TransactionData) => void,
+  fn: (data: Draft<TransactionData>) => void,
 ) => void;
 
 export type FiatRates = {
   fiatRate: string;
   usdRate: string;
+};
+
+export type QuoteRequest = {
+  from: Hex;
+  sourceBalanceRaw: string;
+  sourceChainId: Hex;
+  sourceTokenAddress: Hex;
+  sourceTokenAmount: string;
+  targetAmountMinimum: string;
+  targetChainId: Hex;
+  targetTokenAddress: Hex;
+};
+
+export type TransactionPayFees = {
+  provider: FiatValue;
+  sourceNetwork: FiatValue;
+  targetNetwork: FiatValue;
+};
+
+export type TransactionPayQuote<OriginalQuote> = {
+  dust: FiatValue;
+  estimatedDuration: number;
+  fees: TransactionPayFees;
+  original: OriginalQuote;
+  request: QuoteRequest;
+};
+
+export type PayStrategy<OriginalQuote> = {
+  getQuotes: ({
+    requests,
+  }: {
+    requests: QuoteRequest[];
+  }) => Promise<TransactionPayQuote<OriginalQuote>[]>;
+
+  execute: ({
+    quotes,
+  }: {
+    quotes: TransactionPayQuote<OriginalQuote>[];
+  }) => Promise<void>;
+};
+
+export type FiatValue = {
+  fiat: string;
+  usd: string;
+};
+
+export type TransactionPayTotals = {
+  estimatedDuration: number;
+  fees: TransactionPayFees;
+  total: FiatValue;
 };

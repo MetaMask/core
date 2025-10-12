@@ -9,6 +9,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionToken,
   TransactionTokenFiat,
+  UpdateTransactionDataCallback,
 } from '../types';
 
 const log = createModuleLogger(projectLogger, 'transaction');
@@ -41,10 +42,7 @@ export function getTransaction(
  */
 export function pollTransactionChanges(
   messenger: TransactionPayControllerMessenger,
-  updateTransactionData: (
-    transactionId: string,
-    fn: (transactionData: TransactionData) => void,
-  ) => void,
+  updateTransactionData: UpdateTransactionDataCallback,
 ) {
   messenger.subscribe(
     'TransactionController:stateChange',
@@ -85,10 +83,7 @@ export function pollTransactionChanges(
 function onTransactionChange(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-  updateTransactionData: (
-    transactionId: string,
-    fn: (transactionData: TransactionData) => void,
-  ) => void,
+  updateTransactionData: UpdateTransactionDataCallback,
 ) {
   const tokens = getTokens(transaction, messenger);
 

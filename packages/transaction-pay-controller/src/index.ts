@@ -4,6 +4,7 @@ export type {
   TransactionPayControllerState,
   TransactionPayControllerStateChangeEvent,
   TransactionPaymentToken,
+  TransactionPayTotals,
   TransactionToken,
 } from './types';
 export { TransactionPayController } from './TransactionPayController';

@@ -1,5 +1,6 @@
 import { BaseController } from '@metamask/base-controller';
 import type { Hex } from '@metamask/utils';
+import type { Draft } from 'immer';
 import { noop } from 'lodash';
 
 import { updatePaymentToken } from './actions/update-payment-token';
@@ -9,7 +10,6 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
   TransactionPayControllerState,
-  TransactionPaymentToken,
 } from './types';
 import { controllerName } from './types';
 import { updateQuotes } from './utils/bridge-quotes';
@@ -62,7 +62,7 @@ export class TransactionPayController extends BaseController<
 
   #updateTransactionData(
     transactionId: string,
-    fn: (transactionData: TransactionData) => void,
+    fn: (transactionData: Draft<TransactionData>) => void,
   ) {
     let shouldUpdateQuotes = false;
 
@@ -74,8 +74,9 @@ export class TransactionPayController extends BaseController<
 
       if (!current) {
         transactionData[transactionId] = {
+          isLoading: false,
           tokens: [],
-        } as TransactionData;
+        };
 
         current = transactionData[transactionId];
       }
@@ -88,8 +89,14 @@ export class TransactionPayController extends BaseController<
       const isTokensUpdated = current.tokens !== originalTokens;
 
       if (isPaymentTokenUpdated || isTokensUpdated) {
-        updateSourceAmounts(transactionId, current, this.messagingSystem);
+        updateSourceAmounts(
+          transactionId,
+          current as never,
+          this.messagingSystem,
+        );
+
         shouldUpdateQuotes = true;
+        current.isLoading = true;
       }
     });
 

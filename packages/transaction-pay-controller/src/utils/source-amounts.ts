@@ -55,7 +55,7 @@ function calculateSourceAmount(
   paymentToken: TransactionPaymentToken,
   token: TransactionToken,
   messenger: TransactionPayControllerMessenger,
-) {
+): SourceAmountValues | undefined {
   const paymentTokenFiatRate = getTokenFiatRate(
     messenger,
     paymentToken.address,
@@ -93,5 +93,6 @@ function calculateSourceAmount(
   return {
     sourceAmountHuman,
     sourceAmountRaw,
+    targetTokenAddress: token.address,
   };
 }
