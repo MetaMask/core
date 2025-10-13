@@ -72,6 +72,12 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
     return this.accounts;
   }
 
+  removeAccountsFromList(accounts: Bip44Account<KeyringAccount>['id'][]): void {
+    this.accounts = this.accounts.filter(
+      (account) => !accounts.includes(account),
+    );
+  }
+
   /**
    * Get the accounts list for the provider from the AccountsController.
    *

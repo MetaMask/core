@@ -3,7 +3,7 @@
 import type { Bip44Account } from '@metamask/account-api';
 import type { KeyringAccount } from '@metamask/keyring-api';
 
-import { EvmAccountProvider } from '../providers';
+import { AccountProviderWrapper, EvmAccountProvider } from '../providers';
 
 export type MockAccountProvider = {
   accounts: KeyringAccount[];
@@ -82,6 +82,10 @@ export function setupNamedAccountProvider({
     // Make the first provider to always be an `EvmAccountProvider`, since we
     // check for this pre-condition in some methods.
     Object.setPrototypeOf(mocks, EvmAccountProvider.prototype);
+  }
+
+  if (index !== 0) {
+    Object.setPrototypeOf(mocks, AccountProviderWrapper.prototype);
   }
 
   return mocks;

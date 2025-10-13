@@ -84,6 +84,7 @@ function mockAccountProvider<Provider extends NamedAccountProvider>(
   providerClass: new (messenger: MultichainAccountServiceMessenger) => Provider,
   mocks: MockAccountProvider,
   accounts: KeyringAccount[],
+  idx: number,
 ) {
   jest.mocked(providerClass).mockImplementation((...args) => {
     mocks.constructor(...args);
@@ -93,6 +94,7 @@ function mockAccountProvider<Provider extends NamedAccountProvider>(
   setupNamedAccountProvider({
     mocks,
     accounts,
+    index: idx,
   });
 
   // Provide stable provider name and compatibility logic for grouping
@@ -200,11 +202,13 @@ function setup({
       EvmAccountProvider,
       mocks.EvmAccountProvider,
       accounts,
+      0,
     );
     mockAccountProvider<SolAccountProvider>(
       SolAccountProvider,
       mocks.SolAccountProvider,
       accounts,
+      1,
     );
   }
 

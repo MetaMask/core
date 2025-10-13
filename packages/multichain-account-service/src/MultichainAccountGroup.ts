@@ -16,7 +16,7 @@ import {
 } from './logger';
 import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { AccountProviderWrapper, BaseBip44AccountProvider } from './providers';
+import { AccountProviderWrapper, BaseBip44AccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
 
 export type GroupState =
@@ -232,6 +232,7 @@ export class MultichainAccountGroup<
       this.#accountToProvider.delete(account);
     });
     this.#providerToAccounts.delete(provider);
+    provider.removeAccountsFromList(accounts);
   }
 
   /**
@@ -245,7 +246,8 @@ export class MultichainAccountGroup<
     const results = await Promise.allSettled(
       this.#providers.map(async (provider) => {
         const accounts = this.#providerToAccounts.get(provider);
-        const isDisabled = (provider as AccountProviderWrapper).isDisabled();
+        const isDisabled =
+          provider instanceof AccountProviderWrapper && provider.isDisabled();
         if ((!accounts || accounts.length === 0) && !isDisabled) {
           this.#log(
             `Found missing accounts for account provider "${provider.getName()}", creating them now...`,
@@ -261,7 +263,6 @@ export class MultichainAccountGroup<
           this.#log(
             `Account provider "${provider.getName()}" is disabled, skipping alignment...`,
           );
-          // TS thinks the accounts array is undefined, but we know it's not
           this.#cleanDisabledProvidersState(accounts ?? [], provider);
         }
         return Promise.reject(new Error('Already aligned'));
