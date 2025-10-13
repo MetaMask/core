@@ -12,13 +12,13 @@ import type {
  *
  * @param quotes - List of bridge quotes.
  * @param tokens - List of required transaction tokens.
- * @param messenger - Controller messenger.
+ * @param _messenger - Controller messenger.
  * @returns The calculated totals in USD and fiat currency.
  */
 export function calculateTotals(
   quotes: TransactionPayQuote<unknown>[],
   tokens: TransactionToken[],
-  messenger: TransactionPayControllerMessenger,
+  _messenger: TransactionPayControllerMessenger,
 ): TransactionPayTotals {
   const providerFeeFiat = sumProperty(
     quotes,

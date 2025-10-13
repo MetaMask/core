@@ -117,7 +117,6 @@ import type {
   TransactionContainerType,
   GetSimulationConfig,
   AddTransactionOptions,
-  RequiredAsset,
 } from './types';
 import {
   GasFeeEstimateLevel,
