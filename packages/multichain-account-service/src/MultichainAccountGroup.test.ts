@@ -283,5 +283,35 @@ describe('MultichainAccount', () => {
         `Failed to fully align multichain account group for entropy ID: ${wallet.entropySource} and group index: ${groupIndex}, some accounts might be missing. Providers threw the following errors:\n- Provider 2: Unable to create accounts\n- Provider 3: Unable to create accounts`,
       );
     });
+
+    it('does not create accounts when a provider is disabled', async () => {
+      const groupIndex = 0;
+      const { group, providers } = setup({
+        groupIndex,
+        accounts: [[], []],
+      });
+
+      providers[1].setEnabled(false);
+      await group.alignAccounts();
+
+      expect(providers[0].createAccounts).toHaveBeenCalled();
+      expect(providers[1].createAccounts).not.toHaveBeenCalled();
+    });
+
+    it('removes accounts from the group when a provider is disabled', async () => {
+      const groupIndex = 0;
+      const { group, providers } = setup({
+        groupIndex,
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+
+      providers[0].setEnabled(false);
+      await group.alignAccounts();
+
+      expect(providers[0].createAccounts).not.toHaveBeenCalled();
+      expect(providers[1].createAccounts).toHaveBeenCalled();
+
+      expect(group.getAccount(MOCK_WALLET_1_EVM_ACCOUNT.id)).toBeUndefined();
+    });
   });
 });

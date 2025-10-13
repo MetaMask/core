@@ -16,6 +16,9 @@ export type MockAccountProvider = {
   addAccounts: jest.Mock;
   isAccountCompatible?: jest.Mock;
   getName: jest.Mock;
+  isEnabled: boolean;
+  isDisabled: jest.Mock;
+  setEnabled: jest.Mock;
 };
 
 export function makeMockAccountProvider(
@@ -32,6 +35,9 @@ export function makeMockAccountProvider(
     addAccounts: jest.fn(),
     isAccountCompatible: jest.fn(),
     getName: jest.fn(),
+    isDisabled: jest.fn(),
+    setEnabled: jest.fn(),
+    isEnabled: true,
   };
 }
 
@@ -51,6 +57,10 @@ export function setupNamedAccountProvider({
   // of accounts.
   mocks.accounts = accounts;
   mocks.accountsList = accounts.map((account) => account.id);
+  mocks.setEnabled.mockImplementation((bool: boolean) => {
+    mocks.isEnabled = bool;
+  });
+  mocks.isDisabled.mockImplementation(() => !mocks.isEnabled);
 
   const getAccounts = () =>
     mocks.accounts.filter((account) => mocks.accountsList.includes(account.id));
