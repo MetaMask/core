@@ -1,5 +1,5 @@
 /* eslint-disable n/callback-return */ // next() is not a Node.js callback.
-import type { NonEmptyArray } from '@metamask/utils';
+import type { JsonRpcId, NonEmptyArray } from '@metamask/utils';
 
 import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
@@ -564,6 +564,94 @@ describe('JsonRpcEngineV2', () => {
             `Cannot assign to read only property 'foo' of object '#<Object>'`,
           ),
         );
+      });
+    });
+
+    describe('parallel requests', () => {
+      // Basically, a deferred promise
+      const makeGate = () => {
+        let release!: () => void;
+        const gatePromise = new Promise<void>((resolve) => (release = resolve));
+        return { wait: () => gatePromise, release };
+      };
+
+      // A deferred promise that resolves when the target amount is reached
+      const makeCountdownLatch = (target: number) => {
+        let count = 0;
+        let release!: () => void;
+        const countdownPromise = new Promise<void>(
+          (resolve) => (release = resolve),
+        );
+
+        return {
+          increment: () => {
+            count += 1;
+            if (count === target) {
+              release();
+            }
+          },
+          waitAll: () => countdownPromise,
+        };
+      };
+
+      it('processes requests in parallel (overlap and isolation)', async () => {
+        const N = 100;
+        const gate = makeGate();
+        const latch = makeCountdownLatch(N);
+
+        let inFlight = 0;
+        let maxInFlight = 0;
+
+        const engine = new JsonRpcEngineV2<JsonRpcRequest, string>({
+          middleware: [
+            async ({ context, next, request }) => {
+              // eslint-disable-next-line jest/no-conditional-in-test
+              context.set('id', context.get('id') ?? request.id);
+
+              inFlight += 1;
+              maxInFlight = Math.max(maxInFlight, inFlight);
+              latch.increment();
+
+              await gate.wait();
+
+              inFlight -= 1;
+              return next();
+            },
+            ({ context, request }) => {
+              return `result:${request.id}:${context.get('id') as JsonRpcId}`;
+            },
+          ],
+        });
+
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore - Jest blows up here, but there's no error at dev time.
+        const requests: JsonRpcRequest[] = Array.from({ length: N }, (_, i) =>
+          makeRequest({
+            id: `${i}`,
+          }),
+        );
+
+        // Staggered handling is necessary to prove context isolation
+        const resultPromises = requests.map(
+          (request) =>
+            new Promise((resolve) => {
+              setTimeout(
+                () => resolve(engine.handle(request)),
+                Math.floor(Math.random() * 100),
+              );
+            }),
+        );
+
+        await latch.waitAll();
+        expect(inFlight).toBe(N);
+        gate.release();
+
+        const results = await Promise.all(resultPromises);
+        expect(results).toStrictEqual(
+          requests.map((request) => `result:${request.id}:${request.id}`),
+        );
+        expect(inFlight).toBe(0);
+        expect(maxInFlight).toBe(N);
       });
     });
   });
