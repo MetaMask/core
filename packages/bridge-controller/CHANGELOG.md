@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Introduce server‑sent events quote streaming and integrates incremental quote updates into the bridge controller polling flow ([#6760](https://github.com/MetaMask/core/pull/6760))
+  - Add private `getQuoteStreaming` handler that calls `getQuoteStream` when the `sseEnabled` flag is enabled in LaunchDarkly
+  - Reuse existing polling, metrics and validation utilities when processing server-sent quotes
+- Add dependency on `@microsoft/fetch-event-source` at `^2.0.1` ([#6760](https://github.com/MetaMask/core/pull/6760))
+  - Note that clients need to patch this client such that it rejects instead of resolving when the quote request is cancelled. This preserves the controller's expected request cancellation behavior
+
+### Changed
+
+- Extract some logic from bridge-controller and move them to utility files for better readability ([#6760](https://github.com/MetaMask/core/pull/6760))
+
+### Removed
+
+- Remove cache options from spot-prices and getQuote api calls since they are only required by the extension client ([#6760](https://github.com/MetaMask/core/pull/6760))
+
+### Fixed
+
+- Pass abortSignal to fetchAssetPricesForCurrency in order to cancel exchange rate fetching when quote parameters change ([#6760](https://github.com/MetaMask/core/pull/6760))
+
 ## [50.0.0]
 
 ### Changed
