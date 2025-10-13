@@ -1327,7 +1327,7 @@ describe('approval controller', () => {
     });
 
     it('updateRequestState', () => {
-      const { rootMessenger, approvalControllerMessenger } = getMessengers();
+      const { approvalControllerMessenger } = getMessengers();
 
       approvalController = new ApprovalController({
         messenger: approvalControllerMessenger,
@@ -1343,10 +1343,13 @@ describe('approval controller', () => {
         requestState: { foo: 'bar' },
       });
 
-      rootMessenger.call('ApprovalController:updateRequestState', {
-        id: 'foo',
-        requestState: { foo: 'foobar' },
-      });
+      approvalControllerMessenger.call(
+        'ApprovalController:updateRequestState',
+        {
+          id: 'foo',
+          requestState: { foo: 'foobar' },
+        },
+      );
 
       expect(approvalController.get('foo')?.requestState).toStrictEqual({
         foo: 'foobar',
