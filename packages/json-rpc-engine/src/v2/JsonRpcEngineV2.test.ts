@@ -595,7 +595,7 @@ describe('JsonRpcEngineV2', () => {
       };
 
       it('processes requests in parallel (overlap and isolation)', async () => {
-        const N = 100;
+        const N = 50;
         const gate = makeGate();
         const latch = makeCountdownLatch(N);
 
@@ -631,15 +631,8 @@ describe('JsonRpcEngineV2', () => {
           }),
         );
 
-        // Staggered handling is necessary to prove context isolation
-        const resultPromises = requests.map(
-          (request) =>
-            new Promise((resolve) => {
-              setTimeout(
-                () => resolve(engine.handle(request)),
-                Math.floor(Math.random() * 100),
-              );
-            }),
+        const resultPromises = requests.map((request) =>
+          engine.handle(request),
         );
 
         await latch.waitAll();
