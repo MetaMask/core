@@ -2725,7 +2725,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^50.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^51.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2751,6 +2751,7 @@ __metadata:
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/transaction-controller": "npm:^60.6.1"
     "@metamask/utils": "npm:^11.8.1"
+    "@microsoft/fetch-event-source": "npm:^2.0.1"
     "@types/jest": "npm:^27.4.1"
     bignumber.js: "npm:^9.1.2"
     deepmerge: "npm:^4.2.2"
@@ -2781,7 +2782,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^33.1.1"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.1"
-    "@metamask/bridge-controller": "npm:^50.0.0"
+    "@metamask/bridge-controller": "npm:^51.0.0"
     "@metamask/controller-utils": "npm:^11.14.1"
     "@metamask/gas-fee-controller": "npm:^24.1.0"
     "@metamask/network-controller": "npm:^24.2.1"
@@ -2804,7 +2805,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^33.0.0
-    "@metamask/bridge-controller": ^50.0.0
+    "@metamask/bridge-controller": ^51.0.0
     "@metamask/gas-fee-controller": ^24.0.0
     "@metamask/network-controller": ^24.0.0
     "@metamask/snaps-controllers": ^14.0.0
@@ -4939,6 +4940,13 @@ __metadata:
     semver: "npm:^7.5.4"
     uuid: "npm:^9.0.1"
   checksum: 10/ed6648cd973bbf3b4eb0e862903b795a99d27784c820e19f62f0bc0ddf353e98c2858d7e9aaebc0249a586391b344e35b9249d13c08e3ea0c74b23dc1c6b1558
+  languageName: node
+  linkType: hard
+
+"@microsoft/fetch-event-source@npm:^2.0.1":
+  version: 2.0.1
+  resolution: "@microsoft/fetch-event-source@npm:2.0.1"
+  checksum: 10/c147055fafe83801efb9834136ba4b7944406a0bba3517afcea6ceeb56714b5ef78c2e89544bd9c1426ad1d2f964a087e3a719169ae04855836a23fb53269f8d
   languageName: node
   linkType: hard
 
