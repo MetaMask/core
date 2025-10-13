@@ -42,6 +42,8 @@ export type GetCoverageResultRequest = {
 };
 
 export type GetCoverageResultResponse = {
+  message?: string;
+  reasonCode?: string;
   status: CoverageStatus;
 };
 
@@ -86,8 +88,16 @@ export class ShieldRemoteBackend implements ShieldBackend {
       ));
     }
 
-    const coverageResult = await this.#getCoverageResult(coverageId);
-    return { coverageId, status: coverageResult.status };
+    const txCoverageResultUrl = `${this.#baseUrl}/v1/transaction/coverage/result`;
+    const coverageResult = await this.#getCoverageResult(coverageId, {
+      coverageResultUrl: txCoverageResultUrl,
+    });
+    return {
+      coverageId,
+      message: coverageResult.message,
+      reasonCode: coverageResult.reasonCode,
+      status: coverageResult.status,
+    };
   }
 
   async checkSignatureCoverage(
@@ -102,8 +112,16 @@ export class ShieldRemoteBackend implements ShieldBackend {
       ));
     }
 
-    const coverageResult = await this.#getCoverageResult(coverageId);
-    return { coverageId, status: coverageResult.status };
+    const signatureCoverageResultUrl = `${this.#baseUrl}/v1/signature/coverage/result`;
+    const coverageResult = await this.#getCoverageResult(coverageId, {
+      coverageResultUrl: signatureCoverageResultUrl,
+    });
+    return {
+      coverageId,
+      message: coverageResult.message,
+      reasonCode: coverageResult.reasonCode,
+      status: coverageResult.status,
+    };
   }
 
   async logSignature(req: LogSignatureRequest): Promise<void> {
@@ -165,12 +183,19 @@ export class ShieldRemoteBackend implements ShieldBackend {
 
   async #getCoverageResult(
     coverageId: string,
-    timeout: number = this.#getCoverageResultTimeout,
-    pollInterval: number = this.#getCoverageResultPollInterval,
+    configs: {
+      coverageResultUrl: string;
+      timeout?: number;
+      pollInterval?: number;
+    },
   ): Promise<GetCoverageResultResponse> {
     const reqBody: GetCoverageResultRequest = {
       coverageId,
     };
+
+    const timeout = configs?.timeout ?? this.#getCoverageResultTimeout;
+    const pollInterval =
+      configs?.pollInterval ?? this.#getCoverageResultPollInterval;
 
     const headers = await this.#createHeaders();
     return await new Promise((resolve, reject) => {
@@ -185,14 +210,11 @@ export class ShieldRemoteBackend implements ShieldBackend {
         // eslint-disable-next-line no-unmodified-loop-condition
         while (!timeoutReached) {
           const startTime = Date.now();
-          const res = await this.#fetch(
-            `${this.#baseUrl}/v1/transaction/coverage/result`,
-            {
-              method: 'POST',
-              headers,
-              body: JSON.stringify(reqBody),
-            },
-          );
+          const res = await this.#fetch(configs.coverageResultUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(reqBody),
+          });
           if (res.status === 200) {
             return (await res.json()) as GetCoverageResultResponse;
           }
