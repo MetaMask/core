@@ -16,7 +16,10 @@ import {
 } from './logger';
 import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
-import { AccountProviderWrapper, BaseBip44AccountProvider } from './providers';
+import {
+  AccountProviderWrapper,
+  type BaseBip44AccountProvider,
+} from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
 
 export type GroupState =
