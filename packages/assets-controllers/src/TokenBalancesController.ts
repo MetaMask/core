@@ -359,13 +359,13 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
 
     // Subscribe to AccountActivityService balance updates for real-time updates
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountActivityService:balanceUpdated',
       this.#onAccountActivityBalanceUpdate.bind(this),
     );
 
     // Subscribe to AccountActivityService status changes for dynamic polling management
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountActivityService:statusChanged',
       this.#onAccountActivityStatusChanged.bind(this),
     );
