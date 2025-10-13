@@ -64,7 +64,9 @@ describe('TestStrategy', () => {
 
       jest.runAllTimers();
 
-      expect(await executePromise).toBeUndefined();
+      expect(await executePromise).toStrictEqual({
+        transactionHash: undefined,
+      });
     });
   });
 });

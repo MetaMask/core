@@ -8,6 +8,7 @@ import type { TokensControllerGetStateAction } from '@metamask/assets-controller
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/base-controller';
 import type { BridgeControllerActions } from '@metamask/bridge-controller';
 import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
 import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
@@ -18,10 +19,11 @@ import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@meta
 import type { TransactionControllerGetStateAction } from '@metamask/transaction-controller';
 import type { TransactionControllerStateChangeEvent } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { TransactionControllerAddTransactionAction } from '@metamask/transaction-controller';
+import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import type { TransactionPayPublishHookMessenger } from '.';
 import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
 
 export type AllowedActions =
@@ -35,7 +37,9 @@ export type AllowedActions =
   | TokenListControllerActions
   | TokenRatesControllerGetStateAction
   | TokensControllerGetStateAction
-  | TransactionControllerGetStateAction;
+  | TransactionControllerAddTransactionAction
+  | TransactionControllerGetStateAction
+  | TransactionControllerUpdateTransactionAction;
 
 export type AllowedEvents =
   | BridgeStatusControllerStateChangeEvent
@@ -71,6 +75,18 @@ export type TransactionPayControllerMessenger = RestrictedMessenger<
   TransactionPayControllerEvents | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
+>;
+
+export type TransactionPayPublishHookMessenger = Messenger<
+  | BridgeStatusControllerActions
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | TransactionControllerAddTransactionAction
+  | TransactionControllerUpdateTransactionAction
+  | TransactionPayControllerGetStateAction
+  | TransactionPayControllerGetStrategyAction,
+  | BridgeStatusControllerStateChangeEvent
+  | TransactionControllerStateChangeEvent
+  | TransactionControllerUnapprovedTransactionAddedEvent
 >;
 
 export type TransactionPayControllerOptions = {
@@ -185,7 +201,9 @@ export type PayStrategy<OriginalQuote> = {
     request: PayStrategyGetQuotesRequest,
   ) => Promise<TransactionPayQuote<OriginalQuote>[]>;
 
-  execute: (request: PayStrategyExecuteRequest<OriginalQuote>) => Promise<void>;
+  execute: (request: PayStrategyExecuteRequest<OriginalQuote>) => Promise<{
+    transactionHash?: Hex;
+  }>;
 };
 
 export type FiatValue = {

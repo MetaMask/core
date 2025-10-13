@@ -1,18 +1,30 @@
 import { Messenger } from '@metamask/base-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import {
+  TransactionStatus,
+  type TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { calculateFiat } from './required-fiat';
 import { parseRequiredTokens } from './required-tokens';
-import { getTransaction, pollTransactionChanges } from './transaction';
-import type { TransactionPayControllerMessenger } from '..';
+import {
+  getTransaction,
+  pollTransactionChanges,
+  updateTransaction,
+  waitForTransactionConfirmed,
+} from './transaction';
+import type {
+  TransactionPayControllerMessenger,
+  TransactionPayPublishHook,
+} from '..';
 import type {
   AllowedActions,
   AllowedEvents,
   TransactionData,
   TransactionTokenRequired,
 } from '../types';
+import { noop } from 'lodash';
 
 jest.mock('./required-fiat');
 jest.mock('./required-tokens');
@@ -44,6 +56,7 @@ describe('Transaction Utils', () => {
   const getTransactionControllerStateMock = jest.fn();
   const parseRequiredTokensMock = jest.mocked(parseRequiredTokens);
   const calculateFiatMock = jest.mocked(calculateFiat);
+  const updateTransactionActionMock = jest.fn();
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -55,9 +68,17 @@ describe('Transaction Utils', () => {
       getTransactionControllerStateMock,
     );
 
+    baseMessenger.registerActionHandler(
+      'TransactionController:updateTransaction',
+      updateTransactionActionMock,
+    );
+
     messenger = baseMessenger.getRestricted({
       name: 'TransactionPayController',
-      allowedActions: ['TransactionController:getState'],
+      allowedActions: [
+        'TransactionController:getState',
+        'TransactionController:updateTransaction',
+      ],
       allowedEvents: ['TransactionController:stateChange'],
     });
   });
@@ -163,6 +184,94 @@ describe('Transaction Utils', () => {
       updateTransactionDataMock.mock.calls[0][1](transactionData);
 
       expect(transactionData.tokens).toStrictEqual([]);
+    });
+  });
+
+  describe('updateTransaction', () => {
+    it('updates transaction', () => {
+      getTransactionControllerStateMock.mockReturnValue({
+        transactions: [TRANSACTION_META_MOCK],
+      });
+
+      updateTransaction(
+        {
+          transactionId: TRANSACTION_ID_MOCK,
+          messenger: messenger as never,
+          note: 'Test note',
+        },
+        (draft) => {
+          draft.txParams.from = '0x456';
+        },
+      );
+
+      expect(updateTransactionActionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: TRANSACTION_ID_MOCK,
+          txParams: expect.objectContaining({
+            from: '0x456',
+          }),
+        }),
+        'Test note',
+      );
+    });
+
+    it('throws if transaction not found', () => {
+      getTransactionControllerStateMock.mockReturnValue({
+        transactions: [],
+      });
+
+      expect(() =>
+        updateTransaction(
+          {
+            transactionId: TRANSACTION_ID_MOCK,
+            messenger: messenger as never,
+            note: 'Test note',
+          },
+          noop,
+        ),
+      ).toThrow(`Transaction not found: ${TRANSACTION_ID_MOCK}`);
+    });
+  });
+
+  describe('waitForTransactionConfirmed', () => {
+    it('resolves when transaction is confirmed', async () => {
+      const promise = waitForTransactionConfirmed(
+        TRANSACTION_ID_MOCK,
+        messenger as never,
+      );
+
+      baseMessenger.publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [
+            { ...TRANSACTION_META_MOCK, status: TransactionStatus.confirmed },
+          ],
+        } as TransactionControllerState,
+        [],
+      );
+
+      expect(await promise).toBeUndefined();
+    });
+
+    it('rejects when transaction fails', async () => {
+      const promise = waitForTransactionConfirmed(
+        TRANSACTION_ID_MOCK,
+        messenger as never,
+      );
+
+      baseMessenger.publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [
+            { ...TRANSACTION_META_MOCK, status: TransactionStatus.failed },
+          ],
+        } as TransactionControllerState,
+        [],
+      );
+
+      await expect(promise).rejects.toThrow(
+        `Transaction status is ${TransactionStatus.failed}`,
+      );
     });
   });
 });

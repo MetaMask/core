@@ -2,6 +2,7 @@ import { StatusTypes } from '@metamask/bridge-controller';
 import type { QuoteMetadata } from '@metamask/bridge-controller';
 import type { QuoteResponse } from '@metamask/bridge-controller';
 import type { BridgeHistoryItem } from '@metamask/bridge-status-controller';
+import type { BridgeStatusControllerState } from '@metamask/bridge-status-controller';
 import { toHex } from '@metamask/controller-utils';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
@@ -164,7 +165,8 @@ async function waitForBridgeCompletion(
     messenger.subscribe(
       'BridgeStatusController:stateChange',
       handler,
-      (state) => state.txHistory[bridgeTransactionId],
+      (state: BridgeStatusControllerState) =>
+        state.txHistory[bridgeTransactionId],
     );
   });
 }

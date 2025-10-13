@@ -1,7 +1,3 @@
-import type { Messenger } from '@metamask/base-controller';
-import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
-import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
-import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@metamask/transaction-controller';
 import type { PublishHook } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { PublishHookResult } from '@metamask/transaction-controller';
@@ -10,8 +6,7 @@ import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
 import type {
-  TransactionPayControllerGetStateAction,
-  TransactionPayControllerGetStrategyAction,
+  TransactionPayPublishHookMessenger,
   TransactionPayQuote,
 } from '../types';
 import { getStrategy } from '../utils/strategy';
@@ -21,14 +16,6 @@ const log = createModuleLogger(projectLogger, 'pay-publish-hook');
 const EMPTY_RESULT = {
   transactionHash: undefined,
 };
-
-export type TransactionPayPublishHookMessenger = Messenger<
-  | BridgeStatusControllerActions
-  | TransactionPayControllerGetStateAction
-  | TransactionPayControllerGetStrategyAction,
-  | BridgeStatusControllerStateChangeEvent
-  | TransactionControllerUnapprovedTransactionAddedEvent
->;
 
 export class TransactionPayPublishHook {
   readonly #isSmartTransaction: (chainId: Hex) => boolean;
@@ -83,13 +70,11 @@ export class TransactionPayPublishHook {
 
     const strategy = await getStrategy(this.#messenger, transactionMeta);
 
-    await strategy.execute({
+    return await strategy.execute({
       isSmartTransaction: this.#isSmartTransaction,
       quotes,
       messenger: this.#messenger,
       transaction: transactionMeta,
     });
-
-    return EMPTY_RESULT;
   }
 }

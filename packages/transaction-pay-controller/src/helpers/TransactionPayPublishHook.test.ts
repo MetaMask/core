@@ -5,11 +5,11 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@metamask/transaction-controller';
 
 import { TransactionPayPublishHook } from './TransactionPayPublishHook';
-import type { TransactionPayPublishHookMessenger } from './TransactionPayPublishHook';
 import { TransactionPayStrategy } from '../constants';
 import { TestStrategy } from '../strategy/test/TestStrategy';
 import type {
   TransactionPayControllerGetStateAction,
+  TransactionPayPublishHookMessenger,
   TransactionPayQuote,
 } from '../types';
 
@@ -98,12 +98,6 @@ describe('TransactionPayPublishHook', () => {
     await runHook();
 
     expect(executeMock).not.toHaveBeenCalled();
-  });
-
-  it('returns empty result', async () => {
-    const result = await runHook();
-
-    expect(result).toStrictEqual({ transactionHash: undefined });
   });
 
   it('throws errors from submit', async () => {

@@ -28,5 +28,7 @@ export class BridgeStrategy implements PayStrategy<QuoteResponse> {
       quotes,
       updateTransaction: noop,
     });
+
+    return { transactionHash: undefined };
   }
 }

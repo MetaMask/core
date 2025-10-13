@@ -3,6 +3,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionPayPublishHookMessenger } from '..';
 import { TransactionPayStrategy } from '../constants';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
+import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
 import type { PayStrategy } from '../types';
 
@@ -25,6 +26,9 @@ export async function getStrategy(
   switch (strategyName) {
     case TransactionPayStrategy.Bridge:
       return new BridgeStrategy() as never;
+
+    case TransactionPayStrategy.Relay:
+      return new RelayStrategy() as never;
 
     case TransactionPayStrategy.Test:
       return new TestStrategy() as never;

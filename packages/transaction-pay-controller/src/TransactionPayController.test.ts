@@ -67,7 +67,7 @@ describe('TransactionPayController', () => {
   });
 
   describe('getStrategy Action', () => {
-    it('returns bridge if no callback', async () => {
+    it('returns relay if no callback', async () => {
       createController();
 
       expect(
@@ -75,7 +75,7 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Bridge);
+      ).toBe(TransactionPayStrategy.Relay);
     });
 
     it('returns callback value if provided', async () => {

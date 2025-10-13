@@ -35,12 +35,14 @@ export class TestStrategy implements PayStrategy<void> {
     ];
   }
 
-  async execute(request: PayStrategyExecuteRequest<void>): Promise<void> {
+  async execute(request: PayStrategyExecuteRequest<void>) {
     const { quotes } = request;
 
     log('Executing', quotes);
 
     await this.#timeout(5000);
+
+    return { transactionHash: undefined };
   }
 
   #timeout(ms: number) {

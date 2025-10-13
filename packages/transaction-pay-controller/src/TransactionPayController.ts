@@ -123,7 +123,7 @@ export class TransactionPayController extends BaseController<
   #registerActionHandlers() {
     this.messagingSystem.registerActionHandler(
       'TransactionPayController:getStrategy',
-      this.#getStrategy ?? (async () => TransactionPayStrategy.Bridge),
+      this.#getStrategy ?? (async () => TransactionPayStrategy.Relay),
     );
   }
 }

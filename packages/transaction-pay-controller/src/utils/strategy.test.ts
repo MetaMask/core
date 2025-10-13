@@ -6,6 +6,7 @@ import type { TransactionPayPublishHookMessenger } from '..';
 import { TransactionPayStrategy } from '../constants';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
+import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 
 const TRANSACTION_META_MOCK = {} as TransactionMeta;
 
@@ -39,6 +40,14 @@ describe('Strategy Utils', () => {
       const strategy = await getStrategy(messenger, TRANSACTION_META_MOCK);
 
       expect(strategy).toBeInstanceOf(BridgeStrategy);
+    });
+
+    it('returns RelayStrategy if strategy name is Relay', async () => {
+      getStrategyMessengerMock.mockResolvedValue(TransactionPayStrategy.Relay);
+
+      const strategy = await getStrategy(messenger, TRANSACTION_META_MOCK);
+
+      expect(strategy).toBeInstanceOf(RelayStrategy);
     });
 
     it('throws if strategy name is unknown', async () => {
