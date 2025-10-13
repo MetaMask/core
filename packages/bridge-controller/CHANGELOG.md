@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add private `getQuoteStreaming` handler that calls `getQuoteStream` when the `sseEnabled` flag is enabled in LaunchDarkly
   - Reuse existing polling, metrics and validation utilities when processing server-sent quotes
 - Add dependency on `@microsoft/fetch-event-source` at `^2.0.1` ([#6760](https://github.com/MetaMask/core/pull/6760))
-  - Note that clients need to patch this client such that it rejects instead of resolving when the quote request is cancelled. This preserves the controller's expected request cancellation behavior
+  - Note that clients need to patch this library such that it rejects instead of resolving when the quote request is cancelled. This preserves the controller's expected request cancellation behavior
 
 ### Changed
 
