@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Make start and stop idempotent ([#6817](https://github.com/MetaMask/core/pull/6817))
 
+### Fixed
+
+- Fixed incorrect endpoint for signature coverage result. ([#6821](https://github.com/MetaMask/core/pull/6821))
+
 ## [0.3.1]
 
 ### Changed
