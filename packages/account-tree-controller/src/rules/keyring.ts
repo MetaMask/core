@@ -49,6 +49,47 @@ export function getAccountWalletNameFromKeyringType(type: KeyringTypes) {
   }
 }
 
+/**
+ * Get group name prefix from a keyring type.
+ *
+ * @param type - Keyring's type.
+ * @returns Wallet name.
+ */
+export function getAccountGroupPrefixFromKeyringType(type: KeyringTypes) {
+  switch (type) {
+    case KeyringTypes.simple: {
+      return 'Imported Account';
+    }
+    case KeyringTypes.trezor: {
+      return 'Trezor Account';
+    }
+    case KeyringTypes.oneKey: {
+      return 'OneKey Account';
+    }
+    case KeyringTypes.ledger: {
+      return 'Ledger Account';
+    }
+    case KeyringTypes.lattice: {
+      return 'Lattice Account';
+    }
+    case KeyringTypes.qr: {
+      return 'QR Account';
+    }
+    // Those keyrings should never really be used in such context since they
+    // should be used by other grouping rules.
+    case KeyringTypes.hd: {
+      return 'Account';
+    }
+    case KeyringTypes.snap: {
+      return 'Snap Account';
+    }
+    // ------------------------------------------------------------------------
+    default: {
+      return 'Unknown Account';
+    }
+  }
+}
+
 export class KeyringRule
   extends BaseRule
   implements Rule<AccountWalletType.Keyring, AccountGroupType.SingleAccount>
@@ -101,7 +142,9 @@ export class KeyringRule
     return super.getComputedAccountGroupName(group);
   }
 
-  getDefaultAccountGroupName(index?: number): string {
-    return super.getDefaultAccountGroupName(index);
+  getDefaultAccountGroupPrefix(
+    wallet: AccountWalletObjectOf<AccountWalletType.Keyring>,
+  ): string {
+    return getAccountGroupPrefixFromKeyringType(wallet.metadata.keyring.type);
   }
 }

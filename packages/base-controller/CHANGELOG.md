@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.4.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
 ## [8.4.0]
 
 ### Added
@@ -380,7 +386,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.1...HEAD
+[8.4.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.0...@metamask/base-controller@8.4.1
 [8.4.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.3.0...@metamask/base-controller@8.4.0
 [8.3.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.2.0...@metamask/base-controller@8.3.0
 [8.2.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.1.0...@metamask/base-controller@8.2.0

@@ -7,16 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.1.0]
+
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^8.0.0` to `^8.4.0` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
-- Bump `@metamask/controller-utils` from `^11.5.0` to `^11.14.0` ([#5439](https://github.com/MetaMask/core/pull/5439), [#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812), [#5935](https://github.com/MetaMask/core/pull/5935), [#6069](https://github.com/MetaMask/core/pull/6069), [#6303](https://github.com/MetaMask/core/pull/6303), [#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
-- Bump `@metamask/utils` from `^11.1.0` to `^11.4.2` ([#5301](https://github.com/MetaMask/core/pull/5301), [#6054](https://github.com/MetaMask/core/pull/6054))
-- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/utils` from `^11.1.0` to `^11.8.1` ([#5301](https://github.com/MetaMask/core/pull/5301), [#6054](https://github.com/MetaMask/core/pull/6054), [#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.4.1` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.5.0` to `^11.14.1` ([#5439](https://github.com/MetaMask/core/pull/5439), [#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812), [#5935](https://github.com/MetaMask/core/pull/5935), [#6069](https://github.com/MetaMask/core/pull/6069), [#6303](https://github.com/MetaMask/core/pull/6303), [#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/json-rpc-engine` from `^10.0.3` to `^10.1.1` ([#6678](https://github.com/MetaMask/core/pull/6678), [#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [11.0.6]
 
@@ -341,7 +343,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.6...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.1.0...HEAD
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.6...@metamask/permission-controller@11.1.0
 [11.0.6]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.5...@metamask/permission-controller@11.0.6
 [11.0.5]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.4...@metamask/permission-controller@11.0.5
 [11.0.4]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.3...@metamask/permission-controller@11.0.4

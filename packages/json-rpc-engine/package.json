@@ -1,6 +1,6 @@
 {
   "name": "@metamask/json-rpc-engine",
-  "version": "10.0.3",
+  "version": "10.1.1",
   "description": "A tool for processing JSON-RPC messages",
   "keywords": [
     "MetaMask",
@@ -58,7 +58,7 @@
   "dependencies": {
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^11.8.0"
+    "@metamask/utils": "^11.8.1"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",

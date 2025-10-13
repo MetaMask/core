@@ -41,6 +41,18 @@ export const SUBSCRIPTION_STATUSES = {
 export type SubscriptionStatus =
   (typeof SUBSCRIPTION_STATUSES)[keyof typeof SUBSCRIPTION_STATUSES];
 
+export const CRYPTO_PAYMENT_METHOD_ERRORS = {
+  APPROVAL_TRANSACTION_TOO_OLD: 'approval_transaction_too_old',
+  APPROVAL_TRANSACTION_REVERTED: 'approval_transaction_reverted',
+  APPROVAL_TRANSACTION_MAX_VERIFICATION_ATTEMPTS_REACHED:
+    'approval_transaction_max_verification_attempts_reached',
+  INSUFFICIENT_BALANCE: 'insufficient_balance',
+  INSUFFICIENT_ALLOWANCE: 'insufficient_allowance',
+} as const;
+
+export type CryptoPaymentMethodError =
+  (typeof CRYPTO_PAYMENT_METHOD_ERRORS)[keyof typeof CRYPTO_PAYMENT_METHOD_ERRORS];
+
 /** only usd for now */
 export type Currency = 'usd';
 
@@ -65,7 +77,7 @@ export type Subscription = {
   trialPeriodDays?: number;
   trialStart?: string; // ISO 8601
   trialEnd?: string; // ISO 8601
-  /** is subscription ending soon */
+  /** Crypto payment only: next billing cycle date (e.g after 12 months) */
   endDate?: string; // ISO 8601
   billingCycles?: number;
 };
@@ -86,6 +98,7 @@ export type SubscriptionCryptoPaymentMethod = {
     payerAddress: Hex;
     chainId: Hex;
     tokenSymbol: string;
+    error?: CryptoPaymentMethodError;
   };
 };
 
@@ -226,7 +239,7 @@ export type ISubscriptionService = {
   ): Promise<StartCryptoSubscriptionResponse>;
   updatePaymentMethodCard(
     request: UpdatePaymentMethodCardRequest,
-  ): Promise<void>;
+  ): Promise<UpdatePaymentMethodCardResponse>;
   updatePaymentMethodCrypto(
     request: UpdatePaymentMethodCryptoRequest,
   ): Promise<void>;
@@ -253,12 +266,20 @@ export type UpdatePaymentMethodCardRequest = {
   successUrl?: string;
 };
 
+export type UpdatePaymentMethodCardResponse = {
+  redirectUrl: string;
+};
+
 export type UpdatePaymentMethodCryptoRequest = {
   subscriptionId: string;
   chainId: Hex;
   payerAddress: Hex;
   tokenSymbol: string;
-  rawTransaction: Hex;
+  /**
+   * The raw transaction to pay for the subscription
+   * Can be empty if retry after topping up balance
+   */
+  rawTransaction?: Hex;
   recurringInterval: RecurringInterval;
   billingCycles: number;
 };

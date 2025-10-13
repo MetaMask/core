@@ -1,4 +1,4 @@
-import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
+import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 import type {
   GetCurrencyRateState,
   MultichainAssetsRatesControllerGetStateAction,
@@ -29,6 +29,7 @@ import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 import type {
   BridgeAssetSchema,
   ChainConfigurationSchema,
+  FeatureId,
   FeeDataSchema,
   PlatformConfigSchema,
   ProtocolSchema,
@@ -264,6 +265,7 @@ export type QuoteResponse<TxDataType = TxData> = Infer<
 > & {
   trade: TxDataType;
   approval?: TxData;
+  featureId?: FeatureId;
 };
 
 export enum ChainId {
@@ -342,7 +344,7 @@ export type BridgeControllerEvents = ControllerStateChangeEvent<
 >;
 
 export type AllowedActions =
-  | AccountsControllerGetSelectedMultichainAccountAction
+  | AccountsControllerGetAccountByAddressAction
   | GetCurrencyRateState
   | TokenRatesControllerGetStateAction
   | MultichainAssetsRatesControllerGetStateAction
