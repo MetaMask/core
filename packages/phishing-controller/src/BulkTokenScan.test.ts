@@ -1,8 +1,10 @@
 import { Messenger } from '@metamask/base-controller';
 import { safelyExecuteWithTimeout } from '@metamask/controller-utils';
+import type { TransactionControllerStateChangeEvent } from '@metamask/transaction-controller';
 import nock, { cleanAll } from 'nock';
 import sinon from 'sinon';
 
+import type { PhishingControllerEvents } from './PhishingController';
 import {
   PhishingController,
   type PhishingControllerActions,
@@ -29,18 +31,24 @@ const mockSafelyExecuteWithTimeout =
 const controllerName = 'PhishingController';
 
 /**
- * Constructs a restricted messenger.
+ * Constructs a restricted messenger with transaction events enabled.
  *
- * @returns A restricted messenger.
+ * @returns A restricted messenger that can listen to TransactionController events.
  */
-function getRestrictedMessenger() {
-  const messenger = new Messenger<PhishingControllerActions, never>();
+function getRestrictedMessengerWithTransactionEvents() {
+  const messenger = new Messenger<
+    PhishingControllerActions,
+    PhishingControllerEvents | TransactionControllerStateChangeEvent
+  >();
 
-  return messenger.getRestricted({
-    name: controllerName,
-    allowedActions: [],
-    allowedEvents: [],
-  });
+  return {
+    messenger: messenger.getRestricted({
+      name: controllerName,
+      allowedActions: [],
+      allowedEvents: ['TransactionController:stateChange'],
+    }),
+    globalMessenger: messenger,
+  };
 }
 
 /**
@@ -51,7 +59,7 @@ function getRestrictedMessenger() {
  */
 function getPhishingController(options?: Partial<PhishingControllerOptions>) {
   return new PhishingController({
-    messenger: getRestrictedMessenger(),
+    messenger: getRestrictedMessengerWithTransactionEvents().messenger,
     ...options,
   });
 }

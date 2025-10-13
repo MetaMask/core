@@ -9,9 +9,20 @@ import {
   safelyExecute,
   safelyExecuteWithTimeout,
 } from '@metamask/controller-utils';
+import type {
+  TransactionControllerStateChangeEvent,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
+import type { Patch } from 'immer';
 import { toASCII } from 'punycode/punycode.js';
 
 import { CacheManager, type CacheEntry } from './CacheManager';
+import {
+  type PathTrie,
+  convertListToTrie,
+  insertToTrie,
+  matchedPathPrefix,
+} from './PathTrie';
 import { PhishingDetector } from './PhishingDetector';
 import {
   PhishingDetectorResultType,
@@ -32,12 +43,13 @@ import {
   buildCacheKey,
   splitCacheHits,
   resolveChainName,
+  getPathnameFromUrl,
 } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.api.cx.metamask.io';
 export const METAMASK_STALELIST_FILE = '/v1/stalelist';
-export const METAMASK_HOTLIST_DIFF_FILE = '/v1/diffsSince';
+export const METAMASK_HOTLIST_DIFF_FILE = '/v2/diffsSince';
 
 export const CLIENT_SIDE_DETECION_BASE_URL =
   'https://client-side-detection.api.cx.metamask.io';
@@ -74,6 +86,7 @@ export const C2_DOMAIN_BLOCKLIST_URL = `${CLIENT_SIDE_DETECION_BASE_URL}${C2_DOM
 export type ListTypes =
   | 'fuzzylist'
   | 'blocklist'
+  | 'blocklistPaths'
   | 'allowlist'
   | 'c2DomainBlocklist';
 
@@ -111,18 +124,21 @@ export type C2DomainBlocklistResponse = {
 };
 
 /**
- * @type PhishingStalelist
+ * PhishingStalelist defines the expected type of the stalelist from the API.
  *
- * type defining expected type of the stalelist.json file.
- * @property eth_phishing_detect_config - Stale list sourced from eth-phishing-detect's config.json.
- * @property tolerance - Fuzzy match tolerance level
- * @property lastUpdated - Timestamp of last update.
- * @property version - Stalelist data structure iteration.
+ * allowlist - List of approved origins.
+ * blocklist - List of unapproved origins (hostname-only entries).
+ * blocklistPaths - Trie of unapproved origins with paths (hostname + path entries).
+ * fuzzylist - List of fuzzy-matched unapproved origins.
+ * tolerance - Fuzzy match tolerance level
+ * lastUpdated - Timestamp of last update.
+ * version - Stalelist data structure iteration.
  */
 export type PhishingStalelist = {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  eth_phishing_detect_config: Record<ListTypes, string[]>;
+  allowlist: string[];
+  blocklist: string[];
+  blocklistPaths: string[];
+  fuzzylist: string[];
   tolerance: number;
   version: number;
   lastUpdated: number;
@@ -134,6 +150,7 @@ export type PhishingStalelist = {
  * type defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
  * @property allowlist - List of approved origins (legacy naming "whitelist")
  * @property blocklist - List of unapproved origins (legacy naming "blacklist")
+ * @property blocklistPaths - Trie of unapproved origins with paths (hostname + path, no query params).
  * @property c2DomainBlocklist - List of hashed hostnames that C2 requests are blocked against.
  * @property fuzzylist - List of fuzzy-matched unapproved origins
  * @property tolerance - Fuzzy match tolerance level
@@ -144,6 +161,7 @@ export type PhishingStalelist = {
 export type PhishingListState = {
   allowlist: string[];
   blocklist: string[];
+  blocklistPaths: PathTrie;
   c2DomainBlocklist: string[];
   fuzzylist: string[];
   tolerance: number;
@@ -168,8 +186,6 @@ export type HotlistDiff = {
   isRemoval?: boolean;
 };
 
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export type DataResultWrapper<T> = {
   data: T;
 };
@@ -231,6 +247,12 @@ const metadata: StateMetadata<PhishingControllerState> = {
     anonymous: false,
     usedInUi: false,
   },
+  whitelistPaths: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: false,
+  },
   hotlistLastFetched: {
     includeInStateLogs: true,
     persist: true,
@@ -265,12 +287,14 @@ const metadata: StateMetadata<PhishingControllerState> = {
 
 /**
  * Get a default empty state for the controller.
+ *
  * @returns The default empty state.
  */
 const getDefaultState = (): PhishingControllerState => {
   return {
     phishingLists: [],
     whitelist: [],
+    whitelistPaths: {},
     hotlistLastFetched: 0,
     stalelistLastFetched: 0,
     c2DomainBlocklistLastFetched: 0,
@@ -283,12 +307,18 @@ const getDefaultState = (): PhishingControllerState => {
  * @type PhishingControllerState
  *
  * Phishing controller state
- * @property phishing - eth-phishing-detect configuration
- * @property whitelist - array of temporarily-approved origins
+ * phishingLists - array of phishing lists
+ * whitelist - origins that bypass the phishing detector
+ * whitelistPaths - origins with paths that bypass the phishing detector
+ * hotlistLastFetched - timestamp of the last hotlist fetch
+ * stalelistLastFetched - timestamp of the last stalelist fetch
+ * c2DomainBlocklistLastFetched - timestamp of the last c2 domain blocklist fetch
+ * urlScanCache - cache of scan results
  */
 export type PhishingControllerState = {
   phishingLists: PhishingListState[];
   whitelist: string[];
+  whitelistPaths: PathTrie;
   hotlistLastFetched: number;
   stalelistLastFetched: number;
   c2DomainBlocklistLastFetched: number;
@@ -359,12 +389,22 @@ export type PhishingControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type PhishingControllerEvents = PhishingControllerStateChangeEvent;
 
+/**
+ * The external actions available to the PhishingController.
+ */
+type AllowedActions = never;
+
+/**
+ * The external events available to the PhishingController.
+ */
+export type AllowedEvents = TransactionControllerStateChangeEvent;
+
 export type PhishingControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  PhishingControllerActions,
-  PhishingControllerEvents,
-  never,
-  never
+  PhishingControllerActions | AllowedActions,
+  PhishingControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
 
 /**
@@ -408,6 +448,11 @@ export class PhishingController extends BaseController<
 
   #isProgressC2DomainBlocklistUpdate?: Promise<void>;
 
+  readonly #transactionControllerStateChangeHandler: (
+    state: { transactions: TransactionMeta[] },
+    patches: Patch[],
+  ) => void;
+
   /**
    * Construct a Phishing Controller.
    *
@@ -446,6 +491,8 @@ export class PhishingController extends BaseController<
     this.#stalelistRefreshInterval = stalelistRefreshInterval;
     this.#hotlistRefreshInterval = hotlistRefreshInterval;
     this.#c2DomainBlocklistRefreshInterval = c2DomainBlocklistRefreshInterval;
+    this.#transactionControllerStateChangeHandler =
+      this.#onTransactionControllerStateChange.bind(this);
     this.#urlScanCache = new CacheManager<PhishingDetectionScanResult>({
       cacheTTL: urlScanCacheTTL,
       maxCacheSize: urlScanCacheMaxSize,
@@ -470,6 +517,14 @@ export class PhishingController extends BaseController<
     this.#registerMessageHandlers();
 
     this.updatePhishingDetector();
+    this.#subscribeToTransactionControllerStateChange();
+  }
+
+  #subscribeToTransactionControllerStateChange() {
+    this.messagingSystem.subscribe(
+      'TransactionController:stateChange',
+      this.#transactionControllerStateChangeHandler,
+    );
   }
 
   /**
@@ -496,6 +551,105 @@ export class PhishingController extends BaseController<
       `${controllerName}:bulkScanTokens` as const,
       this.bulkScanTokens.bind(this),
     );
+  }
+
+  /**
+   * Checks if a patch represents a transaction-level change or nested transaction property change
+   *
+   * @param patch - Immer patch to check
+   * @returns True if patch affects a transaction or its nested properties
+   */
+  #isTransactionPatch(patch: Patch): boolean {
+    const { path } = patch;
+    return (
+      path.length === 2 &&
+      path[0] === 'transactions' &&
+      typeof path[1] === 'number'
+    );
+  }
+
+  /**
+   * Handle transaction controller state changes using Immer patches
+   * Extracts token addresses from simulation data and groups them by chain for bulk scanning
+   *
+   * @param _state - The current transaction controller state
+   * @param _state.transactions - Array of transaction metadata
+   * @param patches - Array of Immer patches only for transaction-level changes
+   */
+  #onTransactionControllerStateChange(
+    _state: { transactions: TransactionMeta[] },
+    patches: Patch[],
+  ) {
+    try {
+      const tokensByChain = new Map<string, Set<string>>();
+
+      for (const patch of patches) {
+        if (patch.op === 'remove') {
+          continue;
+        }
+
+        // Handle transaction-level patches (includes simulation data updates)
+        if (this.#isTransactionPatch(patch)) {
+          const transaction = patch.value as TransactionMeta;
+          this.#getTokensFromTransaction(transaction, tokensByChain);
+        }
+      }
+
+      this.#scanTokensByChain(tokensByChain);
+    } catch (error) {
+      console.error('Error processing transaction state change:', error);
+    }
+  }
+
+  /**
+   * Collect token addresses from a transaction and group them by chain
+   *
+   * @param transaction - Transaction metadata to extract tokens from
+   * @param tokensByChain - Map to collect tokens grouped by chainId
+   */
+  #getTokensFromTransaction(
+    transaction: TransactionMeta,
+    tokensByChain: Map<string, Set<string>>,
+  ) {
+    // extract token addresses from simulation data
+    const tokenAddresses = transaction.simulationData?.tokenBalanceChanges?.map(
+      (tokenChange) => tokenChange.address.toLowerCase(),
+    );
+
+    // add token addresses to the map by chainId
+    if (tokenAddresses && tokenAddresses.length > 0 && transaction.chainId) {
+      const chainId = transaction.chainId.toLowerCase();
+
+      if (!tokensByChain.has(chainId)) {
+        tokensByChain.set(chainId, new Set());
+      }
+
+      const chainTokens = tokensByChain.get(chainId);
+      if (chainTokens) {
+        for (const address of tokenAddresses) {
+          chainTokens.add(address);
+        }
+      }
+    }
+  }
+
+  /**
+   * Scan tokens grouped by chain ID
+   *
+   * @param tokensByChain - Map of chainId to token addresses
+   */
+  #scanTokensByChain(tokensByChain: Map<string, Set<string>>) {
+    for (const [chainId, tokenSet] of tokensByChain) {
+      if (tokenSet.size > 0) {
+        const tokens = Array.from(tokenSet);
+        this.bulkScanTokens({
+          chainId,
+          tokens,
+        }).catch((error) =>
+          console.error(`Error scanning tokens for chain ${chainId}:`, error),
+        );
+      }
+    }
   }
 
   /**
@@ -636,6 +790,12 @@ export class PhishingController extends BaseController<
   test(origin: string): PhishingDetectorResult {
     const punycodeOrigin = toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
+    const hostnameWithPaths = hostname + getPathnameFromUrl(origin);
+
+    if (matchedPathPrefix(hostnameWithPaths, this.state.whitelistPaths)) {
+      return { result: false, type: PhishingDetectorResultType.All };
+    }
+
     if (this.state.whitelist.includes(hostname || punycodeOrigin)) {
       return { result: false, type: PhishingDetectorResultType.All }; // Same as whitelisted match returned by detector.check(...).
     }
@@ -669,10 +829,24 @@ export class PhishingController extends BaseController<
   bypass(origin: string) {
     const punycodeOrigin = toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
-    const { whitelist } = this.state;
-    if (whitelist.includes(hostname || punycodeOrigin)) {
+    const hostnameWithPaths = hostname + getPathnameFromUrl(origin);
+    const { whitelist, whitelistPaths } = this.state;
+    const whitelistPath = matchedPathPrefix(hostnameWithPaths, whitelistPaths);
+
+    if (whitelist.includes(hostname || punycodeOrigin) || whitelistPath) {
       return;
     }
+
+    // If the origin was blocked by a path, then we only want to add it to the whitelistPaths since
+    // other paths with the same hostname may not be blocked.
+    const blockingPath = this.#detector.blockingPath(origin);
+    if (blockingPath) {
+      this.update((draftState) => {
+        insertToTrie(blockingPath, draftState.whitelistPaths);
+      });
+      return;
+    }
+
     this.update((draftState) => {
       draftState.whitelist.push(hostname || punycodeOrigin);
     });
@@ -1164,13 +1338,14 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    const { eth_phishing_detect_config, ...partialState } =
-      stalelistResponse.data;
-
     const metamaskListState: PhishingListState = {
-      ...eth_phishing_detect_config,
-      ...partialState,
+      allowlist: stalelistResponse.data.allowlist,
+      fuzzylist: stalelistResponse.data.fuzzylist,
+      tolerance: stalelistResponse.data.tolerance,
+      version: stalelistResponse.data.version,
+      lastUpdated: stalelistResponse.data.lastUpdated,
+      blocklist: stalelistResponse.data.blocklist,
+      blocklistPaths: convertListToTrie(stalelistResponse.data.blocklistPaths),
       c2DomainBlocklist: c2DomainBlocklistResponse
         ? c2DomainBlocklistResponse.recentlyAdded
         : [],

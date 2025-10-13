@@ -40,6 +40,7 @@ export const computeFeeRequest = (
   scope: CaipChainId,
 ) => {
   return {
+    // TODO: remove 'as never' typing.
     snapId: snapId as never,
     origin: 'metamask',
     handler: 'onClientRequest' as never,
