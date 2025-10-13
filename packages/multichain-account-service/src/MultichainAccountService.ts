@@ -15,17 +15,21 @@ import { areUint8ArraysEqual } from '@metamask/utils';
 import { projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
-import type {
-  EvmAccountProviderConfig,
-  NamedAccountProvider,
-  SolAccountProviderConfig,
+import {
+  BtcAccountProvider,
+  EvmAccountProvider,
+  SolAccountProvider,
+  TrxAccountProvider,
+  type BtcAccountProviderConfig,
+  type EvmAccountProviderConfig,
+  type NamedAccountProvider,
+  type SolAccountProviderConfig,
+  type TrxAccountProviderConfig,
 } from './providers';
 import {
   AccountProviderWrapper,
   isAccountProviderWrapper,
 } from './providers/AccountProviderWrapper';
-import { EvmAccountProvider } from './providers/EvmAccountProvider';
-import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
 
 export const serviceName = 'MultichainAccountService';
@@ -39,6 +43,8 @@ export type MultichainAccountServiceOptions = {
   providerConfigs?: {
     [EvmAccountProvider.NAME]?: EvmAccountProviderConfig;
     [SolAccountProvider.NAME]?: SolAccountProviderConfig;
+    [BtcAccountProvider.NAME]?: BtcAccountProviderConfig;
+    [TrxAccountProvider.NAME]?: TrxAccountProviderConfig
   };
 };
 
@@ -101,6 +107,20 @@ export class MultichainAccountService {
         new SolAccountProvider(
           this.#messenger,
           providerConfigs?.[SolAccountProvider.NAME],
+        ),
+      ),
+      new AccountProviderWrapper(
+        this.#messenger,
+        new BtcAccountProvider(
+          this.#messenger,
+          providerConfigs?.[BtcAccountProvider.NAME],
+        ),
+      ),
+      new AccountProviderWrapper(
+        this.#messenger,
+        new TrxAccountProvider(
+          this.#messenger,
+          providerConfigs?.[TrxAccountProvider.NAME],
         ),
       ),
       // Custom account providers that can be provided by the MetaMask client.

@@ -3,12 +3,12 @@
 import type { Messenger } from '@metamask/base-controller';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { KeyringAccount } from '@metamask/keyring-api';
-import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
+import { BtcAccountType, EthAccountType, SolAccountType, TrxAccountType } from '@metamask/keyring-api';
 import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 
 import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
-import type { NamedAccountProvider } from './providers';
+import { BTC_ACCOUNT_PROVIDER_NAME, BtcAccountProvider, TRX_ACCOUNT_PROVIDER_NAME, TrxAccountProvider, type NamedAccountProvider } from './providers';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
 import {
   EVM_ACCOUNT_PROVIDER_NAME,
@@ -59,6 +59,18 @@ jest.mock('./providers/SolAccountProvider', () => {
     SolAccountProvider: jest.fn(),
   };
 });
+jest.mock('./providers/BtcAccountProvider', () => {
+  return {
+    ...jest.requireActual('./providers/BtcAccountProvider'),
+    BtcAccountProvider: jest.fn(),
+  };
+});
+jest.mock('./providers/TrxAccountProvider', () => {
+  return {
+    ...jest.requireActual('./providers/TrxAccountProvider'),
+    TrxAccountProvider: jest.fn(),
+  };
+});
 
 type Mocks = {
   KeyringController: {
@@ -72,6 +84,8 @@ type Mocks = {
   };
   EvmAccountProvider: MockAccountProvider;
   SolAccountProvider: MockAccountProvider;
+  BtcAccountProvider: MockAccountProvider;
+  TrxAccountProvider: MockAccountProvider;
 };
 
 function mockAccountProvider<Provider extends NamedAccountProvider>(
@@ -126,6 +140,8 @@ function setup({
     },
     EvmAccountProvider: makeMockAccountProvider(),
     SolAccountProvider: makeMockAccountProvider(),
+    BtcAccountProvider: makeMockAccountProvider(),
+    TrxAccountProvider: makeMockAccountProvider(),
   };
 
   // Required for the `assert` on `MultichainAccountWallet.createMultichainAccountGroup`.
@@ -165,6 +181,8 @@ function setup({
     // force it here.
     EvmAccountProvider.NAME = EVM_ACCOUNT_PROVIDER_NAME;
     SolAccountProvider.NAME = SOL_ACCOUNT_PROVIDER_NAME;
+    BtcAccountProvider.NAME = BTC_ACCOUNT_PROVIDER_NAME;
+    TrxAccountProvider.NAME = TRX_ACCOUNT_PROVIDER_NAME;
 
     mockAccountProvider<EvmAccountProvider>(
       EvmAccountProvider,
@@ -177,6 +195,18 @@ function setup({
       mocks.SolAccountProvider,
       accounts,
       SolAccountType.DataAccount,
+    );
+    mockAccountProvider<BtcAccountProvider>(
+      BtcAccountProvider,
+      mocks.BtcAccountProvider,
+      accounts,
+      BtcAccountType.P2wpkh,
+    );
+    mockAccountProvider<TrxAccountProvider>(
+      TrxAccountProvider,
+      mocks.TrxAccountProvider,
+      accounts,
+      TrxAccountType.Eoa,
     );
   }
 
@@ -214,6 +244,26 @@ describe('MultichainAccountService', () => {
               timeoutMs: 3000,
             },
           },
+          [BTC_ACCOUNT_PROVIDER_NAME]: {
+            discovery: {
+              timeoutMs: 5000,
+              maxAttempts: 4,
+              backOffMs: 2000,
+            },
+            createAccounts: {
+              timeoutMs: 3000,
+            },
+          },
+          [TRX_ACCOUNT_PROVIDER_NAME]: {
+            discovery: {
+              timeoutMs: 5000,
+              maxAttempts: 4,
+              backOffMs: 2000,
+            },
+            createAccounts: {
+              timeoutMs: 3000,
+            },
+          },
         };
 
       const { mocks, serviceMessenger } = setup({
@@ -229,6 +279,14 @@ describe('MultichainAccountService', () => {
         serviceMessenger,
         providerConfigs[SolAccountProvider.NAME],
       );
+      expect(mocks.BtcAccountProvider.constructor).toHaveBeenCalledWith(
+        serviceMessenger,
+        providerConfigs[BtcAccountProvider.NAME],
+      );
+      expect(mocks.TrxAccountProvider.constructor).toHaveBeenCalledWith(
+        serviceMessenger,
+        providerConfigs[TrxAccountProvider.NAME],
+      );
     });
 
     it('allows optional configs for some providers', () => {
@@ -237,6 +295,26 @@ describe('MultichainAccountService', () => {
           // NOTE: We use constants here, since `*AccountProvider` are mocked, thus, their `.NAME` will
           // be `undefined`.
           [SOL_ACCOUNT_PROVIDER_NAME]: {
+            discovery: {
+              timeoutMs: 5000,
+              maxAttempts: 4,
+              backOffMs: 2000,
+            },
+            createAccounts: {
+              timeoutMs: 3000,
+            },
+          },
+          [BTC_ACCOUNT_PROVIDER_NAME]: {
+            discovery: {
+              timeoutMs: 5000,
+              maxAttempts: 4,
+              backOffMs: 2000,
+            },
+            createAccounts: {
+              timeoutMs: 3000,
+            },
+          },
+          [TRX_ACCOUNT_PROVIDER_NAME]: {
             discovery: {
               timeoutMs: 5000,
               maxAttempts: 4,
@@ -261,6 +339,14 @@ describe('MultichainAccountService', () => {
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         serviceMessenger,
         providerConfigs[SolAccountProvider.NAME],
+      );
+      expect(mocks.BtcAccountProvider.constructor).toHaveBeenCalledWith(
+        serviceMessenger,
+        providerConfigs[BtcAccountProvider.NAME],
+      );
+      expect(mocks.TrxAccountProvider.constructor).toHaveBeenCalledWith(
+        serviceMessenger,
+        providerConfigs[TrxAccountProvider.NAME],
       );
     });
   });
