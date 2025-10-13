@@ -215,6 +215,10 @@ export type WebSocketConnectionInfo = {
   state: WebSocketState;
   url: string;
   reconnectAttempts: number;
+  timeout: number;
+  reconnectDelay: number;
+  maxReconnectDelay: number;
+  requestTimeout: number;
   connectedAt?: number;
 };
 
@@ -336,7 +340,9 @@ export class BackendWebSocketService {
     this.#isEnabled = options.isEnabled;
     // Default to no-op trace function to keep core platform-agnostic
     this.#trace =
-      options.traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
+      options.traceFn ??
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (((_request: any, fn?: any) => fn?.()) as TraceCallback);
 
     this.#options = {
       url: options.url,
@@ -372,25 +378,26 @@ export class BackendWebSocketService {
       'AuthenticationController:stateChange',
       (state: AuthenticationController.AuthenticationControllerState) => {
         if (state.isSignedIn) {
-          // eslint-disable-next-line no-void
-          void this.connect();
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.connect();
         } else {
-          // eslint-disable-next-line no-void
-          void this.disconnect();
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.disconnect();
         }
       },
+      (state) => ({ isSignedIn: state.isSignedIn }),
     );
 
     // Subscribe to wallet unlock event
     this.#messenger.subscribe('KeyringController:unlock', () => {
-      // eslint-disable-next-line no-void
-      void this.connect();
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.connect();
     });
 
     // Subscribe to wallet lock event
     this.#messenger.subscribe('KeyringController:lock', () => {
-      // eslint-disable-next-line no-void
-      void this.disconnect();
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.disconnect();
     });
   }
 
@@ -447,9 +454,7 @@ export class BackendWebSocketService {
       }
       bearerToken = token;
     } catch (error) {
-      log('Failed to get bearer token (wallet locked or not signed in)', {
-        error,
-      });
+      log('Failed to check authentication requirements', { error });
 
       // Can't connect - schedule retry
       this.#scheduleReconnect();
@@ -619,6 +624,10 @@ export class BackendWebSocketService {
     return {
       state: this.#state,
       url: this.#options.url,
+      timeout: this.#options.timeout,
+      reconnectDelay: this.#options.reconnectDelay,
+      maxReconnectDelay: this.#options.maxReconnectDelay,
+      requestTimeout: this.#options.requestTimeout,
       reconnectAttempts: this.#reconnectAttempts,
       connectedAt: this.#connectedAt,
     };
@@ -986,7 +995,6 @@ export class BackendWebSocketService {
 
       ws.onerror = (event: Event) => {
         log('WebSocket onerror event triggered', { event });
-        // Handle connection-phase errors
         if (this.#connectionTimeout) {
           clearTimeout(this.#connectionTimeout);
           this.#connectionTimeout = null;
@@ -1047,9 +1055,8 @@ export class BackendWebSocketService {
 
     // Handle subscription notifications with valid subscriptionId
     if (this.#isSubscriptionNotification(message)) {
-      const handled = this.#handleSubscriptionNotification(
-        message as ServerNotificationMessage,
-      );
+      const notificationMsg = message as ServerNotificationMessage;
+      const handled = this.#handleSubscriptionNotification(notificationMsg);
       // If subscription notification wasn't handled (falsy subscriptionId), fall through to channel handling
       if (handled) {
         return;
@@ -1058,7 +1065,8 @@ export class BackendWebSocketService {
 
     // Trigger channel callbacks for any message with a channel property
     if (this.#isChannelMessage(message)) {
-      this.#handleChannelMessage(message);
+      const channelMsg = message as ServerNotificationMessage;
+      this.#handleChannelMessage(channelMsg);
     }
   }
 
@@ -1247,7 +1255,6 @@ export class BackendWebSocketService {
     // Check if this was a manual disconnect
     if (this.#manualDisconnect) {
       // Manual disconnect - don't reconnect
-      log('WebSocket closed due to manual disconnect, not reconnecting');
       return;
     }
 
@@ -1272,10 +1279,6 @@ export class BackendWebSocketService {
 
     // For any unexpected disconnects, attempt reconnection
     // The manualDisconnect flag is the only gate - if it's false, we reconnect
-    log('Connection lost unexpectedly, will attempt reconnection', {
-      code: event.code,
-      reason: event.reason,
-    });
     this.#scheduleReconnect();
   }
 
@@ -1302,18 +1305,12 @@ export class BackendWebSocketService {
       this.#options.reconnectDelay * Math.pow(1.5, this.#reconnectAttempts - 1);
     const delay = Math.min(rawDelay, this.#options.maxReconnectDelay);
 
-    log('Scheduling reconnection attempt', {
-      attempt: this.#reconnectAttempts,
-      delayMs: delay,
-    });
-
     this.#reconnectTimer = setTimeout(() => {
       // Clear timer reference first
       this.#reconnectTimer = null;
 
       // Check if connection is still enabled before reconnecting
       if (this.#isEnabled && !this.#isEnabled()) {
-        log('Reconnection disabled by isEnabled - stopping all attempts');
         this.#reconnectAttempts = 0;
         return;
       }
@@ -1369,8 +1366,6 @@ export class BackendWebSocketService {
     this.#state = newState;
 
     if (oldState !== newState) {
-      log('WebSocket state changed', { oldState, newState });
-
       // Publish connection state change event
       // Messenger handles listener errors internally, no need for try-catch
       this.#messenger.publish(

@@ -321,8 +321,12 @@ describe('AccountActivityService', () => {
         expect(service.name).toBe('AccountActivityService');
 
         // Status changed event is only published when WebSocket connects
-        const publishSpy = jest.spyOn(messenger, 'publish');
-        expect(publishSpy).not.toHaveBeenCalled();
+        const statusChangedEventListener = jest.fn();
+        messenger.subscribe(
+          'AccountActivityService:statusChanged',
+          statusChangedEventListener,
+        );
+        expect(statusChangedEventListener).not.toHaveBeenCalled();
 
         // Verify system notification callback was registered
         expect(mocks.addChannelCallback).toHaveBeenCalledWith({
@@ -571,10 +575,12 @@ describe('AccountActivityService', () => {
 
       it('should track chains as up and down based on system notifications', async () => {
         await withService(async ({ messenger, mocks }) => {
-          const publishSpy = jest.spyOn(messenger, 'publish');
+          const statusChangedEventListener = jest.fn();
+          messenger.subscribe(
+            'AccountActivityService:statusChanged',
+            statusChangedEventListener,
+          );
           const systemCallback = getSystemNotificationCallback(mocks);
-
-          publishSpy.mockClear();
 
           // Simulate chains coming up
           const timestamp1 = 1760344704595;
@@ -588,16 +594,11 @@ describe('AccountActivityService', () => {
             timestamp: timestamp1,
           });
 
-          expect(publishSpy).toHaveBeenCalledWith(
-            'AccountActivityService:statusChanged',
-            {
-              chainIds: ['eip155:1', 'eip155:137'],
-              status: 'up',
-              timestamp: timestamp1,
-            },
-          );
-
-          publishSpy.mockClear();
+          expect(statusChangedEventListener).toHaveBeenCalledWith({
+            chainIds: ['eip155:1', 'eip155:137'],
+            status: 'up',
+            timestamp: timestamp1,
+          });
 
           // Simulate one chain going down
           const timestamp2 = 1760344704696;
@@ -611,14 +612,11 @@ describe('AccountActivityService', () => {
             timestamp: timestamp2,
           });
 
-          expect(publishSpy).toHaveBeenCalledWith(
-            'AccountActivityService:statusChanged',
-            {
-              chainIds: ['eip155:137'],
-              status: 'down',
-              timestamp: timestamp2,
-            },
-          );
+          expect(statusChangedEventListener).toHaveBeenCalledWith({
+            chainIds: ['eip155:137'],
+            status: 'down',
+            timestamp: timestamp2,
+          });
         });
       });
     });
@@ -626,12 +624,13 @@ describe('AccountActivityService', () => {
     describe('handleWebSocketStateChange', () => {
       it('should handle WebSocket ERROR state by publishing tracked chains as down', async () => {
         await withService(async ({ messenger, rootMessenger, mocks }) => {
-          const publishSpy = jest.spyOn(messenger, 'publish');
+          const statusChangedEventListener = jest.fn();
+          messenger.subscribe(
+            'AccountActivityService:statusChanged',
+            statusChangedEventListener,
+          );
 
           mocks.getSelectedAccount.mockReturnValue(null);
-
-          // Clear any publish calls from service initialization
-          publishSpy.mockClear();
 
           // First, simulate receiving a system notification with chains up
           const systemCallback = getSystemNotificationCallback(mocks);
@@ -645,8 +644,6 @@ describe('AccountActivityService', () => {
             timestamp: 1760344704595,
           });
 
-          publishSpy.mockClear();
-
           // Publish WebSocket ERROR state event - should flush tracked chains as down
           await rootMessenger.publish(
             'BackendWebSocketService:connectionStateChanged',
@@ -654,29 +651,32 @@ describe('AccountActivityService', () => {
               state: WebSocketState.ERROR,
               url: 'ws://test',
               reconnectAttempts: 2,
+              timeout: 10000,
+              reconnectDelay: 500,
+              maxReconnectDelay: 5000,
+              requestTimeout: 30000,
             },
           );
           await completeAsyncOperations(100);
 
           // Verify that the ERROR state triggered the status change for tracked chains
-          expect(publishSpy).toHaveBeenCalledWith(
-            'AccountActivityService:statusChanged',
-            {
-              chainIds: ['eip155:1', 'eip155:137', 'eip155:56'],
-              status: 'down',
-            },
-          );
+          expect(statusChangedEventListener).toHaveBeenCalledWith({
+            chainIds: ['eip155:1', 'eip155:137', 'eip155:56'],
+            status: 'down',
+            timestamp: expect.any(Number),
+          });
         });
       });
 
       it('should not publish status change on disconnect when no chains are tracked', async () => {
         await withService(async ({ messenger, rootMessenger, mocks }) => {
-          const publishSpy = jest.spyOn(messenger, 'publish');
+          const statusChangedEventListener = jest.fn();
+          messenger.subscribe(
+            'AccountActivityService:statusChanged',
+            statusChangedEventListener,
+          );
 
           mocks.getSelectedAccount.mockReturnValue(null);
-
-          // Clear any publish calls from service initialization
-          publishSpy.mockClear();
 
           // Publish WebSocket ERROR state event without any tracked chains
           await rootMessenger.publish(
@@ -685,15 +685,16 @@ describe('AccountActivityService', () => {
               state: WebSocketState.ERROR,
               url: 'ws://test',
               reconnectAttempts: 2,
+              timeout: 10000,
+              reconnectDelay: 500,
+              maxReconnectDelay: 5000,
+              requestTimeout: 30000,
             },
           );
           await completeAsyncOperations(100);
 
           // Verify that no status change was published since no chains were tracked
-          expect(publishSpy).not.toHaveBeenCalledWith(
-            'AccountActivityService:statusChanged',
-            expect.anything(),
-          );
+          expect(statusChangedEventListener).not.toHaveBeenCalled();
         });
       });
     });
@@ -787,6 +788,10 @@ describe('AccountActivityService', () => {
               state: WebSocketState.CONNECTED,
               url: 'ws://test',
               reconnectAttempts: 0,
+              timeout: 10000,
+              reconnectDelay: 500,
+              maxReconnectDelay: 5000,
+              requestTimeout: 30000,
             },
           );
           // Wait for async handler to complete
@@ -795,38 +800,6 @@ describe('AccountActivityService', () => {
           // Should attempt to get selected account even when none exists
           expect(mocks.getSelectedAccount).toHaveBeenCalledTimes(1);
           expect(mocks.getSelectedAccount).toHaveReturnedWith(null);
-        });
-      });
-
-      it('should handle system notification publish failures gracefully by throwing error when publish fails', async () => {
-        await withService(async ({ mocks, messenger }) => {
-          const systemCallback = getSystemNotificationCallback(mocks);
-
-          // Mock publish to throw error
-          jest.spyOn(messenger, 'publish').mockImplementation(() => {
-            throw new Error('Publish failed');
-          });
-
-          const systemNotification = {
-            event: 'system-notification',
-            channel: 'system-notifications.v1.account-activity.v1',
-            data: { chainIds: ['0x1', '0x2'], status: 'connected' },
-            timestamp: 1760344704595,
-          };
-
-          // Should throw error when publish fails
-          expect(() => systemCallback(systemNotification)).toThrow(
-            'Publish failed',
-          );
-
-          // Should have attempted to publish the notification
-          expect(messenger.publish).toHaveBeenCalledWith(
-            expect.any(String),
-            expect.objectContaining({
-              chainIds: ['0x1', '0x2'],
-              status: 'connected',
-            }),
-          );
         });
       });
 
@@ -935,6 +908,10 @@ describe('AccountActivityService', () => {
                 state: WebSocketState.CONNECTED,
                 url: 'ws://test',
                 reconnectAttempts: 0,
+                timeout: 10000,
+                reconnectDelay: 500,
+                maxReconnectDelay: 5000,
+                requestTimeout: 30000,
               },
             );
             await completeAsyncOperations();

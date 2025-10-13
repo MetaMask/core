@@ -438,6 +438,7 @@ export class AccountActivityService {
         this.#messenger.publish(`AccountActivityService:statusChanged`, {
           chainIds: chainsToMarkDown,
           status: 'down',
+          timestamp: Date.now(),
         });
 
         log(

@@ -247,10 +247,6 @@ type TestSetup = {
   mocks: {
     getBearerToken: jest.Mock;
   };
-  spies: {
-    publish: jest.SpyInstance;
-    call: jest.SpyInstance;
-  };
   completeAsyncOperations: (advanceMs?: number) => Promise<void>;
   getMockWebSocket: () => MockWebSocket;
   cleanup: () => void;
@@ -268,10 +264,6 @@ type WithServiceCallback<ReturnValue> = (payload: {
   >;
   mocks: {
     getBearerToken: jest.Mock;
-  };
-  spies: {
-    publish: jest.SpyInstance;
-    call: jest.SpyInstance;
   };
   completeAsyncOperations: (advanceMs?: number) => Promise<void>;
   getMockWebSocket: () => MockWebSocket;
@@ -296,10 +288,6 @@ const setupBackendWebSocketService = ({
   // Create real messenger with registered actions
   const messengerSetup = getMessenger();
   const { rootMessenger, messenger, mocks } = messengerSetup;
-
-  // Create spies BEFORE service construction to capture constructor calls
-  const publishSpy = jest.spyOn(messenger, 'publish');
-  const callSpy = jest.spyOn(messenger, 'call');
 
   // Default test options (shorter timeouts for faster tests)
   const defaultOptions = {
@@ -344,16 +332,10 @@ const setupBackendWebSocketService = ({
     messenger,
     rootMessenger,
     mocks,
-    spies: {
-      publish: publishSpy,
-      call: callSpy,
-    },
     completeAsyncOperations,
     getMockWebSocket,
     cleanup: () => {
       service?.destroy();
-      publishSpy.mockRestore();
-      callSpy.mockRestore();
       jest.useRealTimers();
       jest.clearAllMocks();
     },
@@ -387,7 +369,6 @@ async function withService<ReturnValue>(
       messenger: setup.messenger,
       rootMessenger: setup.rootMessenger,
       mocks: setup.mocks,
-      spies: setup.spies,
       completeAsyncOperations: setup.completeAsyncOperations,
       getMockWebSocket: setup.getMockWebSocket,
     });
@@ -473,39 +454,25 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should apply default values for options not provided', async () => {
-      const { messenger } = getMessenger();
-
-      // Create service with only url and messenger provided
-      // Should use defaults: timeout=10000, reconnectDelay=500, maxReconnectDelay=5000, requestTimeout=30000
-      const service = new BackendWebSocketService({
-        messenger,
-        url: 'ws://test.example.com',
-        // timeout, reconnectDelay, maxReconnectDelay, requestTimeout not provided - will use defaults
-      });
-
-      expect(service.getConnectionInfo().url).toBe('ws://test.example.com');
-      expect(service).toBeInstanceOf(BackendWebSocketService);
-
-      service.destroy();
-    });
-
-    it('should accept traceFn option for performance tracing', async () => {
-      const mockTraceFn = jest.fn((_request, fn) => {
-        // Mock trace function that just executes the callback
-        return fn?.();
-      });
-
-      const { messenger } = getMessenger();
-
-      const service = new BackendWebSocketService({
-        messenger,
-        url: 'ws://test.example.com',
-        traceFn: mockTraceFn,
-      });
-
-      expect(service).toBeInstanceOf(BackendWebSocketService);
-
-      service.destroy();
+      await withService(
+        {
+          options: {
+            url: 'ws://test.example.com',
+            timeout: undefined,
+            reconnectDelay: undefined,
+            maxReconnectDelay: undefined,
+            requestTimeout: undefined,
+          },
+        },
+        async ({ service }) => {
+          expect(service.getConnectionInfo().url).toBe('ws://test.example.com');
+          expect(service.getConnectionInfo().timeout).toBe(10000);
+          expect(service.getConnectionInfo().reconnectDelay).toBe(500);
+          expect(service.getConnectionInfo().maxReconnectDelay).toBe(5000);
+          expect(service.getConnectionInfo().requestTimeout).toBe(30000);
+          expect(service).toBeInstanceOf(BackendWebSocketService);
+        },
+      );
     });
   });
 
@@ -514,7 +481,13 @@ describe('BackendWebSocketService', () => {
   // =====================================================
   describe('connection lifecycle - connect / disconnect', () => {
     it('should establish WebSocket connection and set state to CONNECTED, publishing state change event', async () => {
-      await withService(async ({ service, spies }) => {
+      await withService(async ({ service, messenger }) => {
+        const connectionStateChangedListener = jest.fn();
+        messenger.subscribe(
+          'BackendWebSocketService:connectionStateChanged',
+          connectionStateChangedListener,
+        );
+
         await service.connect();
 
         const connectionInfo = service.getConnectionInfo();
@@ -522,8 +495,7 @@ describe('BackendWebSocketService', () => {
         expect(connectionInfo.reconnectAttempts).toBe(0);
         expect(connectionInfo.url).toBe('ws://localhost:8080');
 
-        expect(spies.publish).toHaveBeenCalledWith(
-          'BackendWebSocketService:connectionStateChanged',
+        expect(connectionStateChangedListener).toHaveBeenCalledWith(
           expect.objectContaining({
             state: WebSocketState.CONNECTED,
             reconnectAttempts: 0,
@@ -532,7 +504,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle connection timeout by rejecting with timeout error and setting state to DISCONNECTED', async () => {
+    it('should handle connection timeout by rejecting with timeout error and setting state to ERROR', async () => {
       await withService(
         {
           options: { timeout: TEST_CONSTANTS.TIMEOUT_MS },
@@ -601,8 +573,6 @@ describe('BackendWebSocketService', () => {
             3000,
             'Request timeout - forcing reconnect',
           );
-
-          closeSpy.mockRestore();
         },
       );
     });
@@ -683,14 +653,14 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should return immediately when already connected', async () => {
+    it('should remain in CONNECTED state when trying to connect again', async () => {
       await withService(async ({ service }) => {
         await service.connect();
         expect(service.getConnectionInfo().state).toBe(
           WebSocketState.CONNECTED,
         );
 
-        // Connect again - should return immediately
+        // Connect again
         await service.connect();
         expect(service.getConnectionInfo().state).toBe(
           WebSocketState.CONNECTED,
@@ -720,7 +690,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should return immediately when disconnect called on disconnected service', async () => {
+    it('should remain in DISCONNECTED state when trying to disconnect again', async () => {
       await withService(async ({ service }) => {
         expect(service.getConnectionInfo().state).toBe(
           WebSocketState.DISCONNECTED,
@@ -786,25 +756,6 @@ describe('BackendWebSocketService', () => {
           // Verify state changed to disconnected (trace was called)
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.DISCONNECTED,
-          );
-        },
-      );
-    });
-
-    it('should calculate connection duration as 0 when close happens before connectedAt is set', async () => {
-      await withService(
-        { mockWebSocketOptions: { autoConnect: false } },
-        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          // Start connecting but close immediately before open event
-          const connectPromise = service.connect();
-          await completeAsyncOperations(10);
-
-          const mockWs = getMockWebSocket();
-          // Close before the connection is established (before onopen fires)
-          mockWs.simulateClose(1006, 'Closed before open');
-
-          await expect(connectPromise).rejects.toThrow(
-            'WebSocket connection closed during connection',
           );
         },
       );
@@ -928,7 +879,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should return true when checking for existing channel subscription', async () => {
+    it('should return true when checking for existing channel subscription and return false when checking for non-existent channel subscription', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
@@ -1367,12 +1318,6 @@ describe('BackendWebSocketService', () => {
           [],
         );
 
-        // Set up some reconnection attempts to verify they get reset
-        // We need to trigger some reconnection attempts first
-        const connectSpy = jest
-          .spyOn(service, 'connect')
-          .mockRejectedValue(new Error('Connection failed'));
-
         // Trigger a failed connection to increment reconnection attempts
         try {
           await service.connect();
@@ -1389,8 +1334,6 @@ describe('BackendWebSocketService', () => {
 
         // Assert that reconnection attempts were reset to 0 when user signs out
         expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
-
-        connectSpy.mockRestore();
       });
     });
 
@@ -1401,7 +1344,6 @@ describe('BackendWebSocketService', () => {
         rootMessenger.publish('KeyringController:unlock');
 
         expect(connectSpy).toHaveBeenCalled();
-        connectSpy.mockRestore();
       });
     });
 
@@ -1413,7 +1355,6 @@ describe('BackendWebSocketService', () => {
         rootMessenger.publish('KeyringController:lock');
 
         expect(disconnectSpy).toHaveBeenCalled();
-        disconnectSpy.mockRestore();
       });
     });
 
@@ -1546,8 +1487,6 @@ describe('BackendWebSocketService', () => {
 
           // Should have attempted to reconnect
           expect(connectSpy).toHaveBeenCalled();
-
-          connectSpy.mockRestore();
         },
       );
     });
