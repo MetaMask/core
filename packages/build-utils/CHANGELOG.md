@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.4]
+
 ### Changed
 
-- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
-- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/utils` from `^11.2.0` to `^11.8.1` ([#6054](https://github.com/MetaMask/core/pull/6054), [#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
 
 ## [3.0.3]
 
@@ -86,7 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#3577](https://github.com/MetaMask/core/pull/3577) [#3588](https://github.com/MetaMask/core/pull/3588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.4...HEAD
+[3.0.4]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.3...@metamask/build-utils@3.0.4
 [3.0.3]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.2...@metamask/build-utils@3.0.3
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.1...@metamask/build-utils@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.0...@metamask/build-utils@3.0.1

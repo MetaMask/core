@@ -12,6 +12,7 @@ import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { areUint8ArraysEqual } from '@metamask/utils';
 
+import { projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import type {
@@ -160,6 +161,8 @@ export class MultichainAccountService {
    * multichain accounts and wallets.
    */
   init(): void {
+    log('Initializing...');
+
     this.#wallets.clear();
     this.#accountIdToContext.clear();
 
@@ -169,6 +172,8 @@ export class MultichainAccountService {
       if (keyring.type === (KeyringTypes.hd as string)) {
         // Only HD keyrings have an entropy source/SRP.
         const entropySource = keyring.metadata.id;
+
+        log(`Adding new wallet for entropy: "${entropySource}"`);
 
         // This will automatically "associate" all multichain accounts for that wallet
         // (based on the accounts owned by each account providers).
@@ -190,6 +195,8 @@ export class MultichainAccountService {
         }
       }
     }
+
+    log('Initialized');
   }
 
   #handleOnAccountAdded(account: KeyringAccount): void {
@@ -204,6 +211,10 @@ export class MultichainAccountService {
       toMultichainAccountWalletId(account.options.entropy.id),
     );
     if (!wallet) {
+      log(
+        `Adding new wallet for entropy: "${account.options.entropy.id}" (for account: "${account.id}")`,
+      );
+
       // That's a new wallet.
       wallet = new MultichainAccountWallet({
         entropySource: account.options.entropy.id,
@@ -256,6 +267,9 @@ export class MultichainAccountService {
     if (found) {
       const { wallet } = found;
 
+      log(
+        `Re-synchronize wallet [${wallet.id}] since account "${id}" got removed`,
+      );
       wallet.sync();
     }
 
@@ -351,6 +365,8 @@ export class MultichainAccountService {
       throw new Error('This Secret Recovery Phrase has already been imported.');
     }
 
+    log(`Creating new wallet...`);
+
     const result = await this.#messenger.call(
       'KeyringController:addNewKeyring',
       KeyringTypes.hd,
@@ -364,6 +380,8 @@ export class MultichainAccountService {
     });
 
     this.#wallets.set(wallet.id, wallet);
+
+    log(`Wallet created: [${wallet.id}]`);
 
     return wallet;
   }
@@ -457,9 +475,14 @@ export class MultichainAccountService {
    * @param enabled - Whether basic functionality is enabled.
    */
   async setBasicFunctionality(enabled: boolean): Promise<void> {
+    log(`Turning basic functionality: ${enabled ? 'ON' : 'OFF'}`);
+
     // Loop through providers and enable/disable only wrapped ones when basic functionality changes
     for (const provider of this.#providers) {
       if (isAccountProviderWrapper(provider)) {
+        log(
+          `${enabled ? 'Enabling' : 'Disabling'} account provider: "${provider.getName()}"`,
+        );
         provider.setEnabled(enabled);
       }
       // Regular providers (like EVM) are never disabled for basic functionality
@@ -475,8 +498,12 @@ export class MultichainAccountService {
    * Align all multichain account wallets.
    */
   async alignWallets(): Promise<void> {
+    log(`Triggering alignment on all wallets...`);
+
     const wallets = this.getMultichainAccountWallets();
     await Promise.all(wallets.map((w) => w.alignAccounts()));
+
+    log(`Wallets aligned`);
   }
 
   /**
@@ -486,6 +513,9 @@ export class MultichainAccountService {
    */
   async alignWallet(entropySource: EntropySourceId): Promise<void> {
     const wallet = this.getMultichainAccountWallet({ entropySource });
+
+    log(`Triggering alignment for wallet: [${wallet.id}]`);
     await wallet.alignAccounts();
+    log(`Wallet [${wallet.id}] aligned`);
   }
 }

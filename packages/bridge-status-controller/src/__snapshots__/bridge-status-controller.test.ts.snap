@@ -9,6 +9,7 @@ Object {
     "batchId": undefined,
     "completionTime": undefined,
     "estimatedProcessingTimeInSeconds": 15,
+    "featureId": undefined,
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
     "isStxEnabled": false,
@@ -209,6 +210,7 @@ Object {
     "approvalTxId": undefined,
     "batchId": undefined,
     "estimatedProcessingTimeInSeconds": 15,
+    "featureId": undefined,
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
     "isStxEnabled": false,
@@ -402,6 +404,7 @@ Object {
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
+  "featureId": undefined,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
@@ -523,7 +526,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -633,6 +637,7 @@ Object {
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
+  "featureId": undefined,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
@@ -754,7 +759,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "otherAccount",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -864,6 +870,7 @@ Object {
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
+  "featureId": undefined,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
@@ -985,7 +992,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "otherAccount",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -1096,6 +1104,7 @@ Object {
   "approvalTxId": undefined,
   "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 15,
+  "featureId": undefined,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": true,
@@ -1268,7 +1277,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -1339,6 +1349,7 @@ Object {
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
+  "featureId": undefined,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
@@ -1460,7 +1471,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "otherAccount",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -1570,6 +1582,7 @@ Object {
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
+  "featureId": undefined,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
@@ -1691,7 +1704,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -1801,6 +1815,7 @@ Object {
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
+  "featureId": undefined,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
@@ -2037,7 +2052,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -2141,6 +2157,7 @@ Object {
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
+  "featureId": undefined,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
@@ -2307,7 +2324,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "otherAccount",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -2392,6 +2410,7 @@ Object {
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
+  "featureId": undefined,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
@@ -2558,7 +2577,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -2631,7 +2651,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -2701,7 +2722,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -2769,6 +2791,7 @@ Object {
   "approvalTxId": undefined,
   "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 0,
+  "featureId": undefined,
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": true,
@@ -2966,7 +2989,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3030,6 +3054,65 @@ Object {
 }
 `;
 
+exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with featureId 1`] = `
+Object {
+  "chainId": "0xa4b1",
+  "hash": "0xevmTxHash",
+  "id": "test-tx-id",
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": Object {
+    "chainId": "0xa4b1",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
+  },
+  "type": "swap",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with featureId 2`] = `
+Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  Array [
+    "GasFeeController:getState",
+  ],
+  Array [
+    "TransactionController:getState",
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  Array [
+    "GasFeeController:getState",
+  ],
+  Array [
+    "TransactionController:getState",
+  ],
+]
+`;
+
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 1`] = `
 Object {
   "chainId": "0xa4b1",
@@ -3055,6 +3138,7 @@ Object {
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
+  "featureId": undefined,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
@@ -3176,7 +3260,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3224,7 +3309,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "SOLaccountAddress",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3257,11 +3343,9 @@ Array [
       "request": Object {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
-        "method": "signAndSendTransactionWithoutConfirmation",
+        "method": "signAndSendTransaction",
         "params": Object {
-          "account": Object {
-            "address": "0x123...",
-          },
+          "accountId": "solana-account-1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
         },
@@ -3302,7 +3386,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "SOLaccountAddress",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3335,11 +3420,9 @@ Array [
       "request": Object {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
-        "method": "signAndSendTransactionWithoutConfirmation",
+        "method": "signAndSendTransaction",
         "params": Object {
-          "account": Object {
-            "address": "0x123...",
-          },
+          "accountId": "solana-account-1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
         },
@@ -3392,6 +3475,7 @@ Object {
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 300,
+  "featureId": undefined,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
@@ -3493,7 +3577,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "SOLaccountAddress",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3551,7 +3636,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "SOLaccountAddress",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3584,11 +3670,9 @@ Array [
       "request": Object {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
-        "method": "signAndSendTransactionWithoutConfirmation",
+        "method": "signAndSendTransaction",
         "params": Object {
-          "account": Object {
-            "address": "0x123...",
-          },
+          "accountId": "solana-account-1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
         },
@@ -3629,7 +3713,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "SOLaccountAddress",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3662,11 +3747,9 @@ Array [
       "request": Object {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
-        "method": "signAndSendTransactionWithoutConfirmation",
+        "method": "signAndSendTransaction",
         "params": Object {
-          "account": Object {
-            "address": "0x123...",
-          },
+          "accountId": "solana-account-1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
         },
@@ -3720,6 +3803,7 @@ Object {
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 300,
+  "featureId": undefined,
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
@@ -3819,7 +3903,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "SOLaccountAddress",
   ],
 ]
 `;
@@ -3830,7 +3915,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "SOLaccountAddress",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3908,13 +3994,81 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 Array [
   Array [
     "Failed to fetch bridge tx status",
-    [Error: Bridge status validation failed: across|status, across|srcChain],
+    [Error: Bridge status validation failed: across|unknown],
   ],
   Array [
     "Failed to fetch bridge tx status",
     [Error: Bridge status validation failed: across|status],
   ],
 ]
+`;
+
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for completed bridge tx with featureId 1`] = `
+Object {
+  "bridge": "across",
+  "destChain": Object {
+    "amount": "990654755978611",
+    "chainId": 10,
+    "token": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "chainId": 10,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.63",
+      "symbol": "ETH",
+    },
+    "txHash": "0xdestTxHash1",
+  },
+  "isExpectedToken": true,
+  "srcChain": Object {
+    "amount": "991250000000000",
+    "chainId": 42161,
+    "token": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
+      "chainId": 42161,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.7",
+      "symbol": "ETH",
+    },
+    "txHash": "0xperpsSrcTxHash1",
+  },
+  "status": "COMPLETE",
+}
+`;
+
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for failed bridge tx with featureId 1`] = `
+Object {
+  "bridge": "debridge",
+  "destChain": Object {
+    "chainId": 10,
+    "token": Object {},
+  },
+  "srcChain": Object {
+    "amount": "991250000000000",
+    "chainId": 42161,
+    "token": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
+      "chainId": 42161,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "symbol": "ETH",
+    },
+    "txHash": "0xperpsSrcTxHash1",
+  },
+  "status": "FAILED",
+}
 `;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should track completed event for swap transaction 1`] = `

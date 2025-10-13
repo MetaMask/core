@@ -14,6 +14,11 @@ import {
   toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
+import type {
+  BalanceUpdate,
+  AccountActivityServiceBalanceUpdatedEvent,
+  AccountActivityServiceStatusChangedEvent,
+} from '@metamask/core-backend';
 import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -28,11 +33,18 @@ import type {
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
-import { isStrictHexString } from '@metamask/utils';
+import {
+  isCaipAssetType,
+  isCaipChainId,
+  isStrictHexString,
+  parseCaipAssetType,
+  parseCaipChainId,
+} from '@metamask/utils';
 import { produce } from 'immer';
 import { isEqual } from 'lodash';
 
 import type {
+  AccountTrackerControllerGetStateAction,
   AccountTrackerUpdateNativeBalancesAction,
   AccountTrackerUpdateStakedBalancesAction,
 } from './AccountTrackerController';
@@ -43,6 +55,7 @@ import {
   type ProcessedBalance,
 } from './multi-chain-accounts-service/api-balance-fetcher';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
+import type { TokenDetectionControllerAddDetectedTokensViaWsAction } from './TokenDetectionController';
 import type {
   TokensControllerGetStateAction,
   TokensControllerState,
@@ -53,7 +66,8 @@ export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
 
 const CONTROLLER = 'TokenBalancesController' as const;
-const DEFAULT_INTERVAL_MS = 180_000; // 3 minutes
+const DEFAULT_INTERVAL_MS = 30_000; // 30 seconds
+const DEFAULT_WEBSOCKET_ACTIVE_POLLING_INTERVAL_MS = 300_000; // 5 minutes
 
 const metadata: StateMetadata<TokenBalancesControllerState> = {
   tokenBalances: {
@@ -110,9 +124,11 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | TokensControllerGetStateAction
+  | TokenDetectionControllerAddDetectedTokensViaWsAction
   | PreferencesControllerGetStateAction
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerListAccountsAction
+  | AccountTrackerControllerGetStateAction
   | AccountTrackerUpdateNativeBalancesAction
   | AccountTrackerUpdateStakedBalancesAction;
 
@@ -120,7 +136,9 @@ export type AllowedEvents =
   | TokensControllerStateChangeEvent
   | PreferencesControllerStateChangeEvent
   | NetworkControllerStateChangeEvent
-  | KeyringControllerAccountRemovedEvent;
+  | KeyringControllerAccountRemovedEvent
+  | AccountActivityServiceBalanceUpdatedEvent
+  | AccountActivityServiceStatusChangedEvent;
 
 export type TokenBalancesControllerMessenger = Messenger<
   typeof CONTROLLER,
@@ -148,11 +166,14 @@ export type TokenBalancesControllerOptions = {
   /** When `true`, balances for *all* known accounts are queried. */
   queryMultipleAccounts?: boolean;
   /** Array of chainIds that should use Accounts-API strategy (if supported by API). */
-  accountsApiChainIds?: ChainIdHex[];
+  accountsApiChainIds?: () => ChainIdHex[];
   /** Disable external HTTP calls (privacy / offline mode). */
   allowExternalServices?: () => boolean;
   /** Custom logger. */
   log?: (...args: unknown[]) => void;
+  platform?: 'extension' | 'mobile';
+  /** Polling interval when WebSocket is active and providing real-time updates */
+  websocketActivePollingInterval?: number;
 };
 // endregion
 
@@ -165,6 +186,53 @@ const ZERO_ADDRESS =
 
 const checksum = (addr: string): ChecksumAddress =>
   toChecksumHexAddress(addr) as ChecksumAddress;
+
+/**
+ * Convert CAIP chain ID or hex chain ID to hex chain ID
+ * Handles both CAIP-2 format (e.g., "eip155:1") and hex format (e.g., "0x1")
+ *
+ * @param chainId - CAIP chain ID (e.g., "eip155:1") or hex chain ID (e.g., "0x1")
+ * @returns Hex chain ID (e.g., "0x1")
+ * @throws {Error} If chainId is neither a valid CAIP-2 chain ID nor a hex string
+ */
+export const caipChainIdToHex = (chainId: string): ChainIdHex => {
+  if (isStrictHexString(chainId)) {
+    return chainId;
+  }
+
+  if (isCaipChainId(chainId)) {
+    return toHex(parseCaipChainId(chainId).reference);
+  }
+
+  throw new Error('caipChainIdToHex - Failed to provide CAIP-2 or Hex chainId');
+};
+
+/**
+ * Extract token address from asset type
+ * Returns tuple of [tokenAddress, isNativeToken] or null if invalid
+ *
+ * @param assetType - Asset type string (e.g., 'eip155:1/erc20:0x...' or 'eip155:1/slip44:60')
+ * @returns Tuple of [tokenAddress, isNativeToken] or null if invalid
+ */
+export const parseAssetType = (assetType: string): [string, boolean] | null => {
+  if (!isCaipAssetType(assetType)) {
+    return null;
+  }
+
+  const parsed = parseCaipAssetType(assetType);
+
+  // ERC20 token (e.g., "eip155:1/erc20:0x...")
+  if (parsed.assetNamespace === 'erc20') {
+    return [parsed.assetReference, false];
+  }
+
+  // Native token (e.g., "eip155:1/slip44:60")
+  if (parsed.assetNamespace === 'slip44') {
+    return [ZERO_ADDRESS, true];
+  }
+
+  return null;
+};
 // endregion
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -176,9 +244,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   TokenBalancesControllerState,
   TokenBalancesControllerMessenger
 > {
+  readonly #platform: 'extension' | 'mobile';
+
   readonly #queryAllAccounts: boolean;
 
-  readonly #accountsApiChainIds: ChainIdHex[];
+  readonly #accountsApiChainIds: () => ChainIdHex[];
 
   readonly #balanceFetchers: BalanceFetcher[];
 
@@ -186,8 +256,13 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   #detectedTokens: TokensControllerState['allDetectedTokens'] = {};
 
+  #allIgnoredTokens: TokensControllerState['allIgnoredTokens'] = {};
+
   /** Default polling interval for chains without specific configuration */
   readonly #defaultInterval: number;
+
+  /** Polling interval when WebSocket is active and providing real-time updates */
+  readonly #websocketActivePollingInterval: number;
 
   /** Per-chain polling configuration */
   readonly #chainPollingConfig: Record<ChainIdHex, ChainPollingConfig>;
@@ -201,14 +276,25 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   /** Store original chainIds from startPolling to preserve intent */
   #requestedChainIds: ChainIdHex[] = [];
 
+  /** Debouncing for rapid status changes to prevent excessive HTTP calls */
+  readonly #statusChangeDebouncer: {
+    timer: NodeJS.Timeout | null;
+    pendingChanges: Map<string, 'up' | 'down'>;
+  } = {
+    timer: null,
+    pendingChanges: new Map(),
+  };
+
   constructor({
     messenger,
     interval = DEFAULT_INTERVAL_MS,
+    websocketActivePollingInterval = DEFAULT_WEBSOCKET_ACTIVE_POLLING_INTERVAL_MS,
     chainPollingIntervals = {},
     state = {},
     queryMultipleAccounts = true,
-    accountsApiChainIds = [],
+    accountsApiChainIds = () => [],
     allowExternalServices = () => true,
+    platform,
   }: TokenBalancesControllerOptions) {
     super({
       name: CONTROLLER,
@@ -217,14 +303,16 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       state: { tokenBalances: {}, ...state },
     });
 
+    this.#platform = platform ?? 'extension';
     this.#queryAllAccounts = queryMultipleAccounts;
-    this.#accountsApiChainIds = [...accountsApiChainIds];
+    this.#accountsApiChainIds = accountsApiChainIds;
     this.#defaultInterval = interval;
+    this.#websocketActivePollingInterval = websocketActivePollingInterval;
     this.#chainPollingConfig = { ...chainPollingIntervals };
 
     // Strategy order: API first, then RPC fallback
     this.#balanceFetchers = [
-      ...(accountsApiChainIds.length > 0 && allowExternalServices()
+      ...(accountsApiChainIds().length > 0 && allowExternalServices()
         ? [this.#createAccountsApiFetcher()]
         : []),
       new RpcBalanceFetcher(this.#getProvider, this.#getNetworkClient, () => ({
@@ -236,11 +324,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.setIntervalLength(interval);
 
     // initial token state & subscriptions
-    const { allTokens, allDetectedTokens } = this.messenger.call(
-      'TokensController:getState',
-    );
+    const { allTokens, allDetectedTokens, allIgnoredTokens } =
+      this.messenger.call('TokensController:getState');
     this.#allTokens = allTokens;
     this.#detectedTokens = allDetectedTokens;
+    this.#allIgnoredTokens = allIgnoredTokens;
 
     this.messenger.subscribe(
       'TokensController:stateChange',
@@ -268,6 +356,18 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.messenger.registerActionHandler(
       `TokenBalancesController:getChainPollingConfig`,
       this.getChainPollingConfig.bind(this),
+    );
+
+    // Subscribe to AccountActivityService balance updates for real-time updates
+    this.messagingSystem.subscribe(
+      'AccountActivityService:balanceUpdated',
+      this.#onAccountActivityBalanceUpdate.bind(this),
+    );
+
+    // Subscribe to AccountActivityService status changes for dynamic polling management
+    this.messagingSystem.subscribe(
+      'AccountActivityService:statusChanged',
+      this.#onAccountActivityStatusChanged.bind(this),
     );
   }
 
@@ -312,7 +412,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    */
   readonly #createAccountsApiFetcher = (): BalanceFetcher => {
     const originalFetcher = new AccountsApiBalanceFetcher(
-      'extension',
+      this.#platform,
       this.#getProvider,
     );
 
@@ -322,7 +422,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         // 1. In our specified accountsApiChainIds array
         // 2. Actually supported by the AccountsApi
         return (
-          this.#accountsApiChainIds.includes(chainId) &&
+          this.#accountsApiChainIds().includes(chainId) &&
           originalFetcher.supports(chainId)
         );
       },
@@ -581,50 +681,65 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
     }
 
-    // Determine which accounts to process
-    const accountsToProcess = this.#queryAllAccounts
-      ? allAccounts.map((a) => a.address as ChecksumAddress)
-      : [selected as ChecksumAddress];
+    // Determine which accounts to process based on queryAllAccounts parameter
+    const accountsToProcess =
+      (queryAllAccounts ?? this.#queryAllAccounts)
+        ? allAccounts.map((a) => a.address as ChecksumAddress)
+        : [selected as ChecksumAddress];
 
     const prev = this.state;
     const next = draft(prev, (d) => {
-      // First, initialize all tokens from allTokens state with balance 0
-      // for the accounts and chains we're processing
+      // Initialize account and chain structures if they don't exist, but preserve existing balances
       for (const chainId of targetChains) {
         for (const account of accountsToProcess) {
-          // Initialize tokens from allTokens
+          // Ensure the nested structure exists without overwriting existing balances
+          d.tokenBalances[account] ??= {};
+          d.tokenBalances[account][chainId] ??= {};
+          // Initialize tokens from allTokens only if they don't exist yet
           const chainTokens = this.#allTokens[chainId];
           if (chainTokens?.[account]) {
             Object.values(chainTokens[account]).forEach(
               (token: { address: string }) => {
                 const tokenAddress = checksum(token.address);
-                ((d.tokenBalances[account] ??= {})[chainId] ??= {})[
-                  tokenAddress
-                ] = '0x0';
+                // Only initialize if the token balance doesn't exist yet
+                if (!(tokenAddress in d.tokenBalances[account][chainId])) {
+                  d.tokenBalances[account][chainId][tokenAddress] = '0x0';
+                }
               },
             );
           }
 
-          // Initialize tokens from allDetectedTokens
+          // Initialize tokens from allDetectedTokens only if they don't exist yet
           const detectedChainTokens = this.#detectedTokens[chainId];
           if (detectedChainTokens?.[account]) {
             Object.values(detectedChainTokens[account]).forEach(
               (token: { address: string }) => {
                 const tokenAddress = checksum(token.address);
-                ((d.tokenBalances[account] ??= {})[chainId] ??= {})[
-                  tokenAddress
-                ] = '0x0';
+                // Only initialize if the token balance doesn't exist yet
+                if (!(tokenAddress in d.tokenBalances[account][chainId])) {
+                  d.tokenBalances[account][chainId][tokenAddress] = '0x0';
+                }
               },
             );
           }
         }
       }
 
-      // Then update with actual fetched balances where available
+      // Update with actual fetched balances only if the value has changed
       aggregated.forEach(({ success, value, account, token, chainId }) => {
         if (success && value !== undefined) {
-          ((d.tokenBalances[account] ??= {})[chainId] ??= {})[checksum(token)] =
-            toHex(value);
+          const newBalance = toHex(value);
+          const tokenAddress = checksum(token);
+          const currentBalance =
+            d.tokenBalances[account as ChecksumAddress]?.[chainId]?.[
+              tokenAddress
+            ];
+
+          // Only update if the balance has actually changed
+          if (currentBalance !== newBalance) {
+            ((d.tokenBalances[account as ChecksumAddress] ??= {})[chainId] ??=
+              {})[tokenAddress] = newBalance;
+          }
         }
       });
     });
@@ -636,51 +751,117 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         (r) => r.success && r.token === ZERO_ADDRESS,
       );
 
-      // Update native token balances in a single batch operation for better performance
+      // Get current AccountTracker state to compare existing balances
+      const accountTrackerState = this.messenger.call(
+        'AccountTrackerController:getState',
+      );
+
+      // Update native token balances only if they have changed
       if (nativeBalances.length > 0) {
-        const balanceUpdates = nativeBalances.map((balance) => ({
-          address: balance.account,
-          chainId: balance.chainId,
-          balance: balance.value ? BNToHex(balance.value) : '0x0',
-        }));
+        const balanceUpdates = nativeBalances
+          .map((balance) => ({
+            address: balance.account,
+            chainId: balance.chainId,
+            balance: balance.value ? BNToHex(balance.value) : '0x0',
+          }))
+          .filter((update) => {
+            const currentBalance =
+              accountTrackerState.accountsByChainId[update.chainId]?.[
+                checksum(update.address)
+              ]?.balance;
+            // Only include if the balance has actually changed
+            return currentBalance !== update.balance;
+          });
 
-        this.messenger.call(
-          'AccountTrackerController:updateNativeBalances',
-          balanceUpdates,
-        );
+        if (balanceUpdates.length > 0) {
+          this.messenger.call(
+            'AccountTrackerController:updateNativeBalances',
+            balanceUpdates,
+          );
+        }
       }
-
-      // Get staking contract addresses for filtering
-      const stakingContractAddresses = Object.values(
-        STAKING_CONTRACT_ADDRESS_BY_CHAINID,
-      ).map((addr) => addr.toLowerCase());
 
       // Filter and update staked balances in a single batch operation for better performance
       const stakedBalances = aggregated.filter((r) => {
+        if (!r.success || r.token === ZERO_ADDRESS) {
+          return false;
+        }
+
+        // Check if the chainId and token address match any staking contract
+        const stakingContractAddress =
+          STAKING_CONTRACT_ADDRESS_BY_CHAINID[
+            r.chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
+          ];
         return (
-          r.success &&
-          r.token !== ZERO_ADDRESS &&
-          stakingContractAddresses.includes(r.token.toLowerCase())
+          stakingContractAddress &&
+          stakingContractAddress.toLowerCase() === r.token.toLowerCase()
         );
       });
 
       if (stakedBalances.length > 0) {
-        const stakedBalanceUpdates = stakedBalances.map((balance) => ({
-          address: balance.account,
-          chainId: balance.chainId,
-          stakedBalance: balance.value ? toHex(balance.value) : '0x0',
-        }));
+        const stakedBalanceUpdates = stakedBalances
+          .map((balance) => ({
+            address: balance.account,
+            chainId: balance.chainId,
+            stakedBalance: balance.value ? toHex(balance.value) : '0x0',
+          }))
+          .filter((update) => {
+            const currentStakedBalance =
+              accountTrackerState.accountsByChainId[update.chainId]?.[
+                checksum(update.address)
+              ]?.stakedBalance;
+            // Only include if the staked balance has actually changed
+            return currentStakedBalance !== update.stakedBalance;
+          });
 
-        this.messenger.call(
-          'AccountTrackerController:updateStakedBalances',
-          stakedBalanceUpdates,
-        );
+        if (stakedBalanceUpdates.length > 0) {
+          this.messenger.call(
+            'AccountTrackerController:updateStakedBalances',
+            stakedBalanceUpdates,
+          );
+        }
       }
     }
   }
 
   resetState() {
     this.update(() => ({ tokenBalances: {} }));
+  }
+
+  /**
+   * Helper method to check if a token is tracked (exists in allTokens or allIgnoredTokens)
+   *
+   * @param tokenAddress - The token address to check
+   * @param account - The account address
+   * @param chainId - The chain ID
+   * @returns True if the token is tracked (imported or ignored)
+   */
+  #isTokenTracked(
+    tokenAddress: string,
+    account: ChecksumAddress,
+    chainId: ChainIdHex,
+  ): boolean {
+    const normalizedAddress = tokenAddress.toLowerCase();
+
+    // Check if token exists in allTokens
+    if (
+      this.#allTokens?.[chainId]?.[account.toLowerCase()]?.some(
+        (token) => token.address.toLowerCase() === normalizedAddress,
+      )
+    ) {
+      return true;
+    }
+
+    // Check if token exists in allIgnoredTokens
+    if (
+      this.#allIgnoredTokens?.[chainId]?.[account.toLowerCase()]?.some(
+        (addr) => addr.toLowerCase() === normalizedAddress,
+      )
+    ) {
+      return true;
+    }
+
+    return false;
   }
 
   readonly #onTokensChanged = async (state: TokensControllerState) => {
@@ -771,6 +952,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
     this.#allTokens = state.allTokens;
     this.#detectedTokens = state.allDetectedTokens;
+    this.#allIgnoredTokens = state.allIgnoredTokens;
 
     // Only update balances for chains that still have tokens (and only if we haven't already updated state)
     if (changed.length && !hasChanges) {
@@ -827,6 +1009,243 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     });
   };
 
+  // ────────────────────────────────────────────────────────────────────────────
+  // AccountActivityService integration helpers
+
+  /**
+   * Prepare balance updates from AccountActivityService
+   * Processes all updates and returns categorized results
+   * Throws an error if any updates have validation/parsing issues
+   *
+   * @param updates - Array of balance updates from AccountActivityService
+   * @param account - Lowercase account address (for consistency with tokenBalances state format)
+   * @param chainId - Hex chain ID
+   * @returns Object containing arrays of token balances, new token addresses to add, and native balance updates
+   * @throws Error if any balance update has validation or parsing errors
+   */
+  #prepareBalanceUpdates(
+    updates: BalanceUpdate[],
+    account: ChecksumAddress,
+    chainId: ChainIdHex,
+  ): {
+    tokenBalances: { tokenAddress: ChecksumAddress; balance: Hex }[];
+    newTokens: string[];
+    nativeBalanceUpdates: { address: string; chainId: Hex; balance: Hex }[];
+  } {
+    const tokenBalances: { tokenAddress: ChecksumAddress; balance: Hex }[] = [];
+    const newTokens: string[] = [];
+    const nativeBalanceUpdates: {
+      address: string;
+      chainId: Hex;
+      balance: Hex;
+    }[] = [];
+
+    for (const update of updates) {
+      const { asset, postBalance } = update;
+
+      // Throw if balance update has an error
+      if (postBalance.error) {
+        throw new Error('Balance update has error');
+      }
+
+      // Parse token address from asset type
+      const parsed = parseAssetType(asset.type);
+      if (!parsed) {
+        throw new Error('Failed to parse asset type');
+      }
+
+      const [tokenAddress, isNativeToken] = parsed;
+
+      // Validate token address
+      if (
+        !isStrictHexString(tokenAddress) ||
+        !isValidHexAddress(tokenAddress)
+      ) {
+        throw new Error('Invalid token address');
+      }
+
+      const checksumTokenAddress = checksum(tokenAddress);
+      const isTracked = this.#isTokenTracked(
+        checksumTokenAddress,
+        account,
+        chainId,
+      );
+
+      // postBalance.amount is in hex format (raw units)
+      const balanceHex = postBalance.amount as Hex;
+
+      // Add token balance (tracked tokens, ignored tokens, and native tokens all get balance updates)
+      tokenBalances.push({
+        tokenAddress: checksumTokenAddress,
+        balance: balanceHex,
+      });
+
+      // Add native balance update if this is a native token
+      if (isNativeToken) {
+        nativeBalanceUpdates.push({
+          address: account,
+          chainId,
+          balance: balanceHex,
+        });
+      }
+
+      // Handle untracked ERC20 tokens - queue for import
+      if (!isNativeToken && !isTracked) {
+        newTokens.push(checksumTokenAddress);
+      }
+    }
+
+    return { tokenBalances, newTokens, nativeBalanceUpdates };
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // AccountActivityService event handlers
+
+  /**
+   * Handle real-time balance updates from AccountActivityService
+   * Processes balance updates and updates the token balance state
+   * If any balance update has an error, triggers fallback polling for the chain
+   *
+   * @param options0 - Balance update parameters
+   * @param options0.address - Account address
+   * @param options0.chain - CAIP chain identifier
+   * @param options0.updates - Array of balance updates for the account
+   */
+  readonly #onAccountActivityBalanceUpdate = async ({
+    address,
+    chain,
+    updates,
+  }: {
+    address: string;
+    chain: string;
+    updates: BalanceUpdate[];
+  }) => {
+    const chainId = caipChainIdToHex(chain);
+    const account = checksum(address);
+
+    try {
+      // Process all balance updates at once
+      const { tokenBalances, newTokens, nativeBalanceUpdates } =
+        this.#prepareBalanceUpdates(updates, account, chainId);
+
+      // Update state once with all token balances
+      if (tokenBalances.length > 0) {
+        this.update((state) => {
+          // Initialize account and chain structure
+          state.tokenBalances[account] ??= {};
+          state.tokenBalances[account][chainId] ??= {};
+
+          // Apply all token balance updates
+          for (const { tokenAddress, balance } of tokenBalances) {
+            state.tokenBalances[account][chainId][tokenAddress] = balance;
+          }
+        });
+      }
+
+      // Update native balances in AccountTrackerController
+      if (nativeBalanceUpdates.length > 0) {
+        this.messagingSystem.call(
+          'AccountTrackerController:updateNativeBalances',
+          nativeBalanceUpdates,
+        );
+      }
+
+      // Import any new tokens that were discovered (balance already updated from websocket)
+      if (newTokens.length > 0) {
+        await this.messagingSystem.call(
+          'TokenDetectionController:addDetectedTokensViaWs',
+          {
+            tokensSlice: newTokens,
+            chainId: chainId as Hex,
+          },
+        );
+      }
+    } catch (error) {
+      console.warn(
+        `Error updating balances from AccountActivityService for chain ${chain}, account ${address}:`,
+        error,
+      );
+      console.warn('Balance update data:', JSON.stringify(updates, null, 2));
+
+      // On error, trigger fallback polling
+      await this.updateBalances({ chainIds: [chainId] }).catch(() => {
+        // Silently handle polling errors
+      });
+    }
+  };
+
+  /**
+   * Handle status changes from AccountActivityService
+   * Uses aggressive debouncing to prevent excessive HTTP calls from rapid up/down changes
+   *
+   * @param options0 - Status change event data
+   * @param options0.chainIds - Array of chain identifiers
+   * @param options0.status - Connection status ('up' for connected, 'down' for disconnected)
+   */
+  readonly #onAccountActivityStatusChanged = ({
+    chainIds,
+    status,
+  }: {
+    chainIds: string[];
+    status: 'up' | 'down';
+  }) => {
+    // Update pending changes (latest status wins for each chain)
+    for (const chainId of chainIds) {
+      this.#statusChangeDebouncer.pendingChanges.set(chainId, status);
+    }
+
+    // Clear existing timer to extend debounce window
+    if (this.#statusChangeDebouncer.timer) {
+      clearTimeout(this.#statusChangeDebouncer.timer);
+    }
+
+    // Set new timer - only process changes after activity settles
+    this.#statusChangeDebouncer.timer = setTimeout(() => {
+      this.#processAccumulatedStatusChanges();
+    }, 5000); // 5-second debounce window
+  };
+
+  /**
+   * Process all accumulated status changes in one batch to minimize HTTP calls
+   */
+  #processAccumulatedStatusChanges(): void {
+    const changes = Array.from(
+      this.#statusChangeDebouncer.pendingChanges.entries(),
+    );
+    this.#statusChangeDebouncer.pendingChanges.clear();
+    this.#statusChangeDebouncer.timer = null;
+
+    if (changes.length === 0) {
+      return;
+    }
+
+    // Calculate final polling configurations
+    const chainConfigs: Record<ChainIdHex, { interval: number }> = {};
+
+    for (const [chainId, status] of changes) {
+      // Convert CAIP format (eip155:1) to hex format (0x1)
+      // chainId is always in CAIP format from AccountActivityService
+      const hexChainId = caipChainIdToHex(chainId);
+
+      if (status === 'down') {
+        // Chain is down - use default polling since no real-time updates available
+        chainConfigs[hexChainId] = { interval: this.#defaultInterval };
+      } else {
+        // Chain is up - use longer intervals since WebSocket provides real-time updates
+        chainConfigs[hexChainId] = {
+          interval: this.#websocketActivePollingInterval,
+        };
+      }
+    }
+
+    // Add jitter to prevent synchronized requests across instances
+    const jitterDelay = Math.random() * this.#defaultInterval; // 0 to default interval
+
+    setTimeout(() => {
+      this.updateChainPollingConfigs(chainConfigs, { immediateUpdate: true });
+    }, jitterDelay);
+  }
+
   /**
    * Clean up all timers and resources when controller is destroyed
    */
@@ -834,6 +1253,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#isControllerPollingActive = false;
     this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
     this.#intervalPollingTimers.clear();
+
+    // Clean up debouncing timer
+    if (this.#statusChangeDebouncer.timer) {
+      clearTimeout(this.#statusChangeDebouncer.timer);
+      this.#statusChangeDebouncer.timer = null;
+    }
 
     // Unregister action handlers
     this.messenger.unregisterActionHandler(

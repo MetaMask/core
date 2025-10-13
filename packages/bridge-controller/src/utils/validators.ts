@@ -80,6 +80,19 @@ export const BridgeAssetSchema = type({
   iconUrl: optional(nullable(string())),
 });
 
+const DefaultPairSchema = type({
+  /**
+   * The standard default pairs. Use this if the pair is only set once.
+   * The key is the CAIP asset type of the src token and the value is the CAIP asset type of the dest token.
+   */
+  standard: record(string(), string()),
+  /**
+   * The other default pairs. Use this if the dest token depends on the src token and can be set multiple times.
+   * The key is the CAIP asset type of the src token and the value is the CAIP asset type of the dest token.
+   */
+  other: record(string(), string()),
+});
+
 export const ChainConfigurationSchema = type({
   isActiveSrc: boolean(),
   isActiveDest: boolean(),
@@ -90,6 +103,7 @@ export const ChainConfigurationSchema = type({
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
   isGaslessSwapEnabled: optional(boolean()),
   noFeeAssets: optional(array(string())),
+  defaultPairs: optional(DefaultPairSchema),
 });
 
 export const PriceImpactThresholdSchema = type({
@@ -118,6 +132,11 @@ export const PlatformConfigSchema = type({
   maxRefreshCount: number(),
   support: boolean(),
   chains: record(string(), ChainConfigurationSchema),
+  /**
+   * The bip44 default pairs for the chains
+   * Key is the CAIP chainId namespace
+   */
+  bip44DefaultPairs: optional(record(string(), optional(DefaultPairSchema))),
 });
 
 export const validateFeatureFlagsResponse = (
@@ -220,16 +239,35 @@ export const TxDataSchema = type({
   effectiveGas: optional(number()),
 });
 
+export const BitcoinTradeDataSchema = type({
+  unsignedPsbtBase64: string(),
+  inputsToSign: nullable(array(type({}))),
+});
+
 export const QuoteResponseSchema = type({
   quote: QuoteSchema,
   estimatedProcessingTimeInSeconds: number(),
   approval: optional(TxDataSchema),
-  trade: union([TxDataSchema, string()]),
+  trade: union([TxDataSchema, BitcoinTradeDataSchema, string()]),
+});
+
+export const BitcoinQuoteResponseSchema = type({
+  quote: QuoteSchema,
+  estimatedProcessingTimeInSeconds: number(),
+  approval: optional(TxDataSchema),
+  trade: BitcoinTradeDataSchema,
 });
 
 export const validateQuoteResponse = (
   data: unknown,
 ): data is Infer<typeof QuoteResponseSchema> => {
   assert(data, QuoteResponseSchema);
+  return true;
+};
+
+export const validateBitcoinQuoteResponse = (
+  data: unknown,
+): data is Infer<typeof BitcoinQuoteResponseSchema> => {
+  assert(data, BitcoinQuoteResponseSchema);
   return true;
 };

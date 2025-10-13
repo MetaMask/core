@@ -1,4 +1,4 @@
-import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
+import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 import type {
   GetCurrencyRateState,
   MultichainAssetsRatesControllerGetStateAction,
@@ -30,6 +30,7 @@ import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 import type {
   BridgeAssetSchema,
   ChainConfigurationSchema,
+  FeatureId,
   FeeDataSchema,
   PlatformConfigSchema,
   ProtocolSchema,
@@ -78,8 +79,8 @@ export type L1GasFees = {
   l1GasFeesInHexWei?: string; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
 };
 
-export type SolanaFees = {
-  solanaFeesInLamports?: string; // solana fees in lamports, appended by BridgeController.#appendSolanaFees
+export type NonEvmFees = {
+  nonEvmFeesInNative?: string; // Non-EVM chain fees in native units (SOL for Solana, BTC for Bitcoin)
 };
 
 /**
@@ -265,6 +266,7 @@ export type QuoteResponse<TxDataType = TxData> = Infer<
 > & {
   trade: TxDataType;
   approval?: TxData;
+  featureId?: FeatureId;
 };
 
 export enum ChainId {
@@ -303,7 +305,7 @@ export enum BridgeBackgroundAction {
 
 export type BridgeControllerState = {
   quoteRequest: Partial<GenericQuoteRequest>;
-  quotes: (QuoteResponse & L1GasFees & SolanaFees)[];
+  quotes: (QuoteResponse & L1GasFees & NonEvmFees)[];
   quotesInitialLoadTime: number | null;
   quotesLastFetched: number | null;
   quotesLoadingStatus: RequestStatus | null;
@@ -351,7 +353,7 @@ export type BridgeControllerActions =
 export type BridgeControllerEvents = BridgeControllerStateChangeEvent;
 
 export type AllowedActions =
-  | AccountsControllerGetSelectedMultichainAccountAction
+  | AccountsControllerGetAccountByAddressAction
   | GetCurrencyRateState
   | TokenRatesControllerGetStateAction
   | MultichainAssetsRatesControllerGetStateAction

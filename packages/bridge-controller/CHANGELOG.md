@@ -16,10 +16,103 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6444](https://github.com/MetaMask/core/pull/6444))
   - Previously, `BridgeController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 
-## [44.0.0]
+## [50.0.0]
 
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^79.0.0` to `^80.0.0` ([#6818](https://github.com/MetaMask/core/pull/6818))
+
+## [49.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/gas-fee-controller` from `^24.0.0` to `^24.1.0` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/multichain-network-controller` from `^1.0.0` to `^1.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/polling-controller` from `^14.0.0` to `^14.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [49.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^78.0.0` to `^79.0.0` ([#6806](https://github.com/MetaMask/core/pull/6806))
+- Add optional `Client-Version` header to bridge API requests ([#6791](https://github.com/MetaMask/core/pull/6791))
+
+## [48.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^77.0.0` to `^78.0.0` ([#6780](https://github.com/MetaMask/core/pull/6780))
+
+## [47.2.0]
+
+### Added
+
+- Append quote's `featureId` to QuoteResponse object, if defined. Swap and bridge quotes have an `undefined` featureId value for backwards compatibility with old history entries ([#6739](https://github.com/MetaMask/core/pull/6739))
+
+## [47.1.0]
+
+### Added
+
+- Add `bip44DefaultPairs` and `chains[chainId].defaultPairs` to feature flag types and validators ([#6645](https://github.com/MetaMask/core/pull/6645))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `77.0.0` to `77.0.1` ([#6747](https://github.com/MetaMask/core/pull/6747))
+- Bump `@metamask/transaction-controller` from `60.4.0` to `60.5.0` ([#6733](https://github.com/MetaMask/core/pull/6733))
+
+## [47.0.0]
+
+### Changed
+
+- **BREAKING** Make `walletAddress` a required quote request parameter when calling the `updateBridgeQuoteRequestParams` handler ([#6719](https://github.com/MetaMask/core/pull/6719))
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
+### Removed
+
+- Deprecate the unused `SnapConfirmationViewed` event ([#6719](https://github.com/MetaMask/core/pull/6719))
+
+### Fixed
+
+- Replace `AccountsController:getSelectedMultichainAccount` usages with AccountsController:getAccountByAddress` when retrieving Solana account details for quote metadata ([#6719](https://github.com/MetaMask/core/pull/6719))
+
+## [46.0.0]
+
+### Added
+
+- Add support for Bitcoin bridge transactions ([#6705](https://github.com/MetaMask/core/pull/6705))
+  - Handle Bitcoin PSBT (Partially Signed Bitcoin Transaction) format in trade data
+  - Support Bitcoin chain ID (`ChainId.BTC = 20000000000001`) and CAIP format (`bip122:000000000019d6689c085ae165831e93`)
+- Export `isNonEvmChainId` utility function to check for non-EVM chains (Solana, Bitcoin) ([#6705](https://github.com/MetaMask/core/pull/6705))
+
+### Changed
+
+- **BREAKING:** Rename fee handling for non-EVM chains ([#6705](https://github.com/MetaMask/core/pull/6705))
+  - Replace `SolanaFees` type with `NonEvmFees` type (exported type)
+  - Replace `solanaFeesInLamports` property in quote responses with `nonEvmFeesInNative` property
+  - The `nonEvmFeesInNative` property stores fees in the native units for each chain (SOL for Solana, BTC for Bitcoin)
+- **BREAKING:** Update Snap methods to use new unified interface for non-EVM chains ([#6705](https://github.com/MetaMask/core/pull/6705))
+  - Snaps must now implement `computeFee` method instead of `getFeeForTransaction` for fee calculation
+  - The `computeFee` method returns fees in native token units rather than smallest units
+
+## [45.0.0]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^76.0.0` to `^77.0.0` ([#6716](https://github.com/MetaMask/core/pull/6716), [#6629](https://github.com/MetaMask/core/pull/6716))
+
+## [44.0.1]
+
+### Changed
+
+- Revert accidental breaking changes included in v44.0.0 ([#6454](https://github.com/MetaMask/core/pull/6454))
+
+## [44.0.0] [DEPRECATED]
+
+### Changed
+
+- This version was deprecated because it accidentally included additional breaking changes; use v44.0.1 or later versions instead
 - **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^75.0.0` to `^76.0.0` ([#6676](https://github.com/MetaMask/core/pull/6676))
 
 ## [43.2.1]
@@ -612,7 +705,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@44.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@50.0.0...HEAD
+[50.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@49.0.1...@metamask/bridge-controller@50.0.0
+[49.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@49.0.0...@metamask/bridge-controller@49.0.1
+[49.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@48.0.0...@metamask/bridge-controller@49.0.0
+[48.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@47.2.0...@metamask/bridge-controller@48.0.0
+[47.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@47.1.0...@metamask/bridge-controller@47.2.0
+[47.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@47.0.0...@metamask/bridge-controller@47.1.0
+[47.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@46.0.0...@metamask/bridge-controller@47.0.0
+[46.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@45.0.0...@metamask/bridge-controller@46.0.0
+[45.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@44.0.1...@metamask/bridge-controller@45.0.0
+[44.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@44.0.0...@metamask/bridge-controller@44.0.1
 [44.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@43.2.1...@metamask/bridge-controller@44.0.0
 [43.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@43.2.0...@metamask/bridge-controller@43.2.1
 [43.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@43.1.0...@metamask/bridge-controller@43.2.0

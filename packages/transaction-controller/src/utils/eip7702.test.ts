@@ -2,8 +2,10 @@ import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import {
   Messenger,
+  MockAnyNamespace,
   type MessengerActions,
   type MessengerEvents,
+  MOCK_ANY_NAMESPACE,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
@@ -77,7 +79,7 @@ const AUTHORIZATION_LIST_MOCK: AuthorizationList = [
 
 describe('EIP-7702 Utils', () => {
   let rootMessenger: Messenger<
-    'Root',
+    MockAnyNamespace,
     MessengerActions<TransactionControllerMessenger>,
     MessengerEvents<TransactionControllerMessenger>
   >;
@@ -98,7 +100,7 @@ describe('EIP-7702 Utils', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    rootMessenger = new Messenger({ namespace: 'Root' });
+    rootMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 
     signAuthorizationMock = jest
       .fn()
