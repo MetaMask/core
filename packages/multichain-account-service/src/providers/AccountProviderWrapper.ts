@@ -34,6 +34,10 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
     this.isEnabled = enabled;
   }
 
+  isDisabled(): boolean {
+    return !this.isEnabled;
+  }
+
   /**
    * Override getAccounts to return empty array when disabled.
    *
