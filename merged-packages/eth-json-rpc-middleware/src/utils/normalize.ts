@@ -21,7 +21,7 @@ export function normalizeTypedMessage(messageData: string) {
   let data;
   try {
     data = parseTypedMessage(messageData);
-  } catch (e) {
+  } catch {
     // Ignore normalization errors and pass the message as is
     return messageData;
   }

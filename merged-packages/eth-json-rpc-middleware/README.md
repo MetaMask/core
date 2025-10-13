@@ -4,6 +4,14 @@ Ethereum-related middleware for [`json-rpc-engine`](https://github.com/MetaMask/
 
 See tests for usage details.
 
+## Installation
+
+`yarn add @metamask/eth-json-rpc-middleware`
+
+or
+
+`npm install @metamask/eth-json-rpc-middleware`
+
 ## Running Tests
 
 ```bash
