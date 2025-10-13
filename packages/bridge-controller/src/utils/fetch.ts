@@ -185,8 +185,10 @@ const fetchAssetPricesForCurrency = async (request: {
   clientId: string;
   clientVersion?: string;
   fetchFn: FetchFunction;
+  signal?: AbortSignal;
 }): Promise<Record<CaipAssetType, { [currency: string]: string }>> => {
-  const { currency, assetIds, clientId, clientVersion, fetchFn } = request;
+  const { currency, assetIds, clientId, clientVersion, fetchFn, signal } =
+    request;
   const validAssetIds = Array.from(assetIds).filter(Boolean);
   if (validAssetIds.length === 0) {
     return {};
@@ -199,6 +201,7 @@ const fetchAssetPricesForCurrency = async (request: {
   const url = `https://price.api.cx.metamask.io/v3/spot-prices?${queryParams}`;
   const priceApiResponse = (await fetchFn(url, {
     headers: getClientHeaders(clientId, clientVersion),
+    signal,
   })) as Record<CaipAssetType, { [currency: string]: number }>;
   if (!priceApiResponse || typeof priceApiResponse !== 'object') {
     return {};
@@ -327,6 +330,7 @@ export async function fetchBridgeQuoteStream(
         console.warn('Quote validation failed', validationFailures);
         serverEventHandlers.onValidationFailure(validationFailures);
       } else {
+        // Rethrow any unexpected errors
         throw error;
       }
     }
@@ -347,7 +351,8 @@ export async function fetchBridgeQuoteStream(
     onclose: () => {
       serverEventHandlers.onClose();
     },
-    openWhenHidden: false, // cancel request when document is hidden, will restart when visible
+    // Cancels the request when document is hidden, will automatically restart when visible
+    openWhenHidden: false,
     fetch: fetchFn,
   });
 }
