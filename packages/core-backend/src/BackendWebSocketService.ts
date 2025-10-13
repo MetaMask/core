@@ -1,4 +1,4 @@
-import type { RestrictedMessenger } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import { getErrorMessage } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
@@ -211,13 +211,11 @@ export type WebSocketConnectionInfo = {
 export type BackendWebSocketServiceActions =
   BackendWebSocketServiceMethodActions;
 
-export type BackendWebSocketServiceAllowedActions =
-  | AuthenticationController.AuthenticationControllerGetBearerToken
-  | BackendWebSocketServiceMethodActions;
+type AllowedActions =
+  AuthenticationController.AuthenticationControllerGetBearerToken;
 
-export type BackendWebSocketServiceAllowedEvents =
-  | AuthenticationController.AuthenticationControllerStateChangeEvent
-  | BackendWebSocketServiceConnectionStateChangedEvent;
+type AllowedEvents =
+  AuthenticationController.AuthenticationControllerStateChangeEvent;
 
 // Event types for WebSocket connection state changes
 export type BackendWebSocketServiceConnectionStateChangedEvent = {
@@ -228,12 +226,10 @@ export type BackendWebSocketServiceConnectionStateChangedEvent = {
 export type BackendWebSocketServiceEvents =
   BackendWebSocketServiceConnectionStateChangedEvent;
 
-export type BackendWebSocketServiceMessenger = RestrictedMessenger<
+export type BackendWebSocketServiceMessenger = Messenger<
   typeof SERVICE_NAME,
-  BackendWebSocketServiceActions | BackendWebSocketServiceAllowedActions,
-  BackendWebSocketServiceEvents | BackendWebSocketServiceAllowedEvents,
-  BackendWebSocketServiceAllowedActions['type'],
-  BackendWebSocketServiceAllowedEvents['type']
+  BackendWebSocketServiceActions | AllowedActions,
+  BackendWebSocketServiceEvents | AllowedEvents
 >;
 
 /**

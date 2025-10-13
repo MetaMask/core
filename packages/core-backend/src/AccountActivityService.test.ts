@@ -1,24 +1,36 @@
-import { Messenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import nock, { isDone } from 'nock';
 
-import type {
-  AccountActivityServiceAllowedEvents,
-  AccountActivityServiceAllowedActions,
-} from './AccountActivityService';
 import {
   AccountActivityService,
   type AccountActivityServiceMessenger,
   type SubscriptionOptions,
-  ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
-  ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS,
 } from './AccountActivityService';
 import type { ServerNotificationMessage } from './BackendWebSocketService';
 import { WebSocketState } from './BackendWebSocketService';
 import type { Transaction, BalanceUpdate } from './types';
 import type { AccountActivityMessage } from './types';
 import { flushPromises } from '../../../tests/helpers';
+
+type AllAccountActivityServiceActions =
+  MessengerActions<AccountActivityServiceMessenger>;
+
+type AllAccountActivityServiceEvents =
+  MessengerEvents<AccountActivityServiceMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllAccountActivityServiceActions,
+  AllAccountActivityServiceEvents
+>;
 
 // Helper function for completing async operations
 const completeAsyncOperations = async (timeoutMs = 0) => {
@@ -50,24 +62,69 @@ const createMockInternalAccount = (options: {
 });
 
 /**
+ * Creates and returns a root messenger for testing
+ *
+ * @returns A messenger instance
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+}
+
+/**
  * Creates a real messenger with registered mock actions for testing
  * Each call creates a completely independent messenger to ensure test isolation
  *
  * @returns Object containing the messenger and mock action functions
  */
-const getMessenger = () => {
+const getMessenger = (): {
+  rootMessenger: RootMessenger;
+  messenger: AccountActivityServiceMessenger;
+  mocks: {
+    getSelectedAccount: jest.Mock;
+    connect: jest.Mock;
+    disconnect: jest.Mock;
+    subscribe: jest.Mock;
+    channelHasSubscription: jest.Mock;
+    getSubscriptionsByChannel: jest.Mock;
+    findSubscriptionsByChannelPrefix: jest.Mock;
+    addChannelCallback: jest.Mock;
+    removeChannelCallback: jest.Mock;
+  };
+} => {
   // Use any types for the root messenger to avoid complex type constraints in tests
   // Create a unique root messenger for each test
-  const rootMessenger = new Messenger<
-    AccountActivityServiceAllowedActions,
-    AccountActivityServiceAllowedEvents
-  >();
-  const messenger: AccountActivityServiceMessenger =
-    rootMessenger.getRestricted({
-      name: 'AccountActivityService',
-      allowedActions: [...ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS],
-      allowedEvents: [...ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS],
-    });
+  const rootMessenger = getRootMessenger();
+  const messenger: AccountActivityServiceMessenger = new Messenger<
+    'AccountActivityService',
+    AllAccountActivityServiceActions,
+    AllAccountActivityServiceEvents,
+    RootMessenger
+  >({
+    namespace: 'AccountActivityService',
+    parent: rootMessenger,
+  });
+
+  rootMessenger.delegate({
+    actions: [
+      'AccountsController:getSelectedAccount',
+      'BackendWebSocketService:connect',
+      'BackendWebSocketService:disconnect',
+      'BackendWebSocketService:subscribe',
+      'BackendWebSocketService:getConnectionInfo',
+      'BackendWebSocketService:channelHasSubscription',
+      'BackendWebSocketService:getSubscriptionsByChannel',
+      'BackendWebSocketService:findSubscriptionsByChannelPrefix',
+      'BackendWebSocketService:addChannelCallback',
+      'BackendWebSocketService:removeChannelCallback',
+    ],
+    events: [
+      'AccountsController:selectedAccountChange',
+      'BackendWebSocketService:connectionStateChanged',
+    ],
+    messenger,
+  });
 
   // Create mock action handlers
   const mockGetSelectedAccount = jest.fn();
@@ -216,10 +273,7 @@ type WithServiceOptions = {
 type WithServiceCallback<ReturnValue> = (payload: {
   service: AccountActivityService;
   messenger: AccountActivityServiceMessenger;
-  rootMessenger: Messenger<
-    AccountActivityServiceAllowedActions,
-    AccountActivityServiceAllowedEvents
-  >;
+  rootMessenger: RootMessenger;
   mocks: {
     getSelectedAccount: jest.Mock;
     connect: jest.Mock;
@@ -633,7 +687,7 @@ describe('AccountActivityService', () => {
             });
 
           // Publish WebSocket ERROR state event - will be picked up by controller subscription
-          await rootMessenger.publish(
+          rootMessenger.publish(
             'BackendWebSocketService:connectionStateChanged',
             {
               state: WebSocketState.ERROR,
@@ -686,7 +740,7 @@ describe('AccountActivityService', () => {
           });
 
           // Publish account change event - will be picked up by controller subscription
-          await rootMessenger.publish(
+          rootMessenger.publish(
             'AccountsController:selectedAccountChange',
             solanaAccount,
           );
@@ -716,7 +770,7 @@ describe('AccountActivityService', () => {
           });
 
           // Publish account change event - will be picked up by controller subscription
-          await rootMessenger.publish(
+          rootMessenger.publish(
             'AccountsController:selectedAccountChange',
             unknownAccount,
           );
@@ -738,7 +792,7 @@ describe('AccountActivityService', () => {
           mocks.getSelectedAccount.mockReturnValue(null);
 
           // Publish WebSocket connection event - will be picked up by controller subscription
-          await rootMessenger.publish(
+          rootMessenger.publish(
             'BackendWebSocketService:connectionStateChanged',
             {
               state: WebSocketState.CONNECTED,
@@ -805,7 +859,7 @@ describe('AccountActivityService', () => {
             });
 
             // Publish account change event on root messenger
-            await rootMessenger.publish(
+            rootMessenger.publish(
               'AccountsController:selectedAccountChange',
               newAccount,
             );
@@ -843,7 +897,7 @@ describe('AccountActivityService', () => {
             });
 
             // Publish account change event on root messenger
-            await rootMessenger.publish(
+            rootMessenger.publish(
               'AccountsController:selectedAccountChange',
               newAccount,
             );

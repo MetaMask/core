@@ -1,4 +1,10 @@
-import { Messenger } from '@metamask/base-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 
 import {
   BackendWebSocketService,
@@ -6,8 +12,6 @@ import {
   WebSocketState,
   type BackendWebSocketServiceOptions,
   type BackendWebSocketServiceMessenger,
-  type BackendWebSocketServiceAllowedActions,
-  type BackendWebSocketServiceAllowedEvents,
 } from './BackendWebSocketService';
 import { flushPromises } from '../../../tests/helpers';
 
@@ -17,6 +21,18 @@ import { flushPromises } from '../../../tests/helpers';
 
 // Type for global object with WebSocket mock
 type GlobalWithWebSocket = typeof global & { lastWebSocket: MockWebSocket };
+
+type AllBackendWebSocketServiceActions =
+  MessengerActions<BackendWebSocketServiceMessenger>;
+
+type AllBackendWebSocketServiceEvents =
+  MessengerEvents<BackendWebSocketServiceMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllBackendWebSocketServiceActions,
+  AllBackendWebSocketServiceEvents
+>;
 
 // =====================================================
 // MOCK WEBSOCKET CLASS
@@ -150,6 +166,17 @@ class MockWebSocket extends EventTarget {
 // =====================================================
 
 /**
+ * Creates and returns a root messenger for testing
+ *
+ * @returns A messenger instance
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+}
+
+/**
  * Creates a real messenger with registered mock actions for testing
  * Each call creates a completely independent messenger to ensure test isolation
  *
@@ -157,15 +184,21 @@ class MockWebSocket extends EventTarget {
  */
 const getMessenger = () => {
   // Create a unique root messenger for each test
-  const rootMessenger = new Messenger<
-    BackendWebSocketServiceAllowedActions,
-    BackendWebSocketServiceAllowedEvents
-  >();
-  const messenger = rootMessenger.getRestricted({
-    name: 'BackendWebSocketService',
-    allowedActions: ['AuthenticationController:getBearerToken'],
-    allowedEvents: ['AuthenticationController:stateChange'],
-  }) as unknown as BackendWebSocketServiceMessenger;
+  const rootMessenger = getRootMessenger();
+  const messenger = new Messenger<
+    'BackendWebSocketService',
+    AllBackendWebSocketServiceActions,
+    AllBackendWebSocketServiceEvents,
+    RootMessenger
+  >({
+    namespace: 'BackendWebSocketService',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    actions: ['AuthenticationController:getBearerToken'],
+    events: ['AuthenticationController:stateChange'],
+    messenger,
+  });
 
   // Create mock action handlers
   const mockGetBearerToken = jest.fn().mockResolvedValue('valid-default-token');
@@ -234,10 +267,7 @@ type TestSetupOptions = {
 type TestSetup = {
   service: BackendWebSocketService;
   messenger: BackendWebSocketServiceMessenger;
-  rootMessenger: Messenger<
-    BackendWebSocketServiceAllowedActions,
-    BackendWebSocketServiceAllowedEvents
-  >;
+  rootMessenger: RootMessenger;
   mocks: {
     getBearerToken: jest.Mock;
   };
@@ -256,10 +286,7 @@ type TestSetup = {
 type WithServiceCallback<ReturnValue> = (payload: {
   service: BackendWebSocketService;
   messenger: BackendWebSocketServiceMessenger;
-  rootMessenger: Messenger<
-    BackendWebSocketServiceAllowedActions,
-    BackendWebSocketServiceAllowedEvents
-  >;
+  rootMessenger: RootMessenger;
   mocks: {
     getBearerToken: jest.Mock;
   };
