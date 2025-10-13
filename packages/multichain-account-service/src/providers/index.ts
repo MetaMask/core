@@ -8,3 +8,5 @@ export { TimeoutError } from './utils';
 // Concrete providers:
 export * from './SolAccountProvider';
 export * from './EvmAccountProvider';
+export * from './BtcAccountProvider';
+export * from './TrxAccountProvider';

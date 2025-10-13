@@ -22,7 +22,7 @@ describe('PreferencesController', () => {
       selectedAddress: '',
       useTokenDetection: true,
       useNftDetection: false,
-      openSeaEnabled: false,
+      displayNftMedia: false,
       securityAlertsEnabled: false,
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
@@ -30,7 +30,7 @@ describe('PreferencesController', () => {
       smartAccountOptInForAccounts: [],
       isIpfsGatewayEnabled: true,
       useTransactionSimulations: true,
-      useMultiRpcMigration: true,
+      showMultiRpcModal: false,
       showIncomingTransactions: Object.values(
         ETHERSCAN_SUPPORTED_CHAIN_IDS,
       ).reduce(
@@ -49,6 +49,7 @@ describe('PreferencesController', () => {
       },
       privacyMode: false,
       dismissSmartAccountSuggestionEnabled: false,
+      tokenNetworkFilter: {},
     });
   });
 
@@ -433,29 +434,38 @@ describe('PreferencesController', () => {
 
   it('should set useNftDetection', () => {
     const controller = setupPreferencesController();
-    controller.setOpenSeaEnabled(true);
+    controller.setDisplayNftMedia(true);
     controller.setUseNftDetection(true);
     expect(controller.state.useNftDetection).toBe(true);
   });
 
-  it('should throw an error when useNftDetection is set and openSeaEnabled is false', () => {
+  it('should throw an error when useNftDetection is set and displayNftMedia is false', () => {
     const controller = setupPreferencesController();
-    controller.setOpenSeaEnabled(false);
+    controller.setDisplayNftMedia(false);
     expect(() => controller.setUseNftDetection(true)).toThrow(
-      'useNftDetection cannot be enabled if openSeaEnabled is false',
+      'useNftDetection cannot be enabled if displayNftMedia is false',
     );
   });
 
   it('should set useMultiRpcMigration', () => {
     const controller = setupPreferencesController();
-    controller.setUseMultiRpcMigration(true);
-    expect(controller.state.useMultiRpcMigration).toBe(true);
+    controller.setShowMultiRpcModal(true);
+    expect(controller.state.showMultiRpcModal).toBe(true);
   });
 
   it('should set useMultiRpcMigration is false value is passed', () => {
     const controller = setupPreferencesController();
-    controller.setUseMultiRpcMigration(false);
-    expect(controller.state.useMultiRpcMigration).toBe(false);
+    controller.setShowMultiRpcModal(false);
+    expect(controller.state.showMultiRpcModal).toBe(false);
+  });
+
+  it('sets tokenNetworkFilter', () => {
+    const controller = setupPreferencesController();
+    controller.setTokenNetworkFilter({ '0x1': true, '0xa': false });
+    expect(controller.state.tokenNetworkFilter).toStrictEqual({
+      '0x1': true,
+      '0xa': false,
+    });
   });
 
   it('should set featureFlags', () => {
@@ -586,10 +596,10 @@ describe('PreferencesController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
           "featureFlags": Object {},
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
-          "openSeaEnabled": false,
           "privacyMode": false,
           "securityAlertsEnabled": false,
           "showIncomingTransactions": Object {
@@ -615,6 +625,7 @@ describe('PreferencesController', () => {
             "0xfa": true,
             "0xfa2": true,
           },
+          "showMultiRpcModal": false,
           "showTestNetworks": false,
           "smartAccountOptIn": true,
           "smartAccountOptInForAccounts": Array [],
@@ -623,7 +634,6 @@ describe('PreferencesController', () => {
             "order": "dsc",
             "sortCallback": "stringNumeric",
           },
-          "useMultiRpcMigration": true,
           "useNftDetection": false,
           "useSafeChainsListValidation": true,
           "useTokenDetection": true,
@@ -644,13 +654,13 @@ describe('PreferencesController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
           "featureFlags": Object {},
           "identities": Object {},
           "ipfsGateway": "https://ipfs.io/ipfs/",
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
           "lostIdentities": Object {},
-          "openSeaEnabled": false,
           "privacyMode": false,
           "securityAlertsEnabled": false,
           "selectedAddress": "",
@@ -677,16 +687,17 @@ describe('PreferencesController', () => {
             "0xfa": true,
             "0xfa2": true,
           },
+          "showMultiRpcModal": false,
           "showTestNetworks": false,
           "smartAccountOptIn": true,
           "smartAccountOptInForAccounts": Array [],
           "smartTransactionsOptInStatus": true,
+          "tokenNetworkFilter": Object {},
           "tokenSortConfig": Object {
             "key": "tokenFiatAmount",
             "order": "dsc",
             "sortCallback": "stringNumeric",
           },
-          "useMultiRpcMigration": true,
           "useNftDetection": false,
           "useSafeChainsListValidation": true,
           "useTokenDetection": true,
@@ -707,13 +718,13 @@ describe('PreferencesController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
           "featureFlags": Object {},
           "identities": Object {},
           "ipfsGateway": "https://ipfs.io/ipfs/",
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
           "lostIdentities": Object {},
-          "openSeaEnabled": false,
           "privacyMode": false,
           "securityAlertsEnabled": false,
           "selectedAddress": "",
@@ -740,16 +751,17 @@ describe('PreferencesController', () => {
             "0xfa": true,
             "0xfa2": true,
           },
+          "showMultiRpcModal": false,
           "showTestNetworks": false,
           "smartAccountOptIn": true,
           "smartAccountOptInForAccounts": Array [],
           "smartTransactionsOptInStatus": true,
+          "tokenNetworkFilter": Object {},
           "tokenSortConfig": Object {
             "key": "tokenFiatAmount",
             "order": "dsc",
             "sortCallback": "stringNumeric",
           },
-          "useMultiRpcMigration": true,
           "useNftDetection": false,
           "useSafeChainsListValidation": true,
           "useTokenDetection": true,
@@ -770,12 +782,12 @@ describe('PreferencesController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
           "featureFlags": Object {},
           "identities": Object {},
           "ipfsGateway": "https://ipfs.io/ipfs/",
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
-          "openSeaEnabled": false,
           "privacyMode": false,
           "securityAlertsEnabled": false,
           "selectedAddress": "",
@@ -802,16 +814,17 @@ describe('PreferencesController', () => {
             "0xfa": true,
             "0xfa2": true,
           },
+          "showMultiRpcModal": false,
           "showTestNetworks": false,
           "smartAccountOptIn": true,
           "smartAccountOptInForAccounts": Array [],
           "smartTransactionsOptInStatus": true,
+          "tokenNetworkFilter": Object {},
           "tokenSortConfig": Object {
             "key": "tokenFiatAmount",
             "order": "dsc",
             "sortCallback": "stringNumeric",
           },
-          "useMultiRpcMigration": true,
           "useNftDetection": false,
           "useSafeChainsListValidation": true,
           "useTokenDetection": true,
