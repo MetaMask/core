@@ -262,10 +262,7 @@ export class MultichainAccountGroup<
             `Account provider "${provider.getName()}" is disabled, skipping alignment...`,
           );
           // TS thinks the accounts array is undefined, but we know it's not
-          this.#cleanDisabledProvidersState(
-            accounts as Account['id'][],
-            provider,
-          );
+          this.#cleanDisabledProvidersState(accounts ?? [], provider);
         }
         return Promise.reject(new Error('Already aligned'));
       }),
