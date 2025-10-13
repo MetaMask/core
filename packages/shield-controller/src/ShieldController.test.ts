@@ -57,12 +57,24 @@ describe('ShieldController', () => {
     it('should trigger checkCoverage when a new transaction is added', async () => {
       const { baseMessenger, backend } = setup();
       const txMeta = generateMockTxMeta();
-      const coverageResultReceived = new Promise<void>((resolve) => {
-        baseMessenger.subscribe(
-          'ShieldController:coverageResultReceived',
-          (_coverageResult) => resolve(),
-        );
-      });
+      const coverageResultReceived = setupCoverageResultReceived(baseMessenger);
+      baseMessenger.publish(
+        'TransactionController:stateChange',
+        { transactions: [txMeta] } as TransactionControllerState,
+        undefined as never,
+      );
+      expect(await coverageResultReceived).toBeUndefined();
+      expect(backend.checkCoverage).toHaveBeenCalledWith({ txMeta });
+    });
+
+    it('should tolerate calling start and stop multiple times', async () => {
+      const { backend, baseMessenger, controller } = setup();
+      controller.stop();
+      controller.stop();
+      controller.start();
+      controller.start();
+      const txMeta = generateMockTxMeta();
+      const coverageResultReceived = setupCoverageResultReceived(baseMessenger);
       baseMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [txMeta] } as TransactionControllerState,

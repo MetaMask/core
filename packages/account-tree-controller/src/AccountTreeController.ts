@@ -891,6 +891,8 @@ export class AccountTreeController extends BaseController<
 
     if (Object.keys(wallets[walletId].groups).length === 0) {
       delete wallets[walletId];
+      // Clean up metadata for the pruned wallet
+      delete state.accountWalletsMetadata[walletId];
     }
     return state;
   }

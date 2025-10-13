@@ -152,6 +152,8 @@ export class ShieldController extends BaseController<
     previousSignatureRequests: Record<string, SignatureRequest> | undefined,
   ) => void;
 
+  #started: boolean;
+
   constructor(options: ShieldControllerOptions) {
     const {
       messenger,
@@ -177,9 +179,15 @@ export class ShieldController extends BaseController<
       this.#handleTransactionControllerStateChange.bind(this);
     this.#signatureControllerStateChangeHandler =
       this.#handleSignatureControllerStateChange.bind(this);
+    this.#started = false;
   }
 
   start() {
+    if (this.#started) {
+      return;
+    }
+    this.#started = true;
+
     this.messagingSystem.subscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
@@ -194,6 +202,11 @@ export class ShieldController extends BaseController<
   }
 
   stop() {
+    if (!this.#started) {
+      return;
+    }
+    this.#started = false;
+
     this.messagingSystem.unsubscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,

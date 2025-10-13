@@ -27,7 +27,7 @@
   },
   "packages/assets-controllers/src/NftDetectionController.test.ts": {
     "import-x/namespace": 6,
-    "import-x/order": 4
+    "import-x/order": 3
   },
   "packages/assets-controllers/src/NftDetectionController.ts": {
     "jsdoc/check-tag-names": 34,
@@ -53,16 +53,6 @@
   },
   "packages/assets-controllers/src/Standards/NftStandards/ERC721/ERC721Standard.ts": {
     "prettier/prettier": 1
-  },
-  "packages/assets-controllers/src/TokenDetectionController.test.ts": {
-    "import-x/namespace": 11,
-    "jsdoc/tag-lines": 1
-  },
-  "packages/assets-controllers/src/TokenDetectionController.ts": {
-    "@typescript-eslint/prefer-readonly": 3,
-    "jsdoc/check-tag-names": 8,
-    "jsdoc/tag-lines": 6,
-    "no-unused-private-class-members": 2
   },
   "packages/assets-controllers/src/TokenListController.test.ts": {
     "import-x/namespace": 7,
