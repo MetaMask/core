@@ -650,5 +650,32 @@ describe('Bridge Quotes Utils', () => {
         request: QUOTE_REQUEST_1_MOCK,
       });
     });
+
+    it('throws if missing fiat rate', async () => {
+      getTokenFiatRateMock.mockReturnValue(undefined);
+
+      await expect(
+        getBridgeQuotes([QUOTE_REQUEST_1_MOCK], messengerMock),
+      ).rejects.toThrow(`Fiat rate not found for source or target token`);
+    });
+
+    it('uses defaults if no feature flags', async () => {
+      getFeatureFlagsMock.mockReturnValue(undefined);
+
+      const quotes = await getBridgeQuotes(
+        [QUOTE_REQUEST_1_MOCK],
+        messengerMock,
+      );
+
+      expect(bridgeControllerMock.fetchQuotes).toHaveBeenCalledWith(
+        expect.objectContaining({
+          slippage: 0.5,
+        }),
+      );
+
+      expect(quotes.map((q) => q.original)).toStrictEqual([
+        expect.objectContaining(QUOTE_1_MOCK),
+      ]);
+    });
   });
 });

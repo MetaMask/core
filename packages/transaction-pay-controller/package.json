@@ -1,7 +1,7 @@
 {
   "name": "@metamask/transaction-pay-controller",
   "version": "0.0.0",
-  "description": "Manages alternate payments to facilitate transactions in MetaMask",
+  "description": "Manages alternate payment strategies to provide required funds for transactions in MetaMask",
   "keywords": [
     "MetaMask",
     "Ethereum"

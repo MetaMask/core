@@ -90,6 +90,16 @@ describe('TransactionPayPublishHook', () => {
     );
   });
 
+  it('does nothing if no quotes in state', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {},
+    });
+
+    await runHook();
+
+    expect(executeMock).not.toHaveBeenCalled();
+  });
+
   it('returns empty result', async () => {
     const result = await runHook();
 

@@ -66,7 +66,7 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
     log('No quote requests', { transactionId });
   }
 
-  let quotes: TransactionPayQuote<Json>[] | undefined;
+  let quotes: TransactionPayQuote<Json>[] | undefined = [];
 
   const strategy = await getStrategy(messenger as never, transaction);
 

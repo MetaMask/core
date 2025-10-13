@@ -1,6 +1,6 @@
 # `@metamask/transaction-pay-controller`
 
-Manages alternate payments to facilitate transactions in MetaMask.
+Manages alternate payment strategies to provide required funds for transactions in MetaMask.
 
 ## Installation
 

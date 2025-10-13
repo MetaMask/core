@@ -83,5 +83,13 @@ describe('Required Tokens Utils', () => {
 
       expect(result).toStrictEqual([]);
     });
+
+    it('returns undefined if token info not found', () => {
+      getTokenInfoMock.mockReturnValue(undefined);
+
+      const result = parseRequiredTokens(TRANSACTION_META_MOCK, MESSENGER_MOCK);
+
+      expect(result).toStrictEqual([]);
+    });
   });
 });

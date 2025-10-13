@@ -47,10 +47,6 @@ export async function getBridgeQuotes(
 ): Promise<TransactionPayQuote<QuoteResponse>[]> {
   log('Fetching quotes', requests);
 
-  if (!requests?.length) {
-    return [];
-  }
-
   const finalRequests = getFinalRequests(requests, messenger);
 
   const quotes = await Promise.all(

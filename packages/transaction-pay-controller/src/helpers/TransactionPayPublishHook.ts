@@ -12,6 +12,7 @@ import { projectLogger } from '../logger';
 import type {
   TransactionPayControllerGetStateAction,
   TransactionPayControllerGetStrategyAction,
+  TransactionPayQuote,
 } from '../types';
 import { getStrategy } from '../utils/strategy';
 
@@ -72,7 +73,13 @@ export class TransactionPayPublishHook {
     );
 
     const quotes =
-      (controllerState.transactionData?.[transactionId]?.quotes as never) ?? [];
+      (controllerState.transactionData?.[transactionId]
+        ?.quotes as TransactionPayQuote<unknown>[]) ?? [];
+
+    if (!quotes?.length) {
+      log('Skipping as no quotes found');
+      return EMPTY_RESULT;
+    }
 
     const strategy = await getStrategy(this.#messenger, transactionMeta);
 
