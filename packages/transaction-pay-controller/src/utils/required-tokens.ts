@@ -22,10 +22,9 @@ export function parseRequiredTokens(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
 ): TransactionTokenRequired[] {
-  return [
-    parseTokenTransfer(transaction, messenger),
-    ...parseRequiredAssets(transaction, messenger),
-  ].filter(Boolean) as TransactionTokenRequired[];
+  return [parseTokenTransfer(transaction, messenger)].filter(
+    Boolean,
+  ) as TransactionTokenRequired[];
 }
 
 /**
@@ -61,22 +60,6 @@ function parseTokenTransfer(
   }
 
   return getTokenProperties(transaction, to, transferAmount, messenger);
-}
-
-/**
- * Generate required tokens from the transaction's required assets.
- *
- * @param transaction - Transaction metadata.
- * @param messenger - Controller messenger.
- * @returns An array of required tokens, with undefined entries filtered out.
- */
-function parseRequiredAssets(
-  transaction: TransactionMeta,
-  messenger: TransactionPayControllerMessenger,
-): (TransactionTokenRequired | undefined)[] {
-  return (transaction.requiredAssets ?? []).map((asset) =>
-    getTokenProperties(transaction, asset.address, asset.amount, messenger),
-  );
 }
 
 /**

@@ -208,17 +208,11 @@ async function processSingleTransaction({
 
   const batchId = generateBatchId();
 
-  const requiredAssets =
-    sendCalls.capabilities?.auxiliaryFunds?.requiredAssets?.filter(
-      (a) => a.standard === 'erc20',
-    );
-
   await addTransaction(txParams, {
-    batchId,
     networkClientId,
     origin,
-    requiredAssets,
     securityAlertResponse: { securityAlertId } as SecurityAlertResponse,
+    batchId,
   });
   return batchId;
 }
@@ -297,16 +291,10 @@ async function processMultipleTransaction({
 
   dedupeAuxiliaryFundsRequiredAssets(sendCalls);
 
-  const requiredAssets =
-    sendCalls.capabilities?.auxiliaryFunds?.requiredAssets?.filter(
-      (a) => a.standard === 'erc20',
-    );
-
   const result = await addTransactionBatch({
     from,
     networkClientId,
     origin,
-    requiredAssets,
     securityAlertId,
     transactions,
     validateSecurity,
