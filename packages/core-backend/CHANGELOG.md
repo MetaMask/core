@@ -9,9 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `BackendWebSocketService` - Added optional `traceFn` parameter to constructor for performance tracing integration (e.g., Sentry)
-  - Enables tracing of WebSocket operations including connect, disconnect methods
-  - Trace function receives operation metadata and callback to wrap for performance monitoring
 - **BREAKING**: `BackendWebSocketService` - Simplified connection management and added KeyringController event integration ([#6819](https://github.com/MetaMask/core/pull/6819))
   - Added `KeyringController:lock` and `KeyringController:unlock` event subscriptions to automatically manage WebSocket connections based on wallet lock state
   - Renamed internal method `setupAuthentication()` to `subscribeEvents()` to reflect broader event handling responsibilities
@@ -26,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Chain status is now entirely driven by backend system notifications rather than proactive API calls
 - **BREAKING**: Updated `Transaction` type definition - renamed `hash` field to `id` for consistency with backend API ([#6819](https://github.com/MetaMask/core/pull/6819))
 - **BREAKING**: Updated `Asset` type definition - added required `decimals` field for proper token amount formatting ([#6819](https://github.com/MetaMask/core/pull/6819))
+- `BackendWebSocketService` - Added optional `traceFn` parameter to constructor for performance tracing integration (e.g., Sentry)
+  - Enables tracing of WebSocket operations including connect, disconnect methods
+  - Trace function receives operation metadata and callback to wrap for performance monitoring
 - Updated documentation (README.md) to reflect new connection management model and chain tracking behavior ([#6819](https://github.com/MetaMask/core/pull/6819))
   - Added "WebSocket Connection Management" section explaining connection requirements and behavior
   - Updated sequence diagram to show system notification-driven chain status flow
@@ -33,9 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Removed `shouldReconnectOnClose()` method - reconnection decisions now based solely on manual disconnect flag rather than close codes
-- Removed `getSupportedChains()` public method and all related API fetching logic
-- Removed hardcoded `DEFAULT_SUPPORTED_CHAINS` fallback list and cache expiration mechanism
+- **BREAKING**: Removed `getSupportedChains()` public method and all related API fetching logic
+- **BREAKING**: Removed hardcoded `DEFAULT_SUPPORTED_CHAINS` fallback list and cache expiration mechanism
 
 ## [1.0.1]
 
