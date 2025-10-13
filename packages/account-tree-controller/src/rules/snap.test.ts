@@ -16,7 +16,7 @@ import {
   getRootMessenger,
 } from '../../tests/mockMessenger';
 import type { AccountGroupObjectOf } from '../group';
-import type { AccountWalletObjectOf } from '../wallet';
+import type { AccountWalletObjectOf, AccountWalletSnapObject } from '../wallet';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
@@ -119,15 +119,14 @@ describe('SnapRule', () => {
   });
 
   describe('getDefaultAccountGroupName', () => {
-    it('returns default name from base class based on index', () => {
-      const messenger = getRootMessenger();
-      const accountTreeControllerMessenger =
-        getAccountTreeControllerMessenger(messenger);
-      const rule = new SnapRule(accountTreeControllerMessenger);
+    it('returns default name prefix', () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getAccountTreeControllerMessenger(rootMessenger);
+      const rule = new SnapRule(messenger);
+      // The Snap wallet object is not used here.
+      const wallet = {} as unknown as AccountWalletSnapObject;
 
-      expect(rule.getDefaultAccountGroupName(0)).toBe('Account 1');
-      expect(rule.getDefaultAccountGroupName(1)).toBe('Account 2');
-      expect(rule.getDefaultAccountGroupName(5)).toBe('Account 6');
+      expect(rule.getDefaultAccountGroupPrefix(wallet)).toBe('Snap Account');
     });
   });
 

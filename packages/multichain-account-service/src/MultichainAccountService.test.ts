@@ -128,6 +128,9 @@ function setup({
     SolAccountProvider: makeMockAccountProvider(),
   };
 
+  // Required for the `assert` on `MultichainAccountWallet.createMultichainAccountGroup`.
+  Object.setPrototypeOf(mocks.EvmAccountProvider, EvmAccountProvider.prototype);
+
   mocks.KeyringController.getState.mockImplementation(() => ({
     isUnlocked: true,
     keyrings: mocks.KeyringController.keyrings,
@@ -207,6 +210,9 @@ describe('MultichainAccountService', () => {
               maxAttempts: 4,
               backOffMs: 2000,
             },
+            createAccounts: {
+              timeoutMs: 3000,
+            },
           },
         };
 
@@ -235,6 +241,9 @@ describe('MultichainAccountService', () => {
               timeoutMs: 5000,
               maxAttempts: 4,
               backOffMs: 2000,
+            },
+            createAccounts: {
+              timeoutMs: 3000,
             },
           },
           // No `EVM_ACCOUNT_PROVIDER_NAME`, cause it's optional in this test.

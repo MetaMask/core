@@ -6,6 +6,7 @@ import {
   fetchBridgeTokens,
   fetchAssetPrices,
 } from './fetch';
+import { FeatureId } from './validators';
 import mockBridgeQuotesErc20Erc20 from '../../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20 from '../../tests/mock-quotes-native-erc20.json';
 import { BridgeClientId, BRIDGE_PROD_API_BASE_URL } from '../constants/bridge';
@@ -80,6 +81,7 @@ describe('fetch', () => {
         BridgeClientId.EXTENSION,
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
+        '1.0.0',
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
@@ -89,7 +91,7 @@ describe('fetch', () => {
             cacheRefreshTime: 600000,
           },
           functionName: 'fetchBridgeTokens',
-          headers: { 'X-Client-Id': 'extension' },
+          headers: { 'X-Client-Id': 'extension', 'Client-Version': '1.0.0' },
         },
       );
 
@@ -144,6 +146,7 @@ describe('fetch', () => {
           BridgeClientId.EXTENSION,
           mockFetchFn,
           BRIDGE_PROD_API_BASE_URL,
+          '1.0.0',
         ),
       ).rejects.toThrow(mockError);
     });
@@ -173,6 +176,8 @@ describe('fetch', () => {
         BridgeClientId.EXTENSION,
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
+        null,
+        '1.0.0',
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
@@ -182,14 +187,20 @@ describe('fetch', () => {
             cacheRefreshTime: 0,
           },
           functionName: 'fetchBridgeQuotes',
-          headers: { 'X-Client-Id': 'extension' },
+          headers: { 'X-Client-Id': 'extension', 'Client-Version': '1.0.0' },
           signal,
         },
       );
 
-      expect(result.quotes).toStrictEqual(mockBridgeQuotesNativeErc20);
+      expect(result.quotes).toStrictEqual(
+        mockBridgeQuotesNativeErc20.map((quote) => ({
+          ...quote,
+          featureId: undefined,
+        })),
+      );
       expect(result.validationFailures).toStrictEqual([]);
       expect(mockConsoleWarn).not.toHaveBeenCalled();
+      mockConsoleWarn.mockRestore();
     });
 
     it('should fetch bridge quotes successfully, with approvals', async () => {
@@ -227,6 +238,8 @@ describe('fetch', () => {
         BridgeClientId.EXTENSION,
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
+        null,
+        '1.0.0',
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
@@ -236,17 +249,23 @@ describe('fetch', () => {
             cacheRefreshTime: 0,
           },
           functionName: 'fetchBridgeQuotes',
-          headers: { 'X-Client-Id': 'extension' },
+          headers: { 'X-Client-Id': 'extension', 'Client-Version': '1.0.0' },
           signal,
         },
       );
 
-      expect(result.quotes).toStrictEqual(mockBridgeQuotesErc20Erc20);
+      expect(result.quotes).toStrictEqual(
+        mockBridgeQuotesErc20Erc20.map((quote) => ({
+          ...quote,
+          featureId: undefined,
+        })),
+      );
       expect(result.validationFailures).toStrictEqual([
         'lifi|approval',
         'socket|trade',
       ]);
       expect(mockConsoleWarn).toHaveBeenCalledTimes(1);
+      mockConsoleWarn.mockRestore();
     });
 
     it('should filter out malformed bridge quotes', async () => {
@@ -299,6 +318,8 @@ describe('fetch', () => {
         BridgeClientId.EXTENSION,
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
+        null,
+        '1.0.0',
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
@@ -308,12 +329,17 @@ describe('fetch', () => {
             cacheRefreshTime: 0,
           },
           functionName: 'fetchBridgeQuotes',
-          headers: { 'X-Client-Id': 'extension' },
+          headers: { 'X-Client-Id': 'extension', 'Client-Version': '1.0.0' },
           signal,
         },
       );
 
-      expect(result.quotes).toStrictEqual(mockBridgeQuotesErc20Erc20);
+      expect(result.quotes).toStrictEqual(
+        mockBridgeQuotesErc20Erc20.map((quote) => ({
+          ...quote,
+          featureId: undefined,
+        })),
+      );
       expect(result.validationFailures).toMatchInlineSnapshot(`
         Array [
           "unknown|quote",
@@ -341,6 +367,7 @@ describe('fetch', () => {
       `);
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockConsoleWarn.mock.calls).toMatchSnapshot();
+      mockConsoleWarn.mockRestore();
     });
 
     it('should fetch bridge quotes successfully, with aggIds, bridgeIds and noFee=true', async () => {
@@ -366,6 +393,8 @@ describe('fetch', () => {
         BridgeClientId.EXTENSION,
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
+        FeatureId.PERPS,
+        '1.0.0',
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
@@ -375,12 +404,17 @@ describe('fetch', () => {
             cacheRefreshTime: 0,
           },
           functionName: 'fetchBridgeQuotes',
-          headers: { 'X-Client-Id': 'extension' },
+          headers: { 'X-Client-Id': 'extension', 'Client-Version': '1.0.0' },
           signal,
         },
       );
 
-      expect(result.quotes).toStrictEqual(mockBridgeQuotesNativeErc20);
+      expect(result.quotes).toStrictEqual(
+        mockBridgeQuotesNativeErc20.map((quote) => ({
+          ...quote,
+          featureId: FeatureId.PERPS,
+        })),
+      );
       expect(result.validationFailures).toStrictEqual([]);
     });
   });
@@ -410,6 +444,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
@@ -434,7 +469,7 @@ describe('fetch', () => {
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://price.api.cx.metamask.io/v3/spot-prices?assetIds=eip155%3A1%2Ferc20%3A0x123%2Ceip155%3A1%2Ferc20%3A0x456&vsCurrency=USD',
         {
-          headers: { 'X-Client-Id': 'test' },
+          headers: { 'X-Client-Id': 'test', 'Client-Version': '1.0.0' },
           cacheOptions: { cacheRefreshTime: 30000 },
           functionName: 'fetchAssetExchangeRates',
         },
@@ -442,7 +477,7 @@ describe('fetch', () => {
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://price.api.cx.metamask.io/v3/spot-prices?assetIds=eip155%3A1%2Ferc20%3A0x123%2Ceip155%3A1%2Ferc20%3A0x456&vsCurrency=EUR',
         {
-          headers: { 'X-Client-Id': 'test' },
+          headers: { 'X-Client-Id': 'test', 'Client-Version': '1.0.0' },
           cacheOptions: { cacheRefreshTime: 30000 },
           functionName: 'fetchAssetExchangeRates',
         },
@@ -455,6 +490,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
@@ -479,6 +515,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
@@ -504,6 +541,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
@@ -540,6 +578,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
@@ -570,6 +609,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
@@ -596,6 +636,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',
@@ -614,6 +655,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([]) as Set<CaipAssetType>,
       };
 
@@ -634,6 +676,7 @@ describe('fetch', () => {
         baseUrl: 'https://api.example.com',
         fetchFn: mockFetchFn,
         clientId: 'test',
+        clientVersion: '1.0.0',
         assetIds: new Set([
           'eip155:1/erc20:0x123',
           'eip155:1/erc20:0x456',

@@ -20,6 +20,7 @@ export const createClientTransactionRequest = (
   options?: Record<string, unknown>,
 ) => {
   return {
+    // TODO: remove 'as never' typing.
     snapId: snapId as never,
     origin: 'metamask',
     handler: 'onClientRequest' as never,

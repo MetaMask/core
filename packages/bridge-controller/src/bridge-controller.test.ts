@@ -79,6 +79,7 @@ describe('BridgeController', function () {
       messenger: messengerMock,
       getLayer1GasFee: getLayer1GasFeeMock,
       clientId: BridgeClientId.EXTENSION,
+      clientVersion: '1.0.0',
       fetchFn: mockFetchFn,
       trackMetaMetricsFn,
     });
@@ -219,20 +220,22 @@ describe('BridgeController', function () {
     } as never);
 
     await bridgeController.updateBridgeQuoteRequestParams(
-      { srcChainId: 1 },
+      { srcChainId: 1, walletAddress: '0x123' },
       metricsContext,
     );
     expect(bridgeController.state.quoteRequest).toStrictEqual({
+      walletAddress: '0x123',
       srcChainId: 1,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
     });
     expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
 
     await bridgeController.updateBridgeQuoteRequestParams(
-      { destChainId: 10 },
+      { destChainId: 10, walletAddress: '0x123' },
       metricsContext,
     );
     expect(bridgeController.state.quoteRequest).toStrictEqual({
+      walletAddress: '0x123',
       destChainId: 10,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
     });
@@ -240,10 +243,12 @@ describe('BridgeController', function () {
     await bridgeController.updateBridgeQuoteRequestParams(
       {
         destChainId: undefined,
+        walletAddress: '0x123abc',
       },
       metricsContext,
     );
     expect(bridgeController.state.quoteRequest).toStrictEqual({
+      walletAddress: '0x123abc',
       destChainId: undefined,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
     });
@@ -251,10 +256,12 @@ describe('BridgeController', function () {
     await bridgeController.updateBridgeQuoteRequestParams(
       {
         srcTokenAddress: undefined,
+        walletAddress: '0x123',
       },
       metricsContext,
     );
     expect(bridgeController.state.quoteRequest).toStrictEqual({
+      walletAddress: '0x123',
       srcTokenAddress: undefined,
     });
 
@@ -264,10 +271,12 @@ describe('BridgeController', function () {
         destTokenAddress: '0x123',
         slippage: 0.5,
         srcTokenAddress: '0x0000000000000000000000000000000000000000',
+        walletAddress: '0x123',
       },
       metricsContext,
     );
     expect(bridgeController.state.quoteRequest).toStrictEqual({
+      walletAddress: '0x123',
       srcTokenAmount: '100000',
       destTokenAddress: '0x123',
       slippage: 0.5,
@@ -277,10 +286,12 @@ describe('BridgeController', function () {
     await bridgeController.updateBridgeQuoteRequestParams(
       {
         srcTokenAddress: '0x2ABC',
+        walletAddress: '0x123',
       },
       metricsContext,
     );
     expect(bridgeController.state.quoteRequest).toStrictEqual({
+      walletAddress: '0x123',
       srcTokenAddress: '0x2ABC',
     });
 
@@ -417,6 +428,8 @@ describe('BridgeController', function () {
       BridgeClientId.EXTENSION,
       mockFetchFn,
       BRIDGE_PROD_API_BASE_URL,
+      null,
+      '1.0.0',
     );
     expect(bridgeController.state.quotesLastFetched).toBeNull();
 
@@ -549,9 +562,7 @@ describe('BridgeController', function () {
             throw new Error('Currency rate error');
           }
 
-          if (
-            actionType === 'AccountsController:getSelectedMultichainAccount'
-          ) {
+          if (actionType === 'AccountsController:getAccountByAddress') {
             return {
               type: SolAccountType.DataAccount,
               id: 'account1',
@@ -920,6 +931,8 @@ describe('BridgeController', function () {
       BridgeClientId.EXTENSION,
       mockFetchFn,
       BRIDGE_PROD_API_BASE_URL,
+      null,
+      '1.0.0',
     );
     expect(bridgeController.state.quotesLastFetched).toBeNull();
 
@@ -995,7 +1008,7 @@ describe('BridgeController', function () {
       ): ReturnType<BridgeControllerMessenger['call']> => {
         const actionType = args[0];
 
-        if (actionType === 'AccountsController:getSelectedMultichainAccount') {
+        if (actionType === 'AccountsController:getAccountByAddress') {
           return {
             type: SolAccountType.DataAccount,
             id: 'account1',
@@ -1112,12 +1125,13 @@ describe('BridgeController', function () {
     const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
     const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
     messengerMock.call.mockReturnValue({
-      address: '0x123',
+      address: '0x123WalletAddress',
       provider: jest.fn(),
     } as never);
 
     await bridgeController.updateBridgeQuoteRequestParams(
       {
+        walletAddress: '0x123WalletAddress',
         srcChainId: 1,
         destChainId: 10,
         srcTokenAddress: '0x0000000000000000000000000000000000000000',
@@ -1136,7 +1150,7 @@ describe('BridgeController', function () {
           srcChainId: 1,
           slippage: 0.5,
           srcTokenAddress: '0x0000000000000000000000000000000000000000',
-          walletAddress: undefined,
+          walletAddress: '0x123WalletAddress',
           destChainId: 10,
           destTokenAddress: '0x123',
         },
@@ -1152,12 +1166,13 @@ describe('BridgeController', function () {
     const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
     const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
     messengerMock.call.mockReturnValue({
-      address: '0x123',
+      address: '0xabcWalletAddress',
       provider: jest.fn(),
     } as never);
 
     await bridgeController.updateBridgeQuoteRequestParams(
       {
+        walletAddress: '0xabcWalletAddress',
         srcChainId: 1,
         destChainId: ChainId.SOLANA,
         srcTokenAddress: '0x0000000000000000000000000000000000000000',
@@ -1176,7 +1191,7 @@ describe('BridgeController', function () {
           srcChainId: 1,
           slippage: 0.5,
           srcTokenAddress: '0x0000000000000000000000000000000000000000',
-          walletAddress: undefined,
+          walletAddress: '0xabcWalletAddress',
           destChainId: ChainId.SOLANA,
           destTokenAddress: '0x123',
         },
@@ -1226,6 +1241,7 @@ describe('BridgeController', function () {
       const controller = new BridgeController({
         messenger: mockMessenger,
         clientId: BridgeClientId.EXTENSION,
+        clientVersion: '1.0.0',
         getLayer1GasFee: jest.fn(),
         fetchFn: mockFetchFn,
         trackMetaMetricsFn,
@@ -1381,6 +1397,8 @@ describe('BridgeController', function () {
         BridgeClientId.EXTENSION,
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
+        null,
+        '1.0.0',
       );
       expect(bridgeController.state.quotesLastFetched).toBeNull();
 
@@ -1663,9 +1681,7 @@ describe('BridgeController', function () {
         ): ReturnType<BridgeControllerMessenger['call']> => {
           const [actionType, params] = args;
 
-          if (
-            actionType === 'AccountsController:getSelectedMultichainAccount'
-          ) {
+          if (actionType === 'AccountsController:getAccountByAddress') {
             if (isEvmAccount) {
               return {
                 type: EthAccountType.Eoa,
@@ -1857,7 +1873,7 @@ describe('BridgeController', function () {
       ): ReturnType<BridgeControllerMessenger['call']> => {
         const [actionType, params] = args;
 
-        if (actionType === 'AccountsController:getSelectedMultichainAccount') {
+        if (actionType === 'AccountsController:getAccountByAddress') {
           return {
             type: 'btc:p2wpkh',
             id: 'btc-account-1',
@@ -1956,9 +1972,24 @@ describe('BridgeController', function () {
   });
 
   describe('trackUnifiedSwapBridgeEvent client-side calls', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       jest.clearAllMocks();
-      messengerMock.call.mockImplementation(
+      // Ignore console.warn for this test bc there will be expected asset rate fetching warnings
+      jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+      // Add walletAddress to the quoteRequest because it's required for some events
+      await bridgeController.updateBridgeQuoteRequestParams(
+        {
+          walletAddress: '0x123',
+        },
+        {
+          stx_enabled: false,
+          security_warnings: [],
+          token_symbol_source: 'ETH',
+          token_symbol_destination: 'USDC',
+        },
+      );
+      jest.clearAllMocks();
+      messengerMock.call.mockImplementationOnce(
         (): ReturnType<BridgeControllerMessenger['call']> => {
           return {
             provider: jest.fn() as never,
@@ -1966,6 +1997,39 @@ describe('BridgeController', function () {
             rpcUrl: 'https://mainnet.infura.io/v3/123',
             configuration: {
               chainId: 'eip155:1',
+            },
+          } as never;
+        },
+      );
+      messengerMock.call.mockImplementationOnce(
+        (): ReturnType<BridgeControllerMessenger['call']> => {
+          return {
+            provider: jest.fn() as never,
+            selectedNetworkClientId: 'selectedNetworkClientId',
+            rpcUrl: 'https://mainnet.infura.io/v3/123',
+            configuration: {
+              chainId: 'eip155:1',
+            },
+          } as never;
+        },
+      );
+      messengerMock.call.mockImplementationOnce(
+        (): ReturnType<BridgeControllerMessenger['call']> => {
+          return {
+            type: EthAccountType.Eoa,
+            id: 'account1',
+            scopes: [EthScope.Eoa],
+            methods: [],
+            address: '0x123',
+            metadata: {
+              name: 'Account 1',
+              importTime: 1717334400,
+              keyring: {
+                type: 'Keyring',
+              },
+            },
+            options: {
+              scope: 'mainnet',
             },
           } as never;
         },
@@ -2087,6 +2151,7 @@ describe('BridgeController', function () {
           can_submit: true,
         },
       );
+      expect(messengerMock.call.mock.calls).toMatchSnapshot();
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
 
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
@@ -2112,6 +2177,8 @@ describe('BridgeController', function () {
   describe('trackUnifiedSwapBridgeEvent bridge-status-controller calls', () => {
     beforeEach(() => {
       jest.clearAllMocks();
+
+      jest.restoreAllMocks();
       messengerMock.call.mockImplementation(() => {
         return {
           provider: jest.fn() as never,
@@ -2124,29 +2191,12 @@ describe('BridgeController', function () {
       });
     });
 
-    it('should track the SnapConfirmationViewed event', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.SnapConfirmationViewed,
-        {
-          price_impact: 0,
-          usd_quoted_gas: 0,
-          gas_included: false,
-          gas_included_7702: false,
-          quoted_time_minutes: 0,
-          usd_quoted_return: 0,
-          provider: 'provider_bridge',
-        },
-      );
-      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-
-      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
-    });
-
     it('should track the Submitted event', () => {
       const controller = new BridgeController({
         messenger: messengerMock,
         getLayer1GasFee: getLayer1GasFeeMock,
         clientId: BridgeClientId.EXTENSION,
+        clientVersion: '1.0.0',
         fetchFn: mockFetchFn,
         trackMetaMetricsFn,
         state: {
@@ -2251,6 +2301,7 @@ describe('BridgeController', function () {
           security_warnings: [],
         },
       );
+      expect(messengerMock.call).toHaveBeenCalledTimes(2);
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
 
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
@@ -2261,6 +2312,7 @@ describe('BridgeController', function () {
         messenger: messengerMock,
         getLayer1GasFee: getLayer1GasFeeMock,
         clientId: BridgeClientId.EXTENSION,
+        clientVersion: '1.0.0',
         fetchFn: mockFetchFn,
         trackMetaMetricsFn,
         state: {
@@ -2280,6 +2332,7 @@ describe('BridgeController', function () {
         UnifiedSwapBridgeEventName.Failed,
         {
           error_message: 'Failed to submit tx',
+          is_hardware_wallet: false,
           usd_quoted_gas: 1,
           gas_included: false,
           gas_included_7702: false,
@@ -2303,6 +2356,7 @@ describe('BridgeController', function () {
         messenger: messengerMock,
         getLayer1GasFee: getLayer1GasFeeMock,
         clientId: BridgeClientId.EXTENSION,
+        clientVersion: '1.0.0',
         fetchFn: mockFetchFn,
         trackMetaMetricsFn,
         state: {
@@ -2338,9 +2392,7 @@ describe('BridgeController', function () {
           ...args: Parameters<BridgeControllerMessenger['call']>
         ): ReturnType<BridgeControllerMessenger['call']> => {
           const actionType = args[0];
-          if (
-            actionType === 'AccountsController:getSelectedMultichainAccount'
-          ) {
+          if (actionType === 'AccountsController:getAccountByAddress') {
             return {
               type: SolAccountType.DataAccount,
               id: 'account1',
@@ -2373,10 +2425,21 @@ describe('BridgeController', function () {
       );
     });
 
-    it('should not track the event if the account keyring type is not set', () => {
+    it('should not track the event if the account keyring type is not set', async () => {
       const errorSpy = jest
         .spyOn(console, 'error')
-        .mockImplementation(jest.fn());
+        .mockImplementationOnce(jest.fn());
+      await bridgeController.updateBridgeQuoteRequestParams(
+        {
+          walletAddress: '0x123',
+        },
+        {
+          stx_enabled: false,
+          security_warnings: [],
+          token_symbol_source: 'ETH',
+          token_symbol_destination: 'USDC',
+        },
+      );
       bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.QuotesReceived,
         {
@@ -2436,6 +2499,9 @@ describe('BridgeController', function () {
             },
           },
         });
+      (messengerMock.call as jest.Mock).mockReturnValueOnce(() => ({
+        address: '0x123',
+      }));
     });
 
     it('should override aggIds and noFee in perps request', async () => {
@@ -2494,6 +2560,8 @@ describe('BridgeController', function () {
             "extension",
             [Function],
             "https://bridge.api.cx.metamask.io",
+            "perps",
+            "1.0.0",
           ],
         ]
       `);
@@ -2554,6 +2622,8 @@ describe('BridgeController', function () {
             "extension",
             [Function],
             "https://bridge.api.cx.metamask.io",
+            "perps",
+            "1.0.0",
           ],
         ]
       `);
@@ -2604,6 +2674,8 @@ describe('BridgeController', function () {
             "extension",
             [Function],
             "https://bridge.api.cx.metamask.io",
+            null,
+            "1.0.0",
           ],
         ]
       `);
