@@ -416,6 +416,7 @@ describe('AccountActivityService', () => {
             channel:
               'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
             data: activityMessage,
+            timestamp: 1760344704595,
           };
 
           // Subscribe to events to verify they are published
@@ -558,6 +559,7 @@ describe('AccountActivityService', () => {
             event: 'system-notification',
             channel: 'system',
             data: { invalid: true }, // Missing required fields
+            timestamp: Date.now(),
           };
 
           // The callback should throw an error for invalid data
@@ -575,6 +577,7 @@ describe('AccountActivityService', () => {
           publishSpy.mockClear();
 
           // Simulate chains coming up
+          const timestamp1 = 1760344704595;
           systemCallback({
             event: 'system-notification',
             channel: 'system-notifications.v1.account-activity.v1',
@@ -582,6 +585,7 @@ describe('AccountActivityService', () => {
               chainIds: ['eip155:1', 'eip155:137'],
               status: 'up',
             },
+            timestamp: timestamp1,
           });
 
           expect(publishSpy).toHaveBeenCalledWith(
@@ -589,12 +593,14 @@ describe('AccountActivityService', () => {
             {
               chainIds: ['eip155:1', 'eip155:137'],
               status: 'up',
+              timestamp: timestamp1,
             },
           );
 
           publishSpy.mockClear();
 
           // Simulate one chain going down
+          const timestamp2 = 1760344704696;
           systemCallback({
             event: 'system-notification',
             channel: 'system-notifications.v1.account-activity.v1',
@@ -602,6 +608,7 @@ describe('AccountActivityService', () => {
               chainIds: ['eip155:137'],
               status: 'down',
             },
+            timestamp: timestamp2,
           });
 
           expect(publishSpy).toHaveBeenCalledWith(
@@ -609,6 +616,7 @@ describe('AccountActivityService', () => {
             {
               chainIds: ['eip155:137'],
               status: 'down',
+              timestamp: timestamp2,
             },
           );
         });
@@ -634,6 +642,7 @@ describe('AccountActivityService', () => {
               chainIds: ['eip155:1', 'eip155:137', 'eip155:56'],
               status: 'up',
             },
+            timestamp: 1760344704595,
           });
 
           publishSpy.mockClear();
@@ -802,6 +811,7 @@ describe('AccountActivityService', () => {
             event: 'system-notification',
             channel: 'system-notifications.v1.account-activity.v1',
             data: { chainIds: ['0x1', '0x2'], status: 'connected' },
+            timestamp: 1760344704595,
           };
 
           // Should throw error when publish fails
@@ -931,6 +941,7 @@ describe('AccountActivityService', () => {
 
             // Verify it resubscribed to the selected account
             expect(mocks.subscribe).toHaveBeenCalledWith({
+              channelType: 'account-activity.v1',
               channels: ['account-activity.v1.eip155:0:0x123abc'],
               callback: expect.any(Function),
             });

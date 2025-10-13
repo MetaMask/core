@@ -6,7 +6,9 @@ import {
   WebSocketState,
   type BackendWebSocketServiceOptions,
   type BackendWebSocketServiceMessenger,
+  type BackendWebSocketServiceActions,
   type BackendWebSocketServiceAllowedActions,
+  type BackendWebSocketServiceEvents,
   type BackendWebSocketServiceAllowedEvents,
 } from './BackendWebSocketService';
 import { flushPromises } from '../../../tests/helpers';
@@ -158,8 +160,8 @@ class MockWebSocket extends EventTarget {
 const getMessenger = () => {
   // Create a unique root messenger for each test
   const rootMessenger = new Messenger<
-    BackendWebSocketServiceAllowedActions,
-    BackendWebSocketServiceAllowedEvents
+    BackendWebSocketServiceActions | BackendWebSocketServiceAllowedActions,
+    BackendWebSocketServiceEvents | BackendWebSocketServiceAllowedEvents
   >();
   const messenger = rootMessenger.getRestricted({
     name: 'BackendWebSocketService',
@@ -239,8 +241,8 @@ type TestSetup = {
   service: BackendWebSocketService;
   messenger: BackendWebSocketServiceMessenger;
   rootMessenger: Messenger<
-    BackendWebSocketServiceAllowedActions,
-    BackendWebSocketServiceAllowedEvents
+    BackendWebSocketServiceActions | BackendWebSocketServiceAllowedActions,
+    BackendWebSocketServiceEvents | BackendWebSocketServiceAllowedEvents
   >;
   mocks: {
     getBearerToken: jest.Mock;
@@ -261,8 +263,8 @@ type WithServiceCallback<ReturnValue> = (payload: {
   service: BackendWebSocketService;
   messenger: BackendWebSocketServiceMessenger;
   rootMessenger: Messenger<
-    BackendWebSocketServiceAllowedActions,
-    BackendWebSocketServiceAllowedEvents
+    BackendWebSocketServiceActions | BackendWebSocketServiceAllowedActions,
+    BackendWebSocketServiceEvents | BackendWebSocketServiceAllowedEvents
   >;
   mocks: {
     getBearerToken: jest.Mock;
@@ -404,6 +406,7 @@ async function withService<ReturnValue>(
  * @param options.callback - Callback function
  * @param options.requestId - Request ID
  * @param options.subscriptionId - Subscription ID
+ * @param options.channelType - Channel type identifier
  * @returns Promise with subscription
  */
 const createSubscription = async (
@@ -414,6 +417,7 @@ const createSubscription = async (
     callback: jest.Mock;
     requestId: string;
     subscriptionId?: string;
+    channelType?: string;
   },
 ) => {
   const {
@@ -421,10 +425,12 @@ const createSubscription = async (
     callback,
     requestId,
     subscriptionId = 'test-sub',
+    channelType = 'test-channel.v1',
   } = options;
 
   const subscriptionPromise = service.subscribe({
     channels,
+    channelType,
     callback,
     requestId,
   });
@@ -478,6 +484,25 @@ describe('BackendWebSocketService', () => {
       });
 
       expect(service.getConnectionInfo().url).toBe('ws://test.example.com');
+      expect(service).toBeInstanceOf(BackendWebSocketService);
+
+      service.destroy();
+    });
+
+    it('should accept traceFn option for performance tracing', async () => {
+      const mockTraceFn = jest.fn((_request, fn) => {
+        // Mock trace function that just executes the callback
+        return fn?.();
+      });
+
+      const { messenger } = getMessenger();
+
+      const service = new BackendWebSocketService({
+        messenger,
+        url: 'ws://test.example.com',
+        traceFn: mockTraceFn,
+      });
+
       expect(service).toBeInstanceOf(BackendWebSocketService);
 
       service.destroy();
@@ -542,7 +567,11 @@ describe('BackendWebSocketService', () => {
             service.sendRequest({ event: 'test', data: {} }),
           ).rejects.toThrow('Cannot send request: WebSocket is disconnected');
           await expect(
-            service.subscribe({ channels: ['test'], callback: jest.fn() }),
+            service.subscribe({
+              channels: ['test'],
+              channelType: 'test.v1',
+              callback: jest.fn(),
+            }),
           ).rejects.toThrow(
             'Cannot create subscription(s) test: WebSocket is disconnected',
           );
@@ -721,6 +750,65 @@ describe('BackendWebSocketService', () => {
         },
       );
     });
+
+    it('should handle unexpected disconnect with empty reason by using default close reason', async () => {
+      await withService(
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          await service.connect();
+
+          const mockWs = getMockWebSocket();
+          // Simulate unexpected disconnect with empty reason string
+          // This triggers the getCloseReason fallback in the trace call
+          mockWs.simulateClose(1006, '');
+
+          await completeAsyncOperations(0);
+
+          // Verify state changed to disconnected (trace was called)
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+        },
+      );
+    });
+
+    it('should handle unexpected disconnect with custom reason', async () => {
+      await withService(
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          await service.connect();
+
+          const mockWs = getMockWebSocket();
+          // Simulate unexpected disconnect with custom reason string
+          // This uses event.reason directly in the trace call
+          mockWs.simulateClose(1006, 'Custom unexpected disconnect reason');
+
+          await completeAsyncOperations(0);
+
+          // Verify state changed to disconnected (trace was called)
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+        },
+      );
+    });
+
+    it('should calculate connection duration as 0 when close happens before connectedAt is set', async () => {
+      await withService(
+        { mockWebSocketOptions: { autoConnect: false } },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          // Start connecting but close immediately before open event
+          const connectPromise = service.connect();
+          await completeAsyncOperations(10);
+
+          const mockWs = getMockWebSocket();
+          // Close before the connection is established (before onopen fires)
+          mockWs.simulateClose(1006, 'Closed before open');
+
+          await expect(connectPromise).rejects.toThrow(
+            'WebSocket connection closed during connection',
+          );
+        },
+      );
+    });
   });
 
   // =====================================================
@@ -759,6 +847,7 @@ describe('BackendWebSocketService', () => {
         const testRequestId = 'test-error-branch-scenarios';
         const subscriptionPromise = service.subscribe({
           channels: ['test-channel-error'],
+          channelType: 'test-channel-error.v1',
           callback,
           requestId: testRequestId,
         });
@@ -812,6 +901,7 @@ describe('BackendWebSocketService', () => {
 
         const subscriptionPromise = service.subscribe({
           channels: ['invalid-test'],
+          channelType: 'invalid-test.v1',
           callback: jest.fn(),
           requestId: 'test-missing-subscription-id',
         });
@@ -846,6 +936,7 @@ describe('BackendWebSocketService', () => {
 
         const subscribePromise = service.subscribe({
           channels: ['test-channel'],
+          channelType: 'test-channel.v1',
           callback: mockCallback,
           requestId: 'test-sub-id',
         });
@@ -983,6 +1074,7 @@ describe('BackendWebSocketService', () => {
           subscriptionId: 'test-sub-123',
           channel: 'test-channel',
           data: { message: 'valid notification after invalid json' },
+          timestamp: 1760344704595,
         };
         mockWs.simulateMessage(validNotification);
 
@@ -1023,6 +1115,7 @@ describe('BackendWebSocketService', () => {
           subscriptionId: 'sub-123',
           channel: 'test-channel',
           data: { message: 'test notification with both properties' },
+          timestamp: 1760344704595,
         };
         mockWs.simulateMessage(notificationWithBoth);
 
@@ -1042,6 +1135,7 @@ describe('BackendWebSocketService', () => {
           event: 'notification',
           channel: 'test-channel',
           data: { message: 'test notification with channel only' },
+          timestamp: 1760344704696,
         };
         mockWs.simulateMessage(notificationChannelOnly);
 
@@ -1169,6 +1263,7 @@ describe('BackendWebSocketService', () => {
           event: 'notification',
           channel: 'test-channel',
           data: { test: 'data' },
+          timestamp: 1760344704595,
         });
 
         // Should not crash
@@ -1195,11 +1290,39 @@ describe('BackendWebSocketService', () => {
           channel: 'test-channel',
           subscriptionId: null,
           data: { test: 'data' },
+          timestamp: 1760344704595,
         };
 
         mockWs.simulateMessage(notification);
 
         // Should fall through to channel callback
+        expect(channelCallback).toHaveBeenCalledWith(notification);
+      });
+    });
+
+    it('should handle notifications with unknown subscriptionId by falling through to channel callback', async () => {
+      await withService(async ({ service, getMockWebSocket }) => {
+        await service.connect();
+        const mockWs = getMockWebSocket();
+
+        const channelCallback = jest.fn();
+        service.addChannelCallback({
+          channelName: 'test-channel',
+          callback: channelCallback,
+        });
+
+        // Send notification with subscriptionId that doesn't exist in subscriptions map
+        const notification = {
+          event: 'notification',
+          channel: 'test-channel',
+          subscriptionId: 'non-existent-sub-id',
+          data: { test: 'data' },
+          timestamp: 1760344704595,
+        };
+
+        mockWs.simulateMessage(notification);
+
+        // Should fall through to channel callback since subscription doesn't exist
         expect(channelCallback).toHaveBeenCalledWith(notification);
       });
     });

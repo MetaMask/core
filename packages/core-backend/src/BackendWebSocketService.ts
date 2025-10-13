@@ -1,4 +1,5 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
@@ -127,6 +128,9 @@ export type BackendWebSocketServiceOptions = {
 
   /** Optional callback to determine if connection should be enabled (default: always enabled) */
   isEnabled?: () => boolean;
+
+  /** Optional callback to trace performance of WebSocket operations (default: no-op) */
+  traceFn?: TraceCallback;
 };
 
 /**
@@ -167,6 +171,7 @@ export type ServerNotificationMessage = {
   subscriptionId?: string;
   channel: string;
   data: Record<string, unknown>;
+  timestamp: number;
 };
 
 /**
@@ -195,6 +200,8 @@ export type WebSocketSubscription = {
   subscriptionId: string;
   /** Channel names for this subscription */
   channels: string[];
+  /** Channel type with version (e.g., 'account-activity.v1') extracted from first channel */
+  channelType: string;
   /** Callback function for handling notifications (optional for external use) */
   callback?: (notification: ServerNotificationMessage) => void;
   /** Function to unsubscribe and clean up */
@@ -216,14 +223,12 @@ export type BackendWebSocketServiceActions =
   BackendWebSocketServiceMethodActions;
 
 export type BackendWebSocketServiceAllowedActions =
-  | AuthenticationController.AuthenticationControllerGetBearerToken
-  | BackendWebSocketServiceMethodActions;
+  AuthenticationController.AuthenticationControllerGetBearerToken;
 
 export type BackendWebSocketServiceAllowedEvents =
   | AuthenticationController.AuthenticationControllerStateChangeEvent
   | KeyringControllerLockEvent
-  | KeyringControllerUnlockEvent
-  | BackendWebSocketServiceConnectionStateChangedEvent;
+  | KeyringControllerUnlockEvent;
 
 // Event types for WebSocket connection state changes
 export type BackendWebSocketServiceConnectionStateChangedEvent = {
@@ -273,10 +278,12 @@ export class BackendWebSocketService {
   readonly #messenger: BackendWebSocketServiceMessenger;
 
   readonly #options: Required<
-    Omit<BackendWebSocketServiceOptions, 'messenger' | 'isEnabled'>
+    Omit<BackendWebSocketServiceOptions, 'messenger' | 'isEnabled' | 'traceFn'>
   >;
 
   readonly #isEnabled: (() => boolean) | undefined;
+
+  readonly #trace: TraceCallback;
 
   #ws: WebSocket | undefined;
 
@@ -300,7 +307,7 @@ export class BackendWebSocketService {
     }
   >();
 
-  #connectedAt: number | null = null;
+  #connectedAt: number = 0;
 
   // Track manual disconnects to prevent automatic reconnection
   #manualDisconnect = false;
@@ -327,6 +334,9 @@ export class BackendWebSocketService {
   constructor(options: BackendWebSocketServiceOptions) {
     this.#messenger = options.messenger;
     this.#isEnabled = options.isEnabled;
+    // Default to no-op trace function to keep core platform-agnostic
+    this.#trace =
+      options.traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     this.#options = {
       url: options.url,
@@ -610,7 +620,7 @@ export class BackendWebSocketService {
       state: this.#state,
       url: this.#options.url,
       reconnectAttempts: this.#reconnectAttempts,
-      connectedAt: this.#connectedAt ?? undefined,
+      connectedAt: this.#connectedAt,
     };
   }
 
@@ -627,6 +637,7 @@ export class BackendWebSocketService {
         matchingSubscriptions.push({
           subscriptionId,
           channels: subscription.channels,
+          channelType: subscription.channelType,
           unsubscribe: subscription.unsubscribe,
         });
       }
@@ -670,6 +681,7 @@ export class BackendWebSocketService {
         matchingSubscriptions.push({
           subscriptionId,
           channels: subscription.channels,
+          channelType: subscription.channelType,
           unsubscribe: subscription.unsubscribe,
         });
       }
@@ -808,6 +820,7 @@ export class BackendWebSocketService {
    * @param options.channels - Array of channel names to subscribe to
    * @param options.callback - Callback function for handling notifications
    * @param options.requestId - Optional request ID for testing (will generate UUID if not provided)
+   * @param options.channelType - Channel type identifier
    * @returns Subscription object with unsubscribe method
    *
    * @example
@@ -829,12 +842,14 @@ export class BackendWebSocketService {
   async subscribe(options: {
     /** Channel names to subscribe to */
     channels: string[];
+    /** Channel type with version (e.g., 'account-activity.v1') for tracing and monitoring */
+    channelType: string;
     /** Handler for incoming notifications */
     callback: (notification: ServerNotificationMessage) => void;
     /** Optional request ID for testing (will generate UUID if not provided) */
     requestId?: string;
   }): Promise<WebSocketSubscription> {
-    const { channels, callback, requestId } = options;
+    const { channels, channelType, callback, requestId } = options;
 
     if (this.#state !== WebSocketState.CONNECTED) {
       throw new Error(
@@ -873,6 +888,7 @@ export class BackendWebSocketService {
     const subscription = {
       subscriptionId,
       channels: [...channels],
+      channelType,
       unsubscribe,
     };
 
@@ -880,6 +896,7 @@ export class BackendWebSocketService {
     this.#subscriptions.set(subscriptionId, {
       subscriptionId,
       channels: [...channels], // Store copy of channels
+      channelType,
       callback,
       unsubscribe,
     });
@@ -917,8 +934,9 @@ export class BackendWebSocketService {
    */
   async #establishConnection(bearerToken: string): Promise<void> {
     const wsUrl = this.#buildAuthenticatedUrl(bearerToken);
+    const connectionStartTime = Date.now();
 
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       const ws = new WebSocket(wsUrl);
       this.#connectionTimeout = setTimeout(() => {
         log('WebSocket connection timeout - forcing close', {
@@ -937,14 +955,33 @@ export class BackendWebSocketService {
           clearTimeout(this.#connectionTimeout);
           this.#connectionTimeout = null;
         }
-        this.#ws = ws;
-        this.#setState(WebSocketState.CONNECTED);
-        this.#connectedAt = Date.now();
 
-        // Reset reconnect attempts on successful connection
-        this.#reconnectAttempts = 0;
+        // Calculate connection latency
+        const connectionLatency = Date.now() - connectionStartTime;
 
-        resolve();
+        // Trace successful connection with latency
+        this.#trace(
+          {
+            name: `${SERVICE_NAME} Connection`,
+            data: {
+              reconnectAttempt: this.#reconnectAttempts,
+              latency_ms: connectionLatency,
+            },
+            tags: {
+              service: SERVICE_NAME,
+            },
+          },
+          () => {
+            this.#ws = ws;
+            this.#setState(WebSocketState.CONNECTED);
+            this.#connectedAt = Date.now();
+
+            // Reset reconnect attempts on successful connection
+            this.#reconnectAttempts = 0;
+
+            resolve();
+          },
+        );
       };
 
       ws.onerror = (event: Event) => {
@@ -1100,8 +1137,29 @@ export class BackendWebSocketService {
       return;
     }
 
-    // Direct lookup for exact channel match
-    this.#channelCallbacks.get(message.channel)?.callback(message);
+    // Calculate notification latency: time from server sent to client received
+    const receivedAt = Date.now();
+    const latency = receivedAt - message.timestamp;
+
+    // Trace channel message processing with latency data
+    this.#trace(
+      {
+        name: `${SERVICE_NAME} Channel Message`,
+        data: {
+          channel: message.channel,
+          latency_ms: latency,
+          event: message.event,
+        },
+        tags: {
+          service: SERVICE_NAME,
+          channel_type: message.channel,
+        },
+      },
+      () => {
+        // Direct lookup for exact channel match
+        this.#channelCallbacks.get(message.channel)?.callback(message);
+      },
+    );
   }
 
   /**
@@ -1111,11 +1169,38 @@ export class BackendWebSocketService {
    * @returns True if the message was handled, false if it should fall through to channel handling
    */
   #handleSubscriptionNotification(message: ServerNotificationMessage): boolean {
-    const { subscriptionId } = message;
+    const { subscriptionId, timestamp, channel } = message;
 
     // Only handle if subscriptionId is defined and not null (allows "0" as valid ID)
     if (subscriptionId !== null && subscriptionId !== undefined) {
-      this.#subscriptions.get(subscriptionId)?.callback?.(message);
+      const subscription = this.#subscriptions.get(subscriptionId);
+      if (!subscription) {
+        return false;
+      }
+
+      // Calculate notification latency: time from server sent to client received
+      const receivedAt = Date.now();
+      const latency = receivedAt - timestamp;
+
+      // Trace notification processing with latency data
+      // Use stored channelType instead of parsing each time
+      this.#trace(
+        {
+          name: `${SERVICE_NAME} Notification`,
+          data: {
+            channel,
+            latency_ms: latency,
+            subscriptionId,
+          },
+          tags: {
+            service: SERVICE_NAME,
+            notification_type: subscription.channelType,
+          },
+        },
+        () => {
+          subscription.callback?.(message);
+        },
+      );
       return true;
     }
 
@@ -1142,8 +1227,11 @@ export class BackendWebSocketService {
    * @param event - The WebSocket close event
    */
   #handleClose(event: CloseEvent): void {
+    // Calculate connection duration before we clear state
+    const connectionDuration = Date.now() - this.#connectedAt;
+
     this.#clearTimers();
-    this.#connectedAt = null;
+    this.#connectedAt = 0;
 
     // Clear any pending connection promise
     this.#connectionPromise = null;
@@ -1162,6 +1250,25 @@ export class BackendWebSocketService {
       log('WebSocket closed due to manual disconnect, not reconnecting');
       return;
     }
+
+    // Trace unexpected disconnect with details
+    this.#trace(
+      {
+        name: `${SERVICE_NAME} Disconnect`,
+        data: {
+          code: event.code,
+          reason: event.reason || getCloseReason(event.code),
+          connectionDuration_ms: connectionDuration,
+        },
+        tags: {
+          service: SERVICE_NAME,
+          disconnect_type: 'unexpected',
+        },
+      },
+      () => {
+        // Empty trace callback - just measuring the event
+      },
+    );
 
     // For any unexpected disconnects, attempt reconnection
     // The manualDisconnect flag is the only gate - if it's false, we reconnect

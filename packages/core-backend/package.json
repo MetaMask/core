@@ -56,6 +56,7 @@
   "devDependencies": {
     "@metamask/accounts-controller": "^33.1.1",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/keyring-controller": "^23.1.1",
     "@ts-bridge/cli": "^0.6.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -67,7 +68,8 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^33.1.0"
+    "@metamask/accounts-controller": "^33.1.0",
+    "@metamask/keyring-controller": "^23.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

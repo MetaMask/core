@@ -39,6 +39,8 @@ export type SystemNotificationData = {
   chainIds: string[];
   /** Status of the chains: 'down' or 'up' */
   status: 'down' | 'up';
+  /** Timestamp of the notification */
+  timestamp?: number;
 };
 
 const SERVICE_NAME = 'AccountActivityService';
@@ -118,6 +120,7 @@ export type AccountActivityServiceStatusChangedEvent = {
     {
       chainIds: string[];
       status: 'up' | 'down';
+      timestamp?: number;
     },
   ];
 };
@@ -230,9 +233,7 @@ export class AccountActivityService {
     this.#messenger.call('BackendWebSocketService:addChannelCallback', {
       channelName: `system-notifications.v1.${this.#options.subscriptionNamespace}`,
       callback: (notification: ServerNotificationMessage) =>
-        this.#handleSystemNotification(
-          notification.data as SystemNotificationData,
-        ),
+        this.#handleSystemNotification(notification),
     });
   }
 
@@ -266,6 +267,7 @@ export class AccountActivityService {
       // Create subscription using the proper subscribe method (this will be stored in WebSocketService's internal tracking)
       await this.#messenger.call('BackendWebSocketService:subscribe', {
         channels: [channel],
+        channelType: this.#options.subscriptionNamespace, // e.g., 'account-activity.v1'
         callback: (notification: ServerNotificationMessage) => {
           this.#handleAccountActivityUpdate(
             notification.data as AccountActivityMessage,
@@ -379,9 +381,12 @@ export class AccountActivityService {
    * Handle system notification for chain status changes
    * Publishes only the status change (delta) for affected chains
    *
-   * @param data - System notification data containing chain status updates
+   * @param notification - Server notification message containing chain status updates and timestamp
    */
-  #handleSystemNotification(data: SystemNotificationData): void {
+  #handleSystemNotification(notification: ServerNotificationMessage): void {
+    const data = notification.data as SystemNotificationData;
+    const { timestamp } = notification;
+
     // Validate required fields
     if (!data.chainIds || !Array.isArray(data.chainIds) || !data.status) {
       throw new Error(
@@ -404,6 +409,7 @@ export class AccountActivityService {
     this.#messenger.publish(`AccountActivityService:statusChanged`, {
       chainIds: data.chainIds,
       status: data.status,
+      timestamp,
     });
   }
 
