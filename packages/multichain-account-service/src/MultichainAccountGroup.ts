@@ -227,7 +227,13 @@ export class MultichainAccountGroup<
     return select(this.getAccounts(), selector);
   }
 
-  #cleanDisabledProvidersState(
+  /**
+   * Cleans the state of a disabled provider.
+   *
+   * @param accounts - The accounts to clean.
+   * @param provider - The provider to clean.
+   */
+  #removeAccountsFromDisabledProvider(
     accounts: Account['id'][],
     provider: BaseBip44AccountProvider,
   ): void {
@@ -266,7 +272,7 @@ export class MultichainAccountGroup<
           this.#log(
             `Account provider "${provider.getName()}" is disabled, skipping alignment...`,
           );
-          this.#cleanDisabledProvidersState(accounts ?? [], provider);
+          this.#removeAccountsFromDisabledProvider(accounts ?? [], provider);
         }
         return Promise.reject(new Error('Already aligned'));
       }),
