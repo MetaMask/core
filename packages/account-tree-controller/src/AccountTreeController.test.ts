@@ -2925,9 +2925,9 @@ describe('AccountTreeController', () => {
         expect(group?.metadata.name).toBe(mockEvmAccount.metadata.name);
       });
 
-      it('uses the first account name when there is not EVM accounts', () => {
+      it('uses the first non-EVM account name when there is no EVM accounts', () => {
         const { controller } = setup({
-          accounts: [mockSolAccount, mockEvmAccount, mockBtcAccount],
+          accounts: [mockSolAccount, mockBtcAccount],
           keyrings: [MOCK_HD_KEYRING_1],
         });
 
@@ -2941,9 +2941,10 @@ describe('AccountTreeController', () => {
         const wallet = controller.state.accountTree.wallets[expectedWalletId];
         const group = wallet?.groups[expectedGroupId];
 
-        // The group should use computed name from the EVM account, even if there's a Solana
-        // account custom name.
-        expect(group?.metadata.name).toBe(mockEvmAccount.metadata.name);
+        // The group should use computed name from the Solana account since it
+        // is the first non-EVM account that has a valid account name (and that
+        // no EVM account is present in that group).
+        expect(group?.metadata.name).toBe(mockSolAccount.metadata.name);
       });
     });
 
