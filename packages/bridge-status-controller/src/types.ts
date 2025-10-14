@@ -1,7 +1,4 @@
-import type {
-  AccountsControllerGetAccountByAddressAction,
-  AccountsControllerGetSelectedMultichainAccountAction,
-} from '@metamask/accounts-controller';
+import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -11,6 +8,7 @@ import type {
   BridgeBackgroundAction,
   BridgeControllerAction,
   ChainId,
+  FeatureId,
   Quote,
   QuoteMetadata,
   QuoteResponse,
@@ -129,6 +127,7 @@ export type BridgeHistoryItem = {
   account: string;
   hasApprovalTx: boolean;
   approvalTxId?: string;
+  featureId?: FeatureId;
   isStxEnabled?: boolean;
   /**
    * Attempts tracking for exponential backoff on failed fetches.
@@ -209,7 +208,7 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
   StartPollingForBridgeTxStatusArgs,
   'quoteResponse'
 > & {
-  quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata;
+  quoteResponse: QuoteResponse<string | TxData> & Partial<QuoteMetadata>;
 };
 
 export type SourceChainTxMetaId = string;
@@ -275,7 +274,6 @@ type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | AccountsControllerGetSelectedMultichainAccountAction
   | HandleSnapRequest
   | TransactionControllerGetStateAction
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>

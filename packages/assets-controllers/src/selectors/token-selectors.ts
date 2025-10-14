@@ -42,13 +42,13 @@ type MultichainAccountType = Exclude<
 
 export type Asset = (
   | {
-      type: EvmAccountType;
+      accountType: EvmAccountType;
       assetId: Hex; // This is also the address for EVM tokens
       address: Hex;
       chainId: Hex;
     }
   | {
-      type: MultichainAccountType;
+      accountType: MultichainAccountType;
       assetId: `${string}:${string}/${string}:${string}`;
       chainId: `${string}:${string}`;
     }
@@ -192,7 +192,7 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
         );
 
         groupChainAssets.push({
-          type: type as EvmAccountType,
+          accountType: type as EvmAccountType,
           assetId: nativeToken.address,
           isNative: true,
           address: nativeToken.address,
@@ -286,7 +286,7 @@ const selectAllEvmAssets = createAssetListSelector(
           );
 
           groupChainAssets.push({
-            type: type as EvmAccountType,
+            accountType: type as EvmAccountType,
             assetId: tokenAddress,
             isNative: false,
             address: tokenAddress,
@@ -392,7 +392,7 @@ const selectAllMultichainAssets = createAssetListSelector(
 
         // TODO: We shouldn't have to rely on fallbacks for name and symbol, they should not be optional
         groupChainAssets.push({
-          type: type as MultichainAccountType,
+          accountType: type as MultichainAccountType,
           assetId,
           isNative: MULTICHAIN_NATIVE_ASSET_IDS.includes(assetId),
           image: assetMetadata.iconUrl,
