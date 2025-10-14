@@ -221,7 +221,7 @@ export type GetCryptoApproveTransactionResponse = {
   chainId: Hex;
 };
 
-export type ShieldSubscriptionEligibilityResponse = {
+export type SubscriptionEligibility = {
   product: ProductType;
   canSubscribe: boolean;
   minBalanceUSD: number;
@@ -258,9 +258,7 @@ export type ISubscriptionService = {
   updatePaymentMethodCrypto(
     request: UpdatePaymentMethodCryptoRequest,
   ): Promise<void>;
-  getSubscriptionsEligibilities(): Promise<
-    ShieldSubscriptionEligibilityResponse[]
-  >;
+  getSubscriptionsEligibilities(): Promise<SubscriptionEligibility[]>;
   submitUserEvent(request: SubmitUserEventRequest): Promise<void>;
 };
 

@@ -24,7 +24,7 @@ import type {
   StartCryptoSubscriptionResponse,
   UpdatePaymentMethodOpts,
   Product,
-  ShieldSubscriptionEligibilityResponse,
+  SubscriptionEligibility,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -1340,7 +1340,7 @@ describe('SubscriptionController', () => {
   });
 
   describe('getSubscriptionsEligibilities', () => {
-    const MOCK_SUBSCRIPTION_ELIGIBILITY: ShieldSubscriptionEligibilityResponse =
+    const MOCK_SUBSCRIPTION_ELIGIBILITY: SubscriptionEligibility =
       {
         product: PRODUCT_TYPES.SHIELD,
         canSubscribe: true,

@@ -12,7 +12,7 @@ import type {
   GetSubscriptionsResponse,
   ISubscriptionService,
   PricingResponse,
-  ShieldSubscriptionEligibilityResponse,
+  SubscriptionEligibility,
   StartCryptoSubscriptionRequest,
   StartCryptoSubscriptionResponse,
   StartSubscriptionRequest,
@@ -109,11 +109,11 @@ export class SubscriptionService implements ISubscriptionService {
    * @returns The eligibility for a shield subscription
    */
   async getSubscriptionsEligibilities(): Promise<
-    ShieldSubscriptionEligibilityResponse[]
+    SubscriptionEligibility[]
   > {
     const path = 'subscriptions/eligibility';
     const results =
-      await this.#makeRequest<ShieldSubscriptionEligibilityResponse[]>(path);
+      await this.#makeRequest<SubscriptionEligibility[]>(path);
     return results.map((result) => ({
       ...result,
       canSubscribe: result.canSubscribe || false,

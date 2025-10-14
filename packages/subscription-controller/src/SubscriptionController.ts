@@ -17,7 +17,7 @@ import type {
   GetCryptoApproveTransactionRequest,
   GetCryptoApproveTransactionResponse,
   ProductPrice,
-  ShieldSubscriptionEligibilityResponse,
+  SubscriptionEligibility,
   StartCryptoSubscriptionRequest,
   SubmitUserEventRequest,
   TokenPaymentInfo,
@@ -351,7 +351,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @returns The subscriptions eligibilities.
    */
   async getSubscriptionsEligibilities(): Promise<
-    ShieldSubscriptionEligibilityResponse[]
+    SubscriptionEligibility[]
   > {
     return await this.#subscriptionService.getSubscriptionsEligibilities();
   }
