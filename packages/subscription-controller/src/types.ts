@@ -221,6 +221,20 @@ export type GetCryptoApproveTransactionResponse = {
   chainId: Hex;
 };
 
+export type ShieldSubscriptionEligibilityResponse = {
+  canSubscribe: boolean;
+  minBalanceUSD: number;
+  canViewModal: boolean;
+};
+
+export enum SubscriptionUserEvent {
+  ShieldViewModal = 'shield_modal_viewed',
+}
+
+export type SubmitUserEventRequest = {
+  event: SubscriptionUserEvent;
+};
+
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
   cancelSubscription(request: {
@@ -243,6 +257,8 @@ export type ISubscriptionService = {
   updatePaymentMethodCrypto(
     request: UpdatePaymentMethodCryptoRequest,
   ): Promise<void>;
+  getShieldSubscriptionEligibility(): Promise<ShieldSubscriptionEligibilityResponse>;
+  submitUserEvent(request: SubmitUserEventRequest): Promise<void>;
 };
 
 export type UpdatePaymentMethodOpts =

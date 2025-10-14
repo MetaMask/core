@@ -20,6 +20,7 @@ import {
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
   SUBSCRIPTION_STATUSES,
+  SubscriptionUserEvent,
 } from './types';
 
 // Mock the handleFetch function
@@ -399,6 +400,65 @@ describe('SubscriptionService', () => {
         const result = await service.getBillingPortalUrl();
 
         expect(result).toStrictEqual({ url: 'https://billing-portal.com' });
+      });
+    });
+  });
+
+  describe('getShieldSubscriptionEligibility', () => {
+    it('should get shield subscription eligibility successfully', async () => {
+      await withMockSubscriptionService(async ({ service }) => {
+        handleFetchMock.mockResolvedValue({
+          canSubscribe: true,
+          minBalanceUSD: 100,
+          canViewModal: true,
+        });
+
+        const result = await service.getShieldSubscriptionEligibility();
+
+        expect(result).toStrictEqual({
+          canSubscribe: true,
+          minBalanceUSD: 100,
+          canViewModal: true,
+        });
+      });
+    });
+
+    it('should get shield subscription eligibility with default values', async () => {
+      await withMockSubscriptionService(async ({ service }) => {
+        handleFetchMock.mockResolvedValue({
+          minBalanceUSD: 100,
+        });
+
+        const result = await service.getShieldSubscriptionEligibility();
+
+        expect(result).toStrictEqual({
+          canSubscribe: false,
+          minBalanceUSD: 100,
+          canViewModal: false,
+        });
+      });
+    });
+  });
+
+  describe('submitUserEvent', () => {
+    it('should submit user event successfully', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        handleFetchMock.mockResolvedValue({});
+
+        await service.submitUserEvent({
+          event: SubscriptionUserEvent.ShieldViewModal,
+        });
+
+        expect(handleFetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(config.env, 'subscriptions/user-events'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              event: SubscriptionUserEvent.ShieldViewModal,
+            }),
+          },
+        );
       });
     });
   });
