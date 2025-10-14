@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add support for MONAD (chain ID `0x8F`) ([#6021](https://github.com/MetaMask/core/pull/6021))
+- Add support for MONAD (chain ID `0x8F`) ([#6827](https://github.com/MetaMask/core/pull/6827))
   - Add `MONAD` into constant `ETHERSCAN_SUPPORTED_CHAIN_IDS`
   - Update default controller state so MONAD (Chain ID `0x8F`) is automatically enabled in `showIncomingTransactions`
 
