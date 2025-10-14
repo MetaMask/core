@@ -1,5 +1,6 @@
 /* eslint-disable n/callback-return */ // next() is not a Node.js callback.
 import type { JsonRpcId, NonEmptyArray } from '@metamask/utils';
+import { createDeferredPromise } from '@metamask/utils';
 
 import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
@@ -568,20 +569,16 @@ describe('JsonRpcEngineV2', () => {
     });
 
     describe('parallel requests', () => {
-      // Basically, a deferred promise
-      const makeGate = () => {
-        let release!: () => void;
-        const gatePromise = new Promise<void>((resolve) => (release = resolve));
-        return { wait: () => gatePromise, release };
-      };
-
-      // A deferred promise that resolves when the target amount is reached
-      const makeCountdownLatch = (target: number) => {
+      /**
+       * A "counter" latch that releases when a target count is reached.
+       *
+       * @param target - The target count to reach.
+       * @returns A counter latch.
+       */
+      const makeCounterLatch = (target: number) => {
         let count = 0;
-        let release!: () => void;
-        const countdownPromise = new Promise<void>(
-          (resolve) => (release = resolve),
-        );
+        const { promise: countdownPromise, resolve: release } =
+          createDeferredPromise();
 
         return {
           increment: () => {
@@ -594,10 +591,37 @@ describe('JsonRpcEngineV2', () => {
         };
       };
 
-      it('processes requests in parallel (overlap and isolation)', async () => {
-        const N = 50;
-        const gate = makeGate();
-        const latch = makeCountdownLatch(N);
+      /**
+       * A queue for processing a target number of requests in arbitrary order.
+       *
+       * @param size - The size of the queue.
+       * @returns An "arbitrary" queue.
+       */
+      const makeArbitraryQueue = (size: number) => {
+        let count = 0;
+        const queue: { resolve: () => void }[] = new Array(size);
+        const { promise: gate, resolve: openGate } = createDeferredPromise();
+
+        const enqueue = async (id: number): Promise<void> => {
+          const { promise, resolve } = createDeferredPromise();
+          queue[id] = { resolve };
+          count += 1;
+
+          if (count === size) {
+            openGate();
+          }
+          return gate.then(() => promise);
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const dequeue = (id: number): void => queue[id]!.resolve();
+        return { enqueue, dequeue, filled: () => gate };
+      };
+
+      it('processes requests in parallel with isolated contexts', async () => {
+        const N = 32;
+        const { promise: gate, resolve: openGate } = createDeferredPromise();
+        const latch = makeCounterLatch(N);
 
         let inFlight = 0;
         let maxInFlight = 0;
@@ -612,7 +636,7 @@ describe('JsonRpcEngineV2', () => {
               maxInFlight = Math.max(maxInFlight, inFlight);
               latch.increment();
 
-              await gate.wait();
+              await gate;
 
               inFlight -= 1;
               return next();
@@ -637,7 +661,7 @@ describe('JsonRpcEngineV2', () => {
 
         await latch.waitAll();
         expect(inFlight).toBe(N);
-        gate.release();
+        openGate();
 
         const results = await Promise.all(resultPromises);
         expect(results).toStrictEqual(
@@ -645,6 +669,34 @@ describe('JsonRpcEngineV2', () => {
         );
         expect(inFlight).toBe(0);
         expect(maxInFlight).toBe(N);
+      });
+
+      it('eagerly processes requests in parallel, i.e. without queueing them', async () => {
+        const queue = makeArbitraryQueue(3);
+        const engine = new JsonRpcEngineV2<
+          JsonRpcRequest & { id: number },
+          null
+        >({
+          middleware: [
+            async ({ request }) => {
+              await queue.enqueue(request.id);
+              return null;
+            },
+          ],
+        });
+
+        const p0 = engine.handle(makeRequest({ id: 0 }));
+        const p1 = engine.handle(makeRequest({ id: 1 }));
+        const p2 = engine.handle(makeRequest({ id: 2 }));
+
+        await queue.filled();
+
+        queue.dequeue(2);
+        expect(await p2).toBeNull();
+        queue.dequeue(0);
+        expect(await p0).toBeNull();
+        queue.dequeue(1);
+        expect(await p1).toBeNull();
       });
     });
   });
