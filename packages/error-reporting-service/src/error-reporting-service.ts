@@ -144,6 +144,10 @@ type ErrorReportingServiceOptions = {
  * ```
  */
 export class ErrorReportingService {
+  name: 'ErrorReportingService' = 'ErrorReportingService' as const;
+
+  state = null;
+
   readonly #captureException: ErrorReportingServiceOptions['captureException'];
 
   readonly #messenger: ErrorReportingServiceMessenger;

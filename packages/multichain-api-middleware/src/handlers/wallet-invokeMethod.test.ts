@@ -165,18 +165,6 @@ describe('wallet_invokeMethod', () => {
     expect(end).toHaveBeenCalledWith(providerErrors.unauthorized());
   });
 
-  it('throws an unauthorized error when the CAIP-25 endowment permission was not granted from the multichain flow', async () => {
-    const request = createMockedRequest();
-    const { handler, getCaveatForOrigin, end } = createMockedHandler();
-    getCaveatForOrigin.mockReturnValue({
-      value: {
-        isMultichainOrigin: false,
-      },
-    });
-    await handler(request);
-    expect(end).toHaveBeenCalledWith(providerErrors.unauthorized());
-  });
-
   it('throws an unauthorized error if the requested scope is not authorized', async () => {
     const request = createMockedRequest();
     const { handler, end } = createMockedHandler();

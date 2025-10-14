@@ -7,17 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0]
+
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6470](https://github.com/MetaMask/core/pull/6470))
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^8.1.0` to `^8.4.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.4.1` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
 - Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
 - Bump `@metamask/keyring-internal-api` from `^8.1.0` to `^9.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
 - Bump `@metamask/keyring-snap-client` from `^7.0.0` to `^8.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
-- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.1` ([#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/polling-controller` from `^14.0.0` to `^14.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [5.0.0]
 
@@ -193,7 +196,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5133](https://github.com/MetaMask/core/pull/5133)), ([#5177](https://github.com/MetaMask/core/pull/5177))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@5.1.0...HEAD
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@5.0.0...@metamask/multichain-transactions-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@4.0.1...@metamask/multichain-transactions-controller@5.0.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@4.0.0...@metamask/multichain-transactions-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@3.0.0...@metamask/multichain-transactions-controller@4.0.0
