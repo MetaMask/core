@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added two new public methods, `getShieldSubscriptionEligibility` and `submitUserEvent`. ([#6826](https://github.com/MetaMask/core/pull/6826))
+  - `getShieldSubscriptionEligibility` (get user eligibility for shield subscription).
+  - `submitUserEvent` (submit user UI events, e.g. EntryModalViewed).
+- Exported `SubscriptionUserEvent` from the Controller. ([#6826](https://github.com/MetaMask/core/pull/6826))
+
 ## [1.0.1]
 
 ### Changed

@@ -228,7 +228,7 @@ export type ShieldSubscriptionEligibilityResponse = {
 };
 
 export enum SubscriptionUserEvent {
-  ShieldViewModal = 'shield_modal_viewed',
+  ShieldEntryModalViewed = 'shield_entry_modal_viewed',
 }
 
 export type SubmitUserEventRequest = {

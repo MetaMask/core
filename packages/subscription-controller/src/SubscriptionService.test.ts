@@ -446,7 +446,7 @@ describe('SubscriptionService', () => {
         handleFetchMock.mockResolvedValue({});
 
         await service.submitUserEvent({
-          event: SubscriptionUserEvent.ShieldViewModal,
+          event: SubscriptionUserEvent.ShieldEntryModalViewed,
         });
 
         expect(handleFetchMock).toHaveBeenCalledWith(
@@ -455,7 +455,7 @@ describe('SubscriptionService', () => {
             method: 'POST',
             headers: MOCK_HEADERS,
             body: JSON.stringify({
-              event: SubscriptionUserEvent.ShieldViewModal,
+              event: SubscriptionUserEvent.ShieldEntryModalViewed,
             }),
           },
         );
