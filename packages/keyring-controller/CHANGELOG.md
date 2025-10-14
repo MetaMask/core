@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.1.1]
+
 ### Changed
 
-- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
-- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.1` ([#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.1` ([#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [23.1.0]
 
@@ -863,7 +865,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.1.1...HEAD
+[23.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.1.0...@metamask/keyring-controller@23.1.1
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.0.0...@metamask/keyring-controller@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.1.1...@metamask/keyring-controller@23.0.0
 [22.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.1.0...@metamask/keyring-controller@22.1.1

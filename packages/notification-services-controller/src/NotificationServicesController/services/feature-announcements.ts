@@ -1,6 +1,5 @@
 import { documentToHtmlString } from '@contentful/rich-text-html-renderer';
 import type { Entry, Asset, EntryCollection } from 'contentful';
-import { gte } from 'semver';
 
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import { processFeatureAnnouncement } from '../processors/process-feature-announcement';
@@ -16,6 +15,7 @@ import type {
   TypeMobileLinkFields,
 } from '../types/feature-announcement/type-links';
 import type { INotification } from '../types/notification/notification';
+import { isVersionInBounds } from '../utils/isVersionInBounds';
 
 const DEFAULT_SPACE_ID = ':space_id';
 const DEFAULT_ACCESS_TOKEN = ':access_token';
@@ -144,29 +144,33 @@ const fetchFeatureAnnouncementNotifications = async (
           },
           extensionMinimumVersionNumber: fields.extensionMinimumVersionNumber,
           mobileMinimumVersionNumber: fields.mobileMinimumVersionNumber,
+          extensionMaximumVersionNumber: fields.extensionMaximumVersionNumber,
+          mobileMaximumVersionNumber: fields.mobileMaximumVersionNumber,
         },
       };
 
       return notification;
     });
 
-  const versionKey = {
-    extension: 'extensionMinimumVersionNumber',
-    mobile: 'mobileMinimumVersionNumber',
+  const versionKeys = {
+    extension: {
+      min: 'extensionMinimumVersionNumber',
+      max: 'extensionMaximumVersionNumber',
+    },
+    mobile: {
+      min: 'mobileMinimumVersionNumber',
+      max: 'mobileMaximumVersionNumber',
+    },
   } as const;
 
   const filteredRawNotifications = rawNotifications.filter((n) => {
-    const notificationVersion = n.data?.[versionKey[env.platform]];
-    if (!env.platformVersion || !notificationVersion) {
-      return true;
-    }
-
-    try {
-      return gte(env.platformVersion, notificationVersion);
-    } catch {
-      // something went wrong filtering, do not show notif
-      return false;
-    }
+    const minVersion = n.data?.[versionKeys[env.platform].min];
+    const maxVersion = n.data?.[versionKeys[env.platform].max];
+    return isVersionInBounds({
+      currentVersion: env.platformVersion,
+      minVersion,
+      maxVersion,
+    });
   });
 
   return filteredRawNotifications;

@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6445](https://github.com/MetaMask/core/pull/6445))
   - Previously, `EarnController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 
+## [8.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
 ## [8.0.0]
 
 ### Added
@@ -291,7 +298,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.1...HEAD
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.0...@metamask/earn-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@7.0.0...@metamask/earn-controller@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@6.0.0...@metamask/earn-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@5.0.0...@metamask/earn-controller@6.0.0
