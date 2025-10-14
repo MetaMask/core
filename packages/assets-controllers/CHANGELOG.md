@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix duplicate token in state.allTokens after calling addTokens function with the same token twice ([#6829](https://github.com/MetaMask/core/pull/6829)
+
 ## [80.0.0]
 
 ### Added
