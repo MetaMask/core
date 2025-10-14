@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix address casing in WebSocket-based token balance updates to ensure consistency ([#6819](https://github.com/MetaMask/core/pull/6819))
+
 ## [80.0.0]
 
 ### Added
