@@ -23,6 +23,7 @@ export const CHAIN_IDS = {
   MOONBEAM: '0x504',
   MOONBEAM_TESTNET: '0x507',
   MOONRIVER: '0x505',
+  MONAD: '0x8F',
   GNOSIS: '0x64',
   ARBITRUM: '0xa4b1',
   ZKSYNC_ERA: '0x144',
