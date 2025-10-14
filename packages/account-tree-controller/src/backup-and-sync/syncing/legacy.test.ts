@@ -174,10 +174,12 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       expect(mockContext.controller.setAccountGroupName).toHaveBeenCalledWith(
         'entropy:test-entropy/0',
         'Legacy Account 1',
+        true,
       );
       expect(mockContext.controller.setAccountGroupName).toHaveBeenCalledWith(
         'entropy:test-entropy/1',
         'Legacy Account 2',
+        true,
       );
     });
 
@@ -302,14 +304,17 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       expect(mockContext.controller.setAccountGroupName).toHaveBeenCalledWith(
         'entropy:test-entropy/0',
         'Main Account',
+        true,
       );
       expect(mockContext.controller.setAccountGroupName).toHaveBeenCalledWith(
         'entropy:test-entropy/1',
         'Trading Account',
+        true,
       );
       expect(mockContext.controller.setAccountGroupName).toHaveBeenCalledWith(
         'entropy:test-entropy/2',
         'Savings Account',
+        true,
       );
 
       expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledWith({
