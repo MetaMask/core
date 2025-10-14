@@ -1878,6 +1878,71 @@ describe('TokensController', () => {
         },
       );
     });
+
+    it('should not add duplicate tokens to state', async () => {
+      await withController(
+        {
+          mockNetworkClientConfigurationsByNetworkClientId: {
+            networkClientId1: buildCustomNetworkClientConfiguration({
+              chainId: '0x5',
+            }),
+          },
+        },
+        async ({ controller, changeNetwork }) => {
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
+
+          const tokensToImport = [
+            {
+              address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // lowercase USDC
+              symbol: 'USDC',
+              decimals: 6,
+              name: 'USDC',
+              image: 'test',
+              aggregators: [
+                'Metamask',
+                '1inch',
+                'LiFi',
+                'XSwap',
+                'Socket',
+                'Rubic',
+                'Squid',
+                'Rango',
+                'Sonarwatch',
+                'SushiSwap',
+                'PMM',
+                'Bancor',
+              ],
+            },
+          ];
+          // Add tokens for first time in state
+          await controller.addTokens(tokensToImport, 'mainnet');
+          expect(
+            controller.state.allTokens[ChainId.mainnet][
+              defaultMockInternalAccount.address
+            ],
+          ).toStrictEqual([
+            {
+              ...tokensToImport[0],
+              address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // checksummed USDC
+            },
+          ]);
+
+          // Add same tokens again and check the state does not have duplicate entries
+          await controller.addTokens(tokensToImport, 'mainnet');
+
+          expect(
+            controller.state.allTokens[ChainId.mainnet][
+              defaultMockInternalAccount.address
+            ],
+          ).toStrictEqual([
+            {
+              ...tokensToImport[0],
+              address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // checksummed USDC
+            },
+          ]);
+        },
+      );
+    });
   });
 
   describe('watchAsset', () => {
