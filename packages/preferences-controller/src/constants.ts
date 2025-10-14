@@ -20,5 +20,5 @@ export const ETHERSCAN_SUPPORTED_CHAIN_IDS = {
   MOONRIVER: '0x505',
   GNOSIS: '0x64',
   SEI: '0x531',
-  MONAD: '0x8F',
+  MONAD: '0x8f',
 } as const;
