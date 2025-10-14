@@ -230,7 +230,7 @@ export type DelegationDetails = Pick<
  */
 export type RevocationParams = {
   /**
-   * The delegation hash as a hex string that identifies the permission to revoke.
+   * The permission context as a hex string that identifies the permission to revoke.
    */
-  delegationHash: Hex;
+  permissionContext: Hex;
 };
