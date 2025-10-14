@@ -407,35 +407,48 @@ describe('SubscriptionService', () => {
   describe('getShieldSubscriptionEligibility', () => {
     it('should get shield subscription eligibility successfully', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        handleFetchMock.mockResolvedValue({
-          canSubscribe: true,
-          minBalanceUSD: 100,
-          canViewModal: true,
-        });
+        handleFetchMock.mockResolvedValue([
+          {
+            product: PRODUCT_TYPES.SHIELD,
+            canSubscribe: true,
+            minBalanceUSD: 100,
+            canViewModal: true,
+          },
+        ]);
 
-        const result = await service.getShieldSubscriptionEligibility();
+        const results = await service.getSubscriptionsEligibilities();
 
-        expect(result).toStrictEqual({
-          canSubscribe: true,
-          minBalanceUSD: 100,
-          canViewModal: true,
-        });
+        expect(results).toStrictEqual([
+          {
+            product: PRODUCT_TYPES.SHIELD,
+            canSubscribe: true,
+            minBalanceUSD: 100,
+            canViewModal: true,
+          },
+        ]);
       });
     });
 
     it('should get shield subscription eligibility with default values', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        handleFetchMock.mockResolvedValue({
-          minBalanceUSD: 100,
-        });
+        handleFetchMock.mockResolvedValue([
+          {
+            product: PRODUCT_TYPES.SHIELD,
+            minBalanceUSD: 100,
+          },
+        ]);
 
-        const result = await service.getShieldSubscriptionEligibility();
+        const results = await service.getSubscriptionsEligibilities();
 
-        expect(result).toStrictEqual({
-          canSubscribe: false,
-          minBalanceUSD: 100,
-          canViewModal: false,
-        });
+        expect(results).toHaveLength(1);
+        expect(results).toStrictEqual([
+          {
+            product: PRODUCT_TYPES.SHIELD,
+            canSubscribe: false,
+            canViewModal: false,
+            minBalanceUSD: 100,
+          },
+        ]);
       });
     });
   });

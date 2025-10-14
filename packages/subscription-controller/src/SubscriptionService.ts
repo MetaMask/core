@@ -108,15 +108,17 @@ export class SubscriptionService implements ISubscriptionService {
    *
    * @returns The eligibility for a shield subscription
    */
-  async getShieldSubscriptionEligibility(): Promise<ShieldSubscriptionEligibilityResponse> {
+  async getSubscriptionsEligibilities(): Promise<
+    ShieldSubscriptionEligibilityResponse[]
+  > {
     const path = 'subscriptions/eligibility';
-    const result =
-      await this.#makeRequest<ShieldSubscriptionEligibilityResponse>(path);
-    return {
+    const results =
+      await this.#makeRequest<ShieldSubscriptionEligibilityResponse[]>(path);
+    return results.map((result) => ({
+      ...result,
       canSubscribe: result.canSubscribe || false,
-      minBalanceUSD: result.minBalanceUSD,
       canViewModal: result.canViewModal || false,
-    };
+    }));
   }
 
   /**

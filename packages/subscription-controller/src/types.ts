@@ -222,17 +222,18 @@ export type GetCryptoApproveTransactionResponse = {
 };
 
 export type ShieldSubscriptionEligibilityResponse = {
+  product: ProductType;
   canSubscribe: boolean;
   minBalanceUSD: number;
   canViewModal: boolean;
 };
 
-export enum SubscriptionUserEvent {
-  ShieldEntryModalViewed = 'shield_entry_modal_viewed',
-}
+export const SubscriptionUserEvent = {
+  ShieldEntryModalViewed: 'shield_entry_modal_viewed',
+} as const;
 
 export type SubmitUserEventRequest = {
-  event: SubscriptionUserEvent;
+  event: (typeof SubscriptionUserEvent)[keyof typeof SubscriptionUserEvent];
 };
 
 export type ISubscriptionService = {
@@ -257,7 +258,9 @@ export type ISubscriptionService = {
   updatePaymentMethodCrypto(
     request: UpdatePaymentMethodCryptoRequest,
   ): Promise<void>;
-  getShieldSubscriptionEligibility(): Promise<ShieldSubscriptionEligibilityResponse>;
+  getSubscriptionsEligibilities(): Promise<
+    ShieldSubscriptionEligibilityResponse[]
+  >;
   submitUserEvent(request: SubmitUserEventRequest): Promise<void>;
 };
 

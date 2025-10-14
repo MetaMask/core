@@ -35,6 +35,8 @@ export type {
   SubscriptionCardPaymentMethod,
   SubscriptionCryptoPaymentMethod,
   SubscriptionPaymentMethod,
+  SubmitUserEventRequest,
+  ShieldSubscriptionEligibilityResponse,
   RecurringInterval,
   SubscriptionStatus,
   PaymentType,

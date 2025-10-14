@@ -177,7 +177,7 @@ function createMockSubscriptionService() {
   const mockUpdatePaymentMethodCard = jest.fn();
   const mockUpdatePaymentMethodCrypto = jest.fn();
   const mockGetBillingPortalUrl = jest.fn();
-  const mockGetShieldSubscriptionEligibility = jest.fn();
+  const mockGetSubscriptionsEligibilities = jest.fn();
   const mockSubmitUserEvent = jest.fn();
 
   const mockService = {
@@ -190,7 +190,7 @@ function createMockSubscriptionService() {
     updatePaymentMethodCard: mockUpdatePaymentMethodCard,
     updatePaymentMethodCrypto: mockUpdatePaymentMethodCrypto,
     getBillingPortalUrl: mockGetBillingPortalUrl,
-    getShieldSubscriptionEligibility: mockGetShieldSubscriptionEligibility,
+    getSubscriptionsEligibilities: mockGetSubscriptionsEligibilities,
     submitUserEvent: mockSubmitUserEvent,
   };
 
