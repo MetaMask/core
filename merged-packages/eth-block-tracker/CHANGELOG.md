@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `PollingBlockTracker.checkForLatestBlock()` and `getLatestBlock()` now clear the cached block after `blockReset` duration when called and the `PollingBlockTracker` is not polling. ([#348](https://github.com/MetaMask/eth-block-tracker/pull/348))
+
 ## [12.2.0]
 
 ### Changed

@@ -188,6 +188,35 @@ describe('PollingBlockTracker', () => {
                 expect(block).toBe('0x0');
               });
             });
+
+            it('should start a timer to clear the current block number later', async () => {
+              const setTimeoutRecorder = recordCallsToSetTimeout();
+              const blockResetDuration = 1000;
+
+              await withPollingBlockTracker(
+                {
+                  blockTracker: {
+                    blockResetDuration,
+                  },
+                  provider: {
+                    stubs: [
+                      {
+                        methodName: 'eth_blockNumber',
+                        result: '0x0',
+                      },
+                    ],
+                  },
+                },
+                async ({ blockTracker }) => {
+                  const block = await blockTracker.getLatestBlock();
+                  expect(block).toBe('0x0');
+                  await setTimeoutRecorder.nextMatchingDuration(
+                    blockResetDuration,
+                  );
+                  expect(blockTracker.getCurrentBlock()).toBeNull();
+                },
+              );
+            });
           });
 
           describe('if an error occurs while fetching the latest block number', () => {
@@ -472,7 +501,7 @@ describe('PollingBlockTracker', () => {
         );
       });
 
-      it('should clear the current block number some time after being called', async () => {
+      it('should not start a timer to clear the current block number later', async () => {
         const setTimeoutRecorder = recordCallsToSetTimeout();
         const blockTrackerOptions = {
           pollingInterval: 100,
@@ -496,16 +525,13 @@ describe('PollingBlockTracker', () => {
             await blockTracker.getLatestBlock();
             const currentBlockNumber = blockTracker.getCurrentBlock();
             expect(currentBlockNumber).toBe('0x0');
-            await blockTracker.destroy();
 
-            // When the block tracker stops, there may be two `setTimeout`s in
-            // play: one to go to the next iteration of the block tracker
-            // loop, another to expire the current block number cache. We don't
-            // know which one has been added first, so we have to find it.
-            await setTimeoutRecorder.nextMatchingDuration(
-              blockTrackerOptions.blockResetDuration,
+            const blockResetTimeouts = setTimeoutRecorder.calls.filter(
+              (call) => {
+                return call.duration === blockTrackerOptions.blockResetDuration;
+              },
             );
-            expect(blockTracker.getCurrentBlock()).toBeNull();
+            expect(blockResetTimeouts).toHaveLength(0);
           },
         );
       });
@@ -985,9 +1011,9 @@ describe('PollingBlockTracker', () => {
       });
     });
 
-    describe('with useCache: false', () => {
+    describe('with useCache: false and a block number is already cached', () => {
       describe('when the block tracker is not running', () => {
-        it('should not fetch a new block even if a block is already cached and less than the polling interval time has passed since the last call', async () => {
+        it('should not fetch a new block even if less than the polling interval time has passed since the last call', async () => {
           recordCallsToSetTimeout();
 
           await withPollingBlockTracker(
@@ -1016,10 +1042,12 @@ describe('PollingBlockTracker', () => {
           );
         });
 
-        it('should fetch a new block even if a block is already cached and more than the polling interval time has passed since the last call', async () => {
-          recordCallsToSetTimeout({
-            numAutomaticCalls: 1,
-          });
+        it('should fetch a new block even if more than the polling interval time has passed since the last call', async () => {
+          const setTimeoutRecorder = recordCallsToSetTimeout();
+          const blockTrackerOptions = {
+            pollingInterval: 100,
+            blockResetDuration: 200,
+          };
 
           await withPollingBlockTracker(
             {
@@ -1035,9 +1063,13 @@ describe('PollingBlockTracker', () => {
                   },
                 ],
               },
+              blockTracker: blockTrackerOptions,
             },
             async ({ blockTracker }) => {
               await blockTracker.getLatestBlock();
+              await setTimeoutRecorder.nextMatchingDuration(
+                blockTrackerOptions.pollingInterval,
+              );
               const block = await blockTracker.getLatestBlock({
                 useCache: false,
               });
@@ -1049,7 +1081,7 @@ describe('PollingBlockTracker', () => {
       });
 
       describe('when the block tracker is already started', () => {
-        it('should wait for the next block event even if a block is already cached', async () => {
+        it('should wait for the next block event', async () => {
           const setTimeoutRecorder = recordCallsToSetTimeout();
 
           await withPollingBlockTracker(
@@ -1306,7 +1338,7 @@ describe('PollingBlockTracker', () => {
       );
     });
 
-    it('should never start a timer to clear the current block number later', async () => {
+    it('should start a timer to clear the current block number later if the block tracker is not running', async () => {
       const setTimeoutRecorder = recordCallsToSetTimeout();
       const blockResetDuration = 1000;
 
@@ -1326,12 +1358,39 @@ describe('PollingBlockTracker', () => {
         },
         async ({ blockTracker }) => {
           await blockTracker.checkForLatestBlock();
+          expect(blockTracker.getCurrentBlock()).toBe('0x0');
+          await setTimeoutRecorder.nextMatchingDuration(blockResetDuration);
+          expect(blockTracker.getCurrentBlock()).toBeNull();
+        },
+      );
+    });
 
-          await new Promise((resolve) =>
-            originalSetTimeout(resolve, blockResetDuration),
-          );
+    it('should not start a timer to clear the current block number later if the block tracker is running', async () => {
+      const setTimeoutRecorder = recordCallsToSetTimeout();
+      const blockResetDuration = 1000;
 
-          expect(setTimeoutRecorder.calls).toHaveLength(0);
+      await withPollingBlockTracker(
+        {
+          blockTracker: {
+            blockResetDuration,
+          },
+          provider: {
+            stubs: [
+              {
+                methodName: 'eth_blockNumber',
+                result: '0x0',
+              },
+            ],
+          },
+        },
+        async ({ blockTracker }) => {
+          blockTracker.on('latest', EMPTY_FUNCTION);
+          await blockTracker.checkForLatestBlock();
+
+          const blockResetTimeouts = setTimeoutRecorder.calls.filter((call) => {
+            return call.duration === blockResetDuration;
+          });
+          expect(blockResetTimeouts).toHaveLength(0);
           expect(blockTracker.getCurrentBlock()).toBe('0x0');
         },
       );

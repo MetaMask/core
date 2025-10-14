@@ -326,6 +326,12 @@ export class PollingBlockTracker
     // fetch + set latest block
     const latestBlock = await this._fetchLatestBlock();
     this._newPotentialLatest(latestBlock);
+
+    if (!this._isRunning) {
+      // Ensure the one-time update is eventually reset once it's stale
+      this._setupBlockResetTimeout();
+    }
+
     // _newPotentialLatest() ensures that this._currentBlock is not null
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return this._currentBlock!;
