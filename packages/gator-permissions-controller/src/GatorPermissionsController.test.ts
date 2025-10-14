@@ -709,7 +709,7 @@ describe('GatorPermissionsController', () => {
       });
 
       const revocationParams: RevocationParams = {
-        delegationHash: '0x1234567890abcdef1234567890abcdef12345678',
+        permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
       };
 
       await controller.submitRevocation(revocationParams);
@@ -736,7 +736,7 @@ describe('GatorPermissionsController', () => {
       });
 
       const revocationParams: RevocationParams = {
-        delegationHash: '0x1234567890abcdef1234567890abcdef12345678',
+        permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
       };
 
       await expect(
@@ -764,7 +764,7 @@ describe('GatorPermissionsController', () => {
       });
 
       const revocationParams: RevocationParams = {
-        delegationHash: '0x1234567890abcdef1234567890abcdef12345678',
+        permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
       };
 
       await expect(
