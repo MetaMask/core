@@ -32,6 +32,7 @@ import {
   type PermissionTypesWithCustom,
   type StoredGatorPermission,
   type DelegationDetails,
+  type RevocationParams,
 } from './types';
 import {
   deserializeGatorPermissionsMap,
@@ -180,6 +181,14 @@ export type GatorPermissionsControllerDecodePermissionFromPermissionContextForOr
   };
 
 /**
+ * The action which can be used to submit a revocation.
+ */
+export type GatorPermissionsControllerSubmitRevocationAction = {
+  type: `${typeof controllerName}:submitRevocation`;
+  handler: GatorPermissionsController['submitRevocation'];
+};
+
+/**
  * All actions that {@link GatorPermissionsController} registers, to be called
  * externally.
  */
@@ -188,7 +197,8 @@ export type GatorPermissionsControllerActions =
   | GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction
   | GatorPermissionsControllerEnableGatorPermissionsAction
   | GatorPermissionsControllerDisableGatorPermissionsAction
-  | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction;
+  | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction
+  | GatorPermissionsControllerSubmitRevocationAction;
 
 /**
  * All actions that {@link GatorPermissionsController} calls internally.
@@ -279,6 +289,8 @@ export default class GatorPermissionsController extends BaseController<
   }
 
   #registerMessageHandlers(): void {
+    console.log('[GatorPermissionsController] Registering message handlers...');
+
     this.messagingSystem.registerActionHandler(
       `${controllerName}:fetchAndUpdateGatorPermissions`,
       this.fetchAndUpdateGatorPermissions.bind(this),
@@ -297,6 +309,19 @@ export default class GatorPermissionsController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:decodePermissionFromPermissionContextForOrigin`,
       this.decodePermissionFromPermissionContextForOrigin.bind(this),
+    );
+
+    const submitRevocationAction = `${controllerName}:submitRevocation`;
+    console.log(
+      '[GatorPermissionsController] Registering submitRevocation action:',
+      submitRevocationAction,
+    );
+    this.messagingSystem.registerActionHandler(
+      submitRevocationAction,
+      this.submitRevocation.bind(this),
+    );
+    console.log(
+      '[GatorPermissionsController] submitRevocation action registered successfully',
     );
   }
 
@@ -594,6 +619,104 @@ export default class GatorPermissionsController extends BaseController<
       return permission;
     } catch (error) {
       throw new PermissionDecodingError({
+        cause: error as Error,
+      });
+    }
+  }
+
+  /**
+   * Submits a revocation to the gator permissions provider snap.
+   *
+   * @param revocationParams - The revocation parameters containing the permission context.
+   * @returns A promise that resolves when the revocation is submitted successfully.
+   * @throws {GatorPermissionsNotEnabledError} If the gator permissions are not enabled.
+   * @throws {GatorPermissionsProviderError} If the snap request fails.
+   */
+  public async submitRevocation(
+    revocationParams: RevocationParams,
+  ): Promise<void> {
+    console.log(
+      '[GatorPermissionsController] submitRevocation called with permissionContext:',
+      revocationParams.permissionContext,
+    );
+    controllerLog('submitRevocation method called', {
+      permissionContext: revocationParams.permissionContext,
+    });
+
+    console.log(
+      '[GatorPermissionsController] Checking if gator permissions are enabled...',
+    );
+    console.log(
+      '[GatorPermissionsController] isGatorPermissionsEnabled:',
+      this.state.isGatorPermissionsEnabled,
+    );
+
+    try {
+      this.#assertGatorPermissionsEnabled();
+      console.log(
+        '[GatorPermissionsController] Gator permissions are enabled, proceeding...',
+      );
+    } catch (error) {
+      console.error(
+        '[GatorPermissionsController] Gator permissions not enabled:',
+        error,
+      );
+      throw error;
+    }
+
+    console.log('[GatorPermissionsController] Preparing snap request...');
+    console.log(
+      '[GatorPermissionsController] snapId:',
+      this.state.gatorPermissionsProviderSnapId,
+    );
+    console.log(
+      '[GatorPermissionsController] method:',
+      GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
+    );
+
+    try {
+      console.log('[GatorPermissionsController] Making snap request...');
+
+      const snapRequest = {
+        snapId: this.state.gatorPermissionsProviderSnapId,
+        origin: 'metamask',
+        handler: HandlerType.OnRpcRequest,
+        request: {
+          jsonrpc: '2.0',
+          method:
+            GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
+          params: revocationParams,
+        },
+      };
+
+      console.log(
+        '[GatorPermissionsController] Snap request payload:',
+        JSON.stringify(snapRequest, null, 2),
+      );
+
+      const result = await this.messagingSystem.call(
+        'SnapController:handleRequest',
+        snapRequest,
+      );
+
+      console.log(
+        '[GatorPermissionsController] Snap request successful, result:',
+        result,
+      );
+      controllerLog('Successfully submitted revocation', {
+        permissionContext: revocationParams.permissionContext,
+        result,
+      });
+    } catch (error) {
+      console.error('[GatorPermissionsController] Snap request failed:', error);
+      controllerLog('Failed to submit revocation', {
+        error,
+        permissionContext: revocationParams.permissionContext,
+      });
+
+      throw new GatorPermissionsProviderError({
+        method:
+          GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
         cause: error as Error,
       });
     }
