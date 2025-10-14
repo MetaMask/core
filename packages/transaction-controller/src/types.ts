@@ -268,6 +268,9 @@ export type TransactionMeta = {
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
 
+  /** Whether the intent of the transaction was achieved via an alternate route or chain. */
+  isIntentComplete?: boolean;
+
   /**
    * Whether the transaction is an incoming token transfer.
    */
