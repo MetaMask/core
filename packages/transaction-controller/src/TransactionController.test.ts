@@ -2385,8 +2385,11 @@ describe('TransactionController', () => {
 
     describe('updates simulation data', () => {
       it('by default', async () => {
-        getBalanceChangesMock.mockResolvedValueOnce({
-          simulationData: SIMULATION_DATA_RESULT_MOCK,
+        getBalanceChangesMock.mockImplementationOnce(async (request) => {
+          await request.getSimulationConfig('https://testurl.com');
+          return {
+            simulationData: SIMULATION_DATA_RESULT_MOCK,
+          };
         });
 
         const { controller } = setupController();
@@ -2449,8 +2452,11 @@ describe('TransactionController', () => {
       });
 
       it('with getSimulationConfig', async () => {
-        getBalanceChangesMock.mockResolvedValueOnce({
-          simulationData: SIMULATION_DATA_RESULT_MOCK,
+        getBalanceChangesMock.mockImplementationOnce(async (request) => {
+          await request.getSimulationConfig('https://testurl.com');
+          return {
+            simulationData: SIMULATION_DATA_RESULT_MOCK,
+          };
         });
 
         const getSimulationConfigMock: GetSimulationConfig = jest
@@ -2478,8 +2484,21 @@ describe('TransactionController', () => {
         expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
         expect(getBalanceChangesMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            getSimulationConfig: getSimulationConfigMock,
+            getSimulationConfig: expect.any(Function),
           }),
+        );
+
+        expect(getSimulationConfigMock).toHaveBeenCalledTimes(1);
+        expect(getSimulationConfigMock).toHaveBeenCalledWith(
+          'https://testurl.com',
+          {
+            txMeta: expect.objectContaining({
+              txParams: expect.objectContaining({
+                from: ACCOUNT_MOCK,
+                to: ACCOUNT_MOCK,
+              }),
+            }),
+          },
         );
 
         expect(controller.state.transactions[0].simulationData).toStrictEqual(
