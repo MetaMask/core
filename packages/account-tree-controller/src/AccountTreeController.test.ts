@@ -1,7 +1,13 @@
-import type { AccountWalletId, Bip44Account } from '@metamask/account-api';
+import type {
+  AccountWalletId,
+  Bip44Account,
+  MultichainAccountGroupId,
+  MultichainAccountWalletId,
+} from '@metamask/account-api';
 import {
   AccountGroupType,
   AccountWalletType,
+  isBip44Account,
   toAccountGroupId,
   toAccountWalletId,
   toMultichainAccountGroupId,
@@ -9,6 +15,7 @@ import {
   type AccountGroupId,
 } from '@metamask/account-api';
 import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import type { EntropySourceId } from '@metamask/keyring-api';
 import {
   EthAccountType,
   EthMethod,
@@ -24,6 +31,11 @@ import {
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type {
+  MultichainAccountGroup,
+  MultichainAccountWallet,
+  MultichainAccountService,
+} from '@metamask/multichain-account-service';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import {
@@ -267,6 +279,82 @@ const MOCK_SIMPLE_ACCOUNT_2: InternalAccount = {
   },
 };
 
+class MockMultichainAccountGroup
+  implements Partial<MultichainAccountGroup<Bip44Account<InternalAccount>>>
+{
+  readonly type = AccountGroupType.MultichainAccount as const;
+
+  readonly id: MultichainAccountGroupId;
+
+  readonly groupIndex: number;
+
+  readonly #accounts: Bip44Account<InternalAccount>[];
+
+  constructor({
+    wallet,
+    groupIndex,
+    accounts,
+  }: {
+    wallet: MockMultichainAccountWallet;
+    groupIndex: number;
+    accounts: Bip44Account<InternalAccount>[];
+  }) {
+    this.groupIndex = groupIndex;
+    this.id = toMultichainAccountGroupId(wallet.id, groupIndex);
+    this.#accounts = accounts;
+  }
+
+  getAccounts(): Bip44Account<InternalAccount>[] {
+    return this.#accounts;
+  }
+}
+
+class MockMultichainAccountWallet
+  implements Partial<MultichainAccountWallet<Bip44Account<InternalAccount>>>
+{
+  readonly type = AccountWalletType.Entropy as const;
+
+  readonly status = 'ready';
+
+  readonly id: MultichainAccountWalletId;
+
+  readonly entropySource: EntropySourceId;
+
+  readonly #groups: Record<number, MockMultichainAccountGroup>;
+
+  constructor({
+    entropySource,
+    groups,
+  }: {
+    entropySource: EntropySourceId;
+    groups: Record<number, Bip44Account<InternalAccount>[]>;
+  }) {
+    this.entropySource = entropySource;
+    this.id = toMultichainAccountWalletId(entropySource);
+    this.#groups = Object.fromEntries(
+      Object.entries(groups).map(([groupIndex, accounts]) => {
+        return [
+          Number(groupIndex),
+          new MockMultichainAccountGroup({
+            wallet: this,
+            groupIndex: Number(groupIndex),
+            accounts,
+          }),
+        ];
+      }),
+    );
+  }
+
+  getMultichainAccountGroups(): MultichainAccountGroup<
+    Bip44Account<InternalAccount>
+  >[] {
+    // We're mocking partially this, so we have to cast.
+    return Object.values(this.#groups) as unknown as MultichainAccountGroup<
+      Bip44Account<InternalAccount>
+    >[];
+  }
+}
+
 /**
  * Creates a new root messenger instance for testing.
  *
@@ -316,6 +404,45 @@ function getAccountTreeControllerMessenger(
       'SnapController:get',
     ],
   });
+}
+
+/**
+ * Get multichain account wallets from an account list.
+ *
+ * @param accounts - Account list.
+ * @returns Multichain account wallets.
+ */
+function getMockMultichainAccountWallets(
+  accounts: InternalAccount[],
+): ReturnType<MultichainAccountService['getMultichainAccountWallets']> {
+  const wallets = accounts.reduce(
+    (acc, account) => {
+      if (isBip44Account(account)) {
+        const { id: entropySource, groupIndex } = account.options.entropy;
+
+        acc[entropySource] ??= {};
+        acc[entropySource][groupIndex] ??= [];
+        acc[entropySource][groupIndex].push(account);
+      }
+
+      return acc;
+    },
+    {} as Record<
+      EntropySourceId,
+      Record<number, Bip44Account<InternalAccount>[]>
+    >,
+  );
+
+  return Object.entries(wallets).map(
+    ([entropySource, groups]) =>
+      new MockMultichainAccountWallet({
+        entropySource,
+        groups,
+      }),
+    // We're mocking partially this, so we have to cast.
+  ) as unknown as ReturnType<
+    MultichainAccountService['getMultichainAccountWallets']
+  >;
 }
 
 /**
@@ -486,6 +613,13 @@ function setup({
     messenger.registerActionHandler(
       'UserStorageController:performBatchSetStorage',
       mocks.UserStorageController.performBatchSetStorage,
+    );
+
+    const mockMultichainAccountWallets =
+      getMockMultichainAccountWallets(accounts);
+    messenger.registerActionHandler(
+      'MultichainAccountService:getMultichainAccountWallets',
+      () => mockMultichainAccountWallets,
     );
   }
 
