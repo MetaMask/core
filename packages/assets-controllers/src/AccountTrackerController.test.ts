@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import { query, toChecksumHexAddress } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
@@ -16,6 +16,7 @@ import type {
   AllowedEvents,
 } from './AccountTrackerController';
 import { AccountTrackerController } from './AccountTrackerController';
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
 import { getTokenBalancesForMultipleAddresses } from './multicall';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';
@@ -165,7 +166,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -202,7 +203,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -236,7 +237,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -270,7 +271,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -308,7 +309,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -350,7 +351,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -395,7 +396,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -454,7 +455,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['networkClientId1']);
+            await refresh(clock, ['networkClientId1'], true);
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
                 '0x1': {
@@ -500,7 +501,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['networkClientId1']);
+            await refresh(clock, ['networkClientId1'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -545,7 +546,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['networkClientId1']);
+            await refresh(clock, ['networkClientId1'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -589,7 +590,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['networkClientId1']);
+            await refresh(clock, ['networkClientId1'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -638,7 +639,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -687,7 +688,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -739,7 +740,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -790,7 +791,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -838,7 +839,7 @@ describe('AccountTrackerController', () => {
           },
           async ({ controller, refresh }) => {
             // Should not throw an error, even for unsupported chains
-            await refresh(clock, ['networkClientId1']);
+            await refresh(clock, ['networkClientId1'], true);
 
             // State should still be updated with chain entry from syncAccounts
             expect(controller.state.accountsByChainId).toHaveProperty('0x5');
@@ -867,7 +868,7 @@ describe('AccountTrackerController', () => {
                   },
                 },
               },
-              useAccountsAPI: false, // Disable API balance fetchers to force RPC usage
+              accountsApiChainIds: () => [], // Disable API balance fetchers to force RPC usage
             },
             isMultiAccountBalancesEnabled: true,
             selectedAccount: ACCOUNT_1,
@@ -880,7 +881,7 @@ describe('AccountTrackerController', () => {
             );
 
             // Start refresh with the mocked timeout behavior
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             // With safelyExecuteWithTimeout, timeouts are handled gracefully
             // The system should continue operating without throwing errors
@@ -910,7 +911,7 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             options: {
-              useAccountsAPI: true,
+              accountsApiChainIds: () => ['0x1'],
               // allowExternalServices not provided - should default to () => true (line 390)
             },
             isMultiAccountBalancesEnabled: true,
@@ -922,9 +923,9 @@ describe('AccountTrackerController', () => {
             mockedQuery.mockResolvedValue('0x0');
 
             // Refresh balances for mainnet (supported by API)
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
-            // Since allowExternalServices defaults to () => true (line 390), and useAccountsAPI is true,
+            // Since allowExternalServices defaults to () => true (line 390), and accountsApiChainIds includes '0x1',
             // the API fetcher should be used, which means fetch should be called
             expect(fetchSpy).toHaveBeenCalled();
 
@@ -943,7 +944,7 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             options: {
-              useAccountsAPI: true,
+              accountsApiChainIds: () => ['0x1'],
               allowExternalServices: () => true, // Explicitly set to true
             },
             isMultiAccountBalancesEnabled: true,
@@ -955,9 +956,9 @@ describe('AccountTrackerController', () => {
             mockedQuery.mockResolvedValue('0x0');
 
             // Refresh balances for mainnet (supported by API)
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
-            // Since allowExternalServices is true and useAccountsAPI is true,
+            // Since allowExternalServices is true and accountsApiChainIds returns ['0x1'],
             // the API fetcher should be used, which means fetch should be called
             expect(fetchSpy).toHaveBeenCalled();
 
@@ -976,7 +977,7 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             options: {
-              useAccountsAPI: true,
+              accountsApiChainIds: () => ['0x1'],
               allowExternalServices: () => false, // Explicitly set to false
             },
             isMultiAccountBalancesEnabled: true,
@@ -988,7 +989,7 @@ describe('AccountTrackerController', () => {
             mockedQuery.mockResolvedValue('0x0');
 
             // Refresh balances for mainnet
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             // Since allowExternalServices is false, the API fetcher should NOT be used
             // Only RPC calls should be made, so fetch should NOT be called
@@ -1000,6 +1001,79 @@ describe('AccountTrackerController', () => {
           },
         );
       });
+    });
+
+    it('should continue to next fetcher when current fetcher supports no chains', async () => {
+      // Spy on the AccountsApiBalanceFetcher's supports method to return false
+      const supportsSpy = jest
+        .spyOn(AccountsApiBalanceFetcher.prototype, 'supports')
+        .mockReturnValue(false);
+
+      await withController(
+        {
+          options: {
+            accountsApiChainIds: () => ['0x1'], // Configure to use AccountsAPI for mainnet
+            allowExternalServices: () => true,
+          },
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ controller, refresh }) => {
+          // Mock RPC query to return balance (this should be used since AccountsAPI supports nothing)
+          mockedQuery.mockResolvedValue('0x123456');
+
+          // Refresh balances for mainnet
+          await refresh(clock, ['mainnet'], true);
+
+          // Verify that the supports method was called (meaning we reached the continue logic)
+          expect(supportsSpy).toHaveBeenCalledWith('0x1');
+
+          // Verify that state was still updated via RPC fetcher fallback
+          expect(
+            controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1]
+              .balance,
+          ).toBeDefined();
+
+          supportsSpy.mockRestore();
+        },
+      );
+    });
+
+    it('should log warning when balance fetcher throws an error', async () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      // Mock AccountsApiBalanceFetcher to throw an error
+      const fetchSpy = jest
+        .spyOn(AccountsApiBalanceFetcher.prototype, 'fetch')
+        .mockRejectedValue(new Error('API request failed'));
+
+      await withController(
+        {
+          options: {
+            accountsApiChainIds: () => ['0x1'], // Configure to use AccountsAPI for mainnet
+            allowExternalServices: () => true,
+          },
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ refresh }) => {
+          // Mock RPC query to return balance (fallback after API fails)
+          mockedQuery.mockResolvedValue('0x123456');
+
+          // Refresh balances for mainnet
+          await refresh(clock, ['mainnet'], true);
+
+          // Verify that console.warn was called with the error message
+          expect(consoleWarnSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Balance fetcher failed for chains 0x1:'),
+          );
+
+          fetchSpy.mockRestore();
+          consoleWarnSpy.mockRestore();
+        },
+      );
     });
   });
 
@@ -1051,6 +1125,41 @@ describe('AccountTrackerController', () => {
         },
       );
     });
+
+    it('should handle timeout in syncBalanceWithAddresses gracefully', async () => {
+      await withController(
+        {
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+        },
+        async ({ controller }) => {
+          // Mock safelyExecuteWithTimeout to return undefined (timeout case)
+          mockedSafelyExecuteWithTimeout.mockImplementation(
+            async () => undefined, // Simulates timeout behavior
+          );
+
+          const result = await controller.syncBalanceWithAddresses([
+            ADDRESS_1,
+            ADDRESS_2,
+          ]);
+
+          // Verify that the result is an empty object when all operations timeout
+          expect(result).toStrictEqual({});
+
+          // Restore the mock
+          mockedSafelyExecuteWithTimeout.mockImplementation(
+            async (operation: () => Promise<unknown>) => {
+              try {
+                return await operation();
+              } catch {
+                return undefined;
+              }
+            },
+          );
+        },
+      );
+    });
   });
 
   it('should call refresh every interval on polling', async () => {
@@ -1070,6 +1179,7 @@ describe('AccountTrackerController', () => {
 
         controller.startPolling({
           networkClientIds: ['networkClientId1'],
+          queryAllAccounts: true,
         });
         await advanceTime({ clock, duration: 1 });
 
@@ -1103,33 +1213,35 @@ describe('AccountTrackerController', () => {
 
         controller.startPolling({
           networkClientIds: [networkClientId1],
+          queryAllAccounts: true,
         });
 
         await advanceTime({ clock, duration: 0 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(1, [networkClientId1]);
+        expect(refreshSpy).toHaveBeenNthCalledWith(1, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenCalledTimes(1);
         await advanceTime({ clock, duration: 50 });
         expect(refreshSpy).toHaveBeenCalledTimes(1);
         await advanceTime({ clock, duration: 50 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(2, [networkClientId1]);
+        expect(refreshSpy).toHaveBeenNthCalledWith(2, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenCalledTimes(2);
 
         const pollToken = controller.startPolling({
           networkClientIds: [networkClientId2],
+          queryAllAccounts: true,
         });
 
         await advanceTime({ clock, duration: 0 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(3, [networkClientId2]);
+        expect(refreshSpy).toHaveBeenNthCalledWith(3, [networkClientId2], true);
         expect(refreshSpy).toHaveBeenCalledTimes(3);
         await advanceTime({ clock, duration: 100 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(4, [networkClientId1]);
-        expect(refreshSpy).toHaveBeenNthCalledWith(5, [networkClientId2]);
+        expect(refreshSpy).toHaveBeenNthCalledWith(4, [networkClientId1], true);
+        expect(refreshSpy).toHaveBeenNthCalledWith(5, [networkClientId2], true);
         expect(refreshSpy).toHaveBeenCalledTimes(5);
 
         controller.stopPollingByPollingToken(pollToken);
 
         await advanceTime({ clock, duration: 100 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(6, [networkClientId1]);
+        expect(refreshSpy).toHaveBeenNthCalledWith(6, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenCalledTimes(6);
 
         controller.stopAllPolling();
@@ -1154,12 +1266,75 @@ describe('AccountTrackerController', () => {
         expect(refreshSpy).not.toHaveBeenCalled();
         controller.startPolling({
           networkClientIds: ['networkClientId1'],
+          queryAllAccounts: true,
         });
 
         await advanceTime({ clock, duration: 1 });
         expect(refreshSpy).toHaveBeenCalledTimes(1);
       },
     );
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'anonymous',
+          ),
+        ).toMatchInlineSnapshot(`Object {}`);
+      });
+    });
+
+    it('includes expected state in state logs', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'includeInStateLogs',
+          ),
+        ).toMatchInlineSnapshot(`Object {}`);
+      });
+    });
+
+    it('persists expected state', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'persist',
+          ),
+        ).toMatchInlineSnapshot(`
+          Object {
+            "accountsByChainId": Object {
+              "0x1": Object {},
+            },
+          }
+        `);
+      });
+    });
+
+    it('exposes expected state to UI', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'usedInUi',
+          ),
+        ).toMatchInlineSnapshot(`
+          Object {
+            "accountsByChainId": Object {
+              "0x1": Object {},
+            },
+          }
+        `);
+      });
+    });
   });
 });
 
@@ -1171,6 +1346,7 @@ type WithControllerCallback<ReturnValue> = ({
   refresh: (
     clock: SinonFakeTimers,
     networkClientIds: NetworkClientId[],
+    queryAllAccounts?: boolean,
   ) => Promise<void>;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -1343,8 +1519,9 @@ async function withController<ReturnValue>(
   const refresh = async (
     clock: SinonFakeTimers,
     networkClientIds: NetworkClientId[],
+    queryAllAccounts?: boolean,
   ) => {
-    const promise = controller.refresh(networkClientIds);
+    const promise = controller.refresh(networkClientIds, queryAllAccounts);
     await clock.tickAsync(1);
     await promise;
   };

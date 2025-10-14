@@ -25,13 +25,9 @@
     "import-x/namespace": 9,
     "jest/no-conditional-in-test": 6
   },
-  "packages/assets-controllers/src/NftController.ts": {
-    "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 46
-  },
   "packages/assets-controllers/src/NftDetectionController.test.ts": {
     "import-x/namespace": 6,
-    "import-x/order": 4
+    "import-x/order": 3
   },
   "packages/assets-controllers/src/NftDetectionController.ts": {
     "jsdoc/check-tag-names": 34,
@@ -57,16 +53,6 @@
   },
   "packages/assets-controllers/src/Standards/NftStandards/ERC721/ERC721Standard.ts": {
     "prettier/prettier": 1
-  },
-  "packages/assets-controllers/src/TokenDetectionController.test.ts": {
-    "import-x/namespace": 11,
-    "jsdoc/tag-lines": 1
-  },
-  "packages/assets-controllers/src/TokenDetectionController.ts": {
-    "@typescript-eslint/prefer-readonly": 3,
-    "jsdoc/check-tag-names": 8,
-    "jsdoc/tag-lines": 6,
-    "no-unused-private-class-members": 2
   },
   "packages/assets-controllers/src/TokenListController.test.ts": {
     "import-x/namespace": 7,
@@ -107,10 +93,10 @@
     "jsdoc/tag-lines": 2
   },
   "packages/base-controller/src/BaseController.test.ts": {
-    "import-x/namespace": 18
+    "import-x/namespace": 15
   },
   "packages/base-controller/src/next/BaseController.test.ts": {
-    "import-x/namespace": 18
+    "import-x/namespace": 13
   },
   "packages/build-utils/src/transforms/remove-fenced-code.test.ts": {
     "import-x/order": 1
@@ -153,7 +139,7 @@
   "packages/ens-controller/src/EnsController.ts": {
     "jsdoc/check-tag-names": 6
   },
-  "packages/eip-5792-middleware/src/methods/processSendCalls.ts": {
+  "packages/eip-5792-middleware/src/hooks/processSendCalls.ts": {
     "@typescript-eslint/no-misused-promises": 1
   },
   "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.test.ts": {
@@ -187,7 +173,6 @@
     "n/no-unsupported-features/node-builtins": 1
   },
   "packages/keyring-controller/src/KeyringController.test.ts": {
-    "import-x/namespace": 5,
     "jest/no-conditional-in-test": 2
   },
   "packages/keyring-controller/src/KeyringController.ts": {
@@ -286,9 +271,6 @@
   "packages/permission-controller/src/PermissionController.test.ts": {
     "jest/no-conditional-in-test": 4
   },
-  "packages/permission-controller/src/PermissionController.ts": {
-    "prettier/prettier": 12
-  },
   "packages/permission-controller/src/rpc-methods/getPermissions.test.ts": {
     "import-x/order": 1
   },
@@ -301,23 +283,13 @@
     "jsdoc/tag-lines": 1
   },
   "packages/phishing-controller/src/PhishingController.ts": {
-    "jsdoc/check-tag-names": 38,
-    "jsdoc/tag-lines": 1
-  },
-  "packages/phishing-controller/src/PhishingDetector.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "@typescript-eslint/prefer-readonly": 2,
-    "jsdoc/tag-lines": 2
-  },
-  "packages/phishing-controller/src/tests/utils.ts": {
-    "@typescript-eslint/no-unused-vars": 1
+    "jsdoc/check-tag-names": 32
   },
   "packages/phishing-controller/src/utils.test.ts": {
     "import-x/namespace": 5
   },
   "packages/phishing-controller/src/utils.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 1,
-    "@typescript-eslint/no-unused-vars": 1
+    "@typescript-eslint/no-unsafe-enum-comparison": 1
   },
   "packages/polling-controller/src/AbstractPollingController.ts": {
     "@typescript-eslint/prefer-readonly": 1
@@ -338,8 +310,7 @@
   },
   "packages/remote-feature-flag-controller/src/remote-feature-flag-controller.ts": {
     "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 2,
-    "prettier/prettier": 1
+    "jsdoc/check-tag-names": 2
   },
   "packages/remote-feature-flag-controller/src/utils/user-segmentation-utils.ts": {
     "jsdoc/tag-lines": 2
@@ -350,29 +321,14 @@
   "packages/seedless-onboarding-controller/src/errors.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 1
   },
-  "packages/selected-network-controller/src/SelectedNetworkController.ts": {
-    "@typescript-eslint/prefer-readonly": 1,
-    "prettier/prettier": 6
-  },
   "packages/selected-network-controller/tests/SelectedNetworkController.test.ts": {
     "jest/no-conditional-in-test": 1
   },
   "packages/signature-controller/src/SignatureController.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 4
-  },
-  "packages/signature-controller/src/utils/decoding-api.test.ts": {
-    "import-x/order": 1,
-    "jsdoc/tag-lines": 1
-  },
-  "packages/signature-controller/src/utils/decoding-api.ts": {
-    "import-x/order": 1
-  },
-  "packages/signature-controller/src/utils/normalize.test.ts": {
-    "import-x/order": 1
+    "@typescript-eslint/no-unsafe-enum-comparison": 3
   },
   "packages/signature-controller/src/utils/normalize.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "jsdoc/tag-lines": 2
+    "@typescript-eslint/no-unused-vars": 1
   },
   "packages/signature-controller/src/utils/validation.ts": {
     "@typescript-eslint/no-base-to-string": 1,

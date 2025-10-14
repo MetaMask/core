@@ -1,3 +1,4 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   Messenger,
   MOCK_ANY_NAMESPACE,
@@ -192,5 +193,79 @@ describe('LoggingController', () => {
     expect(controller.clear()).toBeUndefined();
     const logs = Object.values(controller.state.logs);
     expect(logs).toHaveLength(0);
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const unrestricted = getUnrestrictedMessenger();
+      const messenger = getRestrictedMessenger(unrestricted);
+      const controller = new LoggingController({
+        messenger,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const unrestricted = getUnrestrictedMessenger();
+      const messenger = getRestrictedMessenger(unrestricted);
+      const controller = new LoggingController({
+        messenger,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "logs": Object {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const unrestricted = getUnrestrictedMessenger();
+      const messenger = getRestrictedMessenger(unrestricted);
+      const controller = new LoggingController({
+        messenger,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "logs": Object {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const unrestricted = getUnrestrictedMessenger();
+      const messenger = getRestrictedMessenger(unrestricted);
+      const controller = new LoggingController({
+        messenger,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
   });
 });

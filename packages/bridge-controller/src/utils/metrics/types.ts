@@ -42,6 +42,7 @@ export type QuoteFetchData = {
 export type TradeData = {
   usd_quoted_gas: number;
   gas_included: boolean;
+  gas_included_7702: boolean;
   quoted_time_minutes: number;
   usd_quoted_return: number;
   provider: `${string}_${string}`;
@@ -116,11 +117,6 @@ export type RequiredEventContextFromClient = {
     token_symbol_destination: RequestParams['token_symbol_destination'];
   } & Pick<RequestMetadata, 'security_warnings'>;
   // Emitted by BridgeStatusController
-  [UnifiedSwapBridgeEventName.SnapConfirmationViewed]: Pick<
-    QuoteFetchData,
-    'price_impact'
-  > &
-    TradeData;
   [UnifiedSwapBridgeEventName.Submitted]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
     Omit<RequestMetadata, 'security_warnings'> &
@@ -149,7 +145,10 @@ export type RequiredEventContextFromClient = {
     | // Tx failed before confirmation
     (TradeData &
         Pick<QuoteFetchData, 'price_impact'> &
-        Pick<RequestMetadata, 'stx_enabled' | 'usd_amount_source'> &
+        Pick<
+          RequestMetadata,
+          'stx_enabled' | 'usd_amount_source' | 'is_hardware_wallet'
+        > &
         Pick<
           RequestParams,
           'token_symbol_source' | 'token_symbol_destination'
@@ -230,10 +229,6 @@ export type EventPropertiesFromControllerState = {
       has_sufficient_funds: boolean;
       error_message: string;
     };
-  [UnifiedSwapBridgeEventName.SnapConfirmationViewed]: RequestMetadata &
-    RequestParams &
-    QuoteFetchData &
-    TradeData;
   [UnifiedSwapBridgeEventName.Submitted]: null;
   [UnifiedSwapBridgeEventName.Completed]: null;
   [UnifiedSwapBridgeEventName.Failed]: RequestParams &

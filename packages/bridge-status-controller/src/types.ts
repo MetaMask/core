@@ -1,7 +1,4 @@
-import type {
-  AccountsControllerGetAccountByAddressAction,
-  AccountsControllerGetSelectedMultichainAccountAction,
-} from '@metamask/accounts-controller';
+import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -11,6 +8,7 @@ import type {
   BridgeBackgroundAction,
   BridgeControllerAction,
   ChainId,
+  FeatureId,
   Quote,
   QuoteMetadata,
   QuoteResponse,
@@ -129,6 +127,7 @@ export type BridgeHistoryItem = {
   account: string;
   hasApprovalTx: boolean;
   approvalTxId?: string;
+  featureId?: FeatureId;
   isStxEnabled?: boolean;
   /**
    * Attempts tracking for exponential backoff on failed fetches.
@@ -147,6 +146,7 @@ export enum BridgeStatusAction {
   RESET_STATE = 'resetState',
   SUBMIT_TX = 'submitTx',
   RESTART_POLLING_FOR_FAILED_ATTEMPTS = 'restartPollingForFailedAttempts',
+  GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID = 'getBridgeHistoryItemByTxMetaId',
 }
 
 export type TokenAmountValuesSerialized = {
@@ -208,7 +208,7 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
   StartPollingForBridgeTxStatusArgs,
   'quoteResponse'
 > & {
-  quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata;
+  quoteResponse: QuoteResponse<string | TxData> & Partial<QuoteMetadata>;
 };
 
 export type SourceChainTxMetaId = string;
@@ -246,13 +246,17 @@ export type BridgeStatusControllerSubmitTxAction =
 export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
   BridgeStatusControllerAction<BridgeStatusAction.RESTART_POLLING_FOR_FAILED_ATTEMPTS>;
 
+export type BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction =
+  BridgeStatusControllerAction<BridgeStatusAction.GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID>;
+
 export type BridgeStatusControllerActions =
   | BridgeStatusControllerStartPollingForBridgeTxStatusAction
   | BridgeStatusControllerWipeBridgeStatusAction
   | BridgeStatusControllerResetStateAction
   | BridgeStatusControllerGetStateAction
   | BridgeStatusControllerSubmitTxAction
-  | BridgeStatusControllerRestartPollingForFailedAttemptsAction;
+  | BridgeStatusControllerRestartPollingForFailedAttemptsAction
+  | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -270,7 +274,6 @@ type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | AccountsControllerGetSelectedMultichainAccountAction
   | HandleSnapRequest
   | TransactionControllerGetStateAction
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
