@@ -1268,6 +1268,40 @@ describe('AccountTreeController', () => {
       } as AccountTreeControllerState);
     });
 
+    it('prunes custom wallet metadata when wallet is removed', () => {
+      const mockHdAccount1: Bip44Account<InternalAccount> = MOCK_HD_ACCOUNT_1;
+
+      const { controller, messenger } = setup({
+        accounts: [mockHdAccount1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      // Set custom wallet name
+      controller.setAccountWalletName(walletId, 'My Custom Wallet');
+
+      // Verify custom metadata was set
+      expect(controller.state.accountWalletsMetadata[walletId]).toStrictEqual({
+        name: {
+          value: 'My Custom Wallet',
+          lastUpdatedAt: expect.any(Number),
+        },
+      });
+
+      // Remove the account, which should prune the wallet and its metadata
+      messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
+
+      // Verify both wallet and its metadata are completely removed
+      expect(controller.state.accountTree.wallets[walletId]).toBeUndefined();
+      expect(controller.state.accountWalletsMetadata[walletId]).toBeUndefined();
+      expect(controller.state.accountWalletsMetadata).toStrictEqual({});
+    });
+
     it('does not remove account if init has not been called', () => {
       const { controller, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
