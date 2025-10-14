@@ -12,13 +12,13 @@ type EnvUrlsEntry = {
 
 const ENV_URLS: Record<Env, EnvUrlsEntry> = {
   dev: {
-    subscriptionApiUrl: 'https://subscription-service.dev-api.cx.metamask.io',
+    subscriptionApiUrl: 'https://subscription.dev-api.cx.metamask.io',
   },
   uat: {
-    subscriptionApiUrl: 'https://subscription-service.uat-api.cx.metamask.io',
+    subscriptionApiUrl: 'https://subscription.uat-api.cx.metamask.io',
   },
   prd: {
-    subscriptionApiUrl: 'https://subscription-service.api.cx.metamask.io',
+    subscriptionApiUrl: 'https://subscription.api.cx.metamask.io',
   },
 };
 
@@ -41,3 +41,5 @@ export enum SubscriptionControllerErrorMessage {
   UserNotSubscribed = `${controllerName} - User is not subscribed`,
   SubscriptionProductsEmpty = `${controllerName} - Subscription products array cannot be empty`,
 }
+
+export const DEFAULT_POLLING_INTERVAL = 5 * 60 * 1_000; // 5 minutes

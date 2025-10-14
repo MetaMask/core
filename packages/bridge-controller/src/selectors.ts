@@ -26,7 +26,7 @@ import { RequestStatus, SortOrder } from './types';
 import {
   getNativeAssetForChainId,
   isNativeAddress,
-  isSolanaChainId,
+  isNonEvmChainId,
 } from './utils/bridge';
 import {
   formatAddressToAssetId,
@@ -41,12 +41,13 @@ import {
   calcIncludedTxFees,
   calcRelayerFee,
   calcSentAmount,
-  calcSolanaTotalNetworkFee,
+  calcNonEvmTotalNetworkFee,
   calcSwapRate,
   calcToAmount,
   calcTotalEstimatedNetworkFee,
   calcTotalMaxNetworkFee,
 } from './utils/quote';
+import { getDefaultSlippagePercentage } from './utils/slippage';
 
 /**
  * The controller states that provide exchange rates
@@ -139,8 +140,8 @@ const getExchangeRateByChainIdAndAddress = (
   if (bridgeControllerRate?.exchangeRate) {
     return bridgeControllerRate;
   }
-  // If the chain is a Solana chain, use the conversion rate from the multichain assets controller
-  if (isSolanaChainId(chainId)) {
+  // If the chain is a non-EVM chain, use the conversion rate from the multichain assets controller
+  if (isNonEvmChainId(chainId)) {
     const multichainAssetExchangeRate = conversionRates?.[assetId];
     if (multichainAssetExchangeRate) {
       return {
@@ -163,22 +164,24 @@ const getExchangeRateByChainIdAndAddress = (
     return {};
   }
   // If the chain is an EVM chain and the asset is not the native asset, use the conversion rate from the token rates controller
-  const evmTokenExchangeRates = marketData?.[formatChainIdToHex(chainId)];
-  const evmTokenExchangeRateForAddress = isStrictHexString(address)
-    ? evmTokenExchangeRates?.[address]
-    : null;
-  const nativeCurrencyRate = evmTokenExchangeRateForAddress
-    ? currencyRates[evmTokenExchangeRateForAddress?.currency]
-    : undefined;
-  if (evmTokenExchangeRateForAddress && nativeCurrencyRate) {
-    return {
-      exchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
-        .multipliedBy(nativeCurrencyRate.conversionRate ?? 0)
-        .toString(),
-      usdExchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
-        .multipliedBy(nativeCurrencyRate.usdConversionRate ?? 0)
-        .toString(),
-    };
+  if (!isNonEvmChainId(chainId)) {
+    const evmTokenExchangeRates = marketData?.[formatChainIdToHex(chainId)];
+    const evmTokenExchangeRateForAddress = isStrictHexString(address)
+      ? evmTokenExchangeRates?.[address]
+      : null;
+    const nativeCurrencyRate = evmTokenExchangeRateForAddress
+      ? currencyRates[evmTokenExchangeRateForAddress?.currency]
+      : undefined;
+    if (evmTokenExchangeRateForAddress && nativeCurrencyRate) {
+      return {
+        exchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
+          .multipliedBy(nativeCurrencyRate.conversionRate ?? 0)
+          .toString(),
+        usdExchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
+          .multipliedBy(nativeCurrencyRate.usdConversionRate ?? 0)
+          .toString(),
+      };
+    }
   }
 
   return {};
@@ -286,8 +289,9 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         relayerFee,
         gasFee: QuoteMetadata['gasFee'];
 
-      if (isSolanaChainId(quote.quote.srcChainId)) {
-        totalEstimatedNetworkFee = calcSolanaTotalNetworkFee(
+      if (isNonEvmChainId(quote.quote.srcChainId)) {
+        // Use the new generic function for all non-EVM chains
+        totalEstimatedNetworkFee = calcNonEvmTotalNetworkFee(
           quote,
           nativeExchangeRate,
         );
@@ -446,3 +450,39 @@ export const selectMinimumBalanceForRentExemptionInSOL = (
   new BigNumber(state.minimumBalanceForRentExemptionInLamports ?? 0)
     .div(10 ** 9)
     .toString();
+
+export const selectDefaultSlippagePercentage = createBridgeSelector(
+  [
+    (state) => selectBridgeFeatureFlags(state).chains,
+    (_, slippageParams: Parameters<typeof getDefaultSlippagePercentage>[0]) =>
+      slippageParams.srcTokenAddress,
+    (_, slippageParams: Parameters<typeof getDefaultSlippagePercentage>[0]) =>
+      slippageParams.destTokenAddress,
+    (_, slippageParams: Parameters<typeof getDefaultSlippagePercentage>[0]) =>
+      slippageParams.srcChainId
+        ? formatChainIdToCaip(slippageParams.srcChainId)
+        : undefined,
+    (_, slippageParams: Parameters<typeof getDefaultSlippagePercentage>[0]) =>
+      slippageParams.destChainId
+        ? formatChainIdToCaip(slippageParams.destChainId)
+        : undefined,
+  ],
+  (
+    featureFlagsByChain,
+    srcTokenAddress,
+    destTokenAddress,
+    srcChainId,
+    destChainId,
+  ) => {
+    return getDefaultSlippagePercentage(
+      {
+        srcTokenAddress,
+        destTokenAddress,
+        srcChainId,
+        destChainId,
+      },
+      srcChainId ? featureFlagsByChain[srcChainId]?.stablecoins : undefined,
+      destChainId ? featureFlagsByChain[destChainId]?.stablecoins : undefined,
+    );
+  },
+);

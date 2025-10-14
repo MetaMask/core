@@ -7,6 +7,9 @@ describe('@metamask/eip-5792-middleware', () => {
         "processSendCalls",
         "getCallsStatus",
         "getCapabilities",
+        "walletSendCalls",
+        "walletGetCallsStatus",
+        "walletGetCapabilities",
       ]
     `);
   });

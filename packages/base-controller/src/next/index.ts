@@ -11,9 +11,4 @@ export type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from './BaseController';
-export {
-  BaseController,
-  deriveStateFromMetadata,
-  getAnonymizedState,
-  getPersistentState,
-} from './BaseController';
+export { BaseController, deriveStateFromMetadata } from './BaseController';

@@ -25,6 +25,7 @@ import {
 } from '@metamask/json-rpc-engine';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { Hex, Json, JsonRpcParams } from '@metamask/utils';
+import type { Logger } from 'loglevel';
 
 import type { NetworkControllerMessenger } from './NetworkController';
 import type { RpcServiceOptions } from './rpc-service/rpc-service';
@@ -64,6 +65,7 @@ export type NetworkClient = {
  * provided failover endpoints if the primary is unavailable. This effectively
  * causes the `failoverRpcUrls` property of the network client configuration
  * to be honored or ignored.
+ * @param args.logger - A `loglevel` logger.
  * @returns The network client.
  */
 export function createNetworkClient({
@@ -72,6 +74,7 @@ export function createNetworkClient({
   getBlockTrackerOptions,
   messenger,
   isRpcFailoverEnabled,
+  logger,
 }: {
   configuration: NetworkClientConfiguration;
   getRpcServiceOptions: (
@@ -82,6 +85,7 @@ export function createNetworkClient({
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   messenger: NetworkControllerMessenger;
   isRpcFailoverEnabled: boolean;
+  logger?: Logger;
 }): NetworkClient {
   const primaryEndpointUrl =
     configuration.type === NetworkClientType.Infura
@@ -94,6 +98,7 @@ export function createNetworkClient({
     availableEndpointUrls.map((endpointUrl) => ({
       ...getRpcServiceOptions(endpointUrl),
       endpointUrl,
+      logger,
     })),
   );
   rpcServiceChain.onBreak(({ endpointUrl, failoverEndpointUrl, ...rest }) => {

@@ -37,14 +37,20 @@ export function assertAreBip44Accounts(
   accounts.forEach(assertIsBip44Account);
 }
 
-export abstract class BaseBip44AccountProvider
-  implements AccountProvider<Bip44Account<KeyringAccount>>
-{
+export type NamedAccountProvider<
+  Account extends Bip44Account<KeyringAccount> = Bip44Account<KeyringAccount>,
+> = AccountProvider<Account> & {
+  getName(): string;
+};
+
+export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
   protected readonly messenger: MultichainAccountServiceMessenger;
 
   constructor(messenger: MultichainAccountServiceMessenger) {
     this.messenger = messenger;
   }
+
+  abstract getName(): string;
 
   #getAccounts(
     filter: (account: KeyringAccount) => boolean = () => true,
@@ -119,7 +125,7 @@ export abstract class BaseBip44AccountProvider
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]>;
 
-  abstract discoverAndCreateAccounts({
+  abstract discoverAccounts({
     entropySource,
     groupIndex,
   }: {
