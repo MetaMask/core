@@ -350,9 +350,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    *
    * @returns The subscriptions eligibilities.
    */
-  async getSubscriptionsEligibilities(): Promise<
-    SubscriptionEligibility[]
-  > {
+  async getSubscriptionsEligibilities(): Promise<SubscriptionEligibility[]> {
     return await this.#subscriptionService.getSubscriptionsEligibilities();
   }
 

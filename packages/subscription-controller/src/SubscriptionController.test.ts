@@ -1340,13 +1340,12 @@ describe('SubscriptionController', () => {
   });
 
   describe('getSubscriptionsEligibilities', () => {
-    const MOCK_SUBSCRIPTION_ELIGIBILITY: SubscriptionEligibility =
-      {
-        product: PRODUCT_TYPES.SHIELD,
-        canSubscribe: true,
-        minBalanceUSD: 100,
-        canViewModal: true,
-      };
+    const MOCK_SUBSCRIPTION_ELIGIBILITY: SubscriptionEligibility = {
+      product: PRODUCT_TYPES.SHIELD,
+      canSubscribe: true,
+      minBalanceUSD: 100,
+      canViewModal: true,
+    };
 
     it('should get the subscriptions eligibilities', async () => {
       await withController(async ({ controller, mockService }) => {

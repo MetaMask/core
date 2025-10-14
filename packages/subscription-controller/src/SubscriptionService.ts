@@ -108,12 +108,9 @@ export class SubscriptionService implements ISubscriptionService {
    *
    * @returns The eligibility for a shield subscription
    */
-  async getSubscriptionsEligibilities(): Promise<
-    SubscriptionEligibility[]
-  > {
+  async getSubscriptionsEligibilities(): Promise<SubscriptionEligibility[]> {
     const path = 'subscriptions/eligibility';
-    const results =
-      await this.#makeRequest<SubscriptionEligibility[]>(path);
+    const results = await this.#makeRequest<SubscriptionEligibility[]>(path);
     return results.map((result) => ({
       ...result,
       canSubscribe: result.canSubscribe || false,
