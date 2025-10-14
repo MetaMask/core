@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `MONAD` network support ([#6827](https://github.com/MetaMask/core/pull/6827))
+- Add `MONAD` network support ([#7728](https://github.com/MetaMask/core/pull/7728))
   - Add `MONAD` into constants `ALLOWED_BRIDGE_CHAIN_IDS`, `SWAPS_TOKEN_OBJECT` and `NETWORK_TO_NAME_MAP`
 
 ## [51.0.0]
