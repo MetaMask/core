@@ -114,7 +114,7 @@ export class SubscriptionService implements ISubscriptionService {
     return results.map((result) => ({
       ...result,
       canSubscribe: result.canSubscribe || false,
-      canViewModal: result.canViewModal || false,
+      canViewEntryModal: result.canViewEntryModal || false,
     }));
   }
 
@@ -125,7 +125,7 @@ export class SubscriptionService implements ISubscriptionService {
    * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed }
    */
   async submitUserEvent(request: SubmitUserEventRequest): Promise<void> {
-    const path = 'subscriptions/user-events';
+    const path = 'user-events';
     await this.#makeRequest(path, 'POST', request);
   }
 

@@ -37,6 +37,7 @@ export type {
   SubscriptionPaymentMethod,
   SubmitUserEventRequest,
   SubscriptionEligibility,
+  SubscriptionUserEventType,
   RecurringInterval,
   SubscriptionStatus,
   PaymentType,

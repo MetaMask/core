@@ -225,15 +225,18 @@ export type SubscriptionEligibility = {
   product: ProductType;
   canSubscribe: boolean;
   minBalanceUSD: number;
-  canViewModal: boolean;
+  canViewEntryModal: boolean;
 };
 
 export const SubscriptionUserEvent = {
   ShieldEntryModalViewed: 'shield_entry_modal_viewed',
 } as const;
 
+export type SubscriptionUserEventType =
+  (typeof SubscriptionUserEvent)[keyof typeof SubscriptionUserEvent];
+
 export type SubmitUserEventRequest = {
-  event: (typeof SubscriptionUserEvent)[keyof typeof SubscriptionUserEvent];
+  event: SubscriptionUserEventType;
 };
 
 export type ISubscriptionService = {

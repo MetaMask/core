@@ -1344,7 +1344,7 @@ describe('SubscriptionController', () => {
       product: PRODUCT_TYPES.SHIELD,
       canSubscribe: true,
       minBalanceUSD: 100,
-      canViewModal: true,
+      canViewEntryModal: true,
     };
 
     it('should get the subscriptions eligibilities', async () => {

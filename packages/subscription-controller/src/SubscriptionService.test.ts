@@ -412,7 +412,7 @@ describe('SubscriptionService', () => {
             product: PRODUCT_TYPES.SHIELD,
             canSubscribe: true,
             minBalanceUSD: 100,
-            canViewModal: true,
+            canViewEntryModal: true,
           },
         ]);
 
@@ -423,7 +423,7 @@ describe('SubscriptionService', () => {
             product: PRODUCT_TYPES.SHIELD,
             canSubscribe: true,
             minBalanceUSD: 100,
-            canViewModal: true,
+            canViewEntryModal: true,
           },
         ]);
       });
@@ -445,7 +445,7 @@ describe('SubscriptionService', () => {
           {
             product: PRODUCT_TYPES.SHIELD,
             canSubscribe: false,
-            canViewModal: false,
+            canViewEntryModal: false,
             minBalanceUSD: 100,
           },
         ]);
@@ -463,7 +463,7 @@ describe('SubscriptionService', () => {
         });
 
         expect(handleFetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(config.env, 'subscriptions/user-events'),
+          SUBSCRIPTION_URL(config.env, 'user-events'),
           {
             method: 'POST',
             headers: MOCK_HEADERS,
