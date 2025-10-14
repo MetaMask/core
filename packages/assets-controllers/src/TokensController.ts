@@ -510,11 +510,18 @@ export class TokensController extends BaseController<
       networkClientId,
     ).configuration.chainId;
 
+    const tokensToImportChecksummed = tokensToImport.map((token) => {
+      return {
+        ...token,
+        address: toChecksumHexAddress(token.address),
+      };
+    });
+
     // Used later to dedupe imported tokens
     const newTokensMap = [
       ...(allTokens[interactingChainId]?.[this.#getSelectedAccount().address] ||
         []),
-      ...tokensToImport,
+      ...tokensToImportChecksummed,
     ].reduce(
       (output, token) => {
         output[token.address] = token;
@@ -523,7 +530,7 @@ export class TokensController extends BaseController<
       {} as { [address: string]: Token },
     );
     try {
-      tokensToImport.forEach((tokenToAdd) => {
+      tokensToImportChecksummed.forEach((tokenToAdd) => {
         const { address, symbol, decimals, image, aggregators, name } =
           tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
