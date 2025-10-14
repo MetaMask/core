@@ -100,13 +100,11 @@ const SEI_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
   decimals: 18,
 } as const;
 
-
 const MONAD_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
   name: 'Mon',
   address: DEFAULT_TOKEN_ADDRESS,
   decimals: 18,
 } as const;
-
 
 export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.MAINNET]: ETH_SWAPS_TOKEN_OBJECT,
