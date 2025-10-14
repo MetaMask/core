@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0]
+
 ### Added
 
 - **BREAKING**: Added two new public methods, `getSubscriptionsEligibilities` and `submitUserEvent` to `SubscriptionService` and `ISubscriptionService` interface. ([#6826](https://github.com/MetaMask/core/pull/6826))
@@ -90,7 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@1.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@1.1.0...HEAD
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@1.0.1...@metamask/subscription-controller@1.1.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@1.0.0...@metamask/subscription-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@0.5.0...@metamask/subscription-controller@1.0.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@0.4.0...@metamask/subscription-controller@0.5.0
