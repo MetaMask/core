@@ -17,7 +17,9 @@ import type {
   GetCryptoApproveTransactionRequest,
   GetCryptoApproveTransactionResponse,
   ProductPrice,
+  ShieldSubscriptionEligibilityResponse,
   StartCryptoSubscriptionRequest,
+  SubmitUserEventRequest,
   TokenPaymentInfo,
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodOpts,
@@ -343,6 +345,17 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     );
   }
 
+  /**
+   * Get the subscriptions eligibilities.
+   *
+   * @returns The subscriptions eligibilities.
+   */
+  async getSubscriptionsEligibilities(): Promise<
+    ShieldSubscriptionEligibilityResponse[]
+  > {
+    return await this.#subscriptionService.getSubscriptionsEligibilities();
+  }
+
   async cancelSubscription(request: { subscriptionId: string }) {
     this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
@@ -475,6 +488,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       return await this.getSubscriptions();
     }
     throw new Error('Invalid payment type');
+  }
+
+  /**
+   * Submit a user event from the UI. (e.g. shield modal viewed)
+   *
+   * @param request - Request object containing the event to submit.
+   * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed }
+   */
+  async submitUserEvent(request: SubmitUserEventRequest) {
+    await this.#subscriptionService.submitUserEvent(request);
   }
 
   async _executePoll(): Promise<void> {

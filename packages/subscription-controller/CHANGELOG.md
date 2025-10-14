@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added two new public methods, `getShieldSubscriptionEligibility` and `submitUserEvent`. ([#6826](https://github.com/MetaMask/core/pull/6826))
-  - `getShieldSubscriptionEligibility` (get user eligibility for shield subscription).
+- **BREAKING**: Added two new public methods, `getSubscriptionsEligibilities` and `submitUserEvent` to `SubscriptionService` and `ISubscriptionService` interface. ([#6826](https://github.com/MetaMask/core/pull/6826))
+  - `getSubscriptionsEligibilities` (get user eligibilities for subscriptions).
   - `submitUserEvent` (submit user UI events, e.g. EntryModalViewed).
+- Added two new public methods, `getSubscriptionsEligibilities` and `submitUserEvent` to controller. ([#6826](https://github.com/MetaMask/core/pull/6826))
 - Exported `SubscriptionUserEvent` from the Controller. ([#6826](https://github.com/MetaMask/core/pull/6826))
 
 ## [1.0.1]

@@ -125,7 +125,7 @@ export class SubscriptionService implements ISubscriptionService {
    * Submit a user event. (e.g. shield modal viewed)
    *
    * @param request - Request object containing the event to submit.
-   * @example { event: SubscriptionUserEvent.ShieldViewModal }
+   * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed }
    */
   async submitUserEvent(request: SubmitUserEventRequest): Promise<void> {
     const path = 'subscriptions/user-events';
