@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-backend",
-  "version": "1.0.1",
+  "version": "2.1.0",
   "description": "Core backend services for MetaMask",
   "keywords": [
     "MetaMask",
@@ -56,11 +56,11 @@
   "devDependencies": {
     "@metamask/accounts-controller": "^33.1.1",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/keyring-controller": "^23.1.1",
     "@ts-bridge/cli": "^0.6.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
-    "nock": "^13.3.1",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
@@ -68,7 +68,8 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^33.1.0"
+    "@metamask/accounts-controller": "^33.1.0",
+    "@metamask/keyring-controller": "^23.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

@@ -13,6 +13,9 @@
       "path": "../controller-utils"
     },
     {
+      "path": "../keyring-controller"
+    },
+    {
       "path": "../messenger"
     },
     {
