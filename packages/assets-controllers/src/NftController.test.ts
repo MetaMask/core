@@ -6,7 +6,7 @@ import type {
 } from '@metamask/accounts-controller';
 import type { ApprovalControllerMessenger } from '@metamask/approval-controller';
 import { ApprovalController } from '@metamask/approval-controller';
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import {
   IPFS_DEFAULT_GATEWAY_URL,
   ERC1155,
@@ -22,14 +22,18 @@ import {
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type {
-  NetworkClientConfiguration,
-  NetworkClientId,
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
+import {
+  type NetworkClientConfiguration,
+  type NetworkClientId,
 } from '@metamask/network-controller';
-import type {
-  BulkPhishingDetectionScanResponse,
-  PhishingControllerBulkScanUrlsAction,
-} from '@metamask/phishing-controller';
+import type { BulkPhishingDetectionScanResponse } from '@metamask/phishing-controller';
 import { RecommendedAction } from '@metamask/phishing-controller';
 import {
   getDefaultPreferencesState,
@@ -55,23 +59,28 @@ import type {
   Nft,
   NftControllerState,
   NftControllerMessenger,
-  AllowedActions as NftControllerAllowedActions,
-  AllowedEvents as NftControllerAllowedEvents,
   NFTStandardType,
   NftMetadata,
 } from './NftController';
 import { NftController } from './NftController';
 import type { Collection } from './NftDetectionController';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockFindNetworkClientIdByChainId,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
+
+type AllActions =
+  | MessengerActions<NftControllerMessenger>
+  | MessengerActions<ApprovalControllerMessenger>;
+
+type AllEvents =
+  | MessengerEvents<NftControllerMessenger>
+  | MessengerEvents<ApprovalControllerMessenger>
+  | AccountsControllerSelectedAccountChangeEvent;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
@@ -226,15 +235,9 @@ function setupController({
   mockGetNetworkClientIdByChainId?: Record<Hex, NetworkClientConfiguration>;
   displayNftMedia?: boolean;
 } = {}) {
-  const messenger = new Messenger<
-    | ExtractAvailableAction<NftControllerMessenger>
-    | NftControllerAllowedActions
-    | ExtractAvailableAction<ApprovalControllerMessenger>,
-    | ExtractAvailableEvent<NftControllerMessenger>
-    | NftControllerAllowedEvents
-    | ExtractAvailableEvent<ApprovalControllerMessenger>
-    | AccountsControllerSelectedAccountChangeEvent
-  >();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   const getNetworkClientById = buildMockGetNetworkClientById(
     mockNetworkClientConfigurationsByNetworkClientId,
@@ -331,10 +334,14 @@ function setupController({
     mockGetERC1155TokenURI,
   );
 
-  const approvalControllerMessenger = messenger.getRestricted({
-    name: 'ApprovalController',
-    allowedActions: [],
-    allowedEvents: [],
+  const approvalControllerMessenger = new Messenger<
+    'ApprovalController',
+    MessengerActions<ApprovalControllerMessenger>,
+    MessengerEvents<ApprovalControllerMessenger>,
+    RootMessenger
+  >({
+    namespace: 'ApprovalController',
+    parent: messenger,
   });
 
   const approvalController = new ApprovalController({
@@ -350,14 +357,18 @@ function setupController({
     );
   }
 
-  const nftControllerMessenger = messenger.getRestricted<
+  const nftControllerMessenger = new Messenger<
     typeof controllerName,
-    | PhishingControllerBulkScanUrlsAction['type']
-    | NftControllerAllowedActions['type'],
-    NftControllerAllowedEvents['type']
+    MessengerActions<NftControllerMessenger>,
+    MessengerEvents<NftControllerMessenger>,
+    RootMessenger
   >({
-    name: controllerName,
-    allowedActions: [
+    namespace: controllerName,
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: nftControllerMessenger,
+    actions: [
       'ApprovalController:addRequest',
       'AccountsController:getSelectedAccount',
       'AccountsController:getAccount',
@@ -371,7 +382,7 @@ function setupController({
       'NetworkController:findNetworkClientIdByChainId',
       'PhishingController:bulkScanUrls',
     ],
-    allowedEvents: [
+    events: [
       'AccountsController:selectedEvmAccountChange',
       'PreferencesController:stateChange',
     ],
@@ -379,7 +390,7 @@ function setupController({
 
   const nftController = new NftController({
     onNftAdded: jest.fn(),
-    messenger: nftControllerMessenger as NftControllerMessenger,
+    messenger: nftControllerMessenger,
     ...options,
   });
 
@@ -408,6 +419,7 @@ function setupController({
   return {
     nftController,
     messenger,
+    nftControllerMessenger,
     approvalController,
     triggerPreferencesStateChange,
     triggerSelectedAccountChange,
@@ -645,11 +657,11 @@ describe('NftController', () => {
     });
 
     it('should error if the user does not own the suggested ERC721 NFT', async function () {
-      const { nftController, messenger } = setupController({
+      const { nftController, nftControllerMessenger } = setupController({
         getERC721OwnerOf: jest.fn().mockImplementation(() => '0x12345abcefg'),
       });
 
-      const callActionSpy = jest.spyOn(messenger, 'call');
+      const callActionSpy = jest.spyOn(nftControllerMessenger, 'call');
 
       await expect(() =>
         nftController.watchNft(
@@ -684,11 +696,11 @@ describe('NftController', () => {
     });
 
     it('should error if the user does not own the suggested ERC1155 NFT', async function () {
-      const { nftController, messenger } = setupController({
+      const { nftController, nftControllerMessenger } = setupController({
         getERC1155BalanceOf: jest.fn().mockImplementation(() => new BN(0)),
       });
 
-      const callActionSpy = jest.spyOn(messenger, 'call');
+      const callActionSpy = jest.spyOn(nftControllerMessenger, 'call');
 
       await expect(() =>
         nftController.watchNft(
@@ -719,7 +731,7 @@ describe('NftController', () => {
         );
       const {
         nftController,
-        messenger,
+        nftControllerMessenger,
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
       } = setupController({
@@ -746,7 +758,7 @@ describe('NftController', () => {
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
       const callActionSpy = jest
-        .spyOn(messenger, 'call')
+        .spyOn(nftControllerMessenger, 'call')
         // 1. `AccountsController:getAccount`
         .mockReturnValueOnce(OWNER_ACCOUNT)
         // 2. `AssetsContractController:getERC721OwnerOf`
@@ -846,7 +858,7 @@ describe('NftController', () => {
         );
       const {
         nftController,
-        messenger,
+        nftControllerMessenger,
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
       } = setupController({
@@ -872,7 +884,7 @@ describe('NftController', () => {
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
       const callActionSpy = jest
-        .spyOn(messenger, 'call')
+        .spyOn(nftControllerMessenger, 'call')
         // 1. `AccountsController:getAccount`
         .mockReturnValueOnce(OWNER_ACCOUNT)
         // 2. `AssetsContractController:getERC721OwnerOf`
@@ -972,7 +984,7 @@ describe('NftController', () => {
         );
       const {
         nftController,
-        messenger,
+        nftControllerMessenger,
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
       } = setupController({
@@ -998,7 +1010,7 @@ describe('NftController', () => {
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
       const callActionSpy = jest
-        .spyOn(messenger, 'call')
+        .spyOn(nftControllerMessenger, 'call')
         // 1. `AccountsController:getAccount`
         .mockReturnValueOnce(OWNER_ACCOUNT)
         // 2. `AssetsContractController:getERC721OwnerOf`
@@ -1098,7 +1110,7 @@ describe('NftController', () => {
         );
       const {
         nftController,
-        messenger,
+        nftControllerMessenger,
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
       } = setupController({
@@ -1125,7 +1137,7 @@ describe('NftController', () => {
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
       const callActionSpy = jest
-        .spyOn(messenger, 'call')
+        .spyOn(nftControllerMessenger, 'call')
         // 1. `AccountsController:getAccount`
         .mockReturnValueOnce(OWNER_ACCOUNT)
         // 2. `AssetsContractController:getERC721OwnerOf`
@@ -1226,7 +1238,7 @@ describe('NftController', () => {
 
       const {
         nftController,
-        messenger,
+        nftControllerMessenger,
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
       } = setupController({
@@ -1256,7 +1268,7 @@ describe('NftController', () => {
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
       const callActionSpy = jest
-        .spyOn(messenger, 'call')
+        .spyOn(nftControllerMessenger, 'call')
         // 1. `AccountsController:getAccount`
         .mockReturnValueOnce(OWNER_ACCOUNT)
         // 2. `AssetsContractController:getERC721OwnerOf`
@@ -1359,20 +1371,23 @@ describe('NftController', () => {
           }),
         );
 
-      const { nftController, messenger, triggerPreferencesStateChange } =
-        setupController({
-          getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
-          getERC721OwnerOf: jest
-            .fn()
-            .mockRejectedValue(new Error('Not an ERC721 contract')),
-          getERC1155BalanceOf: jest.fn().mockResolvedValue(new BN(1)),
-          getERC721TokenURI: jest
-            .fn()
-            .mockRejectedValue(new Error('Not an ERC721 contract')),
-          getERC1155TokenURI: jest
-            .fn()
-            .mockResolvedValue('https://testtokenuri.com'),
-        });
+      const {
+        nftController,
+        nftControllerMessenger,
+        triggerPreferencesStateChange,
+      } = setupController({
+        getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
+        getERC721OwnerOf: jest
+          .fn()
+          .mockRejectedValue(new Error('Not an ERC721 contract')),
+        getERC1155BalanceOf: jest.fn().mockResolvedValue(new BN(1)),
+        getERC721TokenURI: jest
+          .fn()
+          .mockRejectedValue(new Error('Not an ERC721 contract')),
+        getERC1155TokenURI: jest
+          .fn()
+          .mockResolvedValue('https://testtokenuri.com'),
+      });
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
@@ -1385,7 +1400,7 @@ describe('NftController', () => {
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
       const callActionSpy = jest
-        .spyOn(messenger, 'call')
+        .spyOn(nftControllerMessenger, 'call')
         // 1. `AccountsController:getAccount`
         .mockReturnValueOnce(OWNER_ACCOUNT)
         // 2. `AssetsContractController:getERC721OwnerOf`
@@ -5951,7 +5966,7 @@ describe('NftController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
