@@ -1,9 +1,9 @@
+import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type {
@@ -29,25 +29,39 @@ export type RemoteFeatureFlagControllerState = {
 };
 
 const remoteFeatureFlagControllerMetadata = {
-  remoteFeatureFlags: { persist: true, anonymous: true },
-  cacheTimestamp: { persist: true, anonymous: true },
+  remoteFeatureFlags: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  cacheTimestamp: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: false,
+  },
 };
 
 // === MESSENGER ===
 
+/**
+ * The action to retrieve the state of the {@link RemoteFeatureFlagController}.
+ */
 export type RemoteFeatureFlagControllerGetStateAction =
   ControllerGetStateAction<
     typeof controllerName,
     RemoteFeatureFlagControllerState
   >;
 
-export type RemoteFeatureFlagControllerGetRemoteFeatureFlagAction = {
+export type RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction = {
   type: `${typeof controllerName}:updateRemoteFeatureFlags`;
   handler: RemoteFeatureFlagController['updateRemoteFeatureFlags'];
 };
 
 export type RemoteFeatureFlagControllerActions =
-  RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction;
 
 export type AllowedActions = never;
 
@@ -192,7 +206,8 @@ export class RemoteFeatureFlagController extends BaseController<
    * @private
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags) {
-    const processedRemoteFeatureFlags = await this.#processRemoteFeatureFlags(remoteFeatureFlags);
+    const processedRemoteFeatureFlags =
+      await this.#processRemoteFeatureFlags(remoteFeatureFlags);
     this.update(() => {
       return {
         remoteFeatureFlags: processedRemoteFeatureFlags,

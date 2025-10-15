@@ -5,6 +5,7 @@ import {
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
+import type { Messenger } from '@metamask/base-controller';
 import { EthScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
@@ -18,13 +19,20 @@ import {
   MOCK_WALLET_1_ENTROPY_SOURCE,
   MOCK_WALLET_1_EVM_ACCOUNT,
   MOCK_WALLET_1_SOL_ACCOUNT,
-  setupAccountProvider,
+  setupNamedAccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
 } from './tests';
+import type {
+  AllowedActions,
+  AllowedEvents,
+  MultichainAccountServiceActions,
+  MultichainAccountServiceEvents,
+} from './types';
 
 function setup({
   groupIndex = 0,
+  messenger = getRootMessenger(),
   accounts = [
     [MOCK_WALLET_1_EVM_ACCOUNT],
     [
@@ -34,26 +42,33 @@ function setup({
       MOCK_SNAP_ACCOUNT_2, // Non-BIP-44 account.
     ],
   ],
-}: { groupIndex?: number; accounts?: InternalAccount[][] } = {}): {
+}: {
+  groupIndex?: number;
+  messenger?: Messenger<
+    MultichainAccountServiceActions | AllowedActions,
+    MultichainAccountServiceEvents | AllowedEvents
+  >;
+  accounts?: InternalAccount[][];
+} = {}): {
   wallet: MultichainAccountWallet<Bip44Account<InternalAccount>>;
   group: MultichainAccountGroup<Bip44Account<InternalAccount>>;
   providers: MockAccountProvider[];
 } {
   const providers = accounts.map((providerAccounts) => {
-    return setupAccountProvider({ accounts: providerAccounts });
+    return setupNamedAccountProvider({ accounts: providerAccounts });
   });
 
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
-    providers,
     entropySource: MOCK_WALLET_1_ENTROPY_SOURCE,
-    messenger: getMultichainAccountServiceMessenger(getRootMessenger()),
+    messenger: getMultichainAccountServiceMessenger(messenger),
+    providers,
   });
 
   const group = new MultichainAccountGroup({
     wallet,
     groupIndex,
     providers,
-    messenger: getMultichainAccountServiceMessenger(getRootMessenger()),
+    messenger: getMultichainAccountServiceMessenger(messenger),
   });
 
   return { wallet, group, providers };
@@ -151,7 +166,7 @@ describe('MultichainAccount', () => {
     });
   });
 
-  describe('align', () => {
+  describe('alignAccounts', () => {
     it('creates missing accounts only for providers with no accounts', async () => {
       const groupIndex = 0;
       const { group, providers, wallet } = setup({
@@ -162,7 +177,7 @@ describe('MultichainAccount', () => {
         ],
       });
 
-      await group.align();
+      await group.alignAccounts();
 
       expect(providers[0].createAccounts).not.toHaveBeenCalled();
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
@@ -178,7 +193,7 @@ describe('MultichainAccount', () => {
         accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
       });
 
-      await group.align();
+      await group.alignAccounts();
 
       expect(providers[0].createAccounts).not.toHaveBeenCalled();
       expect(providers[1].createAccounts).not.toHaveBeenCalled();
@@ -196,7 +211,7 @@ describe('MultichainAccount', () => {
         new Error('Unable to create accounts'),
       );
 
-      await group.align();
+      await group.alignAccounts();
 
       expect(providers[0].createAccounts).not.toHaveBeenCalled();
       expect(providers[1].createAccounts).toHaveBeenCalledWith({

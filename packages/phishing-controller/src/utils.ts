@@ -1,12 +1,18 @@
 import { bytesToHex } from '@noble/hashes/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 
+import { deleteFromTrie, insertToTrie, deepCopyPathTrie } from './PathTrie';
 import type { Hotlist, PhishingListState } from './PhishingController';
 import { ListKeys, phishingListKeyNameMap } from './PhishingController';
 import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
 } from './PhishingDetector';
+import {
+  DEFAULT_CHAIN_ID_TO_NAME,
+  type TokenScanCacheData,
+  type TokenScanResult,
+} from './types';
 
 const DEFAULT_TOLERANCE = 3;
 
@@ -41,6 +47,27 @@ const splitStringByPeriod = <Start extends string, End extends string>(
     stringToSplit.slice(0, periodIndex) as Start,
     stringToSplit.slice(periodIndex + 1) as End,
   ];
+};
+
+export const getHostnameAndPathComponents = (
+  url: string,
+): { hostname: string; pathComponents: string[] } => {
+  const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
+  try {
+    const { hostname, pathname } = new URL(urlWithProtocol);
+    return {
+      hostname: hostname.toLowerCase(),
+      pathComponents: pathname
+        .split('/')
+        .filter(Boolean)
+        .map((component) => decodeURIComponent(component)),
+    };
+  } catch {
+    return {
+      hostname: '',
+      pathComponents: [],
+    };
+  }
 };
 
 /**
@@ -80,13 +107,27 @@ export const applyDiffs = (
     fuzzylist: new Set(listState.fuzzylist),
     c2DomainBlocklist: new Set(listState.c2DomainBlocklist),
   };
+
+  // deep copy of blocklistPaths to avoid mutating the original
+  const newBlocklistPaths = deepCopyPathTrie(listState.blocklistPaths);
+
   for (const { isRemoval, targetList, url, timestamp } of diffsToApply) {
     const targetListType = splitStringByPeriod(targetList)[1];
     if (timestamp > latestDiffTimestamp) {
       latestDiffTimestamp = timestamp;
     }
+
     if (isRemoval) {
-      listSets[targetListType].delete(url);
+      if (targetListType === 'blocklistPaths') {
+        deleteFromTrie(url, newBlocklistPaths);
+      } else {
+        listSets[targetListType].delete(url);
+      }
+      continue;
+    }
+
+    if (targetListType === 'blocklistPaths') {
+      insertToTrie(url, newBlocklistPaths);
     } else {
       listSets[targetListType].add(url);
     }
@@ -106,6 +147,7 @@ export const applyDiffs = (
     allowlist: Array.from(listSets.allowlist),
     blocklist: Array.from(listSets.blocklist),
     fuzzylist: Array.from(listSets.fuzzylist),
+    blocklistPaths: newBlocklistPaths,
     version: listState.version,
     name: phishingListKeyNameMap[listKey],
     tolerance: listState.tolerance,
@@ -153,11 +195,7 @@ export function validateConfig(
  * @returns the list of domain parts.
  */
 export const domainToParts = (domain: string) => {
-  try {
-    return domain.split('.').reverse();
-  } catch (e) {
-    throw new Error(JSON.stringify(domain));
-  }
+  return domain.split('.').reverse();
 };
 
 /**
@@ -166,8 +204,15 @@ export const domainToParts = (domain: string) => {
  * @param list - the list of domain strings to convert.
  * @returns the list of domain parts.
  */
-export const processDomainList = (list: string[]) => {
-  return list.map(domainToParts);
+export const processDomainList = (list: string[]): string[][] => {
+  return list.reduce<string[][]>((acc, domain) => {
+    if (typeof domain !== 'string') {
+      console.warn(`Invalid domain value in list: ${JSON.stringify(domain)}`);
+      return acc;
+    }
+    acc.push(domainToParts(domain));
+    return acc;
+  }, []);
 };
 
 /**
@@ -176,7 +221,6 @@ export const processDomainList = (list: string[]) => {
  * @param override - the optional override for the configuration.
  * @param override.allowlist - the optional allowlist to override.
  * @param override.blocklist - the optional blocklist to override.
- * @param override.c2DomainBlocklist - the optional c2DomainBlocklist to override.
  * @param override.fuzzylist - the optional fuzzylist to override.
  * @param override.tolerance - the optional tolerance to override.
  * @returns the default phishing detector configuration.
@@ -189,15 +233,18 @@ export const getDefaultPhishingDetectorConfig = ({
 }: {
   allowlist?: string[];
   blocklist?: string[];
-  c2DomainBlocklist?: string[];
   fuzzylist?: string[];
   tolerance?: number;
-}): PhishingDetectorConfiguration => ({
-  allowlist: processDomainList(allowlist),
-  blocklist: processDomainList(blocklist),
-  fuzzylist: processDomainList(fuzzylist),
-  tolerance,
-});
+}): PhishingDetectorConfiguration => {
+  return {
+    allowlist: processDomainList(allowlist),
+    // We can assume that blocklist is already separated into hostname-only entries
+    // and hostname+path entries so we do not need to separate it again.
+    blocklist: processDomainList(blocklist),
+    fuzzylist: processDomainList(fuzzylist),
+    tolerance,
+  };
+};
 
 /**
  * Processes the configurations for the phishing detector, filtering out any invalid configs.
@@ -317,6 +364,15 @@ export const getHostnameFromWebUrl = (url: string): [string, boolean] => {
   return [hostname || '', Boolean(hostname)];
 };
 
+export const getPathnameFromUrl = (url: string): string => {
+  try {
+    const { pathname } = new URL(url);
+    return pathname;
+  } catch {
+    return '';
+  }
+};
+
 /**
  * Generates all possible parent domains up to a specified limit.
  *
@@ -363,4 +419,67 @@ export const generateParentDomains = (
   }
 
   return domains;
+};
+
+/**
+ * Builds a cache key for a token scan result.
+ *
+ * @param chainId - The chain ID.
+ * @param address - The token address.
+ * @returns The cache key.
+ */
+export const buildCacheKey = (chainId: string, address: string) => {
+  return `${chainId.toLowerCase()}:${address.toLowerCase()}`;
+};
+
+/**
+ * Resolves the chain name from a chain ID.
+ *
+ * @param chainId - The chain ID.
+ * @param mapping - The mapping of chain IDs to chain names.
+ * @returns The chain name.
+ */
+export const resolveChainName = (
+  chainId: string,
+  mapping = DEFAULT_CHAIN_ID_TO_NAME,
+): string | null => {
+  return mapping[chainId.toLowerCase() as keyof typeof mapping] ?? null;
+};
+
+/**
+ * Split tokens into cached results and tokens that need to be fetched.
+ *
+ * @param cache - Cache-like object with get method.
+ * @param cache.get - Method to retrieve cached data by key.
+ * @param chainId - The chain ID.
+ * @param tokens - Array of token addresses.
+ * @returns Object containing cached results and tokens to fetch.
+ */
+export const splitCacheHits = (
+  cache: { get: (key: string) => TokenScanCacheData | undefined },
+  chainId: string,
+  tokens: string[],
+): {
+  cachedResults: Record<string, TokenScanResult>;
+  tokensToFetch: string[];
+} => {
+  const cachedResults: Record<string, TokenScanResult> = {};
+  const tokensToFetch: string[] = [];
+
+  for (const addr of tokens) {
+    const normalizedAddr = addr.toLowerCase();
+    const key = buildCacheKey(chainId, normalizedAddr);
+    const hit = cache.get(key);
+    if (hit) {
+      cachedResults[normalizedAddr] = {
+        result_type: hit.result_type,
+        chain: chainId,
+        address: normalizedAddr,
+      };
+    } else {
+      tokensToFetch.push(normalizedAddr);
+    }
+  }
+
+  return { cachedResults, tokensToFetch };
 };

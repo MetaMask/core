@@ -191,6 +191,19 @@ export const isBitcoinChainId = (
 };
 
 /**
+ * Checks if a chain ID represents a non-EVM blockchain supported by swaps
+ * Currently supports Solana and Bitcoin
+ *
+ * @param chainId - The chain ID to check
+ * @returns True if the chain is a supported non-EVM chain, false otherwise
+ */
+export const isNonEvmChainId = (
+  chainId: GenericQuoteRequest['srcChainId'],
+): boolean => {
+  return isSolanaChainId(chainId) || isBitcoinChainId(chainId);
+};
+
+/**
  * Checks whether the transaction is a cross-chain transaction by comparing the source and destination chainIds
  *
  * @param srcChainId - The source chainId

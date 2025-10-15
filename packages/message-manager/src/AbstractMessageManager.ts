@@ -13,8 +13,18 @@ import type { Draft } from 'immer';
 import { v1 as random } from 'uuid';
 
 const stateMetadata = {
-  unapprovedMessages: { persist: false, anonymous: false },
-  unapprovedMessagesCount: { persist: false, anonymous: false },
+  unapprovedMessages: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  unapprovedMessagesCount: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const getDefaultState = () => ({

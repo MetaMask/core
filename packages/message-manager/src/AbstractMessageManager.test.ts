@@ -1,3 +1,4 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import { ApprovalType } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
@@ -68,7 +69,7 @@ const MOCK_MESSENGER = {
   publish: jest.fn(),
   registerActionHandler: jest.fn(),
   registerInitialEventPayload: jest.fn(),
-} as unknown as Messenger<'TestManager', never, never>;
+} as unknown as Messenger<'TestManager'>;
 
 const MOCK_INITIAL_OPTIONS = {
   additionalFinishStatuses: undefined,
@@ -559,6 +560,66 @@ describe('AbstractTestManager', () => {
       });
       controller.clearUnapprovedMessages();
       expect(controller.getUnapprovedMessagesCount()).toBe(0);
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "unapprovedMessages": Object {},
+          "unapprovedMessagesCount": 0,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "unapprovedMessages": Object {},
+          "unapprovedMessagesCount": 0,
+        }
+      `);
     });
   });
 });

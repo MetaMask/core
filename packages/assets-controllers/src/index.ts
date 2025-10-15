@@ -87,6 +87,7 @@ export type {
   TokenDetectionControllerMessenger,
   TokenDetectionControllerActions,
   TokenDetectionControllerGetStateAction,
+  TokenDetectionControllerAddDetectedTokensViaWsAction,
   TokenDetectionControllerEvents,
   TokenDetectionControllerStateChangeEvent,
 } from './TokenDetectionController';
@@ -227,3 +228,4 @@ export type {
   AssetListState,
 } from './selectors/token-selectors';
 export { selectAssetsBySelectedAccountGroup } from './selectors/token-selectors';
+export { createFormatters } from './utils/formatters';

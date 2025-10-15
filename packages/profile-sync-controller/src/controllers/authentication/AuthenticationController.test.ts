@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 
 import AuthenticationController from './AuthenticationController';
 import type {
@@ -20,14 +20,23 @@ const MOCK_ENTROPY_SOURCE_IDS = [
   'MOCK_ENTROPY_SOURCE_ID2',
 ];
 
-const mockSignedInState = (): AuthenticationControllerState => {
+/**
+ * Return mock state for the scenario where a user is signed in.
+ *
+ * @param options - Options.
+ * @param options.expiresIn - The timestamp to use for the `expiresIn` token property.
+ * @returns Mock AuthenticationController state reflecting a signed in user.
+ */
+const mockSignedInState = ({
+  expiresIn = Date.now() + 3600,
+}: { expiresIn?: number } = {}): AuthenticationControllerState => {
   const srpSessionData = {} as Record<string, LoginResponse>;
 
   MOCK_ENTROPY_SOURCE_IDS.forEach((id) => {
     srpSessionData[id] = {
       token: {
         accessToken: MOCK_OATH_TOKEN_RESPONSE.access_token,
-        expiresIn: Date.now() + 3600,
+        expiresIn,
         obtainedAt: 0,
       },
       profile: {
@@ -535,6 +544,185 @@ describe('AuthenticationController', () => {
 
       expect(controller.isSignedIn()).toBe(true);
     });
+  });
+});
+
+describe('metadata', () => {
+  it('includes expected state in debug snapshots', () => {
+    const controller = new AuthenticationController({
+      messenger: createMockAuthenticationMessenger().messenger,
+      metametrics: createMockAuthMetaMetrics(),
+      // Set `expiresIn` to an arbitrary number so that it stays consistent between test runs
+      state: mockSignedInState({ expiresIn: 1_000 }),
+    });
+
+    expect(
+      deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'anonymous',
+      ),
+    ).toMatchInlineSnapshot(`
+      Object {
+        "isSignedIn": true,
+      }
+    `);
+  });
+
+  describe('includeInStateLogs', () => {
+    it('includes expected state in state logs, with access token stripped out', () => {
+      const controller = new AuthenticationController({
+        messenger: createMockAuthenticationMessenger().messenger,
+        metametrics: createMockAuthMetaMetrics(),
+        // Set `expiresIn` to an arbitrary number so that it stays consistent between test runs
+        state: mockSignedInState({ expiresIn: 1_000 }),
+      });
+
+      const derivedState = deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'includeInStateLogs',
+      );
+
+      expect(derivedState).toMatchInlineSnapshot(`
+        Object {
+          "isSignedIn": true,
+          "srpSessionData": Object {
+            "MOCK_ENTROPY_SOURCE_ID": Object {
+              "profile": Object {
+                "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
+                "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
+                "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
+              },
+              "token": Object {
+                "expiresIn": 1000,
+                "obtainedAt": 0,
+              },
+            },
+            "MOCK_ENTROPY_SOURCE_ID2": Object {
+              "profile": Object {
+                "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
+                "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
+                "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
+              },
+              "token": Object {
+                "expiresIn": 1000,
+                "obtainedAt": 0,
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('returns expected state in state logs when srpSessionData is unset', () => {
+      const controller = new AuthenticationController({
+        messenger: createMockAuthenticationMessenger().messenger,
+        metametrics: createMockAuthMetaMetrics(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "isSignedIn": false,
+        }
+      `);
+    });
+  });
+
+  it('persists expected state', () => {
+    const controller = new AuthenticationController({
+      messenger: createMockAuthenticationMessenger().messenger,
+      metametrics: createMockAuthMetaMetrics(),
+      // Set `expiresIn` to an arbitrary number so that it stays consistent between test runs
+      state: mockSignedInState({ expiresIn: 1_000 }),
+    });
+
+    expect(
+      deriveStateFromMetadata(controller.state, controller.metadata, 'persist'),
+    ).toMatchInlineSnapshot(`
+      Object {
+        "isSignedIn": true,
+        "srpSessionData": Object {
+          "MOCK_ENTROPY_SOURCE_ID": Object {
+            "profile": Object {
+              "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
+              "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
+              "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
+            },
+            "token": Object {
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+              "expiresIn": 1000,
+              "obtainedAt": 0,
+            },
+          },
+          "MOCK_ENTROPY_SOURCE_ID2": Object {
+            "profile": Object {
+              "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
+              "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
+              "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
+            },
+            "token": Object {
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+              "expiresIn": 1000,
+              "obtainedAt": 0,
+            },
+          },
+        },
+      }
+    `);
+  });
+
+  it('exposes expected state to UI', () => {
+    const controller = new AuthenticationController({
+      messenger: createMockAuthenticationMessenger().messenger,
+      metametrics: createMockAuthMetaMetrics(),
+      // Set `expiresIn` to an arbitrary number so that it stays consistent between test runs
+      state: mockSignedInState({ expiresIn: 1_000 }),
+    });
+
+    expect(
+      deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'usedInUi',
+      ),
+    ).toMatchInlineSnapshot(`
+      Object {
+        "isSignedIn": true,
+        "srpSessionData": Object {
+          "MOCK_ENTROPY_SOURCE_ID": Object {
+            "profile": Object {
+              "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
+              "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
+              "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
+            },
+            "token": Object {
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+              "expiresIn": 1000,
+              "obtainedAt": 0,
+            },
+          },
+          "MOCK_ENTROPY_SOURCE_ID2": Object {
+            "profile": Object {
+              "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
+              "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
+              "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
+            },
+            "token": Object {
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+              "expiresIn": 1000,
+              "obtainedAt": 0,
+            },
+          },
+        },
+      }
+    `);
   });
 });
 

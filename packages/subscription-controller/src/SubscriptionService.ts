@@ -8,13 +8,20 @@ import {
 import { SubscriptionServiceError } from './errors';
 import type {
   AuthUtils,
+  BillingPortalResponse,
   GetSubscriptionsResponse,
   ISubscriptionService,
   PricingResponse,
+  SubscriptionEligibility,
   StartCryptoSubscriptionRequest,
   StartCryptoSubscriptionResponse,
   StartSubscriptionRequest,
   StartSubscriptionResponse,
+  SubmitUserEventRequest,
+  Subscription,
+  UpdatePaymentMethodCardRequest,
+  UpdatePaymentMethodCardResponse,
+  UpdatePaymentMethodCryptoRequest,
 } from './types';
 
 export type SubscriptionServiceConfig = {
@@ -40,9 +47,18 @@ export class SubscriptionService implements ISubscriptionService {
     return await this.#makeRequest(path);
   }
 
-  async cancelSubscription(params: { subscriptionId: string }): Promise<void> {
-    const path = `subscriptions/${params.subscriptionId}`;
-    return await this.#makeRequest(path, 'DELETE');
+  async cancelSubscription(params: {
+    subscriptionId: string;
+  }): Promise<Subscription> {
+    const path = `subscriptions/${params.subscriptionId}/cancel`;
+    return await this.#makeRequest(path, 'POST', {});
+  }
+
+  async unCancelSubscription(params: {
+    subscriptionId: string;
+  }): Promise<Subscription> {
+    const path = `subscriptions/${params.subscriptionId}/uncancel`;
+    return await this.#makeRequest(path, 'POST', {});
   }
 
   async startSubscriptionWithCard(
@@ -63,6 +79,54 @@ export class SubscriptionService implements ISubscriptionService {
   ): Promise<StartCryptoSubscriptionResponse> {
     const path = 'subscriptions/crypto';
     return await this.#makeRequest(path, 'POST', request);
+  }
+
+  async updatePaymentMethodCard(
+    request: UpdatePaymentMethodCardRequest,
+  ): Promise<UpdatePaymentMethodCardResponse> {
+    const path = `subscriptions/${request.subscriptionId}/payment-method/card`;
+    return await this.#makeRequest<UpdatePaymentMethodCardResponse>(
+      path,
+      'PATCH',
+      {
+        ...request,
+        subscriptionId: undefined,
+      },
+    );
+  }
+
+  async updatePaymentMethodCrypto(request: UpdatePaymentMethodCryptoRequest) {
+    const path = `subscriptions/${request.subscriptionId}/payment-method/crypto`;
+    await this.#makeRequest(path, 'PATCH', {
+      ...request,
+      subscriptionId: undefined,
+    });
+  }
+
+  /**
+   * Get the eligibility for a shield subscription.
+   *
+   * @returns The eligibility for a shield subscription
+   */
+  async getSubscriptionsEligibilities(): Promise<SubscriptionEligibility[]> {
+    const path = 'subscriptions/eligibility';
+    const results = await this.#makeRequest<SubscriptionEligibility[]>(path);
+    return results.map((result) => ({
+      ...result,
+      canSubscribe: result.canSubscribe || false,
+      canViewEntryModal: result.canViewEntryModal || false,
+    }));
+  }
+
+  /**
+   * Submit a user event. (e.g. shield modal viewed)
+   *
+   * @param request - Request object containing the event to submit.
+   * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed }
+   */
+  async submitUserEvent(request: SubmitUserEventRequest): Promise<void> {
+    const path = 'user-events';
+    await this.#makeRequest(path, 'POST', request);
   }
 
   async #makeRequest<Result>(
@@ -101,5 +165,10 @@ export class SubscriptionService implements ISubscriptionService {
   async getPricing(): Promise<PricingResponse> {
     const path = 'pricing';
     return await this.#makeRequest<PricingResponse>(path);
+  }
+
+  async getBillingPortalUrl(): Promise<BillingPortalResponse> {
+    const path = 'billing-portal';
+    return await this.#makeRequest<BillingPortalResponse>(path);
   }
 }

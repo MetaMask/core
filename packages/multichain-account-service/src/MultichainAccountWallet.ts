@@ -1,44 +1,43 @@
-import {
-  getGroupIndexFromMultichainAccountGroupId,
-  isMultichainAccountGroupId,
-  toMultichainAccountWalletId,
-} from '@metamask/account-api';
-import { toDefaultAccountGroupId } from '@metamask/account-api';
-import { AccountWalletType } from '@metamask/account-api';
 import type {
+  AccountGroupId,
   Bip44Account,
   MultichainAccountWalletId,
   MultichainAccountWallet as MultichainAccountWalletDefinition,
+  MultichainAccountWalletStatus,
 } from '@metamask/account-api';
-import type { AccountGroupId } from '@metamask/account-api';
 import {
-  type EntropySourceId,
-  type KeyringAccount,
-} from '@metamask/keyring-api';
-import { createProjectLogger } from '@metamask/utils';
+  AccountWalletType,
+  getGroupIndexFromMultichainAccountGroupId,
+  isMultichainAccountGroupId,
+  toDefaultAccountGroupId,
+  toMultichainAccountWalletId,
+} from '@metamask/account-api';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import { assert } from '@metamask/utils';
+import { Mutex } from 'async-mutex';
 
+import type { Logger } from './logger';
+import {
+  createModuleLogger,
+  ERROR_PREFIX,
+  projectLogger as log,
+  WARNING_PREFIX,
+} from './logger';
 import { MultichainAccountGroup } from './MultichainAccountGroup';
-import type { NamedAccountProvider } from './providers';
+import { EvmAccountProvider, type NamedAccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
 
 /**
  * The context for a provider discovery.
  */
-type AccountProviderDiscoveryContext = {
-  provider: NamedAccountProvider;
+type AccountProviderDiscoveryContext<
+  Account extends Bip44Account<KeyringAccount>,
+> = {
+  provider: NamedAccountProvider<Account>;
   stopped: boolean;
   groupIndex: number;
-  count: number;
+  accounts: Account[];
 };
-
-/**
- * The metrics resulting from account discovery.
- */
-export type AccountDiscoveryMetrics = {
-  [providerName: string]: number;
-};
-
-const log = createProjectLogger('multichain-account-service');
 
 /**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per
@@ -48,6 +47,8 @@ export class MultichainAccountWallet<
   Account extends Bip44Account<KeyringAccount>,
 > implements MultichainAccountWalletDefinition<Account>
 {
+  readonly #lock = new Mutex();
+
   readonly #id: MultichainAccountWalletId;
 
   readonly #providers: NamedAccountProvider<Account>[];
@@ -58,10 +59,12 @@ export class MultichainAccountWallet<
 
   readonly #messenger: MultichainAccountServiceMessenger;
 
+  readonly #log: Logger;
+
   // eslint-disable-next-line @typescript-eslint/prefer-readonly
   #initialized = false;
 
-  #isAlignmentInProgress: boolean = false;
+  #status: MultichainAccountWalletStatus;
 
   constructor({
     providers,
@@ -78,9 +81,13 @@ export class MultichainAccountWallet<
     this.#messenger = messenger;
     this.#accountGroups = new Map();
 
+    this.#log = createModuleLogger(log, `[${this.#id}]`);
+
     // Initial synchronization (don't emit events during initialization).
+    this.#status = 'uninitialized';
     this.sync();
     this.#initialized = true;
+    this.#status = 'ready';
   }
 
   /**
@@ -90,6 +97,7 @@ export class MultichainAccountWallet<
    * doesn't know about.
    */
   sync(): void {
+    this.#log('Synchronizing with account providers...');
     for (const provider of this.#providers) {
       for (const account of provider.getAccounts()) {
         const { entropy } = account.options;
@@ -119,6 +127,7 @@ export class MultichainAccountWallet<
           // after the first-sync.
           // TODO: Implement align mechanism to create "missing" accounts.
 
+          this.#log(`Found a new group: [${multichainAccount.id}]`);
           this.#accountGroups.set(entropy.groupIndex, multichainAccount);
         }
       }
@@ -133,9 +142,12 @@ export class MultichainAccountWallet<
 
       // Clean up old multichain accounts.
       if (!multichainAccount.hasAccounts()) {
+        this.#log(`Deleting group: [${multichainAccount.id}]`);
         this.#accountGroups.delete(groupIndex);
       }
     }
+
+    this.#log('Synchronized');
   }
 
   /**
@@ -163,6 +175,49 @@ export class MultichainAccountWallet<
    */
   get entropySource(): EntropySourceId {
     return this.#entropySource;
+  }
+
+  /**
+   * Gets the multichain account wallet current status.
+   *
+   * @returns The multichain account wallet current status.
+   */
+  get status(): MultichainAccountWalletStatus {
+    return this.#status;
+  }
+
+  /**
+   * Set the wallet status and run the associated operation callback.
+   *
+   * @param status - Wallet status associated with this operation.
+   * @param operation - Operation to run.
+   * @returns The operation's result.
+   * @throws {Error} If the wallet is already running a mutable operation.
+   */
+  async #withLock<Return>(
+    status: MultichainAccountWalletStatus,
+    operation: () => Promise<Return>,
+  ) {
+    const release = await this.#lock.acquire();
+    try {
+      this.#log(`Locking wallet with status "${status}"...`);
+      this.#status = status;
+      this.#messenger.publish(
+        'MultichainAccountService:walletStatusChange',
+        this.id,
+        this.#status,
+      );
+      return await operation();
+    } finally {
+      this.#status = 'ready';
+      this.#messenger.publish(
+        'MultichainAccountService:walletStatusChange',
+        this.id,
+        this.#status,
+      );
+      release();
+      this.#log(`Releasing wallet lock (was "${status}")`);
+    }
   }
 
   /**
@@ -238,102 +293,163 @@ export class MultichainAccountWallet<
   /**
    * Creates a multichain account group for a given group index.
    *
+   * NOTE: This operation WILL lock the wallet's mutex.
+   *
    * @param groupIndex - The group index to use.
-   * @throws If any of the account providers fails to create their accounts.
+   * @param options - Options to configure the account creation.
+   * @param options.waitForAllProvidersToFinishCreatingAccounts - Whether to wait for all
+   * account providers to finish creating their accounts before returning. If `false`, only
+   * the EVM provider will be awaited, while all other providers will create their accounts
+   * in the background. Defaults to `false`.
+   * @throws If any of the account providers fails to create their accounts and
+   * the `waitForAllProvidersToFinishCreatingAccounts` option is set to `true`. If `false`,
+   * errors from non-EVM providers will be logged but ignored, and only errors from the
+   * EVM provider will be thrown.
    * @returns The multichain account group for this group index.
    */
   async createMultichainAccountGroup(
     groupIndex: number,
+    options: {
+      waitForAllProvidersToFinishCreatingAccounts?: boolean;
+    } = { waitForAllProvidersToFinishCreatingAccounts: false },
   ): Promise<MultichainAccountGroup<Account>> {
-    const nextGroupIndex = this.getNextGroupIndex();
-    if (groupIndex > nextGroupIndex) {
-      throw new Error(
-        `You cannot use a group index that is higher than the next available one: expected <=${nextGroupIndex}, got ${groupIndex}`,
-      );
-    }
+    return await this.#withLock('in-progress:create-accounts', async () => {
+      const nextGroupIndex = this.getNextGroupIndex();
+      if (groupIndex > nextGroupIndex) {
+        throw new Error(
+          `You cannot use a group index that is higher than the next available one: expected <=${nextGroupIndex}, got ${groupIndex}`,
+        );
+      }
 
-    let group = this.getMultichainAccountGroup(groupIndex);
-    if (group) {
-      // If the group already exists, we just `sync` it and returns the same
-      // reference.
-      group.sync();
+      let group = this.getMultichainAccountGroup(groupIndex);
+      if (group) {
+        // If the group already exists, we just `sync` it and returns the same
+        // reference.
+        group.sync();
+
+        this.#log(
+          `Trying to re-create existing group: [${group.id}] (idempotent)`,
+        );
+        return group;
+      }
+
+      this.#log(`Creating new group for index ${groupIndex}...`);
+
+      if (options?.waitForAllProvidersToFinishCreatingAccounts) {
+        // Create account with all providers and await them.
+        const results = await Promise.allSettled(
+          this.#providers.map((provider) =>
+            provider.createAccounts({
+              entropySource: this.#entropySource,
+              groupIndex,
+            }),
+          ),
+        );
+
+        // If any of the provider failed to create their accounts, then we consider the
+        // multichain account group to have failed too.
+        if (results.some((result) => result.status === 'rejected')) {
+          // NOTE: Some accounts might still have been created on other account providers. We
+          // don't rollback them.
+          const error = `Unable to create multichain account group for index: ${groupIndex}`;
+
+          let message = `${error}:`;
+          for (const result of results) {
+            if (result.status === 'rejected') {
+              message += `\n- ${result.reason}`;
+            }
+          }
+          this.#log(`${WARNING_PREFIX} ${message}`);
+          console.warn(message);
+
+          throw new Error(error);
+        }
+      } else {
+        // Extract the EVM provider from the list of providers.
+        // We will only await the EVM provider to create its accounts, while
+        // all other providers will be started in the background.
+        const [evmProvider, ...otherProviders] = this.#providers;
+        assert(
+          evmProvider instanceof EvmAccountProvider,
+          'EVM account provider must be first',
+        );
+
+        // Create account with the EVM provider first and await it.
+        // If it fails, we don't start creating accounts with other providers.
+        try {
+          await evmProvider.createAccounts({
+            entropySource: this.#entropySource,
+            groupIndex,
+          });
+        } catch (error) {
+          const errorMessage = `Unable to create multichain account group for index: ${groupIndex} with provider "${evmProvider.getName()}". Error: ${(error as Error).message}`;
+          this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
+          throw new Error(errorMessage);
+        }
+
+        // Create account with other providers in the background
+        otherProviders.forEach((provider) => {
+          provider
+            .createAccounts({
+              entropySource: this.#entropySource,
+              groupIndex,
+            })
+            .catch((error) => {
+              // Log errors from background providers but don't fail the operation
+              const errorMessage = `Could not to create account with provider "${provider.getName()}" for multichain account group index: ${groupIndex}`;
+              this.#log(`${WARNING_PREFIX} ${errorMessage}:`, error);
+            });
+        });
+      }
+
+      // --------------------------------------------------------------------------------
+      // READ THIS CAREFULLY:
+      //
+      // Since we're not "fully supporting multichain" for now, we still rely on single
+      // :accountCreated events to sync multichain account groups and wallets. Which means
+      // that even if of the provider fails, some accounts will still be created on some
+      // other providers and will become "available" on the `AccountsController`, like:
+      //
+      // 1. Creating a multichain account group for index 1
+      // 2. EvmAccountProvider.createAccounts returns the EVM account for index 1
+      //   * AccountsController WILL fire :accountCreated for this account
+      //   * This account WILL BE "available" on the AccountsController state
+      // 3. SolAccountProvider.createAccounts fails to create a Solana account for index 1
+      //   * AccountsController WON't fire :accountCreated for this account
+      //   * This account WON'T be "available" on the Account
+      // 4. MultichainAccountService will receive a :accountCreated for the EVM account from
+      // step 2 and will create a new multichain account group for index 1, but it won't
+      // receive any event for the Solana account of this group. Thus, this group won't be
+      // "aligned" (missing "blockchain account" on this group).
+      //
+      // --------------------------------------------------------------------------------
+
+      // Because of the :accountAdded automatic sync, we might already have created the
+      // group, so we first try to get it.
+      group = this.getMultichainAccountGroup(groupIndex);
+      if (!group) {
+        // If for some reason it's still not created, we're creating it explicitly now:
+        group = new MultichainAccountGroup({
+          wallet: this,
+          providers: this.#providers,
+          groupIndex,
+          messenger: this.#messenger,
+        });
+      }
+
+      // Register the account to our internal map.
+      this.#accountGroups.set(groupIndex, group); // `group` cannot be undefined here.
+      this.#log(`New group created: [${group.id}]`);
+
+      if (this.#initialized) {
+        this.#messenger.publish(
+          'MultichainAccountService:multichainAccountGroupCreated',
+          group,
+        );
+      }
 
       return group;
-    }
-
-    const results = await Promise.allSettled(
-      this.#providers.map((provider) =>
-        provider.createAccounts({
-          entropySource: this.#entropySource,
-          groupIndex,
-        }),
-      ),
-    );
-
-    // --------------------------------------------------------------------------------
-    // READ THIS CAREFULLY:
-    //
-    // Since we're not "fully supporting multichain" for now, we still rely on single
-    // :accountCreated events to sync multichain account groups and wallets. Which means
-    // that even if of the provider fails, some accounts will still be created on some
-    // other providers and will become "available" on the `AccountsController`, like:
-    //
-    // 1. Creating a multichain account group for index 1
-    // 2. EvmAccountProvider.createAccounts returns the EVM account for index 1
-    //   * AccountsController WILL fire :accountCreated for this account
-    //   * This account WILL BE "available" on the AccountsController state
-    // 3. SolAccountProvider.createAccounts fails to create a Solana account for index 1
-    //   * AccountsController WON't fire :accountCreated for this account
-    //   * This account WON'T be "available" on the Account
-    // 4. MultichainAccountService will receive a :accountCreated for the EVM account from
-    // step 2 and will create a new multichain account group for index 1, but it won't
-    // receive any event for the Solana account of this group. Thus, this group won't be
-    // "aligned" (missing "blockchain account" on this group).
-    //
-    // --------------------------------------------------------------------------------
-
-    // If any of the provider failed to create their accounts, then we consider the
-    // multichain account group to have failed too.
-    if (results.some((result) => result.status === 'rejected')) {
-      // NOTE: Some accounts might still have been created on other account providers. We
-      // don't rollback them.
-      const error = `Unable to create multichain account group for index: ${groupIndex}`;
-
-      let warn = `${error}:`;
-      for (const result of results) {
-        if (result.status === 'rejected') {
-          warn += `\n- ${result.reason}`;
-        }
-      }
-      console.warn(warn);
-
-      throw new Error(error);
-    }
-
-    // Because of the :accountAdded automatic sync, we might already have created the
-    // group, so we first try to get it.
-    group = this.getMultichainAccountGroup(groupIndex);
-    if (!group) {
-      // If for some reason it's still not created, we're creating it explicitly now:
-      group = new MultichainAccountGroup({
-        wallet: this,
-        providers: this.#providers,
-        groupIndex,
-        messenger: this.#messenger,
-      });
-    }
-
-    // Register the account to our internal map.
-    this.#accountGroups.set(groupIndex, group); // `group` cannot be undefined here.
-
-    if (this.#initialized) {
-      this.#messenger.publish(
-        'MultichainAccountService:multichainAccountGroupCreated',
-        group,
-      );
-    }
-
-    return group;
+    });
   }
 
   /**
@@ -345,136 +461,135 @@ export class MultichainAccountWallet<
   async createNextMultichainAccountGroup(): Promise<
     MultichainAccountGroup<Account>
   > {
-    return this.createMultichainAccountGroup(this.getNextGroupIndex());
-  }
-
-  /**
-   * Gets whether alignment is currently in progress for this wallet.
-   *
-   * @returns True if alignment is in progress, false otherwise.
-   */
-  getIsAlignmentInProgress(): boolean {
-    return this.#isAlignmentInProgress;
+    return this.createMultichainAccountGroup(this.getNextGroupIndex(), {
+      waitForAllProvidersToFinishCreatingAccounts: true,
+    });
   }
 
   /**
    * Align all multichain account groups.
+   *
+   * NOTE: This operation WILL NOT lock the wallet's mutex.
    */
-  async alignGroups(): Promise<void> {
-    if (this.#isAlignmentInProgress) {
-      return; // Prevent concurrent alignments
-    }
+  async #alignAccounts(): Promise<void> {
+    const groups = this.getMultichainAccountGroups();
+    await Promise.all(groups.map((group) => group.alignAccounts()));
+  }
 
-    this.#isAlignmentInProgress = true;
-    try {
-      const groups = this.getMultichainAccountGroups();
-      await Promise.all(groups.map((g) => g.align()));
-    } finally {
-      this.#isAlignmentInProgress = false;
-    }
+  /**
+   * Align all accounts from each existing multichain account groups.
+   *
+   * NOTE: This operation WILL lock the wallet's mutex.
+   */
+  async alignAccounts(): Promise<void> {
+    await this.#withLock('in-progress:alignment', async () => {
+      await this.#alignAccounts();
+    });
   }
 
   /**
    * Align a specific multichain account group.
    *
+   * NOTE: This operation WILL lock the wallet's mutex.
+   *
    * @param groupIndex - The group index to align.
    */
-  async alignGroup(groupIndex: number): Promise<void> {
-    if (this.#isAlignmentInProgress) {
-      return; // Prevent concurrent alignments
-    }
-
-    this.#isAlignmentInProgress = true;
-    try {
+  async alignAccountsOf(groupIndex: number): Promise<void> {
+    await this.#withLock('in-progress:alignment', async () => {
       const group = this.getMultichainAccountGroup(groupIndex);
       if (group) {
-        await group.align();
+        await group.alignAccounts();
       }
-    } finally {
-      this.#isAlignmentInProgress = false;
-    }
+    });
   }
 
   /**
    * Discover and create accounts for all providers.
    *
+   * NOTE: This operation WILL lock the wallet's mutex.
+   *
    * @returns The discovered accounts for each provider.
    */
-  async discoverAndCreateAccounts(): Promise<AccountDiscoveryMetrics> {
-    // Start with the next available group index (so we can resume the discovery
-    // from there).
-    let maxGroupIndex = this.getNextGroupIndex();
+  async discoverAccounts(): Promise<Account[]> {
+    return this.#withLock('in-progress:discovery', async () => {
+      // Start with the next available group index (so we can resume the discovery
+      // from there).
+      let maxGroupIndex = this.getNextGroupIndex();
 
-    // One serialized loop per provider; all run concurrently
-    const runProviderDiscovery = async (
-      context: AccountProviderDiscoveryContext,
-    ) => {
-      const message = (stepName: string, groupIndex: number) =>
-        `[${context.provider.getName()}] Discovery ${stepName} (groupIndex=${groupIndex})`;
+      // One serialized loop per provider; all run concurrently
+      const runProviderDiscovery = async (
+        context: AccountProviderDiscoveryContext<Account>,
+      ) => {
+        const providerName = context.provider.getName();
+        const message = (stepName: string, groupIndex: number) =>
+          `[${providerName}] Discovery ${stepName} for group index: ${groupIndex}`;
 
-      while (!context.stopped) {
-        // Fast‑forward to current high‑water mark
-        const targetGroupIndex = Math.max(context.groupIndex, maxGroupIndex);
+        while (!context.stopped) {
+          // Fast‑forward to current high‑water mark
+          const targetGroupIndex = Math.max(context.groupIndex, maxGroupIndex);
 
-        log(message('STARTED', targetGroupIndex));
+          log(message('started', targetGroupIndex));
 
-        let accounts: Bip44Account<KeyringAccount>[] = [];
-        try {
-          accounts = await context.provider.discoverAndCreateAccounts({
-            entropySource: this.#entropySource,
-            groupIndex: targetGroupIndex,
-          });
-        } catch (error) {
-          context.stopped = true;
-          console.error(error);
-          log(message('FAILED', targetGroupIndex), error);
-          break;
+          let accounts: Account[] = [];
+          try {
+            accounts = await context.provider.discoverAccounts({
+              entropySource: this.#entropySource,
+              groupIndex: targetGroupIndex,
+            });
+          } catch (error) {
+            context.stopped = true;
+            console.error(error);
+            log(
+              message(
+                `failed (with: "${(error as Error).message}")`,
+                targetGroupIndex,
+              ),
+              error,
+            );
+            break;
+          }
+
+          if (!accounts.length) {
+            log(
+              message('stopped (no accounts got discovered)', targetGroupIndex),
+            );
+            context.stopped = true;
+            break;
+          }
+
+          log(message('**succeeded**', targetGroupIndex));
+
+          context.accounts = context.accounts.concat(accounts);
+
+          const nextGroupIndex = targetGroupIndex + 1;
+          context.groupIndex = nextGroupIndex;
+
+          if (nextGroupIndex > maxGroupIndex) {
+            maxGroupIndex = nextGroupIndex;
+          }
         }
+      };
 
-        if (!accounts.length) {
-          log(message('STOPPED', targetGroupIndex));
-          context.stopped = true;
-          break;
-        }
+      const providerContexts: AccountProviderDiscoveryContext<Account>[] =
+        this.#providers.map((provider) => ({
+          provider,
+          stopped: false,
+          groupIndex: maxGroupIndex,
+          accounts: [],
+        }));
 
-        log(message('SUCCEEDED', targetGroupIndex));
+      // Start discovery for each providers.
+      await Promise.all(providerContexts.map(runProviderDiscovery));
 
-        context.count += accounts.length;
+      // Sync the wallet after discovery to ensure that the newly added accounts are added into their groups.
+      // We can potentially remove this if we know that this race condition is not an issue in practice.
+      this.sync();
 
-        const nextGroupIndex = targetGroupIndex + 1;
-        context.groupIndex = nextGroupIndex;
+      // Align missing accounts from group. This is required to create missing account from non-discovered
+      // indexes for some providers.
+      await this.#alignAccounts();
 
-        if (nextGroupIndex > maxGroupIndex) {
-          maxGroupIndex = nextGroupIndex;
-        }
-      }
-    };
-
-    const providerContexts: AccountProviderDiscoveryContext[] =
-      this.#providers.map((provider) => ({
-        provider,
-        stopped: false,
-        groupIndex: maxGroupIndex,
-        count: 0,
-      }));
-
-    // Start discovery for each providers.
-    await Promise.all(providerContexts.map(runProviderDiscovery));
-
-    // Sync the wallet after discovery to ensure that the newly added accounts are added into their groups.
-    // We can potentially remove this if we know that this race condition is not an issue in practice.
-    this.sync();
-
-    // Align missing accounts from group. This is required to create missing account from non-discovered
-    // indexes for some providers.
-    await this.alignGroups();
-
-    const discoveredAccounts: Record<string, number> = {};
-    for (const context of providerContexts) {
-      const providerName = context.provider.getName();
-      discoveredAccounts[providerName] = context.count;
-    }
-
-    return discoveredAccounts;
+      return providerContexts.flatMap((context) => context.accounts);
+    });
   }
 }
