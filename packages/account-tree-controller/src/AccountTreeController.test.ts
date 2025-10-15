@@ -10,6 +10,7 @@ import {
 } from '@metamask/account-api';
 import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import {
+  BtcAccountType,
   EthAccountType,
   EthMethod,
   EthScope,
@@ -2850,36 +2851,101 @@ describe('AccountTreeController', () => {
       expect(group?.metadata.name).toBe('Account 1');
     });
 
-    it('prevents chain-specific names like "Solana Account 2" from becoming group names', () => {
-      const mockSolanaAccount: Bip44Account<InternalAccount> = {
+    describe('Computed Account Group Name', () => {
+      const mockSolAccount: Bip44Account<InternalAccount> = {
         ...MOCK_HD_ACCOUNT_1,
         id: 'solana-account-id',
         type: SolAccountType.DataAccount,
         metadata: {
           ...MOCK_HD_ACCOUNT_1.metadata,
-          name: 'Solana Account 2', // This should NOT become the group name
+          name: 'Solana Account 2', // This will become the group name
           importTime: Date.now() - 1000, // Old account
         },
       };
 
-      const { controller } = setup({
-        accounts: [mockSolanaAccount],
-        keyrings: [MOCK_HD_KEYRING_1],
+      const mockEvmAccount: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'evm-account-id',
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: 'My EVM Account', // This should become the group name
+          importTime: Date.now() - 1000, // Old account
+        },
+      };
+
+      const mockBtcAccount: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'bitcoin-account-id',
+        type: BtcAccountType.P2wpkh,
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: 'Bitcoin Account 1', // This should NOT become the group name
+          importTime: Date.now() - 1000, // Old account
+        },
+      };
+
+      it('also considers chain-specific names like "Solana Account 2" to be used as group names', () => {
+        const { controller } = setup({
+          accounts: [mockSolAccount],
+          keyrings: [MOCK_HD_KEYRING_1],
+        });
+
+        controller.init();
+
+        const expectedWalletId = toMultichainAccountWalletId(
+          MOCK_HD_KEYRING_1.metadata.id,
+        );
+        const expectedGroupId = toMultichainAccountGroupId(expectedWalletId, 0);
+
+        const wallet = controller.state.accountTree.wallets[expectedWalletId];
+        const group = wallet?.groups[expectedGroupId];
+
+        // The group should use the computed name from the Solana account.
+        expect(group?.metadata.name).toBe(mockSolAccount.metadata.name);
       });
 
-      controller.init();
+      it('uses EVM account names over any other names', () => {
+        const { controller } = setup({
+          accounts: [mockSolAccount, mockEvmAccount, mockBtcAccount],
+          keyrings: [MOCK_HD_KEYRING_1],
+        });
 
-      const expectedWalletId = toMultichainAccountWalletId(
-        MOCK_HD_KEYRING_1.metadata.id,
-      );
-      const expectedGroupId = toMultichainAccountGroupId(expectedWalletId, 0);
+        controller.init();
 
-      const wallet = controller.state.accountTree.wallets[expectedWalletId];
-      const group = wallet?.groups[expectedGroupId];
+        const expectedWalletId = toMultichainAccountWalletId(
+          MOCK_HD_KEYRING_1.metadata.id,
+        );
+        const expectedGroupId = toMultichainAccountGroupId(expectedWalletId, 0);
 
-      // The group should use default naming "Account 1", not "Solana Account 2"
-      expect(group?.metadata.name).toBe('Account 1');
-      expect(group?.metadata.name).not.toBe('Solana Account 2');
+        const wallet = controller.state.accountTree.wallets[expectedWalletId];
+        const group = wallet?.groups[expectedGroupId];
+
+        // The group should use the computed name from the EVM account, even if there's a Solana
+        // account custom name.
+        expect(group?.metadata.name).toBe(mockEvmAccount.metadata.name);
+      });
+
+      it('uses the first non-EVM account name when there is no EVM account', () => {
+        const { controller } = setup({
+          accounts: [mockSolAccount, mockBtcAccount],
+          keyrings: [MOCK_HD_KEYRING_1],
+        });
+
+        controller.init();
+
+        const expectedWalletId = toMultichainAccountWalletId(
+          MOCK_HD_KEYRING_1.metadata.id,
+        );
+        const expectedGroupId = toMultichainAccountGroupId(expectedWalletId, 0);
+
+        const wallet = controller.state.accountTree.wallets[expectedWalletId];
+        const group = wallet?.groups[expectedGroupId];
+
+        // The group should use the computed name from the Solana account since it
+        // is the first non-EVM account that has a valid account name (and that
+        // no EVM account is present in that group).
+        expect(group?.metadata.name).toBe(mockSolAccount.metadata.name);
+      });
     });
 
     it('ensures consistent per-wallet numbering for multiple SRPs', () => {
