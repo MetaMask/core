@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [60.7.0]
 
-### Uncategorized
-
-- Release/621.0.0 ([#6840](https://github.com/MetaMask/core/pull/6840))
-- feat(remote-feature-flag-controller): export additional controller types from package index ([#6835](https://github.com/MetaMask/core/pull/6835))
-- feat(STX-169): test disable transaction-controller automatic gas fee update ([#6671](https://github.com/MetaMask/core/pull/6671))
-
 ### Added
 
 - Add `txMeta` property to `GetSimulationConfig` callback ([#6833](https://github.com/MetaMask/core/pull/6833))
