@@ -49,7 +49,7 @@ import {
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.api.cx.metamask.io';
 export const METAMASK_STALELIST_FILE = '/v1/stalelist';
-export const METAMASK_HOTLIST_DIFF_FILE = '/v1/diffsSince';
+export const METAMASK_HOTLIST_DIFF_FILE = '/v2/diffsSince';
 
 export const CLIENT_SIDE_DETECION_BASE_URL =
   'https://client-side-detection.api.cx.metamask.io';
