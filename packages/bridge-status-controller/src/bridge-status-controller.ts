@@ -1846,20 +1846,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (historyItem.featureId) {
       return;
     }
-
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getAccountByAddress',
-      historyItem.account,
-    );
-
-    const { transactions } = this.messagingSystem.call(
-      'TransactionController:getState',
-    );
-    const txMeta = transactions?.find(({ id }) => id === txMetaId);
-    const approvalTxMeta = transactions?.find(
-      ({ id }) => id === historyItem.approvalTxId,
-    );
-
     const requiredEventProperties = {
       ...baseProperties,
       ...requestParamProperties,

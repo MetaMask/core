@@ -83,6 +83,9 @@ module.exports = {
     '^@metamask/base-controller/next': [
       '<rootDir>/../base-controller/src/next',
     ],
+    '^@metamask/intent-manager$': [
+      '<rootDir>/../Intent-manager/src',
+    ],
     '^@metamask/(.+)$': [
       '<rootDir>/../$1/src',
       // Some @metamask/* packages we are referencing aren't in this monorepo,

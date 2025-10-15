@@ -6,7 +6,7 @@
   },
   "references": [
     { "path": "../accounts-controller" },
-    { "path": "../intent-manager" },
+    { "path": "../Intent-manager" },
     { "path": "../base-controller" },
     { "path": "../controller-utils" },
     { "path": "../network-controller" },
