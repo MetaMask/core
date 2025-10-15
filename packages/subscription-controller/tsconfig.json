@@ -9,6 +9,9 @@
     },
     {
       "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../polling-controller"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

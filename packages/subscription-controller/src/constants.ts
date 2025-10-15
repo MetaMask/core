@@ -41,3 +41,5 @@ export enum SubscriptionControllerErrorMessage {
   UserNotSubscribed = `${controllerName} - User is not subscribed`,
   SubscriptionProductsEmpty = `${controllerName} - Subscription products array cannot be empty`,
 }
+
+export const DEFAULT_POLLING_INTERVAL = 5 * 60 * 1_000; // 5 minutes
