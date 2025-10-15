@@ -45,7 +45,8 @@ type AllPhishingControllerEvents = MessengerEvents<PhishingControllerMessenger>;
 type RootMessenger = Messenger<
   MockAnyNamespace,
   AllPhishingControllerActions,
-  AllPhishingControllerEvents
+  AllPhishingControllerEvents,
+  RootMessenger
 >;
 
 /**
