@@ -26,12 +26,17 @@ const log = createModuleLogger(
 export class ExtraTransactionsPublishHook {
   readonly #addTransactionBatch: TransactionController['addTransactionBatch'];
 
+  readonly #originalPublishHook?: PublishHook;
+
   constructor({
     addTransactionBatch,
+    originalPublishHook,
   }: {
     addTransactionBatch: TransactionController['addTransactionBatch'];
+    originalPublishHook?: PublishHook;
   }) {
     this.#addTransactionBatch = addTransactionBatch;
+    this.#originalPublishHook = originalPublishHook;
   }
 
   /**
@@ -69,7 +74,26 @@ export class ExtraTransactionsPublishHook {
     const signedTransaction = signedTx as Hex;
     const resultPromise = createDeferredPromise<PublishHookResult>();
 
-    const onPublish = ({ transactionHash }: { transactionHash?: string }) => {
+    const onPublish = ({
+      newSignature,
+      transactionHash,
+    }: {
+      newSignature?: Hex;
+      transactionHash?: string;
+    }) => {
+      if (newSignature && this.#originalPublishHook) {
+        log('Calling original publish hook with new signature', {
+          transactionMeta,
+          signedTx,
+        });
+
+        this.#originalPublishHook(transactionMeta, newSignature)
+          .then(resultPromise.resolve)
+          .catch(resultPromise.reject);
+
+        return;
+      }
+
       resultPromise.resolve({ transactionHash });
     };
 

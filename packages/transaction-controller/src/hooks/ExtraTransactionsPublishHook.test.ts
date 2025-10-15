@@ -1,3 +1,5 @@
+import type { Hex } from '@metamask/utils';
+
 import { ExtraTransactionsPublishHook } from './ExtraTransactionsPublishHook';
 import type {
   BatchTransactionParams,
@@ -8,6 +10,7 @@ import type { BatchTransaction } from '../types';
 import { TransactionType } from '../types';
 
 const SIGNED_TRANSACTION_MOCK = '0xffe';
+const SIGNED_TRANSACTION_2_MOCK = '0xfff' as Hex;
 const TRANSACTION_HASH_MOCK = '0xeee';
 
 const BATCH_TRANSACTION_PARAMS_MOCK: BatchTransactionParams = {
@@ -253,5 +256,48 @@ describe('ExtraTransactionsPublishHook', () => {
         ],
       }),
     );
+  });
+
+  it('calls original publish hook if existing publish callback is called with new signature', async () => {
+    const addTransactionBatch: jest.MockedFn<
+      TransactionController['addTransactionBatch']
+    > = jest.fn();
+
+    const originalPublishHook = jest
+      .fn()
+      .mockResolvedValue({ transactionHash: TRANSACTION_HASH_MOCK });
+
+    const hookInstance = new ExtraTransactionsPublishHook({
+      addTransactionBatch,
+      originalPublishHook,
+    });
+
+    const hook = hookInstance.getHook();
+
+    const hookPromise = hook(
+      TRANSACTION_META_MOCK,
+      SIGNED_TRANSACTION_MOCK,
+    ).catch(() => {
+      // Intentionally empty
+    });
+
+    const onPublish =
+      addTransactionBatch.mock.calls[0][0].transactions[0].existingTransaction
+        ?.onPublish;
+
+    onPublish?.({
+      transactionHash: undefined,
+      newSignature: SIGNED_TRANSACTION_2_MOCK,
+    });
+
+    expect(originalPublishHook).toHaveBeenCalledTimes(1);
+    expect(originalPublishHook).toHaveBeenCalledWith(
+      TRANSACTION_META_MOCK,
+      SIGNED_TRANSACTION_2_MOCK,
+    );
+
+    expect(await hookPromise).toStrictEqual({
+      transactionHash: TRANSACTION_HASH_MOCK,
+    });
   });
 });
