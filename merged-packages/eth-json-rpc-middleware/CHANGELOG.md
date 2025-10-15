@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.0.0]
+
 ### Changed
 
 - **BREAKING:** Distribute separate CommonJS and ESM files ([#420](https://github.com/MetaMask/eth-json-rpc-middleware/pull/420))
@@ -470,7 +472,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v19.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v19.0.1...v20.0.0
 [19.0.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v19.0.0...v19.0.1
 [19.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v18.0.0...v19.0.0
 [18.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v17.1.0...v18.0.0
