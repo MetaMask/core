@@ -596,9 +596,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
               hasChanges = true;
             }
           } else if (
-            STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-              chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-            ]?.toLowerCase() === token.toLowerCase()
+            STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId]?.toLowerCase() ===
+            token.toLowerCase()
           ) {
             // Staked balance (from staking contract address)
             if (!stakedBalancesByChainAndAddress[chainId]) {
