@@ -2904,11 +2904,6 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.14.1"
     "@metamask/eth-json-rpc-provider": "npm:^5.0.1"
     "@metamask/gas-fee-controller": "npm:^24.1.0"
-    "@metamask/keyring-api": "npm:^21.0.0"
-    "@metamask/base-controller": "npm:^8.4.0"
-    "@metamask/controller-utils": "npm:^11.14.0"
-    "@metamask/eth-json-rpc-provider": "npm:^5.0.0"
-    "@metamask/gas-fee-controller": "npm:^24.0.0"
     "@metamask/intent-manager": "file:../Intent-manager"
     "@metamask/keyring-api": "npm:^20.1.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
@@ -2954,16 +2949,10 @@ __metadata:
     "@metamask/bridge-controller": "npm:^52.0.0"
     "@metamask/controller-utils": "npm:^11.14.1"
     "@metamask/gas-fee-controller": "npm:^24.1.0"
-    "@metamask/network-controller": "npm:^24.2.1"
-    "@metamask/polling-controller": "npm:^14.0.1"
-    "@metamask/base-controller": "npm:^8.4.0"
-    "@metamask/bridge-controller": "npm:^46.0.0"
-    "@metamask/controller-utils": "npm:^11.14.0"
-    "@metamask/gas-fee-controller": "npm:^24.0.0"
     "@metamask/intent-manager": "file:../Intent-manager"
     "@metamask/keyring-api": "npm:^21.0.0"
-    "@metamask/network-controller": "npm:^24.2.0"
-    "@metamask/polling-controller": "npm:^14.0.0"
+    "@metamask/network-controller": "npm:^24.2.1"
+    "@metamask/polling-controller": "npm:^14.0.1"
     "@metamask/snaps-controllers": "npm:^14.0.1"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/transaction-controller": "npm:^60.6.1"
@@ -3065,8 +3054,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@npm:^11.10.0, @metamask/controller-utils@npm:^11.14.1, @metamask/controller-utils@workspace:packages/controller-utils":
-"@metamask/controller-utils@npm:^11.10.0, @metamask/controller-utils@npm:^11.12.0, @metamask/controller-utils@npm:^11.14.0, @metamask/controller-utils@workspace:packages/controller-utils":
+"@metamask/controller-utils@npm:^11.10.0, @metamask/controller-utils@npm:^11.12.0, @metamask/controller-utils@npm:^11.14.1, @metamask/controller-utils@workspace:packages/controller-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
@@ -3830,26 +3818,27 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/json-rpc-engine@npm:^10.0.0, @metamask/json-rpc-engine@npm:^10.0.2, @metamask/json-rpc-engine@npm:^10.0.3, @metamask/json-rpc-engine@npm:^10.1.1, @metamask/json-rpc-engine@workspace:packages/json-rpc-engine":
 "@metamask/intent-manager@file:../Intent-manager::locator=%40metamask%2Fbridge-controller%40workspace%3Apackages%2Fbridge-controller":
   version: 1.0.0
-  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=70ffcd&locator=%40metamask%2Fbridge-controller%40workspace%3Apackages%2Fbridge-controller"
+  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=4a1f49&locator=%40metamask%2Fbridge-controller%40workspace%3Apackages%2Fbridge-controller"
   dependencies:
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/controller-utils": "npm:^11.12.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.4.2"
+  checksum: 10/22d4ff420291faca223d5907a4dc6b96f57f5324b3e14efae9240dface8dd244c3567de8a3b98fe404e00b8c7387e45e4e4bbffa1dbcb127d81368736d95a573
   languageName: node
   linkType: hard
 
 "@metamask/intent-manager@file:../Intent-manager::locator=%40metamask%2Fbridge-status-controller%40workspace%3Apackages%2Fbridge-status-controller":
   version: 1.0.0
-  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=70ffcd&locator=%40metamask%2Fbridge-status-controller%40workspace%3Apackages%2Fbridge-status-controller"
+  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=4a1f49&locator=%40metamask%2Fbridge-status-controller%40workspace%3Apackages%2Fbridge-status-controller"
   dependencies:
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/controller-utils": "npm:^11.12.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.4.2"
+  checksum: 10/22d4ff420291faca223d5907a4dc6b96f57f5324b3e14efae9240dface8dd244c3567de8a3b98fe404e00b8c7387e45e4e4bbffa1dbcb127d81368736d95a573
   languageName: node
   linkType: hard
 
@@ -3873,7 +3862,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/json-rpc-engine@npm:^10.0.0, @metamask/json-rpc-engine@npm:^10.0.2, @metamask/json-rpc-engine@npm:^10.0.3, @metamask/json-rpc-engine@npm:^10.1.0, @metamask/json-rpc-engine@workspace:packages/json-rpc-engine":
+"@metamask/json-rpc-engine@npm:^10.0.0, @metamask/json-rpc-engine@npm:^10.0.2, @metamask/json-rpc-engine@npm:^10.0.3, @metamask/json-rpc-engine@npm:^10.1.1, @metamask/json-rpc-engine@workspace:packages/json-rpc-engine":
   version: 0.0.0-use.local
   resolution: "@metamask/json-rpc-engine@workspace:packages/json-rpc-engine"
   dependencies:
@@ -5124,10 +5113,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/utils@npm:^11.0.1, @metamask/utils@npm:^11.1.0, @metamask/utils@npm:^11.4.0, @metamask/utils@npm:^11.7.0, @metamask/utils@npm:^11.8.1":
-  version: 11.8.1
-  resolution: "@metamask/utils@npm:11.8.1"
-"@metamask/utils@npm:^11.0.1, @metamask/utils@npm:^11.1.0, @metamask/utils@npm:^11.4.0, @metamask/utils@npm:^11.4.2, @metamask/utils@npm:^11.8.0":
+"@metamask/utils@npm:^11.0.1, @metamask/utils@npm:^11.1.0, @metamask/utils@npm:^11.4.0, @metamask/utils@npm:^11.4.2, @metamask/utils@npm:^11.7.0, @metamask/utils@npm:^11.8.1":
   version: 11.8.1
   resolution: "@metamask/utils@npm:11.8.1"
   dependencies:
@@ -5142,7 +5128,6 @@ __metadata:
     pony-cause: "npm:^2.1.10"
     semver: "npm:^7.5.4"
     uuid: "npm:^9.0.1"
-  checksum: 10/efd3aab7f86b4a74d396cf1d5fc76e748ff78906802fdc15ec9ce2d1a9bd6b035e8e036ea93eb6b9ea33782c70adb9000772eb7a5e0164e8e9e2ebb077dca3ab
   checksum: 10/efd3aab7f86b4a74d396cf1d5fc76e748ff78906802fdc15ec9ce2d1a9bd6b035e8e036ea93eb6b9ea33782c70adb9000772eb7a5e0164e8e9e2ebb077dca3ab
   languageName: node
   linkType: hard
@@ -15179,6 +15164,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ws@npm:7.4.6":
+  version: 7.4.6
+  resolution: "ws@npm:7.4.6"
+  peerDependencies:
+    bufferutil: ^4.0.1
+    utf-8-validate: ^5.0.2
+  peerDependenciesMeta:
+    bufferutil:
+      optional: true
+    utf-8-validate:
+      optional: true
+  checksum: 10/150e3f917b7cde568d833a5ea6ccc4132e59c38d04218afcf2b6c7b845752bd011a9e0dc1303c8694d3c402a0bdec5893661a390b71ff88f0fc81a4e4e66b09c
+  languageName: node
+  linkType: hard
+
 "ws@npm:8.17.1":
   version: 8.17.1
   resolution: "ws@npm:8.17.1"
@@ -15194,7 +15194,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ws@npm:^7, ws@npm:^7.4.6, ws@npm:^7.5.10, ws@npm:^7.5.5":
+"ws@npm:^7, ws@npm:^7.4.6, ws@npm:^7.5.5":
   version: 7.5.10
   resolution: "ws@npm:7.5.10"
   peerDependencies:
