@@ -573,7 +573,7 @@ const mockedMergedState = {
 const expectedMockResult = {
   '0x1': [
     {
-      type: 'eip155:eoa',
+      accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0x1',
       assetId: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
@@ -593,7 +593,7 @@ const expectedMockResult = {
       },
     },
     {
-      type: 'eip155:eoa',
+      accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0x1',
       assetId: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
@@ -613,7 +613,7 @@ const expectedMockResult = {
       },
     },
     {
-      type: 'eip155:eoa',
+      accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0x1',
       assetId: '0x0000000000000000000000000000000000000000',
@@ -634,7 +634,7 @@ const expectedMockResult = {
   ],
   '0xa': [
     {
-      type: 'eip155:eoa',
+      accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0xa',
       assetId: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
@@ -654,7 +654,7 @@ const expectedMockResult = {
       },
     },
     {
-      type: 'eip155:eoa',
+      accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0xa',
       assetId: '0x0000000000000000000000000000000000000000',
@@ -675,7 +675,7 @@ const expectedMockResult = {
   ],
   'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': [
     {
-      type: 'solana:data-account',
+      accountType: 'solana:data-account',
       accountId: '2d89e6a0-b4e6-45a8-a707-f10cef143b42',
       chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
       assetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
@@ -694,7 +694,7 @@ const expectedMockResult = {
       },
     },
     {
-      type: 'solana:data-account',
+      accountType: 'solana:data-account',
       accountId: '2d89e6a0-b4e6-45a8-a707-f10cef143b42',
       chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
       assetId:
@@ -766,7 +766,7 @@ describe('token-selectors', () => {
         isNative: false,
         name: 'Lido Staked Ether',
         symbol: 'stETH',
-        type: 'eip155:eoa',
+        accountType: 'eip155:eoa',
       });
     });
 
@@ -799,7 +799,7 @@ describe('token-selectors', () => {
         isNative: false,
         name: 'ChainLink Token',
         symbol: 'LINK',
-        type: 'eip155:eoa',
+        accountType: 'eip155:eoa',
       });
     });
 
@@ -847,7 +847,7 @@ describe('token-selectors', () => {
         isNative: false,
         name: 'Pudgy Penguins',
         symbol: 'PENGU',
-        type: 'solana:data-account',
+        accountType: 'solana:data-account',
       });
     });
 
@@ -875,7 +875,7 @@ describe('token-selectors', () => {
         decimals: 18,
         balance: '10',
         fiat: undefined,
-        type: 'eip155:eoa',
+        accountType: 'eip155:eoa',
       });
     });
 

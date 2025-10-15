@@ -35,6 +35,9 @@ export type {
   SubscriptionCardPaymentMethod,
   SubscriptionCryptoPaymentMethod,
   SubscriptionPaymentMethod,
+  SubmitUserEventRequest,
+  SubscriptionEligibility,
+  SubscriptionUserEventType,
   RecurringInterval,
   SubscriptionStatus,
   PaymentType,
@@ -49,12 +52,18 @@ export type {
   PricingResponse,
   UpdatePaymentMethodOpts,
   BillingPortalResponse,
+  CryptoPaymentMethodError,
+  UpdatePaymentMethodCryptoRequest,
+  UpdatePaymentMethodCardRequest,
+  UpdatePaymentMethodCardResponse,
 } from './types';
 export {
+  CRYPTO_PAYMENT_METHOD_ERRORS,
   SUBSCRIPTION_STATUSES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
   PAYMENT_TYPES,
+  SubscriptionUserEvent,
 } from './types';
 export { SubscriptionServiceError } from './errors';
 export { Env, SubscriptionControllerErrorMessage } from './constants';
