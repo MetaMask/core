@@ -147,16 +147,22 @@ linkStyle default opacity:0.5
   account_tree_controller --> multichain_account_service;
   account_tree_controller --> profile_sync_controller;
   accounts_controller --> base_controller;
+  accounts_controller --> messenger;
   accounts_controller --> controller_utils;
   accounts_controller --> keyring_controller;
   accounts_controller --> network_controller;
   address_book_controller --> base_controller;
   address_book_controller --> controller_utils;
+  address_book_controller --> messenger;
   announcement_controller --> base_controller;
+  announcement_controller --> messenger;
   app_metadata_controller --> base_controller;
+  app_metadata_controller --> messenger;
   approval_controller --> base_controller;
+  approval_controller --> messenger;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
+  assets_controllers --> messenger;
   assets_controllers --> polling_controller;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
@@ -174,6 +180,7 @@ linkStyle default opacity:0.5
   bridge_controller --> base_controller;
   bridge_controller --> controller_utils;
   bridge_controller --> gas_fee_controller;
+  bridge_controller --> messenger;
   bridge_controller --> multichain_network_controller;
   bridge_controller --> polling_controller;
   bridge_controller --> accounts_controller;
@@ -201,10 +208,12 @@ linkStyle default opacity:0.5
   core_backend --> accounts_controller;
   core_backend --> keyring_controller;
   delegation_controller --> base_controller;
+  delegation_controller --> messenger;
   delegation_controller --> accounts_controller;
   delegation_controller --> keyring_controller;
   earn_controller --> base_controller;
   earn_controller --> controller_utils;
+  earn_controller --> messenger;
   earn_controller --> account_tree_controller;
   earn_controller --> network_controller;
   earn_controller --> transaction_controller;
@@ -216,6 +225,7 @@ linkStyle default opacity:0.5
   eip1193_permission_middleware --> permission_controller;
   ens_controller --> base_controller;
   ens_controller --> controller_utils;
+  ens_controller --> messenger;
   ens_controller --> network_controller;
   error_reporting_service --> base_controller;
   eth_json_rpc_provider --> json_rpc_engine;
@@ -224,8 +234,10 @@ linkStyle default opacity:0.5
   gas_fee_controller --> polling_controller;
   gas_fee_controller --> network_controller;
   gator_permissions_controller --> base_controller;
+  gator_permissions_controller --> messenger;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
+  keyring_controller --> messenger;
   logging_controller --> base_controller;
   logging_controller --> controller_utils;
   message_manager --> base_controller;
@@ -254,6 +266,7 @@ linkStyle default opacity:0.5
   network_controller --> controller_utils;
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
+  network_controller --> messenger;
   network_controller --> error_reporting_service;
   network_enablement_controller --> base_controller;
   network_enablement_controller --> controller_utils;
@@ -301,6 +314,7 @@ linkStyle default opacity:0.5
   signature_controller --> controller_utils;
   signature_controller --> accounts_controller;
   signature_controller --> approval_controller;
+  signature_controller --> gator_permissions_controller;
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
   signature_controller --> network_controller;
@@ -310,6 +324,7 @@ linkStyle default opacity:0.5
   token_search_discovery_controller --> base_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
+  transaction_controller --> messenger;
   transaction_controller --> accounts_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> eth_json_rpc_provider;

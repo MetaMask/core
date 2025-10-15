@@ -2,7 +2,6 @@ import type { AccountsControllerGetAccountByAddressAction } from '@metamask/acco
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
 } from '@metamask/base-controller';
 import type {
   BridgeBackgroundAction,
@@ -15,6 +14,7 @@ import type {
   TxData,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
@@ -293,10 +293,8 @@ type AllowedEvents =
 /**
  * The messenger for the BridgeStatusController.
  */
-export type BridgeStatusControllerMessenger = RestrictedMessenger<
+export type BridgeStatusControllerMessenger = Messenger<
   typeof BRIDGE_STATUS_CONTROLLER_NAME,
   BridgeStatusControllerActions | AllowedActions,
-  BridgeStatusControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  BridgeStatusControllerEvents | AllowedEvents
 >;
