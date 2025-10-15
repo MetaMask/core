@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Use non-EVM account names for group names ([#6831](https://github.com/MetaMask/core/pull/6831))
+  - EVM accounts still take precedence over non-EVM accounts.
+  - Before accounts get re-aligned, it is possible that a group contains only non-EVM accounts, in which case, the first non-EVM account name will be used for that account group.
+
 ### Fixed
 
 - Fix wallet metadata cleanup when wallets are completely removed ([#6813](https://github.com/MetaMask/core/pull/6813))
