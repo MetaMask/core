@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(STX-169): test disable transaction-controller automatic gas fee update ([#6671](https://github.com/MetaMask/core/pull/6671))
+
 ### Added
 
 - Add `txMeta` property to `GetSimulationConfig` callback ([#6833](https://github.com/MetaMask/core/pull/6833))
