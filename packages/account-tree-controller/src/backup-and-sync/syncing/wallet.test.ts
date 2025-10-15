@@ -39,7 +39,11 @@ describe('BackupAndSync - Syncing - Wallet', () => {
     } as unknown as AccountWalletEntropyObject;
 
     mockWalletFromUserStorage = {
-      name: { value: 'Remote Wallet', lastUpdatedAt: 2000 },
+      name: {
+        value: 'Remote Wallet',
+        lastUpdatedAt: 2000,
+      },
+      isLegacyAccountSyncingDisabled: true,
     } as unknown as UserStorageSyncedWallet;
   });
 
@@ -190,6 +194,56 @@ describe('BackupAndSync - Syncing - Wallet', () => {
         mockContext,
         mockLocalWallet,
         mockWalletFromUserStorage,
+        'test-profile',
+      );
+
+      expect(mockPushWalletToUserStorage).toHaveBeenCalledWith(
+        mockContext,
+        mockLocalWallet,
+      );
+    });
+
+    it('pushes to user storage when wallet does not exist in user storage', async () => {
+      mockCompareAndSyncMetadata.mockResolvedValue(false);
+
+      await syncWalletMetadata(
+        mockContext,
+        mockLocalWallet,
+        null,
+        'test-profile',
+      );
+
+      expect(mockPushWalletToUserStorage).toHaveBeenCalledWith(
+        mockContext,
+        mockLocalWallet,
+      );
+    });
+
+    it('pushes to user storage when wallet is an empty object in user storage', async () => {
+      mockCompareAndSyncMetadata.mockResolvedValue(false);
+
+      await syncWalletMetadata(
+        mockContext,
+        mockLocalWallet,
+        {},
+        'test-profile',
+      );
+
+      expect(mockPushWalletToUserStorage).toHaveBeenCalledWith(
+        mockContext,
+        mockLocalWallet,
+      );
+    });
+
+    it('pushes to user storage when wallet is missing the `isLegacyAccountSyncingDisabled` field', async () => {
+      mockCompareAndSyncMetadata.mockResolvedValue(false);
+
+      await syncWalletMetadata(
+        mockContext,
+        mockLocalWallet,
+        {
+          name: { value: 'Remote Wallet', lastUpdatedAt: 2000 },
+        }, // No legacy field
         'test-profile',
       );
 
