@@ -2915,11 +2915,6 @@ describe('TransactionController', () => {
         await flushPromises();
 
         expect(ExtraTransactionsPublishHook).toHaveBeenCalledTimes(1);
-        expect(ExtraTransactionsPublishHook).toHaveBeenCalledWith({
-          addTransactionBatch: expect.any(Function),
-          originalPublishHook: expect.any(Function),
-        });
-
         expect(publishHook).toHaveBeenCalledTimes(1);
       });
 

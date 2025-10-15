@@ -26,16 +26,21 @@ const log = createModuleLogger(
 export class ExtraTransactionsPublishHook {
   readonly #addTransactionBatch: TransactionController['addTransactionBatch'];
 
-  readonly #originalPublishHook?: PublishHook;
+  readonly #getTransaction: (transactionId: string) => TransactionMeta;
+
+  readonly #originalPublishHook: PublishHook;
 
   constructor({
     addTransactionBatch,
+    getTransaction,
     originalPublishHook,
   }: {
     addTransactionBatch: TransactionController['addTransactionBatch'];
-    originalPublishHook?: PublishHook;
+    getTransaction: (transactionId: string) => TransactionMeta;
+    originalPublishHook: PublishHook;
   }) {
     this.#addTransactionBatch = addTransactionBatch;
+    this.#getTransaction = getTransaction;
     this.#originalPublishHook = originalPublishHook;
   }
 
@@ -55,7 +60,7 @@ export class ExtraTransactionsPublishHook {
     const {
       batchTransactions,
       batchTransactionsOptions,
-      id,
+      id: transactionId,
       networkClientId,
       txParams,
     } = transactionMeta;
@@ -81,13 +86,15 @@ export class ExtraTransactionsPublishHook {
       newSignature?: Hex;
       transactionHash?: string;
     }) => {
-      if (newSignature && this.#originalPublishHook) {
+      if (newSignature) {
+        const latestTransactionMeta = this.#getTransaction(transactionId);
+
         log('Calling original publish hook with new signature', {
-          transactionMeta,
-          signedTx,
+          latestTransactionMeta,
+          newSignature,
         });
 
-        this.#originalPublishHook(transactionMeta, newSignature)
+        this.#originalPublishHook(latestTransactionMeta, newSignature)
           .then(resultPromise.resolve)
           .catch(resultPromise.reject);
 
@@ -108,7 +115,7 @@ export class ExtraTransactionsPublishHook {
 
     const mainTransaction: TransactionBatchSingleRequest = {
       existingTransaction: {
-        id,
+        id: transactionId,
         onPublish,
         signedTransaction,
       },

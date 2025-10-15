@@ -57,23 +57,39 @@ const TRANSACTION_META_MOCK = {
 } as TransactionMeta;
 
 describe('ExtraTransactionsPublishHook', () => {
-  it('creates batch transaction', async () => {
-    const addTransactionBatch: jest.MockedFn<
-      TransactionController['addTransactionBatch']
-    > = jest.fn();
+  const addTransactionBatchMock: jest.MockedFn<
+    TransactionController['addTransactionBatch']
+  > = jest.fn();
 
-    const hookInstance = new ExtraTransactionsPublishHook({
-      addTransactionBatch,
+  const getTransactionMock = jest.fn();
+  const originalPublishHookMock = jest.fn();
+
+  /**
+   * Creates an instance of ExtraTransactionsPublishHook with the provided mocks.
+   *
+   * @returns The ExtraTransactionsPublishHook instance.
+   */
+  function createHook() {
+    return new ExtraTransactionsPublishHook({
+      addTransactionBatch: addTransactionBatchMock,
+      getTransaction: getTransactionMock,
+      originalPublishHook: originalPublishHookMock,
     });
+  }
 
-    const hook = hookInstance.getHook();
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it('creates batch transaction', async () => {
+    const hook = createHook().getHook();
 
     hook(TRANSACTION_META_MOCK, SIGNED_TRANSACTION_MOCK).catch(() => {
       // Intentionally empty
     });
 
-    expect(addTransactionBatch).toHaveBeenCalledTimes(1);
-    expect(addTransactionBatch).toHaveBeenCalledWith({
+    expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+    expect(addTransactionBatchMock).toHaveBeenCalledWith({
       from: TRANSACTION_META_MOCK.txParams.from,
       networkClientId: TRANSACTION_META_MOCK.networkClientId,
       transactions: [
@@ -110,15 +126,7 @@ describe('ExtraTransactionsPublishHook', () => {
   });
 
   it('resolves when onPublish callback is called', async () => {
-    const addTransactionBatch: jest.MockedFn<
-      TransactionController['addTransactionBatch']
-    > = jest.fn();
-
-    const hookInstance = new ExtraTransactionsPublishHook({
-      addTransactionBatch,
-    });
-
-    const hook = hookInstance.getHook();
+    const hook = createHook().getHook();
 
     const hookPromise = hook(
       TRANSACTION_META_MOCK,
@@ -128,12 +136,12 @@ describe('ExtraTransactionsPublishHook', () => {
     });
 
     const onPublish =
-      addTransactionBatch.mock.calls[0][0].transactions[0].existingTransaction
-        ?.onPublish;
+      addTransactionBatchMock.mock.calls[0][0].transactions[0]
+        .existingTransaction?.onPublish;
 
     onPublish?.({ transactionHash: TRANSACTION_HASH_MOCK });
 
-    expect(addTransactionBatch.mock.calls[0][0].transactions[1].type).toBe(
+    expect(addTransactionBatchMock.mock.calls[0][0].transactions[1].type).toBe(
       TransactionType.gasPayment,
     );
 
@@ -143,18 +151,11 @@ describe('ExtraTransactionsPublishHook', () => {
   });
 
   it('rejects if addTransactionBatch throws', async () => {
-    const addTransactionBatch: jest.MockedFn<
-      TransactionController['addTransactionBatch']
-    > = jest.fn().mockImplementation(() => {
+    addTransactionBatchMock.mockImplementation(() => {
       throw new Error('Test error');
     });
 
-    const hookInstance = new ExtraTransactionsPublishHook({
-      addTransactionBatch,
-    });
-
-    const hook = hookInstance.getHook();
-
+    const hook = createHook().getHook();
     const hookPromise = hook(TRANSACTION_META_MOCK, SIGNED_TRANSACTION_MOCK);
 
     hookPromise.catch(() => {
@@ -165,15 +166,7 @@ describe('ExtraTransactionsPublishHook', () => {
   });
 
   it('uses batch transaction options', async () => {
-    const addTransactionBatch: jest.MockedFn<
-      TransactionController['addTransactionBatch']
-    > = jest.fn();
-
-    const hookInstance = new ExtraTransactionsPublishHook({
-      addTransactionBatch,
-    });
-
-    const hook = hookInstance.getHook();
+    const hook = createHook().getHook();
 
     hook(
       {
@@ -189,8 +182,8 @@ describe('ExtraTransactionsPublishHook', () => {
       // Intentionally empty
     });
 
-    expect(addTransactionBatch).toHaveBeenCalledTimes(1);
-    expect(addTransactionBatch).toHaveBeenCalledWith(
+    expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+    expect(addTransactionBatchMock).toHaveBeenCalledWith(
       expect.objectContaining({
         disable7702: true,
         disableHook: true,
@@ -200,15 +193,7 @@ describe('ExtraTransactionsPublishHook', () => {
   });
 
   it('orders transactions based on isAfter', () => {
-    const addTransactionBatch: jest.MockedFn<
-      TransactionController['addTransactionBatch']
-    > = jest.fn();
-
-    const hookInstance = new ExtraTransactionsPublishHook({
-      addTransactionBatch,
-    });
-
-    const hook = hookInstance.getHook();
+    const hook = createHook().getHook();
 
     hook(
       {
@@ -232,8 +217,8 @@ describe('ExtraTransactionsPublishHook', () => {
       // Intentionally empty
     });
 
-    expect(addTransactionBatch).toHaveBeenCalledTimes(1);
-    expect(addTransactionBatch).toHaveBeenCalledWith(
+    expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+    expect(addTransactionBatchMock).toHaveBeenCalledWith(
       expect.objectContaining({
         transactions: [
           {
@@ -259,20 +244,18 @@ describe('ExtraTransactionsPublishHook', () => {
   });
 
   it('calls original publish hook if existing publish callback is called with new signature', async () => {
-    const addTransactionBatch: jest.MockedFn<
-      TransactionController['addTransactionBatch']
-    > = jest.fn();
-
-    const originalPublishHook = jest
-      .fn()
-      .mockResolvedValue({ transactionHash: TRANSACTION_HASH_MOCK });
-
-    const hookInstance = new ExtraTransactionsPublishHook({
-      addTransactionBatch,
-      originalPublishHook,
+    originalPublishHookMock.mockResolvedValue({
+      transactionHash: TRANSACTION_HASH_MOCK,
     });
 
-    const hook = hookInstance.getHook();
+    const newMetadata = {
+      ...TRANSACTION_META_MOCK,
+      rawTx: SIGNED_TRANSACTION_2_MOCK,
+    };
+
+    getTransactionMock.mockReturnValue(newMetadata);
+
+    const hook = createHook().getHook();
 
     const hookPromise = hook(
       TRANSACTION_META_MOCK,
@@ -282,17 +265,17 @@ describe('ExtraTransactionsPublishHook', () => {
     });
 
     const onPublish =
-      addTransactionBatch.mock.calls[0][0].transactions[0].existingTransaction
-        ?.onPublish;
+      addTransactionBatchMock.mock.calls[0][0].transactions[0]
+        .existingTransaction?.onPublish;
 
     onPublish?.({
       transactionHash: undefined,
       newSignature: SIGNED_TRANSACTION_2_MOCK,
     });
 
-    expect(originalPublishHook).toHaveBeenCalledTimes(1);
-    expect(originalPublishHook).toHaveBeenCalledWith(
-      TRANSACTION_META_MOCK,
+    expect(originalPublishHookMock).toHaveBeenCalledTimes(1);
+    expect(originalPublishHookMock).toHaveBeenCalledWith(
+      newMetadata,
       SIGNED_TRANSACTION_2_MOCK,
     );
 

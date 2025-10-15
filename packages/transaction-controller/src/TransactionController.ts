@@ -3121,6 +3121,7 @@ export class TransactionController extends BaseController<
 
         const extraTransactionsPublishHook = new ExtraTransactionsPublishHook({
           addTransactionBatch: this.addTransactionBatch.bind(this),
+          getTransaction: this.#getTransactionOrThrow.bind(this),
           originalPublishHook: publishHook,
         });
 
