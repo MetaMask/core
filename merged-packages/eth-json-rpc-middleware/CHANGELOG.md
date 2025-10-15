@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Prevent delays in request processing ([#421](https://github.com/MetaMask/eth-json-rpc-middleware/pull/421))
+  - All `PollingBlockTracker.getLatestBlock()` calls have been updated to not include `useCache: false`
+  - This reverts [#416](https://github.com/MetaMask/eth-json-rpc-middleware/pull/416). This change ended up introducing a bug (it caused delays in request processing).
+
 ## [19.0.0]
 
 ### Changed

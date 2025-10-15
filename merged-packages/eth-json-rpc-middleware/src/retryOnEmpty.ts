@@ -74,9 +74,7 @@ export function createRetryOnEmptyMiddleware({
       return next();
     }
     // lookup latest block
-    const latestBlockNumberHex: string = await blockTracker.getLatestBlock({
-      useCache: false,
-    });
+    const latestBlockNumberHex: string = await blockTracker.getLatestBlock();
     const latestBlockNumber: number = Number.parseInt(
       latestBlockNumberHex.slice(2),
       16,

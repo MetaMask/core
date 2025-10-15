@@ -191,9 +191,7 @@ export function createBlockCacheMiddleware({
       } else if (blockTag === 'latest') {
         // fetch latest block number
         log('Fetching latest block number to determine cache key');
-        const latestBlockNumber = await blockTracker.getLatestBlock({
-          useCache: false,
-        });
+        const latestBlockNumber = await blockTracker.getLatestBlock();
         // clear all cache before latest block
         log(
           'Clearing values stored under block numbers before %o',
