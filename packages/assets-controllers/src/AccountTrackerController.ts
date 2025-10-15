@@ -28,9 +28,10 @@ import { assert, type Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
 
-import type {
-  AssetsContractController,
-  StakedBalance,
+import {
+  STAKING_CONTRACT_ADDRESS_BY_CHAINID,
+  type AssetsContractController,
+  type StakedBalance,
 } from './AssetsContractController';
 import {
   AccountsApiBalanceFetcher,
@@ -594,7 +595,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
                 hexValue;
               hasChanges = true;
             }
-          } else {
+          } else if (
+            STAKING_CONTRACT_ADDRESS_BY_CHAINID[
+              chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
+            ]?.toLowerCase() === token.toLowerCase()
+          ) {
             // Staked balance (from staking contract address)
             if (!stakedBalancesByChainAndAddress[chainId]) {
               stakedBalancesByChainAndAddress[chainId] = {};
