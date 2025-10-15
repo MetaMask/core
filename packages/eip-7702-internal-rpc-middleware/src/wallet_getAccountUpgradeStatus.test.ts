@@ -164,7 +164,8 @@ describe('walletGetAccountUpgradeStatus', () => {
       walletGetAccountUpgradeStatus(req, res, hooks),
     ).rejects.toThrow(
       rpcErrors.invalidParams({
-        message: 'Could not determine current chain ID for origin: npm:@metamask/gator-permissions-snap',
+        message:
+          'Could not determine current chain ID for origin: npm:@metamask/gator-permissions-snap',
       }),
     );
   });

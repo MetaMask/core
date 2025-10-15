@@ -1,9 +1,9 @@
+import { rpcErrors } from '@metamask/rpc-errors';
 import type {
   JsonRpcRequest,
   PendingJsonRpcResponse,
   Json,
 } from '@metamask/utils';
-import { rpcErrors } from '@metamask/rpc-errors';
 
 import { walletUpgradeAccount } from './wallet_upgradeAccount';
 
@@ -164,7 +164,8 @@ describe('walletUpgradeAccount', () => {
 
     await expect(walletUpgradeAccount(req, res, hooks)).rejects.toThrow(
       rpcErrors.invalidParams({
-        message: 'No network configuration found for origin: npm:@metamask/gator-permissions-snap',
+        message:
+          'No network configuration found for origin: npm:@metamask/gator-permissions-snap',
       }),
     );
   });

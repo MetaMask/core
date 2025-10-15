@@ -106,9 +106,7 @@ describe('validateAndNormalizeAddress', () => {
         mockOrigin,
         getPermittedAccountsForOrigin,
       ),
-    ).rejects.toThrow(
-      providerErrors.unauthorized(),
-    );
+    ).rejects.toThrow(providerErrors.unauthorized());
   });
 
   it('throws error for empty string address', async () => {
