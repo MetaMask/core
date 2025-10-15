@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [24.2.2]
 
-### Uncategorized
-
-- Release/611.0.0 ([#6810](https://github.com/MetaMask/core/pull/6810))
-
 ### Changed
 
 - Bump `@metamask/eth-block-tracker` from `^12.0.1` to `^12.2.1` ([#6811](https://github.com/MetaMask/core/pull/6811))
