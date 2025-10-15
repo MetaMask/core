@@ -1,14 +1,15 @@
 import {
-  BaseController,
   type StateMetadata,
   type ControllerStateChangeEvent,
   type ControllerGetStateAction,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
 import {
   controllerName,
+  DEFAULT_POLLING_INTERVAL,
   SubscriptionControllerErrorMessage,
 } from './constants';
 import type {
@@ -16,7 +17,9 @@ import type {
   GetCryptoApproveTransactionRequest,
   GetCryptoApproveTransactionResponse,
   ProductPrice,
+  SubscriptionEligibility,
   StartCryptoSubscriptionRequest,
+  SubmitUserEventRequest,
   TokenPaymentInfo,
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodOpts,
@@ -41,6 +44,10 @@ export type SubscriptionControllerState = {
 export type SubscriptionControllerGetSubscriptionsAction = {
   type: `${typeof controllerName}:getSubscriptions`;
   handler: SubscriptionController['getSubscriptions'];
+};
+export type SubscriptionControllerGetSubscriptionByProductAction = {
+  type: `${typeof controllerName}:getSubscriptionByProduct`;
+  handler: SubscriptionController['getSubscriptionByProduct'];
 };
 export type SubscriptionControllerCancelSubscriptionAction = {
   type: `${typeof controllerName}:cancelSubscription`;
@@ -77,6 +84,7 @@ export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
 >;
 export type SubscriptionControllerActions =
   | SubscriptionControllerGetSubscriptionsAction
+  | SubscriptionControllerGetSubscriptionByProductAction
   | SubscriptionControllerCancelSubscriptionAction
   | SubscriptionControllerStartShieldSubscriptionWithCardAction
   | SubscriptionControllerGetPricingAction
@@ -125,6 +133,13 @@ export type SubscriptionControllerOptions = {
    * Subscription service to use for the subscription controller.
    */
   subscriptionService: ISubscriptionService;
+
+  /**
+   * Polling interval to use for the subscription controller.
+   *
+   * @default 5 minutes.
+   */
+  pollingInterval?: number;
 };
 
 /**
@@ -174,12 +189,14 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
     },
   };
 
-export class SubscriptionController extends BaseController<
+export class SubscriptionController extends StaticIntervalPollingController()<
   typeof controllerName,
   SubscriptionControllerState,
   SubscriptionControllerMessenger
 > {
   readonly #subscriptionService: ISubscriptionService;
+
+  #shouldCallRefreshAuthToken: boolean = false;
 
   /**
    * Creates a new SubscriptionController instance.
@@ -188,11 +205,13 @@ export class SubscriptionController extends BaseController<
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    * @param options.subscriptionService - The subscription service for communicating with subscription server.
+   * @param options.pollingInterval - The polling interval to use for the subscription controller.
    */
   constructor({
     messenger,
     state,
     subscriptionService,
+    pollingInterval = DEFAULT_POLLING_INTERVAL,
   }: SubscriptionControllerOptions) {
     super({
       name: controllerName,
@@ -204,6 +223,7 @@ export class SubscriptionController extends BaseController<
       messenger,
     });
 
+    this.setIntervalLength(pollingInterval);
     this.#subscriptionService = subscriptionService;
     this.#registerMessageHandlers();
   }
@@ -216,6 +236,11 @@ export class SubscriptionController extends BaseController<
     this.messagingSystem.registerActionHandler(
       'SubscriptionController:getSubscriptions',
       this.getSubscriptions.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:getSubscriptionByProduct',
+      this.getSubscriptionByProduct.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -268,16 +293,65 @@ export class SubscriptionController extends BaseController<
   }
 
   async getSubscriptions() {
-    const { subscriptions, customerId, trialedProducts } =
-      await this.#subscriptionService.getSubscriptions();
+    const currentSubscriptions = this.state.subscriptions;
+    const currentTrialedProducts = this.state.trialedProducts;
+    const currentCustomerId = this.state.customerId;
+    const {
+      customerId: newCustomerId,
+      subscriptions: newSubscriptions,
+      trialedProducts: newTrialedProducts,
+    } = await this.#subscriptionService.getSubscriptions();
 
-    this.update((state) => {
-      state.subscriptions = subscriptions;
-      state.customerId = customerId;
-      state.trialedProducts = trialedProducts;
-    });
+    // check if the new subscriptions are different from the current subscriptions
+    const areSubscriptionsEqual = this.#areSubscriptionsEqual(
+      currentSubscriptions,
+      newSubscriptions,
+    );
+    // check if the new trialed products are different from the current trialed products
+    const areTrialedProductsEqual = this.#areTrialedProductsEqual(
+      currentTrialedProducts,
+      newTrialedProducts,
+    );
 
-    return subscriptions;
+    const areCustomerIdsEqual = currentCustomerId === newCustomerId;
+
+    // only update the state if the subscriptions or trialed products are different
+    // this prevents unnecessary state updates events, easier for the clients to handle
+    if (
+      !areSubscriptionsEqual ||
+      !areTrialedProductsEqual ||
+      !areCustomerIdsEqual
+    ) {
+      this.update((state) => {
+        state.subscriptions = newSubscriptions;
+        state.customerId = newCustomerId;
+        state.trialedProducts = newTrialedProducts;
+      });
+      this.#shouldCallRefreshAuthToken = true;
+    }
+
+    return newSubscriptions;
+  }
+
+  /**
+   * Get the subscription by product.
+   *
+   * @param product - The product type.
+   * @returns The subscription.
+   */
+  getSubscriptionByProduct(product: ProductType): Subscription | undefined {
+    return this.state.subscriptions.find((subscription) =>
+      subscription.products.some((p) => p.name === product),
+    );
+  }
+
+  /**
+   * Get the subscriptions eligibilities.
+   *
+   * @returns The subscriptions eligibilities.
+   */
+  async getSubscriptionsEligibilities(): Promise<SubscriptionEligibility[]> {
+    return await this.#subscriptionService.getSubscriptionsEligibilities();
   }
 
   async cancelSubscription(request: { subscriptionId: string }) {
@@ -415,6 +489,24 @@ export class SubscriptionController extends BaseController<
   }
 
   /**
+   * Submit a user event from the UI. (e.g. shield modal viewed)
+   *
+   * @param request - Request object containing the event to submit.
+   * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed }
+   */
+  async submitUserEvent(request: SubmitUserEventRequest) {
+    await this.#subscriptionService.submitUserEvent(request);
+  }
+
+  async _executePoll(): Promise<void> {
+    await this.getSubscriptions();
+    if (this.#shouldCallRefreshAuthToken) {
+      this.triggerAccessTokenRefresh();
+      this.#shouldCallRefreshAuthToken = false;
+    }
+  }
+
+  /**
    * Calculate total subscription price amount from price info
    * e.g: $8 per month * 12 months min billing cycles = $96
    *
@@ -504,5 +596,67 @@ export class SubscriptionController extends BaseController<
    */
   async getBillingPortalUrl(): Promise<BillingPortalResponse> {
     return await this.#subscriptionService.getBillingPortalUrl();
+  }
+
+  /**
+   * Determines whether two trialed products arrays are equal by comparing all products in the arrays.
+   *
+   * @param oldTrialedProducts - The first trialed products array to compare.
+   * @param newTrialedProducts - The second trialed products array to compare.
+   * @returns True if the trialed products arrays are equal, false otherwise.
+   */
+  #areTrialedProductsEqual(
+    oldTrialedProducts: ProductType[],
+    newTrialedProducts: ProductType[],
+  ): boolean {
+    return (
+      oldTrialedProducts.length === newTrialedProducts?.length &&
+      oldTrialedProducts.every((product) =>
+        newTrialedProducts?.includes(product),
+      )
+    );
+  }
+
+  /**
+   * Determines whether two subscription arrays are equal by comparing all properties
+   * of each subscription in the arrays.
+   *
+   * @param oldSubs - The first subscription array to compare.
+   * @param newSubs - The second subscription array to compare.
+   * @returns True if the subscription arrays are equal, false otherwise.
+   */
+  #areSubscriptionsEqual(
+    oldSubs: Subscription[],
+    newSubs: Subscription[],
+  ): boolean {
+    // Check if arrays have different lengths
+    if (oldSubs.length !== newSubs.length) {
+      return false;
+    }
+
+    // Sort both arrays by id to ensure consistent comparison
+    const sortedOldSubs = [...oldSubs].sort((a, b) => a.id.localeCompare(b.id));
+    const sortedNewSubs = [...newSubs].sort((a, b) => a.id.localeCompare(b.id));
+
+    // Check if all subscriptions are equal
+    return sortedOldSubs.every((oldSub, index) => {
+      const newSub = sortedNewSubs[index];
+      return (
+        this.#stringifySubscription(oldSub) ===
+        this.#stringifySubscription(newSub)
+      );
+    });
+  }
+
+  #stringifySubscription(subscription: Subscription): string {
+    const subsWithSortedProducts = {
+      ...subscription,
+      // order the products by name
+      products: [...subscription.products].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      ),
+    };
+
+    return JSON.stringify(subsWithSortedProducts);
   }
 }

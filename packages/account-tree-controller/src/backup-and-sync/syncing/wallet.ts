@@ -28,7 +28,10 @@ export async function syncWalletMetadataAndCheckIfPushNeeded(
   const walletPersistedMetadata =
     context.controller.state.accountWalletsMetadata[localWallet.id];
 
-  if (!walletFromUserStorage) {
+  if (
+    !walletFromUserStorage ||
+    Object.keys(walletFromUserStorage).length === 0
+  ) {
     backupAndSyncLogger(
       `Wallet ${localWallet.id} did not exist in user storage, pushing to user storage...`,
     );
@@ -54,6 +57,15 @@ export async function syncWalletMetadataAndCheckIfPushNeeded(
   });
 
   shouldPushWallet ||= shouldPushForName;
+
+  // Avoid re-triggering legacy-syncing (in case this field is missing on the remote
+  // wallet object).
+  const shouldPushForMissingLegacyField = !Object.prototype.hasOwnProperty.call(
+    walletFromUserStorage,
+    'isLegacyAccountSyncingDisabled',
+  );
+
+  shouldPushWallet ||= shouldPushForMissingLegacyField;
 
   return shouldPushWallet;
 }
