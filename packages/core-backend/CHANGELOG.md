@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `traceFn` parameter to `AccountActivityService` constructor for performance tracing integration ([#6842](https://github.com/MetaMask/core/pull/6842))
+  - Enables tracing of transaction message receipt with elapsed time from transaction timestamp to message arrival
+  - Trace captures `chain`, `status`, and `elapsed_ms` for monitoring transaction delivery latency
+
+### Fixed
+
+- Fix race condition in `BackendWebSocketService.connect()` that could create multiple concurrent WebSocket connections when called simultaneously from multiple event sources (e.g., `KeyringController:unlock`, `AuthenticationController:stateChange`, and `MetaMaskController.isClientOpen`) ([#6842](https://github.com/MetaMask/core/pull/6842))
+  - Connection promise is now set synchronously before any async operations to prevent duplicate connections
+
 ## [2.0.0]
 
 ### Added
