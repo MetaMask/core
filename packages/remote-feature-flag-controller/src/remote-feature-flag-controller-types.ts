@@ -1,4 +1,3 @@
-import type { ControllerGetStateAction } from '@metamask/base-controller';
 import type { Json } from '@metamask/utils';
 
 // Define accepted values for client, distribution, and environment
@@ -61,12 +60,3 @@ export type RemoteFeatureFlagControllerState = {
    */
   cacheTimestamp: number;
 };
-
-/**
- * The action to retrieve the state of the {@link RemoteFeatureFlagController}.
- */
-export type RemoteFeatureFlagControllerGetStateAction =
-  ControllerGetStateAction<
-    'RemoteFeatureFlagController',
-    RemoteFeatureFlagControllerState
-  >;

@@ -29,6 +29,7 @@ import type {
   NetworkControllerEvents,
   NetworkClientId,
 } from '@metamask/network-controller';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import assert from 'assert';
 import type { SinonFakeTimers } from 'sinon';
 import { useFakeTimers } from 'sinon';
@@ -48,7 +49,6 @@ import {
   buildCustomNetworkClientConfiguration,
   buildUpdateNetworkCustomRpcEndpointFields,
 } from '../../network-controller/tests/helpers';
-import type { RemoteFeatureFlagControllerGetStateAction } from '../../remote-feature-flag-controller/src';
 import {
   buildEthGasPriceRequestMock,
   buildEthBlockNumberRequestMock,
