@@ -1,7 +1,6 @@
 import { Messenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Hex } from '@metamask/utils';
-import nock, { isDone } from 'nock';
 
 import type {
   AccountActivityServiceAllowedEvents,
@@ -23,7 +22,7 @@ import { flushPromises } from '../../../tests/helpers';
 // Helper function for completing async operations
 const completeAsyncOperations = async (timeoutMs = 0) => {
   await flushPromises();
-  // Allow nock network mocks and nested async operations to complete
+  // Allow nested async operations to complete
   if (timeoutMs > 0) {
     await new Promise((resolve) => setTimeout(resolve, timeoutMs));
   }
@@ -322,8 +321,12 @@ describe('AccountActivityService', () => {
         expect(service.name).toBe('AccountActivityService');
 
         // Status changed event is only published when WebSocket connects
-        const publishSpy = jest.spyOn(messenger, 'publish');
-        expect(publishSpy).not.toHaveBeenCalled();
+        const statusChangedEventListener = jest.fn();
+        messenger.subscribe(
+          'AccountActivityService:statusChanged',
+          statusChangedEventListener,
+        );
+        expect(statusChangedEventListener).not.toHaveBeenCalled();
 
         // Verify system notification callback was registered
         expect(mocks.addChannelCallback).toHaveBeenCalledWith({
@@ -382,7 +385,7 @@ describe('AccountActivityService', () => {
           const activityMessage: AccountActivityMessage = {
             address: '0x1234567890123456789012345678901234567890',
             tx: {
-              hash: '0xabc123',
+              id: '0xabc123',
               chain: 'eip155:1',
               status: 'confirmed',
               timestamp: Date.now(),
@@ -395,6 +398,7 @@ describe('AccountActivityService', () => {
                   fungible: true,
                   type: 'eip155:1/slip44:60',
                   unit: 'ETH',
+                  decimals: 18,
                 },
                 postBalance: {
                   amount: '1000000000000000000', // 1 ETH
@@ -416,6 +420,7 @@ describe('AccountActivityService', () => {
             channel:
               'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
             data: activityMessage,
+            timestamp: 1760344704595,
           };
 
           // Subscribe to events to verify they are published
@@ -545,52 +550,6 @@ describe('AccountActivityService', () => {
   });
 
   // =============================================================================
-  // GET SUPPORTED CHAINS TESTS
-  // =============================================================================
-  describe('getSupportedChains', () => {
-    it('should handle API returning non-200 status by falling back to hardcoded supported chains', async () => {
-      await withService(async ({ service }) => {
-        // Mock 500 error response
-        nock('https://accounts.api.cx.metamask.io')
-          .get('/v2/supportedNetworks')
-          .reply(500, 'Internal Server Error');
-
-        // Test the getSupportedChains method directly - should fallback to hardcoded chains
-        const supportedChains = await service.getSupportedChains();
-
-        // Should fallback to hardcoded chains
-        expect(supportedChains).toStrictEqual(
-          expect.arrayContaining(['eip155:1', 'eip155:137', 'eip155:56']),
-        );
-      });
-    });
-
-    it('should cache supported chains for service lifecycle by returning cached results on subsequent calls', async () => {
-      await withService(async ({ service }) => {
-        // First call - should fetch from API
-        nock('https://accounts.api.cx.metamask.io')
-          .get('/v2/supportedNetworks')
-          .reply(200, {
-            fullSupport: ['eip155:1', 'eip155:137'],
-            partialSupport: { balances: [] },
-          });
-
-        const firstResult = await service.getSupportedChains();
-
-        expect(firstResult).toStrictEqual(['eip155:1', 'eip155:137']);
-        expect(isDone()).toBe(true);
-
-        // Second call immediately after - should use cache (no new API call)
-        const secondResult = await service.getSupportedChains();
-
-        // Should return same result from cache
-        expect(secondResult).toStrictEqual(['eip155:1', 'eip155:137']);
-        expect(isDone()).toBe(true); // Still done from first call
-      });
-    });
-  });
-
-  // =============================================================================
   // EVENT HANDLERS TESTS
   // =============================================================================
   describe('event handlers', () => {
@@ -604,6 +563,7 @@ describe('AccountActivityService', () => {
             event: 'system-notification',
             channel: 'system',
             data: { invalid: true }, // Missing required fields
+            timestamp: Date.now(),
           };
 
           // The callback should throw an error for invalid data
@@ -612,45 +572,129 @@ describe('AccountActivityService', () => {
           );
         });
       });
+
+      it('should track chains as up and down based on system notifications', async () => {
+        await withService(async ({ messenger, mocks }) => {
+          const statusChangedEventListener = jest.fn();
+          messenger.subscribe(
+            'AccountActivityService:statusChanged',
+            statusChangedEventListener,
+          );
+          const systemCallback = getSystemNotificationCallback(mocks);
+
+          // Simulate chains coming up
+          const timestamp1 = 1760344704595;
+          systemCallback({
+            event: 'system-notification',
+            channel: 'system-notifications.v1.account-activity.v1',
+            data: {
+              chainIds: ['eip155:1', 'eip155:137'],
+              status: 'up',
+            },
+            timestamp: timestamp1,
+          });
+
+          expect(statusChangedEventListener).toHaveBeenCalledWith({
+            chainIds: ['eip155:1', 'eip155:137'],
+            status: 'up',
+            timestamp: timestamp1,
+          });
+
+          // Simulate one chain going down
+          const timestamp2 = 1760344704696;
+          systemCallback({
+            event: 'system-notification',
+            channel: 'system-notifications.v1.account-activity.v1',
+            data: {
+              chainIds: ['eip155:137'],
+              status: 'down',
+            },
+            timestamp: timestamp2,
+          });
+
+          expect(statusChangedEventListener).toHaveBeenCalledWith({
+            chainIds: ['eip155:137'],
+            status: 'down',
+            timestamp: timestamp2,
+          });
+        });
+      });
     });
 
     describe('handleWebSocketStateChange', () => {
-      it('should handle WebSocket ERROR state by publishing status change event with down status', async () => {
+      it('should handle WebSocket ERROR state by publishing tracked chains as down', async () => {
         await withService(async ({ messenger, rootMessenger, mocks }) => {
-          const publishSpy = jest.spyOn(messenger, 'publish');
+          const statusChangedEventListener = jest.fn();
+          messenger.subscribe(
+            'AccountActivityService:statusChanged',
+            statusChangedEventListener,
+          );
 
-          mocks.getSelectedAccount.mockReturnValue(null); // Ensure no selected account
+          mocks.getSelectedAccount.mockReturnValue(null);
 
-          // Clear any publish calls from service initialization
-          publishSpy.mockClear();
+          // First, simulate receiving a system notification with chains up
+          const systemCallback = getSystemNotificationCallback(mocks);
+          systemCallback({
+            event: 'system-notification',
+            channel: 'system-notifications.v1.account-activity.v1',
+            data: {
+              chainIds: ['eip155:1', 'eip155:137', 'eip155:56'],
+              status: 'up',
+            },
+            timestamp: 1760344704595,
+          });
 
-          // Mock API response for supported networks
-          nock('https://accounts.api.cx.metamask.io')
-            .get('/v2/supportedNetworks')
-            .reply(200, {
-              fullSupport: ['eip155:1', 'eip155:137', 'eip155:56'],
-              partialSupport: { balances: ['eip155:42220'] },
-            });
-
-          // Publish WebSocket ERROR state event - will be picked up by controller subscription
+          // Publish WebSocket ERROR state event - should flush tracked chains as down
           await rootMessenger.publish(
             'BackendWebSocketService:connectionStateChanged',
             {
               state: WebSocketState.ERROR,
               url: 'ws://test',
               reconnectAttempts: 2,
+              timeout: 10000,
+              reconnectDelay: 500,
+              maxReconnectDelay: 5000,
+              requestTimeout: 30000,
             },
           );
           await completeAsyncOperations(100);
 
-          // Verify that the ERROR state triggered the status change
-          expect(publishSpy).toHaveBeenCalledWith(
+          // Verify that the ERROR state triggered the status change for tracked chains
+          expect(statusChangedEventListener).toHaveBeenCalledWith({
+            chainIds: ['eip155:1', 'eip155:137', 'eip155:56'],
+            status: 'down',
+            timestamp: expect.any(Number),
+          });
+        });
+      });
+
+      it('should not publish status change on disconnect when no chains are tracked', async () => {
+        await withService(async ({ messenger, rootMessenger, mocks }) => {
+          const statusChangedEventListener = jest.fn();
+          messenger.subscribe(
             'AccountActivityService:statusChanged',
+            statusChangedEventListener,
+          );
+
+          mocks.getSelectedAccount.mockReturnValue(null);
+
+          // Publish WebSocket ERROR state event without any tracked chains
+          await rootMessenger.publish(
+            'BackendWebSocketService:connectionStateChanged',
             {
-              chainIds: ['eip155:1', 'eip155:137', 'eip155:56'],
-              status: 'down',
+              state: WebSocketState.ERROR,
+              url: 'ws://test',
+              reconnectAttempts: 2,
+              timeout: 10000,
+              reconnectDelay: 500,
+              maxReconnectDelay: 5000,
+              requestTimeout: 30000,
             },
           );
+          await completeAsyncOperations(100);
+
+          // Verify that no status change was published since no chains were tracked
+          expect(statusChangedEventListener).not.toHaveBeenCalled();
         });
       });
     });
@@ -744,6 +788,10 @@ describe('AccountActivityService', () => {
               state: WebSocketState.CONNECTED,
               url: 'ws://test',
               reconnectAttempts: 0,
+              timeout: 10000,
+              reconnectDelay: 500,
+              maxReconnectDelay: 5000,
+              requestTimeout: 30000,
             },
           );
           // Wait for async handler to complete
@@ -752,37 +800,6 @@ describe('AccountActivityService', () => {
           // Should attempt to get selected account even when none exists
           expect(mocks.getSelectedAccount).toHaveBeenCalledTimes(1);
           expect(mocks.getSelectedAccount).toHaveReturnedWith(null);
-        });
-      });
-
-      it('should handle system notification publish failures gracefully by throwing error when publish fails', async () => {
-        await withService(async ({ mocks, messenger }) => {
-          const systemCallback = getSystemNotificationCallback(mocks);
-
-          // Mock publish to throw error
-          jest.spyOn(messenger, 'publish').mockImplementation(() => {
-            throw new Error('Publish failed');
-          });
-
-          const systemNotification = {
-            event: 'system-notification',
-            channel: 'system-notifications.v1.account-activity.v1',
-            data: { chainIds: ['0x1', '0x2'], status: 'connected' },
-          };
-
-          // Should throw error when publish fails
-          expect(() => systemCallback(systemNotification)).toThrow(
-            'Publish failed',
-          );
-
-          // Should have attempted to publish the notification
-          expect(messenger.publish).toHaveBeenCalledWith(
-            expect.any(String),
-            expect.objectContaining({
-              chainIds: ['0x1', '0x2'],
-              status: 'connected',
-            }),
-          );
         });
       });
 
@@ -891,12 +908,17 @@ describe('AccountActivityService', () => {
                 state: WebSocketState.CONNECTED,
                 url: 'ws://test',
                 reconnectAttempts: 0,
+                timeout: 10000,
+                reconnectDelay: 500,
+                maxReconnectDelay: 5000,
+                requestTimeout: 30000,
               },
             );
             await completeAsyncOperations();
 
             // Verify it resubscribed to the selected account
             expect(mocks.subscribe).toHaveBeenCalledWith({
+              channelType: 'account-activity.v1',
               channels: ['account-activity.v1.eip155:0:0x123abc'],
               callback: expect.any(Function),
             });

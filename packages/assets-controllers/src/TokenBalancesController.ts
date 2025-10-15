@@ -844,12 +844,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     account: ChecksumAddress,
     chainId: ChainIdHex,
   ): boolean {
-    const normalizedAddress = tokenAddress.toLowerCase();
-
     // Check if token exists in allTokens
     if (
       this.#allTokens?.[chainId]?.[account.toLowerCase()]?.some(
-        (token) => token.address.toLowerCase() === normalizedAddress,
+        (token) => token.address === tokenAddress,
       )
     ) {
       return true;
@@ -858,7 +856,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     // Check if token exists in allIgnoredTokens
     if (
       this.#allIgnoredTokens?.[chainId]?.[account.toLowerCase()]?.some(
-        (addr) => addr.toLowerCase() === normalizedAddress,
+        (token) => token === tokenAddress,
       )
     ) {
       return true;
@@ -1124,23 +1122,26 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     updates: BalanceUpdate[];
   }) => {
     const chainId = caipChainIdToHex(chain);
-    const account = checksum(address);
+    const checksummedAccount = checksum(address);
 
     try {
       // Process all balance updates at once
       const { tokenBalances, newTokens, nativeBalanceUpdates } =
-        this.#prepareBalanceUpdates(updates, account, chainId);
+        this.#prepareBalanceUpdates(updates, checksummedAccount, chainId);
 
       // Update state once with all token balances
       if (tokenBalances.length > 0) {
         this.update((state) => {
-          // Initialize account and chain structure
-          state.tokenBalances[account] ??= {};
-          state.tokenBalances[account][chainId] ??= {};
+          // Temporary until ADR to normalize all keys - tokenBalances state requires: account in lowercase, token in checksum
+          const lowercaseAccount =
+            checksummedAccount.toLowerCase() as ChecksumAddress;
+          state.tokenBalances[lowercaseAccount] ??= {};
+          state.tokenBalances[lowercaseAccount][chainId] ??= {};
 
           // Apply all token balance updates
           for (const { tokenAddress, balance } of tokenBalances) {
-            state.tokenBalances[account][chainId][tokenAddress] = balance;
+            state.tokenBalances[lowercaseAccount][chainId][tokenAddress] =
+              balance;
           }
         });
       }
