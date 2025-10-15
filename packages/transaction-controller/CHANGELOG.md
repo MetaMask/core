@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `txMeta` property to `GetSimulationConfig` callback ([#6833](https://github.com/MetaMask/core/pull/6833))
+
 ## [60.6.1]
 
 ### Changed
