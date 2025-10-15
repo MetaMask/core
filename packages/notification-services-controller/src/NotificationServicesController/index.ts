@@ -13,3 +13,4 @@ export * from './constants';
 export * as Mocks from './mocks';
 export * as UI from './ui';
 export * from '../shared';
+export { isVersionInBounds } from './utils/isVersionInBounds';
