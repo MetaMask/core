@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Update dependencies that indirectly use v4 of `eth-json-rpc-provider` ([#6811](https://github.com/MetaMask/core/pull/6811))
-
 ## [60.7.0]
 
 ### Added
