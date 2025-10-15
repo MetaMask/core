@@ -1,9 +1,9 @@
+import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type {
@@ -45,19 +45,23 @@ const remoteFeatureFlagControllerMetadata = {
 
 // === MESSENGER ===
 
+/**
+ * The action to retrieve the state of the {@link RemoteFeatureFlagController}.
+ */
 export type RemoteFeatureFlagControllerGetStateAction =
   ControllerGetStateAction<
     typeof controllerName,
     RemoteFeatureFlagControllerState
   >;
 
-export type RemoteFeatureFlagControllerGetRemoteFeatureFlagAction = {
+export type RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction = {
   type: `${typeof controllerName}:updateRemoteFeatureFlags`;
   handler: RemoteFeatureFlagController['updateRemoteFeatureFlags'];
 };
 
 export type RemoteFeatureFlagControllerActions =
-  RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction;
 
 export type AllowedActions = never;
 

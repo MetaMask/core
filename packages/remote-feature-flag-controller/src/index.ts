@@ -1,5 +1,12 @@
 export { RemoteFeatureFlagController } from './remote-feature-flag-controller';
-export type { RemoteFeatureFlagControllerMessenger } from './remote-feature-flag-controller';
+export type {
+  RemoteFeatureFlagControllerMessenger,
+  RemoteFeatureFlagControllerActions,
+  RemoteFeatureFlagControllerGetStateAction,
+  RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction,
+  RemoteFeatureFlagControllerEvents,
+  RemoteFeatureFlagControllerStateChangeEvent,
+} from './remote-feature-flag-controller';
 export {
   ClientType,
   DistributionType,
@@ -8,7 +15,6 @@ export {
 
 export type {
   RemoteFeatureFlagControllerState,
-  RemoteFeatureFlagControllerGetStateAction,
   FeatureFlags,
 } from './remote-feature-flag-controller-types';
 export { ClientConfigApiService } from './client-config-api-service/client-config-api-service';

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export additional controller types from package index ([#6835](https://github.com/MetaMask/core/pull/6835))
+  - Export `RemoteFeatureFlagControllerActions` - union type of all controller actions
+  - Export `RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction` - action type for updating feature flags
+  - Export `RemoteFeatureFlagControllerEvents` - union type of all controller events
+  - Export `RemoteFeatureFlagControllerStateChangeEvent` - state change event type
+
 ## [1.8.0]
 
 ### Added
