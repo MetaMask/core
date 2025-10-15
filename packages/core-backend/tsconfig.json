@@ -16,6 +16,9 @@
       "path": "../controller-utils"
     },
     {
+      "path": "../keyring-controller"
+    },
+    {
       "path": "../profile-sync-controller"
     }
   ],
