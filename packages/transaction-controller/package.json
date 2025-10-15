@@ -78,7 +78,7 @@
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/gas-fee-controller": "^24.1.0",
     "@metamask/network-controller": "^24.2.1",
-    "@metamask/remote-feature-flag-controller": "^1.8.0",
+    "@metamask/remote-feature-flag-controller": "^1.9.0",
     "@ts-bridge/cli": "^0.6.1",
     "@types/bn.js": "^5.1.5",
     "@types/jest": "^27.4.1",
