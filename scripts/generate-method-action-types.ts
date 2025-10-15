@@ -1,4 +1,4 @@
-#!yarn ts-node
+#!yarn tsx
 
 import { ESLint } from 'eslint';
 import * as fs from 'fs';
