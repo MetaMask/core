@@ -50,6 +50,7 @@
     "@metamask/base-controller": "^8.4.1",
     "@metamask/controller-utils": "^11.14.1",
     "@metamask/eth-sig-util": "^8.2.0",
+    "@metamask/messenger": "^0.3.0",
     "@metamask/utils": "^11.8.1",
     "jsonschema": "^1.4.1",
     "lodash": "^4.17.21",
