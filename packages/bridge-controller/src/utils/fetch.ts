@@ -102,6 +102,11 @@ const formatQueryParams = (request: GenericQuoteRequest): URLSearchParams => {
   Object.entries(normalizedRequest).forEach(([key, value]) => {
     queryParams.append(key, value.toString());
   });
+
+  // TODO remove this flag after testing to return both quotes and intents quotes
+  queryParams.append('onlyIntent', 'true');
+  queryParams.append('intent', 'true');
+
   return queryParams;
 };
 
