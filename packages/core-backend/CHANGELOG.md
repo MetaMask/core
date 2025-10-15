@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0]
+
 ### Added
 
 - Add optional `traceFn` parameter to `AccountActivityService` constructor for performance tracing integration ([#6842](https://github.com/MetaMask/core/pull/6842))
@@ -79,7 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.0.0...@metamask/core-backend@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@1.0.1...@metamask/core-backend@2.0.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@1.0.0...@metamask/core-backend@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/core-backend@1.0.0

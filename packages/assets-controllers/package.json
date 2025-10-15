@@ -84,7 +84,7 @@
     "@metamask/accounts-controller": "^33.1.1",
     "@metamask/approval-controller": "^7.2.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/core-backend": "^2.0.0",
+    "@metamask/core-backend": "^2.1.0",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/keyring-controller": "^23.1.1",
     "@metamask/keyring-internal-api": "^9.0.0",

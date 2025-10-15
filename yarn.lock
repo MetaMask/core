@@ -2757,7 +2757,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.4.1"
     "@metamask/contract-metadata": "npm:^2.4.0"
     "@metamask/controller-utils": "npm:^11.14.1"
-    "@metamask/core-backend": "npm:^2.0.0"
+    "@metamask/core-backend": "npm:^2.1.0"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
     "@metamask/keyring-api": "npm:^21.0.0"
@@ -3084,7 +3084,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/core-backend@npm:^2.0.0, @metamask/core-backend@workspace:packages/core-backend":
+"@metamask/core-backend@npm:^2.1.0, @metamask/core-backend@workspace:packages/core-backend":
   version: 0.0.0-use.local
   resolution: "@metamask/core-backend@workspace:packages/core-backend"
   dependencies:
