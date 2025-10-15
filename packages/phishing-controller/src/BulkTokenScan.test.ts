@@ -1,13 +1,17 @@
-import { Messenger } from '@metamask/base-controller';
 import { safelyExecuteWithTimeout } from '@metamask/controller-utils';
-import type { TransactionControllerStateChangeEvent } from '@metamask/transaction-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
 import sinon from 'sinon';
 
-import type { PhishingControllerEvents } from './PhishingController';
+import type { PhishingControllerMessenger } from './PhishingController';
 import {
   PhishingController,
-  type PhishingControllerActions,
   type PhishingControllerOptions,
   SECURITY_ALERTS_BASE_URL,
   TOKEN_BULK_SCANNING_ENDPOINT,
@@ -30,24 +34,55 @@ const mockSafelyExecuteWithTimeout =
 
 const controllerName = 'PhishingController';
 
+type AllPhishingControllerActions =
+  MessengerActions<PhishingControllerMessenger>;
+
+type AllPhishingControllerEvents = MessengerEvents<PhishingControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllPhishingControllerActions,
+  AllPhishingControllerEvents,
+  RootMessenger
+>;
+
 /**
- * Constructs a restricted messenger with transaction events enabled.
+ * Creates and returns a root messenger for testing
+ *
+ * @returns A messenger instance
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+}
+
+/**
+ * Constructs a messenger with transaction events enabled.
  *
  * @returns A restricted messenger that can listen to TransactionController events.
  */
-function getRestrictedMessengerWithTransactionEvents() {
+function getMessengerWithTransactionEvents() {
+  const rootMessenger = getRootMessenger();
+
   const messenger = new Messenger<
-    PhishingControllerActions,
-    PhishingControllerEvents | TransactionControllerStateChangeEvent
-  >();
+    typeof controllerName,
+    AllPhishingControllerActions,
+    AllPhishingControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
+
+  rootMessenger.delegate({
+    actions: [],
+    events: ['TransactionController:stateChange'],
+    messenger,
+  });
 
   return {
-    messenger: messenger.getRestricted({
-      name: controllerName,
-      allowedActions: [],
-      allowedEvents: ['TransactionController:stateChange'],
-    }),
-    globalMessenger: messenger,
+    messenger,
   };
 }
 
@@ -59,7 +94,7 @@ function getRestrictedMessengerWithTransactionEvents() {
  */
 function getPhishingController(options?: Partial<PhishingControllerOptions>) {
   return new PhishingController({
-    messenger: getRestrictedMessengerWithTransactionEvents().messenger,
+    messenger: getMessengerWithTransactionEvents().messenger,
     ...options,
   });
 }
