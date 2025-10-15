@@ -10,5 +10,5 @@
     "strict": true,
     "target": "es2017"
   },
-  "exclude": ["./dist/**/*"]
+  "exclude": ["./dist", "**/node_modules"]
 }

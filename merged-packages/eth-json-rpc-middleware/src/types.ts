@@ -14,12 +14,13 @@ export interface JsonRpcRequestToCache<Params extends JsonRpcParams>
 export type JsonRpcCacheMiddleware<
   Params extends JsonRpcParams,
   Result extends Json,
-> = JsonRpcMiddleware<Params, Result> extends (
-  req: JsonRpcRequest<Params>,
-  ...args: infer X
-) => infer Y
-  ? (req: JsonRpcRequestToCache<Params>, ...args: X) => Y
-  : never;
+> =
+  JsonRpcMiddleware<Params, Result> extends (
+    req: JsonRpcRequest<Params>,
+    ...args: infer X
+  ) => infer Y
+    ? (req: JsonRpcRequestToCache<Params>, ...args: X) => Y
+    : never;
 
 export type BlockData = string | string[];
 

@@ -40,7 +40,6 @@ export function createBlockRefRewriteMiddleware({
     // rewrite blockRef to block-tracker's block number
     const latestBlockNumber = await blockTracker.getLatestBlock();
     if (Array.isArray(req.params)) {
-      // eslint-disable-next-line require-atomic-updates
       req.params[blockRefIndex] = latestBlockNumber;
     }
     return next();

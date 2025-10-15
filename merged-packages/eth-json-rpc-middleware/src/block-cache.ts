@@ -110,8 +110,7 @@ class BlockCacheStrategy {
       )
     ) {
       if (
-        !result ||
-        !result.blockHash ||
+        !result?.blockHash ||
         result.blockHash ===
           '0x0000000000000000000000000000000000000000000000000000000000000000'
       ) {
@@ -215,7 +214,6 @@ export function createBlockCacheMiddleware({
           'No cache stored under block number %o, carrying request forward',
           requestedBlockNumber,
         );
-        // eslint-disable-next-line n/callback-return
         await next();
 
         // add result to cache

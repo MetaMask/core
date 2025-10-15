@@ -23,6 +23,7 @@ describe('inflight cache', () => {
     engine.push((_req, res, _next, end) => {
       hitCount += 1;
       res.result = true;
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (hitCount === 1) {
         setTimeout(end, 100);
       }

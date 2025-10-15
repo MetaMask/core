@@ -39,7 +39,7 @@ export function createBlockRefMiddleware({
     }
 
     const blockRef = Array.isArray(req.params)
-      ? req.params[blockRefIndex] ?? 'latest'
+      ? (req.params[blockRefIndex] ?? 'latest')
       : 'latest';
 
     // skip if not "latest"
