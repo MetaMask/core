@@ -2884,7 +2884,7 @@ describe('AccountTreeController', () => {
         },
       };
 
-      it('also consider chain-specific names like "Solana Account 2" to be used as group names', () => {
+      it('also considers chain-specific names like "Solana Account 2" to be used as group names', () => {
         const { controller } = setup({
           accounts: [mockSolAccount],
           keyrings: [MOCK_HD_KEYRING_1],
@@ -2900,7 +2900,7 @@ describe('AccountTreeController', () => {
         const wallet = controller.state.accountTree.wallets[expectedWalletId];
         const group = wallet?.groups[expectedGroupId];
 
-        // The group should use computed name from the Solana account.
+        // The group should use the computed name from the Solana account.
         expect(group?.metadata.name).toBe(mockSolAccount.metadata.name);
       });
 
@@ -2920,12 +2920,12 @@ describe('AccountTreeController', () => {
         const wallet = controller.state.accountTree.wallets[expectedWalletId];
         const group = wallet?.groups[expectedGroupId];
 
-        // The group should use computed name from the EVM account, even if there's a Solana
+        // The group should use the computed name from the EVM account, even if there's a Solana
         // account custom name.
         expect(group?.metadata.name).toBe(mockEvmAccount.metadata.name);
       });
 
-      it('uses the first non-EVM account name when there is no EVM accounts', () => {
+      it('uses the first non-EVM account name when there is no EVM account', () => {
         const { controller } = setup({
           accounts: [mockSolAccount, mockBtcAccount],
           keyrings: [MOCK_HD_KEYRING_1],
@@ -2941,7 +2941,7 @@ describe('AccountTreeController', () => {
         const wallet = controller.state.accountTree.wallets[expectedWalletId];
         const group = wallet?.groups[expectedGroupId];
 
-        // The group should use computed name from the Solana account since it
+        // The group should use the computed name from the Solana account since it
         // is the first non-EVM account that has a valid account name (and that
         // no EVM account is present in that group).
         expect(group?.metadata.name).toBe(mockSolAccount.metadata.name);
