@@ -4,11 +4,11 @@ import EMPTY_FUNCTION from './emptyFunction';
 
 type SetTimeoutCallback = () => any;
 
-interface SetTimeoutCall {
+type SetTimeoutCall = {
   callback: SetTimeoutCallback;
   duration: number;
   timeout: NodeJS.Timeout;
-}
+};
 
 type InterceptingCallback = (
   callback: SetTimeoutCallback,
@@ -24,9 +24,9 @@ const originalSetTimeout = setTimeout;
 class SetTimeoutRecorder {
   public calls: SetTimeoutCall[];
 
-  #interceptCallback: InterceptingCallback;
+  readonly #interceptCallback: InterceptingCallback;
 
-  #events: EventEmitter;
+  readonly #events: EventEmitter;
 
   #numAutomaticCallsRemaining: number;
 
@@ -54,7 +54,7 @@ class SetTimeoutRecorder {
   async next(): Promise<void> {
     // Resolve pending Promises first. Pending Promises always get resolved before a `setTimeout`
     // callback in practice, so this better reflects a real scenario.
-    await jest.runOnlyPendingTimersAsync();
+    jest.runOnlyPendingTimers();
 
     await new Promise<void>((resolve) => {
       if (this.calls.length > 0) {
@@ -71,7 +71,7 @@ class SetTimeoutRecorder {
     });
     // Resolve pending Promises before returning to better emulate a real scenario.
     // This ensures tests can't accidentally insert synchronous code after a `setTimeout`.
-    await jest.runOnlyPendingTimersAsync();
+    jest.runOnlyPendingTimers();
   }
 
   /**
@@ -86,7 +86,7 @@ class SetTimeoutRecorder {
   async nextMatchingDuration(duration: number): Promise<void> {
     // Resolve pending Promises first. Pending Promises always get resolved before a `setTimeout`
     // callback in practice, so this better reflects a real scenario.
-    await jest.runOnlyPendingTimersAsync();
+    jest.runOnlyPendingTimers();
 
     await new Promise<void>((resolve) => {
       const index = this.calls.findIndex((call) => call.duration === duration);
@@ -110,7 +110,7 @@ class SetTimeoutRecorder {
     });
     // Resolve pending Promises before returning to better emulate a real scenario.
     // This ensures tests can't accidentally insert synchronous code after a `setTimeout`.
-    await jest.runOnlyPendingTimersAsync();
+    jest.runOnlyPendingTimers();
   }
 
   findCallsMatchingDuration(duration: number): SetTimeoutCall[] {
@@ -182,7 +182,7 @@ class SetTimeoutRecorder {
   _mockClearTimeoutImplementation = (
     timeout?: NodeJS.Timeout | string | number,
   ): void => {
-    const index = this.calls.findIndex((c) => c.timeout === timeout);
+    const index = this.calls.findIndex((call) => call.timeout === timeout);
 
     if (index !== -1) {
       this.calls.splice(index, 1);
@@ -224,11 +224,11 @@ export default function recordCallsToSetTimeout({
   });
 
   jest
-    .spyOn(global, 'setTimeout')
+    .spyOn(globalThis, 'setTimeout')
     .mockImplementation(setTimeoutRecorder._mockSetTimeoutImplementation);
 
   jest
-    .spyOn(global, 'clearTimeout')
+    .spyOn(globalThis, 'clearTimeout')
     .mockImplementation(setTimeoutRecorder._mockClearTimeoutImplementation);
 
   return setTimeoutRecorder;

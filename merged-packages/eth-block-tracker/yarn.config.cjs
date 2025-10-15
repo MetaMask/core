@@ -237,16 +237,16 @@ module.exports = defineConfig({
     await expectReadme(workspace, workspaceName);
 
     // The package must have a valid pull request template.
-    // await expectPullRequestTemplate(workspace, workspaceName);
+    await expectPullRequestTemplate(workspace, workspaceName);
 
     expectWorkspaceDependencies(workspace);
 
     // The homepage of the package must match its name.
-    // workspace.set('homepage', `${workspaceRepository}#readme`);
+    workspace.set('homepage', `${workspaceRepository}#readme`);
 
     // The bugs URL of the package must point to the Issues page for the
     // repository.
-    // workspace.set('bugs.url', `${workspaceRepository}/issues`);
+    workspace.set('bugs.url', `${workspaceRepository}/issues`);
 
     // The package must specify Git as the repository type, and match the URL of
     // a repository within the MetaMask organization.
@@ -256,16 +256,27 @@ module.exports = defineConfig({
     // The package must specify the expected minimum Node versions
     workspace.set('engines.node', '^18.16 || ^20 || >=22');
 
-    // The package must provide the location of the entrypoint and its matching
-    // type declaration file.
-    workspace.set('main', 'dist/index.js');
-    workspace.set('types', 'dist/index.d.ts');
+    // The package must provide the location of the CommonJS-compatible
+    // entrypoint and its matching type declaration file.
+    workspace.set('main', './dist/index.cjs');
+    workspace.set('exports["."].require.default', './dist/index.cjs');
+    workspace.set('types', './dist/index.d.cts');
+    workspace.set('exports["."].require.types', './dist/index.d.cts');
 
-    // expectExports(workspace);
+    // The package must provide the location of the ESM-compatible JavaScript
+    // entrypoint and its matching type declaration file.
+    workspace.set('module', './dist/index.mjs');
+    workspace.set('exports["."].import.default', './dist/index.mjs');
+    workspace.set('exports["."].import.types', './dist/index.d.mts');
+
+    // The package must export a `package.json` file.
+    workspace.set('exports["./package.json"]', './package.json');
+
+    expectExports(workspace);
 
     // The list of files included in the package must only include files
     // generated during the build process.
-    workspace.set('files', ['dist/']);
+    workspace.set('files', ['dist']);
 
     // The package is public, and should be published to the npm registry.
     workspace.unset('private');

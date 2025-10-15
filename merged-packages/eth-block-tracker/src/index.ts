@@ -1,2 +1,2 @@
 export * from './PollingBlockTracker';
-export * from './BlockTracker';
+export type * from './BlockTracker';

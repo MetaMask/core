@@ -10,10 +10,10 @@ import util from 'util';
 import type { PollingBlockTrackerOptions } from '../src';
 import { PollingBlockTracker } from '../src';
 
-interface WithPollingBlockTrackerOptions {
+type WithPollingBlockTrackerOptions = {
   provider?: FakeProviderOptions;
   blockTracker?: PollingBlockTrackerOptions;
-}
+};
 
 type WithPollingBlockTrackerCallback = (args: {
   provider: SafeEventEmitterProvider;
@@ -26,11 +26,14 @@ type WithPollingBlockTrackerCallback = (args: {
  * may be specified multiple ways: `request` can either return a result
  * or reject with an error.
  *
- * @property methodName - The RPC method to which this stub will be matched.
- * @property result - Instructs `request` to return a result.
- * @property implementation - Allows overriding `request` entirely. Useful if
+ * methodName - The RPC method to which this stub will be matched.
+ *
+ * result - Instructs `request` to return a result.
+ *
+ * implementation - Allows overriding `request` entirely. Useful if
  * you want it to throw an error.
- * @property error - Instructs `request` to return a promise that rejects with
+ *
+ * error - Instructs `request` to return a promise that rejects with
  * this error.
  */
 type FakeProviderStub =
@@ -50,12 +53,12 @@ type FakeProviderStub =
 /**
  * The set of options that a new instance of FakeProvider takes.
  *
- * @property stubs - A set of objects that allow specifying the behavior
+ * stubs - A set of objects that allow specifying the behavior
  * of specific invocations of `request` matching a `methodName`.
  */
-interface FakeProviderOptions {
+type FakeProviderOptions = {
   stubs?: FakeProviderStub[];
-}
+};
 
 /**
  * Constructs a provider that returns fake responses for the various
@@ -175,5 +178,5 @@ export async function withPollingBlockTracker(
         };
   const blockTracker = new PollingBlockTracker(blockTrackerOptions);
   const callbackArgs = { provider, blockTracker };
-  await callback(callbackArgs);
+  return await callback(callbackArgs);
 }

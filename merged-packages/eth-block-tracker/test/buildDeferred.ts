@@ -9,7 +9,7 @@ export default function buildDeferred<T>(): {
   resolve: (value: T) => void;
 } {
   let unwrappedResolve: (value: T) => void;
-  const promise = new Promise<T>((r) => (unwrappedResolve = r));
+  const promise = new Promise<T>((resolve) => (unwrappedResolve = resolve));
   const resolve = (value: T) => unwrappedResolve(value);
   return { promise, resolve };
 }

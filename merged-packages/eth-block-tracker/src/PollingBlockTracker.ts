@@ -17,7 +17,7 @@ const sec = 1000;
 
 const blockTrackerEvents: (string | symbol)[] = ['sync', 'latest'];
 
-export interface PollingBlockTrackerOptions {
+export type PollingBlockTrackerOptions = {
   provider?: SafeEventEmitterProvider;
   pollingInterval?: number;
   retryTimeout?: number;
@@ -25,11 +25,11 @@ export interface PollingBlockTrackerOptions {
   setSkipCacheFlag?: boolean;
   blockResetDuration?: number;
   usePastBlocks?: boolean;
-}
+};
 
-interface ExtendedJsonRpcRequest extends JsonRpcRequest<[]> {
+type ExtendedJsonRpcRequest = {
   skipCache?: boolean;
-}
+} & JsonRpcRequest<[]>;
 
 type InternalListener = (value: string) => void;
 

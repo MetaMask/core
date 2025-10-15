@@ -15,7 +15,7 @@ export {};
 
 const UNRESOLVED = Symbol('timedOut');
 // Store this in case it gets stubbed later
-const originalSetTimeout = global.setTimeout;
+const originalSetTimeout = globalThis.setTimeout;
 const TIME_TO_WAIT_UNTIL_UNRESOLVED = 100;
 
 /**
@@ -63,8 +63,8 @@ expect.extend({
         promise,
         treatUnresolvedAfter(TIME_TO_WAIT_UNTIL_UNRESOLVED),
       ]);
-    } catch (e) {
-      rejectionValue = e;
+    } catch (error) {
+      rejectionValue = error;
     }
 
     return resolutionValue === UNRESOLVED

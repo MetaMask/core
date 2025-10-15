@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Distribute separate CommonJS and ESM files ([#351](https://github.com/MetaMask/eth-block-tracker/pull/351))
+  - Use the `exports` field of `package.json`, breaking some previously valid imports.
+
 ## [12.2.1]
 
 ### Fixed
