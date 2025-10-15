@@ -461,7 +461,7 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
    *
    * @param address - The address to validate and normalize.
    * @param req - The request object.
-   * @returns The normalized address, if valid. Otherwise, throws
+   * @returns {string} - The normalized address, if valid. Otherwise, throws
    * an error
    */
   async function validateAndNormalizeKeyholder(

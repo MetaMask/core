@@ -10,31 +10,25 @@ import { isDeepStrictEqual } from 'util';
  *
  * @template Params - The type that represents the request params.
  * @template Result - The type that represents the result.
+ * @property request - An object that represents a JsonRpcRequest. Keys such as
+ * `id` or `jsonrpc` may be omitted if you don't care about them.
+ * @property result - A function that returns a result for that request.
+ * This function takes `callNumber` argument,
+ * which is the number of times the request has been made
+ * (counting the first request as 1). This latter argument be used to specify
+ * different results for different instances of the same request.
+ * @property remainAfterUse - Usually, when a request is made via
+ * `provider.request`, the ProviderRequestStub which matches that request is
+ * removed from the list of stubs, so that if the same request comes through
+ * again, there will be no matching stub and an error will be thrown. This
+ * feature is useful for making sure that all requests have canned results.
  */
 export interface ProviderRequestStub<
   Params extends JsonRpcParams,
   Result extends Json,
 > {
-  /**
-   * An object that represents a JsonRpcRequest. Keys such as
-   * `id` or `jsonrpc` may be omitted if you don't care about them.
-   */
   request: Partial<JsonRpcRequest<Params>>;
-  /**
-   * A function that returns a result for that request.
-   * This function takes `callNumber` argument,
-   * which is the number of times the request has been made
-   * (counting the first request as 1). This latter argument be used to specify
-   * different results for different instances of the same request.
-   */
   result: (callNumber: number) => Promise<Result>;
-  /**
-   * Usually, when a request is made via
-   * `provider.request`, the ProviderRequestStub which matches that request is
-   * removed from the list of stubs, so that if the same request comes through
-   * again, there will be no matching stub and an error will be thrown. This
-   * feature is useful for making sure that all requests have canned results.
-   */
   remainAfterUse?: boolean;
 }
 
@@ -56,7 +50,9 @@ export function buildFinalMiddlewareWithDefaultResult<
       res.id = req.id;
     }
 
-    res.jsonrpc ??= '2.0';
+    if (res.jsonrpc === undefined) {
+      res.jsonrpc = '2.0';
+    }
 
     if (res.result === undefined) {
       res.result = 'default result';

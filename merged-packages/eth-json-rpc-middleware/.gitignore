@@ -1,7 +1,6 @@
 .DS_Store
 dist/
 coverage/
-docs/
 
 # Logs
 logs

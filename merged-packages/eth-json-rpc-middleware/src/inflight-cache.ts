@@ -55,8 +55,8 @@ export function createInflightCacheMiddleware(): JsonRpcCacheMiddleware<
       inflightRequests[cacheId] = activeRequestHandlers;
       // allow request to be handled normally
       log('Carrying original request forward %o', req);
+      // eslint-disable-next-line n/callback-return
       await next();
-
       // clear inflight requests
       delete inflightRequests[cacheId];
       // schedule activeRequestHandlers to be handled

@@ -67,8 +67,8 @@ export function createBlockTrackerInspectorMiddleware({
     if (!futureBlockRefRequests.includes(req.method)) {
       return next();
     }
+    // eslint-disable-next-line n/callback-return
     await next();
-
     // abort if no result or no block number
     const responseBlockNumber = getResultBlockNumber(res);
     if (!responseBlockNumber) {

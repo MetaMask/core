@@ -1,51 +1,31 @@
 {
   "name": "@metamask/eth-json-rpc-middleware",
   "version": "19.0.0",
-  "description": "Ethereum-related json-rpc-engine middleware",
-  "homepage": "https://github.com/MetaMask/eth-json-rpc-middleware#readme",
-  "bugs": {
-    "url": "https://github.com/MetaMask/eth-json-rpc-middleware/issues"
-  },
+  "description": "Ethereum-related json-rpc-engine middleware.",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/eth-json-rpc-middleware.git"
   },
   "license": "ISC",
-  "sideEffects": false,
-  "exports": {
-    ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.cts",
-        "default": "./dist/index.cjs"
-      }
-    },
-    "./package.json": "./package.json"
+  "main": "./dist/index.js",
+  "browser": {
+    "btoa": false,
+    "node-fetch": false
   },
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.cts",
+  "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist/"
   ],
   "scripts": {
-    "build": "ts-bridge --project tsconfig.build.json --clean",
+    "build": "tsc --project tsconfig.build.json",
     "build:clean": "rimraf dist && yarn build",
-    "build:docs": "typedoc",
-    "lint": "yarn lint:eslint && yarn lint:constraints && yarn lint:misc --check && yarn lint:dependencies --check && yarn lint:changelog",
-    "lint:changelog": "auto-changelog validate --prettier",
-    "lint:constraints": "yarn constraints",
-    "lint:dependencies": "depcheck && yarn dedupe --check",
-    "lint:dependencies:fix": "depcheck && yarn dedupe",
-    "lint:eslint": "eslint . --cache",
-    "lint:fix": "yarn lint:eslint --fix && yarn lint:constraints --fix && yarn lint:misc --write && yarn lint:dependencies:fix && yarn lint:changelog",
-    "lint:misc": "prettier '**/*.json' '**/*.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
+    "lint": "yarn lint:eslint && yarn lint:misc --check",
+    "lint:eslint": "eslint . --cache --ext js,ts",
+    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
+    "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "prepack": "./scripts/prepack.sh",
     "test": "jest && yarn build:clean && yarn test:types",
-    "test:types": "tsd --files 'src/**/*.test-d.ts' && attw --pack",
+    "test:types": "tsd --files 'src/**/*.test-d.ts'",
     "test:watch": "jest --watch"
   },
   "dependencies": {
@@ -56,47 +36,46 @@
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.7.0",
+    "@types/bn.js": "^5.1.5",
+    "bn.js": "^5.2.1",
     "klona": "^2.0.6",
     "pify": "^5.0.0",
     "safe-stable-stringify": "^2.4.3"
   },
   "devDependencies": {
-    "@arethetypeswrong/cli": "^0.15.3",
+    "@jest/globals": "^27.5.1",
     "@lavamoat/allow-scripts": "^3.0.4",
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^3.1.0",
     "@metamask/error-reporting-service": "^2.0.0",
-    "@metamask/eslint-config": "^14.0.0",
-    "@metamask/eslint-config-jest": "^14.0.0",
-    "@metamask/eslint-config-nodejs": "^14.0.0",
-    "@metamask/eslint-config-typescript": "^14.0.0",
+    "@metamask/eslint-config": "^12.1.0",
+    "@metamask/eslint-config-jest": "^12.1.0",
+    "@metamask/eslint-config-nodejs": "^12.1.0",
+    "@metamask/eslint-config-typescript": "^12.1.0",
     "@metamask/network-controller": "^24.2.1",
-    "@ts-bridge/cli": "^0.6.3",
+    "@types/btoa": "^1.2.3",
     "@types/jest": "^27.4.1",
-    "@types/node": "^18.18",
+    "@types/node": "^18.16",
     "@types/pify": "^5.0.2",
-    "@yarnpkg/types": "^4.0.1",
-    "depcheck": "^1.4.3",
-    "eslint": "^9.11.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-import-resolver-typescript": "^3.6.3",
-    "eslint-plugin-import-x": "^4.3.0",
-    "eslint-plugin-jest": "^28.8.3",
-    "eslint-plugin-jsdoc": "^50.2.4",
-    "eslint-plugin-n": "^17.10.3",
-    "eslint-plugin-prettier": "^5.2.1",
-    "eslint-plugin-promise": "^7.1.0",
+    "@typescript-eslint/eslint-plugin": "^5.42.1",
+    "@typescript-eslint/parser": "^5.42.1",
+    "eslint": "^8.44.0",
+    "eslint-config-prettier": "^8.1.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-jest": "^27.1.5",
+    "eslint-plugin-jsdoc": "^39.6.2",
+    "eslint-plugin-n": "^15.7.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-promise": "^6.1.1",
     "jest": "^27.5.1",
-    "prettier": "^3.3.3",
-    "prettier-plugin-packagejson": "^2.5.8",
+    "prettier": "^2.2.1",
+    "prettier-plugin-packagejson": "^2.2.11",
     "rimraf": "^3.0.2",
     "ts-jest": "^27.1.4",
-    "ts-node": "^10.9.1",
+    "ts-node": "^10.7.0",
     "tsd": "^0.31.2",
-    "typedoc": "^0.24.8",
-    "typescript": "~5.2.2",
-    "typescript-eslint": "^8.7.0"
+    "typescript": "~4.8.4"
   },
-  "packageManager": "yarn@4.1.1",
+  "packageManager": "yarn@3.2.1",
   "engines": {
     "node": "^18.16 || ^20 || >=22"
   },
@@ -108,8 +87,7 @@
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
       "@metamask/eth-sig-util>ethereumjs-util>ethereum-cryptography>keccak": false,
-      "@metamask/eth-sig-util>ethereumjs-util>ethereum-cryptography>secp256k1": false,
-      "eslint-plugin-import-x>unrs-resolver": false
+      "@metamask/eth-sig-util>ethereumjs-util>ethereum-cryptography>secp256k1": false
     }
   }
 }

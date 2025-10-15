@@ -3,11 +3,6 @@ const UNRESOLVED = Symbol('timedOut');
 const originalSetTimeout = global.setTimeout;
 const TIME_TO_WAIT_UNTIL_UNRESOLVED = 100;
 
-// Workaround for Jest 28 bug with Node >= 19
-Object.defineProperty(global, 'performance', {
-  writable: true,
-});
-
 /**
  * Produces a sort of dummy promise which can be used in conjunction with a
  * "real" promise to determine whether the "real" promise was ever resolved. If

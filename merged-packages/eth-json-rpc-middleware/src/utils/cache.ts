@@ -46,7 +46,7 @@ export function cacheIdentifierForRequest(
 ): string | null {
   const simpleParams = skipBlockRef
     ? paramsWithoutBlockTag(request)
-    : (request.params ?? []);
+    : request.params ?? [];
   if (canCache(request.method)) {
     return `${request.method}:${stringify(simpleParams)}`;
   }
