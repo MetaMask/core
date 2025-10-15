@@ -268,6 +268,10 @@ export class ShieldController extends BaseController<
     );
     for (const transaction of transactions) {
       const previousTransaction = previousTransactionsById.get(transaction.id);
+      const simulationDataChanged = this.#compareTransactionSimulationData(
+        previousTransaction?.simulationData,
+        transaction.simulationData,
+      );
 
       // Check coverage if the transaction is new or if the simulation data has
       // changed.
@@ -275,7 +279,7 @@ export class ShieldController extends BaseController<
         !previousTransaction ||
         // Checking reference equality is sufficient because this object is
         // replaced if the simulation data has changed.
-        previousTransaction.simulationData !== transaction.simulationData
+        simulationDataChanged
       ) {
         this.checkCoverage(transaction).catch(
           // istanbul ignore next
@@ -442,5 +446,62 @@ export class ShieldController extends BaseController<
 
   #getLatestCoverageId(itemId: string): string | undefined {
     return this.state.coverageResults[itemId]?.results[0]?.coverageId;
+  }
+
+  /**
+   * Compares the simulation data of a transaction.
+   *
+   * @param simulationData - The simulation data of the transaction.
+   * @param previousSimulationData - The previous simulation data of the transaction.
+   * @returns Whether the simulation data has changed.
+   */
+  #compareTransactionSimulationData(
+    simulationData?: TransactionMeta['simulationData'],
+    previousSimulationData?: TransactionMeta['simulationData'],
+  ) {
+    if (!simulationData && !previousSimulationData) {
+      return false;
+    }
+
+    // check the simulation error
+    if (
+      simulationData?.error?.code !== previousSimulationData?.error?.code ||
+      simulationData?.error?.message !== previousSimulationData?.error?.message
+    ) {
+      return true;
+    }
+
+    // check the native balance change
+    if (
+      simulationData?.nativeBalanceChange?.difference !==
+        previousSimulationData?.nativeBalanceChange?.difference ||
+      simulationData?.nativeBalanceChange?.newBalance !==
+        previousSimulationData?.nativeBalanceChange?.newBalance ||
+      simulationData?.nativeBalanceChange?.previousBalance !==
+        previousSimulationData?.nativeBalanceChange?.previousBalance ||
+      simulationData?.nativeBalanceChange?.isDecrease !==
+        previousSimulationData?.nativeBalanceChange?.isDecrease
+    ) {
+      return true;
+    }
+
+    // check the token balance changes
+    if (
+      simulationData?.tokenBalanceChanges.length !==
+        previousSimulationData?.tokenBalanceChanges.length ||
+      simulationData?.tokenBalanceChanges.some(
+        (tokenBalanceChange, index) =>
+          tokenBalanceChange.difference !==
+          previousSimulationData?.tokenBalanceChanges[index].difference,
+      )
+    ) {
+      return true;
+    }
+
+    // check the isUpdatedAfterSecurityCheck
+    return (
+      simulationData?.isUpdatedAfterSecurityCheck !==
+      previousSimulationData?.isUpdatedAfterSecurityCheck
+    );
   }
 }

@@ -58,6 +58,8 @@ export class ShieldRemoteBackend implements ShieldBackend {
 
   readonly #fetch: typeof globalThis.fetch;
 
+  #abortController: AbortController | undefined;
+
   constructor({
     getAccessToken,
     getCoverageResultTimeout = 5000, // milliseconds
@@ -189,6 +191,13 @@ export class ShieldRemoteBackend implements ShieldBackend {
       pollInterval?: number;
     },
   ): Promise<GetCoverageResultResponse> {
+    if (this.#abortController && !this.#abortController.signal.aborted) {
+      // cancel the previous ongoing requests/polling before starting a new one
+      this.#abortController.abort();
+    }
+    const abortController = new AbortController();
+    this.#abortController = abortController;
+
     const reqBody: GetCoverageResultRequest = {
       coverageId,
     };
@@ -197,36 +206,39 @@ export class ShieldRemoteBackend implements ShieldBackend {
     const pollInterval =
       configs?.pollInterval ?? this.#getCoverageResultPollInterval;
 
+    let retryCount = 0;
     const headers = await this.#createHeaders();
-    return await new Promise((resolve, reject) => {
-      let timeoutReached = false;
-      setTimeout(() => {
-        timeoutReached = true;
-        reject(new Error('Timeout waiting for coverage result'));
-      }, timeout);
-
-      const poll = async (): Promise<GetCoverageResultResponse> => {
-        // The timeoutReached variable is modified in the timeout callback.
-        // eslint-disable-next-line no-unmodified-loop-condition
-        while (!timeoutReached) {
-          const startTime = Date.now();
-          const res = await this.#fetch(configs.coverageResultUrl, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(reqBody),
-          });
-          if (res.status === 200) {
-            return (await res.json()) as GetCoverageResultResponse;
-          }
+    const poll = async (
+      _timeoutId: NodeJS.Timeout | null,
+    ): Promise<GetCoverageResultResponse> => {
+      // The timeoutReached variable is modified in the timeout callback.
+      while (retryCount < 5 && !abortController.signal.aborted) {
+        const startTime = Date.now();
+        const res = await this.#fetch(configs.coverageResultUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(reqBody),
+          signal: abortController.signal,
+        });
+        if (res.status === 200) {
+          retryCount = 5; // setting retryCount to 5 to break the loop
+          return (await res.json()) as GetCoverageResultResponse;
+        }
+        if (!abortController.signal.aborted) {
           await sleep(pollInterval - (Date.now() - startTime));
         }
-        // The following line will not have an effect as the upper level promise
-        // will already be rejected by now.
-        throw new Error('unexpected error');
-      };
+        retryCount += 1;
+      }
+      // The following line will not have an effect as the upper level promise
+      // will already be rejected by now.
+      throw new Error('unexpected error');
+    };
 
-      poll().then(resolve).catch(reject);
-    });
+    return await withTimeoutAndCancellation<GetCoverageResultResponse>(
+      poll,
+      timeout,
+      abortController,
+    );
   }
 
   async #createHeaders() {
@@ -292,4 +304,58 @@ function makeInitSignatureCoverageCheckBody(
     method: signatureRequest.type,
     origin: signatureRequest.messageParams.origin,
   };
+}
+
+/**
+ * Execute a callback with a timeout and cancellation.
+ *
+ * @param callback - The callback to execute.
+ * @param timeout - The timeout in milliseconds.
+ * @param abortController - The abort controller.
+ * @returns The result of the callback.
+ */
+async function withTimeoutAndCancellation<Type>(
+  callback: (timeoutId: NodeJS.Timeout | null) => Promise<Type>,
+  timeout: number,
+  abortController: AbortController,
+): Promise<Type> {
+  let timeoutId: NodeJS.Timeout | null = null;
+  let abortHandler: (() => void) | null = null;
+  const cleanupFn = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+    if (abortHandler) {
+      // remove the abort handler since it is no longer needed
+      abortController.signal.removeEventListener('abort', abortHandler);
+      abortHandler = null;
+    }
+  };
+
+  try {
+    const timeOutPromise = new Promise((_resolve, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error('Timeout waiting for coverage result'));
+      }, timeout);
+    });
+
+    const abortPromise = new Promise((_resolve, reject) => {
+      abortHandler = () => {
+        reject(new Error('Coverage result polling cancelled'));
+      };
+      abortController.signal.addEventListener('abort', abortHandler);
+    });
+
+    const result = await Promise.race([
+      callback(timeoutId),
+      timeOutPromise,
+      abortPromise,
+    ]);
+    cleanupFn();
+    return result as Type;
+  } catch (error) {
+    cleanupFn();
+    throw error;
+  }
 }
