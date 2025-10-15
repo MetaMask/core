@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/eth-block-tracker` from `^12.2.0` to `^12.2.1` ([#422](https://github.com/MetaMask/eth-json-rpc-middleware/pull/422))
+
 ### Fixed
 
 - Prevent delays in request processing ([#421](https://github.com/MetaMask/eth-json-rpc-middleware/pull/421))
