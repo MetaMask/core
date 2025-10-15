@@ -157,10 +157,30 @@ export const getDefaultMultichainNetworkControllerState =
  * the `anonymous` flag.
  */
 export const MULTICHAIN_NETWORK_CONTROLLER_METADATA = {
-  multichainNetworkConfigurationsByChainId: { persist: true, anonymous: true },
-  selectedMultichainNetworkChainId: { persist: true, anonymous: true },
-  isEvmSelected: { persist: true, anonymous: true },
-  networksWithTransactionActivity: { persist: true, anonymous: true },
+  multichainNetworkConfigurationsByChainId: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  selectedMultichainNetworkChainId: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  isEvmSelected: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  networksWithTransactionActivity: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
 } satisfies StateMetadata<MultichainNetworkControllerState>;
 
 /**

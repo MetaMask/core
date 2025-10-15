@@ -225,6 +225,27 @@ describe('SolAccountProvider', () => {
     expect(newAccounts[0]).toStrictEqual(MOCK_SOL_ACCOUNT_1);
   });
 
+  it('throws if the account creation process takes too long', async () => {
+    const { provider, mocks } = setup({
+      accounts: [],
+    });
+
+    mocks.keyring.createAccount.mockImplementation(() => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(MOCK_SOL_ACCOUNT_1);
+        }, 4000);
+      });
+    });
+
+    await expect(
+      provider.createAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).rejects.toThrow('Timed out');
+  });
+
   // Skip this test for now, since we manually inject those options upon
   // account creation, so it cannot fails (until the Solana Snap starts
   // using the new typed options).
@@ -256,12 +277,12 @@ describe('SolAccountProvider', () => {
     // Simulate one discovered account at the requested index.
     mocks.handleRequest.mockReturnValue([MOCK_SOL_DISCOVERED_ACCOUNT_1]);
 
-    const created = await provider.discoverAndCreateAccounts({
+    const discovered = await provider.discoverAccounts({
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
     });
 
-    expect(created).toHaveLength(1);
+    expect(discovered).toHaveLength(1);
     // Ensure we did go through creation path
     expect(mocks.keyring.createAccount).toHaveBeenCalled();
     // Provider should now expose one account (newly created)
@@ -276,7 +297,7 @@ describe('SolAccountProvider', () => {
     // Simulate one discovered account — should resolve to the existing one
     mocks.handleRequest.mockReturnValue([MOCK_SOL_DISCOVERED_ACCOUNT_1]);
 
-    const discovered = await provider.discoverAndCreateAccounts({
+    const discovered = await provider.discoverAccounts({
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
     });
@@ -291,7 +312,7 @@ describe('SolAccountProvider', () => {
 
     mocks.handleRequest.mockReturnValue([]);
 
-    const discovered = await provider.discoverAndCreateAccounts({
+    const discovered = await provider.discoverAccounts({
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
     });

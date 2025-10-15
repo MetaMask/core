@@ -28,7 +28,7 @@ export type ChecksumAddress = Hex;
 export type ProcessedBalance = {
   success: boolean;
   value?: BN;
-  account: ChecksumAddress;
+  account: ChecksumAddress | string;
   token: ChecksumAddress;
   chainId: ChainIdHex;
 };
@@ -296,11 +296,17 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     // Process regular API balances
     if (balances) {
       const apiBalances = balances.flatMap((b) => {
-        const account = b.accountAddress?.split(':')[2] as ChecksumAddress;
-        if (!account) {
+        const addressPart = b.accountAddress?.split(':')[2];
+        if (!addressPart) {
           return [];
         }
+        const account = checksum(addressPart);
         const token = checksum(b.address);
+        // Use original address for zero address tokens, checksummed for others
+        // TODO: this is a hack to get the correct account address type but needs to be fixed
+        // by mgrating tokenBalancesController to checksum addresses
+        const finalAccount: ChecksumAddress | string =
+          token === ZERO_ADDRESS ? account : addressPart;
         const chainId = toHex(b.chainId) as ChainIdHex;
 
         let value: BN | undefined;
@@ -325,14 +331,14 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
 
         // Track native balances for later
         if (token === ZERO_ADDRESS && value !== undefined) {
-          nativeBalancesFromAPI.set(`${account}-${chainId}`, value);
+          nativeBalancesFromAPI.set(`${finalAccount}-${chainId}`, value);
         }
 
         return [
           {
             success: value !== undefined,
             value,
-            account,
+            account: finalAccount,
             token,
             chainId,
           },

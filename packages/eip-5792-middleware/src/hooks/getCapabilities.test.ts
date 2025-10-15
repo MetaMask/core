@@ -44,6 +44,8 @@ describe('EIP-5792', () => {
     PreferencesControllerGetStateAction['handler']
   > = jest.fn();
 
+  const isAuxiliaryFundsSupportedMock: jest.Mock = jest.fn();
+
   let messenger: EIP5792Messenger;
 
   const getCapabilitiesHooks = {
@@ -53,6 +55,7 @@ describe('EIP-5792', () => {
     getIsSmartTransaction: getIsSmartTransactionMock,
     isRelaySupported: isRelaySupportedMock,
     getSendBundleSupportedChains: getSendBundleSupportedChainsMock,
+    isAuxiliaryFundsSupported: isAuxiliaryFundsSupportedMock,
   };
 
   beforeEach(() => {
@@ -421,6 +424,120 @@ describe('EIP-5792', () => {
         [CHAIN_ID_MOCK]: {
           atomic: {
             status: 'ready',
+          },
+        },
+      });
+    });
+
+    it('fetches all network configurations when chainIds is undefined', async () => {
+      const networkConfigurationsMock = {
+        '0x1': { chainId: '0x1' },
+        '0x89': { chainId: '0x89' },
+      };
+
+      messenger.registerActionHandler(
+        'NetworkController:getState',
+        jest.fn().mockReturnValue({
+          networkConfigurationsByChainId: networkConfigurationsMock,
+        }),
+      );
+
+      isAtomicBatchSupportedMock.mockResolvedValueOnce([
+        {
+          chainId: '0x1',
+          delegationAddress: DELEGATION_ADDRESS_MOCK,
+          isSupported: true,
+        },
+        {
+          chainId: '0x89',
+          delegationAddress: undefined,
+          isSupported: false,
+          upgradeContractAddress: DELEGATION_ADDRESS_MOCK,
+        },
+      ]);
+
+      const capabilities = await getCapabilities(
+        getCapabilitiesHooks,
+        messenger,
+        FROM_MOCK,
+        undefined,
+      );
+
+      expect(capabilities).toStrictEqual({
+        '0x1': {
+          atomic: {
+            status: 'supported',
+          },
+          alternateGasFees: {
+            supported: true,
+          },
+        },
+        '0x89': {
+          atomic: {
+            status: 'ready',
+          },
+        },
+      });
+    });
+
+    it('includes auxiliary funds capability when supported', async () => {
+      isAtomicBatchSupportedMock.mockResolvedValueOnce([
+        {
+          chainId: CHAIN_ID_MOCK,
+          delegationAddress: DELEGATION_ADDRESS_MOCK,
+          isSupported: true,
+        },
+      ]);
+
+      isAuxiliaryFundsSupportedMock.mockReturnValue(true);
+
+      const capabilities = await getCapabilities(
+        getCapabilitiesHooks,
+        messenger,
+        FROM_MOCK,
+        [CHAIN_ID_MOCK],
+      );
+
+      expect(capabilities).toStrictEqual({
+        [CHAIN_ID_MOCK]: {
+          atomic: {
+            status: 'supported',
+          },
+          alternateGasFees: {
+            supported: true,
+          },
+          auxiliaryFunds: {
+            supported: true,
+          },
+        },
+      });
+    });
+
+    it('does not include auxiliary funds capability when not supported', async () => {
+      isAtomicBatchSupportedMock.mockResolvedValueOnce([
+        {
+          chainId: CHAIN_ID_MOCK,
+          delegationAddress: DELEGATION_ADDRESS_MOCK,
+          isSupported: true,
+        },
+      ]);
+
+      isAuxiliaryFundsSupportedMock.mockReturnValue(false);
+
+      const capabilities = await getCapabilities(
+        getCapabilitiesHooks,
+        messenger,
+        FROM_MOCK,
+        [CHAIN_ID_MOCK],
+      );
+
+      expect(capabilities).toStrictEqual({
+        [CHAIN_ID_MOCK]: {
+          atomic: {
+            status: 'supported',
+          },
+          alternateGasFees: {
+            supported: true,
           },
         },
       });

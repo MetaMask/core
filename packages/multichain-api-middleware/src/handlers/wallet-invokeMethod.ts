@@ -80,7 +80,7 @@ async function walletInvokeMethodHandler(
   } catch {
     // noop
   }
-  if (!caveat?.value?.isMultichainOrigin) {
+  if (!caveat) {
     return end(providerErrors.unauthorized());
   }
 
