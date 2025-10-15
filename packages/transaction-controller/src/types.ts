@@ -2014,7 +2014,12 @@ export type MetamaskPayMetadata = {
 /**
  * Parameters for the transaction simulation API.
  */
-export type GetSimulationConfig = (url: string) => Promise<{
+export type GetSimulationConfig = (
+  url: string,
+  opts?: {
+    txMeta?: TransactionMeta;
+  },
+) => Promise<{
   newUrl?: string;
   authorization?: string;
 }>;
