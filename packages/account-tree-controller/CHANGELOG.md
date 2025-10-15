@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6380](https://github.com/MetaMask/core/pull/6380))
   - Previously, `AccountTreeController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- Use non-EVM account names for group names ([#6831](https://github.com/MetaMask/core/pull/6831))
+  - EVM accounts still take precedence over non-EVM accounts.
+  - Before accounts get re-aligned, it is possible that a group contains only non-EVM accounts, in which case, the first non-EVM account name will be used for that account group.
 
 ### Fixed
 

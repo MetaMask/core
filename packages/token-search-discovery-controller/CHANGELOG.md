@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export additional controller types from package index ([#6837](https://github.com/MetaMask/core/pull/6837))
+  - Export `TokenSearchDiscoveryControllerActions` - union type of all controller actions
+  - Export `TokenSearchDiscoveryControllerGetStateAction` - action type for getting controller state
+  - Export `TokenSearchDiscoveryControllerEvents` - union type of all controller events
+  - Export `TokenSearchDiscoveryControllerStateChangeEvent` - state change event type
+
 ## [3.4.0]
 
 ### Added
