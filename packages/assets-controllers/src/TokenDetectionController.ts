@@ -15,6 +15,7 @@ import {
   ERC20,
   safelyExecute,
   isEqualCaseInsensitive,
+  toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
@@ -1042,27 +1043,28 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     const tokensWithBalance: Token[] = [];
     const eventTokensDetails: string[] = [];
 
-    for (const nonZeroTokenAddress of tokensSlice) {
-      // Check map of validated tokens
+    for (const tokenAddress of tokensSlice) {
+      // Normalize addresses explicitly (don't assume input format)
+      const lowercaseTokenAddress = tokenAddress.toLowerCase();
+      const checksummedTokenAddress = toChecksumHexAddress(tokenAddress);
+
+      // Check map of validated tokens (cache keys are lowercase)
       const tokenData =
-        this.#tokensChainsCache[chainId]?.data?.[
-          nonZeroTokenAddress.toLowerCase()
-        ];
+        this.#tokensChainsCache[chainId]?.data?.[lowercaseTokenAddress];
 
       if (!tokenData) {
         console.warn(
-          `Token metadata not found in cache for ${nonZeroTokenAddress} on chain ${chainId}`,
+          `Token metadata not found in cache for ${tokenAddress} on chain ${chainId}`,
         );
         continue;
       }
 
-      const { decimals, symbol, aggregators, iconUrl, name, address } =
-        tokenData;
+      const { decimals, symbol, aggregators, iconUrl, name } = tokenData;
 
-      // Push to lists
-      eventTokensDetails.push(`${symbol} - ${address}`);
+      // Push to lists with checksummed address (for allTokens storage)
+      eventTokensDetails.push(`${symbol} - ${checksummedTokenAddress}`);
       tokensWithBalance.push({
-        address,
+        address: checksummedTokenAddress,
         decimals,
         symbol,
         aggregators,
