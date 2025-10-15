@@ -1,6 +1,8 @@
 import { query } from '@metamask/controller-utils';
 import {
+  MOCK_ANY_NAMESPACE,
   Messenger,
+  type MockAnyNamespace,
   type MessengerActions,
   type MessengerEvents,
 } from '@metamask/messenger';
@@ -46,11 +48,11 @@ describe('updateSwapsTransaction', () => {
       },
     };
     const rootMessenger = new Messenger<
-      'Root',
+      MockAnyNamespace,
       MessengerActions<TransactionControllerMessenger>,
       MessengerEvents<TransactionControllerMessenger>
     >({
-      namespace: 'Root',
+      namespace: MOCK_ANY_NAMESPACE,
     });
     messenger = new Messenger<
       'TransactionController',

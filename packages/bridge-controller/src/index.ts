@@ -26,7 +26,7 @@ export {
 export type {
   ChainConfiguration,
   L1GasFees,
-  SolanaFees,
+  NonEvmFees,
   QuoteMetadata,
   GasMultiplierByChainId,
   FeatureFlagResponse,
@@ -58,6 +58,7 @@ export {
   BridgeUserAction,
   BridgeBackgroundAction,
   type BridgeControllerGetStateAction,
+  type BridgeControllerStateChangeEvent,
 } from './types';
 
 export {
@@ -106,6 +107,7 @@ export {
   isNativeAddress,
   isSolanaChainId,
   isBitcoinChainId,
+  isNonEvmChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
   isCrossChain,
@@ -119,7 +121,7 @@ export {
 
 export { calcLatestSrcBalance } from './utils/balance';
 
-export { fetchBridgeTokens } from './utils/fetch';
+export { fetchBridgeTokens, getClientHeaders } from './utils/fetch';
 
 export {
   formatChainIdToCaip,

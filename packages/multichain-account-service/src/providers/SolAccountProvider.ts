@@ -22,6 +22,9 @@ export type SolAccountProviderConfig = {
     timeoutMs: number;
     backOffMs: number;
   };
+  createAccounts: {
+    timeoutMs: number;
+  };
 };
 
 export const SOL_ACCOUNT_PROVIDER_NAME = 'Solana' as const;
@@ -42,6 +45,9 @@ export class SolAccountProvider extends SnapAccountProvider {
         timeoutMs: 2000,
         maxAttempts: 3,
         backOffMs: 1000,
+      },
+      createAccounts: {
+        timeoutMs: 3000,
       },
     },
   ) {
@@ -90,7 +96,10 @@ export class SolAccountProvider extends SnapAccountProvider {
     derivationPath: string;
   }): Promise<Bip44Account<KeyringAccount>> {
     const createAccount = await this.getRestrictedSnapAccountCreator();
-    const account = await createAccount({ entropySource, derivationPath });
+    const account = await withTimeout(
+      createAccount({ entropySource, derivationPath }),
+      this.#config.createAccounts.timeoutMs,
+    );
 
     // Ensure entropy is present before type assertion validation
     account.options.entropy = {
@@ -117,6 +126,7 @@ export class SolAccountProvider extends SnapAccountProvider {
       groupIndex,
       derivationPath,
     });
+
     return [account];
   }
 

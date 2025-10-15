@@ -171,6 +171,7 @@ jest.mock('uuid', () => {
  * @param args.bulkScanUrlsMock - Used to construct mock versions of the
  * `PhishingController:bulkScanUrls` action.
  * @param args.defaultSelectedAccount - The default selected account to use in
+ * @param args.displayNftMedia - The default displayNftMedia to use in
  * @returns A collection of test controllers and mocks.
  */
 function setupController({
@@ -187,6 +188,7 @@ function setupController({
   mockNetworkClientConfigurationsByNetworkClientId = {},
   defaultSelectedAccount = OWNER_ACCOUNT,
   mockGetNetworkClientIdByChainId = {},
+  displayNftMedia = true,
 }: {
   options?: Partial<ConstructorParameters<typeof NftController>[0]>;
   getERC721AssetName?: jest.Mock<
@@ -231,6 +233,7 @@ function setupController({
   >;
   defaultSelectedAccount?: InternalAccount;
   mockGetNetworkClientIdByChainId?: Record<Hex, NetworkClientConfiguration>;
+  displayNftMedia?: boolean;
 } = {}) {
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -391,13 +394,15 @@ function setupController({
     ...options,
   });
 
-  const triggerPreferencesStateChange = (state: PreferencesState) => {
+  const triggerPreferencesStateChange = (
+    state: PreferencesState & { openSeaEnabled?: boolean },
+  ) => {
     messenger.publish('PreferencesController:stateChange', state, []);
   };
 
   triggerPreferencesStateChange({
     ...getDefaultPreferencesState(),
-    openSeaEnabled: true,
+    displayNftMedia,
   });
 
   const triggerSelectedAccountChange = (
@@ -478,13 +483,6 @@ describe('NftController', () => {
       allNfts: {},
       ignoredNfts: [],
     });
-  });
-
-  it('should set api key', async () => {
-    const { nftController } = setupController();
-
-    nftController.setApiKey('testkey');
-    expect(nftController.openSeaApiKey).toBe('testkey');
   });
 
   describe('watchNft', function () {
@@ -750,7 +748,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
-        openSeaEnabled: false,
+        displayNftMedia: false,
       });
 
       const requestId = 'approval-request-id-1';
@@ -876,7 +874,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
 
       const requestId = 'approval-request-id-1';
@@ -1002,7 +1000,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: false,
-        openSeaEnabled: false,
+        displayNftMedia: false,
       });
 
       const requestId = 'approval-request-id-1';
@@ -1129,7 +1127,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: false,
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
 
       const requestId = 'approval-request-id-1';
@@ -1261,7 +1259,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
-        openSeaEnabled: false,
+        displayNftMedia: false,
       });
       const requestId = 'approval-request-id-1';
 
@@ -1393,7 +1391,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
       const requestId = 'approval-request-id-1';
 
@@ -1551,7 +1549,7 @@ describe('NftController', () => {
       triggerSelectedAccountChange(OWNER_ACCOUNT);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
 
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -1654,7 +1652,7 @@ describe('NftController', () => {
       triggerSelectedAccountChange(OWNER_ACCOUNT);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: OWNER_ADDRESS,
       });
 
@@ -1676,7 +1674,7 @@ describe('NftController', () => {
       triggerSelectedAccountChange(differentAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
       // now accept the request
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -1940,21 +1938,21 @@ describe('NftController', () => {
       });
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
       await nftController.addNft('0x01', '1234', 'mainnet');
       mockGetAccount.mockReturnValue(secondAccount);
       triggerSelectedAccountChange(secondAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
       await nftController.addNft('0x02', '4321', 'mainnet');
       mockGetAccount.mockReturnValue(firstAccount);
       triggerSelectedAccountChange(firstAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
       expect(
         nftController.state.allNfts[firstAddress][ChainId.mainnet][0],
@@ -3499,21 +3497,21 @@ describe('NftController', () => {
       });
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
       await nftController.addNftVerifyOwnership('0x01', '1234', 'mainnet');
       mockGetAccount.mockReturnValue(secondAccount);
       triggerSelectedAccountChange(secondAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
       await nftController.addNftVerifyOwnership('0x02', '4321', 'mainnet');
       mockGetAccount.mockReturnValue(firstAccount);
       triggerSelectedAccountChange(firstAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
       expect(
         nftController.state.allNfts[firstAccount.address][ChainId.mainnet][0],
@@ -3548,7 +3546,7 @@ describe('NftController', () => {
       triggerSelectedAccountChange(firstAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
       const result = async () =>
         await nftController.addNftVerifyOwnership('0x01', '1234', 'mainnet');
@@ -3593,14 +3591,14 @@ describe('NftController', () => {
       triggerSelectedAccountChange(firstAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
       await nftController.addNftVerifyOwnership('0x01', '1234', 'sepolia');
       mockGetAccount.mockReturnValue(secondAccount);
       triggerSelectedAccountChange(secondAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
       await nftController.addNftVerifyOwnership('0x02', '4321', 'goerli');
 
@@ -3648,7 +3646,7 @@ describe('NftController', () => {
       triggerSelectedAccountChange(OWNER_ACCOUNT);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
 
       const firstAddress = '0x123';
@@ -3790,14 +3788,14 @@ describe('NftController', () => {
       triggerSelectedAccountChange(firstAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
       await nftController.addNft('0x02', '4321', 'mainnet');
       mockGetAccount.mockReturnValue(secondAccount);
       triggerSelectedAccountChange(secondAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
       await nftController.addNft('0x01', '1234', 'mainnet');
       nftController.removeNft('0x01', '1234', 'mainnet');
@@ -3806,7 +3804,7 @@ describe('NftController', () => {
       ).toHaveLength(0);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
       expect(
         nftController.state.allNfts[firstAccount.address][ChainId.mainnet][0],
@@ -3883,7 +3881,7 @@ describe('NftController', () => {
       triggerSelectedAccountChange(userAccount1);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
 
       await nftController.addNft('0x01', '1', 'sepolia', {
@@ -3913,7 +3911,7 @@ describe('NftController', () => {
       triggerSelectedAccountChange(userAccount2);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
 
       // now remove the nft after changing to a different network and account from the one where it was added
@@ -4096,7 +4094,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: false,
-        openSeaEnabled: false,
+        displayNftMedia: false,
       });
 
       await nftController.addNft(
@@ -4369,7 +4367,7 @@ describe('NftController', () => {
       triggerSelectedAccountChange(userAccount1);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
 
       await nftController.addNft(
@@ -4393,7 +4391,7 @@ describe('NftController', () => {
       triggerSelectedAccountChange(userAccount2);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
 
       // now favorite the nft after changing to a different account from the one where it was added
@@ -4512,7 +4510,7 @@ describe('NftController', () => {
         mockGetAccount.mockReturnValue(OWNER_ACCOUNT);
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          openSeaEnabled: true,
+          displayNftMedia: true,
         });
 
         await nftController.addNft('0x02', '1', 'sepolia', {
@@ -4534,7 +4532,7 @@ describe('NftController', () => {
 
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          openSeaEnabled: true,
+          displayNftMedia: true,
         });
 
         await nftController.checkAndUpdateAllNftsOwnershipStatus('sepolia', {
@@ -4660,7 +4658,7 @@ describe('NftController', () => {
         triggerSelectedAccountChange(OWNER_ACCOUNT);
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          openSeaEnabled: true,
+          displayNftMedia: true,
         });
 
         const nft = {
@@ -4689,7 +4687,7 @@ describe('NftController', () => {
         triggerSelectedAccountChange(secondAccount);
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          openSeaEnabled: true,
+          displayNftMedia: true,
         });
 
         await nftController.checkAndUpdateSingleNftOwnershipStatus(
@@ -4718,7 +4716,7 @@ describe('NftController', () => {
         triggerSelectedAccountChange(OWNER_ACCOUNT);
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          openSeaEnabled: true,
+          displayNftMedia: true,
         });
 
         const nft = {
@@ -4747,7 +4745,7 @@ describe('NftController', () => {
         triggerSelectedAccountChange(secondAccount);
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          openSeaEnabled: true,
+          displayNftMedia: true,
         });
 
         const updatedNft =
@@ -4966,7 +4964,7 @@ describe('NftController', () => {
       expect(spy).toHaveBeenCalledTimes(0);
     });
 
-    it('should call update Nft metadata when preferences change is triggered and at least ipfsGateway, openSeaEnabled or isIpfsGatewayEnabled change', async () => {
+    it('calls update Nft metadata when preferences change is triggered and ipfsGateway changes', async () => {
       const {
         nftController,
         mockGetAccount,
@@ -4987,6 +4985,60 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         ipfsGateway: 'https://toto/ipfs/',
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls update Nft metadata when preferences change is triggered and displayNftMedia changes', async () => {
+      const {
+        nftController,
+        mockGetAccount,
+        triggerPreferencesStateChange,
+        triggerSelectedAccountChange,
+      } = setupController({
+        defaultSelectedAccount: OWNER_ACCOUNT,
+        displayNftMedia: false,
+      });
+      const spy = jest.spyOn(nftController, 'updateNftMetadata');
+      const testNetworkClientId = 'mainnet';
+      mockGetAccount.mockReturnValue(OWNER_ACCOUNT);
+      await nftController.addNft('0xtest', '3', testNetworkClientId, {
+        nftMetadata: { name: '', description: '', image: '', standard: '' },
+      });
+
+      triggerSelectedAccountChange(OWNER_ACCOUNT);
+      // trigger preference change
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        displayNftMedia: true,
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls update Nft metadata when preferences change is triggered and openSeaEnabled changes', async () => {
+      const {
+        nftController,
+        mockGetAccount,
+        triggerPreferencesStateChange,
+        triggerSelectedAccountChange,
+      } = setupController({
+        defaultSelectedAccount: OWNER_ACCOUNT,
+        displayNftMedia: false,
+      });
+      const spy = jest.spyOn(nftController, 'updateNftMetadata');
+      const testNetworkClientId = 'mainnet';
+      mockGetAccount.mockReturnValue(OWNER_ACCOUNT);
+      await nftController.addNft('0xtest', '3', testNetworkClientId, {
+        nftMetadata: { name: '', description: '', image: '', standard: '' },
+      });
+
+      triggerSelectedAccountChange(OWNER_ACCOUNT);
+      // trigger preference change
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        openSeaEnabled: true,
       });
 
       expect(spy).toHaveBeenCalledTimes(1);
@@ -5200,13 +5252,13 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: false,
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
 
       expect(spy).toHaveBeenCalledTimes(0);
     });
 
-    it('should trigger calling updateNftMetadata when preferences change - openseaEnabled', async () => {
+    it('should trigger calling updateNftMetadata when preferences change - displayNftMedia', async () => {
       const tokenURI = 'https://url/';
       const mockGetERC721TokenURI = jest.fn().mockResolvedValue(tokenURI);
       const {
@@ -5246,7 +5298,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: false,
-        openSeaEnabled: true,
+        displayNftMedia: true,
       });
       triggerSelectedAccountChange(OWNER_ACCOUNT);
       expect(spy).toHaveBeenCalledTimes(1);
@@ -5292,7 +5344,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
-        openSeaEnabled: false,
+        displayNftMedia: false,
       });
       triggerSelectedAccountChange(OWNER_ACCOUNT);
 
@@ -5410,7 +5462,7 @@ describe('NftController', () => {
     const mockGetERC721TokenURI = jest.fn().mockResolvedValue(tokenURI);
     const { nftController, messenger } = setupController({
       options: {
-        openSeaEnabled: true,
+        displayNftMedia: true,
       },
       getERC721TokenURI: mockGetERC721TokenURI,
     });

@@ -1,5 +1,7 @@
 import {
+  MOCK_ANY_NAMESPACE,
   Messenger,
+  type MockAnyNamespace,
   type MessengerActions,
   type MessengerEvents,
 } from '@metamask/messenger';
@@ -41,7 +43,7 @@ const GAS_BUFFER_5_MOCK = 1.5;
 
 describe('Feature Flags Utils', () => {
   let rootMessenger: Messenger<
-    'Root',
+    MockAnyNamespace,
     MessengerActions<TransactionControllerMessenger>,
     MessengerEvents<TransactionControllerMessenger>
   >;
@@ -78,7 +80,7 @@ describe('Feature Flags Utils', () => {
 
     getFeatureFlagsMock = jest.fn();
 
-    rootMessenger = new Messenger({ namespace: 'Root' });
+    rootMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 
     remoteFeatureFlagControllerMessenger = new Messenger({
       namespace: 'RemoteFeatureFlagController',

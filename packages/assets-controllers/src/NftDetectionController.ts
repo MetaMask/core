@@ -12,8 +12,6 @@ import {
   NFT_API_VERSION,
   convertHexToDecimal,
   handleFetch,
-  fetchWithErrorHandling,
-  NFT_API_TIMEOUT,
   toHex,
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
@@ -30,7 +28,6 @@ import type {
 } from '@metamask/preferences-controller';
 import { createDeferredPromise, type Hex } from '@metamask/utils';
 
-import { reduceInBatchesSerially } from './assetsUtil';
 import { Source } from './constants';
 import {
   type NftController,
@@ -460,8 +457,6 @@ export type Metadata = {
   tokenURI?: string;
 };
 
-export const MAX_GET_COLLECTION_BATCH_SIZE = 20;
-
 /**
  * Controller that passively detects nfts for a user address
  */
@@ -648,104 +643,6 @@ export class NftDetectionController extends BaseController<
               ? elm.blockaidResult?.result_type === BlockaidResultType.Benign
               : true),
         );
-        // Retrieve collections from apiNfts
-        // contract and collection.id are equal for simple contract addresses; this is to exclude cases for shared contracts
-        const collections = apiNfts.reduce<Record<string, string[]>>(
-          (acc, currValue) => {
-            if (
-              !acc[currValue.token.chainId]?.includes(
-                currValue.token.contract,
-              ) &&
-              currValue.token.contract === currValue?.token?.collection?.id
-            ) {
-              if (!acc[currValue.token.chainId]) {
-                acc[currValue.token.chainId] = [];
-              }
-              acc[currValue.token.chainId].push(currValue.token.contract);
-            }
-            return acc;
-          },
-          {} as Record<string, string[]>,
-        );
-
-        if (
-          Object.values(collections).some((contracts) => contracts.length > 0)
-        ) {
-          // Call API to retrieve collections infos
-          // The api accept a max of 20 contracts
-          const collectionsResponses = await Promise.all(
-            Object.entries(collections).map(([chainId, contracts]) =>
-              reduceInBatchesSerially({
-                values: contracts,
-                batchSize: MAX_GET_COLLECTION_BATCH_SIZE,
-                eachBatch: async (allResponses, batch) => {
-                  const params = new URLSearchParams(
-                    batch.map((s) => ['contract', s]),
-                  );
-                  params.append('chainId', chainId);
-                  const collectionResponseForBatch =
-                    await fetchWithErrorHandling({
-                      url: `${
-                        NFT_API_BASE_URL as string
-                      }/collections?${params.toString()}`,
-                      options: {
-                        headers: {
-                          Version: NFT_API_VERSION,
-                        },
-                      },
-                      timeout: NFT_API_TIMEOUT,
-                    });
-
-                  return {
-                    ...allResponses,
-                    ...collectionResponseForBatch,
-                  };
-                },
-                initialResult: {},
-              }),
-            ),
-          );
-          // create a new collectionsResponse that is of type GetCollectionsResponse and merges the results of collectionsResponses
-          const collectionResponse: GetCollectionsResponse = {
-            collections: [],
-          };
-
-          collectionsResponses.forEach((singleCollectionResponse) => {
-            if (
-              (singleCollectionResponse as GetCollectionsResponse)?.collections
-            ) {
-              collectionResponse?.collections.push(
-                ...(singleCollectionResponse as GetCollectionsResponse)
-                  .collections,
-              );
-            }
-          });
-
-          // Add collections response fields to  newnfts
-          if (collectionResponse.collections?.length) {
-            apiNfts.forEach((singleNFT) => {
-              const found = collectionResponse.collections.find(
-                (elm) =>
-                  elm.id?.toLowerCase() ===
-                    singleNFT.token.contract.toLowerCase() &&
-                  singleNFT.token.chainId === elm.chainId,
-              );
-              if (found) {
-                singleNFT.token = {
-                  ...singleNFT.token,
-                  collection: {
-                    ...(singleNFT.token.collection ?? {}),
-                    openseaVerificationStatus: found?.openseaVerificationStatus,
-                    contractDeployedAt: found.contractDeployedAt,
-                    creator: found?.creator,
-                    ownerCount: found.ownerCount,
-                    topBid: found.topBid,
-                  },
-                };
-              }
-            });
-          }
-        }
 
         // Proceed to add NFTs
         const addNftPromises = apiNfts.map(async (nft) => {

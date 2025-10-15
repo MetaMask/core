@@ -13,7 +13,9 @@ import {
   NetworkType,
 } from '@metamask/controller-utils';
 import {
+  MOCK_ANY_NAMESPACE,
   Messenger,
+  type MockAnyNamespace,
   type MessengerActions,
   type MessengerEvents,
 } from '@metamask/messenger';
@@ -86,7 +88,7 @@ type AllEvents =
   | NetworkControllerEvents
   | ApprovalControllerEvents;
 
-type RootMessenger = Messenger<'Root', AllActions, AllEvents>;
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const uuidV4Mock = jest.mocked(uuidV4);
 
@@ -170,7 +172,9 @@ const setupController = async (
     ],
   });
 
-  const rootMessenger: RootMessenger = new Messenger({ namespace: 'Root' });
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   const networkControllerMessenger = new Messenger<
     'NetworkController',
