@@ -152,6 +152,8 @@ export class ShieldController extends BaseController<
     previousSignatureRequests: Record<string, SignatureRequest> | undefined,
   ) => void;
 
+  #started: boolean;
+
   constructor(options: ShieldControllerOptions) {
     const {
       messenger,
@@ -177,9 +179,15 @@ export class ShieldController extends BaseController<
       this.#handleTransactionControllerStateChange.bind(this);
     this.#signatureControllerStateChangeHandler =
       this.#handleSignatureControllerStateChange.bind(this);
+    this.#started = false;
   }
 
   start() {
+    if (this.#started) {
+      return;
+    }
+    this.#started = true;
+
     this.messagingSystem.subscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
@@ -194,6 +202,11 @@ export class ShieldController extends BaseController<
   }
 
   stop() {
+    if (!this.#started) {
+      return;
+    }
+    this.#started = false;
+
     this.messagingSystem.unsubscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
@@ -291,7 +304,11 @@ export class ShieldController extends BaseController<
    */
   async checkCoverage(txMeta: TransactionMeta): Promise<CoverageResult> {
     // Check coverage
-    const coverageResult = await this.#backend.checkCoverage(txMeta);
+    const coverageId = this.#getLatestCoverageId(txMeta.id);
+    const coverageResult = await this.#backend.checkCoverage({
+      txMeta,
+      coverageId,
+    });
 
     // Publish coverage result
     this.messagingSystem.publish(
@@ -315,8 +332,11 @@ export class ShieldController extends BaseController<
     signatureRequest: SignatureRequest,
   ): Promise<CoverageResult> {
     // Check coverage
-    const coverageResult =
-      await this.#backend.checkSignatureCoverage(signatureRequest);
+    const coverageId = this.#getLatestCoverageId(signatureRequest.id);
+    const coverageResult = await this.#backend.checkSignatureCoverage({
+      signatureRequest,
+      coverageId,
+    });
 
     // Publish coverage result
     this.messagingSystem.publish(
@@ -331,6 +351,12 @@ export class ShieldController extends BaseController<
   }
 
   #addCoverageResult(txId: string, coverageResult: CoverageResult) {
+    // Assert the coverageId hasn't changed.
+    const latestCoverageId = this.#getLatestCoverageId(txId);
+    if (latestCoverageId && coverageResult.coverageId !== latestCoverageId) {
+      throw new Error('Coverage ID has changed');
+    }
+
     this.update((draft) => {
       // Fetch coverage result entry.
       let newEntry = false;
@@ -372,47 +398,49 @@ export class ShieldController extends BaseController<
   }
 
   async #logSignature(signatureRequest: SignatureRequest) {
-    const coverageId = this.#getLatestCoverageId(signatureRequest.id);
-    if (!coverageId) {
-      throw new Error('Coverage ID not found');
-    }
-
-    const sig = signatureRequest.rawSig;
-    if (!sig) {
+    const signature = signatureRequest.rawSig;
+    if (!signature) {
       throw new Error('Signature not found');
     }
 
+    const { status } = this.#getCoverageStatus(signatureRequest.id);
+
     await this.#backend.logSignature({
-      coverageId,
-      signature: sig,
-      // Status is 'shown' because the coverageId can only be retrieved after
-      // the result is in the state. If the result is in the state, we assume
-      // that it has been shown.
-      status: 'shown',
+      signatureRequest,
+      signature,
+      status,
     });
   }
 
   async #logTransaction(txMeta: TransactionMeta) {
-    const coverageId = this.#getLatestCoverageId(txMeta.id);
-    if (!coverageId) {
-      throw new Error('Coverage ID not found');
-    }
-
-    const txHash = txMeta.hash;
-    if (!txHash) {
+    const transactionHash = txMeta.hash;
+    if (!transactionHash) {
       throw new Error('Transaction hash not found');
     }
+
+    const { status } = this.#getCoverageStatus(txMeta.id);
+
     await this.#backend.logTransaction({
-      coverageId,
-      transactionHash: txHash,
-      // Status is 'shown' because the coverageId can only be retrieved after
-      // the result is in the state. If the result is in the state, we assume
-      // that it has been shown.
-      status: 'shown',
+      txMeta,
+      transactionHash,
+      status,
     });
   }
 
-  #getLatestCoverageId(itemId: string) {
+  #getCoverageStatus(itemId: string) {
+    // The status is assigned as follows:
+    // - 'shown' if we have a result
+    // - 'not_shown' if we don't have a result
+    const coverageId = this.#getLatestCoverageId(itemId);
+    let status = 'shown';
+    if (!coverageId) {
+      log('Coverage ID not found for', itemId);
+      status = 'not_shown';
+    }
+    return { status };
+  }
+
+  #getLatestCoverageId(itemId: string): string | undefined {
     return this.state.coverageResults[itemId]?.results[0]?.coverageId;
   }
 }
