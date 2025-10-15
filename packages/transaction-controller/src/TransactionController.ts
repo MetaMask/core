@@ -3129,7 +3129,7 @@ export class TransactionController extends BaseController<
 
       const { transactionHash: hash } = await publishHook(
         transactionMeta,
-        rawTx as string,
+        rawTx ?? '0x',
       );
 
       transactionMeta = this.#updateTransactionInternal(
