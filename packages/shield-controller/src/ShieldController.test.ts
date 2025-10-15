@@ -55,9 +55,9 @@ function setup({
 describe('ShieldController', () => {
   describe('checkCoverage', () => {
     it('should trigger checkCoverage when a new transaction is added', async () => {
-      const { rootMessenger, backend } = setup();
+      const { rootMessenger, messenger, backend } = setup();
       const txMeta = generateMockTxMeta();
-      const coverageResultReceived = setupCoverageResultReceived(rootMessenger);
+      const coverageResultReceived = setupCoverageResultReceived(messenger);
       rootMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [txMeta] } as TransactionControllerState,
@@ -68,13 +68,13 @@ describe('ShieldController', () => {
     });
 
     it('should tolerate calling start and stop multiple times', async () => {
-      const { backend, rootMessenger, controller } = setup();
+      const { backend, rootMessenger, messenger, controller } = setup();
       controller.stop();
       controller.stop();
       controller.start();
       controller.start();
       const txMeta = generateMockTxMeta();
-      const coverageResultReceived = setupCoverageResultReceived(rootMessenger);
+      const coverageResultReceived = setupCoverageResultReceived(messenger);
       rootMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [txMeta] } as TransactionControllerState,
@@ -137,9 +137,9 @@ describe('ShieldController', () => {
     });
 
     it('should check coverage when a transaction is simulated', async () => {
-      const { rootMessenger, backend } = setup();
+      const { rootMessenger, messenger, backend } = setup();
       const txMeta = generateMockTxMeta();
-      const coverageResultReceived = setupCoverageResultReceived(rootMessenger);
+      const coverageResultReceived = setupCoverageResultReceived(messenger);
 
       // Add transaction.
       rootMessenger.publish(
@@ -155,8 +155,7 @@ describe('ShieldController', () => {
       txMeta2.simulationData = {
         tokenBalanceChanges: [],
       };
-      const coverageResultReceived2 =
-        setupCoverageResultReceived(rootMessenger);
+      const coverageResultReceived2 = setupCoverageResultReceived(messenger);
       rootMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [txMeta2] } as TransactionControllerState,
