@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6533](https://github.com/MetaMask/core/pull/6533))
+  - Previously, `AuthenticationController` and `UserStorageController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+
 ## [25.1.1]
 
 ### Changed
