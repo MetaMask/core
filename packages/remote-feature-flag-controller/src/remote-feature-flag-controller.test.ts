@@ -13,11 +13,11 @@ import {
   DEFAULT_CACHE_DURATION,
   getDefaultRemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
-import type { RemoteFeatureFlagControllerMessenger } from './remote-feature-flag-controller';
 import type {
-  FeatureFlags,
+  RemoteFeatureFlagControllerMessenger,
   RemoteFeatureFlagControllerState,
-} from './remote-feature-flag-controller-types';
+} from './remote-feature-flag-controller';
+import type { FeatureFlags } from './remote-feature-flag-controller-types';
 
 const controllerName = 'RemoteFeatureFlagController';
 
