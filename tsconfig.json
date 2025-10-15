@@ -21,6 +21,7 @@
     { "path": "./packages/chain-agnostic-permission" },
     { "path": "./packages/composable-controller" },
     { "path": "./packages/controller-utils" },
+    { "path": "./packages/core-backend" },
     { "path": "./packages/delegation-controller" },
     { "path": "./packages/earn-controller" },
     { "path": "./packages/eip1193-permission-middleware" },

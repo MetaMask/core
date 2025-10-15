@@ -7,6 +7,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [51.0.0]
+
+### Added
+
+- Introduce server‑sent events quote streaming and integrates incremental quote updates into the bridge controller polling flow ([#6760](https://github.com/MetaMask/core/pull/6760))
+  - Add private `handleQuoteStreaming` method that calls `getQuoteStream` when the `sseEnabled` flag is enabled in LaunchDarkly
+  - Reuse existing polling, metrics and validation utilities when processing server-sent quotes
+- Add dependency on `@microsoft/fetch-event-source` at `^2.0.1` ([#6760](https://github.com/MetaMask/core/pull/6760))
+  - Note that clients need to patch this library such that it rejects instead of resolving when the quote request is cancelled. This preserves the controller's expected request cancellation behavior
+
+### Changed
+
+- Extract some logic from bridge-controller and move them to utility files for better readability ([#6760](https://github.com/MetaMask/core/pull/6760))
+
+### Removed
+
+- Remove cache options from spot-prices and getQuote api calls since they are only required by the extension client ([#6760](https://github.com/MetaMask/core/pull/6760))
+
+### Fixed
+
+- Pass abortSignal to fetchAssetPricesForCurrency in order to cancel exchange rate fetching when quote parameters change ([#6760](https://github.com/MetaMask/core/pull/6760))
+
+## [50.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^79.0.0` to `^80.0.0` ([#6818](https://github.com/MetaMask/core/pull/6818))
+
+## [49.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/gas-fee-controller` from `^24.0.0` to `^24.1.0` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/multichain-network-controller` from `^1.0.0` to `^1.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/polling-controller` from `^14.0.0` to `^14.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [49.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^78.0.0` to `^79.0.0` ([#6806](https://github.com/MetaMask/core/pull/6806))
+- Add optional `Client-Version` header to bridge API requests ([#6791](https://github.com/MetaMask/core/pull/6791))
+
+## [48.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^77.0.0` to `^78.0.0` ([#6780](https://github.com/MetaMask/core/pull/6780))
+
+## [47.2.0]
+
+### Added
+
+- Append quote's `featureId` to QuoteResponse object, if defined. Swap and bridge quotes have an `undefined` featureId value for backwards compatibility with old history entries ([#6739](https://github.com/MetaMask/core/pull/6739))
+
+## [47.1.0]
+
+### Added
+
+- Add `bip44DefaultPairs` and `chains[chainId].defaultPairs` to feature flag types and validators ([#6645](https://github.com/MetaMask/core/pull/6645))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `77.0.0` to `77.0.1` ([#6747](https://github.com/MetaMask/core/pull/6747))
+- Bump `@metamask/transaction-controller` from `60.4.0` to `60.5.0` ([#6733](https://github.com/MetaMask/core/pull/6733))
+
+## [47.0.0]
+
+### Changed
+
+- **BREAKING** Make `walletAddress` a required quote request parameter when calling the `updateBridgeQuoteRequestParams` handler ([#6719](https://github.com/MetaMask/core/pull/6719))
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
+### Removed
+
+- Deprecate the unused `SnapConfirmationViewed` event ([#6719](https://github.com/MetaMask/core/pull/6719))
+
+### Fixed
+
+- Replace `AccountsController:getSelectedMultichainAccount` usages with AccountsController:getAccountByAddress` when retrieving Solana account details for quote metadata ([#6719](https://github.com/MetaMask/core/pull/6719))
+
 ## [46.0.0]
 
 ### Added
@@ -635,7 +718,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@46.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@51.0.0...HEAD
+[51.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@50.0.0...@metamask/bridge-controller@51.0.0
+[50.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@49.0.1...@metamask/bridge-controller@50.0.0
+[49.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@49.0.0...@metamask/bridge-controller@49.0.1
+[49.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@48.0.0...@metamask/bridge-controller@49.0.0
+[48.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@47.2.0...@metamask/bridge-controller@48.0.0
+[47.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@47.1.0...@metamask/bridge-controller@47.2.0
+[47.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@47.0.0...@metamask/bridge-controller@47.1.0
+[47.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@46.0.0...@metamask/bridge-controller@47.0.0
 [46.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@45.0.0...@metamask/bridge-controller@46.0.0
 [45.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@44.0.1...@metamask/bridge-controller@45.0.0
 [44.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@44.0.0...@metamask/bridge-controller@44.0.1

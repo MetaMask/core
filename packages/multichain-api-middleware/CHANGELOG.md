@@ -7,9 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1]
+
 ### Changed
 
-- `wallet_invokeMethod` requests no longer fail with unauthorized error if the `isMultichainOrigin` property is false on the requesting origin's CAIP-25 Permission.
+- Bump `@metamask/chain-agnostic-permission` from `^1.1.1` to `^1.2.0` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/json-rpc-engine` from `^10.1.0` to `^10.1.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/network-controller` from `^24.2.0` to `^24.2.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/permission-controller` from `^11.0.6` to `^11.1.0` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [1.2.0]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+- `wallet_invokeMethod` no longer fails with unauthorized error if the `isMultichainOrigin` property is false on the requesting origin's CAIP-25 Permission ([#6703](https://github.com/MetaMask/core/pull/6703))
 
 ## [1.1.0]
 
@@ -82,7 +95,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.1...HEAD
+[1.2.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.0...@metamask/multichain-api-middleware@1.2.1
+[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.1.0...@metamask/multichain-api-middleware@1.2.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.0.0...@metamask/multichain-api-middleware@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@0.4.0...@metamask/multichain-api-middleware@1.0.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@0.3.0...@metamask/multichain-api-middleware@0.4.0

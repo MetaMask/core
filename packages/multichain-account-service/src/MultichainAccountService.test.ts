@@ -128,6 +128,9 @@ function setup({
     SolAccountProvider: makeMockAccountProvider(),
   };
 
+  // Required for the `assert` on `MultichainAccountWallet.createMultichainAccountGroup`.
+  Object.setPrototypeOf(mocks.EvmAccountProvider, EvmAccountProvider.prototype);
+
   mocks.KeyringController.getState.mockImplementation(() => ({
     isUnlocked: true,
     keyrings: mocks.KeyringController.keyrings,

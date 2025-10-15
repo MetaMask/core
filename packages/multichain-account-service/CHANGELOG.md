@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [1.6.0]
+
+### Changed
+
+- Update Bitcoin account provider to only create/discover Native SegWit (P2wpkh) accounts ([#6783](https://github.com/MetaMask/core/pull/6783))
+
+## [1.5.0]
+
+### Added
+
+- Add an optional `options` parameter to `MultichainAccountWallet.createMultichainAccountGroup()` ([#6759](https://github.com/MetaMask/core/pull/6759))
+  - Introduces `options.waitForAllProvidersToFinishCreatingAccounts`, that will make `createMultichainAccountGroup` await either only the EVM provider or all the providers to have created their accounts depending on the value. Defaults to `false` (only awaits for EVM accounts creation by default).
+
+## [1.4.0]
+
+### Changed
+
+- Only await for EVM account creation in `MultichainAccountWallet.createMultichainAccountGroup()` instead of all types of providers ([#6755](https://github.com/MetaMask/core/pull/6755))
+  - Other type of providers will create accounts in the background and won't throw errors in case they fail to do so.
+  - Multichain account groups will now be "misaligned" for a short period of time, until each of the other providers finish creating their accounts.
+
+## [1.3.0]
+
+### Added
+
+- Add `{Btc/Trx}AccountProvider` account providers ([#6662](https://github.com/MetaMask/core/pull/6662))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
+## [1.2.0]
+
+### Changed
+
+- Add more internal logs ([#6729](https://github.com/MetaMask/core/pull/6729))
+
 ## [1.1.0]
 
 ### Added
@@ -184,7 +227,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.6.1...HEAD
+[1.6.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.6.0...@metamask/multichain-account-service@1.6.1
+[1.6.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.5.0...@metamask/multichain-account-service@1.6.0
+[1.5.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.4.0...@metamask/multichain-account-service@1.5.0
+[1.4.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.3.0...@metamask/multichain-account-service@1.4.0
+[1.3.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.2.0...@metamask/multichain-account-service@1.3.0
+[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.1.0...@metamask/multichain-account-service@1.2.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.0.0...@metamask/multichain-account-service@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.11.0...@metamask/multichain-account-service@1.0.0
 [0.11.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.10.0...@metamask/multichain-account-service@0.11.0

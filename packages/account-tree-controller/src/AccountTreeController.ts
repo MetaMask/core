@@ -29,6 +29,7 @@ import {
   isAccountGroupNameUniqueFromWallet,
   MAX_SORT_ORDER,
 } from './group';
+import { projectLogger as log } from './logger';
 import type { Rule } from './rule';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
@@ -256,6 +257,8 @@ export class AccountTreeController extends BaseController<
       return;
     }
 
+    log('Initializing...');
+
     const wallets: AccountTreeControllerState['accountTree']['wallets'] = {};
 
     // Clear mappings for fresh rebuild.
@@ -267,8 +270,23 @@ export class AccountTreeController extends BaseController<
     const previousSelectedAccountGroup =
       this.state.accountTree.selectedAccountGroup;
 
+    // There's no guarantee that accounts would be sorted by their import time
+    // with `listMultichainAccounts`. We have to sort them here before constructing
+    // the tree.
+    //
+    // Because of the alignment mecanism, some accounts from the same group might not
+    // have been imported at the same time, but at least of them should have been
+    // imported at the right time, thus, inserting the group at the proper place too.
+    //
+    // Lastly, if one day we allow to have "gaps" in between groups, then this `sort`
+    // won't be enough and we would have to use group properties instead (like group
+    // index or maybe introduce a `importTime` at group level).
+    const accounts = this.#listAccounts().sort(
+      (a, b) => a.metadata.importTime - b.metadata.importTime,
+    );
+
     // For now, we always re-compute all wallets, we do not re-use the existing state.
-    for (const account of this.#listAccounts()) {
+    for (const account of accounts) {
       this.#insert(wallets, account);
     }
 
@@ -284,10 +302,12 @@ export class AccountTreeController extends BaseController<
         // Used for default group default names (so we use human-indexing here).
         let nextNaturalNameIndex = 1;
         for (const group of Object.values(wallet.groups)) {
-          this.#applyAccountGroupMetadata(
-            state,
-            wallet.id,
-            group.id,
+          this.#applyAccountGroupMetadata(state, wallet.id, group.id, {
+            // We allow computed name when initializing the tree.
+            // This will automatically handle account name migration for the very first init of the
+            // tree. Once groups are created, their name will be persisted, thus, taking precedence
+            // over the computed names (even if we re-init).
+            allowComputedName: true,
             // FIXME: We should not need this kind of logic if we were not inserting accounts
             // 1 by 1. Instead, we should be inserting wallets and groups directly. This would
             // allow us to naturally insert a group in the tree AND update its metadata right
@@ -297,7 +317,7 @@ export class AccountTreeController extends BaseController<
             // groups).
             // That is why we need this kind of extra parameter.
             nextNaturalNameIndex,
-          );
+          });
 
           if (group.id === previousSelectedAccountGroup) {
             previousSelectedAccountGroupStillExists = true;
@@ -325,6 +345,9 @@ export class AccountTreeController extends BaseController<
       previousSelectedAccountGroup !==
       this.state.accountTree.selectedAccountGroup
     ) {
+      log(
+        `Selected (initial) group is: [${this.state.accountTree.selectedAccountGroup}]`,
+      );
       this.messagingSystem.publish(
         `${controllerName}:selectedAccountGroupChange`,
         this.state.accountTree.selectedAccountGroup,
@@ -332,6 +355,7 @@ export class AccountTreeController extends BaseController<
       );
     }
 
+    log('Initialized!');
     this.#initialized = true;
   }
 
@@ -342,17 +366,9 @@ export class AccountTreeController extends BaseController<
    * cleared state. Use this when you need to force a full re-init even if already initialized.
    */
   reinit() {
+    log('Re-initializing...');
     this.#initialized = false;
     this.init();
-  }
-
-  /**
-   * Force-init if the controller's state has not been initilized yet.
-   */
-  #initAtLeastOnce() {
-    if (!this.#initialized) {
-      this.init();
-    }
   }
 
   /**
@@ -416,6 +432,7 @@ export class AccountTreeController extends BaseController<
         wallet.metadata.name =
           this.#getKeyringRule().getDefaultAccountWalletName(wallet);
       }
+      log(`[${wallet.id}] Set default name to: "${wallet.metadata.name}"`);
     }
   }
 
@@ -448,6 +465,135 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Gets the computed name of a group (using its associated accounts).
+   *
+   * @param wallet The wallet containing the group.
+   * @param group The account group to update.
+   * @returns The computed name for the group or '' if there's no compute named for this group.
+   */
+  #getComputedAccountGroupName(
+    wallet: AccountWalletObject,
+    group: AccountGroupObject,
+  ): string {
+    let proposedName = ''; // Empty means there's no computed name for this group.
+
+    for (const id of group.accounts) {
+      const account = this.messagingSystem.call(
+        'AccountsController:getAccount',
+        id,
+      );
+      if (!account) {
+        continue;
+      }
+
+      // We only consider EVM account types for computed names.
+      if (isEvmAccountType(account.type) && account.metadata.name.length) {
+        proposedName = account.metadata.name;
+        break;
+      }
+    }
+
+    // If this name already exists for whatever reason, we rename it to resolve this conflict.
+    if (
+      proposedName.length &&
+      !isAccountGroupNameUniqueFromWallet(wallet, group.id, proposedName)
+    ) {
+      proposedName = this.resolveNameConflict(wallet, group.id, proposedName);
+    }
+
+    return proposedName;
+  }
+
+  /**
+   * Gets the default name of a group.
+   *
+   * @param state Controller state to update for persistence.
+   * @param wallet The wallet containing the group.
+   * @param group The account group to update.
+   * @param nextNaturalNameIndex The next natural name index for this group.
+   * @returns The default name for the group.
+   */
+  #getDefaultAccountGroupName(
+    state: AccountTreeControllerState,
+    wallet: AccountWalletObject,
+    group: AccountGroupObject,
+    nextNaturalNameIndex?: number,
+  ): string {
+    // Get the appropriate rule for this wallet type
+    const rule = this.#getRuleForWallet(wallet);
+
+    // Get the prefix for groups of this wallet
+    const namePrefix = rule.getDefaultAccountGroupPrefix(wallet);
+
+    // Parse the highest account index being used (similar to accounts-controller)
+    let highestNameIndex = 0;
+    for (const { id: otherGroupId } of Object.values(
+      wallet.groups,
+    ) as AccountGroupObject[]) {
+      // Skip the current group being processed
+      if (otherGroupId === group.id) {
+        continue;
+      }
+
+      // We always get the name from the persisted map, since `init` will clear the
+      // `state.accountTree.wallets`, thus, given empty `group.metadata.name`.
+      // NOTE: If the other group has not been named yet, we just use an empty name.
+      const otherGroupName =
+        state.accountGroupsMetadata[otherGroupId]?.name?.value ?? '';
+
+      // Parse the existing group name to extract the numeric index
+      const nameMatch = otherGroupName.match(/account\s+(\d+)$/iu);
+      if (nameMatch) {
+        const nameIndex = parseInt(nameMatch[1], 10);
+        if (nameIndex > highestNameIndex) {
+          highestNameIndex = nameIndex;
+        }
+      }
+    }
+
+    // We just use the highest known index no matter the wallet type.
+    //
+    // For entropy-based wallets (bip44), if a multichain account group with group index 1
+    // is inserted before another one with group index 0, then the naming will be:
+    // - "Account 1" (group index 1)
+    // - "Account 2" (group index 0)
+    // This naming makes more sense for the end-user.
+    //
+    // For other type of wallets, since those wallets can create arbitrary gaps, we still
+    // rely on the highest know index to avoid back-filling account with "old names".
+    let proposedNameIndex = Math.max(
+      // Use + 1 to use the next available index.
+      highestNameIndex + 1,
+      // In case all accounts have been renamed differently than the usual "Account <index>"
+      // pattern, we want to use the next "natural" index, which is just the number of groups
+      // in that wallet (e.g. ["Account A", "Another Account"], next natural index would be
+      // "Account 3" in this case).
+      nextNaturalNameIndex ?? Object.keys(wallet.groups).length,
+    );
+
+    // Find a unique name by checking for conflicts and incrementing if needed
+    let proposedNameExists: boolean;
+    let proposedName = '';
+    do {
+      proposedName = `${namePrefix} ${proposedNameIndex}`;
+
+      // Check if this name already exists in the wallet (excluding current group)
+      proposedNameExists = !isAccountGroupNameUniqueFromWallet(
+        wallet,
+        group.id,
+        proposedName,
+      );
+
+      /* istanbul ignore next */
+      if (proposedNameExists) {
+        proposedNameIndex += 1; // Try next number
+      }
+    } while (proposedNameExists);
+
+    return proposedName;
+  }
+
+  /**
    * Applies group metadata updates (name, pinned, hidden flags) by checking
    * the persistent state first, and then fallbacks to default values (based
    * on the wallet's
@@ -456,13 +602,21 @@ export class AccountTreeController extends BaseController<
    * @param state Controller state to update for persistence.
    * @param walletId The wallet ID containing the group.
    * @param groupId The account group ID to update.
-   * @param nextNaturalNameIndex The next natural name index for this group (only used for default names).
+   * @param namingOptions Options around account group naming.
+   * @param namingOptions.allowComputedName Allow to use original account names to compute the default name.
+   * @param namingOptions.nextNaturalNameIndex The next natural name index for this group (only used for default names).
    */
   #applyAccountGroupMetadata(
     state: AccountTreeControllerState,
     walletId: AccountWalletId,
     groupId: AccountGroupId,
-    nextNaturalNameIndex?: number,
+    {
+      allowComputedName,
+      nextNaturalNameIndex,
+    }: {
+      allowComputedName?: boolean;
+      nextNaturalNameIndex?: number;
+    } = {},
   ) {
     const wallet = state.accountTree.wallets[walletId];
     const group = wallet.groups[groupId];
@@ -473,82 +627,27 @@ export class AccountTreeController extends BaseController<
       state.accountTree.wallets[walletId].groups[groupId].metadata.name =
         persistedGroupMetadata.name.value;
     } else if (!group.metadata.name) {
-      // Get the appropriate rule for this wallet type
-      const rule = this.#getRuleForWallet(wallet);
+      let proposedName = '';
 
-      // Get the prefix for groups of this wallet
-      const namePrefix = rule.getDefaultAccountGroupPrefix(wallet);
-
-      // Skip computed names for now - use default naming with per-wallet logic
-      // TODO: Implement computed names in a future iteration
-
-      // Parse the highest account index being used (similar to accounts-controller)
-      let highestNameIndex = 0;
-      for (const { id: otherGroupId } of Object.values(
-        wallet.groups,
-      ) as AccountGroupObject[]) {
-        // Skip the current group being processed
-        if (otherGroupId === groupId) {
-          continue;
-        }
-
-        // We always get the name from the persisted map, since `init` will clear the
-        // `state.accountTree.wallets`, thus, given empty `group.metadata.name`.
-        // NOTE: If the other group has not been named yet, we just use an empty name.
-        const otherGroupName =
-          state.accountGroupsMetadata[otherGroupId]?.name?.value ?? '';
-
-        // Parse the existing group name to extract the numeric index
-        const nameMatch = otherGroupName.match(/account\s+(\d+)$/iu);
-        if (nameMatch) {
-          const nameIndex = parseInt(nameMatch[1], 10);
-          if (nameIndex > highestNameIndex) {
-            highestNameIndex = nameIndex;
-          }
-        }
+      // Computed names are usually only used for existing/old accounts. So this option
+      // should be used only when we first initialize the tree.
+      if (allowComputedName) {
+        proposedName = this.#getComputedAccountGroupName(wallet, group);
       }
 
-      // We just use the highest known index no matter the wallet type.
-      //
-      // For entropy-based wallets (bip44), if a multichain account group with group index 1
-      // is inserted before another one with group index 0, then the naming will be:
-      // - "Account 1" (group index 1)
-      // - "Account 2" (group index 0)
-      // This naming makes more sense for the end-user.
-      //
-      // For other type of wallets, since those wallets can create arbitrary gaps, we still
-      // rely on the highest know index to avoid back-filling account with "old names".
-      let proposedNameIndex = Math.max(
-        // Use + 1 to use the next available index.
-        highestNameIndex + 1,
-        // In case all accounts have been renamed differently than the usual "Account <index>"
-        // pattern, we want to use the next "natural" index, which is just the number of groups
-        // in that wallet (e.g. ["Account A", "Another Account"], next natural index would be
-        // "Account 3" in this case).
-        nextNaturalNameIndex ?? Object.keys(wallet.groups).length,
-      );
-
-      // Find a unique name by checking for conflicts and incrementing if needed
-      let proposedNameExists: boolean;
-      let proposedName = '';
-      do {
-        proposedName = `${namePrefix} ${proposedNameIndex}`;
-
-        // Check if this name already exists in the wallet (excluding current group)
-        proposedNameExists = !isAccountGroupNameUniqueFromWallet(
+      // If we still don't have a valid name candidate, we fallback to a default name.
+      if (!proposedName.length) {
+        proposedName = this.#getDefaultAccountGroupName(
+          state,
           wallet,
-          group.id,
-          proposedName,
+          group,
+          nextNaturalNameIndex,
         );
-
-        /* istanbul ignore next */
-        if (proposedNameExists) {
-          proposedNameIndex += 1; // Try next number
-        }
-      } while (proposedNameExists);
+      }
 
       state.accountTree.wallets[walletId].groups[groupId].metadata.name =
         proposedName;
+      log(`[${group.id}] Set default name to: "${group.metadata.name}"`);
 
       // Persist the generated name to ensure consistency
       state.accountGroupsMetadata[groupId] ??= {};
@@ -664,12 +763,14 @@ export class AccountTreeController extends BaseController<
    * @param account - New account.
    */
   #handleAccountAdded(account: InternalAccount) {
-    // We force-init to make sure we have the proper account groups for the
-    // incoming account change.
-    this.#initAtLeastOnce();
+    // We wait for the first `init` to be called to actually build up the tree and
+    // mutate it. We expect the caller to first update the `AccountsController` state
+    // to force the migration of accounts, and then call `init`.
+    if (!this.#initialized) {
+      return;
+    }
 
-    // Check if this account got already added by `#initAtLeastOnce`, if not, then we
-    // can proceed.
+    // Check if this account is already known by the tree to avoid double-insertion.
     if (!this.#accountIdToContext.has(account.id)) {
       this.update((state) => {
         this.#insert(state.accountTree.wallets, account);
@@ -700,9 +801,12 @@ export class AccountTreeController extends BaseController<
    * @param accountId - Removed account ID.
    */
   #handleAccountRemoved(accountId: AccountId) {
-    // We force-init to make sure we have the proper account groups for the
-    // incoming account change.
-    this.#initAtLeastOnce();
+    // We wait for the first `init` to be called to actually build up the tree and
+    // mutate it. We expect the caller to first update the `AccountsController` state
+    // to force the migration of accounts, and then call `init`.
+    if (!this.#initialized) {
+      return;
+    }
 
     const context = this.#accountIdToContext.get(accountId);
 
@@ -787,6 +891,8 @@ export class AccountTreeController extends BaseController<
 
     if (Object.keys(wallets[walletId].groups).length === 0) {
       delete wallets[walletId];
+      // Clean up metadata for the pruned wallet
+      delete state.accountWalletsMetadata[walletId];
     }
     return state;
   }
@@ -814,6 +920,7 @@ export class AccountTreeController extends BaseController<
     const walletId = result.wallet.id;
     let wallet = wallets[walletId];
     if (!wallet) {
+      log(`[${walletId}] Added as new wallet`);
       wallets[walletId] = {
         ...result.wallet,
         status: 'ready',
@@ -839,6 +946,7 @@ export class AccountTreeController extends BaseController<
     const sortOrder = ACCOUNT_TYPE_TO_SORT_ORDER[type];
 
     if (!group) {
+      log(`[${walletId}] Add new group: [${groupId}]`);
       wallet.groups[groupId] = {
         ...result.group,
         // Type-wise, we are guaranteed to always have at least 1 account.
@@ -883,6 +991,9 @@ export class AccountTreeController extends BaseController<
         },
       );
     }
+    log(
+      `[${groupId}] Add new account: { id: "${account.id}", type: "${account.type}", address: "${account.address}"`,
+    );
 
     // Update the reverse mapping for this account.
     this.#accountIdToContext.set(account.id, {
@@ -975,6 +1086,11 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountTree.selectedAccountGroup = groupId;
     });
+
+    log(
+      `Selected group is now: [${this.state.accountTree.selectedAccountGroup}]`,
+    );
+
     this.messagingSystem.publish(
       `${controllerName}:selectedAccountGroupChange`,
       groupId,
@@ -1216,6 +1332,10 @@ export class AccountTreeController extends BaseController<
       this.#assertAccountGroupNameIsUnique(groupId, finalName);
     }
 
+    log(
+      `[${groupId}] Set new name to: "${finalName}" (auto handle conflict: ${autoHandleConflict})`,
+    );
+
     this.update((state) => {
       /* istanbul ignore next */
       if (!state.accountGroupsMetadata[groupId]) {
@@ -1360,6 +1480,8 @@ export class AccountTreeController extends BaseController<
    * Also clears the backup and sync service state.
    */
   clearState(): void {
+    log('Clearing state');
+
     this.update(() => {
       return {
         ...getDefaultAccountTreeControllerState(),

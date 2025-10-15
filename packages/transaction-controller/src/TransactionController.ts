@@ -84,7 +84,6 @@ import {
 import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook';
 import { projectLogger as log } from './logger';
 import type {
-  AssetsFiatValues,
   DappSuggestedGasFees,
   Layer1GasFeeFlow,
   SavedGasFees,
@@ -93,7 +92,6 @@ import type {
   TransactionParams,
   TransactionMeta,
   TransactionReceipt,
-  WalletDevice,
   SecurityAlertResponse,
   GasFeeFlow,
   SimulationData,
@@ -117,8 +115,8 @@ import type {
   AfterSimulateHook,
   BeforeSignHook,
   TransactionContainerType,
-  NestedTransactionMetadata,
   GetSimulationConfig,
+  AddTransactionOptions,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -346,10 +344,24 @@ export type TransactionControllerUpdateTransactionAction = {
   handler: TransactionController['updateTransaction'];
 };
 
+/** Add a single transaction to be submitted after approval. */
+export type TransactionControllerAddTransactionAction = {
+  type: `${typeof controllerName}:addTransaction`;
+  handler: TransactionController['addTransaction'];
+};
+
+/** Add a batch of transactions to be submitted after approval. */
+export type TransactionControllerAddTransactionBatchAction = {
+  type: `${typeof controllerName}:addTransactionBatch`;
+  handler: TransactionController['addTransactionBatch'];
+};
+
 /**
  * The internal actions available to the TransactionController.
  */
 export type TransactionControllerActions =
+  | TransactionControllerAddTransactionAction
+  | TransactionControllerAddTransactionBatchAction
   | TransactionControllerConfirmExternalTransactionAction
   | TransactionControllerEstimateGasAction
   | TransactionControllerGetNonceLockAction
@@ -1167,56 +1179,16 @@ export class TransactionController extends BaseController<
 
   /**
    * Add a new unapproved transaction to state. Parameters will be validated, a
-   * unique transaction id will be generated, and gas and gasPrice will be calculated
-   * if not provided. If A `<tx.id>:unapproved` hub event will be emitted once added.
+   * unique transaction ID will be generated, and `gas` and `gasPrice` will be calculated
+   * if not provided. A `<tx.id>:unapproved` hub event will be emitted once added.
    *
    * @param txParams - Standard parameters for an Ethereum transaction.
    * @param options - Additional options to control how the transaction is added.
-   * @param options.actionId - Unique ID to prevent duplicate requests.
-   * @param options.assetsFiatValues - The fiat values of the assets being sent and received.
-   * @param options.batchId - A custom ID for the batch this transaction belongs to.
-   * @param options.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
-   * @param options.disableGasBuffer - Whether to disable the gas estimation buffer.
-   * @param options.isGasFeeIncluded - Whether MetaMask will be compensated for the gas fee by the transaction.
-   * @param options.method - RPC method that requested the transaction.
-   * @param options.nestedTransactions - Params for any nested transactions encoded in the data.
-   * @param options.origin - The origin of the transaction request, such as a dApp hostname.
-   * @param options.publishHook - Custom logic to publish the transaction.
-   * @param options.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
-   * @param options.securityAlertResponse - Response from security validator.
-   * @param options.sendFlowHistory - The sendFlowHistory entries to add.
-   * @param options.type - Type of transaction to add, such as 'cancel' or 'swap'.
-   * @param options.swaps - Options for swaps transactions.
-   * @param options.swaps.hasApproveTx - Whether the transaction has an approval transaction.
-   * @param options.swaps.meta - Metadata for swap transaction.
-   * @param options.networkClientId - The id of the network client for this transaction.
-   * @param options.traceContext - The parent context for any new traces.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
     txParams: TransactionParams,
-    options: {
-      actionId?: string;
-      assetsFiatValues?: AssetsFiatValues;
-      batchId?: Hex;
-      deviceConfirmedOn?: WalletDevice;
-      disableGasBuffer?: boolean;
-      isGasFeeIncluded?: boolean;
-      method?: string;
-      nestedTransactions?: NestedTransactionMetadata[];
-      networkClientId: NetworkClientId;
-      origin?: string;
-      publishHook?: PublishHook;
-      requireApproval?: boolean | undefined;
-      securityAlertResponse?: SecurityAlertResponse;
-      sendFlowHistory?: SendFlowHistoryEntry[];
-      swaps?: {
-        hasApproveTx?: boolean;
-        meta?: Partial<TransactionMeta>;
-      };
-      traceContext?: unknown;
-      type?: TransactionType;
-    },
+    options: AddTransactionOptions,
   ): Promise<Result> {
     log('Adding transaction', txParams, options);
 
@@ -4447,6 +4419,16 @@ export class TransactionController extends BaseController<
   }
 
   #registerActionHandlers(): void {
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:addTransaction`,
+      this.addTransaction.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:addTransactionBatch`,
+      this.addTransactionBatch.bind(this),
+    );
+
     this.messagingSystem.registerActionHandler(
       `${controllerName}:confirmExternalTransaction`,
       this.confirmExternalTransaction.bind(this),
