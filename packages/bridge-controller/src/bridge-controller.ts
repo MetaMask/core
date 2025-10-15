@@ -3,22 +3,21 @@ import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { StateMetadata } from '@metamask/base-controller/next';
 import type { TraceCallback } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
-import type { CaipAssetType } from '@metamask/utils';
-import { numberToHex, type Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 
+import type { BridgeClientId } from './constants/bridge';
 import {
-  type BridgeClientId,
   BRIDGE_CONTROLLER_NAME,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   METABRIDGE_CHAIN_TO_ADDRESS_MAP,
   REFRESH_INTERVAL_MS,
 } from './constants/bridge';
-import { CHAIN_IDS } from './constants/chains';
 import { TraceName } from './constants/traces';
 import { selectIsAssetExchangeRateInState } from './selectors';
 import type { QuoteRequest } from './types';
@@ -27,7 +26,6 @@ import {
   type GenericQuoteRequest,
   type NonEvmFees,
   type QuoteResponse,
-  type TxData,
   type BridgeControllerState,
   type BridgeControllerMessenger,
   type FetchFunction,
@@ -40,7 +38,6 @@ import {
   isCrossChain,
   isNonEvmChainId,
   isSolanaChainId,
-  sumHexes,
 } from './utils/bridge';
 import {
   formatAddressToCaipReference,
@@ -48,7 +45,11 @@ import {
   formatChainIdToHex,
 } from './utils/caip-formatters';
 import { getBridgeFeatureFlags } from './utils/feature-flags';
-import { fetchAssetPrices, fetchBridgeQuotes } from './utils/fetch';
+import {
+  fetchAssetPrices,
+  fetchBridgeQuotes,
+  fetchBridgeQuoteStream,
+} from './utils/fetch';
 import {
   AbortReason,
   MetricsActionType,
@@ -70,12 +71,10 @@ import type {
   RequiredEventContextFromClient,
 } from './utils/metrics/types';
 import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
-import { isValidQuoteRequest } from './utils/quote';
-import {
-  computeFeeRequest,
-  getMinimumBalanceForRentExemptionRequest,
-} from './utils/snaps';
-import { FeatureId } from './utils/validators';
+import { isValidQuoteRequest, sortQuotes } from './utils/quote';
+import { appendFeesToQuotes } from './utils/quote-fees';
+import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
+import type { FeatureId } from './utils/validators';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
@@ -164,7 +163,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   #quotesFirstFetched: number | undefined;
 
-  readonly #clientId: string;
+  readonly #clientId: BridgeClientId;
 
   readonly #clientVersion: string | undefined;
 
@@ -277,36 +276,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     },
     context: BridgePollingInput['context'],
   ) => {
-    this.stopAllPolling();
-    this.#abortController?.abort(AbortReason.QuoteRequestUpdated);
-
     this.#trackInputChangedEvents(paramsToUpdate);
-
+    this.resetState(AbortReason.QuoteRequestUpdated);
     const updatedQuoteRequest = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest,
       ...paramsToUpdate,
     };
-
     this.update((state) => {
       state.quoteRequest = updatedQuoteRequest;
-      state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
-      state.quotesLastFetched =
-        DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched;
-      state.quotesLoadingStatus =
-        DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus;
-      state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
-      state.quotesRefreshCount =
-        DEFAULT_BRIDGE_CONTROLLER_STATE.quotesRefreshCount;
-      state.quotesInitialLoadTime =
-        DEFAULT_BRIDGE_CONTROLLER_STATE.quotesInitialLoadTime;
-      // Reset required minimum balance if the source chain is not Solana
-      if (
-        updatedQuoteRequest.srcChainId &&
-        !isSolanaChainId(updatedQuoteRequest.srcChainId)
-      ) {
-        state.minimumBalanceForRentExemptionInLamports =
-          DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
-      }
     });
 
     await this.#fetchAssetExchangeRates(updatedQuoteRequest).catch((error) =>
@@ -326,10 +303,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         // The bridge-api filters out quotes if the balance on mainnet is insufficient so this override allows quotes to always be returned
         insufficientBal = true;
       } else {
-        // Otherwise query the src token balance from the RPC provider
-        insufficientBal =
-          paramsToUpdate.insufficientBal ??
-          !(await this.#hasSufficientBalance(updatedQuoteRequest));
+        try {
+          // Otherwise query the src token balance from the RPC provider
+          insufficientBal =
+            paramsToUpdate.insufficientBal ??
+            !(await this.#hasSufficientBalance(updatedQuoteRequest));
+        } catch (error) {
+          console.warn('Failed to fetch balance', error);
+          insufficientBal = true;
+        }
       }
 
       const networkClientId = this.#getSelectedNetworkClientId();
@@ -381,23 +363,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     this.#trackResponseValidationFailures(validationFailures);
 
-    const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
-    const quotesWithNonEvmFees = await this.#appendNonEvmFees(
+    const quotesWithFees = await appendFeesToQuotes(
       baseQuotes,
-      quoteRequest.walletAddress,
+      this.messenger,
+      this.#getLayer1GasFee,
+      this.#getMultichainSelectedAccount(quoteRequest.walletAddress),
     );
-    const quotesWithFees =
-      quotesWithL1GasFees ?? quotesWithNonEvmFees ?? baseQuotes;
-    // Sort perps quotes by increasing estimated processing time (fastest first)
-    if (featureId === FeatureId.PERPS) {
-      return quotesWithFees.sort((a, b) => {
-        return (
-          a.estimatedProcessingTimeInSeconds -
-          b.estimatedProcessingTimeInSeconds
-        );
-      });
-    }
-    return quotesWithFees;
+
+    return sortQuotes(quotesWithFees, featureId);
   };
 
   readonly #trackResponseValidationFailures = (
@@ -482,6 +455,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       clientId: this.#clientId,
       clientVersion: this.#clientVersion,
       fetchFn: this.#fetchFn,
+      signal: this.#abortController?.signal,
     });
     const exchangeRates = toExchangeRates(currency, pricesByAssetId);
     this.update((state) => {
@@ -495,11 +469,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   readonly #hasSufficientBalance = async (
     quoteRequest: GenericQuoteRequest,
   ) => {
-    // Only check balance for EVM chains
-    if (isNonEvmChainId(quoteRequest.srcChainId)) {
-      return true;
-    }
-
     const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
     const provider = this.#getSelectedNetworkClient()?.provider;
     const normalizedSrcTokenAddress = formatAddressToCaipReference(
@@ -526,9 +495,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#abortController?.abort(reason);
   };
 
-  resetState = () => {
-    this.stopPollingForQuotes(AbortReason.ResetState);
-
+  resetState = (reason = AbortReason.ResetState) => {
+    this.stopPollingForQuotes(reason);
     this.update((state) => {
       // Cannot do direct assignment to state, i.e. state = {... }, need to manually assign each field
       state.quoteRequest = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest;
@@ -576,10 +544,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       UnifiedSwapBridgeEventName.QuotesRequested,
       context,
     );
+
+    const { sseEnabled, maxRefreshCount } = getBridgeFeatureFlags(
+      this.messenger,
+    );
+    const shouldStream = Boolean(sseEnabled);
+
     this.update((state) => {
-      state.quotesLoadingStatus = RequestStatus.LOADING;
       state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
+      state.quotesLastFetched = Date.now();
+      state.quotesLoadingStatus = RequestStatus.LOADING;
     });
 
     try {
@@ -597,27 +572,49 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           },
         },
         async () => {
+          const selectedAccount = this.#getMultichainSelectedAccount(
+            updatedQuoteRequest.walletAddress,
+          );
           // This call is not awaited to prevent blocking quote fetching if the snap takes too long to respond
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           this.#setMinimumBalanceForRentExemptionInLamports(
             updatedQuoteRequest.srcChainId,
+            selectedAccount.metadata?.snap?.id,
           );
+          // Use SSE if enabled and return early
+          if (shouldStream) {
+            await this.#handleQuoteStreaming(
+              updatedQuoteRequest,
+              selectedAccount,
+            );
+            return;
+          }
+          // Otherwise use regular fetch
           const quotes = await this.fetchQuotes(
             updatedQuoteRequest,
-            // AbortController is always defined by this line, because we assign it a few lines above,
-            // not sure why Jest thinks it's not
-            // Linters accurately say that it's defined
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            this.#abortController!.signal as AbortSignal,
+            this.#abortController?.signal,
           );
-
           this.update((state) => {
+            // Set the initial load time if this is the first fetch
+            if (
+              state.quotesRefreshCount ===
+                DEFAULT_BRIDGE_CONTROLLER_STATE.quotesRefreshCount &&
+              this.#quotesFirstFetched
+            ) {
+              state.quotesInitialLoadTime =
+                Date.now() - this.#quotesFirstFetched;
+            }
             state.quotes = quotes;
             state.quotesLoadingStatus = RequestStatus.FETCHED;
           });
         },
       );
     } catch (error) {
+      // Reset the quotes list if the fetch fails to avoid showing stale quotes
+      this.update((state) => {
+        state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
+      });
+      // Ignore abort errors
       const isAbortError = (error as Error).name === 'AbortError';
       if (
         isAbortError ||
@@ -631,21 +628,36 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return;
       }
 
+      // Update loading status and error message
       this.update((state) => {
-        state.quoteFetchError =
-          error instanceof Error ? error.message : (error?.toString() ?? null);
+        // The error object reference is not guaranteed to exist on mobile so reading
+        // the message directly could cause an error.
+        let errorMessage;
+        try {
+          errorMessage =
+            (error as Error)?.message ?? (error as Error).toString();
+        } catch {
+          // Intentionally empty
+        } finally {
+          state.quoteFetchError = errorMessage ?? 'Unknown error';
+        }
         state.quotesLoadingStatus = RequestStatus.ERROR;
-        state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
+      // Track event and log error
       this.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.QuotesError,
         context,
       );
-      console.log('Failed to fetch bridge quotes', error);
+      console.log(
+        `Failed to ${shouldStream ? 'stream' : 'fetch'} bridge quotes`,
+        error,
+      );
     }
-    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
-    const { maxRefreshCount } = bridgeFeatureFlags;
 
+    // Update refresh count after fetching, validation and fee calculation have completed
+    this.update((state) => {
+      state.quotesRefreshCount += 1;
+    });
     // Stop polling if the maximum number of refreshes has been reached
     if (
       updatedQuoteRequest.insufficientBal ||
@@ -654,185 +666,81 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     ) {
       this.stopAllPolling();
     }
-
-    // Update quote fetching stats
-    const quotesLastFetched = Date.now();
-    this.update((state) => {
-      state.quotesInitialLoadTime =
-        state.quotesRefreshCount === 0 && this.#quotesFirstFetched
-          ? quotesLastFetched - this.#quotesFirstFetched
-          : this.state.quotesInitialLoadTime;
-      state.quotesLastFetched = quotesLastFetched;
-      state.quotesRefreshCount += 1;
-    });
   };
 
-  readonly #appendL1GasFees = async (
-    quotes: QuoteResponse[],
-  ): Promise<(QuoteResponse & L1GasFees)[] | undefined> => {
-    // Indicates whether some of the quotes are not for optimism or base
-    const hasInvalidQuotes = quotes.some(({ quote }) => {
-      const chainId = formatChainIdToCaip(quote.srcChainId);
-      return ![CHAIN_IDS.OPTIMISM, CHAIN_IDS.BASE]
-        .map(formatChainIdToCaip)
-        .includes(chainId);
-    });
+  readonly #handleQuoteStreaming = async (
+    updatedQuoteRequest: GenericQuoteRequest,
+    selectedAccount: InternalAccount,
+  ) => {
+    /**
+     * Tracks the number of valid quotes received from the current stream, which is used
+     * to determine when to clear the quotes list and set the initial load time
+     */
+    let validQuotesCounter = 0;
 
-    // Only append L1 gas fees if all quotes are for either optimism or base
-    if (hasInvalidQuotes) {
-      return undefined;
-    }
-
-    const l1GasFeePromises = Promise.allSettled(
-      quotes.map(async (quoteResponse) => {
-        const { quote, trade, approval } = quoteResponse;
-        const chainId = numberToHex(quote.srcChainId);
-
-        const getTxParams = (txData: TxData) => ({
-          from: txData.from,
-          to: txData.to,
-          value: txData.value,
-          data: txData.data,
-          gasLimit: txData.gasLimit?.toString(),
-        });
-        const approvalL1GasFees = approval
-          ? await this.#getLayer1GasFee({
-              transactionParams: getTxParams(approval),
-              chainId,
-            })
-          : '0x0';
-        const tradeL1GasFees = await this.#getLayer1GasFee({
-          transactionParams: getTxParams(trade),
-          chainId,
-        });
-
-        if (approvalL1GasFees === undefined || tradeL1GasFees === undefined) {
-          return undefined;
-        }
-
-        return {
-          ...quoteResponse,
-          l1GasFeesInHexWei: sumHexes(approvalL1GasFees, tradeL1GasFees),
-        };
-      }),
+    await fetchBridgeQuoteStream(
+      this.#fetchFn,
+      updatedQuoteRequest,
+      this.#abortController?.signal,
+      this.#clientId,
+      this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+      {
+        onValidationFailure: this.#trackResponseValidationFailures,
+        onValidQuoteReceived: async (quote: QuoteResponse) => {
+          const quotesWithFees = await appendFeesToQuotes(
+            [quote],
+            this.messenger,
+            this.#getLayer1GasFee,
+            selectedAccount,
+          );
+          if (quotesWithFees.length > 0) {
+            validQuotesCounter += 1;
+          }
+          this.update((state) => {
+            // Clear previous quotes and quotes load time when first quote in the current
+            // polling loop is received
+            // This enables clients to continue showing the previous quotes while new
+            // quotes are loading
+            // Note: If there are no valid quotes until the 2nd fetch, quotesInitialLoadTime will be > refreshRate
+            if (validQuotesCounter === 1) {
+              state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
+              if (!state.quotesInitialLoadTime && this.#quotesFirstFetched) {
+                // Set the initial load time after the first quote is received
+                state.quotesInitialLoadTime =
+                  Date.now() - this.#quotesFirstFetched;
+              }
+            }
+            state.quotes = [...state.quotes, ...quotesWithFees];
+          });
+        },
+        onClose: () => {
+          this.update((state) => {
+            // If there are no valid quotes in the current stream, clear the quotes list
+            // to remove quotes from the previous stream
+            if (validQuotesCounter === 0) {
+              state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
+            }
+            state.quotesLoadingStatus = RequestStatus.FETCHED;
+          });
+        },
+      },
+      this.#clientVersion,
     );
-
-    const quotesWithL1GasFees = (await l1GasFeePromises).reduce<
-      (QuoteResponse & L1GasFees)[]
-    >((acc, result) => {
-      if (result.status === 'fulfilled' && result.value) {
-        acc.push(result.value);
-      } else if (result.status === 'rejected') {
-        console.error('Error calculating L1 gas fees for quote', result.reason);
-      }
-      return acc;
-    }, []);
-
-    return quotesWithL1GasFees;
   };
 
-  readonly #setMinimumBalanceForRentExemptionInLamports = (
+  readonly #setMinimumBalanceForRentExemptionInLamports = async (
     srcChainId: GenericQuoteRequest['srcChainId'],
-  ): Promise<void> | undefined => {
-    const selectedAccount = this.#getMultichainSelectedAccount();
-
-    return isSolanaChainId(srcChainId) && selectedAccount?.metadata?.snap?.id
-      ? this.messenger
-          .call(
-            'SnapController:handleRequest',
-            getMinimumBalanceForRentExemptionRequest(
-              selectedAccount.metadata.snap?.id,
-            ),
-          ) // eslint-disable-next-line promise/always-return
-          .then((result) => {
-            this.update((state) => {
-              state.minimumBalanceForRentExemptionInLamports = String(result);
-            });
-          })
-          .catch((error) => {
-            console.error(
-              'Error setting minimum balance for rent exemption',
-              error,
-            );
-            this.update((state) => {
-              state.minimumBalanceForRentExemptionInLamports =
-                DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
-            });
-          })
-      : undefined;
-  };
-
-  /**
-   * Appends transaction fees for non-EVM chains to quotes
-   *
-   * @param quotes - Array of quote responses to append fees to
-   * @param walletAddress - The wallet address for which the quotes were requested
-   * @returns Array of quotes with fees appended, or undefined if quotes are for EVM chains
-   */
-  readonly #appendNonEvmFees = async (
-    quotes: QuoteResponse[],
-    walletAddress: GenericQuoteRequest['walletAddress'],
-  ): Promise<(QuoteResponse & NonEvmFees)[] | undefined> => {
-    if (
-      quotes.some(({ quote: { srcChainId } }) => !isNonEvmChainId(srcChainId))
-    ) {
-      return undefined;
+    snapId?: string,
+  ) => {
+    if (!isSolanaChainId(srcChainId) || !snapId) {
+      return;
     }
-
-    const selectedAccount = this.#getMultichainSelectedAccount(walletAddress);
-    const nonEvmFeePromises = Promise.allSettled(
-      quotes.map(async (quoteResponse) => {
-        const { trade, quote } = quoteResponse;
-
-        if (selectedAccount?.metadata?.snap?.id && typeof trade === 'string') {
-          const scope = formatChainIdToCaip(quote.srcChainId);
-
-          const response = (await this.messenger.call(
-            'SnapController:handleRequest',
-            computeFeeRequest(
-              selectedAccount.metadata.snap?.id,
-              trade,
-              selectedAccount.id,
-              scope,
-            ),
-          )) as {
-            type: 'base' | 'priority';
-            asset: {
-              unit: string;
-              type: string;
-              amount: string;
-              fungible: true;
-            };
-          }[];
-
-          const baseFee = response?.find((fee) => fee.type === 'base');
-          // Store fees in native units as returned by the snap (e.g., SOL, BTC)
-          const feeInNative = baseFee?.asset?.amount || '0';
-
-          return {
-            ...quoteResponse,
-            nonEvmFeesInNative: feeInNative,
-          };
-        }
-        return quoteResponse;
-      }),
-    );
-
-    const quotesWithNonEvmFees = (await nonEvmFeePromises).reduce<
-      (QuoteResponse & NonEvmFees)[]
-    >((acc, result) => {
-      if (result.status === 'fulfilled' && result.value) {
-        acc.push(result.value);
-      } else if (result.status === 'rejected') {
-        console.error(
-          'Error calculating non-EVM fees for quote',
-          result.reason,
-        );
-      }
-      return acc;
-    }, []);
-
-    return quotesWithNonEvmFees;
+    const minimumBalanceForRentExemptionInLamports =
+      await getMinimumBalanceForRentExemptionInLamports(snapId, this.messenger);
+    this.update((state) => {
+      state.minimumBalanceForRentExemptionInLamports =
+        minimumBalanceForRentExemptionInLamports;
+    });
   };
 
   #getMultichainSelectedAccount(

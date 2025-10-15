@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-controller",
-  "version": "50.0.0",
+  "version": "52.0.0",
   "description": "Manages bridge-related quote fetching functionality for MetaMask",
   "keywords": [
     "MetaMask",
@@ -61,13 +61,14 @@
     "@metamask/multichain-network-controller": "^1.0.1",
     "@metamask/polling-controller": "^14.0.1",
     "@metamask/utils": "^11.8.1",
+    "@microsoft/fetch-event-source": "^2.0.1",
     "bignumber.js": "^9.1.2",
     "reselect": "^5.1.1",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/accounts-controller": "^33.1.1",
-    "@metamask/assets-controllers": "^80.0.0",
+    "@metamask/assets-controllers": "^81.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-json-rpc-provider": "^5.0.1",
     "@metamask/network-controller": "^24.2.1",
@@ -88,7 +89,7 @@
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^33.0.0",
-    "@metamask/assets-controllers": "^80.0.0",
+    "@metamask/assets-controllers": "^81.0.0",
     "@metamask/network-controller": "^24.0.0",
     "@metamask/remote-feature-flag-controller": "^1.6.0",
     "@metamask/snaps-controllers": "^14.0.0",

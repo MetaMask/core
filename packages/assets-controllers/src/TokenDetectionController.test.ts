@@ -3566,6 +3566,8 @@ describe('TokenDetectionController', () => {
   describe('addDetectedTokensViaWs', () => {
     it('should add tokens detected from websocket with metadata from cache', async () => {
       const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const checksummedTokenAddress =
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
       const chainId = '0x1';
 
       await withController(
@@ -3612,7 +3614,7 @@ describe('TokenDetectionController', () => {
             'TokensController:addTokens',
             [
               {
-                address: mockTokenAddress,
+                address: checksummedTokenAddress,
                 decimals: 6,
                 symbol: 'USDC',
                 aggregators: [],
@@ -3683,7 +3685,11 @@ describe('TokenDetectionController', () => {
 
     it('should add all tokens provided without filtering (filtering is caller responsibility)', async () => {
       const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const checksummedTokenAddress =
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
       const secondTokenAddress = '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c';
+      const checksummedSecondTokenAddress =
+        '0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C';
       const chainId = '0x1';
       const selectedAccount = createMockInternalAccount({
         address: '0x0000000000000000000000000000000000000001',
@@ -3749,7 +3755,7 @@ describe('TokenDetectionController', () => {
             'TokensController:addTokens',
             [
               {
-                address: mockTokenAddress,
+                address: checksummedTokenAddress,
                 decimals: 6,
                 symbol: 'USDC',
                 aggregators: [],
@@ -3758,7 +3764,7 @@ describe('TokenDetectionController', () => {
                 name: 'USD Coin',
               },
               {
-                address: secondTokenAddress,
+                address: checksummedSecondTokenAddress,
                 decimals: 18,
                 symbol: 'BNT',
                 aggregators: [],
@@ -3775,6 +3781,8 @@ describe('TokenDetectionController', () => {
 
     it('should track metrics when adding tokens from websocket', async () => {
       const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const checksummedTokenAddress =
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
       const chainId = '0x1';
       const mockTrackMetricsEvent = jest.fn();
 
@@ -3824,7 +3832,7 @@ describe('TokenDetectionController', () => {
             event: 'Token Detected',
             category: 'Wallet',
             properties: {
-              tokens: [`USDC - ${mockTokenAddress}`],
+              tokens: [`USDC - ${checksummedTokenAddress}`],
               token_standard: 'ERC20',
               asset_type: 'TOKEN',
             },
@@ -3841,6 +3849,8 @@ describe('TokenDetectionController', () => {
 
     it('should be callable directly as a public method on the controller instance', async () => {
       const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const checksummedTokenAddress =
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
       const chainId = '0x1';
 
       await withController(
@@ -3888,7 +3898,7 @@ describe('TokenDetectionController', () => {
             'TokensController:addTokens',
             [
               {
-                address: mockTokenAddress,
+                address: checksummedTokenAddress,
                 decimals: 6,
                 symbol: 'USDC',
                 aggregators: [],

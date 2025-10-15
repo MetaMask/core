@@ -4356,6 +4356,7 @@ describe('TokenBalancesController', () => {
               type: `eip155:1/erc20:${tokenAddress}`,
               unit: 'USDC',
               fungible: true,
+              decimals: 6,
             },
             postBalance: {
               amount: '0xf4240', // 1000000 in hex (1 USDC with 6 decimals)
@@ -4406,6 +4407,7 @@ describe('TokenBalancesController', () => {
               type: 'eip155:1/slip44:60',
               unit: 'ETH',
               fungible: true,
+              decimals: 18,
             },
             postBalance: {
               amount: '0xde0b6b3a7640000', // 1 ETH in wei
@@ -4459,6 +4461,7 @@ describe('TokenBalancesController', () => {
               type: 'eip155:1/slip44:60',
               unit: 'ETH',
               fungible: true,
+              decimals: 18,
             },
             postBalance: {
               amount: '0',
@@ -4496,6 +4499,7 @@ describe('TokenBalancesController', () => {
               type: 'eip155:1/unknown:0x123',
               unit: 'UNKNOWN',
               fungible: true,
+              decimals: 18,
             },
             postBalance: {
               amount: '1000',
@@ -4678,6 +4682,7 @@ describe('TokenBalancesController', () => {
               type: `eip155:1/erc20:${token1}`,
               unit: 'USDC',
               fungible: true,
+              decimals: 6,
             },
             postBalance: {
               amount: '0xf4240', // 1000000 in hex
@@ -4689,6 +4694,7 @@ describe('TokenBalancesController', () => {
               type: `eip155:1/erc20:${token2}`,
               unit: 'USDT',
               fungible: true,
+              decimals: 6,
             },
             postBalance: {
               amount: '0x1e8480', // 2000000 in hex
@@ -4734,6 +4740,7 @@ describe('TokenBalancesController', () => {
               type: 'eip155:1/erc20:invalid-address', // Not a valid hex address
               unit: 'INVALID',
               fungible: true,
+              decimals: 18,
             },
             postBalance: { amount: '1000000' },
             transfers: [],
@@ -4808,6 +4815,7 @@ describe('TokenBalancesController', () => {
               type: `eip155:1/erc20:${newTokenAddress}`,
               unit: 'USDC',
               fungible: true,
+              decimals: 6,
             },
             postBalance: {
               amount: '0xf4240', // 1000000 in hex
@@ -4881,6 +4889,7 @@ describe('TokenBalancesController', () => {
               type: `eip155:1/erc20:${trackedTokenAddress}`,
               unit: 'USDC',
               fungible: true,
+              decimals: 6,
             },
             postBalance: {
               amount: '0xf4240', // 1000000 in hex
@@ -4944,6 +4953,7 @@ describe('TokenBalancesController', () => {
               type: `eip155:1/erc20:${ignoredTokenAddress}`,
               unit: 'USDC',
               fungible: true,
+              decimals: 6,
             },
             postBalance: {
               amount: '0xf4240', // 1000000 in hex
@@ -5001,6 +5011,7 @@ describe('TokenBalancesController', () => {
               type: 'eip155:1/slip44:60',
               unit: 'ETH',
               fungible: true,
+              decimals: 18,
             },
             postBalance: {
               amount: '0xde0b6b3a7640000', // 1 ETH in wei
@@ -5067,6 +5078,7 @@ describe('TokenBalancesController', () => {
               type: `eip155:1/erc20:${newTokenAddress}`,
               unit: 'USDC',
               fungible: true,
+              decimals: 6,
             },
             postBalance: {
               amount: '0xf4240', // 1000000 in hex
@@ -5137,6 +5149,7 @@ describe('TokenBalancesController', () => {
               type: `eip155:1/erc20:${trackedToken}`,
               unit: 'USDC',
               fungible: true,
+              decimals: 6,
             },
             postBalance: {
               amount: '0xf4240', // 1000000 in hex
@@ -5148,6 +5161,7 @@ describe('TokenBalancesController', () => {
               type: `eip155:1/erc20:${untrackedToken}`,
               unit: 'USDT',
               fungible: true,
+              decimals: 6,
             },
             postBalance: {
               amount: '0x1e8480', // 2000000 in hex
