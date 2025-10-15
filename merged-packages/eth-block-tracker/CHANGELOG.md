@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+
 ### Changed
 
 - **BREAKING:** Distribute separate CommonJS and ESM files ([#351](https://github.com/MetaMask/eth-block-tracker/pull/351))
@@ -311,7 +313,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add RpcBlockTracker
 
-[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v12.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/eth-block-tracker/compare/v12.2.1...v13.0.0
 [12.2.1]: https://github.com/MetaMask/eth-block-tracker/compare/v12.2.0...v12.2.1
 [12.2.0]: https://github.com/MetaMask/eth-block-tracker/compare/v12.1.0...v12.2.0
 [12.1.0]: https://github.com/MetaMask/eth-block-tracker/compare/v12.0.1...v12.1.0
