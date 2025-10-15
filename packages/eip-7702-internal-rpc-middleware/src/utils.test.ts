@@ -1,4 +1,4 @@
-import { rpcErrors } from '@metamask/rpc-errors';
+import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import { object, string, number } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
 
@@ -23,7 +23,10 @@ describe('validateParams', () => {
     const invalidValue = { name: 123, age: 'invalid' };
 
     expect(() => validateParams(invalidValue, testStruct)).toThrow(
-      'Invalid parameters',
+      rpcErrors.invalidParams({
+        message:
+          'Invalid parameters\n\nname - Expected a string, but received: 123\nage - Expected a number, but received: "invalid"',
+      }),
     );
   });
 
@@ -35,7 +38,10 @@ describe('validateParams', () => {
     const invalidValue = { name: 123, age: 'invalid' };
 
     expect(() => validateParams(invalidValue, testStruct)).toThrow(
-      'Invalid parameters',
+      rpcErrors.invalidParams({
+        message:
+          'Invalid parameters\n\nname - Expected a string, but received: 123\nage - Expected a number, but received: "invalid"',
+      }),
     );
   });
 
@@ -45,7 +51,9 @@ describe('validateParams', () => {
     const invalidValue = 123;
 
     expect(() => validateParams(invalidValue, testStruct)).toThrow(
-      'Invalid parameters',
+      rpcErrors.invalidParams({
+        message: 'Invalid parameters\n\nExpected a string, but received: 123',
+      }),
     );
   });
 });
@@ -81,7 +89,7 @@ describe('validateAndNormalizeAddress', () => {
       ),
     ).rejects.toThrow(
       rpcErrors.invalidParams({
-        message: 'Invalid parameters: must provide an Ethereum address.',
+        message: 'Invalid parameters: must provide an EVM address.',
       }),
     );
   });
@@ -99,7 +107,7 @@ describe('validateAndNormalizeAddress', () => {
         getPermittedAccountsForOrigin,
       ),
     ).rejects.toThrow(
-      'The requested account and/or method has not been authorized by the user.',
+      providerErrors.unauthorized(),
     );
   });
 
@@ -115,7 +123,7 @@ describe('validateAndNormalizeAddress', () => {
       ),
     ).rejects.toThrow(
       rpcErrors.invalidParams({
-        message: 'Invalid parameters: must provide an Ethereum address.',
+        message: 'Invalid parameters: must provide an EVM address.',
       }),
     );
   });
@@ -132,7 +140,7 @@ describe('validateAndNormalizeAddress', () => {
       ),
     ).rejects.toThrow(
       rpcErrors.invalidParams({
-        message: 'Invalid parameters: must provide an Ethereum address.',
+        message: 'Invalid parameters: must provide an EVM address.',
       }),
     );
   });
@@ -149,7 +157,7 @@ describe('validateAndNormalizeAddress', () => {
       ),
     ).rejects.toThrow(
       rpcErrors.invalidParams({
-        message: 'Invalid parameters: must provide an Ethereum address.',
+        message: 'Invalid parameters: must provide an EVM address.',
       }),
     );
   });
@@ -166,7 +174,7 @@ describe('validateAndNormalizeAddress', () => {
       ),
     ).rejects.toThrow(
       rpcErrors.invalidParams({
-        message: 'Invalid parameters: must provide an Ethereum address.',
+        message: 'Invalid parameters: must provide an EVM address.',
       }),
     );
   });

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eip-7702-internal-rpc-middleware",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "Implements internal JSON-RPC methods for EIP-7702 account upgrade functionality",
   "keywords": [
     "MetaMask",

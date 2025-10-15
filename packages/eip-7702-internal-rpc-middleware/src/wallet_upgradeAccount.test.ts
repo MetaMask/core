@@ -3,20 +3,14 @@ import type {
   PendingJsonRpcResponse,
   Json,
 } from '@metamask/utils';
+import { rpcErrors } from '@metamask/rpc-errors';
 
 import { walletUpgradeAccount } from './wallet_upgradeAccount';
-import type { WalletUpgradeAccountHooks } from './wallet_upgradeAccount';
-
-type TestHooks = {
-  [K in keyof WalletUpgradeAccountHooks]: jest.MockedFunction<
-    WalletUpgradeAccountHooks[K]
-  >;
-};
 
 const TEST_ACCOUNT = '0x1234567890123456789012345678901234567890';
 const UPGRADE_CONTRACT = '0x0000000000000000000000000000000000000000';
 
-const createTestHooks = (): TestHooks => {
+const createTestHooks = () => {
   const upgradeAccount = jest.fn();
   const getCurrentChainIdForDomain = jest.fn().mockReturnValue('0x1');
   const getPermittedAccountsForOrigin = jest
@@ -154,7 +148,9 @@ describe('walletUpgradeAccount', () => {
     );
 
     await expect(walletUpgradeAccount(req, res, hooks)).rejects.toThrow(
-      'Account upgrade not supported on chain ID 0x999',
+      rpcErrors.invalidParams({
+        message: 'Account upgrade not supported on chain ID 0x999',
+      }),
     );
   });
 
@@ -167,7 +163,9 @@ describe('walletUpgradeAccount', () => {
     hooks.getCurrentChainIdForDomain.mockReturnValue(null);
 
     await expect(walletUpgradeAccount(req, res, hooks)).rejects.toThrow(
-      'No network configuration found for origin: npm:@metamask/gator-permissions-snap',
+      rpcErrors.invalidParams({
+        message: 'No network configuration found for origin: npm:@metamask/gator-permissions-snap',
+      }),
     );
   });
 
@@ -180,7 +178,9 @@ describe('walletUpgradeAccount', () => {
     hooks.upgradeAccount.mockRejectedValue(new Error('Upgrade failed'));
 
     await expect(walletUpgradeAccount(req, res, hooks)).rejects.toThrow(
-      'Failed to upgrade account: Upgrade failed',
+      rpcErrors.internal({
+        message: 'Failed to upgrade account: Upgrade failed',
+      }),
     );
   });
 
@@ -200,7 +200,9 @@ describe('walletUpgradeAccount', () => {
     );
 
     await expect(walletUpgradeAccount(req, res, hooks)).rejects.toThrow(
-      'Account upgrade not supported on chain ID 0x999',
+      rpcErrors.invalidParams({
+        message: 'Account upgrade not supported on chain ID 0x999',
+      }),
     );
   });
 
@@ -213,7 +215,9 @@ describe('walletUpgradeAccount', () => {
     hooks.upgradeAccount.mockRejectedValue('String error');
 
     await expect(walletUpgradeAccount(req, res, hooks)).rejects.toThrow(
-      'Failed to upgrade account: String error',
+      rpcErrors.internal({
+        message: 'Failed to upgrade account: String error',
+      }),
     );
   });
 
@@ -229,7 +233,9 @@ describe('walletUpgradeAccount', () => {
     });
 
     await expect(walletUpgradeAccount(req, res, hooks)).rejects.toThrow(
-      'No upgrade contract address available for chain ID 0x1',
+      rpcErrors.invalidParams({
+        message: 'No upgrade contract address available for chain ID 0x1',
+      }),
     );
   });
 });

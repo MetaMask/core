@@ -1,3 +1,4 @@
+import { rpcErrors } from '@metamask/rpc-errors';
 import type {
   JsonRpcRequest,
   PendingJsonRpcResponse,
@@ -5,18 +6,11 @@ import type {
 } from '@metamask/utils';
 
 import { walletGetAccountUpgradeStatus } from './wallet_getAccountUpgradeStatus';
-import type { WalletGetAccountUpgradeStatusHooks } from './wallet_getAccountUpgradeStatus';
-
-type TestHooks = {
-  [K in keyof WalletGetAccountUpgradeStatusHooks]: jest.MockedFunction<
-    WalletGetAccountUpgradeStatusHooks[K]
-  >;
-};
 
 const TEST_ACCOUNT = '0x1234567890123456789012345678901234567890';
 const NETWORK_CLIENT_ID = 'mainnet';
 
-const createTestHooks = (): TestHooks => {
+const createTestHooks = () => {
   const getCode = jest.fn();
   const getCurrentChainIdForDomain = jest.fn().mockReturnValue('0x1');
   const getPermittedAccountsForOrigin = jest
@@ -169,7 +163,9 @@ describe('walletGetAccountUpgradeStatus', () => {
     await expect(
       walletGetAccountUpgradeStatus(req, res, hooks),
     ).rejects.toThrow(
-      'Could not determine current chain ID for origin: npm:@metamask/gator-permissions-snap',
+      rpcErrors.invalidParams({
+        message: 'Could not determine current chain ID for origin: npm:@metamask/gator-permissions-snap',
+      }),
     );
   });
 
@@ -213,7 +209,11 @@ describe('walletGetAccountUpgradeStatus', () => {
 
     await expect(
       walletGetAccountUpgradeStatus(req, res, hooks),
-    ).rejects.toThrow('Network client ID not found for chain ID 0x999');
+    ).rejects.toThrow(
+      rpcErrors.invalidParams({
+        message: 'Network client ID not found for chain ID 0x999',
+      }),
+    );
   });
 
   it('returns false for delegation code with wrong length', async () => {
@@ -254,7 +254,11 @@ describe('walletGetAccountUpgradeStatus', () => {
 
     await expect(
       walletGetAccountUpgradeStatus(req, res, hooks),
-    ).rejects.toThrow('Failed to get account upgrade status: Network error');
+    ).rejects.toThrow(
+      rpcErrors.internal({
+        message: 'Failed to get account upgrade status: Network error',
+      }),
+    );
   });
 
   it('returns early when EIP-7702 is not supported', async () => {

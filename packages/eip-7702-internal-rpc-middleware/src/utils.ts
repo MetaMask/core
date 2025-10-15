@@ -20,32 +20,32 @@ export async function validateAndNormalizeAddress(
   getPermittedAccountsForOrigin: (origin: string) => Promise<string[]>,
 ): Promise<Hex> {
   if (
-    typeof address === 'string' &&
-    address.length > 0 &&
-    isHexAddress(address)
+    typeof address !== 'string' ||
+    address.length === 0 ||
+    !isHexAddress(address)
   ) {
-    // Ensure that an "unauthorized" error is thrown if the requester
-    // does not have the `eth_accounts` permission.
-    const accounts = await getPermittedAccountsForOrigin(origin);
+    throw rpcErrors.invalidParams({
+      message: `Invalid parameters: must provide an EVM address.`,
+    });
+  }
 
-    // Validate and convert each account address to normalized Hex
-    const normalizedAccounts: string[] = accounts.map((accountAddress) =>
-      accountAddress.toLowerCase(),
-    );
+  // Ensure that an "unauthorized" error is thrown if the requester
+  // does not have the `eth_accounts` permission.
+  const accounts = await getPermittedAccountsForOrigin(origin);
 
-    const normalizedAddress = address.toLowerCase();
+  // Validate and convert each account address to normalized Hex
+  const normalizedAccounts: string[] = accounts.map((accountAddress) =>
+    accountAddress.toLowerCase(),
+  );
 
-    if (normalizedAccounts.includes(normalizedAddress)) {
-      // we know that normalizedAddress is a valid Hex string because of isHexAddress
-      return normalizedAddress as Hex;
-    }
+  const normalizedAddress = address.toLowerCase();
 
+  if (!normalizedAccounts.includes(normalizedAddress)) {
     throw providerErrors.unauthorized();
   }
 
-  throw rpcErrors.invalidParams({
-    message: `Invalid parameters: must provide an Ethereum address.`,
-  });
+  // we know that normalizedAddress is a valid Hex string because of isHexAddress
+  return normalizedAddress as Hex;
 }
 
 /**

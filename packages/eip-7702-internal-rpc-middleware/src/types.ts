@@ -18,9 +18,9 @@ export const GetAccountUpgradeStatusParamsStruct = object({
 export type UpgradeAccountParams = Infer<typeof UpgradeAccountParamsStruct>;
 
 export type UpgradeAccountResult = {
-  transactionHash: string; // Hash of the EIP-7702 authorization transaction
-  upgradedAccount: string; // Address of the upgraded account (same as input)
-  delegatedTo: string; // Address of the contract delegated to (determined by wallet)
+  transactionHash: Hex; // Hash of the EIP-7702 authorization transaction
+  upgradedAccount: Hex; // Address of the upgraded account (same as input)
+  delegatedTo: Hex; // Address of the contract delegated to (determined by wallet)
 };
 
 export type GetAccountUpgradeStatusParams = Infer<
@@ -28,9 +28,9 @@ export type GetAccountUpgradeStatusParams = Infer<
 >;
 
 export type GetAccountUpgradeStatusResult = {
-  account: string; // Address of the checked account
+  account: Hex; // Address of the checked account
   chainId: Hex; // Chain ID where the check was performed
   isSupported: boolean; // Whether upgrade to smart account is supported on the chain
   isUpgraded: boolean; // Whether the account is upgraded
-  upgradedAddress: string | null; // Address to which the account is upgraded
+  upgradedAddress: Hex | null; // Address to which the account is upgraded
 };
