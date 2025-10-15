@@ -4986,6 +4986,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^1.8.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^11.8.1"
+    "@ts-bridge/cli": "npm:^0.6.1"
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^27.4.1"
     "@types/node": "npm:^16.18.54"
