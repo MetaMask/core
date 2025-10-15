@@ -73,7 +73,7 @@
     "@metamask/accounts-controller": "^33.1.1",
     "@metamask/approval-controller": "^7.2.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/eth-block-tracker": "^12.0.1",
+    "@metamask/eth-block-tracker": "^12.2.1",
     "@metamask/eth-json-rpc-provider": "^5.0.1",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/gas-fee-controller": "^24.1.0",
