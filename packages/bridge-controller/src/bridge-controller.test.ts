@@ -79,6 +79,7 @@ describe('BridgeController', function () {
       messenger: messengerMock,
       getLayer1GasFee: getLayer1GasFeeMock,
       clientId: BridgeClientId.EXTENSION,
+      clientVersion: '1.0.0',
       fetchFn: mockFetchFn,
       trackMetaMetricsFn,
     });
@@ -428,8 +429,11 @@ describe('BridgeController', function () {
       mockFetchFn,
       BRIDGE_PROD_API_BASE_URL,
       null,
+      '1.0.0',
     );
-    expect(bridgeController.state.quotesLastFetched).toBeNull();
+    expect(bridgeController.state.quotesLastFetched).toBeCloseTo(
+      Date.now() - 1000,
+    );
 
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
@@ -706,7 +710,7 @@ describe('BridgeController', function () {
         quoteFetchError: null,
         assetExchangeRates: {},
         quotesRefreshCount: 1,
-        quotesInitialLoadTime: expect.any(Number),
+        quotesInitialLoadTime: 2900,
         quotesLastFetched: expect.any(Number),
       }),
     );
@@ -930,14 +934,19 @@ describe('BridgeController', function () {
       mockFetchFn,
       BRIDGE_PROD_API_BASE_URL,
       null,
+      '1.0.0',
     );
-    expect(bridgeController.state.quotesLastFetched).toBeNull();
+    expect(bridgeController.state.quotesLastFetched).toBeCloseTo(
+      Date.now() - 1000,
+    );
+    const t1 = bridgeController.state.quotesLastFetched;
 
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: true },
         quotes: [],
         quotesLoadingStatus: 0,
+        quotesLastFetched: t1,
       }),
     );
 
@@ -987,6 +996,7 @@ describe('BridgeController', function () {
       }),
     );
     const secondFetchTime = bridgeController.state.quotesLastFetched;
+    expect(secondFetchTime).toStrictEqual(t1);
     expect(secondFetchTime).toStrictEqual(firstFetchTime);
     expect(getLayer1GasFeeMock).not.toHaveBeenCalled();
   });
@@ -1238,6 +1248,7 @@ describe('BridgeController', function () {
       const controller = new BridgeController({
         messenger: mockMessenger,
         clientId: BridgeClientId.EXTENSION,
+        clientVersion: '1.0.0',
         getLayer1GasFee: jest.fn(),
         fetchFn: mockFetchFn,
         trackMetaMetricsFn,
@@ -1394,8 +1405,11 @@ describe('BridgeController', function () {
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
         null,
+        '1.0.0',
       );
-      expect(bridgeController.state.quotesLastFetched).toBeNull();
+      expect(bridgeController.state.quotesLastFetched).toBeCloseTo(
+        Date.now() - 500,
+      );
 
       expect(bridgeController.state).toStrictEqual(
         expect.objectContaining({
@@ -1527,7 +1541,7 @@ describe('BridgeController', function () {
 
     expect(stateWithoutQuotes).toMatchSnapshot();
     expect(quotes).toStrictEqual(mockBridgeQuotesNativeErc20Eth);
-    expect(quotesLastFetched).toBeCloseTo(Date.now());
+    expect(quotesLastFetched).toBeCloseTo(Date.now() - 10000);
 
     jest.advanceTimersByTime(10000);
     await flushPromises();
@@ -1603,7 +1617,9 @@ describe('BridgeController', function () {
     expect(bridgeController.state.quotesLoadingStatus).toBe(
       RequestStatus.LOADING,
     );
-    expect(bridgeController.state.quotesLastFetched).toBeNull();
+    expect(bridgeController.state.quotesLastFetched).toBeCloseTo(
+      Date.now() - 1000,
+    );
     expect(bridgeController.state.quotesRefreshCount).toBe(0);
     expect(bridgeController.state.quotes).toStrictEqual([]);
   });
@@ -2191,6 +2207,7 @@ describe('BridgeController', function () {
         messenger: messengerMock,
         getLayer1GasFee: getLayer1GasFeeMock,
         clientId: BridgeClientId.EXTENSION,
+        clientVersion: '1.0.0',
         fetchFn: mockFetchFn,
         trackMetaMetricsFn,
         state: {
@@ -2306,6 +2323,7 @@ describe('BridgeController', function () {
         messenger: messengerMock,
         getLayer1GasFee: getLayer1GasFeeMock,
         clientId: BridgeClientId.EXTENSION,
+        clientVersion: '1.0.0',
         fetchFn: mockFetchFn,
         trackMetaMetricsFn,
         state: {
@@ -2349,6 +2367,7 @@ describe('BridgeController', function () {
         messenger: messengerMock,
         getLayer1GasFee: getLayer1GasFeeMock,
         clientId: BridgeClientId.EXTENSION,
+        clientVersion: '1.0.0',
         fetchFn: mockFetchFn,
         trackMetaMetricsFn,
         state: {
@@ -2553,10 +2572,45 @@ describe('BridgeController', function () {
             [Function],
             "https://bridge.api.cx.metamask.io",
             "perps",
+            "1.0.0",
           ],
         ]
       `);
       expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
+      expect(bridgeController.state).toStrictEqual(expectedControllerState);
+    });
+
+    it('should throw error if account is not found', async () => {
+      const fetchBridgeQuotesSpy = jest
+        .spyOn(fetchUtils, 'fetchBridgeQuotes')
+        .mockResolvedValueOnce({
+          quotes: quotesByDecreasingProcessingTime as never,
+          validationFailures: [],
+        });
+      const expectedControllerState = bridgeController.state;
+
+      await expect(
+        bridgeController.fetchQuotes(
+          {
+            srcChainId: SolScope.Mainnet,
+            destChainId: '1',
+            srcTokenAddress: 'NATIVE',
+            destTokenAddress: '0x1234',
+            srcTokenAmount: '1000000',
+            // walletAddress: '0x123',
+            slippage: 0.5,
+            aggIds: ['other'],
+            bridgeIds: ['other', 'debridge'],
+            gasIncluded: false,
+            gasIncluded7702: false,
+            noFee: false,
+          } as never,
+          null,
+          FeatureId.PERPS,
+        ),
+      ).rejects.toThrow('Account address is required');
+
+      expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
       expect(bridgeController.state).toStrictEqual(expectedControllerState);
     });
 
@@ -2614,6 +2668,7 @@ describe('BridgeController', function () {
             [Function],
             "https://bridge.api.cx.metamask.io",
             "perps",
+            "1.0.0",
           ],
         ]
       `);
@@ -2665,6 +2720,7 @@ describe('BridgeController', function () {
             [Function],
             "https://bridge.api.cx.metamask.io",
             null,
+            "1.0.0",
           ],
         ]
       `);
