@@ -242,6 +242,69 @@ describe('ShieldRemoteBackend', () => {
         }),
       ).rejects.toThrow('Failed to log signature: 500');
     });
+
+    it('aborts pending coverage result polling before logging', async () => {
+      const { backend, fetchMock } = setup({
+        getCoverageResultTimeout: 10000,
+        getCoverageResultPollInterval: 100,
+      });
+
+      const signatureRequest = generateMockSignatureRequest();
+      const coverageId = 'coverageId';
+
+      // Setup fetch to handle init, result polling, and log requests
+      fetchMock.mockImplementation(
+        async (input: RequestInfo | URL, init?: RequestInit) => {
+          // eslint-disable-next-line @typescript-eslint/no-base-to-string
+          const url = typeof input === 'string' ? input : input.toString();
+          const signal = init?.signal;
+
+          if (url.includes('/init')) {
+            return {
+              status: 200,
+              json: jest.fn().mockResolvedValue({ coverageId }),
+            } as unknown as Response;
+          }
+
+          if (url.includes('/result')) {
+            if (signal?.aborted) {
+              throw new Error('Request was aborted');
+            }
+            // Keep polling (never return 200) to test abortion
+            return {
+              status: 412,
+              json: jest.fn().mockResolvedValue({ status: 'unknown' }),
+            } as unknown as Response;
+          }
+
+          if (url.includes('/log')) {
+            return { status: 200 } as unknown as Response;
+          }
+
+          throw new Error('Unexpected URL');
+        },
+      );
+
+      // Start coverage check (don't await) - this will start polling
+      const coveragePromise = backend.checkSignatureCoverage({
+        signatureRequest,
+      });
+
+      // Wait a bit to let polling start
+      await delay(50);
+
+      // Log signature - this should abort the ongoing polling
+      await backend.logSignature({
+        signatureRequest,
+        signature: '0x00',
+        status: 'shown',
+      });
+
+      // Coverage check should be cancelled
+      await expect(coveragePromise).rejects.toThrow(
+        'Coverage result polling cancelled',
+      );
+    });
   });
 
   describe('logTransaction', () => {
@@ -271,6 +334,67 @@ describe('ShieldRemoteBackend', () => {
           status: 'shown',
         }),
       ).rejects.toThrow('Failed to log transaction: 500');
+    });
+
+    it('aborts pending coverage result polling before logging', async () => {
+      const { backend, fetchMock } = setup({
+        getCoverageResultTimeout: 10000,
+        getCoverageResultPollInterval: 100,
+      });
+
+      const txMeta = generateMockTxMeta();
+      const coverageId = 'coverageId';
+
+      // Setup fetch to handle init, result polling, and log requests
+      fetchMock.mockImplementation(
+        async (input: RequestInfo | URL, init?: RequestInit) => {
+          // eslint-disable-next-line @typescript-eslint/no-base-to-string
+          const url = typeof input === 'string' ? input : input.toString();
+          const signal = init?.signal;
+
+          if (url.includes('/init')) {
+            return {
+              status: 200,
+              json: jest.fn().mockResolvedValue({ coverageId }),
+            } as unknown as Response;
+          }
+
+          if (url.includes('/result')) {
+            if (signal?.aborted) {
+              throw new Error('Request was aborted');
+            }
+            // Keep polling (never return 200) to test abortion
+            return {
+              status: 412,
+              json: jest.fn().mockResolvedValue({ status: 'unknown' }),
+            } as unknown as Response;
+          }
+
+          if (url.includes('/log')) {
+            return { status: 200 } as unknown as Response;
+          }
+
+          throw new Error('Unexpected URL');
+        },
+      );
+
+      // Start coverage check (don't await) - this will start polling
+      const coveragePromise = backend.checkCoverage({ txMeta });
+
+      // Wait a bit to let polling start
+      await delay(50);
+
+      // Log transaction - this should abort the ongoing polling
+      await backend.logTransaction({
+        txMeta,
+        transactionHash: '0x00',
+        status: 'shown',
+      });
+
+      // Coverage check should be cancelled
+      await expect(coveragePromise).rejects.toThrow(
+        'Coverage result polling cancelled',
+      );
     });
   });
 

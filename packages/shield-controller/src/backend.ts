@@ -134,6 +134,11 @@ export class ShieldRemoteBackend implements ShieldBackend {
       ...initBody,
     };
 
+    // cancel/abort any pending coverage result polling before logging the signature
+    if (this.#abortController && !this.#abortController.signal.aborted) {
+      this.#abortController.abort();
+    }
+
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/signature/coverage/log`,
       {
@@ -154,6 +159,11 @@ export class ShieldRemoteBackend implements ShieldBackend {
       status: req.status,
       ...initBody,
     };
+
+    // cancel/abort any pending coverage result polling before logging the transaction
+    if (this.#abortController && !this.#abortController.signal.aborted) {
+      this.#abortController.abort();
+    }
 
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/transaction/coverage/log`,
