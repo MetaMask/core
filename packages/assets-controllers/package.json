@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "80.0.0",
+  "version": "81.0.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",
@@ -84,7 +84,7 @@
     "@metamask/accounts-controller": "^33.1.1",
     "@metamask/approval-controller": "^7.2.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/core-backend": "^1.0.1",
+    "@metamask/core-backend": "^2.0.0",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/keyring-controller": "^23.1.1",
     "@metamask/keyring-internal-api": "^9.0.0",
@@ -115,7 +115,7 @@
     "@metamask/account-tree-controller": "^1.0.0",
     "@metamask/accounts-controller": "^33.0.0",
     "@metamask/approval-controller": "^7.0.0",
-    "@metamask/core-backend": "^1.0.0",
+    "@metamask/core-backend": "^2.0.0",
     "@metamask/keyring-controller": "^23.0.0",
     "@metamask/network-controller": "^24.0.0",
     "@metamask/permission-controller": "^11.0.0",
