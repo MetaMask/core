@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.2.2]
+
 ### Changed
 
 - Bump `@metamask/eth-block-tracker` from `^12.0.1` to `^12.2.1` ([#6811](https://github.com/MetaMask/core/pull/6811))
@@ -960,7 +962,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.2...HEAD
+[24.2.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.1...@metamask/network-controller@24.2.2
 [24.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.0...@metamask/network-controller@24.2.1
 [24.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.1.0...@metamask/network-controller@24.2.0
 [24.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.1...@metamask/network-controller@24.1.0
