@@ -10,6 +10,7 @@ import {
 } from '@metamask/transaction-controller';
 import { v1 as random } from 'uuid';
 
+import type { createMockMessenger } from './mocks/messenger';
 import { coverageStatuses, type CoverageStatus } from '../src/types';
 
 /**
@@ -63,4 +64,38 @@ export function generateMockSignatureRequest(): SignatureRequest {
  */
 export function getRandomCoverageStatus(): CoverageStatus {
   return coverageStatuses[Math.floor(Math.random() * coverageStatuses.length)];
+}
+
+/**
+ * Get a random coverage result.
+ *
+ * @returns A random coverage result.
+ */
+export function getRandomCoverageResult() {
+  return {
+    status: getRandomCoverageStatus(),
+    message: 'message',
+    reasonCode: 'reasonCode',
+  };
+}
+
+/**
+ * Setup a coverage result received handler.
+ *
+ * @param rootMessenger - The root messenger.
+ * @returns A promise that resolves when the coverage result is received.
+ */
+export function setupCoverageResultReceived(
+  rootMessenger: ReturnType<typeof createMockMessenger>['rootMessenger'],
+): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const handler = (_coverageResult: unknown) => {
+      rootMessenger.unsubscribe(
+        'ShieldController:coverageResultReceived',
+        handler,
+      );
+      resolve();
+    };
+    rootMessenger.subscribe('ShieldController:coverageResultReceived', handler);
+  });
 }
