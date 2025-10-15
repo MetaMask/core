@@ -184,7 +184,7 @@ describe('BtcAccountProvider', () => {
   });
 
   it('gets accounts', () => {
-    const accounts = [MOCK_BTC_P2TR_ACCOUNT_1];
+    const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
     const { provider } = setup({
       accounts,
     });
@@ -193,7 +193,7 @@ describe('BtcAccountProvider', () => {
   });
 
   it('gets a specific account', () => {
-    const account = MOCK_BTC_P2TR_ACCOUNT_1;
+    const account = MOCK_BTC_P2WPKH_ACCOUNT_1;
     const { provider } = setup({
       accounts: [account],
     });
@@ -214,7 +214,7 @@ describe('BtcAccountProvider', () => {
   });
 
   it('creates accounts', async () => {
-    const accounts = [MOCK_BTC_P2TR_ACCOUNT_1, MOCK_BTC_P2WPKH_ACCOUNT_1];
+    const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
     const { provider, keyring } = setup({
       accounts,
     });
@@ -224,12 +224,12 @@ describe('BtcAccountProvider', () => {
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: newGroupIndex,
     });
-    expect(newAccounts).toHaveLength(2);
+    expect(newAccounts).toHaveLength(1);
     expect(keyring.createAccount).toHaveBeenCalled();
   });
 
   it('does not re-create accounts (idempotent)', async () => {
-    const accounts = [MOCK_BTC_P2TR_ACCOUNT_1];
+    const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
     const { provider } = setup({
       accounts,
     });
@@ -238,8 +238,8 @@ describe('BtcAccountProvider', () => {
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
     });
-    expect(newAccounts).toHaveLength(2);
-    expect(newAccounts[0]).toStrictEqual(MOCK_BTC_P2TR_ACCOUNT_1);
+    expect(newAccounts).toHaveLength(1);
+    expect(newAccounts[0]).toStrictEqual(MOCK_BTC_P2WPKH_ACCOUNT_1);
   });
 
   it('throws if the account creation process takes too long', async () => {
@@ -299,16 +299,16 @@ describe('BtcAccountProvider', () => {
       groupIndex: 0,
     });
 
-    expect(discovered).toHaveLength(2);
+    expect(discovered).toHaveLength(1);
     // Ensure we did go through creation path
     expect(mocks.keyring.createAccount).toHaveBeenCalled();
     // Provider should now expose one account (newly created)
-    expect(provider.getAccounts()).toHaveLength(2);
+    expect(provider.getAccounts()).toHaveLength(1);
   });
 
   it('returns existing account if it already exists at index', async () => {
     const { provider, mocks } = setup({
-      accounts: [MOCK_BTC_P2TR_ACCOUNT_1, MOCK_BTC_P2WPKH_ACCOUNT_1],
+      accounts: [MOCK_BTC_P2WPKH_ACCOUNT_1],
     });
 
     // Simulate one discovered account — should resolve to the existing one
@@ -319,10 +319,7 @@ describe('BtcAccountProvider', () => {
       groupIndex: 0,
     });
 
-    expect(discovered).toStrictEqual([
-      MOCK_BTC_P2TR_ACCOUNT_1,
-      MOCK_BTC_P2WPKH_ACCOUNT_1,
-    ]);
+    expect(discovered).toStrictEqual([MOCK_BTC_P2WPKH_ACCOUNT_1]);
   });
 
   it('does not return any accounts if no account is discovered', async () => {

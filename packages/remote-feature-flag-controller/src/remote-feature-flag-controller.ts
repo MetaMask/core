@@ -1,5 +1,6 @@
 import {
   BaseController,
+  type ControllerGetStateAction,
   type ControllerStateChangeEvent,
 } from '@metamask/base-controller/next';
 import type { Messenger } from '@metamask/messenger';
@@ -9,8 +10,6 @@ import type {
   FeatureFlags,
   ServiceResponse,
   FeatureFlagScopeValue,
-  RemoteFeatureFlagControllerState,
-  RemoteFeatureFlagControllerGetStateAction,
 } from './remote-feature-flag-controller-types';
 import {
   generateDeterministicRandomNumber,
@@ -23,6 +22,11 @@ const controllerName = 'RemoteFeatureFlagController';
 export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
 
 // === STATE ===
+
+export type RemoteFeatureFlagControllerState = {
+  remoteFeatureFlags: FeatureFlags;
+  cacheTimestamp: number;
+};
 
 const remoteFeatureFlagControllerMetadata = {
   remoteFeatureFlags: {
@@ -41,13 +45,23 @@ const remoteFeatureFlagControllerMetadata = {
 
 // === MESSENGER ===
 
-export type RemoteFeatureFlagControllerGetRemoteFeatureFlagAction = {
+/**
+ * The action to retrieve the state of the {@link RemoteFeatureFlagController}.
+ */
+export type RemoteFeatureFlagControllerGetStateAction =
+  ControllerGetStateAction<
+    typeof controllerName,
+    RemoteFeatureFlagControllerState
+  >;
+
+export type RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction = {
   type: `${typeof controllerName}:updateRemoteFeatureFlags`;
   handler: RemoteFeatureFlagController['updateRemoteFeatureFlags'];
 };
 
 export type RemoteFeatureFlagControllerActions =
-  RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction;
 
 export type RemoteFeatureFlagControllerStateChangeEvent =
   ControllerStateChangeEvent<

@@ -1,4 +1,3 @@
-import type { ControllerGetStateAction } from '@metamask/base-controller/next';
 import type { Json } from '@metamask/utils';
 
 // Define accepted values for client, distribution, and environment
@@ -47,26 +46,3 @@ export type ServiceResponse = {
   remoteFeatureFlags: FeatureFlags;
   cacheTimestamp: number | null;
 };
-
-/**
- * Describes the shape of the state object for the {@link RemoteFeatureFlagController}.
- */
-export type RemoteFeatureFlagControllerState = {
-  /**
-   * The collection of feature flags and their respective values, which can be objects.
-   */
-  remoteFeatureFlags: FeatureFlags;
-  /**
-   * The timestamp of the last successful feature flag cache.
-   */
-  cacheTimestamp: number;
-};
-
-/**
- * The action to retrieve the state of the {@link RemoteFeatureFlagController}.
- */
-export type RemoteFeatureFlagControllerGetStateAction =
-  ControllerGetStateAction<
-    'RemoteFeatureFlagController',
-    RemoteFeatureFlagControllerState
-  >;
