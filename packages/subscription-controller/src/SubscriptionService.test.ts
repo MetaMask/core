@@ -20,6 +20,7 @@ import {
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
   SUBSCRIPTION_STATUSES,
+  SubscriptionUserEvent,
 } from './types';
 
 // Mock the handleFetch function
@@ -399,6 +400,78 @@ describe('SubscriptionService', () => {
         const result = await service.getBillingPortalUrl();
 
         expect(result).toStrictEqual({ url: 'https://billing-portal.com' });
+      });
+    });
+  });
+
+  describe('getShieldSubscriptionEligibility', () => {
+    it('should get shield subscription eligibility successfully', async () => {
+      await withMockSubscriptionService(async ({ service }) => {
+        handleFetchMock.mockResolvedValue([
+          {
+            product: PRODUCT_TYPES.SHIELD,
+            canSubscribe: true,
+            minBalanceUSD: 100,
+            canViewEntryModal: true,
+          },
+        ]);
+
+        const results = await service.getSubscriptionsEligibilities();
+
+        expect(results).toStrictEqual([
+          {
+            product: PRODUCT_TYPES.SHIELD,
+            canSubscribe: true,
+            minBalanceUSD: 100,
+            canViewEntryModal: true,
+          },
+        ]);
+      });
+    });
+
+    it('should get shield subscription eligibility with default values', async () => {
+      await withMockSubscriptionService(async ({ service }) => {
+        handleFetchMock.mockResolvedValue([
+          {
+            product: PRODUCT_TYPES.SHIELD,
+            minBalanceUSD: 100,
+          },
+        ]);
+
+        const results = await service.getSubscriptionsEligibilities();
+
+        expect(results).toHaveLength(1);
+        expect(results).toStrictEqual([
+          {
+            product: PRODUCT_TYPES.SHIELD,
+            canSubscribe: false,
+            canViewEntryModal: false,
+            minBalanceUSD: 100,
+          },
+        ]);
+      });
+    });
+  });
+
+  describe('submitUserEvent', () => {
+    it('should submit user event successfully', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        handleFetchMock.mockResolvedValue({});
+
+        await service.submitUserEvent({
+          event: SubscriptionUserEvent.ShieldEntryModalViewed,
+        });
+
+        expect(handleFetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(config.env, 'user-events'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              event: SubscriptionUserEvent.ShieldEntryModalViewed,
+            }),
+          },
+        );
       });
     });
   });

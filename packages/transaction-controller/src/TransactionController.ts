@@ -4154,7 +4154,12 @@ export class TransactionController extends BaseController<
             blockTime,
             chainId,
             ethQuery: this.#getEthQuery({ networkClientId }),
-            getSimulationConfig: this.#getSimulationConfig,
+            getSimulationConfig: (url, opts) => {
+              return this.#getSimulationConfig(url, {
+                txMeta: transactionMeta,
+                ...opts,
+              });
+            },
             nestedTransactions,
             txParams,
           }),
