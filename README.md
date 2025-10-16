@@ -201,6 +201,7 @@ linkStyle default opacity:0.5
   core_backend --> accounts_controller;
   core_backend --> keyring_controller;
   delegation_controller --> base_controller;
+  delegation_controller --> messenger;
   delegation_controller --> accounts_controller;
   delegation_controller --> keyring_controller;
   earn_controller --> base_controller;
@@ -301,6 +302,7 @@ linkStyle default opacity:0.5
   signature_controller --> controller_utils;
   signature_controller --> accounts_controller;
   signature_controller --> approval_controller;
+  signature_controller --> gator_permissions_controller;
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
   signature_controller --> network_controller;
