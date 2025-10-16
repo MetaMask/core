@@ -27,6 +27,7 @@
     { "path": "./packages/ens-controller" },
     { "path": "./packages/error-reporting-service" },
     { "path": "./packages/eth-block-tracker" },
+    { "path": "./packages/eth-json-rpc-middleware" },
     { "path": "./packages/eth-json-rpc-provider" },
     { "path": "./packages/foundryup" },
     { "path": "./packages/gas-fee-controller" },

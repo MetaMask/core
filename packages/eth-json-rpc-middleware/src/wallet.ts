@@ -374,7 +374,6 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
       signatureMethod: 'personal_sign',
     };
 
-    // eslint-disable-next-line require-atomic-updates
     res.result = await processPersonalMessage(msgParams, req);
   }
 

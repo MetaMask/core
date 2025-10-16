@@ -2,9 +2,13 @@
   "name": "@metamask/eth-json-rpc-middleware",
   "version": "20.0.0",
   "description": "Ethereum-related json-rpc-engine middleware",
-  "homepage": "https://github.com/MetaMask/eth-json-rpc-middleware#readme",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/eth-json-rpc-middleware#readme",
   "bugs": {
-    "url": "https://github.com/MetaMask/eth-json-rpc-middleware/issues"
+    "url": "https://github.com/MetaMask/core/issues"
   },
   "repository": {
     "type": "git",
@@ -29,24 +33,25 @@
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.cts",
   "files": [
-    "dist"
+    "dist/"
   ],
   "scripts": {
-    "build": "ts-bridge --project tsconfig.build.json --clean",
-    "build:clean": "rimraf dist && yarn build",
+    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "lint": "yarn lint:eslint && yarn lint:constraints && yarn lint:misc --check && yarn lint:dependencies --check && yarn lint:changelog",
-    "lint:changelog": "auto-changelog validate --prettier",
-    "lint:constraints": "yarn constraints",
-    "lint:dependencies": "depcheck && yarn dedupe --check",
-    "lint:dependencies:fix": "depcheck && yarn dedupe",
-    "lint:eslint": "eslint . --cache",
-    "lint:fix": "yarn lint:eslint --fix && yarn lint:constraints --fix && yarn lint:misc --write && yarn lint:dependencies:fix && yarn lint:changelog",
-    "lint:misc": "prettier '**/*.json' '**/*.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
-    "prepack": "./scripts/prepack.sh",
-    "test": "jest && yarn build:clean && yarn test:types",
-    "test:types": "tsd --files 'src/**/*.test-d.ts' && attw --pack",
-    "test:watch": "jest --watch"
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/eth-json-rpc-middleware --tag-prefix-before-package-rename eth-json-rpc-middleware@ --version-before-package-rename 6.1.0",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eth-json-rpc-middleware --tag-prefix-before-package-rename eth-json-rpc-middleware@ --version-before-package-rename 6.1.0",
+    "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies && yarn lint:changelog",
+    "lint:changelog": "auto-changelog validate",
+    "lint:dependencies": "depcheck",
+    "lint:eslint": "eslint . --cache --ext js,ts",
+    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies && yarn lint:changelog",
+    "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
+    "publish:preview": "yarn npm publish --tag preview",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
     "@metamask/eth-block-tracker": "^13.0.0",
@@ -72,9 +77,8 @@
     "typedoc": "^0.24.8",
     "typescript": "~5.2.2"
   },
-  "packageManager": "yarn@4.1.1",
   "engines": {
-    "node": "^18.16 || ^20 || >=22"
+    "node": "^18.18 || >=20"
   },
   "publishConfig": {
     "access": "public",

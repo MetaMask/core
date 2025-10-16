@@ -53,7 +53,7 @@ describe('timeout', () => {
 
       jest.advanceTimersByTime(50);
 
-      expect(promise).toNeverResolve();
+      await expect(promise).toNeverResolve();
     });
 
     it('resolves after the given duration', async () => {

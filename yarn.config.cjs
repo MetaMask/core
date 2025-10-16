@@ -500,6 +500,7 @@ async function expectWorkspaceLicense(workspace) {
       '@metamask/json-rpc-engine',
       '@metamask/json-rpc-middleware-stream',
       '@metamask/permission-log-controller',
+      '@metamask/eth-json-rpc-middleware',
       '@metamask/eth-json-rpc-provider',
     ].includes(workspace.manifest.name)
   ) {

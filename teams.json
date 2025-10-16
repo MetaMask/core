@@ -19,6 +19,7 @@
   "metamask/eip1193-permission-middleware": "team-wallet-api-platform",
   "metamask/ens-controller": "team-confirmations",
   "metamask/eth-block-tracker": "team-wallet-api-platform,team-wallet-framework",
+  "metamask/eth-json-rpc-middleware": "team-wallet-api-platform,team-wallet-framework",
   "metamask/eth-json-rpc-provider": "team-wallet-api-platform,team-wallet-framework",
   "metamask/gas-fee-controller": "team-confirmations",
   "metamask/gator-permissions-controller": "team-delegation",
