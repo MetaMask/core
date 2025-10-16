@@ -1,5 +1,5 @@
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 
 /**
  * Acts like a PollingBlockTracker, but doesn't start the polling loop or
@@ -8,7 +8,7 @@ import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 export class FakeBlockTracker extends PollingBlockTracker {
   #latestBlockNumber = '0x0';
 
-  constructor({ provider }: { provider: SafeEventEmitterProvider }) {
+  constructor({ provider }: { provider: InternalProvider }) {
     super({
       provider,
     });

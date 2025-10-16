@@ -1,6 +1,6 @@
 import type { JsonRpcEngine } from '@metamask/json-rpc-engine';
 
-import { SafeEventEmitterProvider } from './safe-event-emitter-provider';
+import { InternalProvider } from './internal-provider';
 
 /**
  * Construct an Ethereum provider from the given JSON-RPC engine.
@@ -8,8 +8,6 @@ import { SafeEventEmitterProvider } from './safe-event-emitter-provider';
  * @param engine - The JSON-RPC engine to construct a provider from.
  * @returns An Ethereum provider.
  */
-export function providerFromEngine(
-  engine: JsonRpcEngine,
-): SafeEventEmitterProvider {
-  return new SafeEventEmitterProvider({ engine });
+export function providerFromEngine(engine: JsonRpcEngine): InternalProvider {
+  return new InternalProvider({ engine });
 }

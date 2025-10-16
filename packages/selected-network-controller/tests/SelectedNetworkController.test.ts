@@ -6,7 +6,10 @@ import {
   getDefaultNetworkControllerState,
   RpcEndpointType,
 } from '@metamask/network-controller';
-import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
+import {
+  createEventEmitterProxy,
+  createSwappableProxy,
+} from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
 
 import type {
@@ -150,9 +153,9 @@ const setup = ({
     once: jest.fn(),
   };
 
-  const createEventEmitterProxyMock = jest.mocked(createEventEmitterProxy);
+  // Non-polluting use of any for test mock.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createEventEmitterProxyMock.mockImplementation((initialTarget: any) => {
+  const swappableProxyImplementation = (initialTarget: any) => {
     if (initialTarget?.request !== undefined) {
       return mockProviderProxy;
     }
@@ -160,7 +163,13 @@ const setup = ({
       return mockBlockTrackerProxy;
     }
     return mockProviderProxy;
-  });
+  };
+  const createSwappableProxyMock = jest
+    .mocked(createSwappableProxy)
+    .mockImplementation(swappableProxyImplementation);
+  const createEventEmitterProxyMock = jest
+    .mocked(createEventEmitterProxy)
+    .mockImplementation(swappableProxyImplementation);
   const messenger = buildMessenger();
   const { restrictedMessenger, ...mockMessengerActions } =
     buildSelectedNetworkControllerMessenger({
@@ -180,6 +189,7 @@ const setup = ({
     mockProviderProxy,
     mockBlockTrackerProxy,
     domainProxyMap,
+    createSwappableProxyMock,
     createEventEmitterProxyMock,
     ...mockMessengerActions,
   };
