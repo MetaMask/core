@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `MONAD` network support ([#6827](https://github.com/MetaMask/core/pull/6827))
+  - Add account address relationship API support
+  - Add incoming transactions API support
+
 ## [60.7.0]
 
 ### Added
