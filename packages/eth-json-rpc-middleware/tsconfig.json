@@ -5,19 +5,19 @@
   },
   "references": [
     {
-      "path": "../../packages/error-reporting-service"
+      "path": "../error-reporting-service"
     },
     {
-      "path": "../../packages/eth-block-tracker"
+      "path": "../eth-block-tracker"
     },
     {
-      "path": "../../packages/eth-json-rpc-provider"
+      "path": "../eth-json-rpc-provider"
     },
     {
-      "path": "../../packages/json-rpc-engine"
+      "path": "../json-rpc-engine"
     },
     {
-      "path": "../../packages/network-controller"
+      "path": "../network-controller"
     }
   ],
   "include": ["../../types", "./src", "./types"]
