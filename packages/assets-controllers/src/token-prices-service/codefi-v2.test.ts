@@ -1272,15 +1272,6 @@ describe('CodefiTokenPricesServiceV2', () => {
   });
 
   describe('fetchExchangeRates', () => {
-    afterEach(() => {
-      if (!nock.isDone()) {
-        console.error(
-          'Not all nock interceptors were used:',
-          nock.pendingMocks(),
-        );
-      }
-      nock.cleanAll();
-    });
     const exchangeRatesMockResponseUsd = {
       btc: {
         name: 'Bitcoin',
@@ -1481,7 +1472,6 @@ describe('CodefiTokenPricesServiceV2', () => {
           .replyWithError('Failed to fetch')
           .persist();
 
-        console.log('Pending mocks:', nock.pendingMocks());
         await expect(() =>
           new CodefiTokenPricesServiceV2().fetchExchangeRates({
             baseCurrency: 'usd',
@@ -1837,6 +1827,7 @@ describe('CodefiTokenPricesServiceV2', () => {
  * @param args.clock - The fake timers clock to advance.
  * @param args.fetchTokenPrices - The "fetchTokenPrices" function to call.
  * @param args.retries - The number of retries the fetch call is configured to make.
+ * @returns The result of the fetch call.
  */
 async function fetchTokenPricesWithFakeTimers({
   clock,
@@ -1876,6 +1867,7 @@ async function fetchTokenPricesWithFakeTimers({
  * @param args.clock - The fake timers clock to advance.
  * @param args.fetchExchangeRates - The "fetchExchangeRates" function to call.
  * @param args.retries - The number of retries the fetch call is configured to make.
+ * @returns The result of the fetch call.
  */
 async function fetchExchangeRatesWithFakeTimers({
   clock,

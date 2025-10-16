@@ -12,7 +12,6 @@ import { hexToNumber } from '@metamask/utils';
 
 import type {
   AbstractTokenPricesService,
-  ExchangeRate,
   ExchangeRatesByCurrency,
   TokenPrice,
   TokenPricesByTokenAddress,
