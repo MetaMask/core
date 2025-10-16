@@ -1,5 +1,5 @@
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { Json, JsonRpcRequest } from '@metamask/utils';
+import type { JsonRpcRequest } from '@metamask/utils';
 
 import { JsonRpcEngine } from '.';
 import { asV2Middleware } from './asV2Middleware';
@@ -90,7 +90,7 @@ describe('asV2Middleware', () => {
     });
     legacyEngine.push(legacyMiddleware);
 
-    const v2Engine = new JsonRpcEngineV2<JsonRpcRequest, Json>({
+    const v2Engine = new JsonRpcEngineV2<JsonRpcRequest>({
       middleware: [
         ({ context, next }) => {
           context.set('value', 1);

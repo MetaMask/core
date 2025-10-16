@@ -1,6 +1,5 @@
 import { rpcErrors, serializeError } from '@metamask/rpc-errors';
 import type {
-  Json,
   JsonRpcParams,
   JsonRpcRequest,
   JsonRpcResponse,
@@ -22,7 +21,7 @@ type Options = {
       engine: JsonRpcEngineV2;
     }
   | {
-      middleware: NonEmptyArray<JsonRpcMiddleware<JsonRpcCall, Json | void>>;
+      middleware: NonEmptyArray<JsonRpcMiddleware>;
     }
 );
 

@@ -19,8 +19,9 @@ import type { JsonRpcMiddleware as LegacyMiddleware } from '..';
 export function asLegacyMiddleware<
   Params extends JsonRpcParams,
   Request extends JsonRpcRequest<Params>,
-  Result extends ResultConstraint<Request>,
->(engine: JsonRpcEngineV2<Request, Result>): LegacyMiddleware<Params, Result> {
+>(
+  engine: JsonRpcEngineV2<Request>,
+): LegacyMiddleware<Params, ResultConstraint<Request>> {
   const middleware = engine.asMiddleware();
   return createAsyncMiddleware(async (req, res, next) => {
     const request = fromLegacyRequest(req as Request);
@@ -42,7 +43,7 @@ export function asLegacyMiddleware<
     propagateToRequest(req, context);
 
     if (result !== undefined) {
-      res.result = result;
+      res.result = deepClone(result) as ResultConstraint<Request>;
       return undefined;
     }
     return next();

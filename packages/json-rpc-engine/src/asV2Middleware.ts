@@ -35,10 +35,9 @@ import type {
 export function asV2Middleware<
   Params extends JsonRpcParams,
   Request extends JsonRpcRequest<Params>,
-  Result extends ResultConstraint<Request>,
->(engine: JsonRpcEngine): JsonRpcMiddleware<Request, Result> {
+>(engine: JsonRpcEngine): JsonRpcMiddleware<Request> {
   const middleware = engine.asMiddleware();
-  return async ({ request, context, next }): Promise<Result | undefined> => {
+  return async ({ request, context, next }) => {
     const req = deepClone(request) as JsonRpcRequest<Params>;
     propagateToRequest(req, context);
 
@@ -70,7 +69,7 @@ export function asV2Middleware<
     if (hasProperty(response, 'error')) {
       throw unserializeError(response.error);
     } else if (hasProperty(response, 'result')) {
-      return response.result as Result;
+      return response.result as ResultConstraint<Request>;
     }
     return next(fromLegacyRequest(req as Request));
   };

@@ -33,40 +33,30 @@ type MixedParam<Request extends JsonRpcCall> = [
 export type ResultConstraint<Request extends JsonRpcCall> =
   Request extends JsonRpcRequest ? Json : void;
 
-export type Next<
-  Request extends JsonRpcCall,
-  Result extends ResultConstraint<Request>,
-> = (request?: Readonly<Request>) => Promise<Readonly<Result> | undefined>;
+export type Next<Request extends JsonRpcCall> = (
+  request?: Readonly<Request>,
+) => Promise<Readonly<ResultConstraint<Request>> | undefined>;
 
-export type MiddlewareParams<
-  Request extends JsonRpcCall,
-  Result extends ResultConstraint<Request>,
-> = {
+export type MiddlewareParams<Request extends JsonRpcCall> = {
   request: Readonly<Request>;
   context: MiddlewareContext;
-  next: Next<Request, Result>;
+  next: Next<Request>;
 };
 
 export type JsonRpcMiddleware<
   Request extends JsonRpcCall = JsonRpcCall,
   Result extends ResultConstraint<Request> = ResultConstraint<Request>,
 > = (
-  params: MiddlewareParams<Request, Result>,
+  params: MiddlewareParams<Request>,
 ) => Readonly<Result> | undefined | Promise<Readonly<Result> | undefined>;
 
-type RequestState<
-  Request extends JsonRpcCall,
-  Result extends ResultConstraint<Request>,
-> = {
+type RequestState<Request extends JsonRpcCall> = {
   request: Request;
-  result: Result | undefined;
+  result: Readonly<ResultConstraint<Request>> | undefined;
 };
 
-type Options<
-  Request extends JsonRpcCall,
-  Result extends ResultConstraint<Request>,
-> = {
-  middleware: NonEmptyArray<JsonRpcMiddleware<Request, Result>>;
+type Options<Request extends JsonRpcCall> = {
+  middleware: NonEmptyArray<JsonRpcMiddleware<Request>>;
 };
 
 type HandleOptions = {
@@ -108,15 +98,12 @@ type HandleOptions = {
  * }
  * ```
  */
-export class JsonRpcEngineV2<
-  Request extends JsonRpcCall = JsonRpcCall,
-  Result extends ResultConstraint<Request> = ResultConstraint<Request>,
-> {
-  #middleware: Readonly<NonEmptyArray<JsonRpcMiddleware<Request, Result>>>;
+export class JsonRpcEngineV2<Request extends JsonRpcCall = JsonRpcCall> {
+  #middleware: Readonly<NonEmptyArray<JsonRpcMiddleware<Request>>>;
 
   #isDestroyed = false;
 
-  constructor({ middleware }: Options<Request, Result>) {
+  constructor({ middleware }: Options<Request>) {
     this.#middleware = [...middleware];
   }
 
@@ -129,9 +116,11 @@ export class JsonRpcEngineV2<
    * @returns The JSON-RPC response.
    */
   async handle(
-    request: Extract<Request, JsonRpcRequest>,
+    request: Extract<Request, JsonRpcRequest> extends never
+      ? never
+      : Extract<Request, JsonRpcRequest>,
     options?: HandleOptions,
-  ): Promise<Result>;
+  ): Promise<ResultConstraint<Request>>;
 
   /**
    * Handle a JSON-RPC notification. Notifications do not return a result.
@@ -159,12 +148,12 @@ export class JsonRpcEngineV2<
   async handle(
     call: MixedParam<Request>,
     options?: HandleOptions,
-  ): Promise<Result | void>;
+  ): Promise<ResultConstraint<Request> | void>;
 
   async handle(
     request: Request,
     { context }: HandleOptions = {},
-  ): Promise<Result | void> {
+  ): Promise<Readonly<ResultConstraint<Request>> | void> {
     const isReq = isRequest(request);
     const { result } = await this.#handle(request, context);
 
@@ -187,15 +176,12 @@ export class JsonRpcEngineV2<
   async #handle(
     originalRequest: Request,
     context: MiddlewareContext = new MiddlewareContext(),
-  ): Promise<{
-    result: Result | void;
-    request: Readonly<Request>;
-  }> {
+  ): Promise<RequestState<Request>> {
     this.#assertIsNotDestroyed();
 
     deepFreeze(originalRequest);
 
-    const state: RequestState<Request, Result> = {
+    const state: RequestState<Request> = {
       request: originalRequest,
       result: undefined,
     };
@@ -226,16 +212,16 @@ export class JsonRpcEngineV2<
    * @returns The `next()` function factory.
    */
   #makeNextFactory(
-    middlewareIterator: Iterator<JsonRpcMiddleware<Request, Result>>,
-    state: RequestState<Request, Result>,
+    middlewareIterator: Iterator<JsonRpcMiddleware<Request>>,
+    state: RequestState<Request>,
     context: MiddlewareContext,
-  ): () => Next<Request, Result> {
-    const makeNext = (): Next<Request, Result> => {
+  ): () => Next<Request> {
+    const makeNext = (): Next<Request> => {
       let wasCalled = false;
 
       const next = async (
         request: Request = state.request,
-      ): Promise<Result | undefined> => {
+      ): Promise<Readonly<ResultConstraint<Request>> | undefined> => {
         if (wasCalled) {
           throw new JsonRpcEngineError(
             `Middleware attempted to call next() multiple times for request: ${stringify(request)}`,
@@ -270,7 +256,7 @@ export class JsonRpcEngineV2<
     return makeNext;
   }
 
-  #makeMiddlewareIterator(): Iterator<JsonRpcMiddleware<Request, Result>> {
+  #makeMiddlewareIterator(): Iterator<JsonRpcMiddleware<Request>> {
     return this.#middleware[Symbol.iterator]();
   }
 
@@ -282,8 +268,11 @@ export class JsonRpcEngineV2<
    * @param state - The current values of the request and result.
    */
   #updateResult(
-    result: Result | void,
-    state: RequestState<Request, Result>,
+    result:
+      | Readonly<ResultConstraint<Request>>
+      | ResultConstraint<Request>
+      | void,
+    state: RequestState<Request>,
   ): void {
     if (isNotification(state.request) && result !== undefined) {
       throw new JsonRpcEngineError(
@@ -328,7 +317,7 @@ export class JsonRpcEngineV2<
    *
    * @returns The JSON-RPC middleware.
    */
-  asMiddleware(): JsonRpcMiddleware<Request, Result> {
+  asMiddleware(): JsonRpcMiddleware<Request> {
     this.#assertIsNotDestroyed();
 
     return async ({ request, context, next }) => {
