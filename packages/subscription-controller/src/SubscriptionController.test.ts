@@ -24,12 +24,14 @@ import type {
   StartCryptoSubscriptionResponse,
   UpdatePaymentMethodOpts,
   Product,
+  SubscriptionEligibility,
 } from './types';
 import {
   PAYMENT_TYPES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
   SUBSCRIPTION_STATUSES,
+  SubscriptionUserEvent,
 } from './types';
 import { advanceTime } from '../../../tests/helpers';
 
@@ -177,6 +179,8 @@ function createMockSubscriptionService() {
   const mockUpdatePaymentMethodCard = jest.fn();
   const mockUpdatePaymentMethodCrypto = jest.fn();
   const mockGetBillingPortalUrl = jest.fn();
+  const mockGetSubscriptionsEligibilities = jest.fn();
+  const mockSubmitUserEvent = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
@@ -188,6 +192,8 @@ function createMockSubscriptionService() {
     updatePaymentMethodCard: mockUpdatePaymentMethodCard,
     updatePaymentMethodCrypto: mockUpdatePaymentMethodCrypto,
     getBillingPortalUrl: mockGetBillingPortalUrl,
+    getSubscriptionsEligibilities: mockGetSubscriptionsEligibilities,
+    submitUserEvent: mockSubmitUserEvent,
   };
 
   return {
@@ -1329,6 +1335,72 @@ describe('SubscriptionController', () => {
 
         const result = await controller.getBillingPortalUrl();
         expect(result).toStrictEqual({ url: 'https://billing-portal.com' });
+      });
+    });
+  });
+
+  describe('getSubscriptionsEligibilities', () => {
+    const MOCK_SUBSCRIPTION_ELIGIBILITY: SubscriptionEligibility = {
+      product: PRODUCT_TYPES.SHIELD,
+      canSubscribe: true,
+      minBalanceUSD: 100,
+      canViewEntryModal: true,
+    };
+
+    it('should get the subscriptions eligibilities', async () => {
+      await withController(async ({ controller, mockService }) => {
+        mockService.getSubscriptionsEligibilities.mockResolvedValue([
+          MOCK_SUBSCRIPTION_ELIGIBILITY,
+        ]);
+
+        const result = await controller.getSubscriptionsEligibilities();
+        expect(result).toStrictEqual([MOCK_SUBSCRIPTION_ELIGIBILITY]);
+      });
+    });
+
+    it('should handle subscription service errors', async () => {
+      await withController(async ({ controller, mockService }) => {
+        const errorMessage = 'Failed to get subscriptions eligibilities';
+        mockService.getSubscriptionsEligibilities.mockRejectedValue(
+          new SubscriptionServiceError(errorMessage),
+        );
+
+        await expect(
+          controller.getSubscriptionsEligibilities(),
+        ).rejects.toThrow(SubscriptionServiceError);
+      });
+    });
+  });
+
+  describe('submitUserEvent', () => {
+    it('should submit user event successfully', async () => {
+      await withController(async ({ controller, mockService }) => {
+        const submitUserEventSpy = jest
+          .spyOn(mockService, 'submitUserEvent')
+          .mockResolvedValue(undefined);
+
+        const result = await controller.submitUserEvent({
+          event: SubscriptionUserEvent.ShieldEntryModalViewed,
+        });
+        expect(result).toBeUndefined();
+        expect(submitUserEventSpy).toHaveBeenCalledWith({
+          event: SubscriptionUserEvent.ShieldEntryModalViewed,
+        });
+      });
+    });
+
+    it('should handle subscription service errors', async () => {
+      await withController(async ({ controller, mockService }) => {
+        const errorMessage = 'Failed to submit user event';
+        mockService.submitUserEvent.mockRejectedValue(
+          new SubscriptionServiceError(errorMessage),
+        );
+
+        await expect(
+          controller.submitUserEvent({
+            event: SubscriptionUserEvent.ShieldEntryModalViewed,
+          }),
+        ).rejects.toThrow(SubscriptionServiceError);
       });
     });
   });
