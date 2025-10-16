@@ -717,10 +717,11 @@ function stubGenericRequest<T extends JsonRpcParams, U extends Json>(
  * will error for the first N instances and then succeed on the last instance.
  * Intended to be used in conjunction with `stubProviderRequests`.
  *
- * @param request - The request matcher for the stub.
- * @param numberOfTimesToFail - The number of times the request is expected to
+ * @param args - The arguments.
+ * @param args.request - The request matcher for the stub.
+ * @param args.numberOfTimesToFail - The number of times the request is expected to
  * be called until it returns a successful result.
- * @param successfulResult - The result that `provider.request` will
+ * @param args.successfulResult - The result that `provider.request` will
  * return when called past `numberOfTimesToFail`.
  * @returns The request/result pair, properly typed.
  */
@@ -763,10 +764,10 @@ function stubRequestThatFailsThenFinallySucceeds<
  * `provider.request` has been called the given number of times.
  *
  * @param args - The arguments.
- * @param requestSpy - The Jest spy object that represents
+ * @param args.requestSpy - The Jest spy object that represents
  * `provider.request`.
- * @param request - The request object.
- * @param numberOfTimes - The number of times that we expect
+ * @param args.request - The request object.
+ * @param args.numberOfTimes - The number of times that we expect
  * `provider.request` to be called with `request`.
  */
 async function waitForRequestToBeRetried({
