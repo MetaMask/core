@@ -3,6 +3,22 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [],
+  "references": [
+    {
+      "path": "../eth-block-tracker"
+    },
+    {
+      "path": "../../packages/error-reporting-service"
+    },
+    {
+      "path": "../../packages/eth-json-rpc-provider"
+    },
+    {
+      "path": "../../packages/json-rpc-engine"
+    },
+    {
+      "path": "../../packages/network-controller"
+    }
+  ],
   "include": ["../../types", "./src", "./types"]
 }

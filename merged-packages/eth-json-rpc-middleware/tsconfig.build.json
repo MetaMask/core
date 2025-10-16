@@ -5,6 +5,22 @@
     "outDir": "./dist",
     "rootDir": "./src"
   },
-  "references": [],
+  "references": [
+    {
+      "path": "../eth-block-tracker/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/error-reporting-service/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/eth-json-rpc-provider/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/json-rpc-engine/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/network-controller/tsconfig.build.json"
+    }
+  ],
   "include": ["../../types", "./src"]
 }
