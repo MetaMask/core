@@ -1,4 +1,4 @@
-# @metamask/eth-block-tracker
+# `@metamask/eth-block-tracker`
 
 This module walks the Ethereum blockchain, keeping track of the latest block. It uses a web3 provider as a data source and will continuously poll for the next block.
 
