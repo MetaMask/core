@@ -9,11 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [60.8.0]
 
-### Uncategorized
+### Changed
 
-- chore: Migrate `eth-block-tracker` to main `packages` folder ([#6865](https://github.com/MetaMask/core/pull/6865))
-- Release/624.0.0 ([#6845](https://github.com/MetaMask/core/pull/6845))
-- chore: Update dependencies that indirectly use v4 of `eth-json-rpc-provider` ([#6811](https://github.com/MetaMask/core/pull/6811))
+- Bump `@metamask/eth-block-tracker` from `^13.0.0` to `^14.0.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+- Update dependencies that indirectly use v4 of `eth-json-rpc-provider` ([#6811](https://github.com/MetaMask/core/pull/6811))
 
 ### Added
 

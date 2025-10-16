@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [14.0.0]
 
-### Uncategorized
-
-- chore: Fix invalid PR number in `eth-block-tracker` changelog ([#6881](https://github.com/MetaMask/core/pull/6881))
-
 ### Changed
 
 - **BREAKING:** Update minimum Node.js version from `^18.16.0` to `^18.18.0` ([#6865](https://github.com/MetaMask/core/pull/6865))
