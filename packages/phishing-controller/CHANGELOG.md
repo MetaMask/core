@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.8.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+
 ## [14.1.2]
 
 ### Changed
@@ -14,7 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update hotlist endpoint from v1 to v2 for blocklistPaths support ([#6815](https://github.com/MetaMask/core/pull/6815))
   - Changed `METAMASK_HOTLIST_DIFF_FILE` from `/v1/diffsSince` to `/v2/diffsSince`
   - Removed query parameter approach for blocklistPaths in favor of v2 endpoint
-- Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.8.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 
 ## [14.1.1]
 
