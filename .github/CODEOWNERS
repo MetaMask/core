@@ -82,6 +82,7 @@
 /packages/subscription-controller        @MetaMask/web3auth
 
 ## Joint team ownership
+/packages/eth-block-tracker            @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/eth-json-rpc-provider        @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/json-rpc-engine              @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/json-rpc-middleware-stream   @MetaMask/wallet-integrations @MetaMask/core-platform
