@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `predictWithdraw` to `TransactionType` ([#6860](https://github.com/MetaMask/core/pull/6860))
 - Convert existing transaction to EIP-7702 on publish if `batchTransactions` are set ([#6844](https://github.com/MetaMask/core/pull/6844))
   - Add optional `newSignature` to `onPublish` callback in `TransactionBatchSingleRequest`.
 - Add `MONAD` network support ([#6827](https://github.com/MetaMask/core/pull/6827))
