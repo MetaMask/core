@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/MetaMask/eth-block-tracker.git"
+    "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
   "sideEffects": false,
