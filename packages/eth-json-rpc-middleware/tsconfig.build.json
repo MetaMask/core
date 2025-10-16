@@ -10,6 +10,9 @@
       "path": "../../packages/error-reporting-service/tsconfig.build.json"
     },
     {
+      "path": "../../packages/eth-block-tracker/tsconfig.build.json"
+    },
+    {
       "path": "../../packages/eth-json-rpc-provider/tsconfig.build.json"
     },
     {
