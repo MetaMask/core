@@ -91,7 +91,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     }
 
     // Cancel any previous pending requests for the same transaction.
-    this.#cancelPreviousPendingRequests(req.txMeta.id);
+    this.#cancelPendingRequests(req.txMeta.id);
 
     const txCoverageResultUrl = `${this.#baseUrl}/v1/transaction/coverage/result`;
     const coverageResult = await this.#getCoverageResult(coverageId, {
@@ -119,7 +119,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     }
 
     // Cancel any previous pending requests for the same signature.
-    this.#cancelPreviousPendingRequests(req.signatureRequest.id);
+    this.#cancelPendingRequests(req.signatureRequest.id);
 
     const signatureCoverageResultUrl = `${this.#baseUrl}/v1/signature/coverage/result`;
     const coverageResult = await this.#getCoverageResult(coverageId, {
@@ -143,7 +143,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     };
 
     // cancel/abort any pending coverage result polling before logging the signature
-    this.#cancelPreviousPendingRequests(req.signatureRequest.id);
+    this.#cancelPendingRequests(req.signatureRequest.id);
 
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/signature/coverage/log`,
@@ -167,7 +167,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     };
 
     // cancel/abort any pending coverage result polling before logging the transaction
-    this.#cancelPreviousPendingRequests(req.txMeta.id);
+    this.#cancelPendingRequests(req.txMeta.id);
 
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/transaction/coverage/log`,
@@ -210,52 +210,38 @@ export class ShieldRemoteBackend implements ShieldBackend {
       coverageId,
     };
 
-    const abortController = this.#assignNewAbortController(configs.requestId);
-
     const timeout = configs?.timeout ?? this.#getCoverageResultTimeout;
     const pollInterval =
       configs?.pollInterval ?? this.#getCoverageResultPollInterval;
 
-    const headers = await this.#createHeaders();
-    return await new Promise((resolve, reject) => {
-      let timeoutReached = false;
-
-      const abortHandler = () => {
-        timeoutReached = true;
-        this.#removeAbortHandler(configs.requestId, abortHandler);
-        reject(new Error('Coverage result polling cancelled'));
-      };
-      abortController.signal.addEventListener('abort', abortHandler);
-
-      setTimeout(() => {
-        timeoutReached = true;
-        this.#removeAbortHandler(configs.requestId, abortHandler);
-        reject(new Error('Timeout waiting for coverage result'));
-      }, timeout);
-
-      const poll = async (): Promise<GetCoverageResultResponse> => {
-        // The timeoutReached variable is modified in the timeout callback.
-        // eslint-disable-next-line no-unmodified-loop-condition
-        while (!timeoutReached) {
-          const startTime = Date.now();
-          const res = await this.#fetch(configs.coverageResultUrl, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(reqBody),
-          });
-          if (res.status === 200) {
-            this.#removeAbortHandler(configs.requestId, abortHandler);
-            return (await res.json()) as GetCoverageResultResponse;
-          }
-          await sleep(pollInterval - (Date.now() - startTime));
+    const poll = async (): Promise<GetCoverageResultResponse> => {
+      const headers = await this.#createHeaders();
+      const abortController = this.#assignNewAbortController(config.requestId);
+      const abortSignal = abortController.signal;
+      const timeoutSignal = AbortSignal.timeout(timeout);
+      // In the future we can use AbortSignal.any here, but it doesn't seem to
+      // be supported by the current version.
+      timeoutSignal.onabort = () => abortController.abort();
+      while (!abortSignal.aborted) {
+        const res = await this.#fetch(config.coverageResultUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(reqBody),
+          signal: abortSignal,
+        });
+        if (res.status === 200) {
+          return (await res.json()) as GetCoverageResultResponse;
         }
-        // The following line will not have an effect as the upper level promise
-        // will already be rejected by now.
-        throw new Error('unexpected error');
-      };
+        await sleep(pollInterval);
+      }
+      throw new Error(timeoutSignal.aborted ? 'Timeout reached' : 'Aborted');
+    };
 
-      poll().then(resolve).catch(reject);
-    });
+    try {
+      return await poll();
+    } finally {
+      this.#removeAbortController(configs.requestId);
+    }
   }
 
   async #createHeaders() {
@@ -266,28 +252,22 @@ export class ShieldRemoteBackend implements ShieldBackend {
     };
   }
 
-  #cancelPreviousPendingRequests(id: string) {
-    const abortController = this.#abortControllerMap.get(id);
-    if (abortController && !abortController.signal.aborted) {
-      abortController.abort();
-      this.#removeAbortHandler(id);
-    }
-  }
-
-  #removeAbortHandler(requestId: string, abortHandler?: () => void) {
-    const abortController = this.#abortControllerMap.get(requestId);
-    if (abortController) {
-      if (abortHandler) {
-        abortController.signal.removeEventListener('abort', abortHandler);
-      }
-      this.#abortControllerMap.delete(requestId);
-    }
-  }
-
   #assignNewAbortController(requestId: string): AbortController {
     const newAbortController = new AbortController();
     this.#abortControllerMap.set(requestId, newAbortController);
     return newAbortController;
+  }
+
+  #removeAbortController(requestId: string) {
+    this.#abortControllerMap.delete(requestId);
+  }
+
+  #cancelPendingRequests(id: string) {
+    const abortController = this.#abortControllerMap.get(id);
+    if (abortController && !abortController.signal.aborted) {
+      abortController.abort();
+      this.#removeAbortController(id);
+    }
   }
 }
 

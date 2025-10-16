@@ -1,6 +1,5 @@
 /* eslint-disable jest/no-conditional-in-test */
 import { ShieldRemoteBackend } from './backend';
-import { MockAbortController } from '../tests/mocks/abortController';
 import {
   delay,
   generateMockSignatureRequest,
@@ -48,25 +47,6 @@ function setup({
 }
 
 describe('ShieldRemoteBackend', () => {
-  let originalAbortController: typeof globalThis.AbortController;
-
-  beforeAll(() => {
-    // Mock AbortController globally
-    originalAbortController = globalThis.AbortController;
-    globalThis.AbortController =
-      MockAbortController as unknown as typeof AbortController;
-  });
-
-  afterAll(() => {
-    // Restore original AbortController
-    globalThis.AbortController = originalAbortController;
-  });
-
-  afterEach(() => {
-    // Clean up mocks after each test
-    jest.clearAllMocks();
-  });
-
   it('should check coverage', async () => {
     const { backend, fetchMock, getAccessToken } = setup();
 
@@ -165,7 +145,7 @@ describe('ShieldRemoteBackend', () => {
 
     const txMeta = generateMockTxMeta();
     await expect(backend.checkCoverage({ txMeta })).rejects.toThrow(
-      'Timeout waiting for coverage result',
+      'Timeout reached',
     );
 
     // Waiting here ensures coverage of the unexpected error and lets us know
@@ -301,9 +281,7 @@ describe('ShieldRemoteBackend', () => {
       });
 
       // Coverage check should be cancelled
-      await expect(coveragePromise).rejects.toThrow(
-        'Coverage result polling cancelled',
-      );
+      await expect(coveragePromise).rejects.toThrow('Aborted');
     });
   });
 
@@ -392,9 +370,7 @@ describe('ShieldRemoteBackend', () => {
       });
 
       // Coverage check should be cancelled
-      await expect(coveragePromise).rejects.toThrow(
-        'Coverage result polling cancelled',
-      );
+      await expect(coveragePromise).rejects.toThrow('Aborted');
     });
   });
 
@@ -467,9 +443,7 @@ describe('ShieldRemoteBackend', () => {
       });
 
       // Verify first request was cancelled and second succeeded
-      await expect(firstRequestPromise).rejects.toThrow(
-        'Coverage result polling cancelled',
-      );
+      await expect(firstRequestPromise).rejects.toThrow('Request was aborted');
 
       const secondResult = await secondRequestPromise;
       expect(secondResult).toMatchObject({
@@ -519,7 +493,7 @@ describe('ShieldRemoteBackend', () => {
 
       await expect(
         backend.checkSignatureCoverage({ signatureRequest }),
-      ).rejects.toThrow('Timeout waiting for coverage result');
+      ).rejects.toThrow('Timeout reached');
     });
 
     it('should handle multiple concurrent requests with proper cancellation', async () => {
@@ -616,14 +590,10 @@ describe('ShieldRemoteBackend', () => {
       });
 
       // First should be cancelled
-      await expect(firstRequest).rejects.toThrow(
-        'Coverage result polling cancelled',
-      );
+      await expect(firstRequest).rejects.toThrow('Aborted');
 
       // Second should timeout due to always returning 412
-      await expect(secondRequest).rejects.toThrow(
-        'Timeout waiting for coverage result',
-      );
+      await expect(secondRequest).rejects.toThrow('Timeout reached');
     });
   });
 });
