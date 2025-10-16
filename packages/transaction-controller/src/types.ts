@@ -1674,6 +1674,9 @@ export type TransactionBatchSingleRequest = {
 
     /** Optional callback to be invoked once the transaction is published. */
     onPublish?: (request: {
+      /** Updated signature for the transaction, if applicable. */
+      newSignature?: Hex;
+
       /** Hash of the transaction on the network. */
       transactionHash?: string;
     }) => void;
@@ -2014,7 +2017,12 @@ export type MetamaskPayMetadata = {
 /**
  * Parameters for the transaction simulation API.
  */
-export type GetSimulationConfig = (url: string) => Promise<{
+export type GetSimulationConfig = (
+  url: string,
+  opts?: {
+    txMeta?: TransactionMeta;
+  },
+) => Promise<{
   newUrl?: string;
   authorization?: string;
 }>;

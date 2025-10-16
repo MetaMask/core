@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Convert existing transaction to EIP-7702 on publish if `batchTransactions` are set ([#6844](https://github.com/MetaMask/core/pull/6844))
+  - Add optional `newSignature` to `onPublish` callback in `TransactionBatchSingleRequest`.
+- Add `MONAD` network support ([#6827](https://github.com/MetaMask/core/pull/6827))
+  - Add account address relationship API support
+  - Add incoming transactions API support
+
+## [60.7.0]
+
+### Added
+
+- Add `txMeta` property to `GetSimulationConfig` callback ([#6833](https://github.com/MetaMask/core/pull/6833))
+
 ## [60.6.1]
 
 ### Changed
@@ -1850,7 +1864,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.6.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.7.0...HEAD
+[60.7.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.6.1...@metamask/transaction-controller@60.7.0
 [60.6.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.6.0...@metamask/transaction-controller@60.6.1
 [60.6.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.5.0...@metamask/transaction-controller@60.6.0
 [60.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.4.0...@metamask/transaction-controller@60.5.0
