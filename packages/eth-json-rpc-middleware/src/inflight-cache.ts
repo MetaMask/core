@@ -11,9 +11,9 @@ import type { JsonRpcRequestToCache, JsonRpcCacheMiddleware } from './types';
 import { cacheIdentifierForRequest } from './utils/cache';
 
 type RequestHandlers = (handledRes: PendingJsonRpcResponse) => void;
-interface InflightRequest {
+type InflightRequest = {
   [cacheId: string]: RequestHandlers[];
-}
+};
 
 const log = createModuleLogger(projectLogger, 'inflight-cache');
 

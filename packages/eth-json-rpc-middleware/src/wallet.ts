@@ -59,7 +59,7 @@ export type TypedMessageV1Params = Omit<TypedMessageParams, 'data'> & {
   data: Record<string, unknown>[];
 };
 
-export interface WalletMiddlewareOptions {
+export type WalletMiddlewareOptions = {
   getAccounts: (req: JsonRpcRequest) => Promise<string[]>;
   processDecryptMessage?: (
     msgParams: MessageParams,
@@ -98,7 +98,7 @@ export interface WalletMiddlewareOptions {
   ) => Promise<string>;
   processRequestExecutionPermissions?: ProcessRequestExecutionPermissionsHook;
   processRevokeExecutionPermission?: ProcessRevokeExecutionPermissionHook;
-}
+};
 
 export function createWalletMiddleware({
   getAccounts,

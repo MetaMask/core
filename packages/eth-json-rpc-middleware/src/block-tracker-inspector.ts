@@ -15,9 +15,9 @@ const futureBlockRefRequests: string[] = [
   'eth_getTransactionReceipt',
 ];
 
-interface BlockTrackerInspectorMiddlewareOptions {
+type BlockTrackerInspectorMiddlewareOptions = {
   blockTracker: PollingBlockTracker;
-}
+};
 
 /**
  * Any type that can be used as the name of an object property.

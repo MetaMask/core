@@ -1,9 +1,9 @@
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
-interface CreateHitTrackerMiddleware {
+type CreateHitTrackerMiddleware = {
   getHits(method: string): JsonRpcRequest[];
-}
+};
 
 export default function createHitTrackerMiddleware() {
   const hitTracker: Record<string, JsonRpcRequest[]> = {};
