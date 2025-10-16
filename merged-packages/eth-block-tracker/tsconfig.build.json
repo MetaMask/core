@@ -5,6 +5,13 @@
     "outDir": "./dist",
     "rootDir": "./src"
   },
-  "references": [],
+  "references": [
+    {
+      "path": "../../packages/eth-json-rpc-provider/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/json-rpc-engine/tsconfig.build.json"
+    }
+  ],
   "include": ["../../types", "./src"]
 }
