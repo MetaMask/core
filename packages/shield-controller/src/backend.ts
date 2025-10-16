@@ -199,7 +199,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
 
   async #getCoverageResult(
     coverageId: string,
-    configs: {
+    config: {
       requestId: string;
       coverageResultUrl: string;
       timeout?: number;
@@ -210,9 +210,9 @@ export class ShieldRemoteBackend implements ShieldBackend {
       coverageId,
     };
 
-    const timeout = configs?.timeout ?? this.#getCoverageResultTimeout;
+    const timeout = config?.timeout ?? this.#getCoverageResultTimeout;
     const pollInterval =
-      configs?.pollInterval ?? this.#getCoverageResultPollInterval;
+      config?.pollInterval ?? this.#getCoverageResultPollInterval;
 
     const poll = async (): Promise<GetCoverageResultResponse> => {
       const headers = await this.#createHeaders();
@@ -240,7 +240,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     try {
       return await poll();
     } finally {
-      this.#removeAbortController(configs.requestId);
+      this.#removeAbortController(config.requestId);
     }
   }
 
