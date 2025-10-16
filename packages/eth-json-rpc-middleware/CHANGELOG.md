@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Increase minimum Node.js version from `^18.16` to `^18.18` ([#6866](https://github.com/MetaMask/core/pull/6866))
 - This package was migrated from `MetaMask/eth-json-rpc-middleware` to the
   `MetaMask/core` monorepo.
   - See [`MetaMask/eth-json-rpc-middleware`](https://github.com/MetaMask/eth-json-rpc-middleware/blob/main/CHANGELOG.md)
