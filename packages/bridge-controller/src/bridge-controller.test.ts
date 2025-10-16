@@ -2845,6 +2845,187 @@ describe('BridgeController', function () {
       expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
       expect(bridgeController.state).toStrictEqual(expectedControllerState);
     });
+
+    it('should preserve gasSponsored flag on quotes', async () => {
+      const fetchBridgeQuotesSpy = jest
+        .spyOn(fetchUtils, 'fetchBridgeQuotes')
+        .mockResolvedValueOnce({
+          quotes: [
+            {
+              quote: {
+                requestId: 'req-1',
+                srcChainId: 1,
+                srcAsset: {
+                  chainId: 1,
+                  address: '0x0000000000000000000000000000000000000001',
+                  assetId: 'eip155:1/slip44:60',
+                  symbol: 'ETH',
+                  name: 'Ethereum',
+                  decimals: 18,
+                },
+                srcTokenAmount: '1000',
+                destChainId: 10,
+                destAsset: {
+                  chainId: 10,
+                  address: '0x0000000000000000000000000000000000000002',
+                  assetId: 'eip155:10/erc20:0x0000000000000000000000000000000000000002',
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+                destTokenAmount: '900',
+                minDestTokenAmount: '890',
+                feeData: {
+                  metabridge: {
+                    amount: '10',
+                    asset: {
+                      chainId: 1,
+                      address: '0x0000000000000000000000000000000000000001',
+                      assetId: 'eip155:1/slip44:60',
+                      symbol: 'ETH',
+                      name: 'Ethereum',
+                      decimals: 18,
+                    },
+                  },
+                },
+                bridgeId: 'lifi',
+                bridges: ['across'],
+                steps: [
+                  {
+                    action: 'bridge',
+                    srcChainId: 1,
+                    destChainId: 10,
+                    srcAsset: {
+                      chainId: 1,
+                      address: '0x0000000000000000000000000000000000000001',
+                      assetId: 'eip155:1/slip44:60',
+                      symbol: 'ETH',
+                      name: 'Ethereum',
+                      decimals: 18,
+                    },
+                    destAsset: {
+                      chainId: 10,
+                      address: '0x0000000000000000000000000000000000000002',
+                      assetId:
+                        'eip155:10/erc20:0x0000000000000000000000000000000000000002',
+                      symbol: 'USDC',
+                      name: 'USD Coin',
+                      decimals: 6,
+                    },
+                    srcAmount: '1000',
+                    destAmount: '900',
+                    protocol: { name: 'acme' },
+                  },
+                ],
+                gasSponsored: true,
+              },
+              estimatedProcessingTimeInSeconds: 60,
+              trade: {
+                chainId: 1,
+                to: '0x0000000000000000000000000000000000000003',
+                from: '0x0000000000000000000000000000000000000004',
+                value: '0x0',
+                data: '0x',
+                gasLimit: 100000,
+              },
+            },
+            {
+              quote: {
+                requestId: 'req-2',
+                srcChainId: 1,
+                srcAsset: {
+                  chainId: 1,
+                  address: '0x0000000000000000000000000000000000000001',
+                  assetId: 'eip155:1/slip44:60',
+                  symbol: 'ETH',
+                  name: 'Ethereum',
+                  decimals: 18,
+                },
+                srcTokenAmount: '1000',
+                destChainId: 10,
+                destAsset: {
+                  chainId: 10,
+                  address: '0x0000000000000000000000000000000000000002',
+                  assetId: 'eip155:10/erc20:0x0000000000000000000000000000000000000002',
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+                destTokenAmount: '900',
+                minDestTokenAmount: '890',
+                feeData: {
+                  metabridge: {
+                    amount: '10',
+                    asset: {
+                      chainId: 1,
+                      address: '0x0000000000000000000000000000000000000001',
+                      assetId: 'eip155:1/slip44:60',
+                      symbol: 'ETH',
+                      name: 'Ethereum',
+                      decimals: 18,
+                    },
+                  },
+                },
+                bridgeId: 'lifi',
+                bridges: ['across'],
+                steps: [
+                  {
+                    action: 'bridge',
+                    srcChainId: 1,
+                    destChainId: 10,
+                    srcAsset: {
+                      chainId: 1,
+                      address: '0x0000000000000000000000000000000000000001',
+                      assetId: 'eip155:1/slip44:60',
+                      symbol: 'ETH',
+                      name: 'Ethereum',
+                      decimals: 18,
+                    },
+                    destAsset: {
+                      chainId: 10,
+                      address: '0x0000000000000000000000000000000000000002',
+                      assetId:
+                        'eip155:10/erc20:0x0000000000000000000000000000000000000002',
+                      symbol: 'USDC',
+                      name: 'USD Coin',
+                      decimals: 6,
+                    },
+                    srcAmount: '1000',
+                    destAmount: '900',
+                    protocol: { name: 'acme' },
+                  },
+                ],
+                // gasSponsored omitted intentionally
+              },
+              estimatedProcessingTimeInSeconds: 60,
+              trade: {
+                chainId: 1,
+                to: '0x0000000000000000000000000000000000000005',
+                from: '0x0000000000000000000000000000000000000006',
+                value: '0x0',
+                data: '0x',
+                gasLimit: 100000,
+              },
+            },
+          ] as unknown as QuoteResponse[],
+          validationFailures: [],
+        });
+
+      const quotes = await bridgeController.fetchQuotes({
+        srcChainId: 1,
+        destChainId: 10,
+        srcTokenAddress: '0x0000000000000000000000000000000000000000',
+        destTokenAddress: '0x0000000000000000000000000000000000000000',
+        srcTokenAmount: '1000',
+        walletAddress: '0x123',
+        slippage: 0.5,
+      } as never);
+
+      expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+      expect(quotes).toHaveLength(2);
+      expect((quotes[0] as any).quote.gasSponsored).toBe(true);
+      expect((quotes[1] as any).quote.gasSponsored).toBeUndefined();
+    });
   });
 
   describe('metadata', () => {
