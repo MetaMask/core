@@ -34,6 +34,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/chain-agnostic-permission`](packages/chain-agnostic-permission)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
+- [`@metamask/core-backend`](packages/core-backend)
 - [`@metamask/delegation-controller`](packages/delegation-controller)
 - [`@metamask/earn-controller`](packages/earn-controller)
 - [`@metamask/eip-5792-middleware`](packages/eip-5792-middleware)
@@ -98,6 +99,7 @@ linkStyle default opacity:0.5
   chain_agnostic_permission(["@metamask/chain-agnostic-permission"]);
   composable_controller(["@metamask/composable-controller"]);
   controller_utils(["@metamask/controller-utils"]);
+  core_backend(["@metamask/core-backend"]);
   delegation_controller(["@metamask/delegation-controller"]);
   earn_controller(["@metamask/earn-controller"]);
   eip_5792_middleware(["@metamask/eip-5792-middleware"]);
@@ -159,6 +161,7 @@ linkStyle default opacity:0.5
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;
+  assets_controllers --> core_backend;
   assets_controllers --> keyring_controller;
   assets_controllers --> multichain_account_service;
   assets_controllers --> network_controller;
@@ -192,6 +195,11 @@ linkStyle default opacity:0.5
   chain_agnostic_permission --> permission_controller;
   composable_controller --> base_controller;
   composable_controller --> json_rpc_engine;
+  core_backend --> base_controller;
+  core_backend --> controller_utils;
+  core_backend --> profile_sync_controller;
+  core_backend --> accounts_controller;
+  core_backend --> keyring_controller;
   delegation_controller --> base_controller;
   delegation_controller --> accounts_controller;
   delegation_controller --> keyring_controller;
@@ -264,6 +272,7 @@ linkStyle default opacity:0.5
   permission_log_controller --> json_rpc_engine;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
+  phishing_controller --> transaction_controller;
   polling_controller --> base_controller;
   polling_controller --> controller_utils;
   polling_controller --> network_controller;

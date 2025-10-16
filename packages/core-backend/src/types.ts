@@ -2,8 +2,8 @@
  * Basic transaction information
  */
 export type Transaction = {
-  /** Transaction hash */
-  hash: string;
+  /** Transaction ID/hash */
+  id: string;
   /** Chain identifier in CAIP-2 format (e.g., "eip155:1") */
   chain: string;
   /** Transaction status */
@@ -26,6 +26,8 @@ export type Asset = {
   type: string;
   /** Asset unit/symbol (e.g., "USDT", "ETH") */
   unit: string;
+  /** Number of decimal places for the asset */
+  decimals: number;
 };
 
 /**
