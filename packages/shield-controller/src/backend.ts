@@ -242,6 +242,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
             method: 'POST',
             headers,
             body: JSON.stringify(reqBody),
+            signal: abortController.signal,
           });
           if (res.status === 200) {
             this.#removeAbortHandler(configs.requestId, abortHandler);
