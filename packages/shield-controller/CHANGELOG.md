@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated internal coverage result polling and log logic. ([#6847](https://github.com/MetaMask/core/pull/6847))
+  - Added cancellation logic to the polling.
+  - Updated implementation of timeout.
+  - Cancel any pending requests before starting new polling or logging.
+- Updated TransactionMeta comparison in `TransactionController:stateChange` subscriber to avoid triggering multiple check coverage result unnecessarily. ([#6847](https://github.com/MetaMask/core/pull/6847))
+- Removed `Personal Sign` check from the check signature coverage result. ([#6847](https://github.com/MetaMask/core/pull/6847))
+
 ## [0.3.2]
 
 ### Changed
