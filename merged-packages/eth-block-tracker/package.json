@@ -68,6 +68,7 @@
     "@types/json-rpc-random-id": "^1.0.1",
     "@types/node": "^18.18",
     "@yarnpkg/types": "^4.0.1",
+    "deepmerge": "^4.2.2",
     "depcheck": "^1.4.3",
     "eslint": "^9.11.0",
     "eslint-config-prettier": "^9.1.0",
