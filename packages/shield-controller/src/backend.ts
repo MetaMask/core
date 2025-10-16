@@ -135,9 +135,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     };
 
     // cancel/abort any pending coverage result polling before logging the signature
-    if (this.#abortController && !this.#abortController.signal.aborted) {
-      this.#abortController.abort();
-    }
+    this.#abortPendingPollingRequests();
 
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/signature/coverage/log`,
@@ -161,9 +159,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     };
 
     // cancel/abort any pending coverage result polling before logging the transaction
-    if (this.#abortController && !this.#abortController.signal.aborted) {
-      this.#abortController.abort();
-    }
+    this.#abortPendingPollingRequests();
 
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/transaction/coverage/log`,
@@ -212,17 +208,15 @@ export class ShieldRemoteBackend implements ShieldBackend {
       coverageId,
     };
 
+    const headers = await this.#createHeaders();
     const timeout = configs?.timeout ?? this.#getCoverageResultTimeout;
     const pollInterval =
       configs?.pollInterval ?? this.#getCoverageResultPollInterval;
 
-    let retryCount = 0;
-    const headers = await this.#createHeaders();
-    const poll = async (
-      _timeoutId: NodeJS.Timeout | null,
-    ): Promise<GetCoverageResultResponse> => {
-      // The timeoutReached variable is modified in the timeout callback.
-      while (retryCount < 5 && !abortController.signal.aborted) {
+    let shouldContinuePolling = true;
+    const poll = async (): Promise<GetCoverageResultResponse> => {
+      // Poll until the coverage result is ready or the abort signal is triggered.
+      while (shouldContinuePolling && !abortController.signal.aborted) {
         const startTime = Date.now();
         const res = await this.#fetch(configs.coverageResultUrl, {
           method: 'POST',
@@ -231,13 +225,12 @@ export class ShieldRemoteBackend implements ShieldBackend {
           signal: abortController.signal,
         });
         if (res.status === 200) {
-          retryCount = 5; // setting retryCount to 5 to break the loop
+          shouldContinuePolling = false;
           return (await res.json()) as GetCoverageResultResponse;
         }
         if (!abortController.signal.aborted) {
           await sleep(pollInterval - (Date.now() - startTime));
         }
-        retryCount += 1;
       }
       // The following line will not have an effect as the upper level promise
       // will already be rejected by now.
@@ -257,6 +250,12 @@ export class ShieldRemoteBackend implements ShieldBackend {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
     };
+  }
+
+  #abortPendingPollingRequests() {
+    if (this.#abortController && !this.#abortController.signal.aborted) {
+      this.#abortController.abort();
+    }
   }
 }
 
@@ -325,7 +324,7 @@ function makeInitSignatureCoverageCheckBody(
  * @returns The result of the callback.
  */
 async function withTimeoutAndCancellation<Type>(
-  callback: (timeoutId: NodeJS.Timeout | null) => Promise<Type>,
+  callback: () => Promise<Type>,
   timeout: number,
   abortController: AbortController,
 ): Promise<Type> {
@@ -358,7 +357,7 @@ async function withTimeoutAndCancellation<Type>(
     });
 
     const result = await Promise.race([
-      callback(timeoutId),
+      callback(),
       timeOutPromise,
       abortPromise,
     ]);

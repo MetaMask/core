@@ -5,7 +5,6 @@ import type {
 } from '@metamask/base-controller';
 import {
   SignatureRequestStatus,
-  SignatureRequestType,
   type SignatureRequest,
   type SignatureStateChange,
 } from '@metamask/signature-controller';
@@ -236,10 +235,7 @@ export class ShieldController extends BaseController<
 
       // Check coverage if the signature request is new and has type
       // `personal_sign`.
-      if (
-        !previousSignatureRequest &&
-        signatureRequest.type === SignatureRequestType.PersonalSign
-      ) {
+      if (!previousSignatureRequest) {
         this.checkSignatureCoverage(signatureRequest).catch(
           // istanbul ignore next
           (error) => log('Error checking coverage:', error),
@@ -268,19 +264,15 @@ export class ShieldController extends BaseController<
     );
     for (const transaction of transactions) {
       const previousTransaction = previousTransactionsById.get(transaction.id);
+      // Check if the simulation data has changed.
       const simulationDataChanged = this.#compareTransactionSimulationData(
-        previousTransaction?.simulationData,
         transaction.simulationData,
+        previousTransaction?.simulationData,
       );
 
       // Check coverage if the transaction is new or if the simulation data has
       // changed.
-      if (
-        !previousTransaction ||
-        // Checking reference equality is sufficient because this object is
-        // replaced if the simulation data has changed.
-        simulationDataChanged
-      ) {
+      if (!previousTransaction || simulationDataChanged) {
         this.checkCoverage(transaction).catch(
           // istanbul ignore next
           (error) => log('Error checking coverage:', error),
@@ -487,12 +479,12 @@ export class ShieldController extends BaseController<
 
     // check the token balance changes
     if (
-      simulationData?.tokenBalanceChanges.length !==
-        previousSimulationData?.tokenBalanceChanges.length ||
-      simulationData?.tokenBalanceChanges.some(
+      simulationData?.tokenBalanceChanges?.length !==
+        previousSimulationData?.tokenBalanceChanges?.length ||
+      simulationData?.tokenBalanceChanges?.some(
         (tokenBalanceChange, index) =>
           tokenBalanceChange.difference !==
-          previousSimulationData?.tokenBalanceChanges[index].difference,
+          previousSimulationData?.tokenBalanceChanges?.[index]?.difference,
       )
     ) {
       return true;
