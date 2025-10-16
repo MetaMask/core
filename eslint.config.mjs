@@ -62,6 +62,7 @@ const config = createConfig([
     files: [
       '**/*.{js,cjs,mjs}',
       '**/*.test.{js,ts}',
+      '**/test/**/*.{js,ts}',
       '**/tests/**/*.{js,ts}',
       'scripts/*.ts',
       'scripts/create-package/**/*.ts',
@@ -219,12 +220,6 @@ const config = createConfig([
     },
   },
   {
-    files: ['packages/*/test/**/*.{js,ts}'],
-    rules: {
-      'import-x/no-nodejs-modules': 'off',
-    },
-  },
-  {
     files: ['packages/eth-json-rpc-middleware/**/*.ts'],
     rules: {
       // TODO: Review and re-enable these rules
@@ -237,7 +232,6 @@ const config = createConfig([
       '@typescript-eslint/restrict-template-expressions': 'off',
       'id-denylist': 'off',
       'id-length': 'off',
-      'import/no-nodejs-modules': 'off',
       'jsdoc/match-description': 'warn',
       'jsdoc/no-types': 'warn',
       'jsdoc/require-hyphen-before-param-description': 'warn',
