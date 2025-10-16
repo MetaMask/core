@@ -222,22 +222,12 @@ const config = createConfig([
   {
     files: ['packages/eth-json-rpc-middleware/**/*.ts'],
     rules: {
-      // TODO: Review and re-enable these rules
+      // TODO: Re-enable these rules
       '@typescript-eslint/consistent-type-definitions': 'off',
-      '@typescript-eslint/explicit-function-return-type': 'warn',
-      '@typescript-eslint/naming-convention': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/prefer-nullish-coalescing': 'warn',
-      '@typescript-eslint/prefer-optional-chain': 'warn',
-      '@typescript-eslint/restrict-template-expressions': 'off',
-      'id-denylist': 'off',
-      'id-length': 'off',
       'jsdoc/match-description': 'warn',
-      'jsdoc/no-types': 'warn',
-      'jsdoc/require-hyphen-before-param-description': 'warn',
       'jsdoc/require-jsdoc': 'off',
-      'jsdoc/require-param-description': 'warn',
-      'no-restricted-globals': 'off',
       'no-restricted-syntax': 'warn',
     },
   },
