@@ -66,6 +66,7 @@
     "@metamask/network-controller": "^24.2.2",
     "@types/jest": "^27.4.1",
     "@types/pify": "^5.0.2",
+    "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "tsd": "^0.31.2",
     "typedoc": "^0.24.8",
