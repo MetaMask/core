@@ -42,6 +42,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/ens-controller`](packages/ens-controller)
 - [`@metamask/error-reporting-service`](packages/error-reporting-service)
 - [`@metamask/eth-block-tracker`](packages/eth-block-tracker)
+- [`@metamask/eth-json-rpc-middleware`](packages/eth-json-rpc-middleware)
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
 - [`@metamask/foundryup`](packages/foundryup)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
@@ -108,6 +109,7 @@ linkStyle default opacity:0.5
   ens_controller(["@metamask/ens-controller"]);
   error_reporting_service(["@metamask/error-reporting-service"]);
   eth_block_tracker(["@metamask/eth-block-tracker"]);
+  eth_json_rpc_middleware(["@metamask/eth-json-rpc-middleware"]);
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
   foundryup(["@metamask/foundryup"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
@@ -222,6 +224,11 @@ linkStyle default opacity:0.5
   error_reporting_service --> base_controller;
   eth_block_tracker --> eth_json_rpc_provider;
   eth_block_tracker --> json_rpc_engine;
+  eth_json_rpc_middleware --> eth_block_tracker;
+  eth_json_rpc_middleware --> eth_json_rpc_provider;
+  eth_json_rpc_middleware --> json_rpc_engine;
+  eth_json_rpc_middleware --> error_reporting_service;
+  eth_json_rpc_middleware --> network_controller;
   eth_json_rpc_provider --> json_rpc_engine;
   gas_fee_controller --> base_controller;
   gas_fee_controller --> controller_utils;
@@ -257,6 +264,7 @@ linkStyle default opacity:0.5
   network_controller --> base_controller;
   network_controller --> controller_utils;
   network_controller --> eth_block_tracker;
+  network_controller --> eth_json_rpc_middleware;
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
   network_controller --> error_reporting_service;
