@@ -3025,8 +3025,8 @@ describe('BridgeController', function () {
 
       expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
       expect(quotes).toHaveLength(2);
-      expect((quotes[0] as any).quote.gasSponsored).toBe(true);
-      expect((quotes[1] as any).quote.gasSponsored).toBeUndefined();
+      expect(quotes[0].quote.gasSponsored).toBe(true);
+      expect(quotes[1].quote.gasSponsored).toBeUndefined();
     });
   });
 
