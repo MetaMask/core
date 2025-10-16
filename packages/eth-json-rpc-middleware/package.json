@@ -2,9 +2,9 @@
   "name": "@metamask/eth-json-rpc-middleware",
   "version": "20.0.0",
   "description": "Ethereum-related json-rpc-engine middleware",
-  "homepage": "https://github.com/MetaMask/eth-json-rpc-middleware#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/eth-json-rpc-middleware#readme",
   "bugs": {
-    "url": "https://github.com/MetaMask/eth-json-rpc-middleware/issues"
+    "url": "https://github.com/MetaMask/core/issues"
   },
   "repository": {
     "type": "git",
@@ -29,13 +29,13 @@
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.cts",
   "files": [
-    "dist"
+    "dist/"
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/json-rpc-engine --tag-prefix-before-package-rename json-rpc-engine@ --version-before-package-rename 6.1.0",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/json-rpc-engine --tag-prefix-before-package-rename json-rpc-engine@ --version-before-package-rename 6.1.0",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/eth-json-rpc-middleware --tag-prefix-before-package-rename eth-json-rpc-middleware@ --version-before-package-rename 6.1.0",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eth-json-rpc-middleware --tag-prefix-before-package-rename eth-json-rpc-middleware@ --version-before-package-rename 6.1.0",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies && yarn lint:changelog",
     "lint:changelog": "auto-changelog validate",
     "lint:dependencies": "depcheck",
@@ -73,9 +73,8 @@
     "typedoc": "^0.24.8",
     "typescript": "~5.2.2"
   },
-  "packageManager": "yarn@4.1.1",
   "engines": {
-    "node": "^18.16 || ^20 || >=22"
+    "node": "^18.18 || >=20"
   },
   "publishConfig": {
     "access": "public",
@@ -88,5 +87,9 @@
       "@metamask/eth-sig-util>ethereumjs-util>ethereum-cryptography>secp256k1": false,
       "eslint-plugin-import-x>unrs-resolver": false
     }
-  }
+  },
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ]
 }
