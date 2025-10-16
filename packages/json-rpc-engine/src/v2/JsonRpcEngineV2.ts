@@ -120,7 +120,11 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall = JsonRpcCall> {
       ? never
       : Extract<Request, JsonRpcRequest>,
     options?: HandleOptions,
-  ): Promise<ResultConstraint<Request>>;
+  ): Promise<
+    Extract<Request, JsonRpcRequest> extends never
+      ? never
+      : ResultConstraint<Request>
+  >;
 
   /**
    * Handle a JSON-RPC notification. Notifications do not return a result.
@@ -134,7 +138,11 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall = JsonRpcCall> {
       ? never
       : WithoutId<Extract<Request, JsonRpcNotification>>,
     options?: HandleOptions,
-  ): Promise<void>;
+  ): Promise<
+    Extract<Request, JsonRpcNotification> extends never
+      ? never
+      : ResultConstraint<Request>
+  >;
 
   /**
    * Handle a JSON-RPC call, i.e. request or notification. Requests return a
