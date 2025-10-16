@@ -1,14 +1,15 @@
 {
+  "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "lib": ["ES2020"],
-    "module": "CommonJS",
-    "moduleResolution": "node",
-    "noEmit": true,
-    "noErrorTruncation": true,
-    "strict": true,
-    "target": "es2017"
+    "baseUrl": "./"
   },
-  "exclude": ["./dist", "**/node_modules"]
+  "references": [
+    {
+      "path": "../../packages/eth-json-rpc-provider"
+    },
+    {
+      "path": "../../packages/json-rpc-engine"
+    }
+  ],
+  "include": ["../../types", "./src", "./test"]
 }
