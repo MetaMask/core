@@ -14,10 +14,8 @@
     },
     {
       "path": "../../packages/json-rpc-engine/tsconfig.build.json"
-    },
-    {
-      "path": "../../packages/network-controller/tsconfig.build.json"
     }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src"],
+  "exclude": ["**/*.test.ts", "**/*.test-d.ts"]
 }
