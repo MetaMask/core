@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/624.0.0 ([#6845](https://github.com/MetaMask/core/pull/6845))
+- Release/623.0.0 ([#6843](https://github.com/MetaMask/core/pull/6843))
+- Release/622.0.0 ([#6841](https://github.com/MetaMask/core/pull/6841))
+- Release/620.0.0 ([#6838](https://github.com/MetaMask/core/pull/6838))
+
 ### Fixed
 
 - Fix filter for staked Ethereum balances in `AccountTrackerController` ([#6846](https://github.com/MetaMask/core/pull/6846))
