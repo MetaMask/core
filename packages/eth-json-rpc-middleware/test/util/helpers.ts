@@ -36,7 +36,7 @@ export type ProviderRequestStub<
    * feature is useful for making sure that all requests have canned results.
    */
   remainAfterUse?: boolean;
-}
+};
 
 /**
  * Creates a middleware function that ends the request, but not before ensuring

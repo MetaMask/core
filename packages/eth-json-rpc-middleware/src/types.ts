@@ -6,8 +6,8 @@ import type {
   JsonRpcResponse,
 } from '@metamask/utils';
 
-export type JsonRpcRequestToCache<Params extends JsonRpcParams>
-  = JsonRpcRequest<Params> & {
+export type JsonRpcRequestToCache<Params extends JsonRpcParams> =
+  JsonRpcRequest<Params> & {
     skipCache?: boolean;
   };
 

@@ -220,13 +220,25 @@ const config = createConfig([
     },
   },
   {
+    files: ['packages/eth-block-tracker/**/*.ts'],
+    rules: {
+      // TODO: Re-enable these rules or add inline ignores for warranted cases
+      '@typescript-eslint/prefer-nullish-coalescing': 'warn',
+      'no-restricted-syntax': 'warn',
+      '@typescript-eslint/naming-convention': 'warn',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/unbound-method': 'warn',
+      '@typescript-eslint/consistent-type-definitions': 'warn',
+    },
+  },
+  {
     files: ['packages/eth-json-rpc-middleware/**/*.ts'],
     rules: {
-      // TODO: Re-enable these rules
+      // TODO: Re-enable these rules or add inline ignores for warranted cases
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/prefer-nullish-coalescing': 'warn',
       'jsdoc/match-description': 'warn',
-      'jsdoc/require-jsdoc': 'off',
+      'jsdoc/require-jsdoc': 'warn',
       'no-restricted-syntax': 'warn',
     },
   },
@@ -238,20 +250,6 @@ const config = createConfig([
       'n/no-missing-import': 'off',
       'n/no-restricted-import': 'off',
       'n/no-deprecated-api': 'off',
-    },
-  },
-  {
-    files: ['packages/eth-block-tracker/**/*.ts'],
-    rules: {
-      // TODO: These should perhaps be enabled
-      '@typescript-eslint/prefer-nullish-coalescing': 'off',
-      'no-restricted-syntax': 'off',
-      // TODO: These should definitely be enabled
-      '@typescript-eslint/naming-convention': 'warn',
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/unbound-method': 'warn',
-      '@typescript-eslint/consistent-type-definitions': 'warn',
-      '@typescript-eslint/explicit-function-return-type': 'warn',
     },
   },
 ]);
