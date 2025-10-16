@@ -423,8 +423,7 @@
   },
   "packages/eth-block-tracker/src/PollingBlockTracker.test.ts": {
     "@typescript-eslint/explicit-function-return-type": 12,
-    "@typescript-eslint/naming-convention": 1,
-    "@typescript-eslint/unbound-method": 4
+    "@typescript-eslint/naming-convention": 1
   },
   "packages/eth-block-tracker/src/PollingBlockTracker.ts": {
     "@typescript-eslint/explicit-function-return-type": 14,
