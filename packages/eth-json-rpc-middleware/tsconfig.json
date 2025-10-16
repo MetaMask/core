@@ -5,9 +5,6 @@
   },
   "references": [
     {
-      "path": "../eth-block-tracker"
-    },
-    {
       "path": "../../packages/error-reporting-service"
     },
     {
