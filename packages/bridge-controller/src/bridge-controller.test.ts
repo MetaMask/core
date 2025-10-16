@@ -2750,7 +2750,8 @@ describe('BridgeController', function () {
                 destAsset: {
                   chainId: 10,
                   address: '0x0000000000000000000000000000000000000002',
-                  assetId: 'eip155:10/erc20:0x0000000000000000000000000000000000000002',
+                  assetId:
+                    'eip155:10/erc20:0x0000000000000000000000000000000000000002',
                   symbol: 'USDC',
                   name: 'USD Coin',
                   decimals: 6,
@@ -2828,7 +2829,8 @@ describe('BridgeController', function () {
                 destAsset: {
                   chainId: 10,
                   address: '0x0000000000000000000000000000000000000002',
-                  assetId: 'eip155:10/erc20:0x0000000000000000000000000000000000000002',
+                  assetId:
+                    'eip155:10/erc20:0x0000000000000000000000000000000000000002',
                   symbol: 'USDC',
                   name: 'USD Coin',
                   decimals: 6,
