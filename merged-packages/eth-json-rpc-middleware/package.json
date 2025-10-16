@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/MetaMask/eth-json-rpc-middleware.git"
+    "url": "https://github.com/MetaMask/core.git"
   },
   "license": "ISC",
   "sideEffects": false,
