@@ -11,5 +11,7 @@
       "path": "../json-rpc-engine"
     }
   ],
-  "include": ["../../types", "./src", "./test"]
+  "include": ["../../types", "./src",
+    "./tests"
+  ]
 }
