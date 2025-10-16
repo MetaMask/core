@@ -417,5 +417,39 @@
   },
   "tests/setupAfterEnv/nock.ts": {
     "import-x/no-named-as-default-member": 3
+  },
+  "packages/eth-block-tracker/src/BlockTracker.ts": {
+    "@typescript-eslint/naming-convention": 1
+  },
+  "packages/eth-block-tracker/src/PollingBlockTracker.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": 12,
+    "@typescript-eslint/naming-convention": 1
+  },
+  "packages/eth-block-tracker/src/PollingBlockTracker.ts": {
+    "@typescript-eslint/explicit-function-return-type": 14,
+    "@typescript-eslint/naming-convention": 1,
+    "@typescript-eslint/unbound-method": 5
+  },
+  "packages/eth-block-tracker/tests/buildDeferred.ts": {
+    "@typescript-eslint/explicit-function-return-type": 1,
+    "@typescript-eslint/naming-convention": 1
+  },
+  "packages/eth-block-tracker/tests/emptyFunction.ts": {
+    "@typescript-eslint/explicit-function-return-type": 1
+  },
+  "packages/eth-block-tracker/tests/recordCallsToSetTimeout.ts": {
+    "@typescript-eslint/explicit-function-return-type": 4,
+    "@typescript-eslint/naming-convention": 2,
+    "@typescript-eslint/no-explicit-any": 1
+  },
+  "packages/eth-block-tracker/tests/setupAfterEnv.ts": {
+    "@typescript-eslint/consistent-type-definitions": 1,
+    "@typescript-eslint/explicit-function-return-type": 2,
+    "@typescript-eslint/naming-convention": 1,
+    "@typescript-eslint/no-explicit-any": 3
+  },
+  "packages/eth-block-tracker/tests/withBlockTracker.ts": {
+    "@typescript-eslint/explicit-function-return-type": 2,
+    "@typescript-eslint/no-explicit-any": 1
   }
 }

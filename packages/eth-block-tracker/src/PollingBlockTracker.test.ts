@@ -1,8 +1,8 @@
 import { PollingBlockTracker } from '.';
-import buildDeferred from '../test/buildDeferred';
-import EMPTY_FUNCTION from '../test/emptyFunction';
-import recordCallsToSetTimeout from '../test/recordCallsToSetTimeout';
-import { withPollingBlockTracker } from '../test/withBlockTracker';
+import buildDeferred from '../tests/buildDeferred';
+import EMPTY_FUNCTION from '../tests/emptyFunction';
+import recordCallsToSetTimeout from '../tests/recordCallsToSetTimeout';
+import { withPollingBlockTracker } from '../tests/withBlockTracker';
 
 type Sync = {
   oldBlock: string;

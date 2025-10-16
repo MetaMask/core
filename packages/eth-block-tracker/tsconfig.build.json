@@ -7,10 +7,10 @@
   },
   "references": [
     {
-      "path": "../../packages/eth-json-rpc-provider/tsconfig.build.json"
+      "path": "../eth-json-rpc-provider/tsconfig.build.json"
     },
     {
-      "path": "../../packages/json-rpc-engine/tsconfig.build.json"
+      "path": "../json-rpc-engine/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

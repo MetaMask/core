@@ -2,9 +2,13 @@
   "name": "@metamask/eth-block-tracker",
   "version": "13.0.0",
   "description": "A block tracker for the Ethereum blockchain. Keeps track of the latest block",
-  "homepage": "https://github.com/MetaMask/eth-block-tracker#readme",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/eth-block-tracker#readme",
   "bugs": {
-    "url": "https://github.com/MetaMask/eth-block-tracker/issues"
+    "url": "https://github.com/MetaMask/core/issues"
   },
   "repository": {
     "type": "git",
@@ -29,23 +33,25 @@
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.cts",
   "files": [
-    "dist"
+    "dist",
+    "dist/"
   ],
   "scripts": {
-    "build": "ts-bridge --project tsconfig.build.json --clean",
-    "build:clean": "rimraf dist && yarn build",
+    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "lint": "yarn lint:eslint && yarn lint:constraints && yarn lint:misc --check && yarn lint:dependencies --check && yarn lint:changelog",
-    "lint:changelog": "auto-changelog validate --prettier",
-    "lint:constraints": "yarn constraints",
-    "lint:dependencies": "depcheck && yarn dedupe --check",
-    "lint:dependencies:fix": "depcheck && yarn dedupe",
-    "lint:eslint": "eslint . --cache",
-    "lint:fix": "yarn lint:eslint --fix && yarn lint:constraints --fix && yarn lint:misc --write && yarn lint:dependencies:fix && yarn lint:changelog",
-    "lint:misc": "prettier '**/*.json' '**/*.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
-    "prepack": "./scripts/prepack.sh",
-    "test": "jest && attw --pack",
-    "test:watch": "jest --watch"
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/eth-block-tracker",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eth-block-tracker",
+    "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies",
+    "lint:dependencies": "depcheck",
+    "lint:eslint": "eslint . --cache --ext js,ts",
+    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies",
+    "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
+    "publish:preview": "yarn npm publish --tag preview",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
     "@metamask/eth-json-rpc-provider": "^5.0.1",
@@ -65,18 +71,11 @@
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2"
   },
-  "packageManager": "yarn@4.5.3",
   "engines": {
-    "node": "^18.16 || ^20 || >=22"
+    "node": "^18.18 || >=20"
   },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  },
-  "lavamoat": {
-    "allowScripts": {
-      "@lavamoat/preinstall-always-fail": false,
-      "eslint-plugin-import-x>unrs-resolver": false
-    }
   }
 }
