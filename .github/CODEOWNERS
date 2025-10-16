@@ -34,6 +34,7 @@
 
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
+
 ## Notifications Team
 /packages/notification-services-controller     @MetaMask/notifications
 
@@ -44,8 +45,7 @@
 /packages/bridge-controller                @MetaMask/swaps-engineers
 /packages/bridge-status-controller        @MetaMask/swaps-engineers
 
-## Platform Team
-
+## Mobile Platform Team
 /packages/app-metadata-controller @MetaMask/mobile-platform
 
 ## Portfolio Team
@@ -54,7 +54,7 @@
 ## Vault Team
 /packages/delegation-controller           @MetaMask/vault
 
-## Wallet API Platform Team
+## Wallet Integrations Team
 /packages/chain-agnostic-permission        @MetaMask/wallet-integrations
 /packages/eip1193-permission-middleware    @MetaMask/wallet-integrations
 /packages/multichain-api-middleware        @MetaMask/wallet-integrations
@@ -74,17 +74,15 @@
 /packages/preferences-controller       @MetaMask/core-platform
 /packages/rate-limit-controller        @MetaMask/core-platform
 
-## Wallet UX Team
-/packages/announcement-controller      @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
-
 ## Web3Auth Team
 /packages/seedless-onboarding-controller @MetaMask/web3auth
 /packages/shield-controller              @MetaMask/web3auth
 /packages/subscription-controller        @MetaMask/web3auth
 
 ## Joint team ownership
+/packages/announcement-controller               @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
 /packages/core-backend                          @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/eth-block-tracker            @MetaMask/wallet-integrations @MetaMask/core-platform
+/packages/eth-block-tracker                     @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/eth-json-rpc-middleware/src/methods   @MetaMask/confirmations @MetaMask/wallet-api-platform-engineers
 /packages/eth-json-rpc-middleware/src/wallet.*  @MetaMask/confirmations @MetaMask/wallet-api-platform-engineers
 /packages/eth-json-rpc-provider                 @MetaMask/wallet-integrations @MetaMask/core-platform
