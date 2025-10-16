@@ -1,6 +1,4 @@
-# eth-json-rpc-middleware
-
-<table><tr><td><p align="center"><b>⚠️ PLEASE READ ⚠️</b></p><p align="center">This package is currently being migrated to our <a href="https://github.com/MetaMask/core"><code>core</code></a> monorepo. Please do not make any commits to this repository while this migration is taking place, as they will not be transferred over.</p></td></tr></table>
+# `@metamask/eth-json-rpc-middleware`
 
 Ethereum-related middleware for [`json-rpc-engine`](https://github.com/MetaMask/json-rpc-engine).
 
@@ -14,14 +12,12 @@ or
 
 `npm install @metamask/eth-json-rpc-middleware`
 
-## Running Tests
+## See also
 
-```bash
-yarn test
-```
+- [`@metamask/eth-json-rpc-filters`](https://github.com/MetaMask/eth-json-rpc-filters).
+- [`@metamask/eth-json-rpc-infura`](https://github.com/MetaMask/eth-json-rpc-infura).
+- [`@metamask/json-rpc-engine`](https://github.com/MetaMask/core/tree/main/packages/json-rpc-engine).
 
-## See Also
+## Contributing
 
-- [`eth-json-rpc-filters`](https://github.com/MetaMask/eth-json-rpc-filters).
-- [`eth-json-rpc-infura`](https://github.com/MetaMask/eth-json-rpc-infura).
-- [`json-rpc-engine`](https://github.com/MetaMask/json-rpc-engine).
+This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
