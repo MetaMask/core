@@ -251,6 +251,20 @@ const config = createConfig([
       'n/no-deprecated-api': 'off',
     },
   },
+  {
+    files: ['packages/eth-block-tracker/**/*.ts'],
+    rules: {
+      // TODO: These should perhaps be enabled
+      '@typescript-eslint/prefer-nullish-coalescing': 'off',
+      'no-restricted-syntax': 'off',
+      // TODO: These should definitely be enabled
+      '@typescript-eslint/naming-convention': 'warn',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/unbound-method': 'warn',
+      '@typescript-eslint/consistent-type-definitions': 'warn',
+      '@typescript-eslint/explicit-function-return-type': 'warn',
+    },
+  },
 ]);
 
 export default config;

@@ -21,6 +21,7 @@
     { "path": "./packages/eip1193-permission-middleware/tsconfig.build.json" },
     { "path": "./packages/ens-controller/tsconfig.build.json" },
     { "path": "./packages/error-reporting-service/tsconfig.build.json" },
+    { "path": "./packages/eth-block-tracker/tsconfig.build.json" },
     { "path": "./packages/eth-json-rpc-middleware/tsconfig.build.json" },
     { "path": "./packages/eth-json-rpc-provider/tsconfig.build.json" },
     { "path": "./packages/foundryup/tsconfig.build.json" },

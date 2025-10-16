@@ -84,6 +84,7 @@
 
 ## Joint team ownership
 /packages/core-backend                          @MetaMask/core-platform @MetaMask/metamask-assets
+/packages/eth-block-tracker            @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/eth-json-rpc-middleware/src/methods   @MetaMask/confirmations @MetaMask/wallet-api-platform-engineers
 /packages/eth-json-rpc-middleware/src/wallet.*  @MetaMask/confirmations @MetaMask/wallet-api-platform-engineers
 /packages/eth-json-rpc-provider                 @MetaMask/wallet-integrations @MetaMask/core-platform
