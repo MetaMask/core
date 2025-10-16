@@ -18,6 +18,7 @@ const log = createModuleLogger(projectLogger, SERVICE_NAME);
 const MESSENGER_EXPOSED_METHODS = [
   'connect',
   'disconnect',
+  'forceReconnection',
   'sendMessage',
   'sendRequest',
   'subscribe',
@@ -299,6 +300,8 @@ export class BackendWebSocketService {
 
   #connectionTimeout: NodeJS.Timeout | null = null;
 
+  #stableConnectionTimer: NodeJS.Timeout | null = null;
+
   // Track the current connection promise to handle concurrent connection attempts
   #connectionPromise: Promise<void> | null = null;
 
@@ -381,7 +384,6 @@ export class BackendWebSocketService {
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           this.connect();
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           this.disconnect();
         }
       },
@@ -396,7 +398,6 @@ export class BackendWebSocketService {
 
     // Subscribe to wallet lock event
     this.#messenger.subscribe('KeyringController:lock', () => {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.disconnect();
     });
   }
@@ -442,6 +443,12 @@ export class BackendWebSocketService {
       return;
     }
 
+    // If a reconnect is already scheduled, defer to it to avoid bypassing exponential backoff
+    // This prevents rapid loops when server accepts then immediately closes connections
+    if (this.#reconnectTimer) {
+      return;
+    }
+
     // Create and store the connection promise IMMEDIATELY (before any async operations)
     // This ensures subsequent connect() calls will wait for this promise instead of creating new connections
     this.#connectionPromise = (async () => {
@@ -452,15 +459,11 @@ export class BackendWebSocketService {
           'AuthenticationController:getBearerToken',
         );
         if (!token) {
-          this.#scheduleReconnect();
           throw new Error('Authentication required: user not signed in');
         }
         bearerToken = token;
       } catch (error) {
         log('Failed to check authentication requirements', { error });
-
-        // Can't connect - schedule retry
-        this.#scheduleReconnect();
         throw error;
       }
 
@@ -473,14 +476,16 @@ export class BackendWebSocketService {
         const errorMessage = getErrorMessage(error);
         log('Connection attempt failed', { errorMessage, error });
         this.#setState(WebSocketState.ERROR);
-
-        // Rethrow to propagate error to caller
         throw error;
       }
     })();
 
     try {
       await this.#connectionPromise;
+    } catch {
+      // Always schedule reconnect on any failure
+      // Exponential backoff will prevent aggressive retries
+      this.#scheduleConnect();
     } finally {
       // Clear the connection promise when done (success or failure)
       this.#connectionPromise = null;
@@ -489,10 +494,8 @@ export class BackendWebSocketService {
 
   /**
    * Closes WebSocket connection
-   *
-   * @returns Promise that resolves when disconnection is complete
    */
-  async disconnect(): Promise<void> {
+  disconnect(): void {
     if (
       this.#state === WebSocketState.DISCONNECTED ||
       this.#state === WebSocketState.DISCONNECTING
@@ -510,11 +513,46 @@ export class BackendWebSocketService {
     // Clear any pending connection promise
     this.#connectionPromise = null;
 
+    // Reset reconnect attempts on manual disconnect
+    this.#reconnectAttempts = 0;
+
     if (this.#ws) {
       this.#ws.close(1000, 'Normal closure');
     }
 
     log('WebSocket manually disconnected');
+  }
+
+  /**
+   * Forces a WebSocket reconnection to clean up subscription state
+   *
+   * This method is useful when subscription state may be out of sync and needs to be reset.
+   * It performs a controlled disconnect-then-reconnect sequence:
+   * - Disconnects cleanly to trigger subscription cleanup
+   * - Schedules reconnection with exponential backoff to prevent rapid loops
+   * - All subscriptions will be cleaned up automatically on disconnect
+   *
+   * Use cases:
+   * - Recovering from subscription/unsubscription issues
+   * - Cleaning up orphaned subscriptions
+   * - Forcing a fresh subscription state
+   *
+   * @returns Promise that resolves when disconnection is complete (reconnection is scheduled)
+   */
+  async forceReconnection(): Promise<void> {
+    // If a reconnect is already scheduled, don't force another one
+    if (this.#reconnectTimer) {
+      log('Reconnect already scheduled, skipping force reconnection');
+      return;
+    }
+
+    log('Forcing WebSocket reconnection to clean up subscription state');
+
+    // Perform controlled disconnect
+    this.disconnect();
+
+    // Schedule reconnection with exponential backoff
+    this.#scheduleConnect();
   }
 
   /**
@@ -991,8 +1029,13 @@ export class BackendWebSocketService {
             this.#setState(WebSocketState.CONNECTED);
             this.#connectedAt = Date.now();
 
-            // Reset reconnect attempts on successful connection
-            this.#reconnectAttempts = 0;
+            // Only reset after connection stays stable for a period (10 seconds)
+            // This prevents rapid reconnect loops when server accepts then immediately closes
+            this.#stableConnectionTimer = setTimeout(() => {
+              this.#stableConnectionTimer = null;
+              this.#reconnectAttempts = 0;
+              log('Connection stable - reset reconnect attempts');
+            }, 10000);
 
             resolve();
           },
@@ -1242,7 +1285,15 @@ export class BackendWebSocketService {
     // Calculate connection duration before we clear state
     const connectionDuration = Date.now() - this.#connectedAt;
 
-    this.#clearTimers();
+    if (this.#connectionTimeout) {
+      clearTimeout(this.#connectionTimeout);
+      this.#connectionTimeout = null;
+    }
+    if (this.#stableConnectionTimer) {
+      clearTimeout(this.#stableConnectionTimer);
+      this.#stableConnectionTimer = null;
+    }
+
     this.#connectedAt = 0;
 
     // Clear any pending connection promise
@@ -1281,9 +1332,7 @@ export class BackendWebSocketService {
       },
     );
 
-    // For any unexpected disconnects, attempt reconnection
-    // The manualDisconnect flag is the only gate - if it's false, we reconnect
-    this.#scheduleReconnect();
+    this.#scheduleConnect();
   }
 
   /**
@@ -1300,14 +1349,48 @@ export class BackendWebSocketService {
   // =============================================================================
 
   /**
-   * Schedules a reconnection attempt with exponential backoff
+   * Schedules a connection attempt with exponential backoff and jitter
+   *
+   * This method is used for automatic reconnection with backoff:
+   * - Prevents duplicate reconnection timers (idempotent)
+   * - Applies exponential backoff based on previous failures
+   * - Adds jitter (±25%) to prevent thundering herd problem
+   * - Used ONLY for automatic retries, not user-initiated actions
+   *
+   * Call this from:
+   * - connect() catch block (on connection failure)
+   * - #handleClose() (on unexpected disconnect)
+   *
+   * For user-initiated actions (sign in, unlock), call connect() directly instead.
+   *
+   * If a reconnect is already scheduled, this is a no-op to prevent:
+   * - Orphaned timers (memory leak)
+   * - Inflated reconnect attempts counter
+   * - Prematurely long delays
    */
-  #scheduleReconnect(): void {
+  #scheduleConnect(): void {
+    // If a reconnect is already scheduled, don't schedule another one
+    if (this.#reconnectTimer) {
+      return;
+    }
+
+    // Increment attempts BEFORE calculating delay so backoff grows properly
     this.#reconnectAttempts += 1;
 
+    // Calculate delay with exponential backoff
     const rawDelay =
       this.#options.reconnectDelay * Math.pow(1.5, this.#reconnectAttempts - 1);
-    const delay = Math.min(rawDelay, this.#options.maxReconnectDelay);
+    const baseDelay = Math.min(rawDelay, this.#options.maxReconnectDelay);
+
+    // Add jitter (±25%) to prevent thundering herd problem
+    // This randomizes reconnection timing across multiple clients
+    const jitterFactor = 0.75 + Math.random() * 0.5; // Random value between 0.75 and 1.25
+    const delay = Math.floor(baseDelay * jitterFactor);
+
+    log('Scheduling reconnect', {
+      attempt: this.#reconnectAttempts,
+      delay_ms: delay,
+    });
 
     this.#reconnectTimer = setTimeout(() => {
       // Clear timer reference first
@@ -1319,10 +1402,8 @@ export class BackendWebSocketService {
         return;
       }
 
-      // Attempt to reconnect - if it fails, schedule another attempt
-      this.connect().catch(() => {
-        this.#scheduleReconnect();
-      });
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.connect();
     }, delay);
   }
 
@@ -1337,6 +1418,10 @@ export class BackendWebSocketService {
     if (this.#connectionTimeout) {
       clearTimeout(this.#connectionTimeout);
       this.#connectionTimeout = null;
+    }
+    if (this.#stableConnectionTimer) {
+      clearTimeout(this.#stableConnectionTimer);
+      this.#stableConnectionTimer = null;
     }
   }
 
