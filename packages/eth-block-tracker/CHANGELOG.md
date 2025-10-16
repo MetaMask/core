@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - This package was migrated from `MetaMask/eth-block-tracker` to the
-  `MetaMask/core` monorepo.
+  `MetaMask/core` monorepo ([#7930](https://github.com/MetaMask/core/pull/7930))
   - See [`MetaMask/eth-block-tracker`](https://github.com/MetaMask/eth-block-tracker/blob/main/CHANGELOG.md)
     for the original changelog.
 
