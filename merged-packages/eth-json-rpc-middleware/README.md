@@ -12,6 +12,12 @@ or
 
 `npm install @metamask/eth-json-rpc-middleware`
 
+## See also
+
+- [`@metamask/eth-json-rpc-filters`](https://github.com/MetaMask/eth-json-rpc-filters).
+- [`@metamask/eth-json-rpc-infura`](https://github.com/MetaMask/eth-json-rpc-infura).
+- [`@metamask/json-rpc-engine`](https://github.com/MetaMask/core/tree/main/packages/json-rpc-engine).
+
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
