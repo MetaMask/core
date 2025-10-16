@@ -5,10 +5,10 @@
   },
   "references": [
     {
-      "path": "../../packages/eth-json-rpc-provider"
+      "path": "../eth-json-rpc-provider"
     },
     {
-      "path": "../../packages/json-rpc-engine"
+      "path": "../json-rpc-engine"
     }
   ],
   "include": ["../../types", "./src", "./test"]
