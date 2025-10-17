@@ -469,6 +469,7 @@ describe('feature-flags', () => {
       expect(hasMinimumRequiredVersion('13.8.0', '13.7.0')).toBe(true);
       expect(hasMinimumRequiredVersion('13.8.1', '13.8.0')).toBe(true);
       expect(hasMinimumRequiredVersion('14.0.0', '13.7.0')).toBe(true);
+      expect(hasMinimumRequiredVersion('13.9.0', '13.8.1')).toBe(true);
     });
 
     it('should return false if the client version is less than the minimum required version', () => {

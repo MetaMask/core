@@ -82,10 +82,15 @@ export const hasMinimumRequiredVersion = (
   const [minRequiredMajor, minRequiredMinor, minRequiredPatch] =
     minRequiredVersion.split('.').map(Number);
 
+  if (clientMajor > minRequiredMajor) {
+    return true;
+  }
+  if (clientMajor === minRequiredMajor && clientMinor > minRequiredMinor) {
+    return true;
+  }
   return (
-    clientMajor > minRequiredMajor ||
-    (clientMajor === minRequiredMajor &&
-      clientMinor >= minRequiredMinor &&
-      clientPatch >= minRequiredPatch)
+    clientMajor === minRequiredMajor &&
+    clientMinor === minRequiredMinor &&
+    clientPatch >= minRequiredPatch
   );
 };
