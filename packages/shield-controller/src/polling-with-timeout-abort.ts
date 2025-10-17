@@ -8,7 +8,7 @@ export type RequestFn<ReturnType> = (
   signal: AbortSignal,
 ) => Promise<ReturnType>;
 
-export class PollingWithTimeout {
+export class PollingWithTimeoutAndAbort {
   // Map of request ID to request entry
   readonly #requestEntries: Map<string, RequestEntry> = new Map();
 
@@ -36,13 +36,13 @@ export class PollingWithTimeout {
     this.abortPendingRequests(requestId);
 
     // insert the request entry for the next polling cycle
-    const { abortController } = this.insertRequestEntry(requestId, timeout);
+    const { abortController } = this.#insertRequestEntry(requestId, timeout);
 
     while (!abortController.signal.aborted) {
       try {
         const result = await requestFn(abortController.signal);
         // polling success, we just need to clean up the request entry and return the result
-        this.cleanUpRequestEntryIfExists(requestId);
+        this.#cleanUpOnFinished(requestId);
         return result;
       } catch {
         // polling failed due to timeout or cancelled,
@@ -60,6 +60,22 @@ export class PollingWithTimeout {
   }
 
   /**
+   * Abort the pending requests.
+   * This will clean up the request entry if it exists, and abort the pending request if it exists.
+   *
+   * @param requestId - The ID of the request to abort.
+   */
+  abortPendingRequests(requestId: string) {
+    // firstly clean up the request entry if it exists
+    // note: this does not abort the request, it only cleans up the request entry for the next polling cycle
+    const existingEntry = this.#cleanUpRequestEntryIfExists(requestId);
+    // then abort the request if it exists
+    // note: this does abort the request, but it will not trigger the abort handler (hence, {@link cleanUpRequestEntryIfExists} will not be called)
+    // coz the AbortHandler event listener is already removed from the AbortSignal
+    existingEntry?.abortController.abort();
+  }
+
+  /**
    * Insert a new request entry.
    * This will create a new abort controller, set a timeout to abort the request if it takes too long, and set the abort handler.
    *
@@ -67,19 +83,18 @@ export class PollingWithTimeout {
    * @param timeout - The timeout for the request.
    * @returns The request entry that was inserted.
    */
-  insertRequestEntry(requestId: string, timeout: number) {
+  #insertRequestEntry(requestId: string, timeout: number) {
     const abortController = new AbortController();
 
     // Set a timeout to abort the request if it takes too long
     const timerId = setTimeout(
-      () => this.handleRequestTimeout(requestId),
+      () => this.#handleRequestTimeout(requestId),
       timeout,
     );
 
     // Set the abort handler and listen to the `abort` event
     const abortHandler = () => {
-      clearTimeout(timerId);
-      abortController.signal.removeEventListener('abort', abortHandler);
+      this.#cleanUpOnFinished(requestId);
     };
     abortController.signal.addEventListener('abort', abortHandler);
 
@@ -96,32 +111,32 @@ export class PollingWithTimeout {
   }
 
   /**
-   * Abort the pending requests.
-   * This will clean up the request entry if it exists, and abort the pending request if it exists.
-   *
-   * @param requestId - The ID of the request to abort.
-   */
-  abortPendingRequests(requestId: string) {
-    // firstly clean up the request entry if it exists
-    // note: this does not abort the request, it only cleans up the request entry for the next polling cycle
-    const existingEntry = this.cleanUpRequestEntryIfExists(requestId);
-    // then abort the request if it exists
-    // note: this does abort the request, but it will not trigger the abort handler (hence, {@link cleanUpRequestEntryIfExists} will not be called)
-    // coz the AbortHandler event listener is already removed from the AbortSignal
-    existingEntry?.abortController.abort();
-  }
-
-  /**
    * Handle the request timeout.
-   * This will abort the request, this will also trigger the abort handler (hence, {@link cleanUpRequestEntryIfExists} will be called)
+   * This will abort the request, this will also trigger the abort handler (hence, {@link #cleanUpRequestEntryIfExists} will be called)
    *
    * @param requestId - The ID of the request to handle the timeout for.
    */
-  handleRequestTimeout(requestId: string) {
-    const requestEntry = this.cleanUpRequestEntryIfExists(requestId);
+  #handleRequestTimeout(requestId: string) {
+    const requestEntry = this.#cleanUpRequestEntryIfExists(requestId);
     if (requestEntry) {
       // Abort the request, this will also trigger the abort handler (hence, handleRequestAbort will be called)
       requestEntry.abortController.abort();
+    }
+  }
+
+  /**
+   * Clean up the request entry upon finished (success or failure).
+   * This will remove the abort handler from the AbortSignal, clear the timeout, and remove the request entry.
+   *
+   * @param requestId - The ID of the request to clean up for.
+   */
+  #cleanUpOnFinished(requestId: string) {
+    const requestEntry = this.#cleanUpRequestEntryIfExists(requestId);
+    if (requestEntry) {
+      requestEntry.abortController.signal.removeEventListener(
+        'abort',
+        requestEntry.abortHandler,
+      );
     }
   }
 
@@ -132,14 +147,10 @@ export class PollingWithTimeout {
    * @param requestId - The ID of the request to handle the abort for.
    * @returns The request entry that was aborted, if it exists.
    */
-  cleanUpRequestEntryIfExists(requestId: string): RequestEntry | undefined {
+  #cleanUpRequestEntryIfExists(requestId: string): RequestEntry | undefined {
     const requestEntry = this.#requestEntries.get(requestId);
     if (requestEntry) {
       clearTimeout(requestEntry.timerId); // Clear the timeout
-      // requestEntry.abortController.signal.removeEventListener(
-      //   'abort',
-      //   requestEntry.abortHandler,
-      // ); // Remove the event listener for the abort event
       this.#requestEntries.delete(requestId); // Remove the request entry
       return requestEntry;
     }

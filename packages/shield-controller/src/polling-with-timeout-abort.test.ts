@@ -1,9 +1,9 @@
-import { PollingWithTimeout } from './polling-with-timeout';
+import { PollingWithTimeoutAndAbort } from './polling-with-timeout-abort';
 import { delay } from '../tests/utils';
 
-describe('PollingWithTimeoutAndCancellation', () => {
+describe('PollingWithTimeoutAndAbort', () => {
   it('should timeout when the request does not resolve within the timeout period', async () => {
-    const pollingWithTimeout = new PollingWithTimeout({
+    const pollingWithTimeout = new PollingWithTimeoutAndAbort({
       timeout: 100,
       pollInterval: 10,
     });
@@ -24,7 +24,7 @@ describe('PollingWithTimeoutAndCancellation', () => {
   });
 
   it('should abort pending requests when new request is made', async () => {
-    const pollingWithTimeout = new PollingWithTimeout({
+    const pollingWithTimeout = new PollingWithTimeoutAndAbort({
       timeout: 1000,
       pollInterval: 20,
     });
@@ -50,5 +50,27 @@ describe('PollingWithTimeoutAndCancellation', () => {
     await expect(firstAttempt).rejects.toThrow('Polling cancelled'); // first request should be aborted by the second request
     const result = await secondAttempt;
     expect(result).toBe('test result'); // second request should succeed
+  });
+
+  it('should abort pending requests when abortPendingRequests is called', async () => {
+    const pollingWithTimeout = new PollingWithTimeoutAndAbort({
+      timeout: 1000,
+      pollInterval: 20,
+    });
+
+    const requestFn = jest
+      .fn()
+      .mockImplementation(async (_signal: AbortSignal) => {
+        return new Promise((_resolve, reject) => {
+          setTimeout(() => {
+            reject(new Error('test error'));
+          }, 100);
+        });
+      });
+
+    const request = pollingWithTimeout.pollRequest('test', requestFn);
+    await delay(15); // small delay to let the request start
+    pollingWithTimeout.abortPendingRequests('test');
+    await expect(request).rejects.toThrow('Polling cancelled');
   });
 });

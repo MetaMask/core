@@ -1,7 +1,7 @@
 import type { SignatureRequest } from '@metamask/signature-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import { PollingWithTimeout } from './polling-with-timeout';
+import { PollingWithTimeoutAndAbort } from './polling-with-timeout-abort';
 import type {
   CheckCoverageRequest,
   CheckSignatureCoverageRequest,
@@ -59,7 +59,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
 
   readonly #fetch: typeof globalThis.fetch;
 
-  readonly #pollingWithTimeout: PollingWithTimeout;
+  readonly #pollingWithTimeout: PollingWithTimeoutAndAbort;
 
   constructor({
     getAccessToken,
@@ -79,7 +79,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     this.#getCoverageResultPollInterval = getCoverageResultPollInterval;
     this.#baseUrl = baseUrl;
     this.#fetch = fetchFn;
-    this.#pollingWithTimeout = new PollingWithTimeout({
+    this.#pollingWithTimeout = new PollingWithTimeoutAndAbort({
       timeout: getCoverageResultTimeout,
       pollInterval: getCoverageResultPollInterval,
     });
@@ -141,6 +141,9 @@ export class ShieldRemoteBackend implements ShieldBackend {
       ...initBody,
     };
 
+    // clean up the pending coverage result polling
+    this.#pollingWithTimeout.abortPendingRequests(req.signatureRequest.id);
+
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/signature/coverage/log`,
       {
@@ -161,6 +164,9 @@ export class ShieldRemoteBackend implements ShieldBackend {
       status: req.status,
       ...initBody,
     };
+
+    // clean up the pending coverage result polling
+    this.#pollingWithTimeout.abortPendingRequests(req.txMeta.id);
 
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/transaction/coverage/log`,
