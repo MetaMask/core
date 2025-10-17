@@ -340,6 +340,11 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     account: InternalAccount,
     assets: CaipAssetType[],
   ): void {
+    // Prevent creating a new set if there are no assets to add.
+    if (assets.length === 0) {
+      return;
+    }
+
     // FIXME: Instead of using the Snap ID from the account, we should
     // select the Snap based on the supported scopes defined in the Snaps'
     // manifest.
@@ -415,6 +420,11 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     assets: Set<CaipAssetType>,
     currency: CaipAssetType,
   ): Promise<Record<CaipAssetType, AssetConversion | undefined>> {
+    // Prevent making a Snap call if there are no assets to fetch.
+    if (assets.size === 0) {
+      return {};
+    }
+
     const response = await this.#handleSnapRequest({
       snapId,
       handler: HandlerType.OnAssetsConversion,
@@ -456,6 +466,11 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     assets: Set<CaipAssetType>,
     currency: CaipAssetType,
   ): Promise<Record<CaipAssetType, FungibleAssetMarketData | undefined>> {
+    // Prevent making a Snap call if there are no assets to fetch.
+    if (assets.size === 0) {
+      return {};
+    }
+
     const response = await this.#handleSnapRequest({
       snapId,
       handler: HandlerType.OnAssetsMarketData,
