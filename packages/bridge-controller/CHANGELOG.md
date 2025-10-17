@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/624.0.0 ([#6845](https://github.com/MetaMask/core/pull/6845))
-- Release/622.0.0 ([#6841](https://github.com/MetaMask/core/pull/6841))
-- Release/621.0.0 ([#6840](https://github.com/MetaMask/core/pull/6840))
-
 ### Changed
 
 - Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
