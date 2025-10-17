@@ -495,8 +495,10 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     // Note: Since the assets come from a 1-to-1 mapping with Snap IDs, we know
     // that a given asset will not appear under multiple Snap IDs.
     for (const [snapId, assets] of snapIdToAssets.entries()) {
-      const rates = await this.#getConversionRates(snapId, assets, currency);
-      const marketData = await this.#getMarketData(snapId, assets, currency);
+      const [rates, marketData] = await Promise.all([
+        this.#getConversionRates(snapId, assets, currency),
+        this.#getMarketData(snapId, assets, currency),
+      ]);
 
       for (const asset of assets) {
         const assetRate = rates[asset];
