@@ -5,8 +5,9 @@ import type {
 } from '@metamask/utils';
 
 import { asLegacyMiddleware } from './asLegacyMiddleware';
-import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
+import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
+import type { MiddlewareContext } from './MiddlewareContext';
 import { getExtraneousKeys, makeRequest } from '../../tests/utils';
 import { JsonRpcEngine } from '../JsonRpcEngine';
 
@@ -147,13 +148,17 @@ describe('asLegacyMiddleware', () => {
     const observedContextValues: number[] = [];
 
     const v2Middleware = jest.fn((({ context, next }) => {
-      observedContextValues.push(context.assertGet<number>('value'));
+      observedContextValues.push(context.assertGet('value'));
 
       expect(Array.from(context.keys())).toStrictEqual(['value']);
 
       context.set('newValue', 2);
       return next();
-    }) satisfies JsonRpcMiddleware<JsonRpcRequest>);
+    }) satisfies JsonRpcMiddleware<
+      JsonRpcRequest,
+      ResultConstraint<JsonRpcRequest>,
+      MiddlewareContext<Record<string, number>>
+    >);
 
     const v2Engine = new JsonRpcEngineV2<JsonRpcRequest>({
       middleware: [v2Middleware],

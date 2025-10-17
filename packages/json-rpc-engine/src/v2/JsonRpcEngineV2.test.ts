@@ -1,8 +1,8 @@
 /* eslint-disable n/callback-return */ // next() is not a Node.js callback.
-import type { JsonRpcId, NonEmptyArray } from '@metamask/utils';
+import type { Json, JsonRpcId, NonEmptyArray } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 
-import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
+import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import { MiddlewareContext } from './MiddlewareContext';
 import {
@@ -285,15 +285,50 @@ describe('JsonRpcEngineV2', () => {
       });
 
       it('accepts an initial context', async () => {
-        const initialContext = new MiddlewareContext();
+        const initialContext = new MiddlewareContext<Record<string, string>>();
         initialContext.set('foo', 'bar');
+        const middleware: JsonRpcMiddleware<
+          JsonRpcRequest,
+          string,
+          MiddlewareContext<Record<string, string>>
+        > = jest.fn(({ context }) => context.assertGet('foo'));
         const engine = new JsonRpcEngineV2({
-          middleware: [({ context }) => context.assertGet<string>('foo')],
+          middleware: [middleware],
         });
 
         const result = await engine.handle(makeRequest(), {
           context: initialContext,
         });
+
+        expect(result).toBe('bar');
+      });
+
+      it('accepts middleware with different context types', async () => {
+        const middleware1: JsonRpcMiddleware<
+          JsonRpcCall,
+          ResultConstraint<JsonRpcCall>,
+          MiddlewareContext<{ foo: string }>
+        > = ({ context, next }) => {
+          context.set('foo', 'bar');
+          return next();
+        };
+
+        const middleware2: JsonRpcMiddleware<
+          JsonRpcCall,
+          ResultConstraint<JsonRpcCall>
+        > = ({ next }) => next();
+
+        const middleware3: JsonRpcMiddleware<
+          JsonRpcCall,
+          string,
+          MiddlewareContext<{ foo: string; bar: number }>
+        > = ({ context }) => context.assertGet('foo');
+
+        const engine = new JsonRpcEngineV2({
+          middleware: [middleware1, middleware2, middleware3],
+        });
+
+        const result = await engine.handle(makeRequest());
 
         expect(result).toBe('bar');
       });
@@ -326,24 +361,34 @@ describe('JsonRpcEngineV2', () => {
       });
 
       it('handles mixed synchronous and asynchronous middleware', async () => {
-        const middleware1: JsonRpcMiddleware<JsonRpcRequest<number[]>> =
-          jest.fn(async ({ context, next }) => {
-            context.set('foo', [1]);
-            return next();
-          });
-        const middleware2: JsonRpcMiddleware<JsonRpcRequest<number[]>> =
-          jest.fn(({ context, next }) => {
-            const nums = context.assertGet<number[]>('foo');
-            nums.push(2);
-            return next();
-          });
+        const middleware1: JsonRpcMiddleware<
+          JsonRpcRequest<number[]>,
+          Json,
+          MiddlewareContext<Record<string, number[]>>
+        > = jest.fn(async ({ context, next }) => {
+          context.set('foo', [1]);
+          return next();
+        });
+
+        const middleware2: JsonRpcMiddleware<
+          JsonRpcRequest<number[]>,
+          Json,
+          MiddlewareContext<Record<string, number[]>>
+        > = jest.fn(({ context, next }) => {
+          const nums = context.assertGet('foo');
+          nums.push(2);
+          return next();
+        });
+
         const middleware3: JsonRpcMiddleware<
           JsonRpcRequest<number[]>,
-          number[]
+          number[],
+          MiddlewareContext<Record<string, number[]>>
         > = jest.fn(async ({ context }) => {
-          const nums = context.assertGet<number[]>('foo');
+          const nums = context.assertGet('foo');
           return [...nums, 3];
         });
+
         const engine = new JsonRpcEngineV2({
           middleware: [middleware1, middleware2, middleware3],
         });
@@ -625,7 +670,10 @@ describe('JsonRpcEngineV2', () => {
         let inFlight = 0;
         let maxInFlight = 0;
 
-        const engine = new JsonRpcEngineV2<JsonRpcRequest>({
+        const engine = new JsonRpcEngineV2<
+          JsonRpcRequest,
+          MiddlewareContext<Record<string, JsonRpcId>>
+        >({
           middleware: [
             async ({ context, next, request }) => {
               // eslint-disable-next-line jest/no-conditional-in-test
@@ -785,10 +833,13 @@ describe('JsonRpcEngineV2', () => {
       });
 
       it('propagates context changes', async () => {
-        const engine1 = new JsonRpcEngineV2({
+        const engine1 = new JsonRpcEngineV2<
+          JsonRpcRequest,
+          MiddlewareContext<Record<string, number[]>>
+        >({
           middleware: [
             async ({ context, next }) => {
-              const nums = context.assertGet<number[]>('foo');
+              const nums = context.assertGet('foo');
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               nums[0]! *= 2;
               return next();
@@ -805,7 +856,7 @@ describe('JsonRpcEngineV2', () => {
             engine1.asMiddleware(),
             async ({ context }) => {
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              return context.assertGet<number[]>('foo')[0]! * 2;
+              return context.assertGet('foo')[0]! * 2;
             },
           ],
         });
@@ -931,10 +982,13 @@ describe('JsonRpcEngineV2', () => {
       });
 
       it('propagates context changes', async () => {
-        const engine1 = new JsonRpcEngineV2({
+        const engine1 = new JsonRpcEngineV2<
+          JsonRpcRequest,
+          MiddlewareContext<Record<string, number[]>>
+        >({
           middleware: [
             async ({ context }) => {
-              const nums = context.assertGet<number[]>('foo');
+              const nums = context.assertGet('foo');
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               nums[0]! *= 2;
               return null;
@@ -942,7 +996,10 @@ describe('JsonRpcEngineV2', () => {
           ],
         });
 
-        const engine2 = new JsonRpcEngineV2({
+        const engine2 = new JsonRpcEngineV2<
+          JsonRpcRequest,
+          MiddlewareContext<Record<string, number[]>>
+        >({
           middleware: [
             async ({ context, next }) => {
               context.set('foo', [2]);
@@ -954,7 +1011,7 @@ describe('JsonRpcEngineV2', () => {
             },
             async ({ context }) => {
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              return context.assertGet<number[]>('foo')[0]! * 2;
+              return context.assertGet('foo')[0]! * 2;
             },
           ],
         });

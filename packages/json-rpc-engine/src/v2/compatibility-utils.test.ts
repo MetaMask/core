@@ -265,7 +265,7 @@ describe('compatibility-utils', () => {
         params: [1],
         id: 42,
       };
-      const context = new MiddlewareContext();
+      const context = new MiddlewareContext<Record<string, unknown>>();
       context.set('extraProp', 'value');
       context.set('anotherProp', { nested: true });
 
@@ -288,7 +288,7 @@ describe('compatibility-utils', () => {
         params: [1],
         id: 42,
       };
-      const context = new MiddlewareContext();
+      const context = new MiddlewareContext<Record<string | symbol, unknown>>();
       context.set('extraProp', 'value');
       context.set(Symbol('anotherProp'), { nested: true });
 
@@ -310,7 +310,7 @@ describe('compatibility-utils', () => {
         params: [1],
         id: 42,
       };
-      const context = new MiddlewareContext();
+      const context = new MiddlewareContext<Record<string, unknown>>();
       context.set('jsonrpc', '3.0');
       context.set('method', 'other_method');
       context.set('params', [2]);
@@ -336,7 +336,7 @@ describe('compatibility-utils', () => {
         id: 42,
         existingKey: 'oldValue',
       };
-      const context = new MiddlewareContext();
+      const context = new MiddlewareContext<Record<string, unknown>>();
       context.set('existingKey', 'newValue');
 
       propagateToRequest(request, context);

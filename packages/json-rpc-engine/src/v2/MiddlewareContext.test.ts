@@ -37,7 +37,7 @@ describe('MiddlewareContext', () => {
   });
 
   it('assertGet throws if the key is not found', () => {
-    const context = new MiddlewareContext();
+    const context = new MiddlewareContext<{ test: string }>();
     expect(() => context.assertGet('test')).toThrow(
       `Context key "test" not found`,
     );
@@ -51,13 +51,13 @@ describe('MiddlewareContext', () => {
 
   it('assertGet returns the value if the key is found (symbol)', () => {
     const symbol = Symbol('test');
-    const context = new MiddlewareContext();
+    const context = new MiddlewareContext<{ [symbol]: string }>();
     context.set(symbol, 'value');
     expect(context.assertGet(symbol)).toBe('value');
   });
 
   it('throws if setting an already set key', () => {
-    const context = new MiddlewareContext();
+    const context = new MiddlewareContext<{ test: string }>();
     context.set('test', 'value');
     expect(() => context.set('test', 'value')).toThrow(
       `MiddlewareContext key "test" already exists`,

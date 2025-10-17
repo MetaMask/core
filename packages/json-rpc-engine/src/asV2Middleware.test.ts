@@ -4,6 +4,7 @@ import type { JsonRpcRequest } from '@metamask/utils';
 import { JsonRpcEngine } from '.';
 import { asV2Middleware } from './asV2Middleware';
 import { JsonRpcEngineV2 } from './v2/JsonRpcEngineV2';
+import type { MiddlewareContext } from './v2/MiddlewareContext';
 import { getExtraneousKeys, makeRequest } from '../tests/utils';
 
 describe('asV2Middleware', () => {
@@ -90,7 +91,10 @@ describe('asV2Middleware', () => {
     });
     legacyEngine.push(legacyMiddleware);
 
-    const v2Engine = new JsonRpcEngineV2<JsonRpcRequest>({
+    const v2Engine = new JsonRpcEngineV2<
+      JsonRpcRequest,
+      MiddlewareContext<Record<string, number>>
+    >({
       middleware: [
         ({ context, next }) => {
           context.set('value', 1);
@@ -98,7 +102,7 @@ describe('asV2Middleware', () => {
         },
         asV2Middleware(legacyEngine),
         ({ context }) => {
-          observedContextValues.push(context.assertGet<number>('newValue'));
+          observedContextValues.push(context.assertGet('newValue'));
 
           expect(Array.from(context.keys())).toStrictEqual([
             'value',
