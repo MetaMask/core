@@ -615,10 +615,10 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       if (!this.isActive) {
         return;
       }
-      const allNewRates: Record<
-        string,
-        UnifiedAssetConversion & { currency: CaipAssetType }
-      > = {};
+
+      // First build a map containing all assets that need to be updated with
+      // their corresponding Snap ID, this will be used to batch the requests.
+      const assetToSnapId = new Map<CaipAssetType, SnapId>();
 
       for (const { accountId, assets } of accounts) {
         const account = this.#getAccount(accountId);
@@ -634,17 +634,12 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
           continue;
         }
 
-        const rates = await this.#getUpdatedRatesFor(
-          new Map(assets.map((asset) => [asset, snapId as SnapId])),
-        );
-
-        // Track new rates
-        for (const [asset, rate] of Object.entries(rates)) {
-          allNewRates[asset] = rate;
+        for (const asset of assets) {
+          assetToSnapId.set(asset, snapId as SnapId);
         }
       }
 
-      this.#applyUpdatedRates(allNewRates);
+      this.#applyUpdatedRates(await this.#getUpdatedRatesFor(assetToSnapId));
     })().finally(() => {
       releaseLock();
     });
