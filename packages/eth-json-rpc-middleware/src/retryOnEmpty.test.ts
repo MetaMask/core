@@ -22,7 +22,7 @@ import {
 /**
  * Objects used in each test.
  */
-interface Setup {
+type Setup = {
   /**
    * The engine that holds the middleware stack, including the
    * one being tested.
@@ -38,12 +38,12 @@ interface Setup {
    * middleware being tested.
    */
   blockTracker: PollingBlockTracker;
-}
+};
 
 /**
  * Options supported by `withTestSetup`.
  */
-interface WithTestSetupOptions {
+type WithTestSetupOptions = {
   /**
    * A function which determines which middleware
    * should be added to the engine.
@@ -52,7 +52,7 @@ interface WithTestSetupOptions {
     middlewareUnderTest: JsonRpcMiddleware<any, any>;
     otherMiddleware?: JsonRpcMiddleware<any, any>[];
   };
-}
+};
 
 /**
  * The function that `withTestSetup` is expected to take and will call once the

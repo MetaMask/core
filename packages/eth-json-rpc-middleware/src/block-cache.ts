@@ -23,9 +23,9 @@ const log = createModuleLogger(projectLogger, 'block-cache');
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
 const emptyValues = [undefined, null, '\u003cnil\u003e'];
 
-interface BlockCacheMiddlewareOptions {
+type BlockCacheMiddlewareOptions = {
   blockTracker?: PollingBlockTracker;
-}
+};
 
 //
 // Cache Strategies

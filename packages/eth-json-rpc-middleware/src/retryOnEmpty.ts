@@ -27,10 +27,10 @@ const emptyValues: (string | null | undefined)[] = [
   '\u003cnil\u003e',
 ];
 
-interface RetryOnEmptyMiddlewareOptions {
+type RetryOnEmptyMiddlewareOptions = {
   provider?: SafeEventEmitterProvider;
   blockTracker?: PollingBlockTracker;
-}
+};
 
 export function createRetryOnEmptyMiddleware({
   provider,

@@ -5,9 +5,9 @@ import type { Json, JsonRpcParams } from '@metamask/utils';
 
 import { blockTagParamIndex } from './utils/cache';
 
-interface BlockRefRewriteMiddlewareOptions {
+type BlockRefRewriteMiddlewareOptions = {
   blockTracker?: PollingBlockTracker;
-}
+};
 
 export function createBlockRefRewriteMiddleware({
   blockTracker,

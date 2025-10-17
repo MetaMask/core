@@ -1,12 +1,11 @@
 // See `tests/setupAfterEnv.ts` for the implementation for these matchers.
 
 declare global {
-  // Using `namespace` here is okay because this is how the Jest types are
-  // defined.
   namespace jest {
     // We're using `interface` here so that we can extend and not override it.
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/consistent-type-definitions, @typescript-eslint/naming-convention
+    // In addition, we must use the generic parameter name `R` to match the
+    // Jest types.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-definitions,@typescript-eslint/naming-convention
     interface Matchers<R> {
       toBeFulfilled(): Promise<R>;
       toNeverResolve(): Promise<R>;
