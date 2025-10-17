@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [53.0.0]
-
 ### Changed
 
 - **BREAKING:** Require clientVersion in BridgeController constructor ([#6891](https://github.com/MetaMask/core/pull/6891))
@@ -733,8 +731,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@53.0.0...HEAD
-[53.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@52.0.0...@metamask/bridge-controller@53.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@52.0.0...HEAD
 [52.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@51.0.0...@metamask/bridge-controller@52.0.0
 [51.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@50.0.0...@metamask/bridge-controller@51.0.0
 [50.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@49.0.1...@metamask/bridge-controller@50.0.0
