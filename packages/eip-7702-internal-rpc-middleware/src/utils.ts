@@ -5,7 +5,7 @@ import type { Hex } from '@metamask/utils';
 import { isHexAddress } from '@metamask/utils';
 
 /**
- * Validates address format, checks user eth_accounts permissions, and normalizes to lowercase.
+ * Validates address format, checks user eth_accounts permissions.
  *
  * @param address - The Ethereum address to validate and normalize.
  * @param origin - The origin string for permission checking.
