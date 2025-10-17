@@ -18,6 +18,7 @@ import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
 import {
   AccountProviderWrapper,
+  isAccountProviderWrapper,
   type BaseBip44AccountProvider,
 } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
@@ -78,8 +79,9 @@ export class MultichainAccountGroup<
    * Note: This method can be called multiple times to update the group state.
    *
    * @param groupState - The group state.
+   * @param update - Whether the call is a update operation.
    */
-  init(groupState: GroupState) {
+  init(groupState: GroupState, update = false) {
     this.#log('Initializing group state...');
     for (const provider of this.#providers) {
       const accountIds = groupState[provider.getName()];
@@ -104,7 +106,18 @@ export class MultichainAccountGroup<
       );
     }
 
-    this.#log('Finished initializing group state...');
+    update
+      ? this.#log('Finished updating group state...')
+      : this.#log('Finished initializing group state...');
+  }
+
+  /**
+   * Update the group state.
+   *
+   * @param groupState - The group state.
+   */
+  update(groupState: GroupState) {
+    this.init(groupState, true);
   }
 
   /**
@@ -256,7 +269,7 @@ export class MultichainAccountGroup<
       this.#providers.map(async (provider) => {
         const accounts = this.#providerToAccounts.get(provider);
         const isDisabled =
-          provider instanceof AccountProviderWrapper && provider.isDisabled();
+          isAccountProviderWrapper(provider) && provider.isDisabled();
         if ((!accounts || accounts.length === 0) && !isDisabled) {
           this.#log(
             `Found missing accounts for account provider "${provider.getName()}", creating them now...`,
@@ -296,7 +309,7 @@ export class MultichainAccountGroup<
     }, {});
 
     // Update group state
-    this.init(groupState);
+    this.update(groupState);
 
     if (failureCount > 0) {
       const hasMultipleFailures = failureCount > 1;

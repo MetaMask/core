@@ -405,7 +405,7 @@ export class MultichainAccountWallet<
             })
             .then((accounts) => {
               const accountIds = accounts.map((account) => account.id);
-              group?.init({ [provider.getName()]: accountIds });
+              group?.update({ [provider.getName()]: accountIds });
               return group;
             })
             .catch((error) => {

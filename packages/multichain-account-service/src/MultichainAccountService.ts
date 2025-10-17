@@ -64,20 +64,32 @@ export type ServiceState = {
   };
 };
 
-export enum CreateWalletFlow {
-  Restore = 'restore',
-  Import = 'import',
-  Create = 'create',
-}
+export type CreateWalletType = 'restore' | 'import' | 'create';
+
+type RestoreType = Extract<CreateWalletType, 'restore'>;
+type ImportType = Extract<CreateWalletType, 'import'>;
+type CreateType = Extract<CreateWalletType, 'create'>;
+
+type CreateWalletParams = {
+  type: CreateWalletType;
+  password?: string;
+  mnemonic?: Uint8Array;
+};
 
 type CreateWalletValidatedParams =
   | {
-      flowType: CreateWalletFlow.Restore;
+      type: RestoreType;
       password: string;
       mnemonic: Uint8Array;
     }
-  | { flowType: CreateWalletFlow.Import; mnemonic: Uint8Array }
-  | { flowType: CreateWalletFlow.Create; password: string };
+  | {
+      type: ImportType;
+      mnemonic: Uint8Array;
+    }
+  | {
+      type: CreateType;
+      password: string;
+    };
 
 /**
  * Service to expose multichain accounts capabilities.
@@ -217,12 +229,10 @@ export class MultichainAccountService {
     for (const account of accounts) {
       const keys = this.#getStateKeys(account);
       if (keys) {
-        serviceState[keys.entropySource][keys.groupIndex] ??= {};
-        serviceState[keys.entropySource][keys.groupIndex][keys.providerName] ??=
-          [];
-        serviceState[keys.entropySource][keys.groupIndex][
-          keys.providerName
-        ].push(account.id);
+        const { entropySource, groupIndex, providerName } = keys;
+        serviceState[entropySource][groupIndex] ??= {};
+        serviceState[entropySource][groupIndex][providerName] ??= [];
+        serviceState[entropySource][groupIndex][providerName].push(account.id);
       }
     }
 
@@ -306,32 +316,28 @@ export class MultichainAccountService {
    * @param options - Options.
    * @param options.mnemonic - The mnemonic to use to create the new wallet.
    * @param options.password - The password to encrypt the vault with.
-   * @param options.flowType - The flow type to use to create the new wallet.
+   * @param options.type - The flow type to use to create the new wallet.
    * @returns The validated create wallet parameters.
    */
   #getValidatedCreateWalletParams({
     mnemonic,
     password,
-    flowType,
-  }: {
-    mnemonic?: Uint8Array;
-    password?: string;
-    flowType: CreateWalletFlow;
-  }) {
-    if (flowType === CreateWalletFlow.Restore && password && mnemonic) {
+    type,
+  }: CreateWalletParams): CreateWalletValidatedParams {
+    if (type === 'restore' && password && mnemonic) {
       return {
         password,
         mnemonic,
-        flowType: CreateWalletFlow.Restore as const,
+        type: 'restore',
       };
     }
 
-    if (flowType === CreateWalletFlow.Import && mnemonic) {
-      return { mnemonic, flowType: CreateWalletFlow.Import as const };
+    if (type === 'import' && mnemonic) {
+      return { mnemonic, type: 'import' };
     }
 
-    if (flowType === CreateWalletFlow.Create && password) {
-      return { password, flowType: CreateWalletFlow.Create as const };
+    if (type === 'create' && password) {
+      return { password, type: 'create' };
     }
 
     throw new Error('Invalid create wallet parameters.');
@@ -452,35 +458,33 @@ export class MultichainAccountService {
    * @param options - Options.
    * @param options.mnemonic - The mnemonic to use to create the new wallet.
    * @param options.password - The password to encrypt the vault with.
-   * @param options.flowType - The flow type to use to create the new wallet.
+   * @param options.type - The flow type to use to create the new wallet.
    * @throws If the mnemonic has already been imported.
    * @returns The new multichain account wallet.
    */
   async createMultichainAccountWallet({
     mnemonic,
     password,
-    flowType,
-  }: {
-    mnemonic?: Uint8Array;
-    password?: string;
-    flowType: CreateWalletFlow;
-  }): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
+    type,
+  }: CreateWalletParams): Promise<
+    MultichainAccountWallet<Bip44Account<KeyringAccount>>
+  > {
     const params: CreateWalletValidatedParams =
       this.#getValidatedCreateWalletParams({
         mnemonic,
         password,
-        flowType,
+        type,
       });
 
     let wallet:
       | MultichainAccountWallet<Bip44Account<KeyringAccount>>
       | undefined;
 
-    if (params.flowType === CreateWalletFlow.Import) {
+    if (params.type === 'import') {
       wallet = await this.#createWalletByImport(params.mnemonic);
-    } else if (params.flowType === CreateWalletFlow.Create) {
+    } else if (params.type === 'create') {
       wallet = await this.#createWalletByNewVault(params.password);
-    } else if (params.flowType === CreateWalletFlow.Restore) {
+    } else if (params.type === 'restore') {
       wallet = await this.#createWalletByRestore(
         params.password,
         params.mnemonic,

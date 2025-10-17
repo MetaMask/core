@@ -8,10 +8,7 @@ import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 
 import type { MultichainAccountServiceOptions } from './MultichainAccountService';
-import {
-  CreateWalletFlow,
-  MultichainAccountService,
-} from './MultichainAccountService';
+import { MultichainAccountService } from './MultichainAccountService';
 import type { NamedAccountProvider } from './providers';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
 import {
@@ -735,7 +732,7 @@ describe('MultichainAccountService', () => {
 
       const wallet = await messenger.call(
         'MultichainAccountService:createMultichainAccountWallet',
-        { mnemonic, flowType: CreateWalletFlow.Import },
+        { mnemonic, type: 'import' },
       );
 
       expect(wallet).toBeDefined();
@@ -869,7 +866,7 @@ describe('MultichainAccountService', () => {
       const { service } = setup({ accounts: [], keyrings: [] });
       await expect(() =>
         service.createMultichainAccountWallet({
-          flowType: CreateWalletFlow.Create,
+          type: 'create',
         }),
       ).rejects.toThrow('Invalid create wallet parameters.');
     });
@@ -894,7 +891,7 @@ describe('MultichainAccountService', () => {
 
         const wallet = await service.createMultichainAccountWallet({
           mnemonic,
-          flowType: CreateWalletFlow.Import,
+          type: 'import',
         });
 
         expect(wallet).toBeDefined();
@@ -915,7 +912,7 @@ describe('MultichainAccountService', () => {
         await expect(
           service.createMultichainAccountWallet({
             mnemonic,
-            flowType: CreateWalletFlow.Import,
+            type: 'import',
           }),
         ).rejects.toThrow(
           'This Secret Recovery Phrase has already been imported.',
@@ -956,7 +953,7 @@ describe('MultichainAccountService', () => {
 
         const newWallet = await service.createMultichainAccountWallet({
           password,
-          flowType: CreateWalletFlow.Create,
+          type: 'create',
         });
 
         expect(newWallet).toBeDefined();
@@ -996,7 +993,7 @@ describe('MultichainAccountService', () => {
         const newWallet = await service.createMultichainAccountWallet({
           password,
           mnemonic,
-          flowType: CreateWalletFlow.Restore,
+          type: 'restore',
         });
 
         expect(newWallet).toBeDefined();

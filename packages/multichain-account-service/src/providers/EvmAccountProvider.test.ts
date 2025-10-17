@@ -151,7 +151,7 @@ function setup({
   keyring: MockEthKeyring;
   mocks: {
     mockProviderRequest: jest.Mock;
-    getAccount: jest.Mock;
+    mockGetAccount: jest.Mock;
   };
 } {
   const keyring = new MockEthKeyring(accounts);
@@ -161,7 +161,7 @@ function setup({
     () => accounts,
   );
 
-  const getAccount = jest.fn().mockImplementation((id) => {
+  const mockGetAccount = jest.fn().mockImplementation((id) => {
     return keyring.accounts.find(
       (account) =>
         account.id === id ||
@@ -169,7 +169,10 @@ function setup({
     );
   });
 
-  messenger.registerActionHandler('AccountsController:getAccount', getAccount);
+  messenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mockGetAccount,
+  );
 
   const mockProviderRequest = jest.fn().mockImplementation(({ method }) => {
     if (method === 'eth_getTransactionCount') {
@@ -213,7 +216,7 @@ function setup({
     keyring,
     mocks: {
       mockProviderRequest,
-      getAccount,
+      mockGetAccount,
     },
   };
 }
@@ -293,7 +296,7 @@ describe('EvmAccountProvider', () => {
       accounts,
     });
 
-    mocks.getAccount.mockReturnValue({
+    mocks.mockGetAccount.mockReturnValue({
       ...mockAsInternalAccount(MOCK_HD_ACCOUNT_1),
       options: {}, // No options, so it cannot be BIP-44 compatible.
     });
@@ -325,7 +328,7 @@ describe('EvmAccountProvider', () => {
     });
 
     // Simulate an account not found.
-    mocks.getAccount.mockImplementation(() => undefined);
+    mocks.mockGetAccount.mockImplementation(() => undefined);
 
     await expect(
       provider.createAccounts({

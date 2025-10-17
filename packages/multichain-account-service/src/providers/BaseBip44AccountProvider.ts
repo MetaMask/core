@@ -68,7 +68,7 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
    *
    * @returns The accounts list.
    */
-  #getAccountsList(): Bip44Account<KeyringAccount>['id'][] {
+  #getAccountIds(): Bip44Account<KeyringAccount>['id'][] {
     return this.accounts;
   }
 
@@ -84,10 +84,10 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
    * @returns The accounts list.
    */
   getAccounts(): Bip44Account<KeyringAccount>[] {
-    const accountsList = this.#getAccountsList();
+    const accountsIds = this.#getAccountIds();
     const internalAccounts = this.messenger.call(
       'AccountsController:getAccounts',
-      accountsList,
+      accountsIds,
     );
     // we cast here because we know that the accounts are BIP-44 compatible
     return internalAccounts as Bip44Account<KeyringAccount>[];
