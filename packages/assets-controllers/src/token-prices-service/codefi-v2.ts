@@ -587,8 +587,9 @@ export class CodefiTokenPricesServiceV2
     }
 
     const filteredExchangeRates = cryptocurrencies.reduce((acc, key) => {
-      if (exchangeRates[key as SupportedCurrency]) {
-        acc[key as SupportedCurrency] = exchangeRates[key as SupportedCurrency];
+      if (exchangeRates[key.toLowerCase() as SupportedCurrency]) {
+        acc[key.toLowerCase() as SupportedCurrency] =
+          exchangeRates[key.toLowerCase() as SupportedCurrency];
       }
       return acc;
     }, {} as ExchangeRatesByCurrency<SupportedCurrency>);
@@ -600,9 +601,9 @@ export class CodefiTokenPricesServiceV2
     }
 
     const filteredUsdExchangeRates = cryptocurrencies.reduce((acc, key) => {
-      if (exchangeRatesUsd[key as SupportedCurrency]) {
-        acc[key as SupportedCurrency] =
-          exchangeRatesUsd[key as SupportedCurrency];
+      if (exchangeRatesUsd[key.toLowerCase() as SupportedCurrency]) {
+        acc[key.toLowerCase() as SupportedCurrency] =
+          exchangeRatesUsd[key.toLowerCase() as SupportedCurrency];
       }
       return acc;
     }, {} as ExchangeRatesByCurrency<SupportedCurrency>);

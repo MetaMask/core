@@ -1314,7 +1314,7 @@ describe('CodefiTokenPricesServiceV2', () => {
       },
     };
 
-    const cryptocurrencies = ['eth'];
+    const cryptocurrencies = ['ETH'];
 
     describe('when includeUsdRate is true and baseCurrency is not USD', () => {
       it('throws when all calls to price fail', async () => {
