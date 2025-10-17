@@ -96,7 +96,17 @@ export class CowSwapProvider extends BaseIntentProvider {
     }
 
     try {
-      const url = `${COW_API_BASE}/${networkPath}/api/v1/orders/${orderId}`;
+      // orderId need to url path friendly
+      const urlPathFriendlyOrderId = orderId
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/gu, '') // Remove diacritics
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/gu, '-') // Replace non-alphanumeric with hyphens
+        .replace(/^-+|-+$/gu, '') // Remove leading/trailing hyphens
+        .replace(/-+/gu, '-'); // Replace multiple hyphens with single
+      const url = `${COW_API_BASE}/${networkPath}/api/v1/orders/${urlPathFriendlyOrderId}`;
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -112,7 +122,7 @@ export class CowSwapProvider extends BaseIntentProvider {
 
       if (status === OrderStatus.COMPLETED) {
         try {
-          const tradesUrl = `${COW_API_BASE}/${networkPath}/api/v1/trades?orderUid=${orderId}`;
+          const tradesUrl = `${COW_API_BASE}/${networkPath}/api/v1/trades?orderUid=${urlPathFriendlyOrderId}`;
           const tradesResponse = await fetch(tradesUrl);
 
           if (tradesResponse.ok) {
