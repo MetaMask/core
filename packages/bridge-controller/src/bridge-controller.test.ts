@@ -2872,10 +2872,7 @@ describe('BridgeController', function () {
       } as QuoteResponse;
       const secondQuote: QuoteResponse =
         mockBridgeQuotesNativeErc20Eth[1] as QuoteResponse;
-      const quotesWithFlag: QuoteResponse[] = [
-        firstQuoteWithFlag,
-        secondQuote,
-      ];
+      const quotesWithFlag: QuoteResponse[] = [firstQuoteWithFlag, secondQuote];
 
       const fetchBridgeQuotesSpy = jest
         .spyOn(fetchUtils, 'fetchBridgeQuotes')
