@@ -465,18 +465,18 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   /**
    * Fetches the updated rates for the given assets from the given Snaps.
    *
-   * @param assetToSnapID - A map of CAIP-19 asset types to Snap IDs.
+   * @param assetToSnapId - A map of CAIP-19 asset types to Snap IDs.
    * @returns A record of CAIP-19 asset types to unified asset conversions.
    */
   async #getUpdatedRatesFor(
-    assetToSnapID: Map<CaipAssetType, SnapId>,
+    assetToSnapId: Map<CaipAssetType, SnapId>,
   ): Promise<
     Record<CaipAssetType, UnifiedAssetConversion & { currency: CaipAssetType }>
   > {
     // Build the reverse map to list assets by Snap ID, this will be used to
     // batch requests to the Snaps.
     const snapIdToAssets = new Map<SnapId, CaipAssetType[]>();
-    for (const [asset, snapId] of assetToSnapID.entries()) {
+    for (const [asset, snapId] of assetToSnapId.entries()) {
       snapIdToAssets.set(snapId, [
         ...(snapIdToAssets.get(snapId) ?? []),
         asset,
