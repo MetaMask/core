@@ -142,7 +142,6 @@ const setupController = ({
         account2: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
         account3: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
         account5: [
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         ],
       },
