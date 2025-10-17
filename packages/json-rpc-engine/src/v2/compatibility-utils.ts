@@ -1,7 +1,8 @@
 import { getMessageFromCode, JsonRpcError } from '@metamask/rpc-errors';
 import type { Json } from '@metamask/utils';
 import { hasProperty, isObject } from '@metamask/utils';
-import rfdc from 'rfdc';
+// ATTN: We must NOT use 'klona/full' here because it freezes properties on the clone.
+import { klona } from 'klona';
 
 import { MiddlewareContext } from './MiddlewareContext';
 import { stringify, type JsonRpcRequest } from './utils';
@@ -9,16 +10,27 @@ import { stringify, type JsonRpcRequest } from './utils';
 // Legacy engine compatibility utils
 
 /**
- * Create a deep clone of a value. Assumes acyclical objects. Ignores the
- * prototype chain.
+ * Create a deep clone of a value as follows:
+ * - Assumes acyclical objects
+ * - Does not copy property descriptors (i.e. uses mutable defaults)
+ * - Ignores non-enumerable properties
+ * - Ignores getters and setters
  *
+ * @throws If the value is an object with a circular reference.
  * @param value - The value to clone.
  * @returns The cloned value.
  */
-export const deepClone = rfdc({
-  circles: false,
-  proto: false,
-});
+export const deepClone = <T>(value: T): DeepCloned<T> =>
+  klona(value) as DeepCloned<T>;
+
+// Matching the default implementation of klona, this type:
+// - Removes readonly modifiers
+// - Excludes non-enumerable / symbol properties
+type DeepCloned<T> = T extends readonly (infer U)[]
+  ? DeepCloned<U>[]
+  : T extends object
+    ? { -readonly [K in keyof T & (string | number)]: DeepCloned<T[K]> }
+    : T;
 
 /**
  * Standard JSON-RPC request properties.

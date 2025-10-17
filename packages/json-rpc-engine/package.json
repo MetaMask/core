@@ -72,7 +72,7 @@
     "@metamask/utils": "^11.8.1",
     "@types/deep-freeze-strict": "^1.1.0",
     "deep-freeze-strict": "^1.1.1",
-    "rfdc": "^1.4.1"
+    "klona": "^2.0.6"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",

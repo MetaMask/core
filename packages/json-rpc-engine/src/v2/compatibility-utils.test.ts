@@ -28,6 +28,43 @@ describe('compatibility-utils', () => {
       expect(clonedRequest).toStrictEqual(request);
       expect(clonedRequest).not.toBe(request);
     });
+
+    it('produces a mutable clone of a frozen object', () => {
+      const request = Object.freeze({
+        jsonrpc,
+        method: 'test_method' as string,
+        params: Object.freeze([1, 2, 3]),
+        id: 1,
+      });
+
+      const clonedRequest = deepClone(request);
+
+      expect(clonedRequest).toStrictEqual(request);
+      expect(clonedRequest).not.toBe(request);
+      expect(Object.isFrozen(clonedRequest)).toBe(false);
+      expect(Object.isFrozen(clonedRequest.params)).toBe(false);
+
+      clonedRequest.method = 'modified_method';
+      clonedRequest.params[1] = 42;
+
+      expect(request.method).toBe('test_method');
+      expect(clonedRequest.params[1]).toBe(42);
+    });
+
+    it('ignores symbol properties', () => {
+      const symbolProp = Symbol('test');
+      const request = {
+        jsonrpc,
+        method: 'test_method' as string,
+        params: [1, 2, 3],
+        id: 1,
+        [symbolProp]: 'value',
+      };
+
+      const clonedRequest = deepClone(request);
+      // @ts-expect-error - Symbol properties are omitted
+      expect(clonedRequest[symbolProp]).toBeUndefined();
+    });
   });
 
   describe('fromLegacyRequest', () => {

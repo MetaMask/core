@@ -43,7 +43,8 @@ export function asLegacyMiddleware<
     propagateToRequest(req, context);
 
     if (result !== undefined) {
-      res.result = deepClone(result) as ResultConstraint<Request>;
+      // Unclear why the `as unknown` is needed here, but the cast is safe.
+      res.result = deepClone(result) as unknown as ResultConstraint<Request>;
       return undefined;
     }
     return next();
