@@ -133,14 +133,99 @@
     "@typescript-eslint/prefer-promise-reject-errors": 1,
     "promise/param-names": 3
   },
+  "packages/eip-5792-middleware/src/hooks/processSendCalls.ts": {
+    "@typescript-eslint/no-misused-promises": 1
+  },
   "packages/ens-controller/src/EnsController.test.ts": {
     "import-x/order": 2
   },
   "packages/ens-controller/src/EnsController.ts": {
     "jsdoc/check-tag-names": 6
   },
-  "packages/eip-5792-middleware/src/hooks/processSendCalls.ts": {
-    "@typescript-eslint/no-misused-promises": 1
+  "packages/eth-json-rpc-middleware/src/block-cache.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": 1
+  },
+  "packages/eth-json-rpc-middleware/src/block-cache.ts": {
+    "@typescript-eslint/no-explicit-any": 1,
+    "no-restricted-syntax": 1
+  },
+  "packages/eth-json-rpc-middleware/src/block-ref.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": 1,
+    "@typescript-eslint/no-explicit-any": 4,
+    "jest/expect-expect": 2,
+    "jsdoc/match-description": 1
+  },
+  "packages/eth-json-rpc-middleware/src/block-tracker-inspector.ts": {
+    "@typescript-eslint/no-explicit-any": 1,
+    "jsdoc/match-description": 1
+  },
+  "packages/eth-json-rpc-middleware/src/fetch.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": 1,
+    "jsdoc/match-description": 1
+  },
+  "packages/eth-json-rpc-middleware/src/fetch.ts": {
+    "jsdoc/match-description": 1
+  },
+  "packages/eth-json-rpc-middleware/src/inflight-cache.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": 1
+  },
+  "packages/eth-json-rpc-middleware/src/inflight-cache.ts": {
+    "@typescript-eslint/explicit-function-return-type": 1,
+    "@typescript-eslint/no-explicit-any": 1
+  },
+  "packages/eth-json-rpc-middleware/src/methods/wallet-request-execution-permissions.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": 1
+  },
+  "packages/eth-json-rpc-middleware/src/methods/wallet-revoke-execution-permission.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": 1
+  },
+  "packages/eth-json-rpc-middleware/src/retryOnEmpty.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": 4,
+    "@typescript-eslint/no-explicit-any": 4,
+    "jest/expect-expect": 5,
+    "jsdoc/match-description": 4
+  },
+  "packages/eth-json-rpc-middleware/src/utils/cache.ts": {
+    "jsdoc/match-description": 6
+  },
+  "packages/eth-json-rpc-middleware/src/utils/common.ts": {
+    "@typescript-eslint/explicit-function-return-type": 1,
+    "jsdoc/match-description": 1
+  },
+  "packages/eth-json-rpc-middleware/src/utils/normalize.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": 1
+  },
+  "packages/eth-json-rpc-middleware/src/utils/normalize.ts": {
+    "@typescript-eslint/explicit-function-return-type": 2,
+    "jsdoc/match-description": 3
+  },
+  "packages/eth-json-rpc-middleware/src/utils/timeout.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": 4
+  },
+  "packages/eth-json-rpc-middleware/src/utils/timeout.ts": {
+    "jsdoc/match-description": 1
+  },
+  "packages/eth-json-rpc-middleware/src/wallet.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": 53
+  },
+  "packages/eth-json-rpc-middleware/src/wallet.ts": {
+    "@typescript-eslint/explicit-function-return-type": 2,
+    "@typescript-eslint/no-explicit-any": 2,
+    "@typescript-eslint/prefer-nullish-coalescing": 5,
+    "jsdoc/match-description": 3
+  },
+  "packages/eth-json-rpc-middleware/test/setupAfterEnv.ts": {
+    "@typescript-eslint/explicit-function-return-type": 2,
+    "@typescript-eslint/no-explicit-any": 3,
+    "jsdoc/match-description": 2
+  },
+  "packages/eth-json-rpc-middleware/test/util/createHitTrackerMiddleware.ts": {
+    "@typescript-eslint/explicit-function-return-type": 2
+  },
+  "packages/eth-json-rpc-middleware/test/util/helpers.ts": {
+    "@typescript-eslint/explicit-function-return-type": 4,
+    "@typescript-eslint/no-explicit-any": 1,
+    "jsdoc/match-description": 9
   },
   "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.test.ts": {
     "import-x/namespace": 1
@@ -255,15 +340,6 @@
   "packages/network-controller/tests/NetworkController.test.ts": {
     "@typescript-eslint/no-unused-vars": 1,
     "@typescript-eslint/prefer-promise-reject-errors": 1
-  },
-  "packages/network-controller/tests/create-network-client.test.ts": {
-    "import-x/order": 1
-  },
-  "packages/network-controller/tests/provider-api-tests/helpers.ts": {
-    "@typescript-eslint/prefer-promise-reject-errors": 1,
-    "import-x/namespace": 1,
-    "import-x/no-named-as-default-member": 1,
-    "promise/catch-or-return": 1
   },
   "packages/permission-controller/src/Permission.ts": {
     "prettier/prettier": 11
@@ -417,5 +493,39 @@
   },
   "tests/setupAfterEnv/nock.ts": {
     "import-x/no-named-as-default-member": 3
+  },
+  "packages/eth-block-tracker/src/BlockTracker.ts": {
+    "@typescript-eslint/naming-convention": 1
+  },
+  "packages/eth-block-tracker/src/PollingBlockTracker.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": 12,
+    "@typescript-eslint/naming-convention": 1
+  },
+  "packages/eth-block-tracker/src/PollingBlockTracker.ts": {
+    "@typescript-eslint/explicit-function-return-type": 14,
+    "@typescript-eslint/naming-convention": 1,
+    "@typescript-eslint/unbound-method": 5
+  },
+  "packages/eth-block-tracker/tests/buildDeferred.ts": {
+    "@typescript-eslint/explicit-function-return-type": 1,
+    "@typescript-eslint/naming-convention": 1
+  },
+  "packages/eth-block-tracker/tests/emptyFunction.ts": {
+    "@typescript-eslint/explicit-function-return-type": 1
+  },
+  "packages/eth-block-tracker/tests/recordCallsToSetTimeout.ts": {
+    "@typescript-eslint/explicit-function-return-type": 4,
+    "@typescript-eslint/naming-convention": 2,
+    "@typescript-eslint/no-explicit-any": 1
+  },
+  "packages/eth-block-tracker/tests/setupAfterEnv.ts": {
+    "@typescript-eslint/consistent-type-definitions": 1,
+    "@typescript-eslint/explicit-function-return-type": 2,
+    "@typescript-eslint/naming-convention": 1,
+    "@typescript-eslint/no-explicit-any": 3
+  },
+  "packages/eth-block-tracker/tests/withBlockTracker.ts": {
+    "@typescript-eslint/explicit-function-return-type": 2,
+    "@typescript-eslint/no-explicit-any": 1
   }
 }

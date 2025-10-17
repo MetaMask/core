@@ -62,6 +62,7 @@ const config = createConfig([
     files: [
       '**/*.{js,cjs,mjs}',
       '**/*.test.{js,ts}',
+      '**/test/**/*.{js,ts}',
       '**/tests/**/*.{js,ts}',
       'scripts/*.ts',
       'scripts/create-package/**/*.ts',
@@ -219,6 +220,28 @@ const config = createConfig([
     },
   },
   {
+    files: ['packages/eth-json-rpc-middleware/**/*.ts'],
+    rules: {
+      // TODO: Review and re-enable these rules
+      '@typescript-eslint/consistent-type-definitions': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'warn',
+      '@typescript-eslint/naming-convention': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/prefer-nullish-coalescing': 'warn',
+      '@typescript-eslint/prefer-optional-chain': 'warn',
+      '@typescript-eslint/restrict-template-expressions': 'off',
+      'id-denylist': 'off',
+      'id-length': 'off',
+      'jsdoc/match-description': 'warn',
+      'jsdoc/no-types': 'warn',
+      'jsdoc/require-hyphen-before-param-description': 'warn',
+      'jsdoc/require-jsdoc': 'off',
+      'jsdoc/require-param-description': 'warn',
+      'no-restricted-globals': 'off',
+      'no-restricted-syntax': 'warn',
+    },
+  },
+  {
     files: ['packages/foundryup/**/*.{js,ts}'],
     rules: {
       'import-x/no-nodejs-modules': 'off',
@@ -226,6 +249,20 @@ const config = createConfig([
       'n/no-missing-import': 'off',
       'n/no-restricted-import': 'off',
       'n/no-deprecated-api': 'off',
+    },
+  },
+  {
+    files: ['packages/eth-block-tracker/**/*.ts'],
+    rules: {
+      // TODO: These should perhaps be enabled
+      '@typescript-eslint/prefer-nullish-coalescing': 'off',
+      'no-restricted-syntax': 'off',
+      // TODO: These should definitely be enabled
+      '@typescript-eslint/naming-convention': 'warn',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/unbound-method': 'warn',
+      '@typescript-eslint/consistent-type-definitions': 'warn',
+      '@typescript-eslint/explicit-function-return-type': 'warn',
     },
   },
 ]);
