@@ -17,6 +17,7 @@
   "metamask/transaction-controller": "team-confirmations",
   "metamask/user-operation-controller": "team-confirmations",
   "metamask/gator-permissions-controller": "team-delegation",
+  "metamask/eip-7702-internal-rpc-middleware": "team-delegation",
   "metamask/earn-controller": "team-earn",
   "metamask/notification-services-controller": "team-assets",
   "metamask/phishing-controller": "team-product-safety",

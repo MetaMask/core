@@ -18,6 +18,9 @@
     { "path": "./packages/delegation-controller/tsconfig.build.json" },
     { "path": "./packages/earn-controller/tsconfig.build.json" },
     { "path": "./packages/eip-5792-middleware/tsconfig.build.json" },
+    {
+      "path": "./packages/eip-7702-internal-rpc-middleware/tsconfig.build.json"
+    },
     { "path": "./packages/eip1193-permission-middleware/tsconfig.build.json" },
     { "path": "./packages/ens-controller/tsconfig.build.json" },
     { "path": "./packages/error-reporting-service/tsconfig.build.json" },
