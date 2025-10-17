@@ -86,9 +86,6 @@
   "packages/assets-controllers/src/multicall.test.ts": {
     "@typescript-eslint/prefer-promise-reject-errors": 2
   },
-  "packages/assets-controllers/src/token-prices-service/codefi-v2.test.ts": {
-    "jsdoc/require-returns": 1
-  },
   "packages/assets-controllers/src/token-prices-service/codefi-v2.ts": {
     "jsdoc/tag-lines": 2
   },

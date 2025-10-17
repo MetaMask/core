@@ -12,6 +12,7 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { Mutex } from 'async-mutex';
 
 import { fetchMultiExchangeRate as defaultFetchMultiExchangeRate } from './crypto-compare-service';
+import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 
 /**
  * @type CurrencyRateState
@@ -107,6 +108,8 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
 
   private readonly useExternalServices: () => boolean;
 
+  readonly #tokenPricesService: AbstractTokenPricesService;
+
   /**
    * Creates a CurrencyRateController instance.
    *
@@ -117,6 +120,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
    * @param options.state - Initial state to set on this controller.
    * @param options.useExternalServices - Feature Switch for using external services (default: true)
    * @param options.fetchMultiExchangeRate - Fetches the exchange rate from an external API. This option is primarily meant for use in unit tests.
+   * @param options.tokenPricesService - An object in charge of retrieving token prices
    */
   constructor({
     includeUsdRate = false,
@@ -125,6 +129,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     messenger,
     state,
     fetchMultiExchangeRate = defaultFetchMultiExchangeRate,
+    tokenPricesService,
   }: {
     includeUsdRate?: boolean;
     interval?: number;
@@ -132,6 +137,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     state?: Partial<CurrencyRateState>;
     useExternalServices?: () => boolean;
     fetchMultiExchangeRate?: typeof defaultFetchMultiExchangeRate;
+    tokenPricesService: AbstractTokenPricesService;
   }) {
     super({
       name,
@@ -143,6 +149,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     this.useExternalServices = useExternalServices;
     this.setIntervalLength(interval);
     this.fetchMultiExchangeRate = fetchMultiExchangeRate;
+    this.#tokenPricesService = tokenPricesService;
   }
 
   /**
@@ -168,39 +175,47 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     this.updateExchangeRate(nativeCurrencies);
   }
 
-  /**
-   * Updates the exchange rate for the current currency and native currency pairs.
-   *
-   * @param nativeCurrencies - The native currency symbols to fetch exchange rates for.
-   */
-  async updateExchangeRate(
-    nativeCurrencies: (string | undefined)[],
-  ): Promise<void> {
-    if (!this.useExternalServices()) {
-      return;
-    }
+  async #fetchExchangeRatesWithFallback(
+    nativeCurrenciesToFetch: Record<string, string>,
+  ): Promise<CurrencyRateState['currencyRates']> {
+    const { currentCurrency } = this.state;
 
-    const releaseLock = await this.mutex.acquire();
     try {
-      const { currentCurrency } = this.state;
+      const priceApiExchangeRatesResponse =
+        await this.#tokenPricesService.fetchExchangeRates({
+          baseCurrency: currentCurrency,
+          includeUsdRate: this.includeUsdRate,
+          cryptocurrencies: [
+            ...new Set(Object.values(nativeCurrenciesToFetch)),
+          ],
+        });
 
-      // For preloaded testnets (Goerli, Sepolia) we want to fetch exchange rate for real ETH.
-      // Map each native currency to the symbol we want to fetch for it.
-      const testnetSymbols = Object.values(TESTNET_TICKER_SYMBOLS);
-      const nativeCurrenciesToFetch = nativeCurrencies.reduce(
-        (acc, nativeCurrency) => {
-          if (!nativeCurrency) {
-            return acc;
-          }
+      const ratesPriceApi = Object.entries(nativeCurrenciesToFetch).reduce(
+        (acc, [nativeCurrency, fetchedCurrency]) => {
+          const rate =
+            priceApiExchangeRatesResponse[fetchedCurrency.toLowerCase()];
 
-          acc[nativeCurrency] = testnetSymbols.includes(nativeCurrency)
-            ? FALL_BACK_VS_CURRENCY
-            : nativeCurrency;
+          acc[nativeCurrency] = {
+            conversionDate: rate !== undefined ? Date.now() / 1000 : null,
+            conversionRate: rate?.value
+              ? Number((1 / rate?.value).toFixed(2))
+              : null,
+            usdConversionRate: rate?.usd
+              ? Number((1 / rate?.usd).toFixed(2))
+              : null,
+          };
           return acc;
         },
-        {} as Record<string, string>,
+        {} as CurrencyRateState['currencyRates'],
       );
+      return ratesPriceApi;
+    } catch (error) {
+      console.error('Failed to fetch exchange rates.', error);
+    }
 
+    // fallback to crypto compare
+
+    try {
       const fetchExchangeRateResponse = await this.fetchMultiExchangeRate(
         currentCurrency,
         [...new Set(Object.values(nativeCurrenciesToFetch))],
@@ -218,6 +233,48 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
           return acc;
         },
         {} as CurrencyRateState['currencyRates'],
+      );
+
+      return rates;
+    } catch (error) {
+      console.error('Failed to fetch exchange rates.', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Updates the exchange rate for the current currency and native currency pairs.
+   *
+   * @param nativeCurrencies - The native currency symbols to fetch exchange rates for.
+   */
+  async updateExchangeRate(
+    nativeCurrencies: (string | undefined)[],
+  ): Promise<void> {
+    if (!this.useExternalServices()) {
+      return;
+    }
+
+    const releaseLock = await this.mutex.acquire();
+    try {
+      // For preloaded testnets (Goerli, Sepolia) we want to fetch exchange rate for real ETH.
+      // Map each native currency to the symbol we want to fetch for it.
+      const testnetSymbols = Object.values(TESTNET_TICKER_SYMBOLS);
+      const nativeCurrenciesToFetch = nativeCurrencies.reduce(
+        (acc, nativeCurrency) => {
+          if (!nativeCurrency) {
+            return acc;
+          }
+
+          acc[nativeCurrency] = testnetSymbols.includes(nativeCurrency)
+            ? FALL_BACK_VS_CURRENCY
+            : nativeCurrency;
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
+
+      const rates = await this.#fetchExchangeRatesWithFallback(
+        nativeCurrenciesToFetch,
       );
 
       this.update((state) => {
