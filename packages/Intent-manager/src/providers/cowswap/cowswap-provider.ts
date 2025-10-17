@@ -66,9 +66,10 @@ export class CowSwapProvider extends BaseIntentProvider {
       }
 
       const orderUid = await response.text();
-
+      // remove " in the orderUid
+      const escapeOrderUid = orderUid.replace(/"/gu, '');
       const order: IntentOrder = {
-        id: orderUid,
+        id: escapeOrderUid,
         status: OrderStatus.SUBMITTED,
         createdAt: Date.now(),
         updatedAt: Date.now(),
