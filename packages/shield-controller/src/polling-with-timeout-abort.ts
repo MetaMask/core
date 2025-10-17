@@ -124,9 +124,9 @@ export class PollingWithTimeoutAndAbort {
    * @param requestId - The ID of the request to handle the timeout for.
    */
   #handleRequestTimeout(requestId: string) {
-    const requestEntry = this.#cleanUpRequestEntryIfExists(requestId);
+    const requestEntry = this.#cleanUpOnFinished(requestId);
     if (requestEntry) {
-      // Abort the request, this will also trigger the abort handler (hence, handleRequestAbort will be called)
+      // Abort the signal, so that the polling loop will exit
       requestEntry.abortController.abort(this.ABORT_REASON_TIMEOUT);
     }
   }
@@ -136,8 +136,9 @@ export class PollingWithTimeoutAndAbort {
    * This will remove the abort handler from the AbortSignal, clear the timeout, and remove the request entry.
    *
    * @param requestId - The ID of the request to clean up for.
+   * @returns The request entry that was cleaned up, if it exists.
    */
-  #cleanUpOnFinished(requestId: string) {
+  #cleanUpOnFinished(requestId: string): RequestEntry | undefined {
     const requestEntry = this.#cleanUpRequestEntryIfExists(requestId);
     if (requestEntry) {
       requestEntry.abortController.signal.removeEventListener(
@@ -145,6 +146,7 @@ export class PollingWithTimeoutAndAbort {
         requestEntry.abortHandler,
       );
     }
+    return requestEntry;
   }
 
   /**
@@ -159,9 +161,8 @@ export class PollingWithTimeoutAndAbort {
     if (requestEntry) {
       clearTimeout(requestEntry.timerId); // Clear the timeout
       this.#requestEntries.delete(requestId); // Remove the request entry
-      return requestEntry;
     }
-    return undefined;
+    return requestEntry;
   }
 
   /**
