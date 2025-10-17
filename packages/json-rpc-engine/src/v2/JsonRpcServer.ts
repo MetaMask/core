@@ -1,5 +1,6 @@
 import { rpcErrors, serializeError } from '@metamask/rpc-errors';
 import type {
+  JsonRpcNotification,
   JsonRpcParams,
   JsonRpcRequest,
   JsonRpcResponse,
@@ -78,19 +79,43 @@ export class JsonRpcServer {
   }
 
   /**
-   * Handle an alleged JSON-RPC request. Permits any plain object with a `method`
-   * property, so long as any other JSON-RPC 2.0 properties are valid.
+   * Handle a JSON-RPC request.
    *
-   * This method never throws. All errors are handled by the instance's
-   * `onError` callback. A response with a `result` or `error` property is
-   * returned unless the request is a notification, in which case `undefined`
-   * is returned.
+   * This method never throws. For requests, a response is always returned.
+   * All errors are passed to the engine's `onError` callback.
+   *
+   * @param request - The request to handle.
+   * @returns The JSON-RPC response.
+   */
+  async handle(request: JsonRpcRequest): Promise<JsonRpcResponse>;
+
+  /**
+   * Handle a JSON-RPC notification.
+   *
+   * This method never throws. For notifications, `undefined` is always returned.
+   * All errors are passed to the engine's `onError` callback.
+   *
+   * @param notification - The notification to handle.
+   */
+  async handle(notification: JsonRpcNotification): Promise<void>;
+
+  /**
+   * Handle an alleged JSON-RPC request or notification. Permits any plain
+   * object with `{ method: string }`, so long as any present JSON-RPC 2.0
+   * properties are valid. If the object has no `id`, it will be treated as
+   * a notification and vice versa.
+   *
+   * This method never throws. All errors are passed to the engine's
+   * `onError` callback. A JSON-RPC response is always returned for requests,
+   * and `undefined` is returned for notifications.
    *
    * @param rawRequest - The raw request to handle.
    * @returns The JSON-RPC response, or `undefined` if the request is a
    * notification.
    */
-  async handle(rawRequest: unknown): Promise<JsonRpcResponse | undefined> {
+  async handle(rawRequest: unknown): Promise<JsonRpcResponse | void>;
+
+  async handle(rawRequest: unknown): Promise<JsonRpcResponse | void> {
     // If rawRequest is not a notification, the originalId will be attached
     // to the response. We attach our own, trusted id in #coerceRequest()
     // while the request is being handled.
