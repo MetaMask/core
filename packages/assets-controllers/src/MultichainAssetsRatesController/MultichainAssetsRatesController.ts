@@ -329,6 +329,37 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   }
 
   /**
+   * Adds the assets to a map of Snap ID to assets.
+   *
+   * @param snapIdToAssets - The map of Snap ID to assets.
+   * @param account - The account to add the assets for.
+   * @param assets - The assets to add.
+   */
+  #addAssetsToSnapIdMap(
+    snapIdToAssets: Map<SnapId, Set<CaipAssetType>>,
+    account: InternalAccount,
+    assets: CaipAssetType[],
+  ): void {
+    // FIXME: Instead of using the Snap ID from the account, we should
+    // select the Snap based on the supported scopes defined in the Snaps'
+    // manifest.
+    const snapId = account.metadata.snap?.id as SnapId | undefined;
+    if (!snapId) {
+      return;
+    }
+
+    let snapAssets = snapIdToAssets.get(snapId);
+    if (!snapAssets) {
+      snapAssets = new Set();
+      snapIdToAssets.set(snapId, snapAssets);
+    }
+
+    for (const asset of assets) {
+      snapAssets.add(asset);
+    }
+  }
+
+  /**
    * Updates token conversion rates for each non-EVM account.
    *
    * @returns A promise that resolves when the rates are updated.
@@ -344,25 +375,16 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       // Compute the set of unique assets from all accounts. It's important to
       // deduplicate assets here to avoid duplicate requests to the Snap.
       const accounts = this.#listAccounts();
-      const assetToSnapId = new Map<CaipAssetType, SnapId>();
+      const snapIdToAssets = new Map<SnapId, Set<CaipAssetType>>();
       for (const account of accounts) {
-        const snapId = account.metadata.snap?.id;
-        // Assets may still be updated if they exist in another account with a
-        // Snap ID.
-        //
-        // FIXME: Instead of using the Snap ID from the account, we should
-        // select the Snap based on the supported scopes defined in the Snaps'
-        // manifest.
-        if (snapId === undefined) {
-          continue;
-        }
-
-        for (const asset of this.#getAssetsForAccount(account.id)) {
-          assetToSnapId.set(asset, snapId as SnapId);
-        }
+        this.#addAssetsToSnapIdMap(
+          snapIdToAssets,
+          account,
+          this.#getAssetsForAccount(account.id),
+        );
       }
 
-      this.#applyUpdatedRates(await this.#getUpdatedRatesFor(assetToSnapId));
+      this.#applyUpdatedRates(await this.#getUpdatedRatesFor(snapIdToAssets));
     })().finally(() => {
       releaseLock();
     });
@@ -390,14 +412,14 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    */
   async #getConversionRates(
     snapId: SnapId,
-    assets: CaipAssetType[],
+    assets: Set<CaipAssetType>,
     currency: CaipAssetType,
   ): Promise<Record<CaipAssetType, AssetConversion | undefined>> {
     const response = await this.#handleSnapRequest({
       snapId,
       handler: HandlerType.OnAssetsConversion,
       params: {
-        conversions: assets.map((asset) => ({
+        conversions: Array.from(assets).map((asset) => ({
           from: asset,
           to: currency,
         })),
@@ -431,14 +453,14 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    */
   async #getMarketData(
     snapId: SnapId,
-    assets: CaipAssetType[],
+    assets: Set<CaipAssetType>,
     currency: CaipAssetType,
   ): Promise<Record<CaipAssetType, FungibleAssetMarketData | undefined>> {
     const response = await this.#handleSnapRequest({
       snapId,
       handler: HandlerType.OnAssetsMarketData,
       params: {
-        assets: assets.map((asset) => ({
+        assets: Array.from(assets).map((asset) => ({
           asset,
           unit: currency,
         })),
@@ -465,24 +487,14 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   /**
    * Fetches the updated rates for the given assets from the given Snaps.
    *
-   * @param assetToSnapId - A map of CAIP-19 asset types to Snap IDs.
+   * @param snapIdToAssets - A map of Snap ID to CAIP-19 asset types.
    * @returns A record of CAIP-19 asset types to unified asset conversions.
    */
   async #getUpdatedRatesFor(
-    assetToSnapId: Map<CaipAssetType, SnapId>,
+    snapIdToAssets: Map<SnapId, Set<CaipAssetType>>,
   ): Promise<
     Record<CaipAssetType, UnifiedAssetConversion & { currency: CaipAssetType }>
   > {
-    // Build the reverse map to list assets by Snap ID, this will be used to
-    // batch requests to the Snaps.
-    const snapIdToAssets = new Map<SnapId, CaipAssetType[]>();
-    for (const [asset, snapId] of assetToSnapId.entries()) {
-      snapIdToAssets.set(snapId, [
-        ...(snapIdToAssets.get(snapId) ?? []),
-        asset,
-      ]);
-    }
-
     const updatedRates: Record<
       CaipAssetType,
       UnifiedAssetConversion & { currency: CaipAssetType }
@@ -616,30 +628,19 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         return;
       }
 
-      // First build a map containing all assets that need to be updated with
-      // their corresponding Snap ID, this will be used to batch the requests.
-      const assetToSnapId = new Map<CaipAssetType, SnapId>();
+      // First build a map containing all assets that need to be updated per
+      // Snap ID, this will be used to batch the requests.
+      const snapIdToAssets = new Map<SnapId, Set<CaipAssetType>>();
 
       for (const { accountId, assets } of accounts) {
-        const account = this.#getAccount(accountId);
-
-        // Skip if the account has no Snap ID since we don't know which Snap to
-        // use.
-        //
-        // FIXME: Instead of using the Snap ID from the account, we should
-        // select the Snap based on the supported scopes defined in the Snaps'
-        // manifest.
-        const snapId = account.metadata.snap?.id;
-        if (!snapId) {
-          continue;
-        }
-
-        for (const asset of assets) {
-          assetToSnapId.set(asset, snapId as SnapId);
-        }
+        this.#addAssetsToSnapIdMap(
+          snapIdToAssets,
+          this.#getAccount(accountId),
+          assets,
+        );
       }
 
-      this.#applyUpdatedRates(await this.#getUpdatedRatesFor(assetToSnapId));
+      this.#applyUpdatedRates(await this.#getUpdatedRatesFor(snapIdToAssets));
     })().finally(() => {
       releaseLock();
     });
