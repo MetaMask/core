@@ -1,10 +1,7 @@
 import { rpcErrors } from '@metamask/rpc-errors';
-import type {
-  JsonRpcRequest,
-  PendingJsonRpcResponse,
-  Json,
-} from '@metamask/utils';
+import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
+import type { GetAccountUpgradeStatusParams } from './types';
 import { walletGetAccountUpgradeStatus } from './wallet_getAccountUpgradeStatus';
 
 const TEST_ACCOUNT = '0x1234567890123456789012345678901234567890';
@@ -34,8 +31,8 @@ const createTestHooks = () => {
 };
 
 const createTestRequest = (
-  params: Json[] = [{ account: TEST_ACCOUNT }],
-): JsonRpcRequest<Json[]> & { origin: string } => ({
+  params: GetAccountUpgradeStatusParams = { account: TEST_ACCOUNT },
+): JsonRpcRequest<GetAccountUpgradeStatusParams> & { origin: string } => ({
   id: 1,
   method: 'wallet_getAccountUpgradeStatus',
   jsonrpc: '2.0' as const,
@@ -114,9 +111,10 @@ describe('walletGetAccountUpgradeStatus', () => {
 
   it('works with specific chain ID parameter', async () => {
     const hooks = createTestHooks();
-    const req = createTestRequest([
-      { account: TEST_ACCOUNT, chainId: '0xaa36a7' },
-    ]);
+    const req = createTestRequest({
+      account: TEST_ACCOUNT,
+      chainId: '0xaa36a7',
+    });
     const res = createTestResponse();
 
     // Mock getCode to return non-delegation code
@@ -144,7 +142,14 @@ describe('walletGetAccountUpgradeStatus', () => {
 
   it('propagates validation errors', async () => {
     const hooks = createTestHooks();
-    const req = createTestRequest([]); // Invalid: empty params
+    // Create a request with invalid account format to trigger validation error
+    const req = {
+      id: 1,
+      method: 'wallet_getAccountUpgradeStatus',
+      jsonrpc: '2.0' as const,
+      origin: 'npm:@metamask/gator-permissions-snap',
+      params: { account: 'invalid-address' as unknown as `0x${string}` },
+    };
     const res = createTestResponse();
 
     await expect(
@@ -200,9 +205,10 @@ describe('walletGetAccountUpgradeStatus', () => {
 
   it('throws error when network client ID is missing', async () => {
     const hooks = createTestHooks();
-    const req = createTestRequest([
-      { account: TEST_ACCOUNT, chainId: '0x999' },
-    ]);
+    const req = createTestRequest({
+      account: TEST_ACCOUNT,
+      chainId: '0x999',
+    });
     const res = createTestResponse();
 
     // Mock getSelectedNetworkClientIdForChain to return null (network not found)
@@ -293,9 +299,10 @@ describe('walletGetAccountUpgradeStatus', () => {
 
   it('returns early when EIP-7702 is not supported with specific chain ID', async () => {
     const hooks = createTestHooks();
-    const req = createTestRequest([
-      { account: TEST_ACCOUNT, chainId: '0xaa36a7' },
-    ]);
+    const req = createTestRequest({
+      account: TEST_ACCOUNT,
+      chainId: '0xaa36a7',
+    });
     const res = createTestResponse();
 
     // Mock isEip7702Supported to return false

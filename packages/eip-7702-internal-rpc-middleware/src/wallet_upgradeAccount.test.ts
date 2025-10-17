@@ -1,10 +1,7 @@
 import { rpcErrors } from '@metamask/rpc-errors';
-import type {
-  JsonRpcRequest,
-  PendingJsonRpcResponse,
-  Json,
-} from '@metamask/utils';
+import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
+import type { UpgradeAccountParams } from './types';
 import { walletUpgradeAccount } from './wallet_upgradeAccount';
 
 const TEST_ACCOUNT = '0x1234567890123456789012345678901234567890';
@@ -41,8 +38,8 @@ const createTestHooks = () => {
 };
 
 const createTestRequest = (
-  params: Json[] = [{ account: TEST_ACCOUNT }],
-): JsonRpcRequest<Json[]> & { origin: string } => ({
+  params: UpgradeAccountParams = { account: TEST_ACCOUNT },
+): JsonRpcRequest<UpgradeAccountParams> & { origin: string } => ({
   id: 1,
   method: 'wallet_upgradeAccount',
   jsonrpc: '2.0' as const,
@@ -93,9 +90,10 @@ describe('walletUpgradeAccount', () => {
 
   it('successfully upgrades account with specific chain ID', async () => {
     const hooks = createTestHooks();
-    const req = createTestRequest([
-      { account: TEST_ACCOUNT, chainId: '0xaa36a7' },
-    ]);
+    const req = createTestRequest({
+      account: TEST_ACCOUNT,
+      chainId: '0xaa36a7',
+    });
     const res = createTestResponse();
 
     // Mock successful upgrade
@@ -125,7 +123,14 @@ describe('walletUpgradeAccount', () => {
 
   it('propagates validation errors', async () => {
     const hooks = createTestHooks();
-    const req = createTestRequest([]); // Invalid: empty params
+    // Create a request with invalid account format to trigger validation error
+    const req = {
+      id: 1,
+      method: 'wallet_upgradeAccount',
+      jsonrpc: '2.0' as const,
+      origin: 'npm:@metamask/gator-permissions-snap',
+      params: { account: 'invalid-address' as unknown as `0x${string}` },
+    };
     const res = createTestResponse();
 
     await expect(walletUpgradeAccount(req, res, hooks)).rejects.toThrow(
@@ -135,9 +140,10 @@ describe('walletUpgradeAccount', () => {
 
   it('throws error when EIP-7702 is not supported on the chain', async () => {
     const hooks = createTestHooks();
-    const req = createTestRequest([
-      { account: TEST_ACCOUNT, chainId: '0x999' },
-    ]);
+    const req = createTestRequest({
+      account: TEST_ACCOUNT,
+      chainId: '0x999',
+    });
     const res = createTestResponse();
 
     // Mock unsupported chain
@@ -187,9 +193,10 @@ describe('walletUpgradeAccount', () => {
 
   it('throws error when chain has delegation address but is not supported', async () => {
     const hooks = createTestHooks();
-    const req = createTestRequest([
-      { account: TEST_ACCOUNT, chainId: '0x999' },
-    ]);
+    const req = createTestRequest({
+      account: TEST_ACCOUNT,
+      chainId: '0x999',
+    });
     const res = createTestResponse();
 
     // Mock chain with delegation address but not supported

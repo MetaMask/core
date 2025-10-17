@@ -1,12 +1,11 @@
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
-import { tuple } from '@metamask/superstruct';
 import type {
   JsonRpcRequest,
   PendingJsonRpcResponse,
-  Json,
   Hex,
 } from '@metamask/utils';
 
+import type { UpgradeAccountParams } from './types';
 import { UpgradeAccountParamsStruct } from './types';
 import { validateParams, validateAndNormalizeAddress } from './utils';
 
@@ -32,16 +31,16 @@ export type WalletUpgradeAccountHooks = {
  * @param hooks - The hooks required for account upgrade functionality.
  */
 export async function walletUpgradeAccount(
-  req: JsonRpcRequest<Json[]> & { origin: string },
+  req: JsonRpcRequest<UpgradeAccountParams> & { origin: string },
   res: PendingJsonRpcResponse,
   hooks: WalletUpgradeAccountHooks,
 ): Promise<void> {
   const { params, origin } = req;
 
   // Validate parameters using Superstruct
-  validateParams(params, tuple([UpgradeAccountParamsStruct]));
+  validateParams(params, UpgradeAccountParamsStruct);
 
-  const [{ account, chainId }] = params;
+  const { account, chainId } = params;
 
   // Validate and normalize the account address with authorization check
   const normalizedAccount = await validateAndNormalizeAddress(
