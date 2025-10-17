@@ -1,6 +1,5 @@
 /* eslint-disable jest/no-conditional-in-test */
 import { ShieldRemoteBackend } from './backend';
-import { MockAbortController } from '../tests/mocks/abortController';
 import {
   delay,
   generateMockSignatureRequest,
@@ -48,20 +47,6 @@ function setup({
 }
 
 describe('ShieldRemoteBackend', () => {
-  let originalAbortController: typeof globalThis.AbortController;
-
-  beforeAll(() => {
-    // Mock AbortController globally
-    originalAbortController = globalThis.AbortController;
-    globalThis.AbortController =
-      MockAbortController as unknown as typeof AbortController;
-  });
-
-  afterAll(() => {
-    // Restore original AbortController
-    globalThis.AbortController = originalAbortController;
-  });
-
   afterEach(() => {
     // Clean up mocks after each test
     jest.clearAllMocks();

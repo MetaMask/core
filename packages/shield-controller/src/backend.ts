@@ -91,7 +91,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     }
 
     // Cancel any previous pending requests for the same transaction.
-    this.#cancelPreviousPendingRequests(req.txMeta.id);
+    this.#cancelPendingRequests(req.txMeta.id);
 
     const txCoverageResultUrl = `${this.#baseUrl}/v1/transaction/coverage/result`;
     const coverageResult = await this.#getCoverageResult(coverageId, {
@@ -119,7 +119,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     }
 
     // Cancel any previous pending requests for the same signature.
-    this.#cancelPreviousPendingRequests(req.signatureRequest.id);
+    this.#cancelPendingRequests(req.signatureRequest.id);
 
     const signatureCoverageResultUrl = `${this.#baseUrl}/v1/signature/coverage/result`;
     const coverageResult = await this.#getCoverageResult(coverageId, {
@@ -143,7 +143,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     };
 
     // cancel/abort any pending coverage result polling before logging the signature
-    this.#cancelPreviousPendingRequests(req.signatureRequest.id);
+    this.#cancelPendingRequests(req.signatureRequest.id);
 
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/signature/coverage/log`,
@@ -167,7 +167,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     };
 
     // cancel/abort any pending coverage result polling before logging the transaction
-    this.#cancelPreviousPendingRequests(req.txMeta.id);
+    this.#cancelPendingRequests(req.txMeta.id);
 
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/transaction/coverage/log`,
@@ -199,7 +199,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
 
   async #getCoverageResult(
     coverageId: string,
-    configs: {
+    config: {
       requestId: string;
       coverageResultUrl: string;
       timeout?: number;
@@ -210,11 +210,9 @@ export class ShieldRemoteBackend implements ShieldBackend {
       coverageId,
     };
 
-    const abortController = this.#assignNewAbortController(configs.requestId);
-
-    const timeout = configs?.timeout ?? this.#getCoverageResultTimeout;
+    const timeout = config?.timeout ?? this.#getCoverageResultTimeout;
     const pollInterval =
-      configs?.pollInterval ?? this.#getCoverageResultPollInterval;
+      config?.pollInterval ?? this.#getCoverageResultPollInterval;
 
     const headers = await this.#createHeaders();
     return await new Promise((resolve, reject) => {
@@ -222,14 +220,17 @@ export class ShieldRemoteBackend implements ShieldBackend {
 
       const abortHandler = () => {
         timeoutReached = true;
-        this.#removeAbortHandler(configs.requestId, abortHandler);
+        this.#removeAbortHandler(config.requestId, abortHandler);
         reject(new Error('Coverage result polling cancelled'));
       };
-      abortController.signal.addEventListener('abort', abortHandler);
+      const abortController = this.#assignNewAbortController(
+        config.requestId,
+        abortHandler,
+      );
 
       setTimeout(() => {
         timeoutReached = true;
-        this.#removeAbortHandler(configs.requestId, abortHandler);
+        this.#removeAbortHandler(config.requestId, abortHandler);
         reject(new Error('Timeout waiting for coverage result'));
       }, timeout);
 
@@ -238,14 +239,14 @@ export class ShieldRemoteBackend implements ShieldBackend {
         // eslint-disable-next-line no-unmodified-loop-condition
         while (!timeoutReached) {
           const startTime = Date.now();
-          const res = await this.#fetch(configs.coverageResultUrl, {
+          const res = await this.#fetch(config.coverageResultUrl, {
             method: 'POST',
             headers,
             body: JSON.stringify(reqBody),
             signal: abortController.signal,
           });
           if (res.status === 200) {
-            this.#removeAbortHandler(configs.requestId, abortHandler);
+            this.#removeAbortHandler(config.requestId, abortHandler);
             return (await res.json()) as GetCoverageResultResponse;
           }
           await sleep(pollInterval - (Date.now() - startTime));
@@ -267,7 +268,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     };
   }
 
-  #cancelPreviousPendingRequests(id: string) {
+  #cancelPendingRequests(id: string) {
     const abortController = this.#abortControllerMap.get(id);
     if (abortController && !abortController.signal.aborted) {
       abortController.abort();
@@ -285,8 +286,12 @@ export class ShieldRemoteBackend implements ShieldBackend {
     }
   }
 
-  #assignNewAbortController(requestId: string): AbortController {
+  #assignNewAbortController(
+    requestId: string,
+    abortHandler: () => void,
+  ): AbortController {
     const newAbortController = new AbortController();
+    newAbortController.signal.addEventListener('abort', abortHandler);
     this.#abortControllerMap.set(requestId, newAbortController);
     return newAbortController;
   }
