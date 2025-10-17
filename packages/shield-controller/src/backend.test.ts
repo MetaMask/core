@@ -148,7 +148,7 @@ describe('ShieldRemoteBackend', () => {
 
     const txMeta = generateMockTxMeta();
     await expect(backend.checkCoverage({ txMeta })).rejects.toThrow(
-      'Timeout waiting for coverage result',
+      'getCoverageResult: Request timed out',
     );
 
     // Waiting here ensures coverage of the unexpected error and lets us know

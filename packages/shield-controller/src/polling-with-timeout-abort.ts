@@ -9,6 +9,10 @@ export type RequestFn<ReturnType> = (
 ) => Promise<ReturnType>;
 
 export class PollingWithTimeoutAndAbort {
+  readonly ABORT_REASON_TIMEOUT = 'Timeout';
+
+  readonly ABORT_REASON_USER_CANCELLATION = 'User cancellation';
+
   // Map of request ID to request entry
   readonly #requestEntries: Map<string, RequestEntry> = new Map();
 
@@ -27,7 +31,10 @@ export class PollingWithTimeoutAndAbort {
     pollingOptions: {
       timeout?: number;
       pollInterval?: number;
-    } = {},
+      fnName?: string;
+    } = {
+      fnName: '',
+    },
   ) {
     const timeout = pollingOptions.timeout ?? this.#timeout;
     const pollInterval = pollingOptions.pollInterval ?? this.#pollInterval;
@@ -47,16 +54,16 @@ export class PollingWithTimeoutAndAbort {
       } catch {
         // polling failed due to timeout or cancelled,
         // we need to clean up the request entry and throw the error
-        if (abortController.signal.aborted) {
-          throw new Error('Polling cancelled');
+        if (this.#isAbortedAndNotTimeoutReason(abortController.signal)) {
+          throw new Error(`${pollingOptions.fnName}: Request cancelled`);
         }
       }
-      await this.delay(pollInterval);
+      await this.#delay(pollInterval);
     }
 
     // The following line will not have an effect as the upper level promise
     // will already be rejected by now.
-    throw new Error('Polling timed out');
+    throw new Error(`${pollingOptions.fnName}: Request timed out`);
   }
 
   /**
@@ -72,7 +79,7 @@ export class PollingWithTimeoutAndAbort {
     // then abort the request if it exists
     // note: this does abort the request, but it will not trigger the abort handler (hence, {@link cleanUpRequestEntryIfExists} will not be called)
     // coz the AbortHandler event listener is already removed from the AbortSignal
-    existingEntry?.abortController.abort();
+    existingEntry?.abortController.abort(this.ABORT_REASON_USER_CANCELLATION);
   }
 
   /**
@@ -120,7 +127,7 @@ export class PollingWithTimeoutAndAbort {
     const requestEntry = this.#cleanUpRequestEntryIfExists(requestId);
     if (requestEntry) {
       // Abort the request, this will also trigger the abort handler (hence, handleRequestAbort will be called)
-      requestEntry.abortController.abort();
+      requestEntry.abortController.abort(this.ABORT_REASON_TIMEOUT);
     }
   }
 
@@ -157,7 +164,17 @@ export class PollingWithTimeoutAndAbort {
     return undefined;
   }
 
-  private async delay(ms: number) {
+  /**
+   * Check if the abort signal is aborted and not due to timeout.
+   *
+   * @param signal - The abort signal to check.
+   * @returns True if the abort signal is aborted and not due to timeout, false otherwise.
+   */
+  #isAbortedAndNotTimeoutReason(signal: AbortSignal) {
+    return signal.aborted && signal.reason !== this.ABORT_REASON_TIMEOUT;
+  }
+
+  async #delay(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

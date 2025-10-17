@@ -19,8 +19,31 @@ describe('PollingWithTimeoutAndAbort', () => {
       });
 
     await expect(
+      pollingWithTimeout.pollRequest('test', requestFn, {
+        fnName: 'test',
+        timeout: 100,
+      }),
+    ).rejects.toThrow('test: Request timed out');
+  });
+
+  it('should timeout with default polling options', async () => {
+    const pollingWithTimeout = new PollingWithTimeoutAndAbort({
+      timeout: 100,
+      pollInterval: 10,
+    });
+    const requestFn = jest
+      .fn()
+      .mockImplementation(async (_signal: AbortSignal) => {
+        return new Promise((_resolve, reject) => {
+          setTimeout(() => {
+            reject(new Error('test error'));
+          }, 10);
+        });
+      });
+
+    await expect(
       pollingWithTimeout.pollRequest('test', requestFn),
-    ).rejects.toThrow('Polling timed out');
+    ).rejects.toThrow(': Request timed out');
   });
 
   it('should abort pending requests when new request is made', async () => {
@@ -43,11 +66,15 @@ describe('PollingWithTimeoutAndAbort', () => {
         });
       });
 
-    const firstAttempt = pollingWithTimeout.pollRequest('test', requestFn);
+    const firstAttempt = pollingWithTimeout.pollRequest('test', requestFn, {
+      fnName: 'test',
+    });
     await delay(15); // small delay to let the first request start
-    const secondAttempt = pollingWithTimeout.pollRequest('test', requestFn);
+    const secondAttempt = pollingWithTimeout.pollRequest('test', requestFn, {
+      fnName: 'test',
+    });
 
-    await expect(firstAttempt).rejects.toThrow('Polling cancelled'); // first request should be aborted by the second request
+    await expect(firstAttempt).rejects.toThrow('test: Request cancelled'); // first request should be aborted by the second request
     const result = await secondAttempt;
     expect(result).toBe('test result'); // second request should succeed
   });
@@ -68,9 +95,11 @@ describe('PollingWithTimeoutAndAbort', () => {
         });
       });
 
-    const request = pollingWithTimeout.pollRequest('test', requestFn);
+    const request = pollingWithTimeout.pollRequest('test', requestFn, {
+      fnName: 'test',
+    });
     await delay(15); // small delay to let the request start
     pollingWithTimeout.abortPendingRequests('test');
-    await expect(request).rejects.toThrow('Polling cancelled');
+    await expect(request).rejects.toThrow('test: Request cancelled');
   });
 });

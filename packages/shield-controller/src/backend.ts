@@ -211,6 +211,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     const pollingOptions = {
       timeout: config.timeout ?? this.#getCoverageResultTimeout,
       pollInterval: config.pollInterval ?? this.#getCoverageResultPollInterval,
+      fnName: 'getCoverageResult',
     };
     const headers = await this.#createHeaders();
 
@@ -233,7 +234,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
       this.#pollingWithTimeout
         .pollRequest(config.requestId, requestCoverageFn, pollingOptions)
         .then(resolve)
-        .catch(() => reject(new Error('Timeout waiting for coverage result')));
+        .catch(reject);
     });
   }
 
