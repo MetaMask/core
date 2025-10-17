@@ -153,6 +153,14 @@ const setupController = ({
           iconUrl: 'https://example.com/solana.png',
           units: [{ symbol: 'SOL', name: 'Solana', decimals: 9 }],
         },
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v':
+          {
+            name: 'USDC',
+            symbol: 'USDC',
+            fungible: true,
+            iconUrl: 'https://example.com/usdc.png',
+            units: [{ symbol: 'USDC', name: 'USDC', decimals: 2 }],
+          },
       },
     }),
   );
