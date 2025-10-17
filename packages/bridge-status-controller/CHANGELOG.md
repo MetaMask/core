@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix issue with Mobile where app would crash after a successful tx ([6890](https://github.com/MetaMask/core/pull/6890))
+- Fix issue with Mobile where app would crash after a successful tx ([#6890](https://github.com/MetaMask/core/pull/6890))
 
 ## [51.0.0]
 
