@@ -64,3 +64,28 @@ export function getBridgeFeatureFlags<
 
   return processFeatureFlags(rawMobileFlags || rawBridgeConfig);
 }
+
+/**
+ * Checks if the client version is greater than or equal to the minimum required version
+ *
+ * @param clientVersion - The client version
+ * @param minRequiredVersion - The minimum required version
+ * @returns True if the client version is greater than or equal to the minimum required version, false otherwise
+ */
+export const hasMinimumRequiredVersion = (
+  clientVersion: string,
+  minRequiredVersion: string,
+) => {
+  const [clientMajor, clientMinor, clientPatch] = clientVersion
+    .split('.')
+    .map(Number);
+  const [minRequiredMajor, minRequiredMinor, minRequiredPatch] =
+    minRequiredVersion.split('.').map(Number);
+
+  return (
+    clientMajor > minRequiredMajor ||
+    (clientMajor === minRequiredMajor &&
+      clientMinor >= minRequiredMinor &&
+      clientPatch >= minRequiredPatch)
+  );
+};
