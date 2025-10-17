@@ -20,10 +20,10 @@ import {
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
 import type {
-  IntentManager,
   IntentOrder,
   IntentSubmissionParams,
 } from '@metamask/intent-manager';
+import { IntentManager } from '@metamask/intent-manager';
 import { IntentOrderStatus } from '@metamask/intent-manager';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
@@ -205,6 +205,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.getBridgeHistoryItemByTxMetaId.bind(this),
     );
 
+    this.#intentManager = new IntentManager();
     // Set interval
     this.setIntervalLength(REFRESH_INTERVAL_MS);
 
