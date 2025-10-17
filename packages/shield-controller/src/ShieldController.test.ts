@@ -11,6 +11,7 @@ import {
 } from '@metamask/transaction-controller';
 
 import { ShieldController } from './ShieldController';
+import { TX_META_SIMULATION_DATA_MOCKS } from '../tests/data';
 import { createMockBackend, MOCK_COVERAGE_ID } from '../tests/mocks/backend';
 import { createMockMessenger } from '../tests/mocks/messenger';
 import {
@@ -168,6 +169,47 @@ describe('ShieldController', () => {
         txMeta: txMeta2,
       });
     });
+
+    TX_META_SIMULATION_DATA_MOCKS.forEach(
+      ({ description, previousSimulationData, newSimulationData }) => {
+        it(`should check coverage when ${description}`, async () => {
+          const { baseMessenger, backend } = setup();
+          const previousTxMeta = {
+            ...generateMockTxMeta(),
+            simulationData: previousSimulationData,
+          };
+          const coverageResultReceived =
+            setupCoverageResultReceived(baseMessenger);
+
+          // Add transaction.
+          baseMessenger.publish(
+            'TransactionController:stateChange',
+            { transactions: [previousTxMeta] } as TransactionControllerState,
+            undefined as never,
+          );
+          expect(await coverageResultReceived).toBeUndefined();
+          expect(backend.checkCoverage).toHaveBeenCalledWith({
+            txMeta: previousTxMeta,
+          });
+
+          // Simulate transaction.
+          const txMeta2 = { ...previousTxMeta };
+          txMeta2.simulationData = newSimulationData;
+          const coverageResultReceived2 =
+            setupCoverageResultReceived(baseMessenger);
+          baseMessenger.publish(
+            'TransactionController:stateChange',
+            { transactions: [txMeta2] } as TransactionControllerState,
+            undefined as never,
+          );
+          expect(await coverageResultReceived2).toBeUndefined();
+          expect(backend.checkCoverage).toHaveBeenCalledWith({
+            coverageId: MOCK_COVERAGE_ID,
+            txMeta: txMeta2,
+          });
+        });
+      },
+    );
 
     it('throws an error when the coverage ID has changed', async () => {
       const { controller, backend } = setup();

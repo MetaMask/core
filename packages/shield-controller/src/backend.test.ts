@@ -45,6 +45,11 @@ function setup({
 }
 
 describe('ShieldRemoteBackend', () => {
+  afterEach(() => {
+    // Clean up mocks after each test
+    jest.clearAllMocks();
+  });
+
   it('should check coverage', async () => {
     const { backend, fetchMock, getAccessToken } = setup();
 
@@ -143,7 +148,7 @@ describe('ShieldRemoteBackend', () => {
 
     const txMeta = generateMockTxMeta();
     await expect(backend.checkCoverage({ txMeta })).rejects.toThrow(
-      'Timeout waiting for coverage result',
+      'getCoverageResult: Request timed out',
     );
 
     // Waiting here ensures coverage of the unexpected error and lets us know
