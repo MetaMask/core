@@ -10,6 +10,7 @@ import type {
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types';
@@ -28,38 +29,6 @@ import type {
 } from './types';
 
 // =============================================================================
-// Utility Functions
-// =============================================================================
-
-/**
- * Fetches supported networks from the v2 API endpoint.
- * Returns chain IDs already in CAIP-2 format.
- *
- * Note: This directly calls the Account API v2 endpoint. In the future, this should
- * be moved to a dedicated data layer service for better separation of concerns.
- *
- * @returns Array of supported chain IDs in CAIP-2 format (e.g., "eip155:1")
- */
-async function fetchSupportedChainsInCaipFormat(): Promise<string[]> {
-  const url = 'https://accounts.api.cx.metamask.io/v2/supportedNetworks';
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch supported networks: ${response.status} ${response.statusText}`,
-    );
-  }
-
-  const data: {
-    fullSupport: string[];
-    partialSupport: { balances: string[] };
-  } = await response.json();
-
-  // v2 endpoint already returns data in CAIP-2 format
-  return data.fullSupport;
-}
-
-// =============================================================================
 // Types and Constants
 // =============================================================================
 
@@ -71,6 +40,8 @@ export type SystemNotificationData = {
   chainIds: string[];
   /** Status of the chains: 'down' or 'up' */
   status: 'down' | 'up';
+  /** Timestamp of the notification */
+  timestamp?: number;
 };
 
 const SERVICE_NAME = 'AccountActivityService';
@@ -79,23 +50,7 @@ const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
 const MESSENGER_EXPOSED_METHODS = ['subscribe', 'unsubscribe'] as const;
 
-// Default supported chains used as fallback when API is unavailable
-// This list should match the expected chains from the accounts API v2/supportedNetworks endpoint
-const DEFAULT_SUPPORTED_CHAINS = [
-  'eip155:1', // Ethereum Mainnet
-  'eip155:137', // Polygon
-  'eip155:56', // BSC
-  'eip155:59144', // Linea
-  'eip155:8453', // Base
-  'eip155:10', // Optimism
-  'eip155:42161', // Arbitrum One
-  'eip155:534352', // Scroll
-  'eip155:1329', // Sei
-];
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
-
-// Cache TTL for supported chains (5 hours in milliseconds)
-const SUPPORTED_CHAINS_CACHE_TTL = 5 * 60 * 60 * 1000;
 
 /**
  * Account subscription options
@@ -110,6 +65,8 @@ export type SubscriptionOptions = {
 export type AccountActivityServiceOptions = {
   /** Custom subscription namespace (default: 'account-activity.v1') */
   subscriptionNamespace?: string;
+  /** Optional callback to trace performance of account activity operations (default: no-op) */
+  traceFn?: TraceCallback;
 };
 
 // =============================================================================
@@ -166,6 +123,7 @@ export type AccountActivityServiceStatusChangedEvent = {
     {
       chainIds: string[];
       status: 'up' | 'down';
+      timestamp?: number;
     },
   ];
 };
@@ -234,11 +192,12 @@ export class AccountActivityService {
 
   readonly #messenger: AccountActivityServiceMessenger;
 
-  readonly #options: Required<AccountActivityServiceOptions>;
+  readonly #options: Required<Omit<AccountActivityServiceOptions, 'traceFn'>>;
 
-  #supportedChains: string[] | null = null;
+  readonly #trace: TraceCallback;
 
-  #supportedChainsExpiresAt: number = 0;
+  // Track chains that are currently up (based on system notifications)
+  readonly #chainsUp: Set<string> = new Set();
 
   // =============================================================================
   // Constructor and Initialization
@@ -262,6 +221,12 @@ export class AccountActivityService {
         options.subscriptionNamespace ?? SUBSCRIPTION_NAMESPACE,
     };
 
+    // Default to no-op trace function to keep core platform-agnostic
+    this.#trace =
+      options.traceFn ??
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (((_request: any, fn?: any) => fn?.()) as TraceCallback);
+
     this.#messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
@@ -279,42 +244,8 @@ export class AccountActivityService {
     this.#messenger.call('BackendWebSocketService:addChannelCallback', {
       channelName: `system-notifications.v1.${this.#options.subscriptionNamespace}`,
       callback: (notification: ServerNotificationMessage) =>
-        this.#handleSystemNotification(
-          notification.data as SystemNotificationData,
-        ),
+        this.#handleSystemNotification(notification),
     });
-  }
-
-  // =============================================================================
-  // Public Methods - Chain Management
-  // =============================================================================
-
-  /**
-   * Fetch supported chains from API with fallback to hardcoded list.
-   * Uses expiry-based caching with TTL to prevent stale data.
-   *
-   * @returns Array of supported chain IDs in CAIP-2 format
-   */
-  async getSupportedChains(): Promise<string[]> {
-    // Return cached result if available and not expired
-    if (
-      this.#supportedChains !== null &&
-      Date.now() < this.#supportedChainsExpiresAt
-    ) {
-      return this.#supportedChains;
-    }
-
-    try {
-      // Try to fetch from API
-      this.#supportedChains = await fetchSupportedChainsInCaipFormat();
-    } catch {
-      // Fallback to hardcoded list and cache it with timestamp
-      this.#supportedChains = Array.from(DEFAULT_SUPPORTED_CHAINS);
-    }
-
-    this.#supportedChainsExpiresAt = Date.now() + SUPPORTED_CHAINS_CACHE_TTL;
-
-    return this.#supportedChains;
   }
 
   // =============================================================================
@@ -347,6 +278,7 @@ export class AccountActivityService {
       // Create subscription using the proper subscribe method (this will be stored in WebSocketService's internal tracking)
       await this.#messenger.call('BackendWebSocketService:subscribe', {
         channels: [channel],
+        channelType: this.#options.subscriptionNamespace, // e.g., 'account-activity.v1'
         callback: (notification: ServerNotificationMessage) => {
           this.#handleAccountActivityUpdate(
             notification.data as AccountActivityMessage,
@@ -401,12 +333,12 @@ export class AccountActivityService {
    * @param payload - The account activity message containing transaction and balance updates
    * @example AccountActivityMessage format handling:
    * Input: {
-   *   address: "0x123",
-   *   tx: { hash: "0x...", chain: "eip155:1", status: "completed", ... },
+   *   address: "0xd14b52362b5b777ffa754c666ddec6722aaeee08",
+   *   tx: { id: "0x1cde...", chain: "eip155:8453", status: "confirmed", timestamp: 1760099871, ... },
    *   updates: [{
-   *     asset: { fungible: true, type: "eip155:1/erc20:0x...", unit: "USDT" },
-   *     postBalance: { amount: "1254.75" },
-   *     transfers: [{ from: "0x...", to: "0x...", amount: "500.00" }]
+   *     asset: { fungible: true, type: "eip155:8453/erc20:0x833...", unit: "USDC", decimals: 6 },
+   *     postBalance: { amount: "0xc350" },
+   *     transfers: [{ from: "0x7b07...", to: "0xd14b...", amount: "0x2710" }]
    *   }]
    * }
    * Output: Transaction and balance updates published separately
@@ -414,20 +346,45 @@ export class AccountActivityService {
   #handleAccountActivityUpdate(payload: AccountActivityMessage): void {
     const { address, tx, updates } = payload;
 
+    // Calculate time elapsed between transaction time and message receipt
+    const txTimestampMs = tx.timestamp * 1000; // Convert Unix timestamp (seconds) to milliseconds
+    const elapsedMs = Date.now() - txTimestampMs;
+
     log('Handling account activity update', {
       address,
       updateCount: updates.length,
+      elapsedMs,
     });
 
-    // Process transaction update
-    this.#messenger.publish(`AccountActivityService:transactionUpdated`, tx);
+    // Trace message receipt with latency from transaction time to now
+    this.#trace(
+      {
+        name: `${SERVICE_NAME} Transaction Message`,
+        data: {
+          chain: tx.chain,
+          status: tx.status,
+          elapsed_ms: elapsedMs,
+        },
+        tags: {
+          service: SERVICE_NAME,
+          notification_type: this.#options.subscriptionNamespace,
+        },
+      },
+      () => {
+        // Process transaction update
+        this.#messenger.publish(
+          `AccountActivityService:transactionUpdated`,
+          tx,
+        );
 
-    // Publish comprehensive balance updates with transfer details
-    this.#messenger.publish(`AccountActivityService:balanceUpdated`, {
-      address,
-      chain: tx.chain,
-      updates,
-    });
+        // Publish comprehensive balance updates with transfer details
+        this.#messenger.publish(`AccountActivityService:balanceUpdated`, {
+          address,
+          chain: tx.chain,
+          updates,
+        });
+      },
+    );
   }
 
   /**
@@ -460,9 +417,12 @@ export class AccountActivityService {
    * Handle system notification for chain status changes
    * Publishes only the status change (delta) for affected chains
    *
-   * @param data - System notification data containing chain status updates
+   * @param notification - Server notification message containing chain status updates and timestamp
    */
-  #handleSystemNotification(data: SystemNotificationData): void {
+  #handleSystemNotification(notification: ServerNotificationMessage): void {
+    const data = notification.data as SystemNotificationData;
+    const { timestamp } = notification;
+
     // Validate required fields
     if (!data.chainIds || !Array.isArray(data.chainIds) || !data.status) {
       throw new Error(
@@ -470,10 +430,22 @@ export class AccountActivityService {
       );
     }
 
+    // Track chain status
+    if (data.status === 'up') {
+      for (const chainId of data.chainIds) {
+        this.#chainsUp.add(chainId);
+      }
+    } else {
+      for (const chainId of data.chainIds) {
+        this.#chainsUp.delete(chainId);
+      }
+    }
+
     // Publish status change directly (delta update)
     this.#messenger.publish(`AccountActivityService:statusChanged`, {
       chainIds: data.chainIds,
       status: data.status,
+      timestamp,
     });
   }
 
@@ -486,35 +458,36 @@ export class AccountActivityService {
     connectionInfo: WebSocketConnectionInfo,
   ): Promise<void> {
     const { state } = connectionInfo;
-    const supportedChains = await this.getSupportedChains();
 
     if (state === WebSocketState.CONNECTED) {
-      // WebSocket connected - resubscribe and set all chains as up
+      // WebSocket connected - resubscribe to selected account
+      // The system notification will automatically provide the list of chains that are up
       await this.#subscribeToSelectedAccount();
-
-      // Publish initial status - all supported chains are up when WebSocket connects
-      this.#messenger.publish(`AccountActivityService:statusChanged`, {
-        chainIds: supportedChains,
-        status: 'up',
-      });
-
-      log('WebSocket connected - Published all chains as up', {
-        count: supportedChains.length,
-        chains: supportedChains,
-      });
     } else if (
       state === WebSocketState.DISCONNECTED ||
       state === WebSocketState.ERROR
     ) {
-      this.#messenger.publish(`AccountActivityService:statusChanged`, {
-        chainIds: supportedChains,
-        status: 'down',
-      });
+      // On disconnect/error, flush all tracked chains as down
+      const chainsToMarkDown = Array.from(this.#chainsUp);
 
-      log('WebSocket error/disconnection - Published all chains as down', {
-        count: supportedChains.length,
-        chains: supportedChains,
-      });
+      if (chainsToMarkDown.length > 0) {
+        this.#messenger.publish(`AccountActivityService:statusChanged`, {
+          chainIds: chainsToMarkDown,
+          status: 'down',
+          timestamp: Date.now(),
+        });
+
+        log(
+          'WebSocket error/disconnection - Published tracked chains as down',
+          {
+            count: chainsToMarkDown.length,
+            chains: chainsToMarkDown,
+          },
+        );
+
+        // Clear the tracking set since all chains are now down
+        this.#chainsUp.clear();
+      }
     }
   }
 
