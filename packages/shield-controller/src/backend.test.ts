@@ -46,6 +46,75 @@ function setup({
   };
 }
 
+/**
+ * Setup a fetch mock for polling tests.
+ *
+ * @param fetchMock - The mock instance of the fetch API.
+ * @param options - The options for the fetch mock.
+ * @param options.delayBetweenResultRequests - The delay between result requests.
+ * @param options.shouldReturnErrorResult - Whether to return an error result.
+ *
+ * @returns The mock coverage ID.
+ */
+function setupMockRequestsForPollingTests(
+  fetchMock: jest.MockedFunction<typeof fetch>,
+  options: {
+    delayBetweenResultRequests?: number;
+    shouldReturnErrorResult?: boolean;
+  } = {
+    shouldReturnErrorResult: true,
+  },
+) {
+  const MOCK_COVERAGE_ID = 'coverageId';
+  fetchMock.mockImplementation(
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      const url = typeof input === 'string' ? input : input.toString();
+      const signal = init?.signal;
+
+      if (url.includes('/init')) {
+        return {
+          status: 200,
+          json: jest.fn().mockResolvedValue({ coverageId: MOCK_COVERAGE_ID }),
+        } as unknown as Response;
+      }
+
+      if (url.includes('/result')) {
+        if (signal?.aborted) {
+          throw new Error('Request was aborted');
+        }
+
+        if (options.delayBetweenResultRequests) {
+          await delay(options.delayBetweenResultRequests);
+        }
+
+        if (options.shouldReturnErrorResult) {
+          return {
+            status: 412,
+            json: jest.fn().mockResolvedValue({ status: 'unknown' }),
+          } as unknown as Response;
+        }
+        return {
+          status: 200,
+          json: jest.fn().mockResolvedValue({
+            status: 'covered',
+            message: 'test',
+            reasonCode: 'test',
+          }),
+        } as unknown as Response;
+      }
+
+      if (url.includes('/log')) {
+        return { status: 200 } as unknown as Response;
+      }
+
+      throw new Error('Unexpected URL');
+    },
+  );
+
+  return MOCK_COVERAGE_ID;
+}
+
 describe('ShieldRemoteBackend', () => {
   afterEach(() => {
     // Clean up mocks after each test
@@ -235,40 +304,7 @@ describe('ShieldRemoteBackend', () => {
       });
 
       const signatureRequest = generateMockSignatureRequest();
-      const coverageId = 'coverageId';
-
-      // Setup fetch to handle init, result polling, and log requests
-      fetchMock.mockImplementation(
-        async (input: RequestInfo | URL, init?: RequestInit) => {
-          // eslint-disable-next-line @typescript-eslint/no-base-to-string
-          const url = typeof input === 'string' ? input : input.toString();
-          const signal = init?.signal;
-
-          if (url.includes('/init')) {
-            return {
-              status: 200,
-              json: jest.fn().mockResolvedValue({ coverageId }),
-            } as unknown as Response;
-          }
-
-          if (url.includes('/result')) {
-            if (signal?.aborted) {
-              throw new Error('Request was aborted');
-            }
-            // Keep polling (never return 200) to test abortion
-            return {
-              status: 412,
-              json: jest.fn().mockResolvedValue({ status: 'unknown' }),
-            } as unknown as Response;
-          }
-
-          if (url.includes('/log')) {
-            return { status: 200 } as unknown as Response;
-          }
-
-          throw new Error('Unexpected URL');
-        },
-      );
+      setupMockRequestsForPollingTests(fetchMock);
 
       // Start coverage check (don't await) - this will start polling
       const coveragePromise = backend.checkSignatureCoverage({
@@ -328,40 +364,7 @@ describe('ShieldRemoteBackend', () => {
       });
 
       const txMeta = generateMockTxMeta();
-      const coverageId = 'coverageId';
-
-      // Setup fetch to handle init, result polling, and log requests
-      fetchMock.mockImplementation(
-        async (input: RequestInfo | URL, init?: RequestInit) => {
-          // eslint-disable-next-line @typescript-eslint/no-base-to-string
-          const url = typeof input === 'string' ? input : input.toString();
-          const signal = init?.signal;
-
-          if (url.includes('/init')) {
-            return {
-              status: 200,
-              json: jest.fn().mockResolvedValue({ coverageId }),
-            } as unknown as Response;
-          }
-
-          if (url.includes('/result')) {
-            if (signal?.aborted) {
-              throw new Error('Request was aborted');
-            }
-            // Keep polling (never return 200) to test abortion
-            return {
-              status: 412,
-              json: jest.fn().mockResolvedValue({ status: 'unknown' }),
-            } as unknown as Response;
-          }
-
-          if (url.includes('/log')) {
-            return { status: 200 } as unknown as Response;
-          }
-
-          throw new Error('Unexpected URL');
-        },
-      );
+      setupMockRequestsForPollingTests(fetchMock);
 
       // Start coverage check (don't await) - this will start polling
       const coveragePromise = backend.checkCoverage({ txMeta });
@@ -392,50 +395,10 @@ describe('ShieldRemoteBackend', () => {
       });
 
       const signatureRequest = generateMockSignatureRequest();
-      const coverageId = 'coverageId';
-
-      // Mock `/init` and `/result` responses.
-      fetchMock.mockImplementation(
-        async (input: RequestInfo | URL, init?: RequestInit) => {
-          // eslint-disable-next-line @typescript-eslint/no-base-to-string
-          const url = typeof input === 'string' ? input : input.toString();
-          const signal = init?.signal;
-
-          // Check if this is init request
-          if (url.includes('/init')) {
-            return {
-              status: 200,
-              json: jest.fn().mockResolvedValue({ coverageId }),
-            } as unknown as Response;
-          }
-
-          // Check if this is result request
-          if (url.includes('/result')) {
-            if (signal?.aborted) {
-              throw new Error('Request was aborted');
-            }
-
-            // First call to result endpoint - simulate slow response
-            await delay(150);
-
-            // Check again if aborted during the delay
-            if (signal?.aborted) {
-              throw new Error('Request was aborted');
-            }
-
-            return {
-              status: 200,
-              json: jest.fn().mockResolvedValue({
-                status: 'covered',
-                message: 'test',
-                reasonCode: 'test',
-              }),
-            } as unknown as Response;
-          }
-
-          throw new Error('Unexpected URL');
-        },
-      );
+      const coverageId = setupMockRequestsForPollingTests(fetchMock, {
+        shouldReturnErrorResult: false,
+        delayBetweenResultRequests: 150, // Long enough to let the first request start and the second request abort it
+      });
 
       // Start first request (don't await)
       const firstRequestPromise = backend.checkSignatureCoverage({
@@ -470,37 +433,7 @@ describe('ShieldRemoteBackend', () => {
       });
 
       const signatureRequest = generateMockSignatureRequest();
-      const coverageId = 'coverageId';
-
-      // Mock fetch responses
-      fetchMock.mockImplementation(
-        async (input: RequestInfo | URL, init?: RequestInit) => {
-          // eslint-disable-next-line @typescript-eslint/no-base-to-string
-          const url = typeof input === 'string' ? input : input.toString();
-          const signal = init?.signal;
-
-          // Init request
-          if (url.includes('/init')) {
-            return {
-              status: 200,
-              json: jest.fn().mockResolvedValue({ coverageId }),
-            } as unknown as Response;
-          }
-
-          // Result request - always return 412 to simulate unavailable result
-          if (url.includes('/result')) {
-            if (signal?.aborted) {
-              throw new Error('Request was aborted');
-            }
-            return {
-              status: 412,
-              json: jest.fn().mockResolvedValue({ status: 'unknown' }),
-            } as unknown as Response;
-          }
-
-          throw new Error('Unexpected URL');
-        },
-      );
+      setupMockRequestsForPollingTests(fetchMock);
 
       await expect(
         backend.checkSignatureCoverage({ signatureRequest }),
@@ -539,76 +472,6 @@ describe('ShieldRemoteBackend', () => {
 
       // Verify that fetch was called (init + result calls)
       expect(fetchMock).toHaveBeenCalledTimes(2);
-    });
-
-    it('should handle fetch request cancellation properly', async () => {
-      const { backend, fetchMock } = setup({
-        getCoverageResultTimeout: 200, // Short timeout
-        getCoverageResultPollInterval: 50,
-      });
-
-      const signatureRequest = generateMockSignatureRequest();
-      const coverageId = 'test';
-
-      fetchMock.mockImplementation(
-        async (input: RequestInfo | URL, init?: RequestInit) => {
-          // eslint-disable-next-line @typescript-eslint/no-base-to-string
-          const url = typeof input === 'string' ? input : input.toString();
-          const signal = init?.signal;
-
-          // If signal is aborted, throw AbortError
-          if (signal?.aborted) {
-            const error = new Error('The operation was aborted');
-            error.name = 'AbortError';
-            throw error;
-          }
-
-          // Init requests succeed
-          if (url.includes('/init')) {
-            return {
-              status: 200,
-              json: jest.fn().mockResolvedValue({ coverageId }),
-            } as unknown as Response;
-          }
-
-          // Result requests - always return 412 to force timeout
-          if (url.includes('/result')) {
-            if (signal?.aborted) {
-              const error = new Error('The operation was aborted');
-              error.name = 'AbortError';
-              throw error;
-            }
-
-            return {
-              status: 412,
-              json: jest.fn().mockResolvedValue({ status: 'unknown' }),
-            } as unknown as Response;
-          }
-
-          throw new Error('Unexpected URL');
-        },
-      );
-
-      // Start first request
-      const firstRequest = backend.checkSignatureCoverage({ signatureRequest });
-
-      // Wait for polling to start
-      await delay(50);
-
-      // Start second request to trigger cancellation of first
-      const secondRequest = backend.checkSignatureCoverage({
-        signatureRequest,
-      });
-
-      // First should be cancelled
-      await expect(firstRequest).rejects.toThrow(
-        'Coverage result polling cancelled',
-      );
-
-      // Second should timeout due to always returning 412
-      await expect(secondRequest).rejects.toThrow(
-        'Timeout waiting for coverage result',
-      );
     });
   });
 });
