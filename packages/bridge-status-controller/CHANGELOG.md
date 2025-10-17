@@ -9,12 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [52.0.0]
 
-### Uncategorized
-
-- Revert "Release/628.0.0 (#6893)" ([#6893](https://github.com/MetaMask/core/pull/6893))
-
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/bridge-controller` from `^52.0.0` to `^53.0.0` ([#6895](https://github.com/MetaMask/core/pull/6895))
 - Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 - Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.8.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 
