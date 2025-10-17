@@ -9,10 +9,10 @@ import { projectLogger, createModuleLogger } from './logging-utils';
 import type { Block } from './types';
 import { blockTagParamIndex } from './utils/cache';
 
-interface BlockRefMiddlewareOptions {
+type BlockRefMiddlewareOptions = {
   blockTracker?: PollingBlockTracker;
   provider?: SafeEventEmitterProvider;
-}
+};
 
 const log = createModuleLogger(projectLogger, 'block-ref');
 

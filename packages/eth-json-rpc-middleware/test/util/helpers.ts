@@ -11,10 +11,10 @@ import { isDeepStrictEqual } from 'util';
  * @template Params - The type that represents the request params.
  * @template Result - The type that represents the result.
  */
-export interface ProviderRequestStub<
+export type ProviderRequestStub<
   Params extends JsonRpcParams,
   Result extends Json,
-> {
+> = {
   /**
    * An object that represents a JsonRpcRequest. Keys such as
    * `id` or `jsonrpc` may be omitted if you don't care about them.
@@ -36,7 +36,7 @@ export interface ProviderRequestStub<
    * feature is useful for making sure that all requests have canned results.
    */
   remainAfterUse?: boolean;
-}
+};
 
 /**
  * Creates a middleware function that ends the request, but not before ensuring

@@ -6,10 +6,10 @@ import type {
   JsonRpcResponse,
 } from '@metamask/utils';
 
-export interface JsonRpcRequestToCache<Params extends JsonRpcParams>
-  extends JsonRpcRequest<Params> {
-  skipCache?: boolean;
-}
+export type JsonRpcRequestToCache<Params extends JsonRpcParams> =
+  JsonRpcRequest<Params> & {
+    skipCache?: boolean;
+  };
 
 export type JsonRpcCacheMiddleware<
   Params extends JsonRpcParams,

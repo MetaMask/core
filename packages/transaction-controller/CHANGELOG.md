@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `predictWithdraw` to `TransactionType` ([#6860](https://github.com/MetaMask/core/pull/6860))
+
 ## [60.8.0]
 
 ### Added
