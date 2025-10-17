@@ -344,7 +344,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       // Compute the set of unique assets from all accounts. It's important to
       // deduplicate assets here to avoid duplicate requests to the Snap.
       const accounts = this.#listAccounts();
-      const assetToSnapID = new Map<CaipAssetType, SnapId>();
+      const assetToSnapId = new Map<CaipAssetType, SnapId>();
       for (const account of accounts) {
         const snapId = account.metadata.snap?.id;
         // Assets may still be updated if they exist in another account with a
@@ -358,11 +358,11 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         }
 
         for (const asset of this.#getAssetsForAccount(account.id)) {
-          assetToSnapID.set(asset, snapId as SnapId);
+          assetToSnapId.set(asset, snapId as SnapId);
         }
       }
 
-      this.#applyUpdatedRates(await this.#getUpdatedRatesFor(assetToSnapID));
+      this.#applyUpdatedRates(await this.#getUpdatedRatesFor(assetToSnapId));
     })().finally(() => {
       releaseLock();
     });
