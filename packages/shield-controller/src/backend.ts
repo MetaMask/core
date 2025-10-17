@@ -1,6 +1,7 @@
 import type { SignatureRequest } from '@metamask/signature-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
+import { PollingWithTimeout } from './polling-with-timeout';
 import type {
   CheckCoverageRequest,
   CheckSignatureCoverageRequest,
@@ -58,7 +59,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
 
   readonly #fetch: typeof globalThis.fetch;
 
-  readonly #abortControllerMap: Map<string, AbortController> = new Map();
+  readonly #pollingWithTimeout: PollingWithTimeout;
 
   constructor({
     getAccessToken,
@@ -78,6 +79,10 @@ export class ShieldRemoteBackend implements ShieldBackend {
     this.#getCoverageResultPollInterval = getCoverageResultPollInterval;
     this.#baseUrl = baseUrl;
     this.#fetch = fetchFn;
+    this.#pollingWithTimeout = new PollingWithTimeout({
+      timeout: getCoverageResultTimeout,
+      pollInterval: getCoverageResultPollInterval,
+    });
   }
 
   async checkCoverage(req: CheckCoverageRequest): Promise<CoverageResult> {
@@ -89,9 +94,6 @@ export class ShieldRemoteBackend implements ShieldBackend {
         reqBody,
       ));
     }
-
-    // Cancel any previous pending requests for the same transaction.
-    this.#cancelPendingRequests(req.txMeta.id);
 
     const txCoverageResultUrl = `${this.#baseUrl}/v1/transaction/coverage/result`;
     const coverageResult = await this.#getCoverageResult(coverageId, {
@@ -118,9 +120,6 @@ export class ShieldRemoteBackend implements ShieldBackend {
       ));
     }
 
-    // Cancel any previous pending requests for the same signature.
-    this.#cancelPendingRequests(req.signatureRequest.id);
-
     const signatureCoverageResultUrl = `${this.#baseUrl}/v1/signature/coverage/result`;
     const coverageResult = await this.#getCoverageResult(coverageId, {
       requestId: req.signatureRequest.id,
@@ -142,9 +141,6 @@ export class ShieldRemoteBackend implements ShieldBackend {
       ...initBody,
     };
 
-    // cancel/abort any pending coverage result polling before logging the signature
-    this.#cancelPendingRequests(req.signatureRequest.id);
-
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/signature/coverage/log`,
       {
@@ -165,9 +161,6 @@ export class ShieldRemoteBackend implements ShieldBackend {
       status: req.status,
       ...initBody,
     };
-
-    // cancel/abort any pending coverage result polling before logging the transaction
-    this.#cancelPendingRequests(req.txMeta.id);
 
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/transaction/coverage/log`,
@@ -209,54 +202,32 @@ export class ShieldRemoteBackend implements ShieldBackend {
     const reqBody: GetCoverageResultRequest = {
       coverageId,
     };
-
-    const timeout = config?.timeout ?? this.#getCoverageResultTimeout;
-    const pollInterval =
-      config?.pollInterval ?? this.#getCoverageResultPollInterval;
-
+    const pollingOptions = {
+      timeout: config.timeout ?? this.#getCoverageResultTimeout,
+      pollInterval: config.pollInterval ?? this.#getCoverageResultPollInterval,
+    };
     const headers = await this.#createHeaders();
+
     return await new Promise((resolve, reject) => {
-      let timeoutReached = false;
-
-      const abortHandler = () => {
-        timeoutReached = true;
-        this.#removeAbortHandler(config.requestId, abortHandler);
-        reject(new Error('Coverage result polling cancelled'));
-      };
-      const abortController = this.#assignNewAbortController(
-        config.requestId,
-        abortHandler,
-      );
-
-      setTimeout(() => {
-        timeoutReached = true;
-        this.#removeAbortHandler(config.requestId, abortHandler);
-        reject(new Error('Timeout waiting for coverage result'));
-      }, timeout);
-
-      const poll = async (): Promise<GetCoverageResultResponse> => {
-        // The timeoutReached variable is modified in the timeout callback.
-        // eslint-disable-next-line no-unmodified-loop-condition
-        while (!timeoutReached) {
-          const startTime = Date.now();
-          const res = await this.#fetch(config.coverageResultUrl, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(reqBody),
-            signal: abortController.signal,
-          });
-          if (res.status === 200) {
-            this.#removeAbortHandler(config.requestId, abortHandler);
-            return (await res.json()) as GetCoverageResultResponse;
-          }
-          await sleep(pollInterval - (Date.now() - startTime));
+      const requestCoverageFn = async (
+        signal: AbortSignal,
+      ): Promise<GetCoverageResultResponse> => {
+        const res = await this.#fetch(config.coverageResultUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(reqBody),
+          signal,
+        });
+        if (res.status === 200) {
+          return (await res.json()) as GetCoverageResultResponse;
         }
-        // The following line will not have an effect as the upper level promise
-        // will already be rejected by now.
-        throw new Error('unexpected error');
+        throw new Error(`Failed to get coverage result: ${res.status}`);
       };
 
-      poll().then(resolve).catch(reject);
+      this.#pollingWithTimeout
+        .pollRequest(config.requestId, requestCoverageFn, pollingOptions)
+        .then(resolve)
+        .catch(() => reject(new Error('Timeout waiting for coverage result')));
     });
   }
 
@@ -267,44 +238,6 @@ export class ShieldRemoteBackend implements ShieldBackend {
       Authorization: `Bearer ${accessToken}`,
     };
   }
-
-  #cancelPendingRequests(id: string) {
-    const abortController = this.#abortControllerMap.get(id);
-    if (abortController && !abortController.signal.aborted) {
-      abortController.abort();
-      this.#removeAbortHandler(id);
-    }
-  }
-
-  #removeAbortHandler(requestId: string, abortHandler?: () => void) {
-    const abortController = this.#abortControllerMap.get(requestId);
-    if (abortController) {
-      if (abortHandler) {
-        abortController.signal.removeEventListener('abort', abortHandler);
-      }
-      this.#abortControllerMap.delete(requestId);
-    }
-  }
-
-  #assignNewAbortController(
-    requestId: string,
-    abortHandler: () => void,
-  ): AbortController {
-    const newAbortController = new AbortController();
-    newAbortController.signal.addEventListener('abort', abortHandler);
-    this.#abortControllerMap.set(requestId, newAbortController);
-    return newAbortController;
-  }
-}
-
-/**
- * Sleep for a specified amount of time.
- *
- * @param ms - The number of milliseconds to sleep.
- * @returns A promise that resolves after the specified amount of time.
- */
-async function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**

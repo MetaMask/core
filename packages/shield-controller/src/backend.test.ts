@@ -1,7 +1,5 @@
-/* eslint-disable jest/no-conditional-in-test */
 import { ShieldRemoteBackend } from './backend';
 import {
-  delay,
   generateMockSignatureRequest,
   generateMockTxMeta,
   getRandomCoverageResult,
@@ -44,75 +42,6 @@ function setup({
     getAccessToken,
     fetchMock,
   };
-}
-
-/**
- * Setup a fetch mock for polling tests.
- *
- * @param fetchMock - The mock instance of the fetch API.
- * @param options - The options for the fetch mock.
- * @param options.delayBetweenResultRequests - The delay between result requests.
- * @param options.shouldReturnErrorResult - Whether to return an error result.
- *
- * @returns The mock coverage ID.
- */
-function setupMockRequestsForPollingTests(
-  fetchMock: jest.MockedFunction<typeof fetch>,
-  options: {
-    delayBetweenResultRequests?: number;
-    shouldReturnErrorResult?: boolean;
-  } = {
-    shouldReturnErrorResult: true,
-  },
-) {
-  const MOCK_COVERAGE_ID = 'coverageId';
-  fetchMock.mockImplementation(
-    async (input: RequestInfo | URL, init?: RequestInit) => {
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
-      const url = typeof input === 'string' ? input : input.toString();
-      const signal = init?.signal;
-
-      if (url.includes('/init')) {
-        return {
-          status: 200,
-          json: jest.fn().mockResolvedValue({ coverageId: MOCK_COVERAGE_ID }),
-        } as unknown as Response;
-      }
-
-      if (url.includes('/result')) {
-        if (signal?.aborted) {
-          throw new Error('Request was aborted');
-        }
-
-        if (options.delayBetweenResultRequests) {
-          await delay(options.delayBetweenResultRequests);
-        }
-
-        if (options.shouldReturnErrorResult) {
-          return {
-            status: 412,
-            json: jest.fn().mockResolvedValue({ status: 'unknown' }),
-          } as unknown as Response;
-        }
-        return {
-          status: 200,
-          json: jest.fn().mockResolvedValue({
-            status: 'covered',
-            message: 'test',
-            reasonCode: 'test',
-          }),
-        } as unknown as Response;
-      }
-
-      if (url.includes('/log')) {
-        return { status: 200 } as unknown as Response;
-      }
-
-      throw new Error('Unexpected URL');
-    },
-  );
-
-  return MOCK_COVERAGE_ID;
 }
 
 describe('ShieldRemoteBackend', () => {
@@ -296,36 +225,6 @@ describe('ShieldRemoteBackend', () => {
         }),
       ).rejects.toThrow('Failed to log signature: 500');
     });
-
-    it('aborts pending coverage result polling before logging', async () => {
-      const { backend, fetchMock } = setup({
-        getCoverageResultTimeout: 10000,
-        getCoverageResultPollInterval: 100,
-      });
-
-      const signatureRequest = generateMockSignatureRequest();
-      setupMockRequestsForPollingTests(fetchMock);
-
-      // Start coverage check (don't await) - this will start polling
-      const coveragePromise = backend.checkSignatureCoverage({
-        signatureRequest,
-      });
-
-      // Wait a bit to let polling start
-      await delay(50);
-
-      // Log signature - this should abort the ongoing polling
-      await backend.logSignature({
-        signatureRequest,
-        signature: '0x00',
-        status: 'shown',
-      });
-
-      // Coverage check should be cancelled
-      await expect(coveragePromise).rejects.toThrow(
-        'Coverage result polling cancelled',
-      );
-    });
   });
 
   describe('logTransaction', () => {
@@ -355,123 +254,6 @@ describe('ShieldRemoteBackend', () => {
           status: 'shown',
         }),
       ).rejects.toThrow('Failed to log transaction: 500');
-    });
-
-    it('aborts pending coverage result polling before logging', async () => {
-      const { backend, fetchMock } = setup({
-        getCoverageResultTimeout: 10000,
-        getCoverageResultPollInterval: 100,
-      });
-
-      const txMeta = generateMockTxMeta();
-      setupMockRequestsForPollingTests(fetchMock);
-
-      // Start coverage check (don't await) - this will start polling
-      const coveragePromise = backend.checkCoverage({ txMeta });
-
-      // Wait a bit to let polling start
-      await delay(50);
-
-      // Log transaction - this should abort the ongoing polling
-      await backend.logTransaction({
-        txMeta,
-        transactionHash: '0x00',
-        status: 'shown',
-      });
-
-      // Coverage check should be cancelled
-      await expect(coveragePromise).rejects.toThrow(
-        'Coverage result polling cancelled',
-      );
-    });
-  });
-
-  // Testing coverage result polling with timeout and cancellation.
-  describe('withTimeoutAndCancellation', () => {
-    it('should abort previous result request when new request is made', async () => {
-      const { backend, fetchMock } = setup({
-        getCoverageResultTimeout: 10000, // Long timeout to avoid timeout during test
-        getCoverageResultPollInterval: 100,
-      });
-
-      const signatureRequest = generateMockSignatureRequest();
-      const coverageId = setupMockRequestsForPollingTests(fetchMock, {
-        shouldReturnErrorResult: false,
-        delayBetweenResultRequests: 150, // Long enough to let the first request start and the second request abort it
-      });
-
-      // Start first request (don't await)
-      const firstRequestPromise = backend.checkSignatureCoverage({
-        signatureRequest,
-      });
-
-      // Wait a bit to let first request start
-      await delay(50);
-
-      // Start second request which should abort the first
-      const secondRequestPromise = backend.checkSignatureCoverage({
-        signatureRequest,
-        coverageId,
-      });
-
-      // Verify first request was cancelled and second succeeded
-      await expect(firstRequestPromise).rejects.toThrow(
-        'Coverage result polling cancelled',
-      );
-
-      const secondResult = await secondRequestPromise;
-      expect(secondResult).toMatchObject({
-        coverageId,
-        status: 'covered',
-      });
-    });
-
-    it('should handle timeout properly during result polling', async () => {
-      const { backend, fetchMock } = setup({
-        getCoverageResultTimeout: 200, // Short timeout to simulate the coverage result polling timeout
-        getCoverageResultPollInterval: 50,
-      });
-
-      const signatureRequest = generateMockSignatureRequest();
-      setupMockRequestsForPollingTests(fetchMock);
-
-      await expect(
-        backend.checkSignatureCoverage({ signatureRequest }),
-      ).rejects.toThrow('Timeout waiting for coverage result');
-    });
-
-    it('should handle multiple concurrent requests with proper cancellation', async () => {
-      const { backend, fetchMock } = setup();
-
-      const signatureRequest = generateMockSignatureRequest();
-      const result = getRandomCoverageResult();
-      const coverageId = 'test-coverage-id';
-
-      // Mock simple successful responses
-      fetchMock
-        .mockResolvedValueOnce({
-          status: 200,
-          json: jest.fn().mockResolvedValue({ coverageId }),
-        } as unknown as Response)
-        .mockResolvedValueOnce({
-          status: 200,
-          json: jest.fn().mockResolvedValue(result),
-        } as unknown as Response);
-
-      // Test that the backend can handle requests properly
-      // Note: Concurrent cancellation behavior is tested by 100% code coverage
-      const requestResult = await backend.checkSignatureCoverage({
-        signatureRequest,
-      });
-
-      // Verify the request completed successfully
-      expect(requestResult).toMatchObject({
-        coverageId,
-        ...result,
-      });
-
-      // Verify that fetch was called (init + result calls)
-      expect(fetchMock).toHaveBeenCalledTimes(2);
     });
   });
 });
