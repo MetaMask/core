@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.8.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+
+## [14.1.2]
+
+### Changed
+
+- Update hotlist endpoint from v1 to v2 for blocklistPaths support ([#6815](https://github.com/MetaMask/core/pull/6815))
+  - Changed `METAMASK_HOTLIST_DIFF_FILE` from `/v1/diffsSince` to `/v2/diffsSince`
+  - Removed query parameter approach for blocklistPaths in favor of v2 endpoint
+
 ## [14.1.1]
 
 ### Changed
@@ -441,7 +453,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.2...HEAD
+[14.1.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.1...@metamask/phishing-controller@14.1.2
 [14.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.0...@metamask/phishing-controller@14.1.1
 [14.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.0.0...@metamask/phishing-controller@14.1.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@13.1.0...@metamask/phishing-controller@14.0.0

@@ -12,10 +12,12 @@ import type {
   GetSubscriptionsResponse,
   ISubscriptionService,
   PricingResponse,
+  SubscriptionEligibility,
   StartCryptoSubscriptionRequest,
   StartCryptoSubscriptionResponse,
   StartSubscriptionRequest,
   StartSubscriptionResponse,
+  SubmitUserEventRequest,
   Subscription,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCardResponse,
@@ -99,6 +101,32 @@ export class SubscriptionService implements ISubscriptionService {
       ...request,
       subscriptionId: undefined,
     });
+  }
+
+  /**
+   * Get the eligibility for a shield subscription.
+   *
+   * @returns The eligibility for a shield subscription
+   */
+  async getSubscriptionsEligibilities(): Promise<SubscriptionEligibility[]> {
+    const path = 'subscriptions/eligibility';
+    const results = await this.#makeRequest<SubscriptionEligibility[]>(path);
+    return results.map((result) => ({
+      ...result,
+      canSubscribe: result.canSubscribe || false,
+      canViewEntryModal: result.canViewEntryModal || false,
+    }));
+  }
+
+  /**
+   * Submit a user event. (e.g. shield modal viewed)
+   *
+   * @param request - Request object containing the event to submit.
+   * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed }
+   */
+  async submitUserEvent(request: SubmitUserEventRequest): Promise<void> {
+    const path = 'user-events';
+    await this.#makeRequest(path, 'POST', request);
   }
 
   async #makeRequest<Result>(

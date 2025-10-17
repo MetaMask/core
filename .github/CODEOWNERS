@@ -35,6 +35,7 @@
 
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
+
 ## Notifications Team
 /packages/notification-services-controller     @MetaMask/notifications
 
@@ -45,8 +46,7 @@
 /packages/bridge-controller                @MetaMask/swaps-engineers
 /packages/bridge-status-controller        @MetaMask/swaps-engineers
 
-## Platform Team
-
+## Mobile Platform Team
 /packages/app-metadata-controller @MetaMask/mobile-platform
 
 ## Portfolio Team
@@ -55,7 +55,7 @@
 ## Vault Team
 /packages/delegation-controller           @MetaMask/vault
 
-## Wallet API Platform Team
+## Wallet Integrations Team
 /packages/chain-agnostic-permission        @MetaMask/wallet-integrations
 /packages/eip1193-permission-middleware    @MetaMask/wallet-integrations
 /packages/multichain-api-middleware        @MetaMask/wallet-integrations
@@ -68,14 +68,12 @@
 /packages/composable-controller        @MetaMask/core-platform
 /packages/controller-utils             @MetaMask/core-platform
 /packages/error-reporting-service      @MetaMask/core-platform
+/packages/eth-json-rpc-middleware      @MetaMask/core-platform
 /packages/messenger                    @MetaMask/core-platform
 /packages/sample-controllers           @MetaMask/core-platform
 /packages/polling-controller           @MetaMask/core-platform
 /packages/preferences-controller       @MetaMask/core-platform
 /packages/rate-limit-controller        @MetaMask/core-platform
-
-## Wallet UX Team
-/packages/announcement-controller      @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
 
 ## Web3Auth Team
 /packages/seedless-onboarding-controller @MetaMask/web3auth
@@ -83,17 +81,21 @@
 /packages/subscription-controller        @MetaMask/web3auth
 
 ## Joint team ownership
-/packages/eth-json-rpc-provider        @MetaMask/wallet-integrations @MetaMask/core-platform
-/packages/json-rpc-engine              @MetaMask/wallet-integrations @MetaMask/core-platform
-/packages/json-rpc-middleware-stream   @MetaMask/wallet-integrations @MetaMask/core-platform
-/packages/keyring-controller           @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/multichain-network-controller  @MetaMask/core-platform @MetaMask/accounts-engineers @MetaMask/metamask-assets
-/packages/network-controller           @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/permission-controller        @MetaMask/wallet-integrations @MetaMask/core-platform
-/packages/permission-log-controller    @MetaMask/wallet-integrations @MetaMask/core-platform
-/packages/remote-feature-flag-controller @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/foundryup                    @MetaMask/mobile-platform @MetaMask/extension-platform
-/packages/core-backend                 @MetaMask/core-platform @MetaMask/metamask-assets
+/packages/announcement-controller               @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
+/packages/core-backend                          @MetaMask/core-platform @MetaMask/metamask-assets
+/packages/eth-block-tracker                     @MetaMask/wallet-integrations @MetaMask/core-platform
+/packages/eth-json-rpc-middleware/src/methods   @MetaMask/confirmations @MetaMask/wallet-api-platform-engineers
+/packages/eth-json-rpc-middleware/src/wallet.*  @MetaMask/confirmations @MetaMask/wallet-api-platform-engineers
+/packages/eth-json-rpc-provider                 @MetaMask/wallet-integrations @MetaMask/core-platform
+/packages/foundryup                             @MetaMask/mobile-platform @MetaMask/extension-platform
+/packages/json-rpc-engine                       @MetaMask/wallet-integrations @MetaMask/core-platform
+/packages/json-rpc-middleware-stream            @MetaMask/wallet-integrations @MetaMask/core-platform
+/packages/keyring-controller                    @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/multichain-network-controller         @MetaMask/core-platform @MetaMask/accounts-engineers @MetaMask/metamask-assets
+/packages/network-controller                    @MetaMask/core-platform @MetaMask/metamask-assets
+/packages/permission-controller                 @MetaMask/wallet-integrations @MetaMask/core-platform
+/packages/permission-log-controller             @MetaMask/wallet-integrations @MetaMask/core-platform
+/packages/remote-feature-flag-controller        @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 
 ## Package Release related
 /packages/account-tree-controller/package.json  @MetaMask/accounts-engineers @MetaMask/core-platform

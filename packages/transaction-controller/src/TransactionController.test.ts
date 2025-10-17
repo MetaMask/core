@@ -2385,8 +2385,11 @@ describe('TransactionController', () => {
 
     describe('updates simulation data', () => {
       it('by default', async () => {
-        getBalanceChangesMock.mockResolvedValueOnce({
-          simulationData: SIMULATION_DATA_RESULT_MOCK,
+        getBalanceChangesMock.mockImplementationOnce(async (request) => {
+          await request.getSimulationConfig('https://testurl.com');
+          return {
+            simulationData: SIMULATION_DATA_RESULT_MOCK,
+          };
         });
 
         const { controller } = setupController();
@@ -2449,8 +2452,11 @@ describe('TransactionController', () => {
       });
 
       it('with getSimulationConfig', async () => {
-        getBalanceChangesMock.mockResolvedValueOnce({
-          simulationData: SIMULATION_DATA_RESULT_MOCK,
+        getBalanceChangesMock.mockImplementationOnce(async (request) => {
+          await request.getSimulationConfig('https://testurl.com');
+          return {
+            simulationData: SIMULATION_DATA_RESULT_MOCK,
+          };
         });
 
         const getSimulationConfigMock: GetSimulationConfig = jest
@@ -2478,8 +2484,21 @@ describe('TransactionController', () => {
         expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
         expect(getBalanceChangesMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            getSimulationConfig: getSimulationConfigMock,
+            getSimulationConfig: expect.any(Function),
           }),
+        );
+
+        expect(getSimulationConfigMock).toHaveBeenCalledTimes(1);
+        expect(getSimulationConfigMock).toHaveBeenCalledWith(
+          'https://testurl.com',
+          {
+            txMeta: expect.objectContaining({
+              txParams: expect.objectContaining({
+                from: ACCOUNT_MOCK,
+                to: ACCOUNT_MOCK,
+              }),
+            }),
+          },
         );
 
         expect(controller.state.transactions[0].simulationData).toStrictEqual(
@@ -2896,10 +2915,6 @@ describe('TransactionController', () => {
         await flushPromises();
 
         expect(ExtraTransactionsPublishHook).toHaveBeenCalledTimes(1);
-        expect(ExtraTransactionsPublishHook).toHaveBeenCalledWith({
-          addTransactionBatch: expect.any(Function),
-        });
-
         expect(publishHook).toHaveBeenCalledTimes(1);
       });
 
@@ -5488,6 +5503,55 @@ describe('TransactionController', () => {
         );
         expect(updatedTransaction?.txParams.gasPrice).toBe('0x5678');
         expect(updatedTransaction?.userFeeLevel).toBe('custom');
+      });
+
+      it('does not update transaction gas estimates when isAutomaticGasFeeUpdateEnabled returns false', () => {
+        const transactionId = '1';
+
+        const { controller } = setupController({
+          options: {
+            isAutomaticGasFeeUpdateEnabled: () => false,
+            state: {
+              transactions: [
+                {
+                  id: transactionId,
+                  chainId: '0x1',
+                  networkClientId: NETWORK_CLIENT_ID_MOCK,
+                  time: 123456789,
+                  status: TransactionStatus.unapproved as const,
+                  gasFeeEstimates: {
+                    type: GasFeeEstimateType.Legacy,
+                    low: '0x1',
+                    medium: '0x2',
+                    high: '0x3',
+                  },
+                  txParams: {
+                    type: TransactionEnvelopeType.legacy,
+                    from: ACCOUNT_MOCK,
+                    to: ACCOUNT_2_MOCK,
+                    gasPrice: '0x1234',
+                  },
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        controller.updateTransactionGasFees(transactionId, {
+          userFeeLevel: GasFeeEstimateLevel.Medium,
+          gasPrice: '0x5678',
+        });
+
+        expect(updateTransactionGasEstimatesMock).not.toHaveBeenCalled();
+
+        const updatedTransaction = controller.state.transactions.find(
+          ({ id }) => id === transactionId,
+        );
+        expect(updatedTransaction?.txParams.gasPrice).toBe('0x5678');
+        expect(updatedTransaction?.userFeeLevel).toBe(
+          GasFeeEstimateLevel.Medium,
+        );
       });
     });
   });
