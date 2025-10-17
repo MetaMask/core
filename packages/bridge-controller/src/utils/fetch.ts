@@ -1,13 +1,13 @@
 import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import type { EventSourceMessage } from '@microsoft/fetch-event-source';
-import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 import { isBitcoinChainId } from './bridge';
 import {
   formatAddressToCaipReference,
   formatChainIdToDec,
 } from './caip-formatters';
+import { fetchServerEvents } from './fetch-server-events';
 import type { FeatureId } from './validators';
 import {
   validateQuoteResponse,
@@ -337,14 +337,14 @@ export async function fetchBridgeQuoteStream(
   };
 
   const urlStream = `${bridgeApiBaseUrl}/getQuoteStream?${queryParams}`;
-  await fetchEventSource(urlStream, {
-    headers: {
-      ...getClientHeaders(clientId, clientVersion),
-      'Content-Type': 'text/event-stream',
-    },
+  await fetchServerEvents(urlStream, {
+    // headers: {
+    //   ...getClientHeaders(clientId, clientVersion),
+    //   'Content-Type': 'text/event-stream',
+    // },
     signal,
-    onmessage: onMessage,
-    onerror: (e) => {
+    onMessage,
+    onError: (e) => {
       // Rethrow error to prevent silent fetch failures
       throw new Error(e.toString());
     },
