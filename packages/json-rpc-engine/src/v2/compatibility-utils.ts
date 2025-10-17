@@ -156,7 +156,9 @@ export function unserializeError(thrown: unknown): Error | JsonRpcError<Json> {
 
   const error =
     code === undefined
-      ? // @ts-expect-error - Error type outdated
+      ? // Jest complains if we use the `@ts-expect-error` directive here.
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore - Our error type is outdated.
         new Error(message, { cause })
       : new JsonRpcError(code, message, {
           ...(isObject(data) ? data : undefined),
