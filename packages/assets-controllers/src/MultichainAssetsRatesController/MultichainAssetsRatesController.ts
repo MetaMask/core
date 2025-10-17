@@ -31,7 +31,6 @@ import type {
 import { HandlerType } from '@metamask/snaps-utils';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
-import { cloneDeep } from 'lodash';
 
 import { MAP_CAIP_CURRENCIES } from './constant';
 import type {
