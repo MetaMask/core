@@ -71,6 +71,20 @@ const fakeEvmAccountWithoutMetadata: InternalAccount = {
   methods: [],
 };
 
+const fakeNonEvmAccount2: InternalAccount = {
+  id: 'account5',
+  type: 'solana:data-account',
+  address: '0x123',
+  metadata: {
+    name: 'Test Account',
+    // @ts-expect-error-next-line
+    snap: { id: 'test-snap-2', enabled: true },
+  },
+  scopes: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+  options: {},
+  methods: [],
+};
+
 const fakeMarketData = {
   price: 202.11,
   priceChange: 0,
@@ -127,6 +141,9 @@ const setupController = ({
         account1: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
         account2: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
         account3: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+        account5: [
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        ],
       },
       assetsMetadata: {
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
@@ -625,7 +642,7 @@ describe('MultichainAssetsRatesController', () => {
 
     it('handles mixed success and failure scenarios', async () => {
       const { controller, messenger } = setupController({
-        accountsAssets: [fakeNonEvmAccount, fakeEvmAccount2],
+        accountsAssets: [fakeNonEvmAccount, fakeNonEvmAccount2],
       });
 
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -957,7 +974,7 @@ describe('MultichainAssetsRatesController', () => {
       const snapHandler = jest.fn().mockResolvedValue({
         conversionRates: {
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
-            USD: {
+            'swift:0/iso4217:USD': {
               rate: '100.50',
               conversionTime: Date.now(),
             },
