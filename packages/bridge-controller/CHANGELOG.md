@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 627.0.0 ([#6888](https://github.com/MetaMask/core/pull/6888))
+- Release/626.0.0 ([#6887](https://github.com/MetaMask/core/pull/6887))
+- Release/624.0.0 ([#6845](https://github.com/MetaMask/core/pull/6845))
+- Release/622.0.0 ([#6841](https://github.com/MetaMask/core/pull/6841))
+- Release/621.0.0 ([#6840](https://github.com/MetaMask/core/pull/6840))
+
 ### Changed
 
 - **BREAKING:** Require clientVersion in BridgeController constructor ([#6891](https://github.com/MetaMask/core/pull/6891))
