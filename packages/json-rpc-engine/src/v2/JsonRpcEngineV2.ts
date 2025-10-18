@@ -7,7 +7,7 @@ import {
 } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
-import { MiddlewareContext } from './MiddlewareContext';
+import { MergeContexts, MiddlewareContext } from './MiddlewareContext';
 import {
   isNotification,
   isRequest,
@@ -65,9 +65,23 @@ type Options<Request extends JsonRpcCall, Context extends MiddlewareContext> = {
   >;
 };
 
+type CreateOptions<
+  InputReq extends JsonRpcCall,
+  Middleware extends NonEmptyArray<
+    JsonRpcMiddleware<InputReq, ResultConstraint<InputReq>, any>
+  >,
+> = {
+  middleware: Middleware;
+};
+
 type HandleOptions<Context extends MiddlewareContext> = {
   context?: Context;
 };
+
+type ContextOf<M> = M extends JsonRpcMiddleware<any, any, infer C> ? C : never;
+
+type MergedContextOf<Ms extends readonly JsonRpcMiddleware<any, any, any>[]> =
+  MergeContexts<ContextOf<Ms[number]>>;
 
 /**
  * A JSON-RPC request and response processor.
@@ -106,7 +120,7 @@ type HandleOptions<Context extends MiddlewareContext> = {
  */
 export class JsonRpcEngineV2<
   Request extends JsonRpcCall = JsonRpcCall,
-  Context extends MiddlewareContext = MiddlewareContext,
+  Context extends MiddlewareContext<any> = MiddlewareContext,
 > {
   #middleware: Readonly<
     NonEmptyArray<
@@ -118,6 +132,24 @@ export class JsonRpcEngineV2<
 
   constructor({ middleware }: Options<Request, Context>) {
     this.#middleware = [...middleware];
+  }
+
+  static create<
+    InputReq extends JsonRpcCall,
+    Middleware extends NonEmptyArray<
+      JsonRpcMiddleware<
+        InputReq,
+        ResultConstraint<InputReq>,
+        MiddlewareContext<any>
+      >
+    >,
+  >({ middleware }: CreateOptions<InputReq, Middleware>) {
+    type InputContext = MergedContextOf<Middleware>;
+    // Cast once so the instance is typed with the merged context
+    const mw = middleware as unknown as NonEmptyArray<
+      JsonRpcMiddleware<InputReq, ResultConstraint<InputReq>, InputContext>
+    >;
+    return new JsonRpcEngineV2<InputReq, InputContext>({ middleware: mw });
   }
 
   /**
