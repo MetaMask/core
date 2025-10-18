@@ -1,9 +1,9 @@
+import { ApprovalType } from '@metamask/controller-utils';
 import type {
   ActionConstraint,
   EventConstraint,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
-import { ApprovalType } from '@metamask/controller-utils';
+  Messenger,
+} from '@metamask/messenger';
 
 import type {
   AbstractMessage,
@@ -31,14 +31,12 @@ export type EncryptionPublicKeyManagerUpdateBadgeEvent = {
   payload: [];
 };
 
-export type EncryptionPublicKeyManagerMessenger = RestrictedMessenger<
+export type EncryptionPublicKeyManagerMessenger = Messenger<
   typeof managerName,
   ActionConstraint,
   | EventConstraint
   | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent
-  | EncryptionPublicKeyManagerUpdateBadgeEvent,
-  string,
-  string
+  | EncryptionPublicKeyManagerUpdateBadgeEvent
 >;
 
 type EncryptionPublicKeyManagerOptions = {
@@ -185,7 +183,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
     const messageId = messageData.id;
 
     await this.addMessage(messageData);
-    this.messagingSystem.publish(`${this.name}:unapprovedMessage`, {
+    this.messenger.publish(`${this.name}:unapprovedMessage` as const, {
       ...updatedMessageParams,
       metamaskId: messageId,
     });
