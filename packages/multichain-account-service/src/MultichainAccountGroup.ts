@@ -17,7 +17,6 @@ import {
 import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
 import {
-  AccountProviderWrapper,
   isAccountProviderWrapper,
   type BaseBip44AccountProvider,
 } from './providers';
