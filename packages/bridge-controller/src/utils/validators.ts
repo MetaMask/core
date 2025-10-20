@@ -44,6 +44,14 @@ const HexStringSchema = define<string>('HexString', (v: unknown) =>
   isStrictHexString(v as string),
 );
 
+const VersionStringSchema = define<string>(
+  'VersionString',
+  (v: unknown) =>
+    typeof v === 'string' &&
+    /^(\d+\.*){2}\d+$/u.test(v) &&
+    v.split('.').length === 3,
+);
+
 export const truthyString = (s: string) => Boolean(s?.length);
 const TruthyDigitStringSchema = pattern(string(), /^\d+$/u);
 
@@ -138,7 +146,15 @@ export const PlatformConfigSchema = type({
    * Key is the CAIP chainId namespace
    */
   bip44DefaultPairs: optional(record(string(), optional(DefaultPairSchema))),
-  sseEnabled: optional(boolean()),
+  sse: optional(
+    type({
+      enabled: boolean(),
+      /**
+       * The minimum version of the client required to enable SSE, for example 13.8.0
+       */
+      minimumVersion: VersionStringSchema,
+    }),
+  ),
 });
 
 export const validateFeatureFlagsResponse = (

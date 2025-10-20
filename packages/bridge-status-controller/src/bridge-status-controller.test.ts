@@ -3515,6 +3515,7 @@ describe('BridgeStatusController', () => {
         fetchFn: jest.fn(),
         trackMetaMetricsFn: mockTrackEventFn,
         getLayer1GasFee: jest.fn(),
+        clientVersion: '13.4.0',
       });
 
       mockFetchFn = jest
