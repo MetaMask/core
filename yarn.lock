@@ -3098,9 +3098,9 @@ __metadata:
   dependencies:
     "@metamask/accounts-controller": "npm:^33.1.1"
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/base-controller": "npm:^8.4.1"
     "@metamask/controller-utils": "npm:^11.14.1"
     "@metamask/keyring-controller": "npm:^23.1.1"
+    "@metamask/messenger": "npm:^0.3.0"
     "@metamask/profile-sync-controller": "npm:^25.1.1"
     "@metamask/utils": "npm:^11.8.1"
     "@ts-bridge/cli": "npm:^0.6.1"

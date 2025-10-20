@@ -9,9 +9,9 @@ import type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
-import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { Messenger } from '@metamask/messenger';
 
 import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types';
 import type {
@@ -76,27 +76,7 @@ export type AccountActivityServiceOptions = {
 // Action types for the messaging system - using generated method actions
 export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
 
-// Allowed actions that AccountActivityService can call on other controllers
-export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
-  'AccountsController:getSelectedAccount',
-  'BackendWebSocketService:connect',
-  'BackendWebSocketService:disconnect',
-  'BackendWebSocketService:subscribe',
-  'BackendWebSocketService:getConnectionInfo',
-  'BackendWebSocketService:channelHasSubscription',
-  'BackendWebSocketService:getSubscriptionsByChannel',
-  'BackendWebSocketService:findSubscriptionsByChannelPrefix',
-  'BackendWebSocketService:addChannelCallback',
-  'BackendWebSocketService:removeChannelCallback',
-] as const;
-
-// Allowed events that AccountActivityService can listen to
-export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS = [
-  'AccountsController:selectedAccountChange',
-  'BackendWebSocketService:connectionStateChanged',
-] as const;
-
-export type AccountActivityServiceAllowedActions =
+type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | BackendWebSocketServiceMethodActions;
 
@@ -134,16 +114,14 @@ export type AccountActivityServiceEvents =
   | AccountActivityServiceSubscriptionErrorEvent
   | AccountActivityServiceStatusChangedEvent;
 
-export type AccountActivityServiceAllowedEvents =
+export type AllowedEvents =
   | AccountsControllerSelectedAccountChangeEvent
   | BackendWebSocketServiceConnectionStateChangedEvent;
 
-export type AccountActivityServiceMessenger = RestrictedMessenger<
+export type AccountActivityServiceMessenger = Messenger<
   typeof SERVICE_NAME,
-  AccountActivityServiceActions | AccountActivityServiceAllowedActions,
-  AccountActivityServiceEvents | AccountActivityServiceAllowedEvents,
-  AccountActivityServiceAllowedActions['type'],
-  AccountActivityServiceAllowedEvents['type']
+  AccountActivityServiceActions | AllowedActions,
+  AccountActivityServiceEvents | AllowedEvents
 >;
 
 // =============================================================================
