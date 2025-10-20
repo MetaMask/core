@@ -18,6 +18,14 @@ import { makeNotification, makeRequest } from '../../tests/utils';
 const jsonrpc = '2.0' as const;
 
 describe('JsonRpcEngineV2', () => {
+  describe('create', () => {
+    it('throws if the middleware array is empty', () => {
+      expect(() => JsonRpcEngineV2.create({ middleware: [] })).toThrow(
+        new JsonRpcEngineError('Middleware array cannot be empty'),
+      );
+    });
+  });
+
   describe('handle', () => {
     describe('notifications', () => {
       it('passes the notification through a middleware', async () => {

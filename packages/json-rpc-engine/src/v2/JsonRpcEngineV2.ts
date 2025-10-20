@@ -60,14 +60,17 @@ type RequestState<Request extends JsonRpcCall> = {
   result: Readonly<ResultConstraint<Request>> | undefined;
 };
 
-type Options<Request extends JsonRpcCall, Context extends MiddlewareContext> = {
+type HandleOptions<Context extends MiddlewareContext> = {
+  context?: Context;
+};
+
+type ConstructorOptions<
+  Request extends JsonRpcCall,
+  Context extends MiddlewareContext,
+> = {
   middleware: NonEmptyArray<
     JsonRpcMiddleware<Request, ResultConstraint<Request>, Context>
   >;
-};
-
-type HandleOptions<Context extends MiddlewareContext> = {
-  context?: Context;
 };
 
 type ContextOf<Middleware> =
@@ -80,8 +83,13 @@ type ContextOf<Middleware> =
 type MergedContextOf<
   // Non-polluting `any` constraint.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Middleware extends JsonRpcMiddleware<any, ResultConstraint<any>, any>,
+  Middleware extends JsonRpcMiddleware<any, any, any>,
 > = MergeContexts<ContextOf<Middleware>>;
+
+type MiddlewareConstraint<
+  Request extends JsonRpcCall,
+  Context extends ContextConstraint,
+> = JsonRpcMiddleware<Request, ResultConstraint<Request>, Context>;
 
 /**
  * A JSON-RPC request and response processor.
@@ -131,7 +139,7 @@ export class JsonRpcEngineV2<
   #isDestroyed = false;
 
   // See .create() for why this is private.
-  private constructor({ middleware }: Options<Request, Context>) {
+  private constructor({ middleware }: ConstructorOptions<Request, Context>) {
     this.#middleware = [...middleware];
   }
 
@@ -141,6 +149,7 @@ export class JsonRpcEngineV2<
   /**
    * Create a new JSON-RPC engine.
    *
+   * @throws If the middleware array is empty.
    * @param options - The options for the engine.
    * @param options.middleware - The middleware to use.
    * @returns The JSON-RPC engine.
@@ -148,18 +157,17 @@ export class JsonRpcEngineV2<
   static create<
     InputRequest extends JsonRpcCall = JsonRpcCall,
     InputContext extends ContextConstraint = ContextConstraint,
-    Middleware extends JsonRpcMiddleware<
+    Middleware extends MiddlewareConstraint<
       InputRequest,
-      ResultConstraint<InputRequest>,
       InputContext
-    > = JsonRpcMiddleware<
-      InputRequest,
-      ResultConstraint<InputRequest>,
-      InputContext
-    >,
+    > = MiddlewareConstraint<InputRequest, InputContext>,
   >({ middleware }: { middleware: Middleware[] }) {
+    // We can't use NonEmptyArray for the params because it ruins type inference.
+    if (middleware.length === 0) {
+      throw new JsonRpcEngineError('Middleware array cannot be empty');
+    }
+
     type MergedContext = MergedContextOf<Middleware>;
-    // Cast once so the instance is typed with the merged context
     const mw = middleware as unknown as NonEmptyArray<
       JsonRpcMiddleware<
         InputRequest,
@@ -167,7 +175,6 @@ export class JsonRpcEngineV2<
         MergedContext
       >
     >;
-
     return new JsonRpcEngineV2<InputRequest, MergedContext>({
       middleware: mw,
     }) as MergedContext extends never
