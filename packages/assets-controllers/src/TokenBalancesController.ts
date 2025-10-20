@@ -1145,7 +1145,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
       // Update native balances in AccountTrackerController
       if (nativeBalanceUpdates.length > 0) {
-        this.messagingSystem.call(
+        this.messenger.call(
           'AccountTrackerController:updateNativeBalances',
           nativeBalanceUpdates,
         );
@@ -1153,7 +1153,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
       // Import any new tokens that were discovered (balance already updated from websocket)
       if (newTokens.length > 0) {
-        await this.messagingSystem.call(
+        await this.messenger.call(
           'TokenDetectionController:addDetectedTokensViaWs',
           {
             tokensSlice: newTokens,
