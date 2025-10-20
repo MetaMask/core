@@ -21,7 +21,7 @@ describe('asV2Middleware', () => {
       end();
     });
 
-    const v2Engine = new JsonRpcEngineV2({
+    const v2Engine = JsonRpcEngineV2.create<JsonRpcRequest>({
       middleware: [asV2Middleware(legacyEngine)],
     });
 
@@ -36,7 +36,7 @@ describe('asV2Middleware', () => {
       end();
     });
 
-    const v2Engine = new JsonRpcEngineV2({
+    const v2Engine = JsonRpcEngineV2.create<JsonRpcRequest>({
       middleware: [asV2Middleware(legacyEngine)],
     });
 
@@ -52,7 +52,7 @@ describe('asV2Middleware', () => {
       end();
     });
 
-    const v2Engine = new JsonRpcEngineV2({
+    const v2Engine = JsonRpcEngineV2.create<JsonRpcRequest>({
       middleware: [asV2Middleware(legacyEngine)],
     });
 
@@ -68,7 +68,7 @@ describe('asV2Middleware', () => {
     });
     legacyEngine.push(legacyMiddleware);
 
-    const v2Engine = new JsonRpcEngineV2({
+    const v2Engine = JsonRpcEngineV2.create<JsonRpcRequest>({
       middleware: [asV2Middleware(legacyEngine), () => null],
     });
 
@@ -91,7 +91,7 @@ describe('asV2Middleware', () => {
     });
     legacyEngine.push(legacyMiddleware);
 
-    const v2Engine = new JsonRpcEngineV2<
+    const v2Engine = JsonRpcEngineV2.create<
       JsonRpcRequest,
       MiddlewareContext<Record<string, number>>
     >({

@@ -50,9 +50,7 @@ export type MiddlewareParams<
 export type JsonRpcMiddleware<
   Request extends JsonRpcCall = JsonRpcCall,
   Result extends ResultConstraint<Request> = ResultConstraint<Request>,
-  Context extends ContextConstraint = MiddlewareContext<
-    Record<PropertyKey, unknown>
-  >,
+  Context extends ContextConstraint = MiddlewareContext,
 > = (
   params: MiddlewareParams<Request, Context>,
 ) => Readonly<Result> | undefined | Promise<Readonly<Result> | undefined>;
@@ -138,21 +136,27 @@ export class JsonRpcEngineV2<
 
   static create<
     InputRequest extends JsonRpcCall = JsonRpcCall,
+    InputContext extends ContextConstraint = ContextConstraint,
     Middleware extends JsonRpcMiddleware<
       InputRequest,
-      ResultConstraint<InputRequest>
-    > = JsonRpcMiddleware<InputRequest, ResultConstraint<InputRequest>>,
+      ResultConstraint<InputRequest>,
+      InputContext
+    > = JsonRpcMiddleware<
+      InputRequest,
+      ResultConstraint<InputRequest>,
+      InputContext
+    >,
   >({ middleware }: { middleware: Middleware[] }) {
-    type InputContext = MergedContextOf<Middleware>;
+    type MergedContext = MergedContextOf<Middleware>;
     // Cast once so the instance is typed with the merged context
     const mw = middleware as unknown as NonEmptyArray<
       JsonRpcMiddleware<
         InputRequest,
         ResultConstraint<InputRequest>,
-        InputContext
+        MergedContext
       >
     >;
-    return new JsonRpcEngineV2<InputRequest, InputContext>({ middleware: mw });
+    return new JsonRpcEngineV2<InputRequest, MergedContext>({ middleware: mw });
   }
 
   /**

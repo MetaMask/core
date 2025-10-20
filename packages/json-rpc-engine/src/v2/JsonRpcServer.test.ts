@@ -7,7 +7,7 @@ import { isRequest } from './utils';
 const jsonrpc = '2.0' as const;
 
 const makeEngine = () => {
-  return new JsonRpcEngineV2({
+  return JsonRpcEngineV2.create({
     middleware: [
       ({ request }) => {
         if (request.method !== 'hello') {
