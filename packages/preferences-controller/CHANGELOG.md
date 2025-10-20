@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6534](https://github.com/MetaMask/core/pull/6534))
+  - Previously, `PreferencesController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+
 ### Added
 
 - Add support for MONAD (chain ID `0x8f`) ([#6827](https://github.com/MetaMask/core/pull/6827))
