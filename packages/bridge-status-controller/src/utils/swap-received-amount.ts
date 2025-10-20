@@ -44,7 +44,7 @@ const getReceivedERC20Amount = (
   const tokenTransferLog = txReceipt.logs.find((txReceiptLog) => {
     const isTokenTransfer =
       txReceiptLog.topics &&
-      txReceiptLog.topics[0].startsWith(TOKEN_TRANSFER_LOG_TOPIC_HASH);
+      txReceiptLog.topics[0]?.startsWith(TOKEN_TRANSFER_LOG_TOPIC_HASH);
     const isTransferFromGivenToken =
       txReceiptLog.address?.toLowerCase() ===
       quote.destAsset.address?.toLowerCase();
