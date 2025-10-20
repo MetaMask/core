@@ -475,4 +475,29 @@ describe('SubscriptionService', () => {
       });
     });
   });
+
+  describe('submitSponsorshipIntents', () => {
+    it('should submit sponsorship intents successfully', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        handleFetchMock.mockResolvedValue({});
+
+        await service.submitSponsorshipIntents({
+          address: '0x1234567890123456789012345678901234567890',
+          products: [PRODUCT_TYPES.SHIELD],
+        });
+
+        expect(handleFetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(config.env, 'subscription-sponsorship/intents'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              address: '0x1234567890123456789012345678901234567890',
+              products: [PRODUCT_TYPES.SHIELD],
+            }),
+          },
+        );
+      });
+    });
+  });
 });

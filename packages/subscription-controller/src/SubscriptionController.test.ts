@@ -181,6 +181,7 @@ function createMockSubscriptionService() {
   const mockGetBillingPortalUrl = jest.fn();
   const mockGetSubscriptionsEligibilities = jest.fn();
   const mockSubmitUserEvent = jest.fn();
+  const mockSubmitSponsorshipIntents = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
@@ -194,6 +195,7 @@ function createMockSubscriptionService() {
     getBillingPortalUrl: mockGetBillingPortalUrl,
     getSubscriptionsEligibilities: mockGetSubscriptionsEligibilities,
     submitUserEvent: mockSubmitUserEvent,
+    submitSponsorshipIntents: mockSubmitSponsorshipIntents,
   };
 
   return {
@@ -206,6 +208,7 @@ function createMockSubscriptionService() {
     mockStartSubscriptionWithCrypto,
     mockUpdatePaymentMethodCard,
     mockUpdatePaymentMethodCrypto,
+    mockSubmitSponsorshipIntents,
   };
 }
 
@@ -1399,6 +1402,64 @@ describe('SubscriptionController', () => {
         await expect(
           controller.submitUserEvent({
             event: SubscriptionUserEvent.ShieldEntryModalViewed,
+          }),
+        ).rejects.toThrow(SubscriptionServiceError);
+      });
+    });
+  });
+
+  describe('submitSponsorshipIntents', () => {
+    it('should submit sponsorship intents successfully', async () => {
+      await withController(async ({ controller, mockService }) => {
+        const submitSponsorshipIntentsSpy = jest
+          .spyOn(mockService, 'submitSponsorshipIntents')
+          .mockResolvedValue(undefined);
+
+        await controller.submitSponsorshipIntents({
+          address: '0x1234567890123456789012345678901234567890',
+          products: [PRODUCT_TYPES.SHIELD],
+        });
+        expect(submitSponsorshipIntentsSpy).toHaveBeenCalledWith({
+          address: '0x1234567890123456789012345678901234567890',
+          products: [PRODUCT_TYPES.SHIELD],
+        });
+      });
+    });
+
+    it('should throw error when user is already subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller, mockService }) => {
+          await expect(
+            controller.submitSponsorshipIntents({
+              address: '0x1234567890123456789012345678901234567890',
+              products: [PRODUCT_TYPES.SHIELD],
+            }),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.UserAlreadySubscribed,
+          );
+
+          // Verify the subscription service was not called
+          expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should handle subscription service errors', async () => {
+      await withController(async ({ controller, mockService }) => {
+        const errorMessage = 'Failed to submit sponsorship intents';
+        mockService.submitSponsorshipIntents.mockRejectedValue(
+          new SubscriptionServiceError(errorMessage),
+        );
+
+        await expect(
+          controller.submitSponsorshipIntents({
+            address: '0x1234567890123456789012345678901234567890',
+            products: [PRODUCT_TYPES.SHIELD],
           }),
         ).rejects.toThrow(SubscriptionServiceError);
       });
