@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added new public method, `submitSponsorshipIntents`, to submit sponsorship intents for the new subscription with crypto. ([#6898](https://github.com/MetaMask/core/pull/6898))
+
 ## [2.0.0]
 
 ### Added

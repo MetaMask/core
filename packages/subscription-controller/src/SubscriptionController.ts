@@ -489,6 +489,15 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     throw new Error('Invalid payment type');
   }
 
+  /**
+   * Submit sponsorship intents to the Subscription Service backend.
+   *
+   * This is intended to be used together with the crypto subscription flow.
+   * When the user has enabled the smart transaction feature, we will sponsor the gas fees for the subscription approval transaction.
+   *
+   * @param request - Request object containing the address and products.
+   * @example { address: '0x1234567890123456789012345678901234567890', products: [ProductType.Shield] }
+   */
   async submitSponsorshipIntents(request: SubmitSponsorshipIntentsRequest) {
     this.#assertIsUserNotSubscribed({ products: request.products });
     await this.#subscriptionService.submitSponsorshipIntents(request);
