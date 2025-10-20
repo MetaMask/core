@@ -44,7 +44,10 @@ import {
   formatChainIdToCaip,
   formatChainIdToHex,
 } from './utils/caip-formatters';
-import { getBridgeFeatureFlags } from './utils/feature-flags';
+import {
+  getBridgeFeatureFlags,
+  hasMinimumRequiredVersion,
+} from './utils/feature-flags';
 import {
   fetchAssetPrices,
   fetchBridgeQuotes,
@@ -165,7 +168,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #clientId: BridgeClientId;
 
-  readonly #clientVersion: string | undefined;
+  readonly #clientVersion: string;
 
   readonly #getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee;
 
@@ -199,7 +202,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
     clientId: BridgeClientId;
-    clientVersion?: string;
+    clientVersion: string;
     getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee;
     fetchFn: FetchFunction;
     config?: {
@@ -545,10 +548,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       context,
     );
 
-    const { sseEnabled, maxRefreshCount } = getBridgeFeatureFlags(
-      this.messenger,
-    );
-    const shouldStream = Boolean(sseEnabled);
+    const { sse, maxRefreshCount } = getBridgeFeatureFlags(this.messenger);
+    const shouldStream =
+      sse?.enabled &&
+      hasMinimumRequiredVersion(this.#clientVersion, sse.minimumVersion);
 
     this.update((state) => {
       state.quoteRequest = updatedQuoteRequest;

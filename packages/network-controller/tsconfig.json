@@ -7,6 +7,8 @@
   "references": [
     { "path": "../base-controller" },
     { "path": "../controller-utils" },
+    { "path": "../eth-block-tracker" },
+    { "path": "../eth-json-rpc-middleware" },
     { "path": "../eth-json-rpc-provider" },
     { "path": "../json-rpc-engine" },
     { "path": "../error-reporting-service" },

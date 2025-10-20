@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.2.0]
+
+### Changed
+
+- Bump `@metamask/eth-block-tracker` from `^13.0.0` to `^14.0.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+- Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+- Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.8.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+- Update dependencies that indirectly use v4 of `eth-json-rpc-provider` ([#6811](https://github.com/MetaMask/core/pull/6811))
+
 ## [39.1.0]
 
 ### Added
@@ -458,7 +467,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.2.0...HEAD
+[39.2.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.1.0...@metamask/user-operation-controller@39.2.0
 [39.1.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.0.0...@metamask/user-operation-controller@39.1.0
 [39.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@38.0.0...@metamask/user-operation-controller@39.0.0
 [38.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@37.0.0...@metamask/user-operation-controller@38.0.0

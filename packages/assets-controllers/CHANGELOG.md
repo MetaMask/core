@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Migrate controllers to new `Messenger` from `@metamask/messenger` ([#6444](https://github.com/MetaMask/core/pull/6444), [#6386](https://github.com/MetaMask/core/pull/6386), [#6745](https://github.com/MetaMask/core/pull/6745))
   - Previously, the controllers accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 
+## [81.0.1]
+
+### Fixed
+
+- Fix filter for staked Ethereum balances in `AccountTrackerController` ([#6846](https://github.com/MetaMask/core/pull/6846))
+
 ## [81.0.0]
 
 ### Changed
@@ -2136,7 +2142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.1...HEAD
+[81.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.0...@metamask/assets-controllers@81.0.1
 [81.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@80.0.0...@metamask/assets-controllers@81.0.0
 [80.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@79.0.1...@metamask/assets-controllers@80.0.0
 [79.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@79.0.0...@metamask/assets-controllers@79.0.1
