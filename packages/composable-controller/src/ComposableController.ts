@@ -145,7 +145,7 @@ export class ComposableController<
         (metadata as StateMetadataConstraint)[name] = {
           includeInStateLogs: false,
           persist: true,
-          anonymous: true,
+          includeInDebugSnapshot: true,
           usedInUi: false,
         };
         return metadata;
