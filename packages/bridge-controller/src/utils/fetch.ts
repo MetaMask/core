@@ -1,12 +1,11 @@
 import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
-import type { EventSourceMessage } from '@microsoft/fetch-event-source';
-import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 import {
   formatAddressToCaipReference,
   formatChainIdToDec,
 } from './caip-formatters';
+import { fetchServerEvents } from './fetch-server-events';
 import type { FeatureId } from './validators';
 import { validateQuoteResponse, validateSwapsTokenObject } from './validators';
 import type {
@@ -289,19 +288,16 @@ export async function fetchBridgeQuoteStream(
 ): Promise<void> {
   const queryParams = formatQueryParams(request);
 
-  const onMessage = (event: EventSourceMessage) => {
+  const onMessage = (quoteResponse: unknown) => {
     const uniqueValidationFailures: Set<string> = new Set<string>([]);
-    if (event.data === '') {
-      return;
-    }
-    const quoteResponse = JSON.parse(event.data);
 
     try {
-      validateQuoteResponse(quoteResponse);
-      // eslint-disable-next-line promise/catch-or-return, @typescript-eslint/no-floating-promises
-      serverEventHandlers.onValidQuoteReceived(quoteResponse).then((v) => {
-        return v;
-      });
+      if (validateQuoteResponse(quoteResponse)) {
+        // eslint-disable-next-line promise/catch-or-return, @typescript-eslint/no-floating-promises
+        serverEventHandlers.onValidQuoteReceived(quoteResponse).then((v) => {
+          return v;
+        });
+      }
     } catch (error) {
       if (error instanceof StructError) {
         error.failures().forEach(({ branch, path }) => {
@@ -327,22 +323,20 @@ export async function fetchBridgeQuoteStream(
   };
 
   const urlStream = `${bridgeApiBaseUrl}/getQuoteStream?${queryParams}`;
-  await fetchEventSource(urlStream, {
+  await fetchServerEvents(urlStream, {
     headers: {
       ...getClientHeaders(clientId, clientVersion),
       'Content-Type': 'text/event-stream',
     },
     signal,
-    onmessage: onMessage,
-    onerror: (e) => {
+    onMessage,
+    onError: (e) => {
       // Rethrow error to prevent silent fetch failures
-      throw new Error(e.toString());
+      throw new Error((e as Error).toString());
     },
-    onclose: () => {
+    onClose: () => {
       serverEventHandlers.onClose();
     },
-    // Cancels the request when document is hidden, will automatically restart when visible
-    openWhenHidden: false,
-    fetch: fetchFn,
+    fetchFn,
   });
 }
