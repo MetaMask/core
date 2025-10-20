@@ -332,6 +332,7 @@ linkStyle default opacity:0.5
   signature_controller --> network_controller;
   subscription_controller --> base_controller;
   subscription_controller --> controller_utils;
+  subscription_controller --> messenger;
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
   token_search_discovery_controller --> base_controller;
