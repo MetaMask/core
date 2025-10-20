@@ -208,7 +208,7 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
   StartPollingForBridgeTxStatusArgs,
   'quoteResponse'
 > & {
-  quoteResponse: QuoteResponse<string | TxData> & Partial<QuoteMetadata>;
+  quoteResponse: QuoteResponse & Partial<QuoteMetadata>;
 };
 
 export type SourceChainTxMetaId = string;
