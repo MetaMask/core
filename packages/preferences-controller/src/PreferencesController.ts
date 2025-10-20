@@ -356,6 +356,7 @@ export function getDefaultPreferencesState(): PreferencesState {
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONRIVER]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.GNOSIS]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.SEI]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.MONAD]: true,
     },
     showTestNetworks: false,
     useNftDetection: false,
