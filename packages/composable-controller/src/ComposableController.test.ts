@@ -56,7 +56,9 @@ type FooMessenger = Messenger<
 const fooControllerStateMetadata = {
   foo: {
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
+    usedInUi: false,
+    includeInStateLogs: false,
   },
 };
 
@@ -103,7 +105,9 @@ type QuzMessenger = Messenger<
 const quzControllerStateMetadata = {
   quz: {
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
+    usedInUi: false,
+    includeInStateLogs: false,
   },
 };
 
@@ -428,24 +432,35 @@ describe('ComposableController', () => {
         FooController: FooControllerState;
       };
       const messenger = new Messenger<
-        never,
+        MockAnyNamespace,
+        | ComposableControllerActions<ComposableControllerState>
+        | FooControllerAction,
         | ComposableControllerEvents<ComposableControllerState>
         | FooControllerEvent
-      >();
-      const fooMessenger = messenger.getRestricted<
+      >({ namespace: MOCK_ANY_NAMESPACE });
+      const fooControllerMessenger = new Messenger<
         'FooController',
-        never,
-        never
+        FooControllerAction,
+        FooControllerEvent,
+        typeof messenger
       >({
-        name: 'FooController',
-        allowedActions: [],
-        allowedEvents: [],
+        namespace: 'FooController',
+        parent: messenger,
       });
-      const fooController = new FooController(fooMessenger);
-      const composableControllerMessenger = messenger.getRestricted({
-        name: 'ComposableController',
-        allowedActions: [],
-        allowedEvents: ['FooController:stateChange'],
+      const fooController = new FooController(fooControllerMessenger);
+      const composableControllerMessenger = new Messenger<
+        'ComposableController',
+        ComposableControllerActions<ComposableControllerState>,
+        | ComposableControllerEvents<ComposableControllerState>
+        | FooControllerEvent,
+        typeof messenger
+      >({
+        namespace: 'ComposableController',
+        parent: messenger,
+      });
+      messenger.delegate({
+        messenger: composableControllerMessenger,
+        events: ['FooController:stateChange'],
       });
       const controller = new ComposableController<
         ComposableControllerState,
@@ -461,7 +476,7 @@ describe('ComposableController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
         Object {
@@ -477,24 +492,35 @@ describe('ComposableController', () => {
         FooController: FooControllerState;
       };
       const messenger = new Messenger<
-        never,
+        MockAnyNamespace,
+        | ComposableControllerActions<ComposableControllerState>
+        | FooControllerAction,
         | ComposableControllerEvents<ComposableControllerState>
         | FooControllerEvent
-      >();
-      const fooMessenger = messenger.getRestricted<
+      >({ namespace: MOCK_ANY_NAMESPACE });
+      const fooControllerMessenger = new Messenger<
         'FooController',
-        never,
-        never
+        FooControllerAction,
+        FooControllerEvent,
+        typeof messenger
       >({
-        name: 'FooController',
-        allowedActions: [],
-        allowedEvents: [],
+        namespace: 'FooController',
+        parent: messenger,
       });
-      const fooController = new FooController(fooMessenger);
-      const composableControllerMessenger = messenger.getRestricted({
-        name: 'ComposableController',
-        allowedActions: [],
-        allowedEvents: ['FooController:stateChange'],
+      const fooController = new FooController(fooControllerMessenger);
+      const composableControllerMessenger = new Messenger<
+        'ComposableController',
+        ComposableControllerActions<ComposableControllerState>,
+        | ComposableControllerEvents<ComposableControllerState>
+        | FooControllerEvent,
+        typeof messenger
+      >({
+        namespace: 'ComposableController',
+        parent: messenger,
+      });
+      messenger.delegate({
+        messenger: composableControllerMessenger,
+        events: ['FooController:stateChange'],
       });
       const controller = new ComposableController<
         ComposableControllerState,
@@ -520,24 +546,35 @@ describe('ComposableController', () => {
         FooController: FooControllerState;
       };
       const messenger = new Messenger<
-        never,
+        MockAnyNamespace,
+        | ComposableControllerActions<ComposableControllerState>
+        | FooControllerAction,
         | ComposableControllerEvents<ComposableControllerState>
         | FooControllerEvent
-      >();
-      const fooMessenger = messenger.getRestricted<
+      >({ namespace: MOCK_ANY_NAMESPACE });
+      const fooControllerMessenger = new Messenger<
         'FooController',
-        never,
-        never
+        FooControllerAction,
+        FooControllerEvent,
+        typeof messenger
       >({
-        name: 'FooController',
-        allowedActions: [],
-        allowedEvents: [],
+        namespace: 'FooController',
+        parent: messenger,
       });
-      const fooController = new FooController(fooMessenger);
-      const composableControllerMessenger = messenger.getRestricted({
-        name: 'ComposableController',
-        allowedActions: [],
-        allowedEvents: ['FooController:stateChange'],
+      const fooController = new FooController(fooControllerMessenger);
+      const composableControllerMessenger = new Messenger<
+        'ComposableController',
+        ComposableControllerActions<ComposableControllerState>,
+        | ComposableControllerEvents<ComposableControllerState>
+        | FooControllerEvent,
+        typeof messenger
+      >({
+        namespace: 'ComposableController',
+        parent: messenger,
+      });
+      messenger.delegate({
+        messenger: composableControllerMessenger,
+        events: ['FooController:stateChange'],
       });
       const controller = new ComposableController<
         ComposableControllerState,
@@ -569,24 +606,35 @@ describe('ComposableController', () => {
         FooController: FooControllerState;
       };
       const messenger = new Messenger<
-        never,
+        MockAnyNamespace,
+        | ComposableControllerActions<ComposableControllerState>
+        | FooControllerAction,
         | ComposableControllerEvents<ComposableControllerState>
         | FooControllerEvent
-      >();
-      const fooMessenger = messenger.getRestricted<
+      >({ namespace: MOCK_ANY_NAMESPACE });
+      const fooControllerMessenger = new Messenger<
         'FooController',
-        never,
-        never
+        FooControllerAction,
+        FooControllerEvent,
+        typeof messenger
       >({
-        name: 'FooController',
-        allowedActions: [],
-        allowedEvents: [],
+        namespace: 'FooController',
+        parent: messenger,
       });
-      const fooController = new FooController(fooMessenger);
-      const composableControllerMessenger = messenger.getRestricted({
-        name: 'ComposableController',
-        allowedActions: [],
-        allowedEvents: ['FooController:stateChange'],
+      const fooController = new FooController(fooControllerMessenger);
+      const composableControllerMessenger = new Messenger<
+        'ComposableController',
+        ComposableControllerActions<ComposableControllerState>,
+        | ComposableControllerEvents<ComposableControllerState>
+        | FooControllerEvent,
+        typeof messenger
+      >({
+        namespace: 'ComposableController',
+        parent: messenger,
+      });
+      messenger.delegate({
+        messenger: composableControllerMessenger,
+        events: ['FooController:stateChange'],
       });
       const controller = new ComposableController<
         ComposableControllerState,
