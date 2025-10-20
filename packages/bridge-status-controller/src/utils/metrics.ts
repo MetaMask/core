@@ -1,7 +1,6 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type {
   QuoteResponse,
-  TxData,
   QuoteMetadata,
   QuoteFetchData,
 } from '@metamask/bridge-controller';

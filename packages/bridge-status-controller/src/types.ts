@@ -12,7 +12,6 @@ import type {
   Quote,
   QuoteMetadata,
   QuoteResponse,
-  TxData,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type {

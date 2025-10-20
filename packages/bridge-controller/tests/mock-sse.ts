@@ -1,6 +1,5 @@
 // eslint-disable-next-line @typescript-eslint/no-shadow
 import { ReadableStream } from 'node:stream/web';
-import type { BitcoinTradeData } from 'src/types';
 
 import { flushPromises } from '../../../tests/helpers';
 import type { QuoteResponse, TxData } from '../src';
@@ -28,6 +27,7 @@ const getEventId = (index: number) => {
 };
 
 const emitLine = (
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
   controller: ReadableStreamDefaultController,
   line: string,
 ) => {
@@ -42,7 +42,7 @@ const emitLine = (
  * @returns a delayed stream of quotes
  */
 export const mockSseEventSource = (
-  mockQuotes: QuoteResponse<TxData | string | BitcoinTradeData>[],
+  mockQuotes: QuoteResponse[],
   delay: number = 3000,
 ) => {
   return {
