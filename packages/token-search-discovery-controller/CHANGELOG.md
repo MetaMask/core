@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.0]
+
 ### Added
 
 - Export additional controller types from package index ([#6837](https://github.com/MetaMask/core/pull/6837))
@@ -97,7 +99,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This service is responsible for making search related requests to the Portfolio API
   - Specifically, it handles the `tokens-search` endpoint which returns a list of tokens based on the provided query parameters
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.5.0...HEAD
+[3.5.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.4.0...@metamask/token-search-discovery-controller@3.5.0
 [3.4.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.3.0...@metamask/token-search-discovery-controller@3.4.0
 [3.3.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.2.0...@metamask/token-search-discovery-controller@3.3.0
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.1.0...@metamask/token-search-discovery-controller@3.2.0
