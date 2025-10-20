@@ -3,17 +3,12 @@ import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import type { EventSourceMessage } from '@microsoft/fetch-event-source';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 
-import { isBitcoinChainId } from './bridge';
 import {
   formatAddressToCaipReference,
   formatChainIdToDec,
 } from './caip-formatters';
 import type { FeatureId } from './validators';
-import {
-  validateQuoteResponse,
-  validateBitcoinQuoteResponse,
-  validateSwapsTokenObject,
-} from './validators';
+import { validateQuoteResponse, validateSwapsTokenObject } from './validators';
 import type {
   QuoteResponse,
   FetchFunction,
@@ -141,11 +136,6 @@ export async function fetchBridgeQuotes(
   const filteredQuotes = quotes
     .filter((quoteResponse: unknown): quoteResponse is QuoteResponse => {
       try {
-        const isBitcoinQuote = isBitcoinChainId(request.srcChainId);
-
-        if (isBitcoinQuote) {
-          return validateBitcoinQuoteResponse(quoteResponse);
-        }
         return validateQuoteResponse(quoteResponse);
       } catch (error) {
         if (error instanceof StructError) {
