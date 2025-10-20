@@ -347,13 +347,13 @@ describe('BridgeController SSE', function () {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     ).toBeGreaterThan(t2!);
     expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`
-              Array [
-                Array [
-                  "Failed to stream bridge quotes",
-                  [Error: Network error],
-                ],
-              ]
-          `);
+      Array [
+        Array [
+          "Failed to stream bridge quotes",
+          "Network error",
+        ],
+      ]
+    `);
     expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
     expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(2);
     expect(trackMetaMetricsFn).toHaveBeenCalledTimes(8);

@@ -332,7 +332,7 @@ export async function fetchBridgeQuoteStream(
     onMessage,
     onError: (e) => {
       // Rethrow error to prevent silent fetch failures
-      throw new Error((e as Error).toString());
+      throw e;
     },
     onClose: () => {
       serverEventHandlers.onClose();
