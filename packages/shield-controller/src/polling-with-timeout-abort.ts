@@ -1,6 +1,6 @@
 export type RequestEntry = {
   abortController: AbortController; // The abort controller for the request
-  abortHandler: () => void; // The abort handler for the request
+  abortHandler: (ev: Event) => void; // The abort handler for the request
   timerId: NodeJS.Timeout; // The timer ID for the request timeout
 };
 
@@ -9,9 +9,9 @@ export type RequestFn<ReturnType> = (
 ) => Promise<ReturnType>;
 
 export class PollingWithTimeoutAndAbort {
-  readonly ABORT_REASON_TIMEOUT = 'Timeout';
+  readonly ABORT_REASON_TIMEOUT = 'Request timed out';
 
-  readonly ABORT_REASON_USER_CANCELLATION = 'User cancellation';
+  readonly ABORT_REASON_CANCELLED = 'Request cancelled';
 
   // Map of request ID to request entry
   readonly #requestEntries: Map<string, RequestEntry> = new Map();
@@ -25,6 +25,18 @@ export class PollingWithTimeoutAndAbort {
     this.#pollInterval = config.pollInterval;
   }
 
+  /**
+   * Poll a request with a timeout and abort.
+   * This will poll the request until it succeeds or fails due to the timeout or the abort signal being triggered.
+   *
+   * @param requestId - The ID of the request to poll.
+   * @param requestFn - The function to poll the request.
+   * @param pollingOptions - The options for the polling.
+   * @param pollingOptions.timeout - The timeout for the request. Defaults to the constructor's timeout.
+   * @param pollingOptions.pollInterval - The interval for the polling. Defaults to the constructor's pollInterval.
+   * @param pollingOptions.fnName - The name of the function to poll the request. Defaults to an empty string.
+   * @returns The result of the request.
+   */
   async pollRequest<ReturnType>(
     requestId: string,
     requestFn: RequestFn<ReturnType>,
@@ -32,15 +44,13 @@ export class PollingWithTimeoutAndAbort {
       timeout?: number;
       pollInterval?: number;
       fnName?: string;
-    } = {
-      fnName: '',
-    },
+    } = {},
   ) {
     const timeout = pollingOptions.timeout ?? this.#timeout;
     const pollInterval = pollingOptions.pollInterval ?? this.#pollInterval;
 
     // clean up the request entry if it exists
-    this.abortPendingRequests(requestId);
+    this.abortPendingRequest(requestId);
 
     // insert the request entry for the next polling cycle
     const { abortController } = this.#insertRequestEntry(requestId, timeout);
@@ -52,18 +62,23 @@ export class PollingWithTimeoutAndAbort {
         this.#cleanUpOnFinished(requestId);
         return result;
       } catch {
-        // polling failed due to timeout or cancelled,
-        // we need to clean up the request entry and throw the error
-        if (this.#isAbortedAndNotTimeoutReason(abortController.signal)) {
-          throw new Error(`${pollingOptions.fnName}: Request cancelled`);
+        if (abortController.signal.aborted) {
+          // request failed due to the abort signal being triggered,
+          // then we will break out of the polling loop
+          break;
         }
+        // otherwise, we will wait for the next polling cycle
+        // and continue the polling loop
+        await this.#delayWithAbortSignal(pollInterval, abortController.signal);
+        continue;
       }
-      await this.#delay(pollInterval);
     }
-
-    // The following line will not have an effect as the upper level promise
-    // will already be rejected by now.
-    throw new Error(`${pollingOptions.fnName}: Request timed out`);
+    // At this point, the polling loop has exited and abortController is aborted
+    const abortReason = abortController.signal.reason;
+    const errorMessage = pollingOptions.fnName
+      ? `${pollingOptions.fnName}: ${abortReason}`
+      : abortReason;
+    throw new Error(errorMessage);
   }
 
   /**
@@ -72,14 +87,14 @@ export class PollingWithTimeoutAndAbort {
    *
    * @param requestId - The ID of the request to abort.
    */
-  abortPendingRequests(requestId: string) {
+  abortPendingRequest(requestId: string) {
     // firstly clean up the request entry if it exists
     // note: this does not abort the request, it only cleans up the request entry for the next polling cycle
     const existingEntry = this.#cleanUpRequestEntryIfExists(requestId);
     // then abort the request if it exists
     // note: this does abort the request, but it will not trigger the abort handler (hence, {@link cleanUpRequestEntryIfExists} will not be called)
     // coz the AbortHandler event listener is already removed from the AbortSignal
-    existingEntry?.abortController.abort(this.ABORT_REASON_USER_CANCELLATION);
+    existingEntry?.abortController.abort(this.ABORT_REASON_CANCELLED);
   }
 
   /**
@@ -94,10 +109,9 @@ export class PollingWithTimeoutAndAbort {
     const abortController = new AbortController();
 
     // Set a timeout to abort the request if it takes too long
-    const timerId = setTimeout(
-      () => this.#handleRequestTimeout(requestId),
-      timeout,
-    );
+    const timerId = setTimeout(() => {
+      abortController.abort(this.ABORT_REASON_TIMEOUT);
+    }, timeout);
 
     // Set the abort handler and listen to the `abort` event
     const abortHandler = () => {
@@ -115,20 +129,6 @@ export class PollingWithTimeoutAndAbort {
     this.#requestEntries.set(requestId, requestEntry);
 
     return requestEntry;
-  }
-
-  /**
-   * Handle the request timeout.
-   * This will abort the request, this will also trigger the abort handler (hence, {@link #cleanUpRequestEntryIfExists} will be called)
-   *
-   * @param requestId - The ID of the request to handle the timeout for.
-   */
-  #handleRequestTimeout(requestId: string) {
-    const requestEntry = this.#cleanUpOnFinished(requestId);
-    if (requestEntry) {
-      // Abort the signal, so that the polling loop will exit
-      requestEntry.abortController.abort(this.ABORT_REASON_TIMEOUT);
-    }
   }
 
   /**
@@ -166,16 +166,35 @@ export class PollingWithTimeoutAndAbort {
   }
 
   /**
-   * Check if the abort signal is aborted and not due to timeout.
+   * Delay with an abort signal.
+   * This will delay the execution of the code until the abort signal is triggered.
    *
-   * @param signal - The abort signal to check.
-   * @returns True if the abort signal is aborted and not due to timeout, false otherwise.
+   * @param ms - The number of milliseconds to delay.
+   * @param abortSignal - The abort signal to listen to.
+   * @returns A promise that resolves when the delay is complete.
    */
-  #isAbortedAndNotTimeoutReason(signal: AbortSignal) {
-    return signal.aborted && signal.reason !== this.ABORT_REASON_TIMEOUT;
-  }
+  async #delayWithAbortSignal(ms: number, abortSignal: AbortSignal) {
+    return new Promise((resolve) => {
+      let timer: NodeJS.Timeout | null = null;
 
-  async #delay(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+      const abortHandlerForDelay = () => {
+        // clear the timeout and resolve the promise
+        // Note: we don't reject the promise as this is only a dummy delay
+        if (timer) {
+          clearTimeout(timer);
+        }
+        resolve(undefined);
+      };
+
+      timer = setTimeout(() => {
+        abortSignal.removeEventListener('abort', abortHandlerForDelay);
+        resolve(undefined);
+      }, ms);
+
+      // set the abort handler to clear the timeout and resolve the promise
+      abortSignal.addEventListener('abort', abortHandlerForDelay, {
+        once: true, // only listen to the abort event once
+      });
+    });
   }
 }

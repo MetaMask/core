@@ -43,7 +43,7 @@ describe('PollingWithTimeoutAndAbort', () => {
 
     await expect(
       pollingWithTimeout.pollRequest('test', requestFn),
-    ).rejects.toThrow(': Request timed out');
+    ).rejects.toThrow('Request timed out');
   });
 
   it('should abort pending requests when new request is made', async () => {
@@ -79,7 +79,7 @@ describe('PollingWithTimeoutAndAbort', () => {
     expect(result).toBe('test result'); // second request should succeed
   });
 
-  it('should abort pending requests when abortPendingRequests is called', async () => {
+  it('should abort pending requests when abortPendingRequest is called', async () => {
     const pollingWithTimeout = new PollingWithTimeoutAndAbort({
       timeout: 1000,
       pollInterval: 20,
@@ -99,7 +99,7 @@ describe('PollingWithTimeoutAndAbort', () => {
       fnName: 'test',
     });
     await delay(15); // small delay to let the request start
-    pollingWithTimeout.abortPendingRequests('test');
+    pollingWithTimeout.abortPendingRequest('test');
     await expect(request).rejects.toThrow('test: Request cancelled');
   });
 });

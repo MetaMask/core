@@ -142,7 +142,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     };
 
     // clean up the pending coverage result polling
-    this.#pollingWithTimeout.abortPendingRequests(req.signatureRequest.id);
+    this.#pollingWithTimeout.abortPendingRequest(req.signatureRequest.id);
 
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/signature/coverage/log`,
@@ -166,7 +166,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     };
 
     // clean up the pending coverage result polling
-    this.#pollingWithTimeout.abortPendingRequests(req.txMeta.id);
+    this.#pollingWithTimeout.abortPendingRequest(req.txMeta.id);
 
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/transaction/coverage/log`,
@@ -215,27 +215,27 @@ export class ShieldRemoteBackend implements ShieldBackend {
     };
     const headers = await this.#createHeaders();
 
-    return await new Promise((resolve, reject) => {
-      const requestCoverageFn = async (
-        signal: AbortSignal,
-      ): Promise<GetCoverageResultResponse> => {
-        const res = await this.#fetch(config.coverageResultUrl, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(reqBody),
-          signal,
-        });
-        if (res.status === 200) {
-          return (await res.json()) as GetCoverageResultResponse;
-        }
-        throw new Error(`Failed to get coverage result: ${res.status}`);
-      };
+    const requestCoverageFn = async (
+      signal: AbortSignal,
+    ): Promise<GetCoverageResultResponse> => {
+      const res = await this.#fetch(config.coverageResultUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(reqBody),
+        signal,
+      });
+      if (res.status === 200) {
+        return (await res.json()) as GetCoverageResultResponse;
+      }
+      throw new Error(`Failed to get coverage result: ${res.status}`);
+    };
 
-      this.#pollingWithTimeout
-        .pollRequest(config.requestId, requestCoverageFn, pollingOptions)
-        .then(resolve)
-        .catch(reject);
-    });
+    const coverageResult = await this.#pollingWithTimeout.pollRequest(
+      config.requestId,
+      requestCoverageFn,
+      pollingOptions,
+    );
+    return coverageResult;
   }
 
   async #createHeaders() {
