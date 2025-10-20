@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6538](https://github.com/MetaMask/core/pull/6538))
+  - Previously, `NotificationServicesController` and `NotificationServicesPushController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+
+### Removed
+
+- **BREAKING:** Remove package-level exports of `AllowedActions` and `AllowedEvents` from `NotificationServicesController` and `NotificationServicesPushController` ([#6538](https://github.com/MetaMask/core/pull/6538))
+
 ## [18.3.0]
 
 ### Added
