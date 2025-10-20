@@ -1,5 +1,3 @@
-export type ContextKeys = string | symbol;
-
 /**
  * An context object for middleware that attempts to protect against accidental
  * modifications. Its interface is frozen.
@@ -13,7 +11,7 @@ export type ContextKeys = string | symbol;
 export class MiddlewareContext<
   // The `{}` type is not problematic in this context, it just means "no keys".
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  KeyValues extends Record<ContextKeys, unknown> = {},
+  KeyValues extends Record<PropertyKey, unknown> = {},
 > extends Map<keyof KeyValues, KeyValues[keyof KeyValues]> {
   constructor(
     entries?: Iterable<readonly [keyof KeyValues, KeyValues[keyof KeyValues]]>,
@@ -125,9 +123,13 @@ type ExcludeNever<T extends Record<PropertyKey, unknown>> = {
  * type A = MiddlewareContext<{ a: string }> | MiddlewareContext<{ b: number }>;
  * type B = MergeContexts<A>; // MiddlewareContext<{ a: string, b: number }>
  */
-export type MergeContexts<Contexts extends MiddlewareContext<any>[]> =
+export type MergeContexts<Contexts extends ContextConstraint[]> =
   MiddlewareContext<
     ExcludeNever<
       Simplify<UnionToIntersection<InferKeyValues<ExtractContexts<Contexts>>>>
     >
   >;
+
+// Non-polluting `any` constraint.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ContextConstraint = MiddlewareContext<any>;

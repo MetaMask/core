@@ -7,7 +7,8 @@ import {
 } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
-import { MergeContexts, MiddlewareContext } from './MiddlewareContext';
+import type { ContextConstraint, MergeContexts } from './MiddlewareContext';
+import { MiddlewareContext } from './MiddlewareContext';
 import {
   isNotification,
   isRequest,
@@ -49,7 +50,9 @@ export type MiddlewareParams<
 export type JsonRpcMiddleware<
   Request extends JsonRpcCall = JsonRpcCall,
   Result extends ResultConstraint<Request> = ResultConstraint<Request>,
-  Context extends MiddlewareContext<any> = MiddlewareContext,
+  Context extends ContextConstraint = MiddlewareContext<
+    Record<PropertyKey, unknown>
+  >,
 > = (
   params: MiddlewareParams<Request, Context>,
 ) => Readonly<Result> | undefined | Promise<Readonly<Result> | undefined>;
@@ -69,22 +72,17 @@ type HandleOptions<Context extends MiddlewareContext> = {
   context?: Context;
 };
 
-type RequestOf<Middleware> =
-  Middleware extends JsonRpcMiddleware<infer R, ResultConstraint<infer R>, any>
-    ? R
-    : never;
-
 type ContextOf<Middleware> =
+  // Non-polluting `any` constraint.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Middleware extends JsonRpcMiddleware<any, ResultConstraint<any>, infer C>
     ? C
     : never;
 
 type MergedContextOf<
-  Middleware extends JsonRpcMiddleware<
-    any,
-    ResultConstraint<any>,
-    any
-  >,
+  // Non-polluting `any` constraint.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Middleware extends JsonRpcMiddleware<any, ResultConstraint<any>, any>,
 > = MergeContexts<ContextOf<Middleware>>;
 
 /**
@@ -124,7 +122,7 @@ type MergedContextOf<
  */
 export class JsonRpcEngineV2<
   Request extends JsonRpcCall = JsonRpcCall,
-  Context extends MiddlewareContext<any> = MiddlewareContext,
+  Context extends ContextConstraint = MiddlewareContext,
 > {
   #middleware: Readonly<
     NonEmptyArray<
@@ -134,19 +132,17 @@ export class JsonRpcEngineV2<
 
   #isDestroyed = false;
 
-  constructor({ middleware }: Options<Request, Context>) {
+  private constructor({ middleware }: Options<Request, Context>) {
     this.#middleware = [...middleware];
   }
 
   static create<
-    Middleware extends
-      JsonRpcMiddleware<
-        any,
-        ResultConstraint<JsonRpcCall>,
-        MiddlewareContext<any>
-      >
+    InputRequest extends JsonRpcCall = JsonRpcCall,
+    Middleware extends JsonRpcMiddleware<
+      InputRequest,
+      ResultConstraint<InputRequest>
+    > = JsonRpcMiddleware<InputRequest, ResultConstraint<InputRequest>>,
   >({ middleware }: { middleware: Middleware[] }) {
-    type InputRequest = RequestOf<Middleware>;
     type InputContext = MergedContextOf<Middleware>;
     // Cast once so the instance is typed with the merged context
     const mw = middleware as unknown as NonEmptyArray<
