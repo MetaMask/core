@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [52.1.0]
+
+### Changed
+
+- Publish `destinationTransactionCompleted` event when a bridge tx completes on the destination chain ([#6900](https://github.com/MetaMask/core/pull/6900))
+
 ## [52.0.0]
 
 ### Changed
@@ -679,7 +685,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@52.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@52.1.0...HEAD
+[52.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@52.0.0...@metamask/bridge-status-controller@52.1.0
 [52.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@51.0.0...@metamask/bridge-status-controller@52.0.0
 [51.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@50.1.0...@metamask/bridge-status-controller@51.0.0
 [50.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@50.0.0...@metamask/bridge-status-controller@50.1.0
