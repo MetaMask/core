@@ -4,16 +4,17 @@ import type {
   AccountsControllerGetSelectedMultichainAccountAction,
 } from '@metamask/accounts-controller';
 import type {
-  RestrictedMessenger,
   ControllerStateChangeEvent,
   ControllerGetStateAction,
-} from '@metamask/base-controller';
+  StateMetadata,
+} from '@metamask/base-controller/next';
 import { type CaipAssetType, isEvmAccountType } from '@metamask/keyring-api';
 import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
@@ -144,12 +145,10 @@ export type AllowedEvents =
 /**
  * Messenger type for the MultichainAssetsRatesController.
  */
-export type MultichainAssetsRatesControllerMessenger = RestrictedMessenger<
+export type MultichainAssetsRatesControllerMessenger = Messenger<
   typeof controllerName,
   MultichainAssetsRatesControllerActions | AllowedActions,
-  MultichainAssetsRatesControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  MultichainAssetsRatesControllerEvents | AllowedEvents
 >;
 
 /**
@@ -159,17 +158,17 @@ export type MultichainAssetsRatesPollingInput = {
   accountId: string;
 };
 
-const metadata = {
+const metadata: StateMetadata<MultichainAssetsRatesControllerState> = {
   conversionRates: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   historicalPrices: {
     includeInStateLogs: false,
     persist: false,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
 };
@@ -205,7 +204,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    * @param options - Constructor options.
    * @param options.interval - The polling interval in milliseconds.
    * @param options.state - The initial state.
-   * @param options.messenger - A reference to the messaging system.
+   * @param options.messenger - A reference to the messenger.
    */
   constructor({
     interval = 18000,
@@ -229,22 +228,22 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     this.setIntervalLength(interval);
 
     // Subscribe to keyring lock/unlock events.
-    this.messagingSystem.subscribe('KeyringController:lock', () => {
+    this.messenger.subscribe('KeyringController:lock', () => {
       this.#isUnlocked = false;
     });
-    this.messagingSystem.subscribe('KeyringController:unlock', () => {
+    this.messenger.subscribe('KeyringController:unlock', () => {
       this.#isUnlocked = true;
     });
 
-    ({ accountsAssets: this.#accountsAssets } = this.messagingSystem.call(
+    ({ accountsAssets: this.#accountsAssets } = this.messenger.call(
       'MultichainAssetsController:getState',
     ));
 
-    ({ currentCurrency: this.#currentCurrency } = this.messagingSystem.call(
+    ({ currentCurrency: this.#currentCurrency } = this.messenger.call(
       'CurrencyRateController:getState',
     ));
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'CurrencyRateController:stateChange',
       async (currentCurrency: string) => {
         this.#currentCurrency = currentCurrency;
@@ -254,7 +253,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         currencyRateControllerState.currentCurrency,
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'MultichainAssetsController:accountAssetListUpdated',
       async ({ assets }) => {
         const newAccountAssets = Object.entries(assets).map(
@@ -305,9 +304,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    * @returns An array of internal accounts.
    */
   #listMultichainAccounts(): InternalAccount[] {
-    return this.messagingSystem.call(
-      'AccountsController:listMultichainAccounts',
-    );
+    return this.messenger.call('AccountsController:listMultichainAccounts');
   }
 
   /**
@@ -435,11 +432,9 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 
       const selectedAccount =
         account ??
-        this.messagingSystem.call(
-          'AccountsController:getSelectedMultichainAccount',
-        );
+        this.messenger.call('AccountsController:getSelectedMultichainAccount');
       try {
-        const historicalPricesResponse = await this.messagingSystem.call(
+        const historicalPricesResponse = await this.messenger.call(
           'SnapController:handleRequest',
           {
             snapId: selectedAccount?.metadata.snap?.id as SnapId,
@@ -670,7 +665,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     | undefined
   > {
     try {
-      return (await this.messagingSystem.call('SnapController:handleRequest', {
+      return (await this.messenger.call('SnapController:handleRequest', {
         snapId,
         origin: 'metamask',
         handler,
