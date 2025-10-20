@@ -54,8 +54,8 @@ import type {
 import type {
   AllSeedlessOnboardingControllerActions,
   AllSeedlessOnboardingControllerEvents,
-  baseMessengerName,
   MockKeyringControllerMessenger,
+  RootMessenger,
 } from '../tests/__fixtures__/mockMessenger';
 import { mockSeedlessOnboardingMessenger } from '../tests/__fixtures__/mockMessenger';
 import {
@@ -122,11 +122,7 @@ type WithControllerCallback<ReturnValue, EKey> = ({
   encryptor: VaultEncryptor<EKey>;
   initialState: SeedlessOnboardingControllerState;
   messenger: SeedlessOnboardingControllerMessenger;
-  baseMessenger: Messenger<
-    typeof baseMessengerName,
-    AllSeedlessOnboardingControllerActions,
-    AllSeedlessOnboardingControllerEvents
-  >;
+  baseMessenger: RootMessenger;
   keyringControllerMessenger: MockKeyringControllerMessenger;
   toprfClient: ToprfSecureBackup;
   mockRefreshJWTToken: jest.Mock;
