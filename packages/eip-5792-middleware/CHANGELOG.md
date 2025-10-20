@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.9.0` ([#6883](https://github.com/MetaMask/core/pull/6883), [#6888](https://github.com/MetaMask/core/pull/6888))
+
+## [1.2.3]
+
+### Changed
+
 - Bump `@metamask/transaction-controller` from `^60.6.1` to `^60.7.0` ([#6841](https://github.com/MetaMask/core/pull/6841))
 
 ## [1.2.2]
@@ -45,7 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6458](https://github.com/MetaMask/core/pull/6458))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.3...HEAD
+[1.2.3]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.2...@metamask/eip-5792-middleware@1.2.3
 [1.2.2]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.1...@metamask/eip-5792-middleware@1.2.2
 [1.2.1]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.0...@metamask/eip-5792-middleware@1.2.1
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.1.0...@metamask/eip-5792-middleware@1.2.0

@@ -75,6 +75,7 @@ type UpdateStateCallback = (
 
 type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
+  estimateGas: TransactionController['estimateGas'];
   getChainId: (networkClientId: string) => Hex;
   getEthQuery: (networkClientId: string) => EthQuery;
   getGasFeeEstimates: (
@@ -280,7 +281,6 @@ async function addTransactionBatchWith7702(
   const {
     addTransaction,
     getChainId,
-    getTransaction,
     messenger,
     publicKeyEIP7702,
     request: userRequest,
@@ -331,24 +331,12 @@ async function addTransactionBatchWith7702(
     ),
   );
 
-  const existingTransaction = transactions.find((tx) => tx.existingTransaction);
-
-  const existingTransactionMeta = existingTransaction
-    ? getTransaction(existingTransaction.existingTransaction?.id as string)
-    : undefined;
-
   const batchParams = generateEIP7702BatchTransaction(from, nestedTransactions);
 
   const txParams: TransactionParams = {
     from,
     ...batchParams,
   };
-
-  const existingNonce = existingTransactionMeta?.txParams?.nonce;
-
-  if (existingNonce) {
-    txParams.nonce = existingNonce;
-  }
 
   if (!isSupported) {
     const upgradeContractAddress = getEIP7702UpgradeContractAddress(
@@ -394,6 +382,22 @@ async function addTransactionBatchWith7702(
     ? ({ securityAlertId } as SecurityAlertResponse)
     : undefined;
 
+  const existingTransaction = transactions.find(
+    (tx) => tx.existingTransaction,
+  )?.existingTransaction;
+
+  if (existingTransaction) {
+    await convertTransactionToEIP7702({
+      batchId,
+      existingTransaction,
+      nestedTransactions,
+      request,
+      txParams,
+    });
+
+    return { batchId };
+  }
+
   const { result } = await addTransaction(txParams, {
     batchId,
     isGasFeeIncluded: userRequest.isGasFeeIncluded,
@@ -407,7 +411,7 @@ async function addTransactionBatchWith7702(
 
   const transactionHash = await result;
 
-  existingTransaction?.existingTransaction?.onPublish?.({ transactionHash });
+  log('Batch transaction added', { batchId, transactionHash });
 
   return {
     batchId,
@@ -595,7 +599,6 @@ async function processTransactionWithHook(
     addTransaction,
     getTransaction,
     request: userRequest,
-    signTransaction,
     updateTransaction,
   } = request;
 
@@ -625,25 +628,13 @@ async function processTransactionWithHook(
     });
 
     if (newNonce) {
-      log('Re-signing existing transaction', {
-        currentNonce: currentNonceNum,
-        newNonce,
+      const signResult = await updateTransactionSignature({
+        transactionId: id,
+        request,
       });
 
-      const metadataToSign = getTransaction(id);
-
-      const newSignature = (await signTransaction(metadataToSign)) as
-        | Hex
-        | undefined;
-
-      if (!newSignature) {
-        throw new Error('Failed to resign transaction');
-      }
-
-      signedTransaction = newSignature;
-      transactionMeta = getTransaction(id);
-
-      log('New signature', signedTransaction);
+      signedTransaction = signResult.newSignature;
+      transactionMeta = signResult.transactionMeta;
     }
 
     publishHook(transactionMeta, signedTransaction)
@@ -884,4 +875,124 @@ async function prepareApprovalData({
   addBatchMetadata(txBatchMeta, update);
 
   return txBatchMeta;
+}
+
+/**
+ * Convert an existing transaction to an EIP-7702 batch transaction.
+ *
+ * @param options - Options object.
+ * @param options.batchId - Batch ID for the transaction batch.
+ * @param options.existingTransaction - Existing transaction to be converted.
+ * @param options.nestedTransactions - Nested transactions to be included in the batch.
+ * @param options.request - Request object including the user request and necessary callbacks.
+ * @param options.txParams - Transaction parameters for the new EIP-7702 transaction.
+ * @param options.existingTransaction.id - ID of the existing transaction.
+ * @param options.existingTransaction.onPublish - Callback for when the transaction is published.
+ * @returns Promise that resolves after the publish callback has been invoked.
+ */
+async function convertTransactionToEIP7702({
+  batchId,
+  existingTransaction,
+  nestedTransactions,
+  request,
+  txParams,
+}: {
+  batchId: Hex;
+  request: AddTransactionBatchRequest;
+  existingTransaction: {
+    id: string;
+    onPublish?: ({
+      transactionHash,
+      newSignature,
+    }: {
+      transactionHash: string | undefined;
+      newSignature: Hex;
+    }) => void;
+  };
+  nestedTransactions: NestedTransactionMetadata[];
+  txParams: TransactionParams;
+}) {
+  const { getTransaction, estimateGas, updateTransaction } = request;
+  const existingTransactionMeta = getTransaction(existingTransaction.id);
+
+  if (!existingTransactionMeta) {
+    throw new Error('Existing transaction not found');
+  }
+
+  log('Converting existing transaction to 7702', { batchId, txParams });
+
+  const { networkClientId } = existingTransactionMeta;
+  const newGasResult = await estimateGas(txParams, networkClientId);
+
+  log('Estimated gas for converted EIP-7702 transaction', newGasResult);
+
+  updateTransaction(
+    { transactionId: existingTransactionMeta.id },
+    (transactionMeta) => {
+      transactionMeta.batchId = batchId;
+      transactionMeta.nestedTransactions = nestedTransactions;
+      transactionMeta.txParams = txParams;
+      transactionMeta.txParams.gas = newGasResult.gas;
+      transactionMeta.txParams.gasLimit = newGasResult.gas;
+      transactionMeta.txParams.maxFeePerGas =
+        existingTransactionMeta.txParams.maxFeePerGas;
+      transactionMeta.txParams.maxPriorityFeePerGas =
+        existingTransactionMeta.txParams.maxPriorityFeePerGas;
+      transactionMeta.txParams.nonce = existingTransactionMeta.txParams.nonce;
+      transactionMeta.txParams.type ??= TransactionEnvelopeType.feeMarket;
+    },
+  );
+
+  const { newSignature } = await updateTransactionSignature({
+    request,
+    transactionId: existingTransactionMeta.id,
+  });
+
+  existingTransaction.onPublish?.({
+    transactionHash: undefined,
+    newSignature,
+  });
+
+  log('Transaction updated to EIP-7702', { batchId, txParams, newSignature });
+}
+
+/**
+ * Update the signature of an existing transaction.
+ *
+ * @param options - Options object.
+ * @param options.request - The request object including the user request and necessary callbacks.
+ * @param options.transactionId - The ID of the transaction to update.
+ * @returns An object containing the new signature and updated transaction metadata.
+ */
+async function updateTransactionSignature({
+  request,
+  transactionId,
+}: {
+  request: AddTransactionBatchRequest;
+  transactionId: string;
+}): Promise<{
+  newSignature: Hex;
+  transactionMeta: TransactionMeta;
+}> {
+  const { getTransaction, signTransaction } = request;
+  const metadataToSign = getTransaction(transactionId);
+
+  log('Re-signing existing transaction', {
+    transactionId,
+    txParams: metadataToSign.txParams,
+  });
+
+  const newSignature = (await signTransaction(metadataToSign)) as
+    | Hex
+    | undefined;
+
+  if (!newSignature) {
+    throw new Error('Failed to re-sign transaction');
+  }
+
+  const transactionMeta = getTransaction(transactionId);
+
+  log('New signature', newSignature);
+
+  return { newSignature, transactionMeta };
 }
