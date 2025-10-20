@@ -41,6 +41,8 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/eip1193-permission-middleware`](packages/eip1193-permission-middleware)
 - [`@metamask/ens-controller`](packages/ens-controller)
 - [`@metamask/error-reporting-service`](packages/error-reporting-service)
+- [`@metamask/eth-block-tracker`](packages/eth-block-tracker)
+- [`@metamask/eth-json-rpc-middleware`](packages/eth-json-rpc-middleware)
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
 - [`@metamask/foundryup`](packages/foundryup)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
@@ -106,6 +108,8 @@ linkStyle default opacity:0.5
   eip1193_permission_middleware(["@metamask/eip1193-permission-middleware"]);
   ens_controller(["@metamask/ens-controller"]);
   error_reporting_service(["@metamask/error-reporting-service"]);
+  eth_block_tracker(["@metamask/eth-block-tracker"]);
+  eth_json_rpc_middleware(["@metamask/eth-json-rpc-middleware"]);
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
   foundryup(["@metamask/foundryup"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
@@ -219,6 +223,13 @@ linkStyle default opacity:0.5
   ens_controller --> controller_utils;
   ens_controller --> network_controller;
   error_reporting_service --> base_controller;
+  eth_block_tracker --> eth_json_rpc_provider;
+  eth_block_tracker --> json_rpc_engine;
+  eth_json_rpc_middleware --> eth_block_tracker;
+  eth_json_rpc_middleware --> eth_json_rpc_provider;
+  eth_json_rpc_middleware --> json_rpc_engine;
+  eth_json_rpc_middleware --> error_reporting_service;
+  eth_json_rpc_middleware --> network_controller;
   eth_json_rpc_provider --> json_rpc_engine;
   gas_fee_controller --> base_controller;
   gas_fee_controller --> controller_utils;
@@ -253,6 +264,8 @@ linkStyle default opacity:0.5
   name_controller --> controller_utils;
   network_controller --> base_controller;
   network_controller --> controller_utils;
+  network_controller --> eth_block_tracker;
+  network_controller --> eth_json_rpc_middleware;
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
   network_controller --> error_reporting_service;
@@ -302,17 +315,20 @@ linkStyle default opacity:0.5
   signature_controller --> controller_utils;
   signature_controller --> accounts_controller;
   signature_controller --> approval_controller;
+  signature_controller --> gator_permissions_controller;
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
   signature_controller --> network_controller;
   subscription_controller --> base_controller;
   subscription_controller --> controller_utils;
+  subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
   token_search_discovery_controller --> base_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
   transaction_controller --> accounts_controller;
   transaction_controller --> approval_controller;
+  transaction_controller --> eth_block_tracker;
   transaction_controller --> eth_json_rpc_provider;
   transaction_controller --> gas_fee_controller;
   transaction_controller --> network_controller;
@@ -321,6 +337,7 @@ linkStyle default opacity:0.5
   user_operation_controller --> controller_utils;
   user_operation_controller --> polling_controller;
   user_operation_controller --> approval_controller;
+  user_operation_controller --> eth_block_tracker;
   user_operation_controller --> gas_fee_controller;
   user_operation_controller --> keyring_controller;
   user_operation_controller --> network_controller;
