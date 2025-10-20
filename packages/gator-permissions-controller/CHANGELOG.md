@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6461](https://github.com/MetaMask/core/pull/6461))
+  - Previously, `GatorPermissionsController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+
 ## [0.2.1]
 
 ### Changed
