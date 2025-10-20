@@ -38,6 +38,17 @@ class MockWebSocket extends EventTarget {
 
   public static readonly CLOSED = 3;
 
+  // Track total instances created for testing
+  private static instanceCount = 0;
+
+  public static getInstanceCount(): number {
+    return MockWebSocket.instanceCount;
+  }
+
+  public static resetInstanceCount(): void {
+    MockWebSocket.instanceCount = 0;
+  }
+
   // WebSocket properties
   public readyState: number = MockWebSocket.CONNECTING;
 
@@ -74,6 +85,7 @@ class MockWebSocket extends EventTarget {
     { autoConnect = true }: { autoConnect?: boolean } = {},
   ) {
     super();
+    MockWebSocket.instanceCount += 1;
     this.url = url;
     // TypeScript has issues with jest.spyOn on WebSocket methods, so using direct assignment
     // eslint-disable-next-line jest/prefer-spy-on
@@ -361,6 +373,8 @@ async function withService<ReturnValue>(
   const [{ options = {}, mockWebSocketOptions = {} }, testFunction] =
     args.length === 2 ? args : [{}, args[0]];
 
+  MockWebSocket.resetInstanceCount();
+
   const setup = setupBackendWebSocketService({ options, mockWebSocketOptions });
 
   try {
@@ -502,6 +516,97 @@ describe('BackendWebSocketService', () => {
           }),
         );
       });
+    });
+
+    it('should prevent race condition when multiple concurrent connect() calls are made', async () => {
+      await withService(async ({ service }) => {
+        // Simulate multiple concurrent connect() calls (as would happen from
+        // KeyringController:unlock, AuthenticationController:stateChange, and
+        // MetaMaskController.isClientOpen all firing at once)
+        const connectPromises = [
+          service.connect(),
+          service.connect(),
+          service.connect(),
+        ];
+
+        // Wait for all promises to resolve
+        await Promise.all(connectPromises);
+
+        // Verify only ONE WebSocket connection was created
+        expect(MockWebSocket.getInstanceCount()).toBe(1);
+
+        // Verify service is in CONNECTED state
+        const connectionInfo = service.getConnectionInfo();
+        expect(connectionInfo.state).toBe(WebSocketState.CONNECTED);
+      });
+    });
+
+    it('should handle rapid sequential connect() calls after promise clears without creating duplicates', async () => {
+      await withService(async ({ service }) => {
+        // First connection
+        await service.connect();
+        expect(MockWebSocket.getInstanceCount()).toBe(1);
+        expect(service.getConnectionInfo().state).toBe(
+          WebSocketState.CONNECTED,
+        );
+
+        // Multiple calls after connection is established should not create new connections
+        await Promise.all([
+          service.connect(),
+          service.connect(),
+          service.connect(),
+        ]);
+
+        // Should still be only 1 connection
+        expect(MockWebSocket.getInstanceCount()).toBe(1);
+        expect(service.getConnectionInfo().state).toBe(
+          WebSocketState.CONNECTED,
+        );
+      });
+    });
+
+    it('should handle interleaved connect() calls during async getBearerToken without duplicates', async () => {
+      await withService(
+        { mockWebSocketOptions: { autoConnect: false } },
+        async ({ service, getMockWebSocket, mocks }) => {
+          // Make getBearerToken async to simulate the race window
+          let getBearerTokenResolve: ((value: string) => void) | null = null;
+          mocks.getBearerToken.mockImplementation(() => {
+            return new Promise<string>((resolve) => {
+              getBearerTokenResolve = resolve;
+            });
+          });
+
+          // Start first connect (will wait on getBearerToken)
+          const connect1 = service.connect();
+
+          // Immediately start second connect (should wait for first)
+          const connect2 = service.connect();
+
+          // Immediately start third connect (should also wait)
+          const connect3 = service.connect();
+
+          // Now resolve the getBearerToken
+          expect(getBearerTokenResolve).not.toBeNull();
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          getBearerTokenResolve!('test-token');
+
+          // Wait a tick for the token resolution to propagate
+          await flushPromises();
+
+          // Manually trigger WebSocket open
+          getMockWebSocket().triggerOpen();
+
+          // Wait for all connections to complete
+          await Promise.all([connect1, connect2, connect3]);
+
+          // Should only have created ONE WebSocket
+          expect(MockWebSocket.getInstanceCount()).toBe(1);
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.CONNECTED,
+          );
+        },
+      );
     });
 
     it('should handle connection timeout by rejecting with timeout error and setting state to ERROR', async () => {
@@ -1366,7 +1471,10 @@ describe('BackendWebSocketService', () => {
         },
         async ({ service, mocks }) => {
           mocks.getBearerToken.mockResolvedValueOnce(null);
-          await service.connect();
+
+          await expect(service.connect()).rejects.toThrow(
+            'Authentication required: user not signed in',
+          );
 
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.DISCONNECTED,
@@ -1383,8 +1491,10 @@ describe('BackendWebSocketService', () => {
           mockWebSocketOptions: { autoConnect: false },
         },
         async ({ service, mocks }) => {
-          mocks.getBearerToken.mockRejectedValueOnce(new Error('Auth error'));
-          await service.connect();
+          const authError = new Error('Auth error');
+          mocks.getBearerToken.mockRejectedValueOnce(authError);
+
+          await expect(service.connect()).rejects.toThrow('Auth error');
 
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.DISCONNECTED,
