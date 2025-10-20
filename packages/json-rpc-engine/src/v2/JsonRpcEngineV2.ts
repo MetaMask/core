@@ -50,7 +50,9 @@ export type MiddlewareParams<
 export type JsonRpcMiddleware<
   Request extends JsonRpcCall = JsonRpcCall,
   Result extends ResultConstraint<Request> = ResultConstraint<Request>,
-  Context extends ContextConstraint = MiddlewareContext,
+  Context extends ContextConstraint = MiddlewareContext<
+    Record<PropertyKey, unknown>
+  >,
 > = (
   params: MiddlewareParams<Request, Context>,
 ) => Readonly<Result> | undefined | Promise<Readonly<Result> | undefined>;
@@ -73,6 +75,13 @@ type ConstructorOptions<
   >;
 };
 
+type RequestOf<Middleware> =
+  // Non-polluting `any` constraint.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Middleware extends JsonRpcMiddleware<infer Request, any, any>
+    ? Request
+    : never;
+
 type ContextOf<Middleware> =
   // Non-polluting `any` constraint.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -85,11 +94,6 @@ type MergedContextOf<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Middleware extends JsonRpcMiddleware<any, any, any>,
 > = MergeContexts<ContextOf<Middleware>>;
-
-type MiddlewareConstraint<
-  Request extends JsonRpcCall,
-  Context extends ContextConstraint,
-> = JsonRpcMiddleware<Request, ResultConstraint<Request>, Context>;
 
 /**
  * A JSON-RPC request and response processor.
@@ -114,7 +118,7 @@ type MiddlewareConstraint<
  *
  * @example
  * ```ts
- * const engine = new JsonRpcEngineV2({
+ * const engine = JsonRpcEngineV2.create({
  *   middleware,
  * });
  *
@@ -154,20 +158,20 @@ export class JsonRpcEngineV2<
    * @param options.middleware - The middleware to use.
    * @returns The JSON-RPC engine.
    */
-  static create<
-    InputRequest extends JsonRpcCall = JsonRpcCall,
-    InputContext extends ContextConstraint = ContextConstraint,
-    Middleware extends MiddlewareConstraint<
-      InputRequest,
-      InputContext
-    > = MiddlewareConstraint<InputRequest, InputContext>,
-  >({ middleware }: { middleware: Middleware[] }) {
+  // Non-polluting `any` constraint.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static create<Middleware extends JsonRpcMiddleware<any, any, any>>({
+    middleware,
+  }: {
+    middleware: Middleware[];
+  }) {
     // We can't use NonEmptyArray for the params because it ruins type inference.
     if (middleware.length === 0) {
       throw new JsonRpcEngineError('Middleware array cannot be empty');
     }
 
     type MergedContext = MergedContextOf<Middleware>;
+    type InputRequest = RequestOf<Middleware>;
     const mw = middleware as unknown as NonEmptyArray<
       JsonRpcMiddleware<
         InputRequest,

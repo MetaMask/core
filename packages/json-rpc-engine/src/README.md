@@ -33,7 +33,7 @@ import { asV2Middleware, JsonRpcEngine } from '@metamask/json-rpc-engine';
 const legacyEngine = new JsonRpcEngine();
 legacyEngine.push(/* ... */);
 
-const v2Engine = new JsonRpcEngineV2({
+const v2Engine = JsonRpcEngineV2.create({
   middleware: [asV2Middleware(legacyEngine)],
 });
 ```

@@ -18,7 +18,8 @@ or
 ```ts
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 
-const engine = new JsonRpcEngineV2({
+// You must use the static factory method `create()` instead of the constructor.
+const engine = JsonRpcEngineV2.create({
   // Create a stack of middleware and pass it to the engine:
   middleware: [
     ({ request, next, context }) => {
@@ -81,7 +82,7 @@ import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 
 const legacyEngine = new JsonRpcEngine();
 
-const v2Engine = new JsonRpcEngineV2({
+const v2Engine = JsonRpcEngineV2.create({
   middleware: [
     // ...
   ],
@@ -109,7 +110,7 @@ They receive a `MiddlewareParams` object containing:
 Here's a basic example:
 
 ```ts
-const engine = new JsonRpcEngineV2({
+const engine = JsonRpcEngineV2.create({
   middleware: [
     ({ next, context }) => {
       context.set('foo', 'bar');
@@ -136,7 +137,7 @@ For requests, one of the engine's middleware must "end" the request by returning
 will throw an error:
 
 ```ts
-const engine = new JsonRpcEngineV2({
+const engine = JsonRpcEngineV2.create({
   middleware: [
     () => {
       if (Math.random() > 0.5) {
@@ -181,7 +182,7 @@ import {
   JsonRpcEngineV2,
 } from '@metamask/json-rpc-engine/v2';
 
-const engine = new JsonRpcEngineV2({
+const engine = JsonRpcEngineV2.create({
   middleware: [
     async ({ request, next }) => {
       if (isRequest(request) && request.method === 'everything') {
@@ -208,7 +209,7 @@ Middleware can modify the `method` and `params` properties
 by passing a new request object to `next()`:
 
 ```ts
-const engine = new JsonRpcEngineV2({
+const engine = JsonRpcEngineV2.create({
   middleware: [
     ({ request, next }) => {
       // Modify the request for subsequent middleware
@@ -231,7 +232,7 @@ Modifying the `jsonrpc` or `id` properties is not allowed, and will cause
 an error:
 
 ```ts
-const engine = new JsonRpcEngineV2({
+const engine = JsonRpcEngineV2.create({
   middleware: [
     ({ request, next }) => {
       // Modifying either property will cause an error
@@ -251,7 +252,7 @@ const engine = new JsonRpcEngineV2({
 Middleware can observe the result by awaiting `next()`:
 
 ```ts
-const engine = new JsonRpcEngineV2({
+const engine = JsonRpcEngineV2.create({
   middleware: [
     async ({ request, next }) => {
       const startTime = Date.now();
@@ -277,7 +278,7 @@ Like the `request`, the `result` is also immutable.
 Middleware can update the result by returning a new one.
 
 ```ts
-const engine = new JsonRpcEngineV2({
+const engine = JsonRpcEngineV2.create({
   middleware: [
     async ({ request, next }) => {
       const result = await next();
@@ -323,7 +324,7 @@ console.log(result);
 Use the `context` to share data between middleware:
 
 ```ts
-const engine = new JsonRpcEngineV2({
+const engine = JsonRpcEngineV2.create({
   middleware: [
     async ({ context, next }) => {
       context.set('user', { id: '123', name: 'Alice' });
@@ -350,7 +351,7 @@ it is append-only with deletions.
 If you need to modify a context value over multiple middleware, use an array or object:
 
 ```ts
-const engine = new JsonRpcEngineV2({
+const engine = JsonRpcEngineV2.create({
   middleware: [
     async ({ context, next }) => {
       context.set('user', { id: '123', name: 'Alice' });
@@ -371,7 +372,7 @@ const engine = new JsonRpcEngineV2({
 Errors in middleware are propagated up the call stack:
 
 ```ts
-const engine = new JsonRpcEngineV2({
+const engine = JsonRpcEngineV2.create({
   middleware: [
     ({ next }) => {
       return next();
@@ -395,7 +396,7 @@ try {
 If your middleware awaits `next()`, it can handle errors using `try`/`catch`:
 
 ```ts
-const engine = new JsonRpcEngineV2({
+const engine = JsonRpcEngineV2.create({
   middleware: [
     ({ request, next }) => {
       try {
@@ -428,7 +429,7 @@ console.log('Result:', result);
 Engines can be nested by converting them to middleware using `asMiddleware()`:
 
 ```ts
-const subEngine = new JsonRpcEngineV2({
+const subEngine = JsonRpcEngineV2.create({
   middleware: [
     ({ request }) => {
       return 'Sub-engine result';
@@ -436,7 +437,7 @@ const subEngine = new JsonRpcEngineV2({
   ],
 });
 
-const mainEngine = new JsonRpcEngineV2({
+const mainEngine = JsonRpcEngineV2.create({
   middleware: [
     subEngine.asMiddleware(),
     ({ request, next }) => {
@@ -451,7 +452,7 @@ Engines used as middleware may return `undefined` for requests, but only when
 used as middleware:
 
 ```ts
-const loggingEngine = new JsonRpcEngineV2({
+const loggingEngine = JsonRpcEngineV2.create({
   middleware: [
     ({ request, next }) => {
       console.log('Observed request:', request.method);
@@ -459,7 +460,7 @@ const loggingEngine = new JsonRpcEngineV2({
   ],
 });
 
-const mainEngine = new JsonRpcEngineV2({
+const mainEngine = JsonRpcEngineV2.create({
   middleware: [
     loggingEngine.asMiddleware(),
     ({ request }) => {

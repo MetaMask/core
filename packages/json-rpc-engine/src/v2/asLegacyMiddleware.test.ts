@@ -11,18 +11,22 @@ import type { MiddlewareContext } from './MiddlewareContext';
 import { getExtraneousKeys, makeRequest } from '../../tests/utils';
 import { JsonRpcEngine } from '../JsonRpcEngine';
 
+const makeNullMiddleware = (): JsonRpcMiddleware<JsonRpcRequest> => {
+  return () => null;
+};
+
 describe('asLegacyMiddleware', () => {
   it('converts a v2 engine to a legacy middleware', () => {
-    const engine = JsonRpcEngineV2.create<JsonRpcRequest>({
-      middleware: [() => null],
+    const engine = JsonRpcEngineV2.create({
+      middleware: [makeNullMiddleware()],
     });
     const middleware = asLegacyMiddleware(engine);
     expect(typeof middleware).toBe('function');
   });
 
   it('forwards a result to the legacy engine', async () => {
-    const v2Engine = JsonRpcEngineV2.create<JsonRpcRequest>({
-      middleware: [() => null],
+    const v2Engine = JsonRpcEngineV2.create({
+      middleware: [makeNullMiddleware()],
     });
 
     const legacyEngine = new JsonRpcEngine();
@@ -36,8 +40,9 @@ describe('asLegacyMiddleware', () => {
   });
 
   it('forwarded results are not frozen', async () => {
-    const v2Engine = JsonRpcEngineV2.create<JsonRpcRequest>({
-      middleware: [() => []],
+    const v2Middleware: JsonRpcMiddleware<JsonRpcRequest> = () => [];
+    const v2Engine = JsonRpcEngineV2.create({
+      middleware: [v2Middleware],
     });
 
     const legacyEngine = new JsonRpcEngine();
@@ -52,12 +57,11 @@ describe('asLegacyMiddleware', () => {
   });
 
   it('forwards an error to the legacy engine', async () => {
-    const v2Engine = JsonRpcEngineV2.create<JsonRpcRequest>({
-      middleware: [
-        () => {
-          throw new Error('test');
-        },
-      ],
+    const v2Middleware: JsonRpcMiddleware<JsonRpcRequest> = () => {
+      throw new Error('test');
+    };
+    const v2Engine = JsonRpcEngineV2.create({
+      middleware: [v2Middleware],
     });
 
     const legacyEngine = new JsonRpcEngine();
@@ -80,8 +84,10 @@ describe('asLegacyMiddleware', () => {
   });
 
   it('allows the legacy engine to continue when not ending the request', async () => {
-    const v2Middleware = jest.fn(({ next }) => next());
-    const v2Engine = JsonRpcEngineV2.create<JsonRpcRequest>({
+    const v2Middleware: JsonRpcMiddleware<JsonRpcRequest> = jest.fn(
+      ({ next }) => next(),
+    );
+    const v2Engine = JsonRpcEngineV2.create({
       middleware: [v2Middleware],
     });
 
@@ -100,8 +106,10 @@ describe('asLegacyMiddleware', () => {
   });
 
   it('allows the legacy engine to continue when not ending the request (passing through the original request)', async () => {
-    const v2Middleware = jest.fn(({ request, next }) => next(request));
-    const v2Engine = JsonRpcEngineV2.create<JsonRpcRequest>({
+    const v2Middleware: JsonRpcMiddleware<JsonRpcRequest> = jest.fn(
+      ({ request, next }) => next(request),
+    );
+    const v2Engine = JsonRpcEngineV2.create({
       middleware: [v2Middleware],
     });
 
@@ -120,7 +128,7 @@ describe('asLegacyMiddleware', () => {
   });
 
   it('propagates request modifications to the legacy engine', async () => {
-    const v2Engine = JsonRpcEngineV2.create<JsonRpcRequest>({
+    const v2Engine = JsonRpcEngineV2.create({
       middleware: [
         ({ request, next }) => next({ ...request, method: 'test_request_2' }),
       ],
@@ -160,7 +168,7 @@ describe('asLegacyMiddleware', () => {
       MiddlewareContext<Record<string, number>>
     >);
 
-    const v2Engine = JsonRpcEngineV2.create<JsonRpcRequest>({
+    const v2Engine = JsonRpcEngineV2.create({
       middleware: [v2Middleware],
     });
 

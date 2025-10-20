@@ -1,5 +1,6 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 
+import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import { JsonRpcServer } from './JsonRpcServer';
 import { isRequest } from './utils';
@@ -7,15 +8,14 @@ import { isRequest } from './utils';
 const jsonrpc = '2.0' as const;
 
 const makeEngine = () => {
+  const middleware: JsonRpcMiddleware = ({ request }) => {
+    if (request.method !== 'hello') {
+      throw new Error('Unknown method');
+    }
+    return isRequest(request) ? (request.params ?? null) : undefined;
+  };
   return JsonRpcEngineV2.create({
-    middleware: [
-      ({ request }) => {
-        if (request.method !== 'hello') {
-          throw new Error('Unknown method');
-        }
-        return isRequest(request) ? (request.params ?? null) : undefined;
-      },
-    ],
+    middleware: [middleware],
   });
 };
 
