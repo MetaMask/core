@@ -4383,13 +4383,14 @@ describe('TokenBalancesController', () => {
       const chainId = '0x1';
       const account = createMockInternalAccount({ address: accountAddress });
 
-      const { controller, messenger } = setupController({
-        listAccounts: [account],
-      });
+      const { controller, messenger, tokenBalancesControllerMessenger } =
+        setupController({
+          listAccounts: [account],
+        });
 
       // Spy on AccountTrackerController calls
       const updateNativeBalancesSpy = jest.fn();
-      jest.spyOn(messenger, 'call').mockImplementation(((
+      jest.spyOn(tokenBalancesControllerMessenger, 'call').mockImplementation(((
         action: string,
         ...args: unknown[]
       ) => {
