@@ -650,7 +650,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             UnifiedSwapBridgeEventName.Completed,
             bridgeTxMetaId,
           );
-          this.messagingSystem.publish(
+          this.messenger.publish(
             'BridgeStatusController:destinationTransactionCompleted',
             historyItem.quote.destAsset.assetId,
           );
