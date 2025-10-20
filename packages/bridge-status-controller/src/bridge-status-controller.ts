@@ -650,6 +650,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             UnifiedSwapBridgeEventName.Completed,
             bridgeTxMetaId,
           );
+          this.messagingSystem.publish(
+            'BridgeStatusController:destinationTransactionCompleted',
+            historyItem.quote.destAsset.assetId,
+          );
         }
         if (status.status === StatusTypes.FAILED) {
           this.#trackUnifiedSwapBridgeEvent(
