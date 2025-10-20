@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [51.0.1]
+## [52.0.0]
 
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/bridge-controller` from `^52.0.0` to `^53.0.0` ([#6895](https://github.com/MetaMask/core/pull/6895))
 - Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 - Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.8.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 
@@ -678,8 +679,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@51.0.1...HEAD
-[51.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@51.0.0...@metamask/bridge-status-controller@51.0.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@52.0.0...HEAD
+[52.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@51.0.0...@metamask/bridge-status-controller@52.0.0
 [51.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@50.1.0...@metamask/bridge-status-controller@51.0.0
 [50.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@50.0.0...@metamask/bridge-status-controller@50.1.0
 [50.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@49.0.1...@metamask/bridge-status-controller@50.0.0
