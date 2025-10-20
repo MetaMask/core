@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6364](https://github.com/MetaMask/core/pull/6364))
+  - Previously, `SeedlessOnboardingController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+
 ## [4.1.0]
 
 ### Added
@@ -15,7 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Breaking:** Migrate to new messenger ([#6364](https://github.com/MetaMask/core/pull/6364))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.1` ([#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
 - Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.1` ([#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
 

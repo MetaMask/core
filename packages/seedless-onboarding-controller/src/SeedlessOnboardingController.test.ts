@@ -9,7 +9,6 @@ import {
   decryptWithKey as decryptWithKeyBrowserPassworder,
   importKey as importKeyBrowserPassworder,
 } from '@metamask/browser-passworder';
-import type { Messenger } from '@metamask/messenger';
 import {
   TOPRFError,
   type FetchAuthPubKeyResult,
@@ -52,10 +51,8 @@ import type {
   VaultEncryptor,
 } from './types';
 import type {
-  AllSeedlessOnboardingControllerActions,
-  AllSeedlessOnboardingControllerEvents,
-  baseMessengerName,
   MockKeyringControllerMessenger,
+  RootMessenger,
 } from '../tests/__fixtures__/mockMessenger';
 import { mockSeedlessOnboardingMessenger } from '../tests/__fixtures__/mockMessenger';
 import {
@@ -122,11 +119,7 @@ type WithControllerCallback<ReturnValue, EKey> = ({
   encryptor: VaultEncryptor<EKey>;
   initialState: SeedlessOnboardingControllerState;
   messenger: SeedlessOnboardingControllerMessenger;
-  baseMessenger: Messenger<
-    typeof baseMessengerName,
-    AllSeedlessOnboardingControllerActions,
-    AllSeedlessOnboardingControllerEvents
-  >;
+  baseMessenger: RootMessenger;
   keyringControllerMessenger: MockKeyringControllerMessenger;
   toprfClient: ToprfSecureBackup;
   mockRefreshJWTToken: jest.Mock;
