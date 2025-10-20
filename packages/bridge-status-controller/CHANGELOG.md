@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Publish `destinationTransactionCompleted` event when a bridge tx completes on the destination chain ([#6900](https://github.com/MetaMask/core/pull/6900))
+
 ## [52.0.0]
 
 ### Changed
