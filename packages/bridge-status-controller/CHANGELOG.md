@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Update QuoteResponse type references ([#6892](https://github.com/MetaMask/core/pull/6892))
 - Fix issue with Mobile where app would crash after a successful tx ([#6890](https://github.com/MetaMask/core/pull/6890))
 - Fix BridgeController initialization in unit tests ([#6891](https://github.com/MetaMask/core/pull/6891))
 
