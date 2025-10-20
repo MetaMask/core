@@ -4,28 +4,31 @@ import type {
 } from '@metamask/keyring-controller';
 import {
   Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MockAnyNamespace,
   type MessengerActions,
   type MessengerEvents,
 } from '@metamask/messenger';
 
 import { controllerName } from '../../src/constants';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  SeedlessOnboardingControllerMessenger,
-} from '../../src/types';
+import { type SeedlessOnboardingControllerMessenger } from '../../src/types';
 
 export type AllSeedlessOnboardingControllerActions =
   MessengerActions<SeedlessOnboardingControllerMessenger>;
 export type AllSeedlessOnboardingControllerEvents =
   MessengerEvents<SeedlessOnboardingControllerMessenger>;
 
-export const baseMessengerName = 'Root';
-
 export type MockKeyringControllerMessenger = Messenger<
   'KeyringController',
   never,
   KeyringControllerLockEvent | KeyringControllerUnlockEvent
+>;
+
+export type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllSeedlessOnboardingControllerActions,
+  | AllSeedlessOnboardingControllerEvents
+  | MessengerEvents<MockKeyringControllerMessenger>
 >;
 
 /**
@@ -35,17 +38,15 @@ export type MockKeyringControllerMessenger = Messenger<
  */
 export function createCustomSeedlessOnboardingMessenger() {
   // Create the root messenger
-  const baseMessenger = new Messenger<
-    typeof baseMessengerName,
-    AllSeedlessOnboardingControllerActions,
-    AllSeedlessOnboardingControllerEvents
-  >({ namespace: baseMessengerName });
+  const baseMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   const keyringControllerMessenger = new Messenger<
     'KeyringController',
     never,
     KeyringControllerLockEvent | KeyringControllerUnlockEvent,
-    typeof baseMessenger
+    RootMessenger
   >({ namespace: 'KeyringController', parent: baseMessenger });
 
   // Create the seedless onboarding controller messenger
@@ -53,20 +54,10 @@ export function createCustomSeedlessOnboardingMessenger() {
     typeof controllerName,
     AllSeedlessOnboardingControllerActions,
     AllSeedlessOnboardingControllerEvents,
-    typeof baseMessenger
+    RootMessenger
   >({
     namespace: controllerName,
     parent: baseMessenger,
-  });
-
-  // Delegate external actions/events
-  keyringControllerMessenger.delegate({
-    events: ['KeyringController:lock', 'KeyringController:unlock'],
-    messenger: baseMessenger,
-  });
-  baseMessenger.delegate({
-    events: ['KeyringController:lock', 'KeyringController:unlock'],
-    messenger,
   });
 
   return {
@@ -77,11 +68,7 @@ export function createCustomSeedlessOnboardingMessenger() {
 }
 
 type OverrideMessengers = {
-  baseMessenger: Messenger<
-    typeof baseMessengerName,
-    AllowedActions,
-    AllowedEvents
-  >;
+  baseMessenger: RootMessenger;
   messenger: SeedlessOnboardingControllerMessenger;
   keyringControllerMessenger: MockKeyringControllerMessenger;
 };

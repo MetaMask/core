@@ -5,7 +5,7 @@ import { BigNumber } from 'bignumber.js';
 import {
   isValidQuoteRequest,
   getQuoteIdentifier,
-  calcSolanaTotalNetworkFee,
+  calcNonEvmTotalNetworkFee,
   calcToAmount,
   calcSentAmount,
   calcRelayerFee,
@@ -22,7 +22,7 @@ import type {
   GenericQuoteRequest,
   QuoteResponse,
   Quote,
-  SolanaFees,
+  NonEvmFees,
   L1GasFees,
   TxData,
 } from '../types';
@@ -38,7 +38,7 @@ describe('Quote Utils', () => {
       srcTokenAmount: '1000',
       slippage: 0.5,
       gasIncluded: false,
-      gasless7702: false,
+      gasIncluded7702: false,
     };
 
     it('should return true for valid request with all required fields', () => {
@@ -256,15 +256,15 @@ describe('Quote Metadata Utils', () => {
     });
   });
 
-  describe('calcSolanaTotalNetworkFee', () => {
-    const mockBridgeQuote: QuoteResponse & SolanaFees = {
-      solanaFeesInLamports: '1000000000',
+  describe('calcNonEvmTotalNetworkFee', () => {
+    const mockBridgeQuote: QuoteResponse & NonEvmFees = {
+      nonEvmFeesInNative: '1',
       quote: {} as Quote,
       trade: {},
-    } as QuoteResponse & SolanaFees;
+    } as QuoteResponse & NonEvmFees;
 
     it('should calculate Solana fees correctly with exchange rates', () => {
-      const result = calcSolanaTotalNetworkFee(mockBridgeQuote, {
+      const result = calcNonEvmTotalNetworkFee(mockBridgeQuote, {
         exchangeRate: '2',
         usdExchangeRate: '1.5',
       });
@@ -274,8 +274,25 @@ describe('Quote Metadata Utils', () => {
       expect(result.usd).toBe('1.5');
     });
 
+    it('should calculate Bitcoin fees correctly with exchange rates', () => {
+      const btcQuote: QuoteResponse & NonEvmFees = {
+        nonEvmFeesInNative: '0.00005', // BTC fee in native units
+        quote: {} as Quote,
+        trade: {},
+      } as QuoteResponse & NonEvmFees;
+
+      const result = calcNonEvmTotalNetworkFee(btcQuote, {
+        exchangeRate: '60000',
+        usdExchangeRate: '60000',
+      });
+
+      expect(result.amount).toBe('0.00005');
+      expect(result.valueInCurrency).toBe('3'); // 0.00005 * 60000 = 3
+      expect(result.usd).toBe('3'); // 0.00005 * 60000 = 3
+    });
+
     it('should handle missing exchange rates', () => {
-      const result = calcSolanaTotalNetworkFee(mockBridgeQuote, {});
+      const result = calcNonEvmTotalNetworkFee(mockBridgeQuote, {});
 
       expect(result.amount).toBe('1');
       expect(result.valueInCurrency).toBeNull();
@@ -283,8 +300,8 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should handle zero fees', () => {
-      const result = calcSolanaTotalNetworkFee(
-        { ...mockBridgeQuote, solanaFeesInLamports: '0' },
+      const result = calcNonEvmTotalNetworkFee(
+        { ...mockBridgeQuote, nonEvmFeesInNative: '0' },
         { exchangeRate: '2', usdExchangeRate: '1.5' },
       );
 
@@ -297,14 +314,19 @@ describe('Quote Metadata Utils', () => {
   describe('calcToAmount', () => {
     const mockQuote: Quote = {
       destTokenAmount: '1000000000',
+      minDestTokenAmount: '950000000',
       destAsset: { decimals: 6 },
     } as Quote;
 
     it('should calculate destination amount correctly with exchange rates', () => {
-      const result = calcToAmount(mockQuote, {
-        exchangeRate: '2',
-        usdExchangeRate: '1.5',
-      });
+      const result = calcToAmount(
+        mockQuote.destTokenAmount,
+        mockQuote.destAsset,
+        {
+          exchangeRate: '2',
+          usdExchangeRate: '1.5',
+        },
+      );
 
       expect(result.amount).toBe('1000');
       expect(result.valueInCurrency).toBe('2000');
@@ -312,7 +334,11 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should handle missing exchange rates', () => {
-      const result = calcToAmount(mockQuote, {});
+      const result = calcToAmount(
+        mockQuote.destTokenAmount,
+        mockQuote.destAsset,
+        {},
+      );
 
       expect(result.amount).toBe('1000');
       expect(result.valueInCurrency).toBeNull();

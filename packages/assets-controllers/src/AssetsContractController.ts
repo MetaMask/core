@@ -74,6 +74,8 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID = {
     '0x6aa75276052d96696134252587894ef5ffa520af',
   [SupportedTokenDetectionNetworks.moonriver]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
+  [SupportedTokenDetectionNetworks.monad_mainnet]:
+    '0xC856736BFe4DcB217F6678Ff2C4D7A7939B29A88',
 } as const satisfies Record<Hex, string>;
 
 export const STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
@@ -81,7 +83,7 @@ export const STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
     '0x4fef9d741011476750a243ac70b9789a63dd47df',
   [SupportedStakedBalanceNetworks.hoodi]:
     '0xe96ac18cfe5a7af8fe1fe7bc37ff110d88bc67ff',
-} as const satisfies Record<Hex, string>;
+} as Record<Hex, string>;
 
 export const MISSING_PROVIDER_ERROR =
   'AssetsContractController failed to set the provider correctly. A provider must be set for this method to be available';

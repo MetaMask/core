@@ -189,6 +189,7 @@ describe('properties', () => {
             assetId: 'eip155:1/erc20:0x456',
           },
           destTokenAmount: '1000000',
+          minDestTokenAmount: '950000',
           feeData: {
             metabridge: {
               amount: '10000000000000000',

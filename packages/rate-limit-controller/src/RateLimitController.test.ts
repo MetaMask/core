@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 
 import type {
   RateLimitControllerActions,
@@ -219,5 +219,67 @@ describe('RateLimitController', () => {
     ).toBeUndefined();
     jest.advanceTimersByTime(2500);
     expect(controller.state.requests.apiWithoutCustomLimit[origin]).toBe(1);
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new RateLimitController({
+        implementations,
+        messenger: getRestrictedMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new RateLimitController({
+        implementations,
+        messenger: getRestrictedMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('persists expected state', () => {
+      const controller = new RateLimitController({
+        implementations,
+        messenger: getRestrictedMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new RateLimitController({
+        implementations,
+        messenger: getRestrictedMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
   });
 });

@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-conditional-in-test */
-import type { AccountsController } from '@metamask/accounts-controller';
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import {
   EarnSdk,
@@ -81,9 +81,9 @@ jest.mock('@metamask/stake-sdk', () => ({
 }));
 
 /**
- * Builds a new instance of the Messenger class for the AccountsController.
+ * Builds a new instance of the Messenger class for the EarnController.
  *
- * @returns A new instance of the Messenger class for the AccountsController.
+ * @returns A new instance of the Messenger class for the EarnController.
  */
 function buildMessenger() {
   return new Messenger<
@@ -106,21 +106,23 @@ function getEarnControllerMessenger(
     name: 'EarnController',
     allowedActions: [
       'NetworkController:getNetworkClientById',
-      'AccountsController:getSelectedAccount',
+      'AccountTreeController:getAccountsFromSelectedAccountGroup',
     ],
     allowedEvents: [
       'NetworkController:networkDidChange',
-      'AccountsController:selectedAccountChange',
+      'AccountTreeController:selectedAccountGroupChange',
       'TransactionController:transactionConfirmed',
     ],
   });
 }
 
-type InternalAccount = ReturnType<AccountsController['getSelectedAccount']>;
+const mockAccount1Address = '0x1234';
+
+const mockAccount2Address = '0xabc';
 
 const createMockInternalAccount = ({
   id = '123e4567-e89b-12d3-a456-426614174000',
-  address = '0x2990079bcdee240329a520d2444386fc119da21a',
+  address = mockAccount1Address,
   name = 'Account 1',
   importTime = Date.now(),
   lastSelected = Date.now(),
@@ -147,9 +149,7 @@ const createMockInternalAccount = ({
   };
 };
 
-const mockAccount1Address = '0x1234';
-
-const mockAccount2Address = '0xabc';
+const mockInternalAccount1 = createMockInternalAccount();
 
 const createMockTransaction = ({
   id = '1',
@@ -661,9 +661,9 @@ const setupController = async ({
     },
   })),
 
-  mockGetSelectedAccount = jest.fn(() => ({
-    address: mockAccount1Address,
-  })),
+  mockGetAccountsFromSelectedAccountGroup = jest.fn(() => [
+    mockInternalAccount1,
+  ]),
 
   addTransactionFn = jest.fn(),
   selectedNetworkClientId = '1',
@@ -671,7 +671,7 @@ const setupController = async ({
   options?: Partial<ConstructorParameters<typeof EarnController>[0]>;
   mockGetNetworkClientById?: jest.Mock;
   mockGetNetworkControllerState?: jest.Mock;
-  mockGetSelectedAccount?: jest.Mock;
+  mockGetAccountsFromSelectedAccountGroup?: jest.Mock;
   addTransactionFn?: jest.Mock;
   selectedNetworkClientId?: string;
 } = {}) => {
@@ -682,8 +682,8 @@ const setupController = async ({
     mockGetNetworkClientById,
   );
   messenger.registerActionHandler(
-    'AccountsController:getSelectedAccount',
-    mockGetSelectedAccount,
+    'AccountTreeController:getAccountsFromSelectedAccountGroup',
+    mockGetAccountsFromSelectedAccountGroup,
   );
 
   const earnControllerMessenger = getEarnControllerMessenger(messenger);
@@ -1008,7 +1008,7 @@ describe('EarnController', () => {
       // if no account is selected, it should not fetch stakes data but still update vault metadata, vault daily apys and vault apy averages.
       it('does not fetch staking data if no account is selected', async () => {
         const { controller } = await setupController({
-          mockGetSelectedAccount: jest.fn(() => null),
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
         });
 
         expect(
@@ -1398,10 +1398,6 @@ describe('EarnController', () => {
   });
 
   describe('subscription handlers', () => {
-    const account = createMockInternalAccount({
-      address: mockAccount2Address,
-    });
-
     describe('On network change', () => {
       it('updates vault data when network changes', async () => {
         const { controller, messenger } = await setupController();
@@ -1436,21 +1432,29 @@ describe('EarnController', () => {
       });
     });
 
-    describe('On selected account change', () => {
-      // TEMP: Workaround for issue: https://github.com/MetaMask/accounts-planning/issues/887
-      it('uses event payload account address to update staking eligibility', async () => {
+    describe('On selected account group change', () => {
+      it('updates earn eligibility, pooled stakes, and lending positions', async () => {
         const { controller, messenger } = await setupController();
 
         jest.spyOn(controller, 'refreshEarnEligibility').mockResolvedValue();
         jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+        jest.spyOn(controller, 'refreshLendingPositions').mockResolvedValue();
 
-        messenger.publish('AccountsController:selectedAccountChange', account);
+        messenger.publish(
+          'AccountTreeController:selectedAccountGroupChange',
+          'keyring:test/0',
+          '',
+        );
 
+        // Expect address argument to be the EVM address from mockGetAccountsFromSelectedAccountGroup
         expect(controller.refreshEarnEligibility).toHaveBeenNthCalledWith(1, {
-          address: account.address,
+          address: mockAccount1Address,
         });
         expect(controller.refreshPooledStakes).toHaveBeenNthCalledWith(1, {
-          address: account.address,
+          address: mockAccount1Address,
+        });
+        expect(controller.refreshLendingPositions).toHaveBeenNthCalledWith(1, {
+          address: mockAccount1Address,
         });
       });
     });
@@ -1694,9 +1698,7 @@ describe('EarnController', () => {
 
       it('returns empty array if no address is provided', async () => {
         const { controller } = await setupController({
-          mockGetSelectedAccount: jest.fn(() => ({
-            address: null,
-          })),
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
         });
         const result = await controller.getLendingPositionHistory({
           chainId: 1,
@@ -1983,6 +1985,24 @@ describe('EarnController', () => {
           }),
         ).rejects.toThrow('Selected network client id not found');
       });
+
+      it('handles no selected account address found', async () => {
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+        await expect(
+          controller.executeLendingDeposit({
+            amount: '100',
+            chainId: '0x1',
+            protocol: 'aave' as LendingMarket['protocol'],
+            underlyingTokenAddress: '0x123',
+            gasOptions: {},
+            txOptions: {
+              networkClientId: '1',
+            },
+          }),
+        ).rejects.toThrow('No EVM-compatible account address found');
+      });
     });
 
     describe('executeLendingWithdraw', () => {
@@ -2155,6 +2175,24 @@ describe('EarnController', () => {
             },
           }),
         ).rejects.toThrow('Selected network client id not found');
+      });
+
+      it('handles no selected account address found', async () => {
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+        await expect(
+          controller.executeLendingWithdraw({
+            amount: '100',
+            chainId: '0x1',
+            protocol: 'aave' as LendingMarket['protocol'],
+            underlyingTokenAddress: '0x123',
+            gasOptions: {},
+            txOptions: {
+              networkClientId: '1',
+            },
+          }),
+        ).rejects.toThrow('No EVM-compatible account address found');
       });
     });
 
@@ -2329,6 +2367,24 @@ describe('EarnController', () => {
           }),
         ).rejects.toThrow('Selected network client id not found');
       });
+
+      it('handles no selected account address found', async () => {
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+        await expect(
+          controller.executeLendingTokenApprove({
+            amount: '100',
+            chainId: '0x1',
+            protocol: 'aave' as LendingMarket['protocol'],
+            underlyingTokenAddress: '0x123',
+            gasOptions: {},
+            txOptions: {
+              networkClientId: '1',
+            },
+          }),
+        ).rejects.toThrow('No EVM-compatible account address found');
+      });
     });
 
     describe('getLendingTokenAllowance', () => {
@@ -2360,6 +2416,35 @@ describe('EarnController', () => {
           mockLendingContract.underlyingTokenAllowance,
         ).toHaveBeenCalledWith(mockAccount1Address);
         expect(result).toBe(mockAllowance);
+      });
+
+      it('doesn`t call underlyingTokenAllowance if no account address found', async () => {
+        const mockLendingContract = {
+          underlyingTokenAllowance: jest.fn().mockResolvedValue(0),
+        };
+
+        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+          contracts: {
+            lending: {
+              aave: {
+                '0x123': mockLendingContract,
+              },
+            },
+          },
+        }));
+
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+
+        await controller.getLendingTokenAllowance(
+          'aave' as LendingMarket['protocol'],
+          '0x123',
+        );
+
+        expect(
+          mockLendingContract.underlyingTokenAllowance,
+        ).not.toHaveBeenCalled();
       });
     });
 
@@ -2393,6 +2478,33 @@ describe('EarnController', () => {
         );
         expect(result).toBe(mockMaxWithdraw);
       });
+
+      it('doesn`t call maxWithdraw if no account address found', async () => {
+        const mockLendingContract = {
+          maxWithdraw: jest.fn().mockResolvedValue(0),
+        };
+
+        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+          contracts: {
+            lending: {
+              aave: {
+                '0x123': mockLendingContract,
+              },
+            },
+          },
+        }));
+
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+
+        await controller.getLendingTokenMaxWithdraw(
+          'aave' as LendingMarket['protocol'],
+          '0x123',
+        );
+
+        expect(mockLendingContract.maxWithdraw).not.toHaveBeenCalled();
+      });
     });
 
     describe('getLendingTokenMaxDeposit', () => {
@@ -2425,6 +2537,322 @@ describe('EarnController', () => {
         );
         expect(result).toBe(mockMaxDeposit);
       });
+
+      it('doesn`t call maxDeposit if no account address found', async () => {
+        const mockLendingContract = {
+          maxDeposit: jest.fn().mockResolvedValue(0),
+        };
+
+        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+          contracts: {
+            lending: {
+              aave: {
+                '0x123': mockLendingContract,
+              },
+            },
+          },
+        }));
+
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+
+        await controller.getLendingTokenMaxDeposit(
+          'aave' as LendingMarket['protocol'],
+          '0x123',
+        );
+
+        expect(mockLendingContract.maxDeposit).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', async () => {
+      const { controller } = await setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "lastUpdated": 0,
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', async () => {
+      const { controller } = await setupController();
+
+      const derivedState = deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'includeInStateLogs',
+      );
+
+      // Compare `pooled_staking` separately to minimize size of snapshot
+      const {
+        pooled_staking: derivedPooledStaking,
+        ...derivedStateWithoutPooledStaking
+      } = derivedState;
+      expect(derivedPooledStaking).toStrictEqual({
+        '1': {
+          pooledStakes: mockPooledStakes,
+          exchangeRate: '1.5',
+          vaultMetadata: mockVaultMetadata,
+          vaultDailyApys: mockPooledStakingVaultDailyApys,
+          vaultApyAverages: mockPooledStakingVaultApyAverages,
+        },
+        '560048': {
+          pooledStakes: mockPooledStakes,
+          exchangeRate: '1.5',
+          vaultMetadata: mockVaultMetadata,
+          vaultDailyApys: mockPooledStakingVaultDailyApys,
+          vaultApyAverages: mockPooledStakingVaultApyAverages,
+        },
+        isEligible: true,
+      });
+      expect(derivedStateWithoutPooledStaking).toMatchInlineSnapshot(`
+        Object {
+          "lastUpdated": 0,
+          "lending": Object {
+            "isEligible": true,
+            "markets": Array [
+              Object {
+                "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "chainId": 42161,
+                "id": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "name": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "netSupplyRate": 1.52269127978874,
+                "outputToken": Object {
+                  "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                  "chainId": 42161,
+                },
+                "protocol": "aave",
+                "rewards": Array [],
+                "totalSupplyRate": 1.52269127978874,
+                "tvlUnderlying": "132942564710249273623333",
+                "underlying": Object {
+                  "address": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                  "chainId": 42161,
+                },
+              },
+            ],
+            "positions": Array [
+              Object {
+                "assets": "112",
+                "chainId": 42161,
+                "id": "0xe6a7d2b7de29167ae4c3864ac0873e6dcd9cb47b-0x078f358208685046a11c85e8ad32895ded33a249-COLLATERAL-0",
+                "market": Object {
+                  "address": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "chainId": 42161,
+                  "id": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "name": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "netSupplyRate": 0.0062858302613958,
+                  "outputToken": Object {
+                    "address": "0x078f358208685046a11c85e8ad32895ded33a249",
+                    "chainId": 42161,
+                  },
+                  "protocol": "aave",
+                  "rewards": Array [],
+                  "totalSupplyRate": 0.0062858302613958,
+                  "tvlUnderlying": "315871357755",
+                  "underlying": Object {
+                    "address": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                    "chainId": 42161,
+                  },
+                },
+                "marketAddress": "0x078f358208685046a11c85e8ad32895ded33a249",
+                "marketId": "0x078f358208685046a11c85e8ad32895ded33a249",
+                "protocol": "aave",
+              },
+            ],
+          },
+        }
+      `);
+    });
+
+    it('persists expected state', async () => {
+      const { controller } = await setupController();
+
+      const derivedState = deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'persist',
+      );
+
+      // Compare `pooled_staking` separately to minimize size of snapshot
+      const {
+        pooled_staking: derivedPooledStaking,
+        ...derivedStateWithoutPooledStaking
+      } = derivedState;
+      expect(derivedPooledStaking).toStrictEqual({
+        '1': {
+          pooledStakes: mockPooledStakes,
+          exchangeRate: '1.5',
+          vaultMetadata: mockVaultMetadata,
+          vaultDailyApys: mockPooledStakingVaultDailyApys,
+          vaultApyAverages: mockPooledStakingVaultApyAverages,
+        },
+        '560048': {
+          pooledStakes: mockPooledStakes,
+          exchangeRate: '1.5',
+          vaultMetadata: mockVaultMetadata,
+          vaultDailyApys: mockPooledStakingVaultDailyApys,
+          vaultApyAverages: mockPooledStakingVaultApyAverages,
+        },
+        isEligible: true,
+      });
+      expect(derivedStateWithoutPooledStaking).toMatchInlineSnapshot(`
+        Object {
+          "lending": Object {
+            "isEligible": true,
+            "markets": Array [
+              Object {
+                "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "chainId": 42161,
+                "id": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "name": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "netSupplyRate": 1.52269127978874,
+                "outputToken": Object {
+                  "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                  "chainId": 42161,
+                },
+                "protocol": "aave",
+                "rewards": Array [],
+                "totalSupplyRate": 1.52269127978874,
+                "tvlUnderlying": "132942564710249273623333",
+                "underlying": Object {
+                  "address": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                  "chainId": 42161,
+                },
+              },
+            ],
+            "positions": Array [
+              Object {
+                "assets": "112",
+                "chainId": 42161,
+                "id": "0xe6a7d2b7de29167ae4c3864ac0873e6dcd9cb47b-0x078f358208685046a11c85e8ad32895ded33a249-COLLATERAL-0",
+                "market": Object {
+                  "address": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "chainId": 42161,
+                  "id": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "name": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "netSupplyRate": 0.0062858302613958,
+                  "outputToken": Object {
+                    "address": "0x078f358208685046a11c85e8ad32895ded33a249",
+                    "chainId": 42161,
+                  },
+                  "protocol": "aave",
+                  "rewards": Array [],
+                  "totalSupplyRate": 0.0062858302613958,
+                  "tvlUnderlying": "315871357755",
+                  "underlying": Object {
+                    "address": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                    "chainId": 42161,
+                  },
+                },
+                "marketAddress": "0x078f358208685046a11c85e8ad32895ded33a249",
+                "marketId": "0x078f358208685046a11c85e8ad32895ded33a249",
+                "protocol": "aave",
+              },
+            ],
+          },
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', async () => {
+      const { controller } = await setupController();
+
+      const derivedState = deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'usedInUi',
+      );
+
+      // Compare `pooled_staking` separately to minimize size of snapshot
+      const {
+        pooled_staking: derivedPooledStaking,
+        ...derivedStateWithoutPooledStaking
+      } = derivedState;
+      expect(derivedPooledStaking).toStrictEqual({
+        '1': {
+          pooledStakes: mockPooledStakes,
+          exchangeRate: '1.5',
+          vaultMetadata: mockVaultMetadata,
+          vaultDailyApys: mockPooledStakingVaultDailyApys,
+          vaultApyAverages: mockPooledStakingVaultApyAverages,
+        },
+        '560048': {
+          pooledStakes: mockPooledStakes,
+          exchangeRate: '1.5',
+          vaultMetadata: mockVaultMetadata,
+          vaultDailyApys: mockPooledStakingVaultDailyApys,
+          vaultApyAverages: mockPooledStakingVaultApyAverages,
+        },
+        isEligible: true,
+      });
+      expect(derivedStateWithoutPooledStaking).toMatchInlineSnapshot(`
+        Object {
+          "lending": Object {
+            "isEligible": true,
+            "markets": Array [
+              Object {
+                "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "chainId": 42161,
+                "id": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "name": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "netSupplyRate": 1.52269127978874,
+                "outputToken": Object {
+                  "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                  "chainId": 42161,
+                },
+                "protocol": "aave",
+                "rewards": Array [],
+                "totalSupplyRate": 1.52269127978874,
+                "tvlUnderlying": "132942564710249273623333",
+                "underlying": Object {
+                  "address": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                  "chainId": 42161,
+                },
+              },
+            ],
+            "positions": Array [
+              Object {
+                "assets": "112",
+                "chainId": 42161,
+                "id": "0xe6a7d2b7de29167ae4c3864ac0873e6dcd9cb47b-0x078f358208685046a11c85e8ad32895ded33a249-COLLATERAL-0",
+                "market": Object {
+                  "address": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "chainId": 42161,
+                  "id": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "name": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "netSupplyRate": 0.0062858302613958,
+                  "outputToken": Object {
+                    "address": "0x078f358208685046a11c85e8ad32895ded33a249",
+                    "chainId": 42161,
+                  },
+                  "protocol": "aave",
+                  "rewards": Array [],
+                  "totalSupplyRate": 0.0062858302613958,
+                  "tvlUnderlying": "315871357755",
+                  "underlying": Object {
+                    "address": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                    "chainId": 42161,
+                  },
+                },
+                "marketAddress": "0x078f358208685046a11c85e8ad32895ded33a249",
+                "marketId": "0x078f358208685046a11c85e8ad32895ded33a249",
+                "protocol": "aave",
+              },
+            ],
+          },
+        }
+      `);
     });
   });
 });

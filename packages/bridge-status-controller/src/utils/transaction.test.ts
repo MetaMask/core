@@ -7,7 +7,6 @@ import {
   type QuoteResponse,
   type TxData,
 } from '@metamask/bridge-controller';
-import { SolScope } from '@metamask/keyring-api';
 import {
   TransactionStatus,
   TransactionType,
@@ -16,15 +15,15 @@ import {
 import {
   getStatusRequestParams,
   getTxMetaFields,
-  handleSolanaTxResponse,
-  handleLineaDelay,
+  handleNonEvmTxResponse,
+  handleApprovalDelay,
   handleMobileHardwareWalletDelay,
   getClientRequest,
   toBatchTxParams,
   getAddTransactionBatchParams,
   findAndUpdateTransactionsInBatch,
 } from './transaction';
-import { LINEA_DELAY_MS } from '../constants';
+import { APPROVAL_DELAY_MS } from '../constants';
 import type { BridgeStatusControllerMessenger } from '../types';
 
 describe('Bridge Status Controller Transaction Utils', () => {
@@ -206,6 +205,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           valueInCurrency: '3600',
           usd: '3600',
         },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
+        },
         swapRate: '2.0',
         totalNetworkFee: {
           amount: '0.1',
@@ -246,7 +250,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         destinationTokenAddress: '0x0000000000000000000000000000000000000000',
         approvalTxId: undefined,
         swapTokenValue: '1.0',
-        chainId: '0x1',
       });
     });
 
@@ -295,6 +298,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           valueInCurrency: '3600',
           usd: '3600',
         },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
+        },
         swapRate: '2.0',
         totalNetworkFee: {
           amount: '0.1',
@@ -326,6 +334,87 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       expect(result.approvalTxId).toBe(approvalTxId);
     });
+
+    it('should use fallback chain ID for non-EVM destination chains', () => {
+      const mockQuoteResponse = {
+        quote: {
+          bridgeId: 'bridge1',
+          bridges: ['bridge1'],
+          srcChainId: ChainId.ETH,
+          destChainId: 'bip122:000000000019d6689c085ae165831e93', // Bitcoin CAIP format
+          srcTokenAmount: '1000000000000000000',
+          destTokenAmount: '100000', // satoshis
+          srcAsset: {
+            address: '0x0000000000000000000000000000000000000000',
+            decimals: 18,
+            symbol: 'ETH',
+          },
+          destAsset: {
+            address: 'bc1qxxx',
+            decimals: 8,
+            symbol: 'BTC',
+          },
+          steps: ['step1'],
+          feeData: {
+            [FeeType.METABRIDGE]: {
+              amount: '100000000000000000',
+            },
+          },
+        },
+        estimatedProcessingTimeInSeconds: 300,
+        trade: {
+          value: '0x0',
+          gasLimit: '21000',
+        },
+        // QuoteMetadata fields
+        sentAmount: {
+          amount: '1.0',
+          valueInCurrency: '3000',
+          usd: '3000',
+        },
+        toTokenAmount: {
+          amount: '0.001',
+          valueInCurrency: '3000',
+          usd: '3000',
+        },
+        minToTokenAmount: {
+          amount: '0.00095',
+          valueInCurrency: '2850',
+          usd: '2850',
+        },
+        swapRate: '0.001',
+        totalNetworkFee: {
+          amount: '0.01',
+          valueInCurrency: '30',
+          usd: '30',
+        },
+        totalMaxNetworkFee: {
+          amount: '0.015',
+          valueInCurrency: '45',
+          usd: '45',
+        },
+        gasFee: {
+          amount: '0.01',
+          valueInCurrency: '30',
+          usd: '30',
+        },
+        adjustedReturn: {
+          valueInCurrency: '2970',
+          usd: '2970',
+        },
+        cost: {
+          valueInCurrency: '30',
+          usd: '30',
+        },
+      };
+
+      const result = getTxMetaFields(mockQuoteResponse as never);
+
+      // Should use fallback mainnet chain ID when CAIP format can't be converted to hex
+      expect(result.destinationChainId).toBe('0x1');
+      expect(result.destinationTokenSymbol).toBe('BTC');
+      expect(result.destinationTokenDecimals).toBe(8);
+    });
   });
 
   const snapId = 'snapId123';
@@ -339,7 +428,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     address: selectedAccountAddress,
   } as never;
 
-  describe('handleSolanaTxResponse', () => {
+  describe('handleNonEvmTxResponse', () => {
     it('should handle string response format', () => {
       const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
         quote: {
@@ -349,6 +438,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -380,6 +470,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           valueInCurrency: '3600',
           usd: '3600',
         },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
+        },
         swapRate: '2.0',
         totalNetworkFee: {
           amount: '0.1',
@@ -408,7 +503,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const signature = 'solanaSignature123';
 
-      const result = handleSolanaTxResponse(signature, mockQuoteResponse, {
+      const result = handleNonEvmTxResponse(signature, mockQuoteResponse, {
         metadata: {
           snap: { id: undefined },
         },
@@ -449,6 +544,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -479,6 +575,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -512,7 +613,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleSolanaTxResponse(
+      const result = handleNonEvmTxResponse(
         snapResponse,
         mockQuoteResponse,
         mockSolanaAccount,
@@ -530,6 +631,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.SOLANA,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -560,6 +662,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -591,7 +698,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         signature: 'solanaSignature123',
       };
 
-      const result = handleSolanaTxResponse(
+      const result = handleNonEvmTxResponse(
         snapResponse,
         mockQuoteResponse,
         mockSolanaAccount,
@@ -610,6 +717,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -640,6 +748,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -673,7 +786,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleSolanaTxResponse(
+      const result = handleNonEvmTxResponse(
         snapResponse,
         mockQuoteResponse,
         mockSolanaAccount,
@@ -691,6 +804,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -721,6 +835,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -754,7 +873,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleSolanaTxResponse(
+      const result = handleNonEvmTxResponse(
         snapResponse,
         mockQuoteResponse,
         mockSolanaAccount,
@@ -772,6 +891,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -802,6 +922,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -835,7 +960,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleSolanaTxResponse(
+      const result = handleNonEvmTxResponse(
         snapResponse,
         mockQuoteResponse,
         mockSolanaAccount,
@@ -844,7 +969,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(result.hash).toBe('solanaTxHash123');
     });
 
-    it('should handle empty or invalid response', () => {
+    it('should handle new unified interface response with transactionId', () => {
       const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
@@ -853,6 +978,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -884,6 +1010,106 @@ describe('Bridge Status Controller Transaction Utils', () => {
           valueInCurrency: '3600',
           usd: '3600',
         },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
+        },
+        swapRate: '2.0',
+        totalNetworkFee: {
+          amount: '0.1',
+          valueInCurrency: '10',
+          usd: '10',
+        },
+        totalMaxNetworkFee: {
+          amount: '0.15',
+          valueInCurrency: '15',
+          usd: '15',
+        },
+        gasFee: {
+          amount: '0.05',
+          valueInCurrency: '5',
+          usd: '5',
+        },
+        adjustedReturn: {
+          valueInCurrency: '3585',
+          usd: '3585',
+        },
+        cost: {
+          valueInCurrency: '0.1',
+          usd: '0.1',
+        },
+      } as never;
+
+      const snapResponse = { transactionId: 'new-unified-tx-id-123' };
+
+      const result = handleNonEvmTxResponse(
+        snapResponse,
+        mockQuoteResponse,
+        mockSolanaAccount,
+      );
+
+      expect(result.hash).toBe('new-unified-tx-id-123');
+      expect(result.chainId).toBe(formatChainIdToHex(ChainId.SOLANA));
+      expect(result.type).toBe(TransactionType.bridge);
+      expect(result.status).toBe(TransactionStatus.submitted);
+      expect(result.destinationTokenAmount).toBe('2000000000000000000');
+      expect(result.destinationTokenSymbol).toBe('MATIC');
+      expect(result.destinationTokenDecimals).toBe(18);
+      expect(result.destinationTokenAddress).toBe(
+        '0x0000000000000000000000000000000000000000',
+      );
+      expect(result.swapTokenValue).toBe('1.0');
+      expect(result.isSolana).toBe(true);
+      expect(result.isBridgeTx).toBe(true);
+    });
+
+    it('should handle empty or invalid response', () => {
+      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+        quote: {
+          bridgeId: 'bridge1',
+          bridges: ['bridge1'],
+          srcChainId: ChainId.SOLANA,
+          destChainId: ChainId.POLYGON,
+          srcTokenAmount: '1000000000',
+          destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
+          srcAsset: {
+            address: 'solanaNativeAddress',
+            decimals: 9,
+            symbol: 'SOL',
+          },
+          destAsset: {
+            address: '0x0000000000000000000000000000000000000000',
+            decimals: 18,
+            symbol: 'MATIC',
+          },
+          steps: ['step1'],
+          feeData: {
+            [FeeType.METABRIDGE]: {
+              amount: '100000000',
+            },
+          },
+        },
+        estimatedProcessingTimeInSeconds: 300,
+        trade: 'ABCD',
+        solanaFeesInLamports: '5000',
+        // QuoteMetadata fields
+        sentAmount: {
+          amount: '1.0',
+          valueInCurrency: '100',
+          usd: '100',
+        },
+        toTokenAmount: {
+          amount: '2.0',
+          valueInCurrency: '3600',
+          usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
+        },
         swapRate: '2.0',
         totalNetworkFee: {
           amount: '0.1',
@@ -912,7 +1138,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const snapResponse = { result: {} } as { result: Record<string, string> };
 
-      const result = handleSolanaTxResponse(
+      const result = handleNonEvmTxResponse(
         snapResponse,
         mockQuoteResponse,
         mockSolanaAccount,
@@ -920,9 +1146,99 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       expect(result.hash).toBeUndefined();
     });
+
+    it('should handle Bitcoin transaction with PSBT and non-EVM chain ID', () => {
+      const mockBitcoinQuote = {
+        quote: {
+          bridgeId: 'bridge1',
+          bridges: ['bridge1'],
+          srcChainId: 'bip122:000000000019d6689c085ae165831e93',
+          destChainId: ChainId.ETH,
+          srcTokenAmount: '100000',
+          destTokenAmount: '1000000000000000000',
+          minDestTokenAmount: '950000000000000000',
+          srcAsset: {
+            address: 'bc1qxxx',
+            decimals: 8,
+            symbol: 'BTC',
+          },
+          destAsset: {
+            address: '0x0000000000000000000000000000000000000000',
+            decimals: 18,
+            symbol: 'ETH',
+          },
+          steps: ['step1'],
+          feeData: {
+            [FeeType.METABRIDGE]: {
+              amount: '500',
+            },
+          },
+        },
+        estimatedProcessingTimeInSeconds: 600,
+        trade: {
+          unsignedPsbtBase64: 'cHNidP8BAH0CAAAAAe...',
+        },
+        // QuoteMetadata fields
+        sentAmount: {
+          amount: '0.001',
+          valueInCurrency: '60',
+          usd: '60',
+        },
+        toTokenAmount: {
+          amount: '1.0',
+          valueInCurrency: '3000',
+          usd: '3000',
+        },
+        minToTokenAmount: {
+          amount: '0.95',
+          valueInCurrency: '2850',
+          usd: '2850',
+        },
+        swapRate: '1000',
+        totalNetworkFee: {
+          amount: '0.00005',
+          valueInCurrency: '3',
+          usd: '3',
+        },
+        totalMaxNetworkFee: {
+          amount: '0.00007',
+          valueInCurrency: '4.2',
+          usd: '4.2',
+        },
+        gasFee: {
+          amount: '0.00005',
+          valueInCurrency: '3',
+          usd: '3',
+        },
+        adjustedReturn: {
+          valueInCurrency: '2997',
+          usd: '2997',
+        },
+        cost: {
+          valueInCurrency: '3',
+          usd: '3',
+        },
+      };
+
+      const snapResponse = { transactionId: 'btc_tx_123' };
+
+      const result = handleNonEvmTxResponse(
+        snapResponse,
+        mockBitcoinQuote as never,
+        mockSolanaAccount,
+      );
+
+      // Should use fallback chain ID (0x1 - Ethereum mainnet) when Bitcoin CAIP format can't be converted
+      expect(result.chainId).toBe('0x1');
+      expect(result.hash).toBe('btc_tx_123');
+      expect(result.type).toBe(TransactionType.bridge);
+      expect(result.sourceTokenSymbol).toBe('BTC');
+      expect(result.destinationTokenSymbol).toBe('ETH');
+      expect(result.isBridgeTx).toBe(true);
+    });
   });
 
-  describe('handleLineaDelay', () => {
+  describe('handleApprovalDelay', () => {
     beforeEach(() => {
       jest.useFakeTimers();
       jest.clearAllMocks();
@@ -955,13 +1271,13 @@ describe('Bridge Status Controller Transaction Utils', () => {
       } as unknown as QuoteResponse;
 
       // Create a promise that will resolve after the delay
-      const delayPromise = handleLineaDelay(mockQuoteResponse);
+      const delayPromise = handleApprovalDelay(mockQuoteResponse);
 
       // Verify that the timer was set with the correct delay
       expect(jest.getTimerCount()).toBe(1);
 
       // Fast-forward the timer
-      jest.advanceTimersByTime(LINEA_DELAY_MS);
+      jest.advanceTimersByTime(APPROVAL_DELAY_MS);
 
       // Wait for the promise to resolve
       await delayPromise;
@@ -970,8 +1286,46 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(jest.getTimerCount()).toBe(0);
     });
 
-    it('should not delay when source chain is not Linea', async () => {
-      // Create a minimal mock quote response with a non-Linea source chain
+    it('should delay when source chain is Base', async () => {
+      // Create a minimal mock quote response with Base as the source chain
+      const mockQuoteResponse = {
+        quote: {
+          srcChainId: ChainId.BASE,
+          // Other required properties with minimal values
+          requestId: 'test-request-id',
+          srcAsset: { address: '0x123', symbol: 'ETH', decimals: 18 },
+          srcTokenAmount: '1000000000000000000',
+          destChainId: ChainId.ETH,
+          destAsset: { address: '0x456', symbol: 'ETH', decimals: 18 },
+          destTokenAmount: '1000000000000000000',
+          bridgeId: 'test-bridge',
+          bridges: ['test-bridge'],
+          steps: [],
+          feeData: {},
+        },
+        // Required properties for QuoteResponse
+        trade: {} as TxData,
+        estimatedProcessingTimeInSeconds: 60,
+      } as unknown as QuoteResponse;
+
+      // Create a promise that will resolve after the delay
+      const delayPromise = handleApprovalDelay(mockQuoteResponse);
+
+      // Verify that the timer was set with the correct delay
+      expect(jest.getTimerCount()).toBe(1);
+
+      // Fast-forward the timer
+      jest.advanceTimersByTime(APPROVAL_DELAY_MS);
+
+      // Wait for the promise to resolve
+      await delayPromise;
+
+      // Verify that the timer was cleared
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it('should not delay when source chain is not Linea or Base', async () => {
+      // Create a minimal mock quote response with a non-Linea/Base source chain
       const mockQuoteResponse = {
         quote: {
           srcChainId: ChainId.ETH,
@@ -993,7 +1347,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       } as unknown as QuoteResponse;
 
       // Create a promise that will resolve after the delay
-      const delayPromise = handleLineaDelay(mockQuoteResponse);
+      const delayPromise = handleApprovalDelay(mockQuoteResponse);
 
       // Verify that no timer was set
       expect(jest.getTimerCount()).toBe(0);
@@ -1059,6 +1413,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -1088,6 +1443,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -1132,11 +1492,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
         request: {
           id: expect.any(String),
           jsonrpc: '2.0',
-          method: 'signAndSendTransactionWithoutConfirmation',
+          method: 'signAndSendTransaction',
           params: {
-            account: { address: '0x123456' },
             transaction: 'ABCD',
-            scope: SolScope.Mainnet,
+            scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+            accountId: 'test-account-id',
           },
         },
       });
@@ -1176,7 +1536,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     const createMockQuoteResponse = (
       overrides: {
         gasIncluded?: boolean;
-        gasless7702?: boolean;
+        gasIncluded7702?: boolean;
         includeApproval?: boolean;
         includeResetApproval?: boolean;
       } = {},
@@ -1208,7 +1568,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
             txFee: '50000000000000000',
           },
           gasIncluded: overrides.gasIncluded ?? false,
-          gasless7702: overrides.gasless7702 ?? false,
+          gasIncluded7702: overrides.gasIncluded7702 ?? false,
         },
         estimatedProcessingTimeInSeconds: 300,
         trade: {
@@ -1283,9 +1643,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         createMockMessagingSystem() as unknown as BridgeStatusControllerMessenger;
     });
 
-    it('should handle gasless7702 flag set to true', async () => {
+    it('should handle gasIncluded7702 flag set to true', async () => {
       const mockQuoteResponse = createMockQuoteResponse({
-        gasless7702: true,
+        gasIncluded7702: true,
         includeApproval: true,
       });
 
@@ -1298,18 +1658,18 @@ describe('Bridge Status Controller Transaction Utils', () => {
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
-      // Should enable 7702 (disable7702 = false) when gasless7702 is true
       expect(result.disable7702).toBe(false);
+      expect(result.isGasFeeIncluded).toBe(true);
 
-      // Should use txFee for gas calculation when gasless7702 is true
+      // Should use txFee for gas calculation when gasIncluded7702 is true
       expect(result.transactions).toHaveLength(2);
       expect(result.transactions[0].type).toBe(TransactionType.bridgeApproval);
       expect(result.transactions[1].type).toBe(TransactionType.bridge);
     });
 
-    it('should handle gasless7702 flag set to false', async () => {
+    it('should handle gasIncluded7702 flag set to false', async () => {
       const mockQuoteResponse = createMockQuoteResponse({
-        gasless7702: false,
+        gasIncluded7702: false,
       });
 
       const result = await getAddTransactionBatchParams({
@@ -1320,18 +1680,18 @@ describe('Bridge Status Controller Transaction Utils', () => {
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
-      // Should disable 7702 when gasless7702 is false
       expect(result.disable7702).toBe(true);
+      expect(result.isGasFeeIncluded).toBe(false);
 
-      // Should not use txFee for gas calculation when both gasIncluded and gasless7702 are false
+      // Should not use txFee for gas calculation when both gasIncluded and gasIncluded7702 are false
       expect(result.transactions).toHaveLength(1);
       expect(result.transactions[0].type).toBe(TransactionType.swap);
     });
 
-    it('should handle gasIncluded with gasless7702', async () => {
+    it('should handle gasIncluded with gasIncluded7702', async () => {
       const mockQuoteResponse = createMockQuoteResponse({
         gasIncluded: true,
-        gasless7702: false,
+        gasIncluded7702: false,
         includeResetApproval: true,
       });
 
@@ -1344,13 +1704,64 @@ describe('Bridge Status Controller Transaction Utils', () => {
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
-      // Should disable 7702 when gasless7702 is not true
       expect(result.disable7702).toBe(true);
+      expect(result.isGasFeeIncluded).toBe(false);
 
       // Should use txFee for gas calculation when gasIncluded is true
       expect(result.transactions).toHaveLength(2);
       expect(result.transactions[0].type).toBe(TransactionType.bridgeApproval);
       expect(result.transactions[1].type).toBe(TransactionType.bridge);
+    });
+
+    it('should set isGasFeeIncluded to false and set disable7702 to true when gasIncluded7702 is undefined', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        gasIncluded7702: undefined,
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messagingSystem: mockMessagingSystem,
+        isBridgeTx: false,
+        trade: mockQuoteResponse.trade,
+        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
+      });
+
+      expect(result.isGasFeeIncluded).toBe(false);
+      expect(result.disable7702).toBe(true);
+    });
+
+    it('should set isGasFeeIncluded to true and disable7702 to false when gasIncluded7702 is true', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        gasIncluded7702: true,
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messagingSystem: mockMessagingSystem,
+        isBridgeTx: false,
+        trade: mockQuoteResponse.trade,
+        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
+      });
+
+      expect(result.isGasFeeIncluded).toBe(true);
+      expect(result.disable7702).toBe(false);
+    });
+
+    it('should set isGasFeeIncluded to false and disable7702 to true when gasIncluded7702 is false', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        gasIncluded7702: false,
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messagingSystem: mockMessagingSystem,
+        isBridgeTx: false,
+        trade: mockQuoteResponse.trade,
+        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
+      });
+
+      expect(result.isGasFeeIncluded).toBe(false);
+      expect(result.disable7702).toBe(true);
     });
   });
 

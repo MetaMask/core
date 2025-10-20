@@ -43,6 +43,10 @@ export function getMultichainAccountServiceMessenger(
       'SnapController:handleRequest',
       'KeyringController:withKeyring',
       'KeyringController:getState',
+      'KeyringController:getKeyringsByType',
+      'KeyringController:addNewKeyring',
+      'NetworkController:findNetworkClientIdByChainId',
+      'NetworkController:getNetworkClientById',
     ],
   });
 }

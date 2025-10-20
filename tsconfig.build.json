@@ -7,6 +7,7 @@
     { "path": "./packages/app-metadata-controller/tsconfig.build.json" },
     { "path": "./packages/approval-controller/tsconfig.build.json" },
     { "path": "./packages/assets-controllers/tsconfig.build.json" },
+    { "path": "./packages/core-backend/tsconfig.build.json" },
     { "path": "./packages/base-controller/tsconfig.build.json" },
     { "path": "./packages/bridge-controller/tsconfig.build.json" },
     { "path": "./packages/bridge-status-controller/tsconfig.build.json" },
@@ -16,9 +17,12 @@
     { "path": "./packages/controller-utils/tsconfig.build.json" },
     { "path": "./packages/delegation-controller/tsconfig.build.json" },
     { "path": "./packages/earn-controller/tsconfig.build.json" },
+    { "path": "./packages/eip-5792-middleware/tsconfig.build.json" },
     { "path": "./packages/eip1193-permission-middleware/tsconfig.build.json" },
     { "path": "./packages/ens-controller/tsconfig.build.json" },
     { "path": "./packages/error-reporting-service/tsconfig.build.json" },
+    { "path": "./packages/eth-block-tracker/tsconfig.build.json" },
+    { "path": "./packages/eth-json-rpc-middleware/tsconfig.build.json" },
     { "path": "./packages/eth-json-rpc-provider/tsconfig.build.json" },
     { "path": "./packages/foundryup/tsconfig.build.json" },
     { "path": "./packages/gas-fee-controller/tsconfig.build.json" },
@@ -54,6 +58,7 @@
     { "path": "./packages/selected-network-controller/tsconfig.build.json" },
     { "path": "./packages/shield-controller/tsconfig.build.json" },
     { "path": "./packages/signature-controller/tsconfig.build.json" },
+    { "path": "./packages/subscription-controller/tsconfig.build.json" },
     {
       "path": "./packages/token-search-discovery-controller/tsconfig.build.json"
     },

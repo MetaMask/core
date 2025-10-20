@@ -1,5 +1,5 @@
 import { AddressZero } from '@ethersproject/constants';
-import { SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope } from '@metamask/keyring-api';
 
 import {
   formatChainIdToCaip,
@@ -26,6 +26,16 @@ describe('CAIP Formatters', () => {
       expect(formatChainIdToCaip(SolScope.Mainnet)).toBe(SolScope.Mainnet);
     });
 
+    it('should convert Bitcoin chainId to BtcScope.Mainnet', () => {
+      expect(formatChainIdToCaip(ChainId.BTC)).toBe(BtcScope.Mainnet);
+      expect(formatChainIdToCaip(BtcScope.Mainnet)).toBe(BtcScope.Mainnet);
+    });
+
+    it('should convert Bitcoin numeric chainId to BtcScope.Mainnet', () => {
+      expect(formatChainIdToCaip(20000000000001)).toBe(BtcScope.Mainnet);
+      expect(formatChainIdToCaip('20000000000001')).toBe(BtcScope.Mainnet);
+    });
+
     it('should convert number to CAIP format', () => {
       expect(formatChainIdToCaip(1)).toBe('eip155:1');
     });
@@ -38,6 +48,15 @@ describe('CAIP Formatters', () => {
 
     it('should handle Solana mainnet', () => {
       expect(formatChainIdToDec(SolScope.Mainnet)).toBe(ChainId.SOLANA);
+    });
+
+    it('should handle Bitcoin mainnet', () => {
+      expect(formatChainIdToDec(BtcScope.Mainnet)).toBe(ChainId.BTC);
+    });
+
+    it('should handle Bitcoin numeric chainId', () => {
+      expect(formatChainIdToDec(20000000000001)).toBe(20000000000001);
+      expect(formatChainIdToDec('20000000000001')).toBe(20000000000001);
     });
 
     it('should parse CAIP chainId to decimal', () => {
@@ -71,6 +90,18 @@ describe('CAIP Formatters', () => {
         'Invalid cross-chain swaps chainId: invalid',
       );
     });
+
+    it('should throw error for Bitcoin chainId (non-EVM)', () => {
+      expect(() => formatChainIdToHex(BtcScope.Mainnet)).toThrow(
+        `Invalid cross-chain swaps chainId: ${BtcScope.Mainnet}`,
+      );
+    });
+
+    it('should throw error for Solana chainId (non-EVM)', () => {
+      expect(() => formatChainIdToHex(SolScope.Mainnet)).toThrow(
+        `Invalid cross-chain swaps chainId: ${SolScope.Mainnet}`,
+      );
+    });
   });
 
   describe('formatAddressToCaipReference', () => {
@@ -90,6 +121,9 @@ describe('CAIP Formatters', () => {
       expect(
         formatAddressToCaipReference(`${SolScope.Mainnet}/slip44:501`),
       ).toStrictEqual(AddressZero);
+      expect(
+        formatAddressToCaipReference(`${BtcScope.Mainnet}/slip44:0`),
+      ).toStrictEqual(AddressZero);
     });
 
     it('should extract address from CAIP format', () => {
@@ -98,6 +132,20 @@ describe('CAIP Formatters', () => {
           'eip155:1:0x1234567890123456789012345678901234567890',
         ),
       ).toBe('0x1234567890123456789012345678901234567890');
+    });
+
+    it('should handle Bitcoin addresses without prefix', () => {
+      const btcAddress = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
+      expect(formatAddressToCaipReference(btcAddress)).toBe(btcAddress);
+    });
+
+    it('should extract Bitcoin address from CAIP format', () => {
+      const btcAddress = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
+      expect(
+        formatAddressToCaipReference(
+          `bip122:000000000019d6689c085ae165831e93:${btcAddress}`,
+        ),
+      ).toBe(btcAddress);
     });
 
     it('should throw error for invalid address', () => {
@@ -129,6 +177,11 @@ describe('CAIP Formatters', () => {
     it('should return native asset for chainId when address is Solana native asset', () => {
       const result = formatAddressToAssetId('501', SolScope.Mainnet);
       expect(result).toBe('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501');
+    });
+
+    it('should return native asset for chainId when address is Bitcoin native asset', () => {
+      const result = formatAddressToAssetId('0', BtcScope.Mainnet);
+      expect(result).toBe('bip122:000000000019d6689c085ae165831e93/slip44:0');
     });
 
     it('should return native asset for chainId when address is BSC native asset', () => {

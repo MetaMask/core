@@ -15,6 +15,7 @@ import type {
   TypeMobileLinkFields,
 } from '../types/feature-announcement/type-links';
 import type { INotification } from '../types/notification/notification';
+import { isVersionInBounds } from '../utils/isVersionInBounds';
 
 const DEFAULT_SPACE_ID = ':space_id';
 const DEFAULT_ACCESS_TOKEN = ':access_token';
@@ -27,7 +28,8 @@ export const FEATURE_ANNOUNCEMENT_URL = `${FEATURE_ANNOUNCEMENT_API}?access_toke
 type Env = {
   spaceId: string;
   accessToken: string;
-  platform: string;
+  platform: 'extension' | 'mobile';
+  platformVersion?: string;
 };
 
 /**
@@ -140,13 +142,38 @@ const fetchFeatureAnnouncementNotifications = async (
             mobileLinkText: mobileLinkFields?.mobileLinkText,
             mobileLinkUrl: mobileLinkFields?.mobileLinkUrl,
           },
+          extensionMinimumVersionNumber: fields.extensionMinimumVersionNumber,
+          mobileMinimumVersionNumber: fields.mobileMinimumVersionNumber,
+          extensionMaximumVersionNumber: fields.extensionMaximumVersionNumber,
+          mobileMaximumVersionNumber: fields.mobileMaximumVersionNumber,
         },
       };
 
       return notification;
     });
 
-  return rawNotifications;
+  const versionKeys = {
+    extension: {
+      min: 'extensionMinimumVersionNumber',
+      max: 'extensionMaximumVersionNumber',
+    },
+    mobile: {
+      min: 'mobileMinimumVersionNumber',
+      max: 'mobileMaximumVersionNumber',
+    },
+  } as const;
+
+  const filteredRawNotifications = rawNotifications.filter((n) => {
+    const minVersion = n.data?.[versionKeys[env.platform].min];
+    const maxVersion = n.data?.[versionKeys[env.platform].max];
+    return isVersionInBounds({
+      currentVersion: env.platformVersion,
+      minVersion,
+      maxVersion,
+    });
+  });
+
+  return filteredRawNotifications;
 };
 
 /**

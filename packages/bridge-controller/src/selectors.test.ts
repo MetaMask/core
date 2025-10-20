@@ -11,6 +11,8 @@ import {
   selectBridgeQuotes,
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
+  selectMinimumBalanceForRentExemptionInSOL,
+  selectDefaultSlippagePercentage,
 } from './selectors';
 import type { BridgeAsset, QuoteResponse } from './types';
 import { SortOrder, RequestStatus, ChainId } from './types';
@@ -313,6 +315,7 @@ describe('Bridge Selectors', () => {
         destChainId: '137',
         srcTokenAmount: '1000000000000000000',
         destTokenAmount: '2000000000000000000',
+        minDestTokenAmount: '1800000000000000000',
         srcAsset: {
           address: '0x0000000000000000000000000000000000000000',
           decimals: 18,
@@ -471,11 +474,18 @@ describe('Bridge Selectors', () => {
                   txFee,
                 },
                 gasIncluded: Boolean(txFee),
+                gasIncluded7702: false,
                 srcTokenAmount,
                 destTokenAmount: new BigNumber('9')
                   .dividedBy(marketData['0x38'][destAsset.address].price)
                   .dividedBy(currencyRates.BNB.conversionRate)
                   .multipliedBy(10 ** destAsset.decimals)
+                  .toFixed(0),
+                minDestTokenAmount: new BigNumber('9')
+                  .dividedBy(marketData['0x38'][destAsset.address].price)
+                  .dividedBy(currencyRates.BNB.conversionRate)
+                  .multipliedBy(10 ** destAsset.decimals)
+                  .multipliedBy(0.95) // 5% slippage
                   .toFixed(0),
               },
               estimatedProcessingTimeInSeconds: 300,
@@ -561,6 +571,11 @@ describe('Bridge Selectors', () => {
               },
             },
             "includedTxFees": null,
+            "minToTokenAmount": Object {
+              "amount": "9.994389353314869106",
+              "usd": "9.992709880792782347418849595400950831104",
+              "valueInCurrency": "8.550000000000000000198810453356610924716",
+            },
             "sentAmount": Object {
               "amount": "0.018116598427479256",
               "usd": "11.68737997753541763072",
@@ -639,6 +654,11 @@ describe('Bridge Selectors', () => {
               },
             },
             "includedTxFees": null,
+            "minToTokenAmount": Object {
+              "amount": "0.015489691655494764",
+              "usd": "9.99270988079278215168",
+              "valueInCurrency": "8.54999999999999983272",
+            },
             "sentAmount": Object {
               "amount": "11.689344272882887843",
               "usd": "11.687379977535417949922677292586583974912",
@@ -730,6 +750,11 @@ describe('Bridge Selectors', () => {
               "usd": "0.64512",
               "valueInCurrency": "0.55198",
             },
+            "minToTokenAmount": Object {
+              "amount": "0.015489691655494764",
+              "usd": "9.99270988079278215168",
+              "valueInCurrency": "8.54999999999999983272",
+            },
             "sentAmount": Object {
               "amount": "11.689344272882887843",
               "usd": "11.687379977535417949922677292586583974912",
@@ -820,6 +845,11 @@ describe('Bridge Selectors', () => {
               "amount": "3",
               "usd": "1935.36",
               "valueInCurrency": "1655.94",
+            },
+            "minToTokenAmount": Object {
+              "amount": "0.015489691655494764",
+              "usd": "9.99270988079278215168",
+              "valueInCurrency": "8.54999999999999983272",
             },
             "sentAmount": Object {
               "amount": "11.689344272882887843",
@@ -1083,6 +1113,247 @@ describe('Bridge Selectors', () => {
         chains: {},
         support: false,
       });
+    });
+  });
+
+  describe('selectMinimumBalanceForRentExemptionInSOL', () => {
+    it('should convert lamports to SOL', () => {
+      const state = {
+        minimumBalanceForRentExemptionInLamports: '1000000000', // 1 SOL
+      } as BridgeAppState;
+
+      const result = selectMinimumBalanceForRentExemptionInSOL(state);
+
+      expect(result).toBe('1');
+    });
+
+    it('should handle undefined minimumBalanceForRentExemptionInLamports', () => {
+      const state = {} as BridgeAppState;
+
+      const result = selectMinimumBalanceForRentExemptionInSOL(state);
+
+      expect(result).toBe('0');
+    });
+
+    it('should handle null minimumBalanceForRentExemptionInLamports', () => {
+      const state = {
+        minimumBalanceForRentExemptionInLamports: null,
+      } as unknown as BridgeAppState;
+
+      const result = selectMinimumBalanceForRentExemptionInSOL(state);
+
+      expect(result).toBe('0');
+    });
+
+    it('should handle fractional SOL amounts', () => {
+      const state = {
+        minimumBalanceForRentExemptionInLamports: '500000000', // 0.5 SOL
+      } as BridgeAppState;
+
+      const result = selectMinimumBalanceForRentExemptionInSOL(state);
+
+      expect(result).toBe('0.5');
+    });
+  });
+
+  describe('selectDefaultSlippagePercentage', () => {
+    const mockValidBridgeConfig = {
+      minimumVersion: '0.0.0',
+      refreshRate: 3,
+      maxRefreshCount: 1,
+      support: true,
+      chains: {
+        '1': {
+          isActiveSrc: true,
+          isActiveDest: true,
+          stablecoins: ['0x123', '0x456'],
+        },
+        '10': {
+          isActiveSrc: true,
+          isActiveDest: false,
+        },
+        '1151111081099710': {
+          isActiveSrc: true,
+          isActiveDest: true,
+        },
+      },
+    };
+
+    it('should return swap default slippage when stablecoins list is not defined', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+          srcChainId: '10',
+          destChainId: '10',
+        },
+      );
+
+      expect(result).toBe(2);
+    });
+
+    it('should return bridge default slippage when requesting an EVM bridge quote', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+          srcChainId: '1',
+          destChainId: ChainId.SOLANA,
+        },
+      );
+
+      expect(result).toBe(0.5);
+    });
+
+    it('should return bridge default slippage when requesting a Solana bridge quote', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+          destChainId: '1',
+          srcChainId: ChainId.SOLANA,
+        },
+      );
+
+      expect(result).toBe(0.5);
+    });
+
+    it('should return swap auto slippage when requesting a Solana swap quote', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+          destChainId: ChainId.SOLANA,
+          srcChainId: ChainId.SOLANA,
+        },
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should return swap default slippage when dest token is not a stablecoin', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x789',
+          destChainId: '1',
+          srcChainId: '1',
+        },
+      );
+
+      expect(result).toBe(2);
+    });
+
+    it('should return swap default slippage when src token is not a stablecoin', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x789',
+          destTokenAddress: '0x456',
+          destChainId: '1',
+          srcChainId: '1',
+        },
+      );
+
+      expect(result).toBe(2);
+    });
+
+    it('should return swap stablecoin slippage when both tokens are stablecoins', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+          destChainId: '1',
+          srcChainId: '1',
+        },
+      );
+
+      expect(result).toBe(0.5);
+    });
+
+    it('should return bridge default slippage when srcChainId is undefined', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+          destChainId: '1',
+        },
+      );
+
+      expect(result).toBe(0.5);
+    });
+
+    it('should return swap stablecoin slippage when destChainId is undefined', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+          srcChainId: '1',
+        },
+      );
+
+      expect(result).toBe(0.5);
+    });
+
+    it('should return swap default slippage when destChainId is undefined', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x789',
+          destTokenAddress: '0x456',
+          srcChainId: '1',
+        },
+      );
+
+      expect(result).toBe(2);
     });
   });
 });

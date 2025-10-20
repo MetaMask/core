@@ -18,6 +18,7 @@ import {
   SimulationInvalidResponseError,
   SimulationRevertedError,
 } from '../errors';
+import type { GetSimulationConfig } from '../types';
 import { SimulationErrorCode, SimulationTokenStandard } from '../types';
 
 jest.mock('../api/simulation-api');
@@ -63,6 +64,7 @@ const REQUEST_MOCK: GetBalanceChangesRequest = {
   ethQuery: {
     sendAsync: jest.fn(),
   } as EthQuery,
+  getSimulationConfig: jest.fn(),
   txParams: {
     data: '0x123',
     from: USER_ADDRESS_MOCK,
@@ -305,13 +307,16 @@ describe('Simulation Utils', () => {
           const result = await getBalanceChanges(REQUEST_MOCK);
 
           expect(result).toStrictEqual({
-            nativeBalanceChange: {
-              difference: DIFFERENCE_MOCK,
-              isDecrease,
-              newBalance,
-              previousBalance,
+            simulationData: {
+              nativeBalanceChange: {
+                difference: DIFFERENCE_MOCK,
+                isDecrease,
+                newBalance,
+                previousBalance,
+              },
+              tokenBalanceChanges: [],
             },
-            tokenBalanceChanges: [],
+            gasUsed: undefined,
           });
         },
       );
@@ -324,8 +329,11 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          nativeBalanceChange: undefined,
-          tokenBalanceChanges: [],
+          simulationData: {
+            nativeBalanceChange: undefined,
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
         });
       });
 
@@ -337,13 +345,16 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          nativeBalanceChange: {
-            difference: '0x7',
-            isDecrease: false,
-            newBalance: '0xa',
-            previousBalance: '0x3',
+          simulationData: {
+            nativeBalanceChange: {
+              difference: '0x7',
+              isDecrease: false,
+              newBalance: '0xa',
+              previousBalance: '0x3',
+            },
+            tokenBalanceChanges: [],
           },
-          tokenBalanceChanges: [],
+          gasUsed: undefined,
         });
       });
     });
@@ -455,18 +466,21 @@ describe('Simulation Utils', () => {
           });
 
           expect(result).toStrictEqual({
-            nativeBalanceChange: undefined,
-            tokenBalanceChanges: [
-              {
-                standard: tokenStandard,
-                address: CONTRACT_ADDRESS_1_MOCK,
-                id: tokenId,
-                previousBalance: trimLeadingZeros(BALANCE_1_MOCK),
-                newBalance: trimLeadingZeros(BALANCE_2_MOCK),
-                difference: DIFFERENCE_MOCK,
-                isDecrease: false,
-              },
-            ],
+            simulationData: {
+              nativeBalanceChange: undefined,
+              tokenBalanceChanges: [
+                {
+                  standard: tokenStandard,
+                  address: CONTRACT_ADDRESS_1_MOCK,
+                  id: tokenId,
+                  previousBalance: trimLeadingZeros(BALANCE_1_MOCK),
+                  newBalance: trimLeadingZeros(BALANCE_2_MOCK),
+                  difference: DIFFERENCE_MOCK,
+                  isDecrease: false,
+                },
+              ],
+            },
+            gasUsed: undefined,
           });
         },
       );
@@ -502,36 +516,39 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          nativeBalanceChange: undefined,
-          tokenBalanceChanges: [
-            {
-              standard: SimulationTokenStandard.erc20,
-              address: '0x7',
-              id: undefined,
-              previousBalance: '0x1',
-              newBalance: '0x6',
-              difference: '0x5',
-              isDecrease: false,
-            },
-            {
-              standard: SimulationTokenStandard.erc721,
-              address: '0x8',
-              id: TOKEN_ID_MOCK,
-              previousBalance: '0x0',
-              newBalance: '0x1',
-              difference: '0x1',
-              isDecrease: false,
-            },
-            {
-              standard: SimulationTokenStandard.erc1155,
-              address: '0x9',
-              id: TOKEN_ID_MOCK,
-              previousBalance: '0x3',
-              newBalance: '0x4',
-              difference: '0x1',
-              isDecrease: false,
-            },
-          ],
+          simulationData: {
+            nativeBalanceChange: undefined,
+            tokenBalanceChanges: [
+              {
+                standard: SimulationTokenStandard.erc20,
+                address: '0x7',
+                id: undefined,
+                previousBalance: '0x1',
+                newBalance: '0x6',
+                difference: '0x5',
+                isDecrease: false,
+              },
+              {
+                standard: SimulationTokenStandard.erc721,
+                address: '0x8',
+                id: TOKEN_ID_MOCK,
+                previousBalance: '0x0',
+                newBalance: '0x1',
+                difference: '0x1',
+                isDecrease: false,
+              },
+              {
+                standard: SimulationTokenStandard.erc1155,
+                address: '0x9',
+                id: TOKEN_ID_MOCK,
+                previousBalance: '0x3',
+                newBalance: '0x4',
+                difference: '0x1',
+                isDecrease: false,
+              },
+            ],
+          },
+          gasUsed: undefined,
         });
       });
 
@@ -558,18 +575,21 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          nativeBalanceChange: undefined,
-          tokenBalanceChanges: [
-            {
-              standard: SimulationTokenStandard.erc20,
-              address: CONTRACT_ADDRESS_1_MOCK,
-              id: undefined,
-              previousBalance: trimLeadingZeros(BALANCE_2_MOCK),
-              newBalance: trimLeadingZeros(BALANCE_1_MOCK),
-              difference: DIFFERENCE_MOCK,
-              isDecrease: true,
-            },
-          ],
+          simulationData: {
+            nativeBalanceChange: undefined,
+            tokenBalanceChanges: [
+              {
+                standard: SimulationTokenStandard.erc20,
+                address: CONTRACT_ADDRESS_1_MOCK,
+                id: undefined,
+                previousBalance: trimLeadingZeros(BALANCE_2_MOCK),
+                newBalance: trimLeadingZeros(BALANCE_1_MOCK),
+                difference: DIFFERENCE_MOCK,
+                isDecrease: true,
+              },
+            ],
+          },
+          gasUsed: undefined,
         });
       });
 
@@ -602,27 +622,30 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          nativeBalanceChange: undefined,
-          tokenBalanceChanges: [
-            {
-              standard: SimulationTokenStandard.erc721,
-              address: CONTRACT_ADDRESS_1_MOCK,
-              id: TOKEN_ID_MOCK,
-              previousBalance: trimLeadingZeros(BALANCE_1_MOCK),
-              newBalance: trimLeadingZeros(BALANCE_2_MOCK),
-              difference: DIFFERENCE_MOCK,
-              isDecrease: false,
-            },
-            {
-              standard: SimulationTokenStandard.erc721,
-              address: CONTRACT_ADDRESS_1_MOCK,
-              id: OTHER_TOKEN_ID_MOCK,
-              previousBalance: trimLeadingZeros(BALANCE_1_MOCK),
-              newBalance: trimLeadingZeros(BALANCE_2_MOCK),
-              difference: DIFFERENCE_MOCK,
-              isDecrease: false,
-            },
-          ],
+          simulationData: {
+            nativeBalanceChange: undefined,
+            tokenBalanceChanges: [
+              {
+                standard: SimulationTokenStandard.erc721,
+                address: CONTRACT_ADDRESS_1_MOCK,
+                id: TOKEN_ID_MOCK,
+                previousBalance: trimLeadingZeros(BALANCE_1_MOCK),
+                newBalance: trimLeadingZeros(BALANCE_2_MOCK),
+                difference: DIFFERENCE_MOCK,
+                isDecrease: false,
+              },
+              {
+                standard: SimulationTokenStandard.erc721,
+                address: CONTRACT_ADDRESS_1_MOCK,
+                id: OTHER_TOKEN_ID_MOCK,
+                previousBalance: trimLeadingZeros(BALANCE_1_MOCK),
+                newBalance: trimLeadingZeros(BALANCE_2_MOCK),
+                difference: DIFFERENCE_MOCK,
+                isDecrease: false,
+              },
+            ],
+          },
+          gasUsed: undefined,
         });
       });
 
@@ -670,6 +693,7 @@ describe('Simulation Utils', () => {
           2,
           REQUEST_MOCK.chainId,
           {
+            getSimulationConfig: REQUEST_MOCK.getSimulationConfig,
             transactions: [
               // ERC-20 balance before minting.
               {
@@ -709,27 +733,30 @@ describe('Simulation Utils', () => {
           },
         );
         expect(result).toStrictEqual({
-          nativeBalanceChange: undefined,
-          tokenBalanceChanges: [
-            {
-              standard: SimulationTokenStandard.erc721,
-              address: CONTRACT_ADDRESS_1_MOCK,
-              id: TOKEN_ID_MOCK,
-              previousBalance: '0x0',
-              newBalance: '0x1',
-              difference: '0x1',
-              isDecrease: false,
-            },
-            {
-              standard: SimulationTokenStandard.erc20,
-              address: CONTRACT_ADDRESS_2_MOCK,
-              id: undefined,
-              previousBalance: '0x1',
-              newBalance: '0x0',
-              difference: '0x1',
-              isDecrease: true,
-            },
-          ],
+          simulationData: {
+            nativeBalanceChange: undefined,
+            tokenBalanceChanges: [
+              {
+                standard: SimulationTokenStandard.erc721,
+                address: CONTRACT_ADDRESS_1_MOCK,
+                id: TOKEN_ID_MOCK,
+                previousBalance: '0x0',
+                newBalance: '0x1',
+                difference: '0x1',
+                isDecrease: false,
+              },
+              {
+                standard: SimulationTokenStandard.erc20,
+                address: CONTRACT_ADDRESS_2_MOCK,
+                id: undefined,
+                previousBalance: '0x1',
+                newBalance: '0x0',
+                difference: '0x1',
+                isDecrease: true,
+              },
+            ],
+          },
+          gasUsed: undefined,
         });
       });
 
@@ -747,8 +774,11 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          nativeBalanceChange: undefined,
-          tokenBalanceChanges: [],
+          simulationData: {
+            nativeBalanceChange: undefined,
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
         });
       });
 
@@ -771,8 +801,11 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          nativeBalanceChange: undefined,
-          tokenBalanceChanges: [],
+          simulationData: {
+            nativeBalanceChange: undefined,
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
         });
       });
 
@@ -792,8 +825,11 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          nativeBalanceChange: undefined,
-          tokenBalanceChanges: [],
+          simulationData: {
+            nativeBalanceChange: undefined,
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
         });
       });
 
@@ -809,18 +845,21 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          nativeBalanceChange: undefined,
-          tokenBalanceChanges: [
-            {
-              standard: SimulationTokenStandard.erc20,
-              address: CONTRACT_ADDRESS_1_MOCK,
-              id: undefined,
-              previousBalance: trimLeadingZeros(BALANCE_1_MOCK),
-              newBalance: trimLeadingZeros(BALANCE_2_MOCK),
-              difference: '0x1',
-              isDecrease: false,
-            },
-          ],
+          simulationData: {
+            nativeBalanceChange: undefined,
+            tokenBalanceChanges: [
+              {
+                standard: SimulationTokenStandard.erc20,
+                address: CONTRACT_ADDRESS_1_MOCK,
+                id: undefined,
+                previousBalance: trimLeadingZeros(BALANCE_1_MOCK),
+                newBalance: trimLeadingZeros(BALANCE_2_MOCK),
+                difference: '0x1',
+                isDecrease: false,
+              },
+            ],
+          },
+          gasUsed: undefined,
         });
       });
 
@@ -864,18 +903,21 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          nativeBalanceChange: undefined,
-          tokenBalanceChanges: [
-            {
-              standard: SimulationTokenStandard.erc20,
-              address: CONTRACT_ADDRESS_2_MOCK,
-              id: undefined,
-              previousBalance: DECODED_BALANCE_BEFORE,
-              newBalance: DECODED_BALANCE_AFTER,
-              difference: EXPECTED_BALANCE_CHANGE,
-              isDecrease: false,
-            },
-          ],
+          simulationData: {
+            nativeBalanceChange: undefined,
+            tokenBalanceChanges: [
+              {
+                standard: SimulationTokenStandard.erc20,
+                address: CONTRACT_ADDRESS_2_MOCK,
+                id: undefined,
+                previousBalance: DECODED_BALANCE_BEFORE,
+                newBalance: DECODED_BALANCE_AFTER,
+                difference: EXPECTED_BALANCE_CHANGE,
+                isDecrease: false,
+              },
+            ],
+          },
+          gasUsed: undefined,
         });
       });
     });
@@ -890,11 +932,14 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          error: {
-            code: ERROR_CODE_MOCK,
-            message: ERROR_MESSAGE_MOCK,
+          simulationData: {
+            tokenBalanceChanges: [],
+            error: {
+              code: ERROR_CODE_MOCK,
+              message: ERROR_MESSAGE_MOCK,
+            },
           },
-          tokenBalanceChanges: [],
+          gasUsed: undefined,
         });
       });
 
@@ -906,11 +951,14 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          error: {
-            code: ERROR_CODE_MOCK,
-            message: undefined,
+          simulationData: {
+            tokenBalanceChanges: [],
+            error: {
+              code: ERROR_CODE_MOCK,
+              message: undefined,
+            },
           },
-          tokenBalanceChanges: [],
+          gasUsed: undefined,
         });
       });
 
@@ -926,11 +974,14 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          error: {
-            code: SimulationErrorCode.InvalidResponse,
-            message: new SimulationInvalidResponseError().message,
+          simulationData: {
+            tokenBalanceChanges: [],
+            error: {
+              code: SimulationErrorCode.InvalidResponse,
+              message: new SimulationInvalidResponseError().message,
+            },
           },
-          tokenBalanceChanges: [],
+          gasUsed: undefined,
         });
       });
 
@@ -951,11 +1002,14 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          error: {
-            code: SimulationErrorCode.Reverted,
-            message: new SimulationRevertedError().message,
+          simulationData: {
+            tokenBalanceChanges: [],
+            error: {
+              code: SimulationErrorCode.Reverted,
+              message: new SimulationRevertedError().message,
+            },
           },
-          tokenBalanceChanges: [],
+          gasUsed: undefined,
         });
       });
 
@@ -976,11 +1030,14 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          error: {
-            code: undefined,
-            message: 'test 1 2 3',
+          simulationData: {
+            tokenBalanceChanges: [],
+            error: {
+              code: undefined,
+              message: 'test 1 2 3',
+            },
           },
-          tokenBalanceChanges: [],
+          gasUsed: undefined,
         });
       });
 
@@ -993,11 +1050,14 @@ describe('Simulation Utils', () => {
         const result = await getBalanceChanges(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          error: {
-            code: SimulationErrorCode.Reverted,
-            message: new SimulationRevertedError().message,
+          simulationData: {
+            tokenBalanceChanges: [],
+            error: {
+              code: SimulationErrorCode.Reverted,
+              message: new SimulationRevertedError().message,
+            },
           },
-          tokenBalanceChanges: [],
+          gasUsed: undefined,
         });
       });
     });
@@ -1147,6 +1207,25 @@ describe('Simulation Utils', () => {
           }),
         );
       });
+    });
+
+    it('forwards simulation config', async () => {
+      const getSimulationConfigMock: GetSimulationConfig = jest.fn();
+
+      const request = {
+        ...REQUEST_MOCK,
+        getSimulationConfig: getSimulationConfigMock,
+      };
+
+      await getBalanceChanges(request);
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          getSimulationConfig: getSimulationConfigMock,
+        }),
+      );
     });
   });
 });

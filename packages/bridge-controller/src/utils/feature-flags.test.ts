@@ -1,4 +1,8 @@
-import { formatFeatureFlags, getBridgeFeatureFlags } from './feature-flags';
+import {
+  formatFeatureFlags,
+  getBridgeFeatureFlags,
+  hasMinimumRequiredVersion,
+} from './feature-flags';
 import type {
   FeatureFlagsPlatformConfig,
   BridgeControllerMessenger,
@@ -457,6 +461,24 @@ describe('feature-flags', () => {
       };
 
       expect(result).toStrictEqual(expectedBridgeConfig);
+    });
+  });
+
+  describe('hasMinimumRequiredVersion', () => {
+    it('should return true if the client version is greater than or equal to the minimum required version', () => {
+      expect(hasMinimumRequiredVersion('13.8.0', '13.7.0')).toBe(true);
+      expect(hasMinimumRequiredVersion('13.8.1', '13.8.0')).toBe(true);
+      expect(hasMinimumRequiredVersion('14.0.0', '13.7.0')).toBe(true);
+      expect(hasMinimumRequiredVersion('13.9.0', '13.8.1')).toBe(true);
+    });
+
+    it('should return false if the client version is less than the minimum required version', () => {
+      expect(hasMinimumRequiredVersion('13.7.0', '13.8.0')).toBe(false);
+      expect(hasMinimumRequiredVersion('13.7.1', '13.8.0')).toBe(false);
+      expect(hasMinimumRequiredVersion('13.7.1', '13.7.2')).toBe(false);
+      expect(hasMinimumRequiredVersion('13.6.0', '13.8.0')).toBe(false);
+      expect(hasMinimumRequiredVersion('13.7.0', '14.7.0')).toBe(false);
+      expect(hasMinimumRequiredVersion('13.7.0', '13.8.1')).toBe(false);
     });
   });
 });

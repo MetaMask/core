@@ -1,9 +1,12 @@
 import { AddressZero } from '@ethersproject/constants';
-import { SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
 
 import { CHAIN_IDS } from './chains';
-import type { BridgeControllerState } from '../types';
+import type {
+  BridgeControllerState,
+  FeatureFlagsPlatformConfig,
+} from '../types';
 
 export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.MAINNET,
@@ -17,6 +20,7 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.BASE,
   CHAIN_IDS.SEI,
   SolScope.Mainnet,
+  BtcScope.Mainnet,
 ] as const;
 
 export type AllowedBridgeChainIds = (typeof ALLOWED_BRIDGE_CHAIN_IDS)[number];
@@ -36,14 +40,13 @@ export const BRIDGE_QUOTE_MAX_ETA_SECONDS = 60 * 60; // 1 hour
 export const BRIDGE_QUOTE_MAX_RETURN_DIFFERENCE_PERCENTAGE = 0.5; // if a quote returns in x times less return than the best quote, ignore it
 
 export const BRIDGE_PREFERRED_GAS_ESTIMATE = 'medium';
-export const BRIDGE_DEFAULT_SLIPPAGE = 0.5;
 export const BRIDGE_MM_FEE_RATE = 0.875;
 export const REFRESH_INTERVAL_MS = 30 * 1000;
 export const DEFAULT_MAX_REFRESH_COUNT = 5;
 
 export const BRIDGE_CONTROLLER_NAME = 'BridgeController';
 
-export const DEFAULT_FEATURE_FLAG_CONFIG = {
+export const DEFAULT_FEATURE_FLAG_CONFIG: FeatureFlagsPlatformConfig = {
   minimumVersion: '0.0.0',
   refreshRate: REFRESH_INTERVAL_MS,
   maxRefreshCount: DEFAULT_MAX_REFRESH_COUNT,

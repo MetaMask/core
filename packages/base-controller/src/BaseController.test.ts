@@ -1,13 +1,16 @@
 /* eslint-disable jest/no-export */
+import type { Json } from '@metamask/utils';
 import type { Draft, Patch } from 'immer';
 import * as sinon from 'sinon';
 
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StatePropertyMetadata,
 } from './BaseController';
 import {
   BaseController,
+  deriveStateFromMetadata,
   getAnonymizedState,
   getPersistentState,
   isBaseController,
@@ -631,7 +634,14 @@ describe('getAnonymizedState', () => {
   it('should return empty state when no properties are anonymized', () => {
     const anonymizedState = getAnonymizedState(
       { count: 1 },
-      { count: { anonymous: false, persist: false } },
+      {
+        count: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+      },
     );
     expect(anonymizedState).toStrictEqual({});
   });
@@ -647,19 +657,27 @@ describe('getAnonymizedState', () => {
       {
         password: {
           anonymous: false,
+          includeInStateLogs: false,
           persist: false,
+          usedInUi: false,
         },
         privateKey: {
           anonymous: false,
+          includeInStateLogs: false,
           persist: false,
+          usedInUi: false,
         },
         network: {
           anonymous: true,
+          includeInStateLogs: false,
           persist: false,
+          usedInUi: false,
         },
         tokens: {
           anonymous: true,
+          includeInStateLogs: false,
           persist: false,
+          usedInUi: false,
         },
       },
     );
@@ -681,7 +699,9 @@ describe('getAnonymizedState', () => {
       {
         transactionHash: {
           anonymous: anonymizeTransactionHash,
+          includeInStateLogs: false,
           persist: false,
+          usedInUi: false,
         },
       },
     );
@@ -704,7 +724,9 @@ describe('getAnonymizedState', () => {
       {
         txMeta: {
           anonymous: anonymizeTxMeta,
+          includeInStateLogs: false,
           persist: false,
+          usedInUi: false,
         },
       },
     );
@@ -742,7 +764,9 @@ describe('getAnonymizedState', () => {
       {
         txMeta: {
           anonymous: anonymizeTxMeta,
+          includeInStateLogs: false,
           persist: false,
+          usedInUi: false,
         },
       },
     );
@@ -760,7 +784,9 @@ describe('getAnonymizedState', () => {
       {
         count: {
           anonymous: (count) => Number(count),
+          includeInStateLogs: false,
           persist: false,
+          usedInUi: false,
         },
       },
     );
@@ -768,9 +794,9 @@ describe('getAnonymizedState', () => {
     expect(anonymizedState).toStrictEqual({ count: 1 });
   });
 
-  it('should suppress errors thrown when deriving state', () => {
-    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
-    const persistentState = getAnonymizedState(
+  it('reports thrown error when deriving state', () => {
+    const captureException = jest.fn();
+    const anonymizedState = getAnonymizedState(
       {
         extraState: 'extraState',
         privateKey: '123',
@@ -780,20 +806,110 @@ describe('getAnonymizedState', () => {
       {
         privateKey: {
           anonymous: true,
+          includeInStateLogs: true,
           persist: true,
+          usedInUi: true,
         },
         network: {
           anonymous: false,
+          includeInStateLogs: false,
           persist: false,
+          usedInUi: false,
+        },
+      },
+      captureException,
+    );
+
+    expect(anonymizedState).toStrictEqual({
+      privateKey: '123',
+    });
+    expect(captureException).toHaveBeenCalledTimes(1);
+    expect(captureException).toHaveBeenCalledWith(
+      new Error(`No metadata found for 'extraState'`),
+    );
+  });
+
+  it('logs thrown error and captureException error to console if captureException throws', () => {
+    const consoleError = jest.fn();
+    const testError = new Error('Test error');
+    const captureException = jest.fn().mockImplementation(() => {
+      throw testError;
+    });
+    jest.spyOn(console, 'error').mockImplementation(consoleError);
+    const anonymizedState = getAnonymizedState(
+      {
+        extraState: 'extraState',
+        privateKey: '123',
+        network: 'mainnet',
+      },
+      // @ts-expect-error Intentionally testing invalid state
+      {
+        privateKey: {
+          anonymous: true,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+        network: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+      },
+      captureException,
+    );
+
+    expect(anonymizedState).toStrictEqual({
+      privateKey: '123',
+    });
+
+    expect(consoleError).toHaveBeenCalledTimes(2);
+    expect(consoleError).toHaveBeenNthCalledWith(
+      1,
+      new Error(`Error thrown when calling 'captureException'`),
+      testError,
+    );
+    expect(consoleError).toHaveBeenNthCalledWith(
+      2,
+      new Error(`No metadata found for 'extraState'`),
+    );
+  });
+
+  it('logs thrown error to console when deriving state if no captureException function is given', () => {
+    const consoleError = jest.fn();
+    jest.spyOn(console, 'error').mockImplementation(consoleError);
+
+    const anonymizedState = getAnonymizedState(
+      {
+        extraState: 'extraState',
+        privateKey: '123',
+        network: 'mainnet',
+      },
+      // @ts-expect-error Intentionally testing invalid state
+      {
+        privateKey: {
+          anonymous: true,
+          includeInStateLogs: true,
+          persist: true,
+          usedInUi: true,
+        },
+        network: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
         },
       },
     );
-    expect(persistentState).toStrictEqual({
+
+    expect(anonymizedState).toStrictEqual({
       privateKey: '123',
     });
-    expect(setTimeoutStub.callCount).toBe(1);
-    const onTimeout = setTimeoutStub.firstCall.args[0];
-    expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      new Error(`No metadata found for 'extraState'`),
+    );
   });
 });
 
@@ -809,7 +925,14 @@ describe('getPersistentState', () => {
   it('should return empty state when no properties are persistent', () => {
     const persistentState = getPersistentState(
       { count: 1 },
-      { count: { anonymous: false, persist: false } },
+      {
+        count: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+      },
     );
     expect(persistentState).toStrictEqual({});
   });
@@ -825,19 +948,27 @@ describe('getPersistentState', () => {
       {
         password: {
           anonymous: false,
+          includeInStateLogs: false,
           persist: true,
+          usedInUi: false,
         },
         privateKey: {
           anonymous: false,
+          includeInStateLogs: false,
           persist: true,
+          usedInUi: false,
         },
         network: {
           anonymous: false,
+          includeInStateLogs: false,
           persist: false,
+          usedInUi: false,
         },
         tokens: {
           anonymous: false,
+          includeInStateLogs: false,
           persist: false,
+          usedInUi: false,
         },
       },
     );
@@ -859,7 +990,9 @@ describe('getPersistentState', () => {
       {
         transactionHash: {
           anonymous: false,
+          includeInStateLogs: false,
           persist: normalizeTransacitonHash,
+          usedInUi: false,
         },
       },
     );
@@ -882,7 +1015,9 @@ describe('getPersistentState', () => {
       {
         txMeta: {
           anonymous: false,
+          includeInStateLogs: false,
           persist: getPersistentTxMeta,
+          usedInUi: false,
         },
       },
     );
@@ -920,7 +1055,9 @@ describe('getPersistentState', () => {
       {
         txMeta: {
           anonymous: false,
+          includeInStateLogs: false,
           persist: getPersistentTxMeta,
+          usedInUi: false,
         },
       },
     );
@@ -938,7 +1075,9 @@ describe('getPersistentState', () => {
       {
         count: {
           anonymous: false,
+          includeInStateLogs: false,
           persist: (count) => Number(count),
+          usedInUi: false,
         },
       },
     );
@@ -946,8 +1085,8 @@ describe('getPersistentState', () => {
     expect(persistentState).toStrictEqual({ count: 1 });
   });
 
-  it('should suppress errors thrown when deriving state', () => {
-    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
+  it('reports thrown error when deriving state', () => {
+    const captureException = jest.fn();
     const persistentState = getPersistentState(
       {
         extraState: 'extraState',
@@ -958,191 +1097,501 @@ describe('getPersistentState', () => {
       {
         privateKey: {
           anonymous: false,
+          includeInStateLogs: false,
           persist: true,
+          usedInUi: false,
         },
         network: {
           anonymous: false,
+          includeInStateLogs: false,
           persist: false,
+          usedInUi: true,
         },
       },
+      captureException,
     );
+
     expect(persistentState).toStrictEqual({
       privateKey: '123',
     });
-    expect(setTimeoutStub.callCount).toBe(1);
-    const onTimeout = setTimeoutStub.firstCall.args[0];
-    expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
+    expect(captureException).toHaveBeenCalledTimes(1);
+    expect(captureException).toHaveBeenCalledWith(
+      new Error(`No metadata found for 'extraState'`),
+    );
   });
 
-  describe('inter-controller communication', () => {
-    // These two contrived mock controllers are setup to test with.
-    // The 'VisitorController' records strings that represent visitors.
-    // The 'VisitorOverflowController' monitors the 'VisitorController' to ensure the number of
-    // visitors doesn't exceed the maximum capacity. If it does, it will clear out all visitors.
-
-    const visitorName = 'VisitorController';
-
-    type VisitorControllerState = {
-      visitors: string[];
-    };
-    type VisitorControllerAction = {
-      type: `${typeof visitorName}:clear`;
-      handler: () => void;
-    };
-    type VisitorControllerEvent = {
-      type: `${typeof visitorName}:stateChange`;
-      payload: [VisitorControllerState, Patch[]];
-    };
-
-    const visitorControllerStateMetadata = {
-      visitors: {
-        persist: true,
-        anonymous: true,
+  it('logs thrown error and captureException error to console if captureException throws', () => {
+    const consoleError = jest.fn();
+    const testError = new Error('Test error');
+    const captureException = jest.fn().mockImplementation(() => {
+      throw testError;
+    });
+    jest.spyOn(console, 'error').mockImplementation(consoleError);
+    const persistentState = getPersistentState(
+      {
+        extraState: 'extraState',
+        privateKey: '123',
+        network: 'mainnet',
       },
-    };
-
-    type VisitorMessenger = RestrictedMessenger<
-      typeof visitorName,
-      VisitorControllerAction | VisitorOverflowControllerAction,
-      VisitorControllerEvent | VisitorOverflowControllerEvent,
-      never,
-      never
-    >;
-    class VisitorController extends BaseController<
-      typeof visitorName,
-      VisitorControllerState,
-      VisitorMessenger
-    > {
-      constructor(messagingSystem: VisitorMessenger) {
-        super({
-          messenger: messagingSystem,
-          metadata: visitorControllerStateMetadata,
-          name: visitorName,
-          state: { visitors: [] },
-        });
-
-        messagingSystem.registerActionHandler(
-          'VisitorController:clear',
-          this.clear,
-        );
-      }
-
-      clear = () => {
-        this.update(() => {
-          return { visitors: [] };
-        });
-      };
-
-      addVisitor(visitor: string) {
-        this.update(({ visitors }) => {
-          return { visitors: [...visitors, visitor] };
-        });
-      }
-
-      destroy() {
-        super.destroy();
-      }
-    }
-
-    const visitorOverflowName = 'VisitorOverflowController';
-
-    type VisitorOverflowControllerState = {
-      maxVisitors: number;
-    };
-    type VisitorOverflowControllerAction = {
-      type: `${typeof visitorOverflowName}:updateMax`;
-      handler: (max: number) => void;
-    };
-    type VisitorOverflowControllerEvent = {
-      type: `${typeof visitorOverflowName}:stateChange`;
-      payload: [VisitorOverflowControllerState, Patch[]];
-    };
-
-    const visitorOverflowControllerMetadata = {
-      maxVisitors: {
-        persist: false,
-        anonymous: true,
+      // @ts-expect-error Intentionally testing invalid state
+      {
+        privateKey: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: true,
+          usedInUi: false,
+        },
+        network: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
       },
-    };
+      captureException,
+    );
 
-    type VisitorOverflowMessenger = RestrictedMessenger<
-      typeof visitorOverflowName,
-      VisitorControllerAction | VisitorOverflowControllerAction,
-      VisitorControllerEvent | VisitorOverflowControllerEvent,
-      `${typeof visitorName}:clear`,
-      `${typeof visitorName}:stateChange`
-    >;
+    expect(persistentState).toStrictEqual({
+      privateKey: '123',
+    });
 
-    class VisitorOverflowController extends BaseController<
-      typeof visitorOverflowName,
-      VisitorOverflowControllerState,
-      VisitorOverflowMessenger
-    > {
-      constructor(messagingSystem: VisitorOverflowMessenger) {
-        super({
-          messenger: messagingSystem,
-          metadata: visitorOverflowControllerMetadata,
-          name: visitorOverflowName,
-          state: { maxVisitors: 5 },
-        });
+    expect(consoleError).toHaveBeenCalledTimes(2);
+    expect(consoleError).toHaveBeenNthCalledWith(
+      1,
+      new Error(`Error thrown when calling 'captureException'`),
+      testError,
+    );
+    expect(consoleError).toHaveBeenNthCalledWith(
+      2,
+      new Error(`No metadata found for 'extraState'`),
+    );
+  });
 
-        messagingSystem.registerActionHandler(
-          'VisitorOverflowController:updateMax',
-          this.updateMax,
-        );
+  it('logs thrown error to console when deriving state if no captureException function is given', () => {
+    const consoleError = jest.fn();
+    jest.spyOn(console, 'error').mockImplementation(consoleError);
 
-        messagingSystem.subscribe(
-          'VisitorController:stateChange',
-          this.onVisit,
-        );
-      }
+    const persistentState = getPersistentState(
+      {
+        extraState: 'extraState',
+        privateKey: '123',
+        network: 'mainnet',
+      },
+      // @ts-expect-error Intentionally testing invalid state
+      {
+        privateKey: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: true,
+          usedInUi: false,
+        },
+        network: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: true,
+        },
+      },
+    );
 
-      onVisit = ({ visitors }: VisitorControllerState) => {
-        if (visitors.length > this.state.maxVisitors) {
-          this.messagingSystem.call('VisitorController:clear');
-        }
-      };
+    expect(persistentState).toStrictEqual({
+      privateKey: '123',
+    });
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      new Error(`No metadata found for 'extraState'`),
+    );
+  });
+});
 
-      updateMax = (max: number) => {
-        this.update(() => {
-          return { maxVisitors: max };
-        });
-      };
+describe('deriveStateFromMetadata', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
 
-      destroy() {
-        super.destroy();
-      }
-    }
+  it('returns an empty object when deriving state for an unset property', () => {
+    const derivedState = deriveStateFromMetadata(
+      { count: 1 },
+      {
+        count: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          // usedInUi is not set
+        },
+      },
+      'usedInUi',
+    );
 
-    it('should allow messaging between controllers', () => {
-      const messenger = new Messenger<
-        VisitorControllerAction | VisitorOverflowControllerAction,
-        VisitorControllerEvent | VisitorOverflowControllerEvent
-      >();
-      const visitorControllerMessenger = messenger.getRestricted({
-        name: visitorName,
-        allowedActions: [],
-        allowedEvents: [],
-      });
-      const visitorController = new VisitorController(
-        visitorControllerMessenger,
-      );
-      const visitorOverflowControllerMessenger = messenger.getRestricted({
-        name: visitorOverflowName,
-        allowedActions: ['VisitorController:clear'],
-        allowedEvents: ['VisitorController:stateChange'],
-      });
-      const visitorOverflowController = new VisitorOverflowController(
-        visitorOverflowControllerMessenger,
+    expect(derivedState).toStrictEqual({});
+  });
+
+  describe.each([
+    'anonymous',
+    'includeInStateLogs',
+    'persist',
+    'usedInUi',
+  ] as const)('%s', (property: keyof StatePropertyMetadata<Json>) => {
+    it('should return empty state', () => {
+      expect(deriveStateFromMetadata({}, {}, property)).toStrictEqual({});
+    });
+
+    it('should return empty state when no properties are enabled', () => {
+      const derivedState = deriveStateFromMetadata(
+        { count: 1 },
+        {
+          count: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
       );
 
-      messenger.call('VisitorOverflowController:updateMax', 2);
-      visitorController.addVisitor('A');
-      visitorController.addVisitor('B');
-      visitorController.addVisitor('C'); // this should trigger an overflow
+      expect(derivedState).toStrictEqual({});
+    });
 
-      expect(visitorOverflowController.state.maxVisitors).toBe(2);
-      expect(visitorController.state.visitors).toHaveLength(0);
+    it('should return derived state', () => {
+      const derivedState = deriveStateFromMetadata(
+        {
+          password: 'secret password',
+          privateKey: '123',
+          network: 'mainnet',
+          tokens: ['DAI', 'USDC'],
+        },
+        {
+          password: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          privateKey: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+          tokens: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+      );
+
+      expect(derivedState).toStrictEqual({
+        password: 'secret password',
+        privateKey: '123',
+      });
+    });
+
+    if (property !== 'usedInUi') {
+      it('should use function to derive state', () => {
+        const normalizeTransactionHash = (hash: string) => {
+          return hash.toLowerCase();
+        };
+
+        const derivedState = deriveStateFromMetadata(
+          {
+            transactionHash: '0X1234',
+          },
+          {
+            transactionHash: {
+              anonymous: false,
+              includeInStateLogs: false,
+              persist: false,
+              usedInUi: false,
+              [property]: normalizeTransactionHash,
+            },
+          },
+          property,
+        );
+
+        expect(derivedState).toStrictEqual({ transactionHash: '0x1234' });
+      });
+
+      it('should allow returning a partial object from a deriver', () => {
+        const getDerivedTxMeta = (txMeta: { hash: string; value: number }) => {
+          return { value: txMeta.value };
+        };
+
+        const derivedState = deriveStateFromMetadata(
+          {
+            txMeta: {
+              hash: '0x123',
+              value: 10,
+            },
+          },
+          {
+            txMeta: {
+              anonymous: false,
+              includeInStateLogs: false,
+              persist: false,
+              usedInUi: false,
+              [property]: getDerivedTxMeta,
+            },
+          },
+          property,
+        );
+
+        expect(derivedState).toStrictEqual({ txMeta: { value: 10 } });
+      });
+
+      it('should allow returning a nested partial object from a deriver', () => {
+        const getDerivedTxMeta = (txMeta: {
+          hash: string;
+          value: number;
+          history: { hash: string; value: number }[];
+        }) => {
+          return {
+            history: txMeta.history.map((entry) => {
+              return { value: entry.value };
+            }),
+            value: txMeta.value,
+          };
+        };
+
+        const derivedState = deriveStateFromMetadata(
+          {
+            txMeta: {
+              hash: '0x123',
+              history: [
+                {
+                  hash: '0x123',
+                  value: 9,
+                },
+              ],
+              value: 10,
+            },
+          },
+          {
+            txMeta: {
+              anonymous: false,
+              includeInStateLogs: false,
+              persist: false,
+              usedInUi: false,
+              [property]: getDerivedTxMeta,
+            },
+          },
+          property,
+        );
+
+        expect(derivedState).toStrictEqual({
+          txMeta: { history: [{ value: 9 }], value: 10 },
+        });
+      });
+
+      it('should allow transforming types in a deriver', () => {
+        const derivedState = deriveStateFromMetadata(
+          {
+            count: '1',
+          },
+          {
+            count: {
+              anonymous: false,
+              includeInStateLogs: false,
+              persist: false,
+              usedInUi: false,
+              [property]: (count: string) => Number(count),
+            },
+          },
+          property,
+        );
+
+        expect(derivedState).toStrictEqual({ count: 1 });
+      });
+    }
+
+    it('reports thrown error when deriving state', () => {
+      const captureException = jest.fn();
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        // @ts-expect-error Intentionally testing invalid state
+        {
+          privateKey: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+        captureException,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(captureException).toHaveBeenCalledTimes(1);
+      expect(captureException).toHaveBeenCalledWith(
+        new Error(`No metadata found for 'extraState'`),
+      );
+    });
+
+    it('reports thrown non-error when deriving state, wrapping it in an error', () => {
+      const captureException = jest.fn();
+      const testException = 'Non-Error exception';
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        {
+          extraState: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: () => {
+              // Intentionally throwing non-error to test handling
+              // eslint-disable-next-line @typescript-eslint/only-throw-error
+              throw testException;
+            },
+          },
+          privateKey: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+        captureException,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(captureException).toHaveBeenCalledTimes(1);
+      expect(captureException).toHaveBeenCalledWith(new Error(testException));
+    });
+
+    it('logs thrown error and captureException error to console if captureException throws', () => {
+      const consoleError = jest.fn();
+      const testError = new Error('Test error');
+      const captureException = jest.fn().mockImplementation(() => {
+        throw testError;
+      });
+      jest.spyOn(console, 'error').mockImplementation(consoleError);
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        // @ts-expect-error Intentionally testing invalid state
+        {
+          privateKey: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+        captureException,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(consoleError).toHaveBeenCalledTimes(2);
+      expect(consoleError).toHaveBeenNthCalledWith(
+        1,
+        new Error(`Error thrown when calling 'captureException'`),
+        testError,
+      );
+      expect(consoleError).toHaveBeenNthCalledWith(
+        2,
+        new Error(`No metadata found for 'extraState'`),
+      );
+    });
+
+    it('logs thrown error to console when deriving state if no captureException function is given', () => {
+      const consoleError = jest.fn();
+      jest.spyOn(console, 'error').mockImplementation(consoleError);
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        // @ts-expect-error Intentionally testing invalid state
+        {
+          privateKey: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(consoleError).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledWith(
+        new Error(`No metadata found for 'extraState'`),
+      );
     });
   });
 });
