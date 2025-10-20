@@ -87,6 +87,20 @@ const fakeEvmAccountWithoutMetadata: InternalAccount = {
   methods: [],
 };
 
+const fakeNonEvmAccount2: InternalAccount = {
+  id: 'account5',
+  type: 'solana:data-account',
+  address: '0x123',
+  metadata: {
+    name: 'Test Account',
+    // @ts-expect-error-next-line
+    snap: { id: 'test-snap-2', enabled: true },
+  },
+  scopes: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+  options: {},
+  methods: [],
+};
+
 const fakeMarketData = {
   price: 202.11,
   priceChange: 0,
@@ -145,6 +159,9 @@ const setupController = ({
         account1: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
         account2: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
         account3: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+        account5: [
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        ],
       },
       assetsMetadata: {
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
@@ -154,6 +171,14 @@ const setupController = ({
           iconUrl: 'https://example.com/solana.png',
           units: [{ symbol: 'SOL', name: 'Solana', decimals: 9 }],
         },
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v':
+          {
+            name: 'USDC',
+            symbol: 'USDC',
+            fungible: true,
+            iconUrl: 'https://example.com/usdc.png',
+            units: [{ symbol: 'USDC', name: 'USDC', decimals: 2 }],
+          },
       },
     }),
   );
@@ -383,8 +408,8 @@ describe('MultichainAssetsRatesController', () => {
             type: KeyringTypes.snap,
           },
           snap: {
-            id: 'mock-sol-snap',
-            name: 'mock-sol-snap',
+            id: 'mock-sol-snap-1',
+            name: 'mock-sol-snap-1',
             enabled: true,
           },
           lastSelected: 0,
@@ -404,8 +429,8 @@ describe('MultichainAssetsRatesController', () => {
             type: KeyringTypes.snap,
           },
           snap: {
-            id: 'mock-sol-snap',
-            name: 'mock-sol-snap',
+            id: 'mock-sol-snap-2',
+            name: 'mock-sol-snap-2',
             enabled: true,
           },
           lastSelected: 0,
@@ -420,42 +445,49 @@ describe('MultichainAssetsRatesController', () => {
       accountsAssets: testAccounts,
     });
 
-    const snapSpy = jest
-      .fn()
-      .mockResolvedValueOnce({
-        conversionRates: {
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
-            'swift:0/iso4217:USD': {
-              rate: '100',
-              conversionTime: 1738539923277,
+    const mockResponses = {
+      onAssetsConversion: [
+        {
+          conversionRates: {
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+              'swift:0/iso4217:USD': {
+                rate: '100',
+                conversionTime: 1738539923277,
+              },
             },
           },
         },
-      })
-      .mockResolvedValueOnce({
-        marketData: {
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
-            'swift:0/iso4217:USD': fakeMarketData,
-          },
-        },
-      })
-      .mockResolvedValueOnce({
-        conversionRates: {
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token1:501': {
-            'swift:0/iso4217:USD': {
-              rate: '200',
-              conversionTime: 1738539923277,
+        {
+          conversionRates: {
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token1:501': {
+              'swift:0/iso4217:USD': {
+                rate: '200',
+                conversionTime: 1738539923277,
+              },
             },
           },
         },
-      })
-      .mockResolvedValueOnce({
-        marketData: {
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token1:501': {
+      ],
+      onAssetsMarketData: [
+        {
+          marketData: {
             'swift:0/iso4217:USD': fakeMarketData,
           },
         },
-      });
+        {
+          marketData: {
+            'swift:0/iso4217:USD': fakeMarketData,
+          },
+        },
+      ],
+    };
+
+    const snapSpy = jest.fn().mockImplementation((args) => {
+      const { handler } = args;
+      return Promise.resolve(
+        mockResponses[handler as keyof typeof mockResponses].shift(),
+      );
+    });
     messenger.registerActionHandler('SnapController:handleRequest', snapSpy);
 
     messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
@@ -470,6 +502,7 @@ describe('MultichainAssetsRatesController', () => {
         },
       },
     });
+
     // Wait for the asynchronous subscriber to run.
     await Promise.resolve();
     await advanceTime({ clock, duration: 10 });
@@ -652,7 +685,7 @@ describe('MultichainAssetsRatesController', () => {
 
     it('handles mixed success and failure scenarios', async () => {
       const { controller, messenger } = setupController({
-        accountsAssets: [fakeNonEvmAccount, fakeEvmAccount2],
+        accountsAssets: [fakeNonEvmAccount, fakeNonEvmAccount2],
       });
 
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -986,7 +1019,7 @@ describe('MultichainAssetsRatesController', () => {
       const snapHandler = jest.fn().mockResolvedValue({
         conversionRates: {
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
-            USD: {
+            'swift:0/iso4217:USD': {
               rate: '100.50',
               conversionTime: Date.now(),
             },

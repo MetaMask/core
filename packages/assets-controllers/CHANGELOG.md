@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add export for `CurrencyRateMessenger` ([#6444](https://github.com/MetaMask/core/pull/6444))
+- Add multicall addresses in `MULTICALL_CONTRACT_BY_CHAINID` ([#6896](https://github.com/MetaMask/core/pull/6896))
+  - Add multicall address for Chains: `Injective`, `Hemi`, `Plasma`, `Nonmia`, `XRPL`, `Soneium`, `Genesys`, `EDU`, `Abstract`, `Berachain`, `MegaETH Testnet`, `Apechain`, `Matchain`, `Monad Testnet`, `Monad`, `Katana`, `Lens`, `Plume`, `XDC`
 
 ### Changed
 
@@ -17,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Previously, the controllers accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 - Add multicall addresses in `MULTICALL_CONTRACT_BY_CHAINID` ([#6896](https://github.com/MetaMask/core/pull/6896))
   - Add multicall address for Chains: `Injective`, `Hemi`, `Plasma`, `Nonmia`, `XRPL`, `Soneium`, `Genesys`, `EDU`, `Abstract`, `Berachain`, `MegaETH Testnet`, `Apechain`, `Matchain`, `Monad Testnet`, `Monad`, `Katana`, `Lens`, `Plume`, `XDC`
+- Batch `OnAssetConversion` and `OnAssetsMarketData` requests to non-EVM account Snaps ([#6886](https://github.com/MetaMask/core/pull/6886))
 
 ## [81.0.1]
 
