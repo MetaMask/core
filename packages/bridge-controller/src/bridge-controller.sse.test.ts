@@ -6,7 +6,7 @@ import {
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
 } from './constants/bridge';
-import type { QuoteResponse } from './types';
+import type { QuoteResponse, TxData } from './types';
 import {
   ChainId,
   RequestStatus,
@@ -16,14 +16,19 @@ import * as balanceUtils from './utils/balance';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
 import { flushPromises } from '../../../tests/helpers';
-import { handleFetch } from '../../controller-utils/src';
 import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
 import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
 import {
   advanceToNthTimer,
   advanceToNthTimerThenFlush,
   mockSseEventSource,
+  mockSseEventSourceWithMultipleDelays,
 } from '../tests/mock-sse';
+
+const FIRST_FETCH_DELAY = 4000;
+const SECOND_FETCH_DELAY = 9000;
+const THIRD_FETCH_DELAY = 2000;
+const FOURTH_FETCH_DELAY = 3000;
 
 const quoteRequest = {
   srcChainId: '0x1',
@@ -67,7 +72,7 @@ describe('BridgeController SSE', function () {
     publish: jest.fn(),
   } as unknown as jest.Mocked<BridgeControllerMessenger>;
   const getLayer1GasFeeMock = jest.fn();
-  const mockFetchFn = handleFetch;
+  const mockFetchFn = jest.fn();
   const trackMetaMetricsFn = jest.fn();
 
   beforeEach(async () => {
@@ -121,11 +126,6 @@ describe('BridgeController SSE', function () {
       clientVersion: '13.8.0',
     });
 
-    mockSseEventSource(
-      mockBridgeQuotesNativeErc20 as QuoteResponse[],
-      mockBridgeQuotesNativeErc20Eth as QuoteResponse[],
-    );
-
     jest.useFakeTimers();
     stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
     startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
@@ -134,14 +134,17 @@ describe('BridgeController SSE', function () {
       .mockResolvedValue(true);
     fetchBridgeQuotesSpy = jest.spyOn(fetchUtils, 'fetchBridgeQuoteStream');
     consoleLogSpy = jest.spyOn(console, 'log');
-    stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
+  });
+
+  it('should trigger quote polling if request is valid', async function () {
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSource(mockBridgeQuotesNativeErc20 as QuoteResponse[]);
+    });
     await bridgeController.updateBridgeQuoteRequestParams(
       quoteRequest,
       metricsContext,
     );
-  });
 
-  it('should trigger quote polling if request is valid', async function () {
     // Before polling starts
     expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
@@ -210,8 +213,24 @@ describe('BridgeController SSE', function () {
   });
 
   it('should replace all stale quotes after a refresh and first quote is received', async function () {
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSource(
+        mockBridgeQuotesNativeErc20 as QuoteResponse[],
+        FIRST_FETCH_DELAY,
+      );
+    });
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithMultipleDelays(
+        mockBridgeQuotesNativeErc20Eth as never,
+        SECOND_FETCH_DELAY,
+      );
+    });
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
     // 1st fetch
-    jest.advanceTimersByTime(5000);
+    jest.advanceTimersByTime(FIRST_FETCH_DELAY);
     await flushPromises();
     expect(bridgeController.state.quotes).toStrictEqual(
       mockBridgeQuotesNativeErc20.map((quote) => ({
@@ -223,18 +242,24 @@ describe('BridgeController SSE', function () {
     expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
 
+    // Wait for next polling interval
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+
     const expectedState = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
-      quotesInitialLoadTime: 5000,
+      quotesInitialLoadTime: FIRST_FETCH_DELAY,
       quoteRequest: { ...quoteRequest, insufficientBal: false },
       quotes: [mockBridgeQuotesNativeErc20Eth[0]],
       quotesLoadingStatus: RequestStatus.LOADING,
-      quotesRefreshCount: 2,
+      quotesRefreshCount: 1,
       assetExchangeRates,
     };
 
     // 2nd fetch request's first server event
-    await advanceToNthTimerThenFlush(3);
+    jest.advanceTimersToNextTimer();
+    jest.advanceTimersByTime(SECOND_FETCH_DELAY - 1000);
+    await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
     expect(bridgeController.state).toStrictEqual({
       ...expectedState,
@@ -263,19 +288,41 @@ describe('BridgeController SSE', function () {
   });
 
   it('should reset quotes list if quote refresh fails', async function () {
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSource(
+        mockBridgeQuotesNativeErc20 as never,
+        FIRST_FETCH_DELAY,
+      );
+    });
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithMultipleDelays(
+        mockBridgeQuotesNativeErc20Eth as never,
+        SECOND_FETCH_DELAY,
+      );
+    });
+    mockFetchFn.mockRejectedValueOnce('Network error');
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
     consoleLogSpy.mockImplementationOnce(jest.fn());
     // 1st fetch
-    jest.advanceTimersByTime(25000);
+    jest.advanceTimersByTime(FIRST_FETCH_DELAY);
     await flushPromises();
     expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
-    expect(bridgeController.state.quotesInitialLoadTime).toBe(25000);
+    expect(bridgeController.state.quotesInitialLoadTime).toBe(
+      FIRST_FETCH_DELAY,
+    );
 
     // 2nd fetch
     await advanceToNthTimerThenFlush();
     await advanceToNthTimerThenFlush(2);
     expect(bridgeController.state.quotesRefreshCount).toBe(2);
-    expect(bridgeController.state.quotesInitialLoadTime).toBe(25000);
+    expect(bridgeController.state.quotesInitialLoadTime).toBe(
+      FIRST_FETCH_DELAY,
+    );
     expect(bridgeController.state.quotes).toStrictEqual(
       mockBridgeQuotesNativeErc20Eth,
     );
@@ -286,7 +333,7 @@ describe('BridgeController SSE', function () {
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
     expect(bridgeController.state).toStrictEqual({
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
-      quotesInitialLoadTime: 25000,
+      quotesInitialLoadTime: FIRST_FETCH_DELAY,
       quoteRequest: { ...quoteRequest, insufficientBal: false },
       quotes: [],
       quotesLoadingStatus: 2,
@@ -315,18 +362,50 @@ describe('BridgeController SSE', function () {
   });
 
   it('should reset and refetch quotes after quote request is changed', async function () {
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSource(
+        mockBridgeQuotesNativeErc20 as never,
+        FIRST_FETCH_DELAY,
+      );
+    });
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithMultipleDelays(
+        mockBridgeQuotesNativeErc20Eth as never,
+        SECOND_FETCH_DELAY,
+      );
+    });
+    mockFetchFn.mockRejectedValueOnce('Network error');
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithMultipleDelays(
+        [
+          ...(mockBridgeQuotesNativeErc20 as never[]),
+          ...(mockBridgeQuotesNativeErc20 as never),
+        ] as never,
+        THIRD_FETCH_DELAY,
+      );
+    });
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
     consoleLogSpy.mockImplementationOnce(jest.fn());
     hasSufficientBalanceSpy.mockRejectedValue(new Error('Balance error'));
     // 1st fetch
-    jest.advanceTimersByTime(5000);
+    jest.advanceTimersByTime(FIRST_FETCH_DELAY);
     await flushPromises();
     expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
 
+    // Wait for next polling interval
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+
     // 2nd fetch
-    await advanceToNthTimerThenFlush();
-    expect(bridgeController.state.quotesRefreshCount).toBe(2);
-    await advanceToNthTimerThenFlush(2);
+    jest.advanceTimersToNextTimer();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
     expect(bridgeController.state.quotesRefreshCount).toBe(2);
     const t2 = bridgeController.state.quotesLastFetched;
 
@@ -370,14 +449,13 @@ describe('BridgeController SSE', function () {
       quotesLoadingStatus: RequestStatus.LOADING,
     });
     const t1 = bridgeController.state.quotesLastFetched;
-    advanceToNthTimer(1);
     // 1st quote is received
     await advanceToNthTimerThenFlush();
     const expectedStateAfterFirstQuote = {
       ...expectedState,
-      quotesInitialLoadTime: 2000,
+      quotesInitialLoadTime: THIRD_FETCH_DELAY,
       quotes: [{ ...mockBridgeQuotesNativeErc20[0], l1GasFeesInHexWei: '0x1' }],
-      quotesRefreshCount: 1,
+      quotesRefreshCount: 0,
       quotesLoadingStatus: RequestStatus.LOADING,
       quoteRequest: {
         ...quoteRequest,
@@ -395,10 +473,11 @@ describe('BridgeController SSE', function () {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       t5!,
     );
-    // 2nd quote is received
+    // All other quotes are received
     await advanceToNthTimerThenFlush(3);
     expect(bridgeController.state).toStrictEqual({
       ...expectedStateAfterFirstQuote,
+      quotesRefreshCount: 1,
       quotesLoadingStatus: RequestStatus.FETCHED,
       quotes: [
         ...mockBridgeQuotesNativeErc20,
@@ -423,19 +502,64 @@ describe('BridgeController SSE', function () {
   });
 
   it('should publish validation failures', async function () {
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSource(
+        mockBridgeQuotesNativeErc20 as QuoteResponse[],
+        FIRST_FETCH_DELAY,
+      );
+    });
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithMultipleDelays(
+        mockBridgeQuotesNativeErc20Eth as never[],
+        SECOND_FETCH_DELAY,
+      );
+    });
+    mockFetchFn.mockRejectedValueOnce('Network error');
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithMultipleDelays(
+        [
+          ...(mockBridgeQuotesNativeErc20 as never[]),
+          ...(mockBridgeQuotesNativeErc20 as never[]),
+        ] as never[],
+        THIRD_FETCH_DELAY,
+      );
+    });
+    mockFetchFn.mockImplementationOnce(async () => {
+      const { quote, ...rest } = mockBridgeQuotesNativeErc20[0];
+      return mockSseEventSourceWithMultipleDelays(
+        [
+          {
+            ...mockBridgeQuotesNativeErc20Eth[1],
+            trade: { abc: '123' } as unknown as TxData,
+          } as never,
+          '' as unknown as never,
+          mockBridgeQuotesNativeErc20Eth[0] as unknown as never,
+          rest as unknown as never,
+        ],
+        FOURTH_FETCH_DELAY,
+      );
+    });
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
     consoleLogSpy.mockImplementationOnce(jest.fn());
     const consoleWarnSpy = jest
       .spyOn(console, 'warn')
       .mockImplementationOnce(jest.fn())
       .mockImplementationOnce(jest.fn());
     // 1st fetch
-    jest.advanceTimersByTime(9000);
+    jest.advanceTimersByTime(FIRST_FETCH_DELAY);
     await flushPromises();
     expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
 
+    // Wait for next polling interval
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+
     // 2nd fetch
-    await advanceToNthTimerThenFlush();
     await advanceToNthTimerThenFlush(2);
     expect(bridgeController.state.quotesRefreshCount).toBe(2);
 
@@ -458,13 +582,18 @@ describe('BridgeController SSE', function () {
     );
 
     // 1st quote is received
-    await advanceToNthTimerThenFlush(3);
+    jest.advanceTimersByTime(FOURTH_FETCH_DELAY - 1000);
+    await flushPromises();
     const t4 = bridgeController.state.quotesLastFetched;
     expect(t4).toBe(
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       t5!,
     );
-    expect(bridgeController.state.quotesRefreshCount).toBe(1);
+    expect(bridgeController.state.quotesRefreshCount).toBe(0);
+    expect(bridgeController.state.quotesLoadingStatus).toBe(
+      RequestStatus.LOADING,
+    );
+    // expect(bridgeController.state.quotes).toStrictEqual([]);
     // 2nd quote is received
     await advanceToNthTimerThenFlush(3);
     expect(bridgeController.state.quotes).toStrictEqual(
@@ -476,12 +605,16 @@ describe('BridgeController SSE', function () {
       ),
     );
 
+    // Wait for next polling interval
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+
     // 2nd fetch after request is updated
     // Iterate through a list of received valid and invalid quotes
     // Invalid quotes received
-    advanceToNthTimer(2);
     // Invalid quote
-    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(FOURTH_FETCH_DELAY - 1000);
+    await flushPromises();
     const expectedState = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
       quotesInitialLoadTime: 2000,
@@ -491,7 +624,7 @@ describe('BridgeController SSE', function () {
         insufficientBal: false,
       },
       quotes: [mockBridgeQuotesNativeErc20Eth[0]],
-      quotesRefreshCount: 2,
+      quotesRefreshCount: 1,
       quoteFetchError: null,
       quotesLoadingStatus: RequestStatus.LOADING,
       assetExchangeRates,
@@ -500,16 +633,17 @@ describe('BridgeController SSE', function () {
     const t6 = bridgeController.state.quotesLastFetched;
     expect(t6).toBeCloseTo(Date.now() - 2000);
     // Empty event.data
-    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(FOURTH_FETCH_DELAY - 1000);
+    await flushPromises();
     // Valid quote
-    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(FOURTH_FETCH_DELAY * 2 - 1000);
+    await flushPromises();
     expect(bridgeController.state).toStrictEqual(expectedState);
     const t7 = bridgeController.state.quotesLastFetched;
     expect(t7).toBe(
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       t6!,
     );
-    expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
     expect(consoleWarnSpy.mock.calls[0]).toMatchInlineSnapshot(`
       Array [
         "Quote validation failed",
@@ -527,7 +661,8 @@ describe('BridgeController SSE', function () {
       ]
     `);
     // Invalid quote
-    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(FOURTH_FETCH_DELAY * 3 - 1000);
+    await flushPromises();
     expect(bridgeController.state).toStrictEqual({
       ...expectedState,
       quotesRefreshCount: 2,
@@ -537,8 +672,16 @@ describe('BridgeController SSE', function () {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       t7!,
     );
-    expect(consoleWarnSpy.mock.calls).toHaveLength(2);
+    expect(consoleWarnSpy.mock.calls).toHaveLength(3);
     expect(consoleWarnSpy.mock.calls[1]).toMatchInlineSnapshot(`
+      Array [
+        "Quote validation failed",
+        Array [
+          "unknown|unknown",
+        ],
+      ]
+    `);
+    expect(consoleWarnSpy.mock.calls[2]).toMatchInlineSnapshot(`
               Array [
                 "Quote validation failed",
                 Array [
@@ -551,8 +694,8 @@ describe('BridgeController SSE', function () {
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(5);
     expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(2);
     expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(6);
-    expect(trackMetaMetricsFn).toHaveBeenCalledTimes(12);
+    expect(trackMetaMetricsFn).toHaveBeenCalledTimes(13);
     // eslint-disable-next-line jest/no-restricted-matchers
-    expect(trackMetaMetricsFn.mock.calls.slice(10, 12)).toMatchSnapshot();
+    expect(trackMetaMetricsFn.mock.calls.slice(10, 13)).toMatchSnapshot();
   });
 });
