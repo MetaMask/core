@@ -1,8 +1,6 @@
-import {
-  deriveStateFromMetadata,
-  type RestrictedMessenger,
-} from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import { ApprovalType } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 
 import type {
   AbstractMessage,
@@ -71,13 +69,7 @@ const MOCK_MESSENGER = {
   publish: jest.fn(),
   registerActionHandler: jest.fn(),
   registerInitialEventPayload: jest.fn(),
-} as unknown as RestrictedMessenger<
-  'TestManager',
-  never,
-  never,
-  string,
-  string
->;
+} as unknown as Messenger<'TestManager'>;
 
 const MOCK_INITIAL_OPTIONS = {
   additionalFinishStatuses: undefined,
@@ -579,7 +571,7 @@ describe('AbstractTestManager', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
