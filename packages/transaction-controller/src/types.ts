@@ -758,6 +758,8 @@ export enum TransactionType {
 
   /**
    * Buy a position via Predict.
+   *
+   * @deprecated Not used.
    */
   predictBuy = 'predictBuy',
 
@@ -773,8 +775,15 @@ export enum TransactionType {
 
   /**
    * Sell a position via Predict.
+   *
+   * @deprecated Not used.
    */
   predictSell = 'predictSell',
+
+  /**
+   * Withdraw funds from Predict.
+   */
+  predictWithdraw = 'predictWithdraw',
 
   /**
    * When a transaction is failed it can be retried by
@@ -875,6 +884,11 @@ export enum TransactionType {
    * Increase the allowance by a given increment
    */
   tokenMethodIncreaseAllowance = 'increaseAllowance',
+
+  /**
+   * A token approval transaction subscribing to the shield insurance service
+   */
+  shieldSubscriptionApprove = 'shieldSubscriptionApprove',
 }
 
 export enum TransactionContainerType {
@@ -1669,6 +1683,9 @@ export type TransactionBatchSingleRequest = {
 
     /** Optional callback to be invoked once the transaction is published. */
     onPublish?: (request: {
+      /** Updated signature for the transaction, if applicable. */
+      newSignature?: Hex;
+
       /** Hash of the transaction on the network. */
       transactionHash?: string;
     }) => void;
@@ -2009,7 +2026,74 @@ export type MetamaskPayMetadata = {
 /**
  * Parameters for the transaction simulation API.
  */
-export type GetSimulationConfig = (url: string) => Promise<{
+export type GetSimulationConfig = (
+  url: string,
+  opts?: {
+    txMeta?: TransactionMeta;
+  },
+) => Promise<{
   newUrl?: string;
   authorization?: string;
 }>;
+
+/**
+ * Options for adding a transaction.
+ */
+export type AddTransactionOptions = {
+  /** Unique ID to prevent duplicate requests.  */
+  actionId?: string;
+
+  /** Fiat values of the assets being sent and received. */
+  assetsFiatValues?: AssetsFiatValues;
+
+  /** Custom ID for the batch this transaction belongs to. */
+  batchId?: Hex;
+
+  /** Enum to indicate what device confirmed the transaction. */
+  deviceConfirmedOn?: WalletDevice;
+
+  /** Whether to disable the gas estimation buffer. */
+  disableGasBuffer?: boolean;
+
+  /** Whether MetaMask will be compensated for the gas fee by the transaction. */
+  isGasFeeIncluded?: boolean;
+
+  /** RPC method that requested the transaction. */
+  method?: string;
+
+  /** Params for any nested transactions encoded in the data. */
+  nestedTransactions?: NestedTransactionMetadata[];
+
+  /** ID of the network client for this transaction. */
+  networkClientId: NetworkClientId;
+
+  /** Origin of the transaction request, such as a dApp hostname. */
+  origin?: string;
+
+  /** Custom logic to publish the transaction. */
+  publishHook?: PublishHook;
+
+  /** Whether the transaction requires approval by the user, defaults to true unless explicitly disabled. */
+  requireApproval?: boolean | undefined;
+
+  /** Response from security validator. */
+  securityAlertResponse?: SecurityAlertResponse;
+
+  /** Entries to add to the `sendFlowHistory`. */
+  sendFlowHistory?: SendFlowHistoryEntry[];
+
+  /** Options for swaps transactions. */
+  swaps?: {
+    /** Whether the transaction has an approval transaction. */
+    hasApproveTx?: boolean;
+
+    /** Metadata for swap transaction. */
+    meta?: Partial<TransactionMeta>;
+  };
+
+  /** Parent context for any new traces. */
+  traceContext?: unknown;
+
+  /** Type of transaction to add, such as 'cancel' or 'swap'. */
+  type?: TransactionType;
+};

@@ -22,6 +22,10 @@ export {
   EvmAccountProvider,
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProvider,
+  BTC_ACCOUNT_PROVIDER_NAME,
+  BtcAccountProvider,
+  TRX_ACCOUNT_PROVIDER_NAME,
+  TrxAccountProvider,
 } from './providers';
 export { MultichainAccountWallet } from './MultichainAccountWallet';
 export { MultichainAccountGroup } from './MultichainAccountGroup';
