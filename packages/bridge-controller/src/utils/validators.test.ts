@@ -205,6 +205,85 @@ describe('validators', () => {
         expected: true,
       },
       {
+        response: {
+          chains: {
+            '1': {
+              isActiveDest: true,
+              isActiveSrc: true,
+              defaultPairs: {
+                standard: {
+                  'bip122:000000000019d6689c085ae165831e93/slip44:0':
+                    'eip155:1/slip44:60',
+                },
+                other: {},
+              },
+            },
+          },
+          maxRefreshCount: 5,
+          refreshRate: 30000,
+          support: true,
+          minimumVersion: '0.0.0',
+          sse: {
+            enabled: true,
+            minimumVersion: '13.8.0',
+          },
+        },
+        type: 'sse config',
+        expected: true,
+      },
+      {
+        response: {
+          chains: {
+            '1': {
+              isActiveDest: true,
+              isActiveSrc: true,
+              defaultPairs: {
+                standard: {
+                  'bip122:000000000019d6689c085ae165831e93/slip44:0':
+                    'eip155:1/slip44:60',
+                },
+                other: {},
+              },
+            },
+          },
+          maxRefreshCount: 5,
+          refreshRate: 30000,
+          support: true,
+          minimumVersion: '0.0.0',
+          sse: {
+            enabled: true,
+          },
+        },
+        type: 'sse config - missing minimum version',
+        expected: false,
+      },
+      {
+        response: {
+          chains: {
+            '1': {
+              isActiveDest: true,
+              isActiveSrc: true,
+              defaultPairs: {
+                standard: {
+                  'bip122:000000000019d6689c085ae165831e93/slip44:0':
+                    'eip155:1/slip44:60',
+                },
+                other: {},
+              },
+            },
+          },
+          maxRefreshCount: 5,
+          refreshRate: 30000,
+          support: true,
+          minimumVersion: '0.0',
+          sse: {
+            enabled: true,
+          },
+        },
+        type: 'sse config - malformed minimum version',
+        expected: false,
+      },
+      {
         response: undefined,
         type: 'no response',
         expected: false,

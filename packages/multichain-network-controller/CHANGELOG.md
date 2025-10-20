@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6543](https://github.com/MetaMask/core/pull/6543))
   - Previously, `MultichainNetworkController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 
 ## [1.0.1]
 
