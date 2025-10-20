@@ -270,31 +270,31 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   // XRPL, contract found but not in multicall3 repo
   '0x15f900': '0x6B5eFbC0C82eBb26CA13a4F11836f36Fc6fdBC5D',
   // Soneium, contract found but not in multicall3 repo
-  '0x74c' : '0xcA11bde05977b3631167028862bE2a173976CA11',
+  '0x74c': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Genesys, contract found but not in multicall3 repo
-  '0x407b' : '0x90a2377F233E3461BACa6080d4837837d8762927',
+  '0x407b': '0x90a2377F233E3461BACa6080d4837837d8762927',
   // EDU (Animoca)
-  '0xa3c3' : '0xcA11bde05977b3631167028862bE2a173976CA11',
+  '0xa3c3': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Abstract
-  '0xab5' : '0xF9cda624FBC7e059355ce98a31693d299FACd963',
+  '0xab5': '0xF9cda624FBC7e059355ce98a31693d299FACd963',
   // Berachain, contract found but not in multicall3 repo
-  '0x138de' : '0xcA11bde05977b3631167028862bE2a173976CA11',
+  '0x138de': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // MegaETH TESTNET
-  '0x18c6' : '0xcA11bde05977b3631167028862bE2a173976CA11',
+  '0x18c6': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Apechain
-  '0x8173' : '0xcA11bde05977b3631167028862bE2a173976CA11',
+  '0x8173': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Matchain, contract found but not in multicall3 repo
-  '0x2ba' : '0xcA11bde05977b3631167028862bE2a173976CA11',
+  '0x2ba': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Monad TESTNET
-  '0x279f' : '0xcA11bde05977b3631167028862bE2a173976CA11',
+  '0x279f': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Katana
-  '0xb67d2' : '0xcA11bde05977b3631167028862bE2a173976CA11',
+  '0xb67d2': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Lens, contract found but not in multicall3 repo
-  '0xe8' : '0xcA11bde05977b3631167028862bE2a173976CA11',
+  '0xe8': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Plume
-  '0x18232' : '0xcA11bde05977b3631167028862bE2a173976CA11',
+  '0x18232': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Monad Mainnet
-  '0x8f' : '0xcA11bde05977b3631167028862bE2a173976CA11',
+  '0x8f': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // XDC, contract found but not in multicall3 repo
   '0x32': '0x0B1795ccA8E4eC4df02346a082df54D437F8D9aF',
 } as Record<Hex, Hex>;
