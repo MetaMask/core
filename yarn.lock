@@ -3257,6 +3257,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.4.1"
     "@metamask/controller-utils": "npm:^11.14.1"
     "@metamask/keyring-api": "npm:^21.0.0"
+    "@metamask/messenger": "npm:^0.3.0"
     "@metamask/network-controller": "npm:^24.3.0"
     "@metamask/stake-sdk": "npm:^3.2.1"
     "@metamask/transaction-controller": "npm:^60.9.0"
