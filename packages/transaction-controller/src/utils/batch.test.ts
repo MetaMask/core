@@ -294,6 +294,8 @@ describe('Batch Utils', () => {
 
     let request: AddBatchTransactionOptions;
 
+    const estimateGasMock = jest.fn();
+
     beforeEach(() => {
       jest.resetAllMocks();
 
@@ -348,6 +350,7 @@ describe('Batch Utils', () => {
 
       request = {
         addTransaction: addTransactionMock,
+        estimateGas: estimateGasMock,
         getChainId: getChainIdMock,
         getEthQuery: GET_ETH_QUERY_MOCK,
         getGasFeeEstimates: getGasFeeEstimatesMock,
@@ -537,7 +540,7 @@ describe('Batch Utils', () => {
       );
     });
 
-    it('uses existing nonce if EIP-7702 and existing transaction specified', async () => {
+    it('converts transaction if EIP-7702 and existing transaction specified', async () => {
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
         isSupported: true,
@@ -552,64 +555,57 @@ describe('Batch Utils', () => {
         TRANSACTION_BATCH_PARAMS_MOCK,
       );
 
+      const onPublishMock = jest.fn();
+
       request.request.transactions[0].existingTransaction = {
         id: TRANSACTION_ID_2_MOCK,
         signedTransaction: TRANSACTION_SIGNATURE_MOCK,
+        onPublish: onPublishMock,
       };
 
-      getTransactionMock.mockReturnValueOnce({
+      getTransactionMock.mockReturnValue({
         txParams: {
+          maxFeePerGas: MAX_FEE_PER_GAS_MOCK,
+          maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
           nonce: NONCE_MOCK,
         },
       } as TransactionMeta);
 
+      estimateGasMock.mockResolvedValueOnce({
+        gas: GAS_TOTAL_MOCK,
+      });
+
       await addTransactionBatch(request);
 
-      expect(addTransactionMock).toHaveBeenCalledTimes(1);
-      expect(addTransactionMock).toHaveBeenCalledWith(
-        expect.objectContaining({
+      const updateCallback = updateTransactionMock.mock.calls[0][1];
+      const updatedTransaction = {} as TransactionMeta;
+      updateCallback(updatedTransaction);
+
+      expect(updatedTransaction).toStrictEqual({
+        batchId: expect.any(String),
+        nestedTransactions: [
+          expect.objectContaining(TRANSACTION_BATCH_PARAMS_MOCK),
+          expect.objectContaining(TRANSACTION_BATCH_PARAMS_MOCK),
+        ],
+        txParams: {
+          data: DATA_MOCK,
+          from: FROM_MOCK,
+          gas: GAS_TOTAL_MOCK,
+          gasLimit: GAS_TOTAL_MOCK,
+          maxFeePerGas: MAX_FEE_PER_GAS_MOCK,
+          maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
           nonce: NONCE_MOCK,
-        }),
-        expect.anything(),
-      );
-    });
-
-    it('invokes existing transaction onPublish if EIP-7702', async () => {
-      const onPublish = jest.fn();
-
-      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
-        delegationAddress: undefined,
-        isSupported: true,
+          to: TO_MOCK,
+          type: TransactionEnvelopeType.feeMarket,
+          value: VALUE_MOCK,
+        },
       });
 
-      addTransactionMock.mockResolvedValueOnce({
-        transactionMeta: TRANSACTION_META_MOCK,
-        result: Promise.resolve(''),
-      });
+      expect(signTransactionMock).toHaveBeenCalledTimes(1);
 
-      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
-        TRANSACTION_BATCH_PARAMS_MOCK,
-      );
-
-      request.request.transactions[0].existingTransaction = {
-        id: TRANSACTION_ID_2_MOCK,
-        signedTransaction: TRANSACTION_SIGNATURE_MOCK,
-        onPublish,
-      };
-
-      getTransactionMock.mockReturnValueOnce({} as TransactionMeta);
-
-      addTransactionMock.mockReset();
-      addTransactionMock.mockResolvedValue({
-        transactionMeta: TRANSACTION_META_MOCK,
-        result: Promise.resolve(TRANSACTION_HASH_MOCK),
-      });
-
-      await addTransactionBatch(request);
-
-      expect(onPublish).toHaveBeenCalledTimes(1);
-      expect(onPublish).toHaveBeenCalledWith({
-        transactionHash: TRANSACTION_HASH_MOCK,
+      expect(onPublishMock).toHaveBeenCalledWith({
+        transactionHash: undefined,
+        newSignature: TRANSACTION_SIGNATURE_3_MOCK,
       });
     });
 

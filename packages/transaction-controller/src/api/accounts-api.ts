@@ -108,6 +108,7 @@ const SUPPORTED_CHAIN_IDS_FOR_RELATIONSHIP_API = [
   59144, // Linea
   534352, // Scroll
   1329, // Sei
+  143, // Monad
 ];
 
 const log = createModuleLogger(projectLogger, 'accounts-api');
