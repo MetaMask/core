@@ -96,7 +96,10 @@ describe('BridgeController SSE', function () {
       maxRefreshCount: 5,
       refreshRate: 30000,
       support: true,
-      sseEnabled: true,
+      sse: {
+        enabled: true,
+        minimumVersion: '13.8.0',
+      },
       chains: {
         '10': { isActiveSrc: true, isActiveDest: false },
         '534352': { isActiveSrc: true, isActiveDest: false },
@@ -115,7 +118,7 @@ describe('BridgeController SSE', function () {
       clientId: BridgeClientId.EXTENSION,
       fetchFn: mockFetchFn,
       trackMetaMetricsFn,
-      clientVersion: '1.0.0',
+      clientVersion: '13.8.0',
     });
 
     mockSseEventSource(
@@ -175,7 +178,7 @@ describe('BridgeController SSE', function () {
         onValidQuoteReceived: expect.any(Function),
         onClose: expect.any(Function),
       },
-      '1.0.0',
+      '13.8.0',
     );
     const { quotesLastFetched: t1, ...stateWithoutTimestamp } =
       bridgeController.state;
