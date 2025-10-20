@@ -437,44 +437,50 @@ export class BackendWebSocketService {
     }
 
     // If already connecting, wait for the existing connection attempt to complete
-    if (this.#state === WebSocketState.CONNECTING && this.#connectionPromise) {
+    if (this.#connectionPromise) {
       await this.#connectionPromise;
       return;
     }
 
-    // Priority 2: Check authentication requirements (signed in)
-    let bearerToken: string;
-    try {
-      const token = await this.#messenger.call(
-        'AuthenticationController:getBearerToken',
-      );
-      if (!token) {
+    // Create and store the connection promise IMMEDIATELY (before any async operations)
+    // This ensures subsequent connect() calls will wait for this promise instead of creating new connections
+    this.#connectionPromise = (async () => {
+      // Priority 2: Check authentication requirements (signed in)
+      let bearerToken: string;
+      try {
+        const token = await this.#messenger.call(
+          'AuthenticationController:getBearerToken',
+        );
+        if (!token) {
+          this.#scheduleReconnect();
+          throw new Error('Authentication required: user not signed in');
+        }
+        bearerToken = token;
+      } catch (error) {
+        log('Failed to check authentication requirements', { error });
+
+        // Can't connect - schedule retry
         this.#scheduleReconnect();
-        return;
+        throw error;
       }
-      bearerToken = token;
-    } catch (error) {
-      log('Failed to check authentication requirements', { error });
 
-      // Can't connect - schedule retry
-      this.#scheduleReconnect();
-      return;
-    }
+      this.#setState(WebSocketState.CONNECTING);
 
-    this.#setState(WebSocketState.CONNECTING);
+      // Establish the actual WebSocket connection
+      try {
+        await this.#establishConnection(bearerToken);
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+        log('Connection attempt failed', { errorMessage, error });
+        this.#setState(WebSocketState.ERROR);
 
-    // Create and store the connection promise
-    this.#connectionPromise = this.#establishConnection(bearerToken);
+        // Rethrow to propagate error to caller
+        throw error;
+      }
+    })();
 
     try {
       await this.#connectionPromise;
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      log('Connection attempt failed', { errorMessage, error });
-      this.#setState(WebSocketState.ERROR);
-
-      // Rethrow to propagate error to caller
-      throw error;
     } finally {
       // Clear the connection promise when done (success or failure)
       this.#connectionPromise = null;
@@ -1154,13 +1160,11 @@ export class BackendWebSocketService {
       {
         name: `${SERVICE_NAME} Channel Message`,
         data: {
-          channel: message.channel,
           latency_ms: latency,
           event: message.event,
         },
         tags: {
           service: SERVICE_NAME,
-          channel_type: message.channel,
         },
       },
       () => {
@@ -1190,7 +1194,7 @@ export class BackendWebSocketService {
       const receivedAt = Date.now();
       const latency = receivedAt - timestamp;
 
-      // Trace notification processing with latency data
+      // Trace notification processing wi th latency data
       // Use stored channelType instead of parsing each time
       this.#trace(
         {
