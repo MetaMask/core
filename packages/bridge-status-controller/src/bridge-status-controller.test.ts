@@ -986,6 +986,7 @@ describe('BridgeStatusController', () => {
       );
 
       expect(messengerMock.call.mock.calls).toMatchSnapshot();
+      expect(messengerMock.publish.mock.calls.at(-1)).toMatchSnapshot();
       // Cleanup
       jest.restoreAllMocks();
     });
@@ -1142,6 +1143,9 @@ describe('BridgeStatusController', () => {
       // Assertions
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
       expect(messengerMock.call.mock.calls).toMatchSnapshot();
+      expect(messengerMock.publish).not.toHaveBeenCalledWith(
+        'BridgeStatusController:destinationTransactionCompleted',
+      );
 
       // Cleanup
       jest.restoreAllMocks();
