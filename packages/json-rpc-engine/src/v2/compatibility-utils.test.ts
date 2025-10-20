@@ -123,7 +123,7 @@ describe('compatibility-utils', () => {
         params: undefined,
       };
 
-      // @ts-expect-error - Intentional abuse
+      // @ts-expect-error - Destructive testing
       const request = fromLegacyRequest(legacyRequest);
 
       expect(request).toStrictEqual({
@@ -140,7 +140,7 @@ describe('compatibility-utils', () => {
         id: 42,
       };
 
-      // @ts-expect-error - Intentional abuse
+      // @ts-expect-error - Destructive testing
       const request = fromLegacyRequest(legacyRequest);
 
       expect(request).toStrictEqual({
@@ -159,7 +159,7 @@ describe('compatibility-utils', () => {
         id: 42,
       };
 
-      // @ts-expect-error - Intentional abuse
+      // @ts-expect-error - Destructive testing
       const request = fromLegacyRequest(legacyRequest);
 
       expect(request).toStrictEqual({

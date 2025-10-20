@@ -56,13 +56,6 @@ export class MiddlewareContext<
 }
 
 /**
- * Extract the {@link MiddlewareContext} union from an array of {@link MiddlewareContext}s.
- */
-// Using `any` in this constraint does not pollute other types.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ExtractContexts<T extends MiddlewareContext<any>[]> = T[number];
-
-/**
  * Infer the KeyValues type from a {@link MiddlewareContext}.
  */
 // Using `any` in this constraint does not pollute other types.
@@ -123,12 +116,14 @@ type ExcludeNever<T extends Record<PropertyKey, unknown>> = {
  * type A = MiddlewareContext<{ a: string }> | MiddlewareContext<{ b: number }>;
  * type B = MergeContexts<A>; // MiddlewareContext<{ a: string, b: number }>
  */
-export type MergeContexts<Contexts extends ContextConstraint[]> =
-  MiddlewareContext<
-    ExcludeNever<
-      Simplify<UnionToIntersection<InferKeyValues<ExtractContexts<Contexts>>>>
-    >
-  >;
+export type MergeContexts<Contexts extends ContextConstraint> =
+  ExcludeNever<
+    Simplify<UnionToIntersection<InferKeyValues<Contexts>>>
+  > extends never
+    ? never
+    : MiddlewareContext<
+        ExcludeNever<Simplify<UnionToIntersection<InferKeyValues<Contexts>>>>
+      >;
 
 // Non-polluting `any` constraint.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

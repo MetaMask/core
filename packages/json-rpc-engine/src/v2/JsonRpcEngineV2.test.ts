@@ -333,11 +333,34 @@ describe('JsonRpcEngineV2', () => {
         expect(result).toBe('bar');
       });
 
+      it('type errors if different context types are mutually exclusive', async () => {
+        const middleware1: JsonRpcMiddleware<
+          JsonRpcCall,
+          ResultConstraint<JsonRpcCall>,
+          MiddlewareContext<{ foo: string }>
+        > = ({ next, context }) => {
+          context.set('foo', 'bar');
+          return next();
+        };
+
+        const middleware2: JsonRpcMiddleware<
+          JsonRpcCall,
+          ResultConstraint<JsonRpcCall>,
+          MiddlewareContext<{ foo: number }>
+        > = ({ context }) => context.assertGet('foo');
+        const engine = JsonRpcEngineV2.create({
+          middleware: [middleware1, middleware2],
+        });
+
+        // @ts-expect-error - The engine is `never`, which is what we want.
+        expect(await engine.handle(makeRequest())).toBe('bar');
+      });
+
       it('throws if a middleware attempts to modify properties of the context', async () => {
         const engine = JsonRpcEngineV2.create({
           middleware: [
             ({ context }) => {
-              // @ts-expect-error Destructive testing.
+              // @ts-expect-error - Destructive testing.
               context.set = () => undefined;
             },
           ],
@@ -442,7 +465,7 @@ describe('JsonRpcEngineV2', () => {
         const engine = JsonRpcEngineV2.create({
           middleware: [
             jest.fn(({ request }) => {
-              // @ts-expect-error Destructive testing.
+              // @ts-expect-error - Destructive testing.
               request.params = [2];
             }) as JsonRpcMiddleware,
           ],
@@ -482,7 +505,7 @@ describe('JsonRpcEngineV2', () => {
             async ({ request, next }) => {
               return await next({
                 ...request,
-                // @ts-expect-error Destructive testing.
+                // @ts-expect-error - Destructive testing.
                 jsonrpc: '3.0',
               });
             },
@@ -796,7 +819,7 @@ describe('JsonRpcEngineV2', () => {
       });
 
       it('propagates request mutation', async () => {
-        const engine1 = JsonRpcEngineV2.create({
+        const engine1 = JsonRpcEngineV2.create<JsonRpcRequest<number[]>>({
           middleware: [
             ({ request, next }) => {
               return next({
@@ -808,21 +831,23 @@ describe('JsonRpcEngineV2', () => {
               return next({
                 ...request,
                 method: 'test_request_2',
-                // @ts-expect-error Will obviously work.
-                params: [request.params[0] * 2],
+                // Obviously correct.
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                params: [request.params![0]! * 2],
               });
             },
           ],
         });
 
         let observedMethod: string | undefined;
-        const engine2 = JsonRpcEngineV2.create({
+        const engine2 = JsonRpcEngineV2.create<JsonRpcRequest<number[]>>({
           middleware: [
             engine1.asMiddleware(),
             ({ request }) => {
               observedMethod = request.method;
-              // @ts-expect-error Will obviously work.
-              return request.params[0] * 2;
+              // Obviously correct.
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              return request.params![0]! * 2;
             },
           ],
         });
@@ -937,7 +962,7 @@ describe('JsonRpcEngineV2', () => {
       it('does not propagate request mutation', async () => {
         // Unlike asMiddleware(), although the inner engine mutates request,
         // those mutations do not propagate when using engine.handle().
-        const engine1 = JsonRpcEngineV2.create({
+        const engine1 = JsonRpcEngineV2.create<JsonRpcRequest<number[]>>({
           middleware: [
             ({ request, next }) => {
               return next({
@@ -949,8 +974,9 @@ describe('JsonRpcEngineV2', () => {
               return next({
                 ...request,
                 method: 'test_request_2',
-                // @ts-expect-error Will obviously work at runtime
-                params: [request.params[0] * 2],
+                // Obviously correct.
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                params: [request.params![0]! * 2],
               });
             },
             () => null,
@@ -958,16 +984,17 @@ describe('JsonRpcEngineV2', () => {
         });
 
         let observedMethod: string | undefined;
-        const engine2 = JsonRpcEngineV2.create({
+        const engine2 = JsonRpcEngineV2.create<JsonRpcRequest<number[]>>({
           middleware: [
             async ({ request, next, context }) => {
-              await engine1.handle(request as JsonRpcRequest, { context });
+              await engine1.handle(request, { context });
               return next();
             },
             ({ request }) => {
               observedMethod = request.method;
-              // @ts-expect-error Will obviously work at runtime
-              return request.params[0] * 2;
+              // Obviously correct.
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              return request.params![0]! * 2;
             },
           ],
         });
@@ -1092,9 +1119,9 @@ describe('JsonRpcEngineV2', () => {
         });
 
         expect(await engine.handle(makeRequest())).toBeNull();
-        // @ts-expect-error Valid at runtime, but should cause a type error
+        // @ts-expect-error - Valid at runtime, but should cause a type error
         expect(await engine.handle(makeRequest() as JsonRpcCall)).toBeNull();
-        // @ts-expect-error Invalid at runtime and should cause a type error
+        // @ts-expect-error - Invalid at runtime and should cause a type error
         await expect(engine.handle(makeNotification())).rejects.toThrow(
           new JsonRpcEngineError(
             `Result returned for notification: ${stringify(makeNotification())}`,
@@ -1109,7 +1136,7 @@ describe('JsonRpcEngineV2', () => {
 
         expect(await engine.handle(makeNotification())).toBeUndefined();
         await expect(
-          // @ts-expect-error Invalid at runtime and should cause a type error
+          // @ts-expect-error - Invalid at runtime and should cause a type error
           engine.handle({ id: '1', jsonrpc, method: 'test_request' }),
         ).rejects.toThrow(
           new JsonRpcEngineError(
@@ -1117,7 +1144,7 @@ describe('JsonRpcEngineV2', () => {
           ),
         );
         await expect(
-          // @ts-expect-error Invalid at runtime and should cause a type error
+          // @ts-expect-error - Invalid at runtime and should cause a type error
           engine.handle(makeRequest() as JsonRpcRequest),
         ).rejects.toThrow(
           new JsonRpcEngineError(

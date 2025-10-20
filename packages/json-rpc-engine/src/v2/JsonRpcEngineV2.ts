@@ -130,10 +130,21 @@ export class JsonRpcEngineV2<
 
   #isDestroyed = false;
 
+  // See .create() for why this is private.
   private constructor({ middleware }: Options<Request, Context>) {
     this.#middleware = [...middleware];
   }
 
+  // We use a static factory method in order to construct a supertype of all middleware contexts,
+  // which enables us to instantiate an engine despite different middleware expecting different
+  // context types.
+  /**
+   * Create a new JSON-RPC engine.
+   *
+   * @param options - The options for the engine.
+   * @param options.middleware - The middleware to use.
+   * @returns The JSON-RPC engine.
+   */
   static create<
     InputRequest extends JsonRpcCall = JsonRpcCall,
     InputContext extends ContextConstraint = ContextConstraint,
@@ -156,7 +167,12 @@ export class JsonRpcEngineV2<
         MergedContext
       >
     >;
-    return new JsonRpcEngineV2<InputRequest, MergedContext>({ middleware: mw });
+
+    return new JsonRpcEngineV2<InputRequest, MergedContext>({
+      middleware: mw,
+    }) as MergedContext extends never
+      ? never
+      : JsonRpcEngineV2<InputRequest, MergedContext>;
   }
 
   /**
