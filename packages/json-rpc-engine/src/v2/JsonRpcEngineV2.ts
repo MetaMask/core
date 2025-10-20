@@ -65,23 +65,27 @@ type Options<Request extends JsonRpcCall, Context extends MiddlewareContext> = {
   >;
 };
 
-type CreateOptions<
-  InputReq extends JsonRpcCall,
-  Middleware extends NonEmptyArray<
-    JsonRpcMiddleware<InputReq, ResultConstraint<InputReq>, any>
-  >,
-> = {
-  middleware: Middleware;
-};
-
 type HandleOptions<Context extends MiddlewareContext> = {
   context?: Context;
 };
 
-type ContextOf<M> = M extends JsonRpcMiddleware<any, any, infer C> ? C : never;
+type RequestOf<Middleware> =
+  Middleware extends JsonRpcMiddleware<infer R, ResultConstraint<infer R>, any>
+    ? R
+    : never;
 
-type MergedContextOf<Ms extends readonly JsonRpcMiddleware<any, any, any>[]> =
-  MergeContexts<ContextOf<Ms[number]>>;
+type ContextOf<Middleware> =
+  Middleware extends JsonRpcMiddleware<any, ResultConstraint<any>, infer C>
+    ? C
+    : never;
+
+type MergedContextOf<
+  Middleware extends JsonRpcMiddleware<
+    any,
+    ResultConstraint<any>,
+    any
+  >,
+> = MergeContexts<ContextOf<Middleware>>;
 
 /**
  * A JSON-RPC request and response processor.
@@ -135,21 +139,24 @@ export class JsonRpcEngineV2<
   }
 
   static create<
-    InputReq extends JsonRpcCall,
-    Middleware extends NonEmptyArray<
+    Middleware extends
       JsonRpcMiddleware<
-        InputReq,
-        ResultConstraint<InputReq>,
+        any,
+        ResultConstraint<JsonRpcCall>,
         MiddlewareContext<any>
       >
-    >,
-  >({ middleware }: CreateOptions<InputReq, Middleware>) {
+  >({ middleware }: { middleware: Middleware[] }) {
+    type InputRequest = RequestOf<Middleware>;
     type InputContext = MergedContextOf<Middleware>;
     // Cast once so the instance is typed with the merged context
     const mw = middleware as unknown as NonEmptyArray<
-      JsonRpcMiddleware<InputReq, ResultConstraint<InputReq>, InputContext>
+      JsonRpcMiddleware<
+        InputRequest,
+        ResultConstraint<InputRequest>,
+        InputContext
+      >
     >;
-    return new JsonRpcEngineV2<InputReq, InputContext>({ middleware: mw });
+    return new JsonRpcEngineV2<InputRequest, InputContext>({ middleware: mw });
   }
 
   /**
