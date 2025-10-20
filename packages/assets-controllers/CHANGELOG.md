@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add multicall addresses in `MULTICALL_CONTRACT_BY_CHAINID` ([#6896](https://github.com/MetaMask/core/pull/6896))
+  - Add multicall address for Chains: `Injective`, `Hemi`, `Plasma`, `Nonmia`, `XRPL`, `Soneium`, `Genesys`, `EDU`, `Abstract`, `Berachain`, `MegaETH Testnet`, `Apechain`, `Matchain`, `Monad Testnet`, `Monad`, `Katana`, `Lens`, `Plume`, `XDC`
+
+## [81.0.1]
+
+### Fixed
+
+- Fix filter for staked Ethereum balances in `AccountTrackerController` ([#6846](https://github.com/MetaMask/core/pull/6846))
+
 ## [81.0.0]
 
 ### Changed
@@ -2127,7 +2138,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.1...HEAD
+[81.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.0...@metamask/assets-controllers@81.0.1
 [81.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@80.0.0...@metamask/assets-controllers@81.0.0
 [80.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@79.0.1...@metamask/assets-controllers@80.0.0
 [79.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@79.0.0...@metamask/assets-controllers@79.0.1

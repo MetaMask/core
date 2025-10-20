@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "references": [
+    {
+      "path": "../error-reporting-service/tsconfig.build.json"
+    },
+    {
+      "path": "../eth-block-tracker/tsconfig.build.json"
+    },
+    {
+      "path": "../eth-json-rpc-provider/tsconfig.build.json"
+    },
+    {
+      "path": "../json-rpc-engine/tsconfig.build.json"
+    }
+  ],
+  "include": ["../../types", "./src"],
+  "exclude": ["**/*.test.ts", "**/*.test-d.ts"]
+}
