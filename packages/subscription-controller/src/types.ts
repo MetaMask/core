@@ -239,6 +239,11 @@ export type SubmitUserEventRequest = {
   event: SubscriptionUserEventType;
 };
 
+export type SubmitSponsorshipIntentsRequest = {
+  address: `0x${string}`;
+  products: ProductType[];
+};
+
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
   cancelSubscription(request: {
@@ -263,6 +268,9 @@ export type ISubscriptionService = {
   ): Promise<void>;
   getSubscriptionsEligibilities(): Promise<SubscriptionEligibility[]>;
   submitUserEvent(request: SubmitUserEventRequest): Promise<void>;
+  submitSponsorshipIntents(
+    request: SubmitSponsorshipIntentsRequest,
+  ): Promise<void>;
 };
 
 export type UpdatePaymentMethodOpts =

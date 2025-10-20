@@ -36,6 +36,7 @@ export type {
   SubscriptionCryptoPaymentMethod,
   SubscriptionPaymentMethod,
   SubmitUserEventRequest,
+  SubmitSponsorshipIntentsRequest,
   SubscriptionEligibility,
   SubscriptionUserEventType,
   RecurringInterval,

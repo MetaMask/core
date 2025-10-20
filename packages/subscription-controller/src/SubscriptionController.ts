@@ -23,6 +23,7 @@ import type {
   TokenPaymentInfo,
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodOpts,
+  SubmitSponsorshipIntentsRequest,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -488,6 +489,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     throw new Error('Invalid payment type');
   }
 
+  async submitSponsorshipIntents(request: SubmitSponsorshipIntentsRequest) {
+    this.#assertIsUserNotSubscribed({ products: request.products });
+    await this.#subscriptionService.submitSponsorshipIntents(request);
+  }
+
   /**
    * Submit a user event from the UI. (e.g. shield modal viewed)
    *
@@ -559,16 +565,6 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     return tokenAmount.toString();
   }
 
-  #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {
-    if (
-      this.state.subscriptions.find((subscription) =>
-        subscription.products.some((p) => products.includes(p.name)),
-      )
-    ) {
-      throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
-    }
-  }
-
   /**
    * Triggers an access token refresh.
    */
@@ -577,6 +573,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     // controller. Next time the access token is requested, a new access token
     // will be fetched.
     this.messagingSystem.call('AuthenticationController:performSignOut');
+  }
+
+  #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {
+    if (
+      this.state.subscriptions.find((subscription) =>
+        subscription.products.some((p) => products.includes(p.name)),
+      )
+    ) {
+      throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
+    }
   }
 
   #assertIsUserSubscribed(request: { subscriptionId: string }) {
