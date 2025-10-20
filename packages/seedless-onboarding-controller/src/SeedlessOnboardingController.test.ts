@@ -9,7 +9,6 @@ import {
   decryptWithKey as decryptWithKeyBrowserPassworder,
   importKey as importKeyBrowserPassworder,
 } from '@metamask/browser-passworder';
-import type { Messenger } from '@metamask/messenger';
 import {
   TOPRFError,
   type FetchAuthPubKeyResult,
@@ -52,8 +51,6 @@ import type {
   VaultEncryptor,
 } from './types';
 import type {
-  AllSeedlessOnboardingControllerActions,
-  AllSeedlessOnboardingControllerEvents,
   MockKeyringControllerMessenger,
   RootMessenger,
 } from '../tests/__fixtures__/mockMessenger';
