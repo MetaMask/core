@@ -108,22 +108,24 @@ export { FooController, getDefaultFooControllerState } from './FooController';
 
 Each property in state has two pieces of metadata that must be specified. This instructs the client how to treat that property:
 
+- `includeInDebugLogs` - Informs the client whether to include the property in debug state logs attached to Sentry events (`true`) or not (`false`). We must exclude any data that could potentially be personally identifying here, and we often also exclude data that is large and/or unhelpful for debugging.
+- `includeInStateLogs` - Informs the client whether to include the property in state logs downloaded by users (`true`) or not (`false`). We must exclude any sensitive data that we don't want our support team to have access to (such as private keys). We include personally-identifiable data related to on-chain state here (we never collect this data, and we have a disclaimer about this in the UI when users download state logs), but other types of personally identifiable information must still be excluded.
 - `persist` — Informs the client whether the property should be placed in persistent storage (`true`) or not (`false`). Opting out is useful if you want to have a property in state for convenience reasons but you know that property is ephemeral and can be easily reconstructed.
-- `anonymous` — Informs the client whether the property is free of personally identifiable information (`true`) or not (`false`) and can therefore safely be included and sent to error reporting services such as Sentry. When in doubt, use `false`.
+- `usedInUi` - Informs the client whether the property is used in the UI (`true`) or not (`false`). This is used to filter the state we send to the UI to improve performance.
 
 A variable named `${controllerName}Metadata` should be defined (there is no need to export it) and passed as the `metadata` argument in the constructor to `BaseController`.
 
 ```typescript
 const keyringControllerMetadata = {
   vault: {
+    // This property can be used to identify a user, so we want to make sure we
+    // do not include it in Sentry.
+    includeInDebugLogs: false,
     // We don't want to include this in state logs because it contains sensitive key material.
     includeInStateLogs: false,
     // We want to persist this property so it's restored automatically, as we
     // cannot reconstruct it otherwise.
     persist: true,
-    // This property can be used to identify a user, so we want to make sure we
-    // do not include it in Sentry.
-    anonymous: false,
     // This property is only used in the controller, not in the UI.
     usedInUi: false,
   },
