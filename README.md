@@ -247,6 +247,7 @@ linkStyle default opacity:0.5
   gator_permissions_controller --> messenger;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
+  keyring_controller --> messenger;
   logging_controller --> base_controller;
   logging_controller --> controller_utils;
   message_manager --> base_controller;

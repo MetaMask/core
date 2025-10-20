@@ -1,7 +1,6 @@
 import type { TypedTransaction, TypedTxData } from '@ethereumjs/tx';
 import { isValidPrivate, getBinarySize } from '@ethereumjs/util';
-import type { RestrictedMessenger } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller/next';
 import * as encryptorUtils from '@metamask/browser-passworder';
 import { HdKeyring } from '@metamask/eth-hd-keyring';
 import { normalize as ethNormalize } from '@metamask/eth-sig-util';
@@ -15,6 +14,7 @@ import type {
 } from '@metamask/keyring-api';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { KeyringClass } from '@metamask/keyring-utils';
+import type { Messenger } from '@metamask/messenger';
 import type { Eip1024EncryptedData, Hex, Json } from '@metamask/utils';
 import {
   add0x,
@@ -234,12 +234,10 @@ export type KeyringControllerEvents =
   | KeyringControllerUnlockEvent
   | KeyringControllerAccountRemovedEvent;
 
-export type KeyringControllerMessenger = RestrictedMessenger<
+export type KeyringControllerMessenger = Messenger<
   typeof name,
   KeyringControllerActions,
-  KeyringControllerEvents,
-  never,
-  never
+  KeyringControllerEvents
 >;
 
 export type KeyringControllerOptions = {
@@ -682,31 +680,31 @@ export class KeyringController extends BaseController<
         vault: {
           includeInStateLogs: false,
           persist: true,
-          anonymous: false,
+          includeInDebugSnapshot: false,
           usedInUi: false,
         },
         isUnlocked: {
           includeInStateLogs: true,
           persist: false,
-          anonymous: true,
+          includeInDebugSnapshot: true,
           usedInUi: true,
         },
         keyrings: {
           includeInStateLogs: true,
           persist: false,
-          anonymous: false,
+          includeInDebugSnapshot: false,
           usedInUi: true,
         },
         encryptionKey: {
           includeInStateLogs: false,
           persist: false,
-          anonymous: false,
+          includeInDebugSnapshot: false,
           usedInUi: false,
         },
         encryptionSalt: {
           includeInStateLogs: false,
           persist: false,
-          anonymous: false,
+          includeInDebugSnapshot: false,
           usedInUi: false,
         },
       },
@@ -1179,7 +1177,7 @@ export class KeyringController extends BaseController<
       }
     });
 
-    this.messagingSystem.publish(`${name}:accountRemoved`, address);
+    this.messenger.publish(`${name}:accountRemoved`, address);
   }
 
   /**
@@ -1201,7 +1199,7 @@ export class KeyringController extends BaseController<
         delete state.encryptionSalt;
       });
 
-      this.messagingSystem.publish(`${name}:lock`);
+      this.messenger.publish(`${name}:lock`);
     });
   }
 
@@ -1697,86 +1695,86 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Constructor helper for registering this controller's messaging system
+   * Constructor helper for registering this controller's messeger
    * actions.
    */
   #registerMessageHandlers() {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:signMessage`,
       this.signMessage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:signEip7702Authorization`,
       this.signEip7702Authorization.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:signPersonalMessage`,
       this.signPersonalMessage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:signTypedMessage`,
       this.signTypedMessage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:decryptMessage`,
       this.decryptMessage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:getEncryptionPublicKey`,
       this.getEncryptionPublicKey.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:getAccounts`,
       this.getAccounts.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:getKeyringsByType`,
       this.getKeyringsByType.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:getKeyringForAccount`,
       this.getKeyringForAccount.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:persistAllKeyrings`,
       this.persistAllKeyrings.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:prepareUserOperation`,
       this.prepareUserOperation.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:patchUserOperation`,
       this.patchUserOperation.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:signUserOperation`,
       this.signUserOperation.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:addNewAccount`,
       this.addNewAccount.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:withKeyring`,
       this.withKeyring.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:addNewKeyring`,
       this.addNewKeyring.bind(this),
     );
@@ -2450,7 +2448,7 @@ export class KeyringController extends BaseController<
     this.update((state) => {
       state.isUnlocked = true;
     });
-    this.messagingSystem.publish(`${name}:unlock`);
+    this.messenger.publish(`${name}:unlock`);
   }
 
   /**
