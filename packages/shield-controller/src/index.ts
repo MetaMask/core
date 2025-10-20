@@ -8,6 +8,7 @@ export type {
   ShieldControllerEvents,
   ShieldControllerMessenger,
   ShieldControllerState,
+  ShieldControllerGetStateAction,
   ShieldControllerCheckCoverageAction,
   ShieldControllerCoverageResultReceivedEvent,
   ShieldControllerStateChangeEvent,

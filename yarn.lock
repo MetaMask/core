@@ -4736,6 +4736,7 @@ __metadata:
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.1"
+    "@metamask/messenger": "npm:^0.3.0"
     "@metamask/signature-controller": "npm:^34.0.1"
     "@metamask/transaction-controller": "npm:^60.9.0"
     "@metamask/utils": "npm:^11.8.1"

@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import type { SignatureRequest } from '@metamask/signature-controller';
 import {
   SignatureRequestStatus,
@@ -35,7 +35,7 @@ function setup({
   transactionHistoryLimit?: number;
 } = {}) {
   const backend = createMockBackend();
-  const { messenger, baseMessenger } = createMockMessenger();
+  const { messenger, rootMessenger } = createMockMessenger();
 
   const controller = new ShieldController({
     backend,
@@ -47,7 +47,7 @@ function setup({
   return {
     controller,
     messenger,
-    baseMessenger,
+    rootMessenger,
     backend,
   };
 }
@@ -55,10 +55,10 @@ function setup({
 describe('ShieldController', () => {
   describe('checkCoverage', () => {
     it('should trigger checkCoverage when a new transaction is added', async () => {
-      const { baseMessenger, backend } = setup();
+      const { rootMessenger, messenger, backend } = setup();
       const txMeta = generateMockTxMeta();
-      const coverageResultReceived = setupCoverageResultReceived(baseMessenger);
-      baseMessenger.publish(
+      const coverageResultReceived = setupCoverageResultReceived(messenger);
+      rootMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [txMeta] } as TransactionControllerState,
         undefined as never,
@@ -68,14 +68,14 @@ describe('ShieldController', () => {
     });
 
     it('should tolerate calling start and stop multiple times', async () => {
-      const { backend, baseMessenger, controller } = setup();
+      const { backend, rootMessenger, messenger, controller } = setup();
       controller.stop();
       controller.stop();
       controller.start();
       controller.start();
       const txMeta = generateMockTxMeta();
-      const coverageResultReceived = setupCoverageResultReceived(baseMessenger);
-      baseMessenger.publish(
+      const coverageResultReceived = setupCoverageResultReceived(messenger);
+      rootMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [txMeta] } as TransactionControllerState,
         undefined as never,
@@ -85,11 +85,11 @@ describe('ShieldController', () => {
     });
 
     it('should no longer trigger checkCoverage when controller is stopped', async () => {
-      const { controller, baseMessenger, backend } = setup();
+      const { controller, rootMessenger, backend } = setup();
       controller.stop();
       const txMeta = generateMockTxMeta();
       const coverageResultReceived = new Promise<void>((resolve, reject) => {
-        baseMessenger.subscribe(
+        rootMessenger.subscribe(
           'ShieldController:coverageResultReceived',
           (_coverageResult) => resolve(),
         );
@@ -98,7 +98,7 @@ describe('ShieldController', () => {
           100,
         );
       });
-      baseMessenger.publish(
+      rootMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [txMeta] } as TransactionControllerState,
         undefined as never,
@@ -137,12 +137,12 @@ describe('ShieldController', () => {
     });
 
     it('should check coverage when a transaction is simulated', async () => {
-      const { baseMessenger, backend } = setup();
+      const { rootMessenger, messenger, backend } = setup();
       const txMeta = generateMockTxMeta();
-      const coverageResultReceived = setupCoverageResultReceived(baseMessenger);
+      const coverageResultReceived = setupCoverageResultReceived(messenger);
 
       // Add transaction.
-      baseMessenger.publish(
+      rootMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [txMeta] } as TransactionControllerState,
         undefined as never,
@@ -155,9 +155,8 @@ describe('ShieldController', () => {
       txMeta2.simulationData = {
         tokenBalanceChanges: [],
       };
-      const coverageResultReceived2 =
-        setupCoverageResultReceived(baseMessenger);
-      baseMessenger.publish(
+      const coverageResultReceived2 = setupCoverageResultReceived(messenger);
+      rootMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [txMeta2] } as TransactionControllerState,
         undefined as never,
@@ -187,15 +186,15 @@ describe('ShieldController', () => {
 
   describe('checkSignatureCoverage', () => {
     it('should check signature coverage', async () => {
-      const { baseMessenger, backend } = setup();
+      const { rootMessenger, backend } = setup();
       const signatureRequest = generateMockSignatureRequest();
       const coverageResultReceived = new Promise<void>((resolve) => {
-        baseMessenger.subscribe(
+        rootMessenger.subscribe(
           'ShieldController:coverageResultReceived',
           (_coverageResult) => resolve(),
         );
       });
-      baseMessenger.publish(
+      rootMessenger.publish(
         'SignatureController:stateChange',
         {
           signatureRequests: { [signatureRequest.id]: signatureRequest },
@@ -210,15 +209,15 @@ describe('ShieldController', () => {
   });
 
   it('should check coverage for multiple signature request', async () => {
-    const { baseMessenger, backend } = setup();
+    const { rootMessenger, backend } = setup();
     const signatureRequest1 = generateMockSignatureRequest();
     const coverageResultReceived1 = new Promise<void>((resolve) => {
-      baseMessenger.subscribe(
+      rootMessenger.subscribe(
         'ShieldController:coverageResultReceived',
         (_coverageResult) => resolve(),
       );
     });
-    baseMessenger.publish(
+    rootMessenger.publish(
       'SignatureController:stateChange',
       {
         signatureRequests: {
@@ -234,12 +233,12 @@ describe('ShieldController', () => {
 
     const signatureRequest2 = generateMockSignatureRequest();
     const coverageResultReceived2 = new Promise<void>((resolve) => {
-      baseMessenger.subscribe(
+      rootMessenger.subscribe(
         'ShieldController:coverageResultReceived',
         (_coverageResult) => resolve(),
       );
     });
-    baseMessenger.publish(
+    rootMessenger.publish(
       'SignatureController:stateChange',
       {
         signatureRequests: {
@@ -270,7 +269,7 @@ describe('ShieldController', () => {
         updateSignatureRequest?: (signatureRequest: SignatureRequest) => void;
       },
     ) {
-      const { messenger, baseMessenger } = components;
+      const { messenger, rootMessenger } = components;
 
       // Create a promise that resolves when the state changes
       const stateUpdated = new Promise((resolve) =>
@@ -279,7 +278,7 @@ describe('ShieldController', () => {
 
       // Publish a signature request
       const signatureRequest = generateMockSignatureRequest();
-      baseMessenger.publish(
+      rootMessenger.publish(
         'SignatureController:stateChange',
         {
           signatureRequests: { [signatureRequest.id]: signatureRequest },
@@ -295,7 +294,7 @@ describe('ShieldController', () => {
       updatedSignatureRequest.status = SignatureRequestStatus.Signed;
       updatedSignatureRequest.rawSig = '0x00';
       options?.updateSignatureRequest?.(updatedSignatureRequest);
-      baseMessenger.publish(
+      rootMessenger.publish(
         'SignatureController:stateChange',
         {
           signatureRequests: { [signatureRequest.id]: updatedSignatureRequest },
@@ -364,7 +363,7 @@ describe('ShieldController', () => {
       components: ReturnType<typeof setup>,
       options?: { updateTransaction: (txMeta: TransactionMeta) => void },
     ) {
-      const { messenger, baseMessenger } = components;
+      const { messenger, rootMessenger } = components;
       // Create a promise that resolves when the state changes
       const stateUpdated = new Promise((resolve) =>
         messenger.subscribe('ShieldController:stateChange', resolve),
@@ -372,7 +371,7 @@ describe('ShieldController', () => {
 
       // Publish a transaction
       const txMeta = generateMockTxMeta();
-      baseMessenger.publish(
+      rootMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [txMeta] } as TransactionControllerState,
         undefined as never,
@@ -386,7 +385,7 @@ describe('ShieldController', () => {
       updatedTxMeta.status = TransactionStatus.submitted;
       updatedTxMeta.hash = '0x00';
       options?.updateTransaction(updatedTxMeta);
-      baseMessenger.publish(
+      rootMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [updatedTxMeta] } as TransactionControllerState,
         undefined as never,
@@ -445,7 +444,7 @@ describe('ShieldController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
