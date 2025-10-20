@@ -151,6 +151,7 @@ linkStyle default opacity:0.5
   account_tree_controller --> multichain_account_service;
   account_tree_controller --> profile_sync_controller;
   accounts_controller --> base_controller;
+  accounts_controller --> messenger;
   accounts_controller --> controller_utils;
   accounts_controller --> keyring_controller;
   accounts_controller --> network_controller;
