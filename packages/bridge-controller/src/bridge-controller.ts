@@ -551,9 +551,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const { sse, maxRefreshCount } = getBridgeFeatureFlags(
       this.messagingSystem,
     );
-    const shouldStream =
-      sse?.enabled &&
-      hasMinimumRequiredVersion(this.#clientVersion, sse.minimumVersion);
+    // const shouldStream =
+    //   sse?.enabled &&
+    //   hasMinimumRequiredVersion(this.#clientVersion, sse.minimumVersion);
+    // TODO enable SSE again after florin backend changes are deployed
+    const shouldStream = false;
 
     this.update((state) => {
       state.quoteRequest = updatedQuoteRequest;
