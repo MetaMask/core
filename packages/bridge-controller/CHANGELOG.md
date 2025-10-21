@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `MONAD` network support ([#6828](https://github.com/MetaMask/core/pull/6828))
+  - Add `MONAD` into constants `ALLOWED_BRIDGE_CHAIN_IDS`, `SWAPS_TOKEN_OBJECT` and `NETWORK_TO_NAME_MAP`
 - Implement `fetchServerEvents` util that parses server events and parses them into JSON ([#6892](https://github.com/MetaMask/core/pull/6892))
 
 ### Changed
