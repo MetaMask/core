@@ -57,7 +57,7 @@ const appendL1GasFees = async (
           })
         : '0x0';
       const tradeL1GasFees = await getLayer1GasFee({
-        transactionParams: getTxParams(trade),
+        transactionParams: getTxParams(trade as TxData),
         chainId,
       });
 
