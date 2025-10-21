@@ -70,10 +70,10 @@ export type ChildControllerStateChangeEvents<
   ComposableControllerState extends ComposableControllerStateConstraint,
 > =
   ComposableControllerState extends Record<
-    infer ControllerName extends string,
-    infer ControllerState extends StateConstraint
+    infer ChildControllerName extends string,
+    infer ChildControllerState extends StateConstraint
   >
-    ? ControllerStateChangeEvent<ControllerName, ControllerState>
+    ? ControllerStateChangeEvent<ChildControllerName, ChildControllerState>
     : never;
 
 /**
