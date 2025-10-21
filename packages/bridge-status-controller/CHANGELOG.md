@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/630.0.0 ([#6905](https://github.com/MetaMask/core/pull/6905))
+
 ### Fixed
 
 - Update QuoteResponse type references ([#6892](https://github.com/MetaMask/core/pull/6892))
