@@ -219,6 +219,7 @@ export type QuoteRequest<
 };
 
 export enum StatusTypes {
+  SUBMITTED = 'SUBMITTED',
   UNKNOWN = 'UNKNOWN',
   FAILED = 'FAILED',
   PENDING = 'PENDING',

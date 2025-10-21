@@ -769,10 +769,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       IntentOrderStatus.CANCELLED,
       IntentOrderStatus.EXPIRED,
     ].includes(intentOrder.status);
-    const isPending = [
-      IntentOrderStatus.PENDING,
-      IntentOrderStatus.SUBMITTED,
-    ].includes(intentOrder.status);
+    const isPending = [IntentOrderStatus.PENDING].includes(intentOrder.status);
+    const isSubmitted = [IntentOrderStatus.SUBMITTED].includes(
+      intentOrder.status,
+    );
 
     if (isComplete) {
       statusType = StatusTypes.COMPLETE;
@@ -780,8 +780,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       statusType = StatusTypes.FAILED;
     } else if (isPending) {
       statusType = StatusTypes.PENDING;
+    } else if (isSubmitted) {
+      statusType = StatusTypes.SUBMITTED;
     } else {
-      statusType = StatusTypes.PENDING; // Default to pending for unknown statuses
+      statusType = StatusTypes.UNKNOWN;
     }
 
     // Extract transaction hashes from intent order
