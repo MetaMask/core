@@ -234,12 +234,8 @@ export class ShieldController extends BaseController<
         signatureRequest.id,
       );
 
-      // Check coverage if the signature request is new and has type
-      // `personal_sign`.
-      if (
-        !previousSignatureRequest &&
-        signatureRequest.type === SignatureRequestType.PersonalSign
-      ) {
+      // Check coverage if the signature request is new.
+      if (!previousSignatureRequest) {
         this.checkSignatureCoverage(signatureRequest).catch(
           // istanbul ignore next
           (error) => log('Error checking coverage:', error),
