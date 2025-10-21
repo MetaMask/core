@@ -51,6 +51,7 @@ export class PollingWithTimeoutAndAbort {
 
     // clean up the request entry if it exists
     this.abortPendingRequest(requestId);
+    await this.#requestEntryCleanedUp(requestId);
 
     // insert the request entry for the next polling cycle
     const { abortController } = this.#insertRequestEntry(requestId, timeout);
@@ -88,13 +89,8 @@ export class PollingWithTimeoutAndAbort {
    * @param requestId - The ID of the request to abort.
    */
   abortPendingRequest(requestId: string) {
-    // firstly clean up the request entry if it exists
-    // note: this does not abort the request, it only cleans up the request entry for the next polling cycle
-    const existingEntry = this.#cleanUpRequestEntryIfExists(requestId);
-    // then abort the request if it exists
-    // note: this does abort the request, but it will not trigger the abort handler (hence, {@link cleanUpRequestEntryIfExists} will not be called)
-    // coz the AbortHandler event listener is already removed from the AbortSignal
-    existingEntry?.abortController.abort(this.ABORT_REASON_CANCELLED);
+    const requestEntry = this.#requestEntries.get(requestId);
+    requestEntry?.abortController.abort(this.ABORT_REASON_CANCELLED);
   }
 
   /**
@@ -139,28 +135,14 @@ export class PollingWithTimeoutAndAbort {
    * @returns The request entry that was cleaned up, if it exists.
    */
   #cleanUpOnFinished(requestId: string): RequestEntry | undefined {
-    const requestEntry = this.#cleanUpRequestEntryIfExists(requestId);
-    if (requestEntry) {
-      requestEntry.abortController.signal.removeEventListener(
-        'abort',
-        requestEntry.abortHandler,
-      );
-    }
-    return requestEntry;
-  }
-
-  /**
-   * Clean up the request entry if it exists.
-   * This will clear the pending timeout, remove the event listener from the AbortSignal, and remove the request entry.
-   *
-   * @param requestId - The ID of the request to handle the abort for.
-   * @returns The request entry that was aborted, if it exists.
-   */
-  #cleanUpRequestEntryIfExists(requestId: string): RequestEntry | undefined {
     const requestEntry = this.#requestEntries.get(requestId);
     if (requestEntry) {
       clearTimeout(requestEntry.timerId); // Clear the timeout
       this.#requestEntries.delete(requestId); // Remove the request entry
+      requestEntry.abortController.signal.removeEventListener(
+        'abort',
+        requestEntry.abortHandler,
+      );
     }
     return requestEntry;
   }
