@@ -231,8 +231,8 @@ describe('ComposableController', () => {
           namespace: 'ComposableController',
           parent: messenger,
         });
-      composableControllerMessenger.delegate({
-        messenger: fooControllerMessenger,
+      messenger.delegate({
+        messenger: composableControllerMessenger,
         events: ['FooController:stateChange'],
       });
       new ComposableController<
@@ -246,7 +246,10 @@ describe('ComposableController', () => {
       });
 
       const listener = sinon.stub();
-      messenger.subscribe('ComposableController:stateChange', listener);
+      composableControllerMessenger.subscribe(
+        'ComposableController:stateChange',
+        listener,
+      );
       fooController.updateFoo('qux');
 
       expect(listener.calledOnce).toBe(true);
@@ -330,6 +333,56 @@ describe('ComposableController', () => {
         foo: 'qux',
       },
     });
+  });
+
+  it('should not throw if child state change event subscription fails', () => {
+    type ComposableControllerState = {
+      FooController: FooControllerState;
+    };
+    const messenger = new Messenger<
+      MockAnyNamespace,
+      | ComposableControllerActions<ComposableControllerState>
+      | FooControllerAction,
+      ComposableControllerEvents<ComposableControllerState> | FooControllerEvent
+    >({ namespace: MOCK_ANY_NAMESPACE });
+    const fooControllerMessenger = new Messenger<
+      'FooController',
+      FooControllerAction,
+      FooControllerEvent,
+      typeof messenger
+    >({
+      namespace: 'FooController',
+      parent: messenger,
+    });
+    const fooController = new FooController(fooControllerMessenger);
+    const composableControllerMessenger = new Messenger<
+      'ComposableController',
+      ComposableControllerActions<ComposableControllerState>,
+      | ComposableControllerEvents<ComposableControllerState>
+      | FooControllerEvent,
+      typeof messenger
+    >({
+      namespace: 'ComposableController',
+      parent: messenger,
+    });
+    messenger.delegate({
+      messenger: composableControllerMessenger,
+      events: ['FooController:stateChange'],
+    });
+    jest
+      .spyOn(composableControllerMessenger, 'subscribe')
+      .mockImplementation(() => {
+        throw new Error();
+      });
+    expect(
+      () =>
+        new ComposableController({
+          controllers: {
+            FooController: fooController,
+          },
+          messenger: composableControllerMessenger,
+        }),
+    ).not.toThrow();
   });
 
   it('should throw if controller messenger not provided', () => {
