@@ -96,3 +96,30 @@ export const mockSseEventSourceWithMultipleDelays = async (
     }),
   };
 };
+
+/**
+ * This simulates responses from the fetch function for unit tests
+ *
+ * @param errorMessage - the error message to rethrow
+ * @param delay - the delay in milliseconds
+ * @returns a delayed stream of quotes
+ */
+export const mockSseServerError = (
+  errorMessage: string,
+  delay: number = 3000,
+) => {
+  return {
+    status: 200,
+    ok: true,
+    body: new ReadableStream({
+      start(controller) {
+        setTimeout(() => {
+          emitLine(controller, `event: error\n`);
+          emitLine(controller, `id: ${getEventId(1)}\n`);
+          emitLine(controller, `data: ${errorMessage}\n\n`);
+          controller.close();
+        }, delay);
+      },
+    }),
+  };
+};

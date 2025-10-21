@@ -23,6 +23,7 @@ import {
   advanceToNthTimerThenFlush,
   mockSseEventSource,
   mockSseEventSourceWithMultipleDelays,
+  mockSseServerError,
 } from '../tests/mock-sse';
 
 const FIRST_FETCH_DELAY = 4000;
@@ -697,5 +698,83 @@ describe('BridgeController SSE', function () {
     expect(trackMetaMetricsFn).toHaveBeenCalledTimes(13);
     // eslint-disable-next-line jest/no-restricted-matchers
     expect(trackMetaMetricsFn.mock.calls.slice(10, 13)).toMatchSnapshot();
+  });
+
+  it('should rethrow error from server', async function () {
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseServerError('timeout from server');
+    });
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
+    // Before polling starts
+    expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
+    expect(startPollingSpy).toHaveBeenCalledTimes(1);
+    expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
+    expect(startPollingSpy).toHaveBeenCalledWith({
+      networkClientId: 'selectedNetworkClientId',
+      updatedQuoteRequest: {
+        ...quoteRequest,
+        insufficientBal: false,
+      },
+      context: metricsContext,
+    });
+    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
+    const expectedState = {
+      ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+      quoteRequest,
+      assetExchangeRates,
+    };
+    expect(bridgeController.state).toStrictEqual(expectedState);
+
+    // Loading state
+    jest.advanceTimersByTime(1000);
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
+      mockFetchFn,
+      {
+        ...quoteRequest,
+        insufficientBal: false,
+      },
+      expect.any(AbortSignal),
+      BridgeClientId.EXTENSION,
+      BRIDGE_PROD_API_BASE_URL,
+      {
+        onValidationFailure: expect.any(Function),
+        onValidQuoteReceived: expect.any(Function),
+        onClose: expect.any(Function),
+      },
+      '13.8.0',
+    );
+    const { quotesLastFetched: t1, ...stateWithoutTimestamp } =
+      bridgeController.state;
+    // eslint-disable-next-line jest/no-restricted-matchers
+    expect(stateWithoutTimestamp).toMatchSnapshot();
+    expect(t1).toBeCloseTo(Date.now() - 1000);
+
+    // After first fetch
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+    expect(bridgeController.state).toStrictEqual({
+      ...expectedState,
+      quoteRequest: { ...quoteRequest, insufficientBal: false },
+      quotesRefreshCount: 1,
+      quotesLoadingStatus: 2,
+      quoteFetchError: 'Bridge-api error: timeout from server',
+      quotesLastFetched: t1,
+    });
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+    expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+    expect(consoleLogSpy.mock.calls[0]).toMatchInlineSnapshot(`
+      Array [
+        "Failed to stream bridge quotes",
+        [Error: Bridge-api error: timeout from server],
+      ]
+    `);
+    expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
+    expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(0);
+    // eslint-disable-next-line jest/no-restricted-matchers
+    expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
   });
 });

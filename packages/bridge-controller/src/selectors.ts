@@ -290,10 +290,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         relayerFee,
         gasFee: QuoteMetadata['gasFee'];
 
-      if (
-        isNonEvmChainId(quote.quote.srcChainId) ||
-        !isEvmQuoteResponse(quote)
-      ) {
+      if (!isEvmQuoteResponse(quote)) {
         // Use the new generic function for all non-EVM chains
         totalEstimatedNetworkFee = calcNonEvmTotalNetworkFee(
           quote,

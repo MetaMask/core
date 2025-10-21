@@ -60,6 +60,9 @@ export const fetchServerEvents = async (
           }
         }
 
+        if (eventName === 'error') {
+          throw new Error(`Bridge-api error: ${dataLines.join('\n')}`);
+        }
         if (dataLines.length > 0) {
           const parsedJSONData = JSON.parse(dataLines.join('\n'));
           onMessage(parsedJSONData, eventName);
