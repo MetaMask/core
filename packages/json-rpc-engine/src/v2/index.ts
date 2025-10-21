@@ -1,3 +1,4 @@
+export type { Json } from '@metamask/utils';
 export { asLegacyMiddleware } from './asLegacyMiddleware';
 export { getUniqueId } from '../getUniqueId';
 export * from './JsonRpcEngineV2';

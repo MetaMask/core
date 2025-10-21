@@ -13,17 +13,15 @@ import {
   type JsonRpcNotification,
   type JsonRpcRequest,
 } from './utils';
-import { makeNotification, makeRequest } from '../../tests/utils';
+import {
+  makeNotification,
+  makeNotificationMiddleware,
+  makeNullMiddleware,
+  makeRequest,
+  makeRequestMiddleware,
+} from '../../tests/utils';
 
 const jsonrpc = '2.0' as const;
-
-const makeNullMiddleware = (): JsonRpcMiddleware => {
-  return () => null;
-};
-
-const makeVoidMiddleware = (): JsonRpcMiddleware<JsonRpcNotification> => {
-  return () => undefined;
-};
 
 describe('JsonRpcEngineV2', () => {
   describe('create', () => {
@@ -165,8 +163,8 @@ describe('JsonRpcEngineV2', () => {
 
     describe('requests', () => {
       it('returns a result from the middleware', async () => {
-        const middleware: JsonRpcMiddleware = jest.fn(() => null);
-        const engine = JsonRpcEngineV2.create({
+        const middleware = jest.fn(() => null);
+        const engine = JsonRpcEngineV2.create<JsonRpcMiddleware>({
           middleware: [middleware],
         });
         const request = makeRequest();
@@ -569,7 +567,7 @@ describe('JsonRpcEngineV2', () => {
               await next();
               return null;
             },
-            makeVoidMiddleware(),
+            makeNotificationMiddleware(),
           ],
         });
 
@@ -820,7 +818,7 @@ describe('JsonRpcEngineV2', () => {
 
       it('permits returning undefined if a later middleware ends the request', async () => {
         const engine1 = JsonRpcEngineV2.create({
-          middleware: [makeVoidMiddleware()],
+          middleware: [makeNotificationMiddleware()],
         });
         const engine2 = JsonRpcEngineV2.create({
           middleware: [engine1.asMiddleware(), makeNullMiddleware()],
@@ -864,9 +862,7 @@ describe('JsonRpcEngineV2', () => {
               return next({
                 ...request,
                 method: 'test_request_2',
-                // Obviously correct.
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                params: [request.params![0]! * 2],
+                params: [(request.params as [number])[0] * 2],
               });
             },
           ],
@@ -878,9 +874,7 @@ describe('JsonRpcEngineV2', () => {
             engine1.asMiddleware(),
             ({ request }) => {
               observedMethod = request.method;
-              // Obviously correct.
-              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              return request.params![0]! * 2;
+              return (request.params as [number])[0] * 2;
             },
           ],
         });
@@ -895,9 +889,8 @@ describe('JsonRpcEngineV2', () => {
         const engine1 = JsonRpcEngineV2.create({
           middleware: [
             async ({ context, next }) => {
-              const nums = context.assertGet('foo');
-              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              nums[0]! *= 2;
+              const nums = context.assertGet('foo') as [number];
+              nums[0] *= 2;
               return next();
             },
           ],
@@ -911,8 +904,8 @@ describe('JsonRpcEngineV2', () => {
             },
             engine1.asMiddleware(),
             async ({ context }) => {
-              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              return context.assertGet('foo')[0]! * 2;
+              const nums = context.assertGet('foo') as [number];
+              return nums[0] * 2;
             },
           ],
         });
@@ -1012,9 +1005,7 @@ describe('JsonRpcEngineV2', () => {
               return next({
                 ...request,
                 method: 'test_request_2',
-                // Obviously correct.
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                params: [request.params![0]! * 2],
+                params: [(request.params as [number])[0] * 2],
               });
             },
             makeNullMiddleware(),
@@ -1036,9 +1027,7 @@ describe('JsonRpcEngineV2', () => {
           number
         > = ({ request }) => {
           observedMethod = request.method;
-          // Obviously correct.
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          return request.params![0]! * 2;
+          return (request.params as [number])[0] * 2;
         };
         const engine2 = JsonRpcEngineV2.create({
           middleware: [engine1ProxyMiddleware, observedMethodMiddleware],
@@ -1056,9 +1045,8 @@ describe('JsonRpcEngineV2', () => {
         const engine1 = JsonRpcEngineV2.create({
           middleware: [
             async ({ context }) => {
-              const nums = context.assertGet('foo');
-              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              nums[0]! *= 2;
+              const nums = context.assertGet('foo') as [number];
+              nums[0] *= 2;
               return null;
             },
           ],
@@ -1075,8 +1063,8 @@ describe('JsonRpcEngineV2', () => {
               return next();
             },
             async ({ context }) => {
-              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              return context.assertGet('foo')[0]! * 2;
+              const nums = context.assertGet('foo') as [number];
+              return nums[0] * 2;
             },
           ],
         });
@@ -1158,9 +1146,8 @@ describe('JsonRpcEngineV2', () => {
 
     describe('request- and notification-only engines', () => {
       it('constructs a request-only engine', async () => {
-        const middleware: JsonRpcMiddleware<JsonRpcRequest> = () => null;
         const engine = JsonRpcEngineV2.create({
-          middleware: [middleware],
+          middleware: [makeRequestMiddleware()],
         });
 
         expect(await engine.handle(makeRequest())).toBeNull();
@@ -1176,7 +1163,7 @@ describe('JsonRpcEngineV2', () => {
 
       it('constructs a notification-only engine', async () => {
         const engine = JsonRpcEngineV2.create({
-          middleware: [makeVoidMiddleware()],
+          middleware: [makeNotificationMiddleware()],
         });
 
         expect(await engine.handle(makeNotification())).toBeUndefined();
@@ -1214,11 +1201,11 @@ describe('JsonRpcEngineV2', () => {
 
       it('composes a pipeline of request- and notification-only engines', async () => {
         const requestEngine = JsonRpcEngineV2.create({
-          middleware: [makeNullMiddleware()],
+          middleware: [makeRequestMiddleware()],
         });
 
         const notificationEngine = JsonRpcEngineV2.create({
-          middleware: [makeVoidMiddleware()],
+          middleware: [makeNotificationMiddleware()],
         });
 
         const orchestratorEngine = JsonRpcEngineV2.create({

@@ -8,17 +8,17 @@ import { asLegacyMiddleware } from './asLegacyMiddleware';
 import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import type { MiddlewareContext } from './MiddlewareContext';
-import { getExtraneousKeys, makeRequest } from '../../tests/utils';
+import {
+  getExtraneousKeys,
+  makeRequest,
+  makeRequestMiddleware,
+} from '../../tests/utils';
 import { JsonRpcEngine } from '../JsonRpcEngine';
-
-const makeNullMiddleware = (): JsonRpcMiddleware<JsonRpcRequest> => {
-  return () => null;
-};
 
 describe('asLegacyMiddleware', () => {
   it('converts a v2 engine to a legacy middleware', () => {
     const engine = JsonRpcEngineV2.create({
-      middleware: [makeNullMiddleware()],
+      middleware: [makeRequestMiddleware()],
     });
     const middleware = asLegacyMiddleware(engine);
     expect(typeof middleware).toBe('function');
@@ -26,7 +26,7 @@ describe('asLegacyMiddleware', () => {
 
   it('forwards a result to the legacy engine', async () => {
     const v2Engine = JsonRpcEngineV2.create({
-      middleware: [makeNullMiddleware()],
+      middleware: [makeRequestMiddleware()],
     });
 
     const legacyEngine = new JsonRpcEngine();
@@ -128,7 +128,7 @@ describe('asLegacyMiddleware', () => {
   });
 
   it('propagates request modifications to the legacy engine', async () => {
-    const v2Engine = JsonRpcEngineV2.create({
+    const v2Engine = JsonRpcEngineV2.create<JsonRpcMiddleware<JsonRpcRequest>>({
       middleware: [
         ({ request, next }) => next({ ...request, method: 'test_request_2' }),
       ],
