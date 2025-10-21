@@ -104,8 +104,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
   DecryptMessage,
   DecryptMessageParams,
   DecryptMessageParamsMetamask,
-  DecryptMessageManagerActions,
-  DecryptMessageManagerEvents
+  DecryptMessageManagerMessenger
 > {
   constructor({
     additionalFinishStatuses,

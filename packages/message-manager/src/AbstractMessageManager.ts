@@ -125,19 +125,6 @@ export type SecurityProviderRequest = (
   messageType: string,
 ) => Promise<Json>;
 
-export type MessageManagerMessenger<
-  Name extends string,
-  Message extends AbstractMessage,
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
-> = Messenger<
-  Name,
-  ControllerGetStateAction<Name, MessageManagerState<Message>> | Action,
-  | ControllerStateChangeEvent<Name, MessageManagerState<Message>>
-  | UpdateBadgeEvent<Name>
-  | Event
->;
-
 /**
  * AbstractMessageManager constructor options.
  *
@@ -150,11 +137,17 @@ export type MessageManagerMessenger<
 export type AbstractMessageManagerOptions<
   Name extends string,
   Message extends AbstractMessage,
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
+  MessageManagerMessenger extends Messenger<
+    Name,
+    | ControllerGetStateAction<Name, MessageManagerState<Message>>
+    | ActionConstraint,
+    | ControllerStateChangeEvent<Name, MessageManagerState<Message>>
+    | UpdateBadgeEvent<Name>
+    | EventConstraint
+  >,
 > = {
   additionalFinishStatuses?: string[];
-  messenger: MessageManagerMessenger<Name, Message, Action, Event>;
+  messenger: MessageManagerMessenger;
   name: Name;
   securityProviderRequest?: SecurityProviderRequest;
   state?: MessageManagerState<Message>;
@@ -168,12 +161,18 @@ export abstract class AbstractMessageManager<
   Message extends AbstractMessage,
   Params extends AbstractMessageParams,
   ParamsMetamask extends AbstractMessageParamsMetamask,
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
+  MessageManagerMessenger extends Messenger<
+    Name,
+    | ControllerGetStateAction<Name, MessageManagerState<Message>>
+    | ActionConstraint,
+    | ControllerStateChangeEvent<Name, MessageManagerState<Message>>
+    | UpdateBadgeEvent<Name>
+    | EventConstraint
+  >,
 > extends BaseController<
   Name,
   MessageManagerState<Message>,
-  MessageManagerMessenger<Name, Message, Action, Event>
+  MessageManagerMessenger
 > {
   protected messages: Message[];
 
@@ -189,7 +188,7 @@ export abstract class AbstractMessageManager<
     name,
     securityProviderRequest,
     state = {} as MessageManagerState<Message>,
-  }: AbstractMessageManagerOptions<Name, Message, Action, Event>) {
+  }: AbstractMessageManagerOptions<Name, Message, MessageManagerMessenger>) {
     super({
       messenger,
       metadata: stateMetadata,
@@ -262,8 +261,7 @@ export abstract class AbstractMessageManager<
       state.unapprovedMessagesCount = this.getUnapprovedMessagesCount();
     });
     if (emitUpdateBadge) {
-      // @ts-expect-error Messenger typing seems to have trouble inferring correctly here
-      this.messenger.publish(`${this.name}:updateBadge`);
+      this.messenger.publish(`${this.name}:updateBadge` as const);
     }
   }
 

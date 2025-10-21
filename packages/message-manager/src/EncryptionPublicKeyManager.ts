@@ -104,8 +104,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
   EncryptionPublicKey,
   EncryptionPublicKeyParams,
   EncryptionPublicKeyParamsMetamask,
-  EncryptionPublicKeyManagerActions,
-  EncryptionPublicKeyManagerEvents
+  EncryptionPublicKeyManagerMessenger
 > {
   constructor({
     additionalFinishStatuses,
