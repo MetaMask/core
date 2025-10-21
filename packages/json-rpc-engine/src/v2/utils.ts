@@ -33,9 +33,29 @@ export function stringify(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
+const JsonRpcEngineErrorSymbol = Symbol.for('JsonRpcEngineError');
+
 export class JsonRpcEngineError extends Error {
+  private readonly [JsonRpcEngineErrorSymbol] = true;
+
   constructor(message: string) {
     super(message);
     this.name = 'JsonRpcEngineError';
+  }
+
+  /**
+   * Check if a value is a {@link JsonRpcEngineError} instance.
+   * Works across different package versions in the same realm.
+   *
+   * @param value - The value to check.
+   * @returns Whether the value is a {@link JsonRpcEngineError} instance.
+   */
+  static isInstance<Value extends Error>(
+    value: Value,
+  ): value is Value & JsonRpcEngineError {
+    return (
+      hasProperty(value, JsonRpcEngineErrorSymbol) &&
+      value[JsonRpcEngineErrorSymbol] === true
+    );
   }
 }
