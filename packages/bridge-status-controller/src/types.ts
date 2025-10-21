@@ -11,7 +11,6 @@ import type {
   Quote,
   QuoteMetadata,
   QuoteResponse,
-  TxData,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -209,7 +208,7 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
   StartPollingForBridgeTxStatusArgs,
   'quoteResponse'
 > & {
-  quoteResponse: QuoteResponse<string | TxData> & Partial<QuoteMetadata>;
+  quoteResponse: QuoteResponse & Partial<QuoteMetadata>;
 };
 
 export type SourceChainTxMetaId = string;

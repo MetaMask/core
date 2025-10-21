@@ -37,7 +37,7 @@ export const generateActionId = () => (Date.now() + Math.random()).toString();
 
 export const getUSDTAllowanceResetTx = async (
   messagingSystem: BridgeStatusControllerMessenger,
-  quoteResponse: QuoteResponse<TxData | string> & Partial<QuoteMetadata>,
+  quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
 ) => {
   const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
   if (
@@ -60,9 +60,7 @@ export const getUSDTAllowanceResetTx = async (
   return undefined;
 };
 
-export const getStatusRequestParams = (
-  quoteResponse: QuoteResponse<string | TxData>,
-) => {
+export const getStatusRequestParams = (quoteResponse: QuoteResponse) => {
   return {
     bridgeId: quoteResponse.quote.bridgeId,
     bridge: quoteResponse.quote.bridges[0],
@@ -200,9 +198,7 @@ export const handleNonEvmTxResponse = (
   };
 };
 
-export const handleApprovalDelay = async (
-  quoteResponse: QuoteResponse<TxData | string>,
-) => {
+export const handleApprovalDelay = async (quoteResponse: QuoteResponse) => {
   if ([ChainId.LINEA, ChainId.BASE].includes(quoteResponse.quote.srcChainId)) {
     const debugLog = createProjectLogger('bridge');
     debugLog(
