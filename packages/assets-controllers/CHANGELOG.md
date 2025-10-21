@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [82.0.0]
+
 ### Added
 
 - **BREAKING:** Add new event listeners to refresh balances on `TransactionControllerUnapprovedTransactionAddedEvent` and `TransactionControllerTransactionConfirmedEvent` ([#6903](https://github.com/MetaMask/core/pull/6903))
@@ -2144,7 +2146,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@82.0.0...HEAD
+[82.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.1...@metamask/assets-controllers@82.0.0
 [81.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.0...@metamask/assets-controllers@81.0.1
 [81.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@80.0.0...@metamask/assets-controllers@81.0.0
 [80.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@79.0.1...@metamask/assets-controllers@80.0.0
