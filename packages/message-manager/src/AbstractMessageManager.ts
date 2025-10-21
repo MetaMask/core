@@ -8,7 +8,6 @@ import type {
   Messenger,
   EventConstraint,
   ActionConstraint,
-  NamespacedName,
 } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -126,21 +125,11 @@ export type SecurityProviderRequest = (
   messageType: string,
 ) => Promise<Json>;
 
-type MessageManagerActionConstraint<Name extends string> = {
-  type: NamespacedName<Name>;
-  handler: ActionConstraint['handler'];
-};
-
-type MessageManagerEventConstraint<Name extends string> = {
-  type: NamespacedName<Name>;
-  payload: EventConstraint['payload'];
-};
-
 export type MessageManagerMessenger<
   Name extends string,
   Message extends AbstractMessage,
-  Action extends MessageManagerActionConstraint<Name>,
-  Event extends MessageManagerEventConstraint<Name>,
+  Action extends ActionConstraint,
+  Event extends EventConstraint,
 > = Messenger<
   Name,
   ControllerGetStateAction<Name, MessageManagerState<Message>> | Action,
@@ -161,8 +150,8 @@ export type MessageManagerMessenger<
 export type AbstractMessageManagerOptions<
   Name extends string,
   Message extends AbstractMessage,
-  Action extends MessageManagerActionConstraint<Name>,
-  Event extends MessageManagerEventConstraint<Name>,
+  Action extends ActionConstraint,
+  Event extends EventConstraint,
 > = {
   additionalFinishStatuses?: string[];
   messenger: MessageManagerMessenger<Name, Message, Action, Event>;
@@ -179,8 +168,8 @@ export abstract class AbstractMessageManager<
   Message extends AbstractMessage,
   Params extends AbstractMessageParams,
   ParamsMetamask extends AbstractMessageParamsMetamask,
-  Action extends MessageManagerActionConstraint<Name>,
-  Event extends MessageManagerEventConstraint<Name>,
+  Action extends ActionConstraint,
+  Event extends EventConstraint,
 > extends BaseController<
   Name,
   MessageManagerState<Message>,
