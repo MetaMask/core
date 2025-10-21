@@ -1,15 +1,16 @@
 import {
   hasProperty,
-  type JsonRpcNotification as BaseJsonRpcNotification,
+  type JsonRpcNotification,
   type JsonRpcParams,
-  type JsonRpcRequest as BaseJsonRpcRequest,
+  type JsonRpcRequest,
 } from '@metamask/utils';
 
-export type JsonRpcNotification<Params extends JsonRpcParams = JsonRpcParams> =
-  BaseJsonRpcNotification<Params>;
-
-export type JsonRpcRequest<Params extends JsonRpcParams = JsonRpcParams> =
-  BaseJsonRpcRequest<Params>;
+export type {
+  Json,
+  JsonRpcParams,
+  JsonRpcRequest,
+  JsonRpcNotification,
+} from '@metamask/utils';
 
 export type JsonRpcCall<Params extends JsonRpcParams = JsonRpcParams> =
   | JsonRpcNotification<Params>
