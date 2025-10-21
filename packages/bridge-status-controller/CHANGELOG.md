@@ -9,13 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [53.0.0]
 
-### Uncategorized
-
-- Release/630.0.0 ([#6905](https://github.com/MetaMask/core/pull/6905))
-
 ### Fixed
 
-- Update QuoteResponse type references ([#6892](https://github.com/MetaMask/core/pull/6892))
+- **BREAKING:** Update QuoteResponse type used in `submitTx` handler ([#6892](https://github.com/MetaMask/core/pull/6892))
 
 ## [52.1.0]
 
