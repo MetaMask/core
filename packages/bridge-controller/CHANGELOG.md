@@ -16,6 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6444](https://github.com/MetaMask/core/pull/6444))
   - Previously, `BridgeController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 
+## [53.1.0]
+
+### Added
+
+- Add `MONAD` network support ([#6828](https://github.com/MetaMask/core/pull/6828))
+  - Add `MONAD` into constants `ALLOWED_BRIDGE_CHAIN_IDS`, `SWAPS_TOKEN_OBJECT` and `NETWORK_TO_NAME_MAP`
+- Implement `fetchServerEvents` util that parses server events and parses them into JSON ([#6892](https://github.com/MetaMask/core/pull/6892))
+
+### Changed
+
+- **BREAKING:** Add BitcoinTradeData to QuoteResponse validation ([#6892](https://github.com/MetaMask/core/pull/6892))
+- Replace `fetchEventSource` with `fetchServerEvents` ([#6892](https://github.com/MetaMask/core/pull/6892))
+
+### Removed
+
+- Removed dependency on `@microsoft/fetch-event-source` at `^2.0.1` ([#6892](https://github.com/MetaMask/core/pull/6892))
+
 ## [53.0.0]
 
 ### Changed
@@ -742,7 +759,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@53.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@53.1.0...HEAD
+[53.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@53.0.0...@metamask/bridge-controller@53.1.0
 [53.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@52.0.0...@metamask/bridge-controller@53.0.0
 [52.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@51.0.0...@metamask/bridge-controller@52.0.0
 [51.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@50.0.0...@metamask/bridge-controller@51.0.0
