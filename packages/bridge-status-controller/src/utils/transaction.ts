@@ -26,12 +26,14 @@ import { v4 as uuid } from 'uuid';
 
 import { calculateGasFees } from './gas';
 import { createClientTransactionRequest } from './snaps';
+import { extractTradeData } from './trade-utils';
 import type { TransactionBatchSingleRequest } from '../../../transaction-controller/src/types';
 import { APPROVAL_DELAY_MS } from '../constants';
 import type {
   BridgeStatusControllerMessenger,
   SolanaTransactionMeta,
 } from '../types';
+import type { Trade } from './trade-utils';
 
 export const generateActionId = () => (Date.now() + Math.random()).toString();
 
@@ -126,7 +128,7 @@ export const handleNonEvmTxResponse = (
     | { result: Record<string, string> }
     | { signature: string },
   quoteResponse: Omit<
-    QuoteResponse<string | { unsignedPsbtBase64: string }>,
+    QuoteResponse<Trade>,
     'approval'
   > &
     QuoteMetadata,
@@ -177,10 +179,7 @@ export const handleNonEvmTxResponse = (
   }
 
   // Extract the transaction data for storage
-  const tradeData =
-    typeof quoteResponse.trade === 'string'
-      ? quoteResponse.trade
-      : quoteResponse.trade.unsignedPsbtBase64;
+  const tradeData = extractTradeData(quoteResponse.trade);
 
   // Create a transaction meta object with bridge-specific fields
   return {
@@ -243,7 +242,7 @@ export const handleMobileHardwareWalletDelay = async (
  */
 export const getClientRequest = (
   quoteResponse: Omit<
-    QuoteResponse<string | { unsignedPsbtBase64: string }>,
+    QuoteResponse<Trade>,
     'approval'
   > &
     QuoteMetadata,
@@ -252,10 +251,7 @@ export const getClientRequest = (
   const scope = formatChainIdToCaip(quoteResponse.quote.srcChainId);
 
   // Extract the transaction data - Bitcoin uses unsignedPsbtBase64, others use string
-  const transactionData =
-    typeof quoteResponse.trade === 'string'
-      ? quoteResponse.trade
-      : quoteResponse.trade.unsignedPsbtBase64;
+  const transactionData = extractTradeData(quoteResponse.trade);
 
   // Use the new unified interface
   return createClientTransactionRequest(

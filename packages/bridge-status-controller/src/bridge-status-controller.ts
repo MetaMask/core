@@ -63,6 +63,7 @@ import {
   getTxStatusesFromHistory,
   getPreConfirmationPropertiesFromQuote,
 } from './utils/metrics';
+import { isBitcoinTrade, isTronTrade } from './utils/trade-utils';
 import {
   findAndUpdateTransactionsInBatch,
   getAddTransactionBatchParams,
@@ -1060,12 +1061,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
 
     // Submit non-EVM tx (Solana, BTC, Tron)
-    // Bitcoin trades come as objects with unsignedPsbtBase64, others as strings
     const isNonEvmTrade =
       isNonEvmChainId(quoteResponse.quote.srcChainId) &&
       (typeof quoteResponse.trade === 'string' ||
-        (typeof quoteResponse.trade === 'object' &&
-          'unsignedPsbtBase64' in quoteResponse.trade));
+        isBitcoinTrade(quoteResponse.trade) ||
+        isTronTrade(quoteResponse.trade));
 
     if (isNonEvmTrade) {
       txMeta = await this.#trace(
