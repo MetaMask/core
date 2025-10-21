@@ -3,12 +3,16 @@ export type Trade = string | Record<string, unknown>;
 
 /**
  * Type guard to check if a trade is a Bitcoin trade with unsignedPsbtBase64
+ * @param trade - The trade object to check
+ * @returns True if the trade is a Bitcoin trade with unsignedPsbtBase64 property
  */
 export const isBitcoinTrade = (trade: Trade): trade is { unsignedPsbtBase64: string } =>
   typeof trade === 'object' && trade !== null && 'unsignedPsbtBase64' in trade;
 
 /**
  * Type guard to check if a trade is a Tron trade with raw_data_hex
+ * @param trade - The trade object to check
+ * @returns True if the trade is a Tron trade with raw_data_hex property
  */
 export const isTronTrade = (trade: Trade): trade is { raw_data_hex: string } =>
   typeof trade === 'object' && trade !== null && 'raw_data_hex' in trade;
