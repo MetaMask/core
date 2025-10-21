@@ -182,16 +182,18 @@ export class ComposableController<
       throw new Error(`${name} - ${INVALID_CONTROLLER_ERROR}`);
     }
     try {
-      this.messenger.subscribe(
-        `${name}:stateChange`,
-        (childState: StateConstraint) => {
-          this.update((state) => {
-            // Type assertion is necessary for property assignment to a generic type. This does not pollute or widen the type of the asserted variable.
-            // @ts-expect-error "Type instantiation is excessively deep"
-            (state as ComposableControllerStateConstraint)[name] = childState;
-          });
-        },
-      );
+      this.messenger.subscribe<
+        // The type intersection with "ComposableController:stateChange" is added by one of the `Messenger.subscribe` overloads, but that constraint is unnecessary here,
+        // since this method only subscribes the messenger to child controller `stateChange` events.
+        // @ts-expect-error "Type '`${string}:stateChange`' is not assignable to parameter of type '"ComposableController:stateChange" & ChildControllerStateChangeEvents<ComposableControllerState>["type"]'."
+        ChildControllerStateChangeEvents<ComposableControllerState>['type']
+      >(`${name}:stateChange`, (childState: StateConstraint) => {
+        this.update((state) => {
+          // Type assertion is necessary for property assignment to a generic type. This does not pollute or widen the type of the asserted variable.
+          // @ts-expect-error "Type instantiation is excessively deep"
+          (state as ComposableControllerStateConstraint)[name] = childState;
+        });
+      });
     } catch (error: unknown) {
       // False negative. `name` is a string type.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
