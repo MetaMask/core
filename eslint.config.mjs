@@ -62,6 +62,7 @@ const config = createConfig([
     files: [
       '**/*.{js,cjs,mjs}',
       '**/*.test.{js,ts}',
+      '**/test/**/*.{js,ts}',
       '**/tests/**/*.{js,ts}',
       'scripts/*.ts',
       'scripts/create-package/**/*.ts',
@@ -216,6 +217,29 @@ const config = createConfig([
     files: ['**/*.mjs'],
     languageOptions: {
       sourceType: 'module',
+    },
+  },
+  {
+    files: ['packages/eth-block-tracker/**/*.ts'],
+    rules: {
+      // TODO: Re-enable these rules or add inline ignores for warranted cases
+      '@typescript-eslint/prefer-nullish-coalescing': 'warn',
+      'no-restricted-syntax': 'warn',
+      '@typescript-eslint/naming-convention': 'warn',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/unbound-method': 'warn',
+      '@typescript-eslint/consistent-type-definitions': 'warn',
+    },
+  },
+  {
+    files: ['packages/eth-json-rpc-middleware/**/*.ts'],
+    rules: {
+      // TODO: Re-enable these rules or add inline ignores for warranted cases
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/prefer-nullish-coalescing': 'warn',
+      'jsdoc/match-description': 'warn',
+      'jsdoc/require-jsdoc': 'warn',
+      'no-restricted-syntax': 'warn',
     },
   },
   {
