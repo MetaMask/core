@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.8.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+- Updated internal MessagingSystem subscriber for TransactionController and SignatureController `stateChange` events. ([#6906](https://github.com/MetaMask/core/pull/6906))
+  - Removed `personal_sign` check from the signature-coverage check. Now every signature requests will be sent to ruleset-engine.
+  - Updated `TransactionMeta.SimulationData` check conditional to shallow comparison instead of referential comparison, to avoid triggering unnecessary coverage-check requests.
 
 ## [0.3.2]
 
