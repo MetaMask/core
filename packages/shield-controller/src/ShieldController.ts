@@ -5,7 +5,6 @@ import type {
 } from '@metamask/base-controller';
 import {
   SignatureRequestStatus,
-  SignatureRequestType,
   type SignatureRequest,
   type SignatureStateChange,
 } from '@metamask/signature-controller';
