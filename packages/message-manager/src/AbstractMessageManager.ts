@@ -1,9 +1,14 @@
-import { BaseController } from '@metamask/base-controller/next';
+import {
+  BaseController,
+  type ControllerStateChangeEvent,
+  type ControllerGetStateAction,
+} from '@metamask/base-controller/next';
 import type { ApprovalType } from '@metamask/controller-utils';
 import type {
-  ActionConstraint,
-  EventConstraint,
   Messenger,
+  EventConstraint,
+  ActionConstraint,
+  NamespacedName,
 } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -121,6 +126,29 @@ export type SecurityProviderRequest = (
   messageType: string,
 ) => Promise<Json>;
 
+type MessageManagerActionConstraint<Name extends string> = {
+  type: NamespacedName<Name>;
+  handler: ActionConstraint['handler'];
+};
+
+type MessageManagerEventConstraint<Name extends string> = {
+  type: NamespacedName<Name>;
+  payload: EventConstraint['payload'];
+};
+
+export type MessageManagerMessenger<
+  Name extends string,
+  Message extends AbstractMessage,
+  Action extends MessageManagerActionConstraint<Name>,
+  Event extends MessageManagerEventConstraint<Name>,
+> = Messenger<
+  Name,
+  ControllerGetStateAction<Name, MessageManagerState<Message>> | Action,
+  | ControllerStateChangeEvent<Name, MessageManagerState<Message>>
+  | UpdateBadgeEvent<Name>
+  | Event
+>;
+
 /**
  * AbstractMessageManager constructor options.
  *
@@ -133,11 +161,11 @@ export type SecurityProviderRequest = (
 export type AbstractMessageManagerOptions<
   Name extends string,
   Message extends AbstractMessage,
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
+  Action extends MessageManagerActionConstraint<Name>,
+  Event extends MessageManagerEventConstraint<Name>,
 > = {
   additionalFinishStatuses?: string[];
-  messenger: Messenger<Name, Action, Event | UpdateBadgeEvent<Name>>;
+  messenger: MessageManagerMessenger<Name, Message, Action, Event>;
   name: Name;
   securityProviderRequest?: SecurityProviderRequest;
   state?: MessageManagerState<Message>;
@@ -151,12 +179,12 @@ export abstract class AbstractMessageManager<
   Message extends AbstractMessage,
   Params extends AbstractMessageParams,
   ParamsMetamask extends AbstractMessageParamsMetamask,
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
+  Action extends MessageManagerActionConstraint<Name>,
+  Event extends MessageManagerEventConstraint<Name>,
 > extends BaseController<
   Name,
   MessageManagerState<Message>,
-  Messenger<Name, Action, Event | UpdateBadgeEvent<Name>>
+  MessageManagerMessenger<Name, Message, Action, Event>
 > {
   protected messages: Message[];
 
@@ -245,7 +273,8 @@ export abstract class AbstractMessageManager<
       state.unapprovedMessagesCount = this.getUnapprovedMessagesCount();
     });
     if (emitUpdateBadge) {
-      this.messenger.publish(`${this.name}:updateBadge` as const);
+      // @ts-expect-error Messenger typing seems to have trouble inferring correctly here
+      this.messenger.publish(`${this.name}:updateBadge`);
     }
   }
 

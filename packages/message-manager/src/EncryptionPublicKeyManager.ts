@@ -1,9 +1,9 @@
-import { ApprovalType } from '@metamask/controller-utils';
 import type {
-  ActionConstraint,
-  EventConstraint,
-  Messenger,
-} from '@metamask/messenger';
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from '@metamask/base-controller/next';
+import { ApprovalType } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 
 import type {
   AbstractMessage,
@@ -31,12 +31,23 @@ export type EncryptionPublicKeyManagerUpdateBadgeEvent = {
   payload: [];
 };
 
+type EncryptionPublicKeyManagerActions = ControllerGetStateAction<
+  typeof managerName,
+  EncryptionPublicKeyManagerState
+>;
+
+type EncryptionPublicKeyManagerEvents =
+  | ControllerStateChangeEvent<
+      typeof managerName,
+      EncryptionPublicKeyManagerState
+    >
+  | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent
+  | EncryptionPublicKeyManagerUpdateBadgeEvent;
+
 export type EncryptionPublicKeyManagerMessenger = Messenger<
   typeof managerName,
-  ActionConstraint,
-  | EventConstraint
-  | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent
-  | EncryptionPublicKeyManagerUpdateBadgeEvent
+  EncryptionPublicKeyManagerActions,
+  EncryptionPublicKeyManagerEvents
 >;
 
 type EncryptionPublicKeyManagerOptions = {
@@ -93,10 +104,8 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
   EncryptionPublicKey,
   EncryptionPublicKeyParams,
   EncryptionPublicKeyParamsMetamask,
-  ActionConstraint,
-  | EventConstraint
-  | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent
-  | EncryptionPublicKeyManagerUpdateBadgeEvent
+  EncryptionPublicKeyManagerActions,
+  EncryptionPublicKeyManagerEvents
 > {
   constructor({
     additionalFinishStatuses,

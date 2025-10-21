@@ -1,9 +1,10 @@
-import { ApprovalType } from '@metamask/controller-utils';
 import type {
-  ActionConstraint,
-  EventConstraint,
-  Messenger,
-} from '@metamask/messenger';
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from '@metamask/base-controller/next';
+import { ApprovalType } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
+import {} from '@metamask/messenger';
 
 import type {
   AbstractMessage,
@@ -30,12 +31,20 @@ export type DecryptMessageManagerUpdateBadgeEvent = {
   payload: [];
 };
 
+type DecryptMessageManagerActions = ControllerGetStateAction<
+  typeof managerName,
+  DecryptMessageManagerState
+>;
+
+type DecryptMessageManagerEvents =
+  | ControllerStateChangeEvent<typeof managerName, DecryptMessageManagerState>
+  | DecryptMessageManagerUnapprovedMessageAddedEvent
+  | DecryptMessageManagerUpdateBadgeEvent;
+
 export type DecryptMessageManagerMessenger = Messenger<
   typeof managerName,
-  ActionConstraint,
-  | EventConstraint
-  | DecryptMessageManagerUnapprovedMessageAddedEvent
-  | DecryptMessageManagerUpdateBadgeEvent
+  DecryptMessageManagerActions,
+  DecryptMessageManagerEvents
 >;
 
 type DecryptMessageManagerOptions = {
@@ -95,10 +104,8 @@ export class DecryptMessageManager extends AbstractMessageManager<
   DecryptMessage,
   DecryptMessageParams,
   DecryptMessageParamsMetamask,
-  ActionConstraint,
-  | EventConstraint
-  | DecryptMessageManagerUnapprovedMessageAddedEvent
-  | DecryptMessageManagerUpdateBadgeEvent
+  DecryptMessageManagerActions,
+  DecryptMessageManagerEvents
 > {
   constructor({
     additionalFinishStatuses,
