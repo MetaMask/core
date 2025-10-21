@@ -8,14 +8,15 @@ import { isRequest } from './utils';
 const jsonrpc = '2.0' as const;
 
 const makeEngine = () => {
-  const middleware: JsonRpcMiddleware = ({ request }) => {
-    if (request.method !== 'hello') {
-      throw new Error('Unknown method');
-    }
-    return isRequest(request) ? (request.params ?? null) : undefined;
-  };
-  return JsonRpcEngineV2.create({
-    middleware: [middleware],
+  return JsonRpcEngineV2.create<JsonRpcMiddleware>({
+    middleware: [
+      ({ request }) => {
+        if (request.method !== 'hello') {
+          throw new Error('Unknown method');
+        }
+        return isRequest(request) ? (request.params ?? null) : undefined;
+      },
+    ],
   });
 };
 

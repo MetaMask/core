@@ -9,9 +9,7 @@
  * don't do that.
  */
 export class MiddlewareContext<
-  // The `{}` type is not problematic in this context, it just means "no keys".
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  KeyValues extends Record<PropertyKey, unknown> = {},
+  KeyValues extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
 > extends Map<keyof KeyValues, KeyValues[keyof KeyValues]> {
   constructor(
     entries?: Iterable<readonly [keyof KeyValues, KeyValues[keyof KeyValues]]>,
@@ -128,3 +126,5 @@ export type MergeContexts<Contexts extends ContextConstraint> =
 // Non-polluting `any` constraint.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ContextConstraint = MiddlewareContext<any>;
+
+export type DefaultContext = MiddlewareContext;

@@ -17,21 +17,32 @@ or
 
 ```ts
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import type {
+  Json,
+  JsonRpcMiddleware,
+  MiddlewareContext,
+} from '@metamask/json-rpc-engine/v2';
 
-// You must use the static factory method `create()` instead of the constructor.
-const engine = JsonRpcEngineV2.create({
-  // Create a stack of middleware and pass it to the engine:
-  middleware: [
-    ({ request, next, context }) => {
-      if (request.method === 'hello') {
-        context.set('hello', 'world');
-        return next();
-      }
-      return null;
-    },
-    ({ context }) => context.get('hello'),
-  ],
-});
+// Create a stack of middleware. You must explicitly type your middleware
+// functions.
+const middleware: JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  MiddlewareContext<{ hello: string }>
+>[] = [
+  ({ request, next, context }) => {
+    if (request.method === 'hello') {
+      context.set('hello', 'world');
+      return next();
+    }
+    return null;
+  },
+  ({ context }) => context.get('hello'),
+];
+
+// Pass your middleware to the engine. You must use the static factory method
+// `create()` instead of the constructor.
+const engine = JsonRpcEngineV2.create({ middleware });
 ```
 
 Requests are handled asynchronously, stepping down the middleware stack until complete.

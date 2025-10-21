@@ -7,7 +7,6 @@ import type {
 import { asLegacyMiddleware } from './asLegacyMiddleware';
 import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
-import type { MiddlewareContext } from './MiddlewareContext';
 import {
   getExtraneousKeys,
   makeRequest,
@@ -156,7 +155,7 @@ describe('asLegacyMiddleware', () => {
     const observedContextValues: number[] = [];
 
     const v2Middleware = jest.fn((({ context, next }) => {
-      observedContextValues.push(context.assertGet('value'));
+      observedContextValues.push(context.assertGet('value') as number);
 
       expect(Array.from(context.keys())).toStrictEqual(['value']);
 
@@ -164,8 +163,7 @@ describe('asLegacyMiddleware', () => {
       return next();
     }) satisfies JsonRpcMiddleware<
       JsonRpcRequest,
-      ResultConstraint<JsonRpcRequest>,
-      MiddlewareContext<Record<string, number>>
+      ResultConstraint<JsonRpcRequest>
     >);
 
     const v2Engine = JsonRpcEngineV2.create({

@@ -6,7 +6,11 @@ import { asV2Middleware } from './asV2Middleware';
 import { JsonRpcEngineV2 } from './v2/JsonRpcEngineV2';
 import type { JsonRpcMiddleware as V2Middleware } from './v2/JsonRpcEngineV2';
 import type { MiddlewareContext } from './v2/MiddlewareContext';
-import { getExtraneousKeys, makeRequest } from '../tests/utils';
+import {
+  getExtraneousKeys,
+  makeNullMiddleware,
+  makeRequest,
+} from '../tests/utils';
 
 describe('asV2Middleware', () => {
   it('converts a legacy engine to a v2 middleware', () => {
@@ -69,9 +73,8 @@ describe('asV2Middleware', () => {
     });
     legacyEngine.push(legacyMiddleware);
 
-    const v2Middleware: V2Middleware<JsonRpcRequest> = () => null;
     const v2Engine = JsonRpcEngineV2.create({
-      middleware: [asV2Middleware(legacyEngine), v2Middleware],
+      middleware: [asV2Middleware(legacyEngine), makeNullMiddleware()],
     });
 
     const result = await v2Engine.handle(makeRequest());
