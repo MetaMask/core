@@ -809,7 +809,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #handleApprovalTx = async (
     isBridgeTx: boolean,
-    quoteResponse: QuoteResponse<string | TxData> & Partial<QuoteMetadata>,
+    quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
     requireApproval?: boolean,
   ): Promise<TransactionMeta | undefined> => {
     const { approval } = quoteResponse;
@@ -915,7 +915,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #handleUSDTAllowanceReset = async (
-    quoteResponse: QuoteResponse<TxData | string> & Partial<QuoteMetadata>,
+    quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
   ) => {
     const resetApproval = await getUSDTAllowanceResetTx(
       this.messenger,
@@ -1021,7 +1021,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    */
   submitTx = async (
     accountAddress: string,
-    quoteResponse: QuoteResponse<TxData | string> & Partial<QuoteMetadata>,
+    quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
     isStxEnabledOnClient: boolean,
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     this.messenger.call('BridgeController:stopPollingForQuotes');

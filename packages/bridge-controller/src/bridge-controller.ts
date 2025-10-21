@@ -618,9 +618,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
       // Ignore abort errors
-      const isAbortError = (error as Error).name === 'AbortError';
       if (
-        isAbortError ||
+        (error as Error).toString().includes('AbortError') ||
+        (error as Error).toString().includes('FetchRequestCanceledException') ||
         [
           AbortReason.ResetState,
           AbortReason.NewQuoteRequest,
