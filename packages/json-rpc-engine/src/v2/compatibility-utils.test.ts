@@ -282,16 +282,18 @@ describe('compatibility-utils', () => {
     });
 
     it('does not copy non-string properties from context to request', () => {
+      const symbol = Symbol('anotherProp');
+      const context = new MiddlewareContext();
+      context.set('extraProp', 'value');
+      context.set(symbol, { nested: true });
+      context.set(42, 'value');
+
       const request = {
         jsonrpc,
         method: 'test_method',
         params: [1],
         id: 42,
       };
-      const context = new MiddlewareContext<Record<string | symbol, unknown>>();
-      context.set('extraProp', 'value');
-      context.set(Symbol('anotherProp'), { nested: true });
-
       propagateToRequest(request, context);
 
       expect(request).toStrictEqual({
@@ -301,6 +303,7 @@ describe('compatibility-utils', () => {
         id: 42,
         extraProp: 'value',
       });
+      expect(symbol in request).toBe(false);
     });
 
     it('excludes JSON-RPC properties from propagation', () => {

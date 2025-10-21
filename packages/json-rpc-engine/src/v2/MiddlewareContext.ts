@@ -7,6 +7,20 @@
  *
  * The override protections are circumvented when using e.g. `Reflect.set`, so
  * don't do that.
+ *
+ * @template KeyValues - The type of the keys and values in the context.
+ * @example
+ * // By default, the context permits any PropertyKey as a key.
+ * const context = new MiddlewareContext();
+ * context.set('foo', 'bar');
+ * context.get('foo'); // 'bar'
+ * context.get('fizz'); // undefined
+ * @example
+ * // By specifying an object type, the context permits only the keys of the object.
+ * type Context = MiddlewareContext<{ foo: string }>;
+ * const context = new Context([['foo', 'bar']]);
+ * context.get('foo'); // 'bar'
+ * context.get('fizz'); // Type error
  */
 export class MiddlewareContext<
   KeyValues extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,

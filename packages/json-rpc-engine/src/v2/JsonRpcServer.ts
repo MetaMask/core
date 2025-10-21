@@ -201,7 +201,8 @@ function isMinimalRequest(rawRequest: unknown): rawRequest is MinimalRequest {
 }
 
 /**
- * Check if a request has valid params.
+ * Check if a request has valid params, i.e. an array or object.
+ * The contents of the params are not inspected.
  *
  * @param rawRequest - The request to check.
  * @returns `true` if the request has valid params, `false` otherwise.

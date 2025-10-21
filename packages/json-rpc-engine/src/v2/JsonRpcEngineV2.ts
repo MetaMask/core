@@ -161,9 +161,14 @@ export class JsonRpcEngineV2<
    * @returns The JSON-RPC engine.
    */
   static create<
-    // Non-polluting `any` constraint.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    Middleware extends JsonRpcMiddleware<any, any, any> = JsonRpcMiddleware,
+    Middleware extends JsonRpcMiddleware<
+      // Non-polluting `any` constraint.
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      any,
+      ResultConstraint<any>,
+      any
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+    > = JsonRpcMiddleware,
   >({ middleware }: { middleware: Middleware[] }) {
     // We can't use NonEmptyArray for the params because it ruins type inference.
     if (middleware.length === 0) {
