@@ -375,6 +375,13 @@ Array [
 ]
 `;
 
+exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when the status response is complete 2`] = `
+Array [
+  "BridgeStatusController:destinationTransactionCompleted",
+  "eip155:10/slip44:60",
+]
+`;
+
 exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHardwareWalletDelay for hardware wallet on mobile 1`] = `
 Object {
   "chainId": "0xa4b1",
