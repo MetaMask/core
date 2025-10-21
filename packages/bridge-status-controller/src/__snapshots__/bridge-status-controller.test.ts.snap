@@ -13,6 +13,7 @@ Object {
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
     "isStxEnabled": false,
+    "originalTransactionId": "bridgeTxMetaId1",
     "pricingData": Object {
       "amountSent": "1.234",
       "amountSentInUsd": undefined,
@@ -214,6 +215,7 @@ Object {
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
     "isStxEnabled": false,
+    "originalTransactionId": "bridgeTxMetaId1",
     "pricingData": Object {
       "amountSent": "1.234",
       "amountSentInUsd": undefined,
@@ -415,6 +417,7 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -881,6 +884,7 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -1115,6 +1119,7 @@ Object {
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": true,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -1360,6 +1365,7 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -1593,6 +1599,7 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -1826,6 +1833,7 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -2168,6 +2176,7 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -2421,6 +2430,7 @@ Object {
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -2802,6 +2812,7 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": true,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -3149,6 +3160,7 @@ Object {
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "test-tx-id",
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
@@ -3486,6 +3498,7 @@ Object {
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "signature",
   "pricingData": Object {
     "amountSent": "1",
     "amountSentInUsd": "100",
@@ -3814,6 +3827,7 @@ Object {
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "originalTransactionId": "signature",
   "pricingData": Object {
     "amountSent": "1",
     "amountSentInUsd": "100",
