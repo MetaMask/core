@@ -1,0 +1,94 @@
+name: Validate Release
+
+on:
+  workflow_call:
+    outputs:
+      RELEASE_VALIDATION_RESULT:
+        description: The release validation result
+        value: ${{ jobs.validate-release.outputs.RELEASE_VALIDATION_RESULT }}
+
+jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    outputs:
+      RELEASE_VALIDATION_RESULT: ${{ steps.validate-release.outputs.RELEASE_VALIDATION_RESULT }}
+      RELEASE_VALIDATION_MESSAGE: ${{ steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE }}
+      EXISTING_COMMENT_ID: ${{ steps.check-bot-comments.outputs.EXISTING_COMMENT_ID }}
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v1
+        with:
+          is-high-risk-environment: false
+          # Fetch everything because if this is a pull request we need to
+          # compare with the base branch
+          fetch-depth: 0
+      - name: Check for existing bot comments
+        if: ${{ github.event_name == 'pull_request' }}
+        id: check-bot-comments
+        run: |
+          set -euo pipefail
+          EXISTING_COMMENT_ID=$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${GITHUB_EVENT_PULL_REQUEST_NUMBER}/comments" --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | contains("<!-- METAMASKBOT-RELEASE-VALIDATION -->"))] | sort_by(.created_at) | .[-1].id')
+          if [[ -n "$EXISTING_COMMENT_ID" && "$EXISTING_COMMENT_ID" != "null" ]]; then
+            echo "EXISTING_COMMENT_ID=$EXISTING_COMMENT_ID" >> "$GITHUB_OUTPUT"
+          else
+            echo "EXISTING_COMMENT_ID=" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+      - name: Validate release
+        id: validate-release
+        run: |
+          set -euo pipefail
+          case "$GITHUB_EVENT_NAME" in
+            push)
+              exec yarn ts-node scripts/validate-release.ts "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_BEFORE" "$GITHUB_SHA" "$GITHUB_EVENT_HEAD_COMMIT_MESSAGE"
+              ;;
+            pull_request)
+              exec yarn ts-node scripts/validate-release.ts "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_PULL_REQUEST_BASE_SHA" "$GITHUB_EVENT_PULL_REQUEST_HEAD_SHA" "$GITHUB_EVENT_PULL_REQUEST_TITLE" "$EXISTING_COMMENT_ID"
+              ;;
+            *)
+              echo "Unknown GitHub event name: $GITHUB_EVENT_NAME"
+              exit 1
+              ;;
+          esac
+        shell: bash
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          GITHUB_EVENT_HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_EVENT_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_EVENT_PULL_REQUEST_TITLE: ${{ github.event.pull_request.title }}
+          EXISTING_COMMENT_ID: ${{ steps.check-bot-comments.outputs.EXISTING_COMMENT_ID }}
+      - name: Post or update PR comment
+        if: ${{ github.event_name == 'pull_request' && steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE != '' }}
+        run: |
+          set -euo pipefail
+
+          # Write the comment message to a file, skirting around issues with backticks
+          cat > comment-message.txt << 'EOF'
+          ${{ steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE }}
+          EOF
+
+          if [[ -n "$EXISTING_COMMENT_ID" ]]; then
+            gh api "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --jq '.body' > existing-comment.txt
+            if cmp -s existing-comment.txt comment-message.txt; then
+              echo "Found existing comment, but content is unchanged. Not updating."
+            else
+              echo "Updating existing PR comment."
+              jq -n --rawfile body comment-message.txt '{body: $body}' > update-comment.json
+              gh api -X PATCH "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --input update-comment.json
+              #gh api -X PATCH "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --input comment-message.txt
+            fi
+          else
+            echo "Creating new PR comment."
+            gh pr comment "${GITHUB_EVENT_PULL_REQUEST_NUMBER}" --body-file comment-message.txt
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          EXISTING_COMMENT_ID: ${{ steps.check-bot-comments.outputs.EXISTING_COMMENT_ID }}
