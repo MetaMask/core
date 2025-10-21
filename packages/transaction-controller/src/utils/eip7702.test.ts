@@ -2,7 +2,7 @@ import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import {
   Messenger,
-  MockAnyNamespace,
+  type MockAnyNamespace,
   type MessengerActions,
   type MessengerEvents,
   MOCK_ANY_NAMESPACE,
