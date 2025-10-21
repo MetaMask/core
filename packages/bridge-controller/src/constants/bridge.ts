@@ -19,6 +19,7 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.LINEA_MAINNET,
   CHAIN_IDS.BASE,
   CHAIN_IDS.SEI,
+  CHAIN_IDS.MONAD,
   SolScope.Mainnet,
   BtcScope.Mainnet,
   TrxScope.Mainnet,

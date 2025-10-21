@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.3.0]
+
+### Changed
+
+- Bump `@metamask/eth-json-rpc-middleware` from `^19.0.1` to `^21.0.0` ([#6866](https://github.com/MetaMask/core/pull/6866), [#6883](https://github.com/MetaMask/core/pull/6883))
+- Bump `@metamask/eth-block-tracker` from `^13.0.0` to `^14.0.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+
 ## [24.2.2]
 
 ### Changed
@@ -962,7 +969,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.0...HEAD
+[24.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.2...@metamask/network-controller@24.3.0
 [24.2.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.1...@metamask/network-controller@24.2.2
 [24.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.0...@metamask/network-controller@24.2.1
 [24.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.1.0...@metamask/network-controller@24.2.0
