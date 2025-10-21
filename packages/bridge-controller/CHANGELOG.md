@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [53.0.0]
+
 ### Changed
 
+- **BREAKING:** Require clientVersion in BridgeController constructor ([#6891](https://github.com/MetaMask/core/pull/6891))
+- Update the `sseEnabled` LD flag to include minimumVersion, which is used to determine whether to enable SSE ([#6891](https://github.com/MetaMask/core/pull/6891))
 - Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 - Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.8.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 
@@ -729,7 +733,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@52.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@53.0.0...HEAD
+[53.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@52.0.0...@metamask/bridge-controller@53.0.0
 [52.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@51.0.0...@metamask/bridge-controller@52.0.0
 [51.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@50.0.0...@metamask/bridge-controller@51.0.0
 [50.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@49.0.1...@metamask/bridge-controller@50.0.0

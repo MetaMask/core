@@ -758,6 +758,8 @@ export enum TransactionType {
 
   /**
    * Buy a position via Predict.
+   *
+   * @deprecated Not used.
    */
   predictBuy = 'predictBuy',
 
@@ -773,8 +775,15 @@ export enum TransactionType {
 
   /**
    * Sell a position via Predict.
+   *
+   * @deprecated Not used.
    */
   predictSell = 'predictSell',
+
+  /**
+   * Withdraw funds from Predict.
+   */
+  predictWithdraw = 'predictWithdraw',
 
   /**
    * When a transaction is failed it can be retried by
