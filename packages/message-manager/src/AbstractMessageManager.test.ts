@@ -1,14 +1,19 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import {
+  deriveStateFromMetadata,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+} from '@metamask/base-controller/next';
 import { ApprovalType } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
-import type {
-  AbstractMessage,
-  AbstractMessageParams,
-  OriginalRequest,
-  SecurityProviderRequest,
+import {
+  AbstractMessageManager,
+  type AbstractMessage,
+  type AbstractMessageParams,
+  type MessageManagerState,
+  type OriginalRequest,
+  type SecurityProviderRequest,
 } from './AbstractMessageManager';
-import { AbstractMessageManager } from './AbstractMessageManager';
 
 type ConcreteMessage = AbstractMessage & {
   messageParams: ConcreteMessageParams;
@@ -22,16 +27,26 @@ type ConcreteMessageParamsMetamask = ConcreteMessageParams & {
   metamaskId?: string;
 };
 
-type ConcreteMessageManagerActions = never;
-type ConcreteMessageManagerEvents = never;
+type ConcreteMessageManagerActions = ControllerGetStateAction<
+  'TestManager',
+  MessageManagerState<ConcreteMessage>
+>;
+type ConcreteMessageManagerEvents = ControllerStateChangeEvent<
+  'TestManager',
+  MessageManagerState<ConcreteMessage>
+>;
+type ConcreteMessageManagerMessenger = Messenger<
+  'TestManager',
+  ConcreteMessageManagerActions,
+  ConcreteMessageManagerEvents
+>;
 
 class AbstractTestManager extends AbstractMessageManager<
   'TestManager',
   ConcreteMessage,
   ConcreteMessageParams,
   ConcreteMessageParamsMetamask,
-  ConcreteMessageManagerActions,
-  ConcreteMessageManagerEvents
+  ConcreteMessageManagerMessenger
 > {
   addRequestToMessageParams<MessageParams extends AbstractMessageParams>(
     messageParams: MessageParams,

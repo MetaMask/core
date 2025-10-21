@@ -1,9 +1,13 @@
-import { BaseController } from '@metamask/base-controller/next';
+import {
+  BaseController,
+  type ControllerStateChangeEvent,
+  type ControllerGetStateAction,
+} from '@metamask/base-controller/next';
 import type { ApprovalType } from '@metamask/controller-utils';
 import type {
-  ActionConstraint,
-  EventConstraint,
   Messenger,
+  EventConstraint,
+  ActionConstraint,
 } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -133,11 +137,17 @@ export type SecurityProviderRequest = (
 export type AbstractMessageManagerOptions<
   Name extends string,
   Message extends AbstractMessage,
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
+  MessageManagerMessenger extends Messenger<
+    Name,
+    | ControllerGetStateAction<Name, MessageManagerState<Message>>
+    | ActionConstraint,
+    | ControllerStateChangeEvent<Name, MessageManagerState<Message>>
+    | UpdateBadgeEvent<Name>
+    | EventConstraint
+  >,
 > = {
   additionalFinishStatuses?: string[];
-  messenger: Messenger<Name, Action, Event | UpdateBadgeEvent<Name>>;
+  messenger: MessageManagerMessenger;
   name: Name;
   securityProviderRequest?: SecurityProviderRequest;
   state?: MessageManagerState<Message>;
@@ -151,12 +161,18 @@ export abstract class AbstractMessageManager<
   Message extends AbstractMessage,
   Params extends AbstractMessageParams,
   ParamsMetamask extends AbstractMessageParamsMetamask,
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
+  MessageManagerMessenger extends Messenger<
+    Name,
+    | ControllerGetStateAction<Name, MessageManagerState<Message>>
+    | ActionConstraint,
+    | ControllerStateChangeEvent<Name, MessageManagerState<Message>>
+    | UpdateBadgeEvent<Name>
+    | EventConstraint
+  >,
 > extends BaseController<
   Name,
   MessageManagerState<Message>,
-  Messenger<Name, Action, Event | UpdateBadgeEvent<Name>>
+  MessageManagerMessenger
 > {
   protected messages: Message[];
 
@@ -172,7 +188,7 @@ export abstract class AbstractMessageManager<
     name,
     securityProviderRequest,
     state = {} as MessageManagerState<Message>,
-  }: AbstractMessageManagerOptions<Name, Message, Action, Event>) {
+  }: AbstractMessageManagerOptions<Name, Message, MessageManagerMessenger>) {
     super({
       messenger,
       metadata: stateMetadata,
