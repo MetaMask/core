@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `SEI` in `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID` ([#6909](https://github.com/MetaMask/core/pull/6909))
+
 ## [82.0.0]
 
 ### Added

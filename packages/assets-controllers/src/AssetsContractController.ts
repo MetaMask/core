@@ -76,6 +76,8 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID = {
     '0x6aa75276052d96696134252587894ef5ffa520af',
   [SupportedTokenDetectionNetworks.monad_mainnet]:
     '0xC856736BFe4DcB217F6678Ff2C4D7A7939B29A88',
+  [SupportedTokenDetectionNetworks.sei]:
+    '0xf8b06Cf47E6BFcA5b468D5BAF88217BF25fdD134',
 } as const satisfies Record<Hex, string>;
 
 export const STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
