@@ -30,6 +30,7 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
+import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   PreferencesControllerGetStateAction,
@@ -141,7 +142,8 @@ export type AllowedActions =
   | TokensControllerGetStateAction
   | TokensControllerAddDetectedTokensAction
   | TokensControllerAddTokensAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction;
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkEnablementControllerGetStateAction;
 
 export type TokenDetectionControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
@@ -517,22 +519,71 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     return isEqualValues;
   }
 
+  /**
+   * Gets the selected network chain ID from the enabled network map.
+   * If multiple networks are enabled, defaults to Ethereum mainnet.
+   * If only one network is enabled, uses that network.
+   * Prioritizes EVM networks (eip155) but can return networks from other namespaces.
+   *
+   * @returns The chain ID of the selected network
+   */
+  #getSelectedNetworkFromEnabledMap(): Hex {
+    const { enabledNetworkMap } = this.messagingSystem.call(
+      'NetworkEnablementController:getState',
+    );
+
+    // Collect all enabled networks across all namespaces
+    const allEnabledNetworks: Hex[] = [];
+
+    Object.entries(enabledNetworkMap).forEach(([_namespace, networks]) => {
+      Object.entries(networks).forEach(([chainId, enabled]) => {
+        if (enabled) {
+          const hexChainId = chainId as Hex;
+          allEnabledNetworks.push(hexChainId);
+        }
+      });
+    });
+
+    // If only one network is enabled (regardless of namespace), use it
+    if (allEnabledNetworks.length === 1) {
+      return allEnabledNetworks[0];
+    }
+
+    // If multiple networks are enabled use mainnet
+    return ChainId.mainnet;
+  }
+
   #getCorrectNetworkClientIdByChainId(
     chainIds: Hex[] | undefined,
   ): { chainId: Hex; networkClientId: NetworkClientId }[] {
-    const { networkConfigurationsByChainId, selectedNetworkClientId } =
-      this.messagingSystem.call('NetworkController:getState');
+    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
 
     if (!chainIds) {
-      const networkConfiguration = this.messagingSystem.call(
-        'NetworkController:getNetworkConfigurationByNetworkClientId',
-        selectedNetworkClientId,
-      );
+      // Get the selected network from the enabled network map
+      const selectedChainId = this.#getSelectedNetworkFromEnabledMap();
+      const configuration = networkConfigurationsByChainId[selectedChainId];
+
+      if (!configuration) {
+        // Fallback to mainnet if the selected network is not configured
+        const mainnetConfig = networkConfigurationsByChainId[ChainId.mainnet];
+        return [
+          {
+            chainId: ChainId.mainnet,
+            networkClientId:
+              mainnetConfig?.rpcEndpoints[mainnetConfig.defaultRpcEndpointIndex]
+                ?.networkClientId || 'mainnet',
+          },
+        ];
+      }
 
       return [
         {
-          chainId: networkConfiguration?.chainId ?? ChainId.mainnet,
-          networkClientId: selectedNetworkClientId,
+          chainId: selectedChainId,
+          networkClientId:
+            configuration.rpcEndpoints[configuration.defaultRpcEndpointIndex]
+              .networkClientId,
         },
       ];
     }
