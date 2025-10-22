@@ -4805,7 +4805,7 @@ describe('AccountTreeController', () => {
     };
 
     describe('basic functionality', () => {
-      it('should initialize without callbacks and use default metadata values', () => {
+      it('initializes without callbacks and use default metadata values', () => {
         const { controller } = setup({
           accounts: [mockAccount1],
           config: {
@@ -4830,7 +4830,7 @@ describe('AccountTreeController', () => {
         expect(groups[0].metadata.hidden).toBe(false);
       });
 
-      it('should handle partial accountOrderCallbacks', () => {
+      it('handles partial accountOrderCallbacks', () => {
         const mockCallbacks = {
           isHiddenAccount: jest.fn().mockReturnValue(true),
         };
@@ -4862,25 +4862,24 @@ describe('AccountTreeController', () => {
         );
       });
 
-      it('should prefer persisted metadata over callbacks', () => {
+      it('prefers persisted metadata over callbacks', () => {
         const mockIsHiddenAccount = jest.fn().mockReturnValue(true);
         const mockIsPinnedAccount = jest.fn().mockReturnValue(true);
 
-        const { controller: tempController } = setup({
-          accounts: [mockAccount1],
-        });
-        tempController.init();
-        const tempWallets = Object.values(
-          tempController.state.accountTree.wallets,
+        const walletId = toMultichainAccountWalletId(
+          mockAccount1.options.entropy.id,
         );
-        const tempGroups = Object.values(tempWallets[0].groups);
-        const actualGroupId = tempGroups[0].id;
+        const groupId = toMultichainAccountGroupId(
+          walletId,
+          mockAccount1.options.entropy.groupIndex,
+        );
 
         const { controller } = setup({
           accounts: [mockAccount1],
+          keyrings: [MOCK_HD_KEYRING_1],
           state: {
             accountGroupsMetadata: {
-              [actualGroupId]: {
+              [groupId]: {
                 pinned: {
                   value: false,
                   lastUpdatedAt: Date.now(),
@@ -4918,22 +4917,21 @@ describe('AccountTreeController', () => {
         expect(groups[0].metadata.hidden).toBe(false); // Persisted value used
       });
 
-      it('should use persisted metadata when no callbacks are provided', () => {
-        const { controller: tempController } = setup({
-          accounts: [mockAccount1],
-        });
-        tempController.init();
-        const tempWallets = Object.values(
-          tempController.state.accountTree.wallets,
+      it('uses persisted metadata when no callbacks are provided', () => {
+        const walletId = toMultichainAccountWalletId(
+          mockAccount1.options.entropy.id,
         );
-        const tempGroups = Object.values(tempWallets[0].groups);
-        const actualGroupId = tempGroups[0].id;
+        const groupId = toMultichainAccountGroupId(
+          walletId,
+          mockAccount1.options.entropy.groupIndex,
+        );
 
         const { controller } = setup({
           accounts: [mockAccount1],
+          keyrings: [MOCK_HD_KEYRING_1],
           state: {
             accountGroupsMetadata: {
-              [actualGroupId]: {
+              [groupId]: {
                 pinned: {
                   value: true, // Persisted as pinned
                   lastUpdatedAt: Date.now(),

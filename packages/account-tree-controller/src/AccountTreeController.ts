@@ -635,7 +635,7 @@ export class AccountTreeController extends BaseController<
   ) {
     const wallet = state.accountTree.wallets[walletId];
     const group = wallet.groups[groupId];
-    const persistedGroupMetadata = state.accountGroupsMetadata[group.id];
+    const persistedGroupMetadata = state.accountGroupsMetadata[groupId];
 
     // Apply persisted name if available (including empty strings)
     if (persistedGroupMetadata?.name !== undefined) {
@@ -680,7 +680,7 @@ export class AccountTreeController extends BaseController<
       group.metadata.pinned = persistedGroupMetadata.pinned.value;
     } else if (this.#accountOrderCallbacks?.isPinnedAccount) {
       // If any accounts was previously pinned, then we consider the group to be pinned as well.
-      group.metadata.pinned = Object.values(group.accounts).some((account) =>
+      group.metadata.pinned = group.accounts.some((account) =>
         this.#accountOrderCallbacks?.isPinnedAccount?.(account),
       );
     } else {
@@ -690,7 +690,7 @@ export class AccountTreeController extends BaseController<
       group.metadata.hidden = persistedGroupMetadata.hidden.value;
     } else if (this.#accountOrderCallbacks?.isHiddenAccount) {
       // If any accounts was previously hidden, then we consider the group to be hidden as well.
-      group.metadata.hidden = Object.values(group.accounts).some((account) =>
+      group.metadata.hidden = group.accounts.some((account) =>
         this.#accountOrderCallbacks?.isHiddenAccount?.(account),
       );
     } else {
