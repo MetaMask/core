@@ -685,11 +685,27 @@ describe('AccountTreeController', () => {
               value: 'Account 1',
               lastUpdatedAt: expect.any(Number),
             },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
           },
           [expectedWalletId2Group1]: {
             name: {
               value: 'Account 1',
               lastUpdatedAt: expect.any(Number),
+            },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
             },
           },
           [expectedWalletId2Group2]: {
@@ -697,17 +713,41 @@ describe('AccountTreeController', () => {
               value: 'Account 2', // Updated: per-wallet sequential numbering
               lastUpdatedAt: expect.any(Number),
             },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
           },
           [expectedKeyringWalletIdGroup]: {
             name: {
               value: 'Ledger Account 1', // Updated: per-wallet numbering (different wallet)
               lastUpdatedAt: expect.any(Number),
             },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
           },
           [expectedSnapWalletIdGroup]: {
             name: {
               value: 'Snap Account 1', // Updated: per-wallet numbering (different wallet)
               lastUpdatedAt: expect.any(Number),
+            },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
             },
           },
         },
@@ -1165,6 +1205,14 @@ describe('AccountTreeController', () => {
               value: 'Account 1',
               lastUpdatedAt: expect.any(Number),
             },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
           },
         },
         accountWalletsMetadata: {},
@@ -1243,6 +1291,14 @@ describe('AccountTreeController', () => {
             name: {
               value: 'Account 2', // This is the second account in the wallet
               lastUpdatedAt: expect.any(Number),
+            },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
             },
           },
         },
@@ -1464,6 +1520,14 @@ describe('AccountTreeController', () => {
               value: 'Account 1',
               lastUpdatedAt: expect.any(Number),
             },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
           },
         },
         accountWalletsMetadata: {},
@@ -1589,11 +1653,27 @@ describe('AccountTreeController', () => {
               value: 'Account 1',
               lastUpdatedAt: expect.any(Number),
             },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
           },
           [walletId2Group]: {
             name: {
               value: 'Account 1', // Per-wallet naming (different wallet)
               lastUpdatedAt: expect.any(Number),
+            },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
             },
           },
         },
@@ -2135,6 +2215,14 @@ describe('AccountTreeController', () => {
           value: customName,
           lastUpdatedAt: expect.any(Number),
         },
+        pinned: {
+          value: false,
+          lastUpdatedAt: 0,
+        },
+        hidden: {
+          value: false,
+          lastUpdatedAt: 0,
+        },
       });
     });
 
@@ -2284,6 +2372,10 @@ describe('AccountTreeController', () => {
           value: true,
           lastUpdatedAt: expect.any(Number),
         },
+        hidden: {
+          value: false,
+          lastUpdatedAt: 0,
+        },
       });
     });
 
@@ -2316,6 +2408,10 @@ describe('AccountTreeController', () => {
         name: {
           value: 'Account 1', // Name now generated during init
           lastUpdatedAt: expect.any(Number),
+        },
+        pinned: {
+          value: false,
+          lastUpdatedAt: 0,
         },
         hidden: {
           value: true,
@@ -4828,6 +4924,23 @@ describe('AccountTreeController', () => {
         expect(groups[0].accounts).toContain(mockAccount1.id);
         expect(groups[0].metadata.pinned).toBe(false);
         expect(groups[0].metadata.hidden).toBe(false);
+
+        // Verify that metadata was persisted with default values
+        const groupId = groups[0].id;
+        expect(controller.state.accountGroupsMetadata[groupId]).toStrictEqual({
+          name: {
+            value: expect.any(String),
+            lastUpdatedAt: expect.any(Number),
+          },
+          pinned: {
+            value: false,
+            lastUpdatedAt: 0,
+          },
+          hidden: {
+            value: false,
+            lastUpdatedAt: 0,
+          },
+        });
       });
 
       it('handles partial accountOrderCallbacks', () => {
@@ -4860,6 +4973,104 @@ describe('AccountTreeController', () => {
         expect(mockCallbacks.isHiddenAccount).toHaveBeenCalledWith(
           mockAccount1.id,
         );
+      });
+
+      it('handles only pinned callback provided', () => {
+        const mockCallbacks = {
+          isPinnedAccount: jest.fn().mockReturnValue(true),
+        };
+
+        const { controller } = setup({
+          accounts: [mockAccount1],
+          config: {
+            backupAndSync: {
+              isAccountSyncingEnabled: true,
+              isBackupAndSyncEnabled: true,
+              onBackupAndSyncEvent: jest.fn(),
+            },
+            accountOrderCallbacks: mockCallbacks,
+          },
+        });
+
+        controller.init();
+
+        const wallets = Object.values(controller.state.accountTree.wallets);
+        expect(wallets).toHaveLength(1);
+
+        const groups = Object.values(wallets[0].groups);
+        expect(groups).toHaveLength(1);
+        expect(groups[0].accounts).toContain(mockAccount1.id);
+        expect(groups[0].metadata.pinned).toBe(true);
+        expect(groups[0].metadata.hidden).toBe(false);
+        expect(mockCallbacks.isPinnedAccount).toHaveBeenCalledWith(
+          mockAccount1.id,
+        );
+
+        // Verify that metadata was persisted correctly
+        const groupId = groups[0].id;
+        expect(controller.state.accountGroupsMetadata[groupId]).toStrictEqual({
+          name: {
+            value: expect.any(String),
+            lastUpdatedAt: expect.any(Number),
+          },
+          pinned: {
+            value: true,
+            lastUpdatedAt: 0,
+          },
+          hidden: {
+            value: false,
+            lastUpdatedAt: 0,
+          },
+        });
+      });
+
+      it('handles only hidden callback provided', () => {
+        const mockCallbacks = {
+          isHiddenAccount: jest.fn().mockReturnValue(true),
+        };
+
+        const { controller } = setup({
+          accounts: [mockAccount1],
+          config: {
+            backupAndSync: {
+              isAccountSyncingEnabled: true,
+              isBackupAndSyncEnabled: true,
+              onBackupAndSyncEvent: jest.fn(),
+            },
+            accountOrderCallbacks: mockCallbacks,
+          },
+        });
+
+        controller.init();
+
+        const wallets = Object.values(controller.state.accountTree.wallets);
+        expect(wallets).toHaveLength(1);
+
+        const groups = Object.values(wallets[0].groups);
+        expect(groups).toHaveLength(1);
+        expect(groups[0].accounts).toContain(mockAccount1.id);
+        expect(groups[0].metadata.pinned).toBe(false);
+        expect(groups[0].metadata.hidden).toBe(true);
+        expect(mockCallbacks.isHiddenAccount).toHaveBeenCalledWith(
+          mockAccount1.id,
+        );
+
+        // Verify that metadata was persisted correctly
+        const groupId = groups[0].id;
+        expect(controller.state.accountGroupsMetadata[groupId]).toStrictEqual({
+          name: {
+            value: expect.any(String),
+            lastUpdatedAt: expect.any(Number),
+          },
+          pinned: {
+            value: false,
+            lastUpdatedAt: 0,
+          },
+          hidden: {
+            value: true,
+            lastUpdatedAt: 0,
+          },
+        });
       });
 
       it('prefers persisted metadata over callbacks', () => {

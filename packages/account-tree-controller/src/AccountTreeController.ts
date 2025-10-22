@@ -678,23 +678,40 @@ export class AccountTreeController extends BaseController<
     // Apply persisted UI states
     if (persistedGroupMetadata?.pinned?.value !== undefined) {
       group.metadata.pinned = persistedGroupMetadata.pinned.value;
-    } else if (this.#accountOrderCallbacks?.isPinnedAccount) {
-      // If any accounts was previously pinned, then we consider the group to be pinned as well.
-      group.metadata.pinned = group.accounts.some((account) =>
-        this.#accountOrderCallbacks?.isPinnedAccount?.(account),
-      );
     } else {
-      group.metadata.pinned = false;
+      let isPinned = false;
+
+      if (this.#accountOrderCallbacks?.isPinnedAccount) {
+        isPinned = group.accounts.some((account) =>
+          this.#accountOrderCallbacks?.isPinnedAccount?.(account),
+        );
+      }
+      state.accountGroupsMetadata[groupId] ??= {};
+      state.accountGroupsMetadata[groupId].pinned = {
+        value: isPinned,
+        lastUpdatedAt: 0,
+      };
+      // If any accounts was previously pinned, then we consider the group to be pinned as well.
+      group.metadata.pinned = isPinned;
     }
+
     if (persistedGroupMetadata?.hidden?.value !== undefined) {
       group.metadata.hidden = persistedGroupMetadata.hidden.value;
-    } else if (this.#accountOrderCallbacks?.isHiddenAccount) {
-      // If any accounts was previously hidden, then we consider the group to be hidden as well.
-      group.metadata.hidden = group.accounts.some((account) =>
-        this.#accountOrderCallbacks?.isHiddenAccount?.(account),
-      );
     } else {
-      group.metadata.hidden = false;
+      let isHidden = false;
+
+      if (this.#accountOrderCallbacks?.isHiddenAccount) {
+        isHidden = group.accounts.some((account) =>
+          this.#accountOrderCallbacks?.isHiddenAccount?.(account),
+        );
+      }
+      state.accountGroupsMetadata[groupId] ??= {};
+      state.accountGroupsMetadata[groupId].hidden = {
+        value: isHidden,
+        lastUpdatedAt: 0,
+      };
+      // If any accounts was previously hidden, then we consider the group to be hidden as well.
+      group.metadata.hidden = isHidden;
     }
   }
 
