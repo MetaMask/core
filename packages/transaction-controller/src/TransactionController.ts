@@ -508,7 +508,6 @@ export type TransactionControllerOptions = {
     /**
      * Additional logic to execute before signing a transaction.
      */
-    
     beforeSign?: BeforeSignHook;
 
     /** Returns additional arguments required to sign a transaction. */
