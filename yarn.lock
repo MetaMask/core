@@ -2767,6 +2767,7 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/multichain-account-service": "npm:^1.6.1"
     "@metamask/network-controller": "npm:^24.3.0"
+    "@metamask/network-enablement-controller": "npm:^2.1.1"
     "@metamask/permission-controller": "npm:^11.1.0"
     "@metamask/phishing-controller": "npm:^14.1.2"
     "@metamask/polling-controller": "npm:^14.0.1"
@@ -4259,7 +4260,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-enablement-controller@workspace:packages/network-enablement-controller":
+"@metamask/network-enablement-controller@npm:^2.1.1, @metamask/network-enablement-controller@workspace:packages/network-enablement-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-enablement-controller@workspace:packages/network-enablement-controller"
   dependencies:
