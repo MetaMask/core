@@ -248,8 +248,7 @@ export class ShieldController extends BaseController<
       const previousSignatureRequest = previousSignatureRequestsById.get(
         signatureRequest.id,
       );
-      console.log('signatureRequest', signatureRequest);
-      console.log('previousSignatureRequest', previousSignatureRequest);
+
       // Check coverage if the signature request is new.
       if (!previousSignatureRequest) {
         this.checkSignatureCoverage(signatureRequest).catch(

@@ -109,11 +109,9 @@ export class ShieldRemoteBackend implements ShieldBackend {
   async checkSignatureCoverage(
     req: CheckSignatureCoverageRequest,
   ): Promise<CoverageResult> {
-    console.log('checkSignatureCoverage::req', req);
     let { coverageId } = req;
     if (!coverageId) {
       const reqBody = makeInitSignatureCoverageCheckBody(req.signatureRequest);
-      console.log('init::signature::reqBody', reqBody);
       ({ coverageId } = await this.#initCoverageCheck(
         'v1/signature/coverage/init',
         reqBody,

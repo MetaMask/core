@@ -7,12 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added optional constructor params, `normalizeSignatureRequest` function which normalize the requests for TypedSignature similar to the security-alerts API. ([#6906](https://github.com/MetaMask/core/pull/6906))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.8.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 - Updated internal MessagingSystem subscriber for TransactionController and SignatureController `stateChange` events. ([#6906](https://github.com/MetaMask/core/pull/6906))
   - Removed `personal_sign` check from the signature-coverage check. Now every signature requests will be sent to ruleset-engine.
   - Updated `TransactionMeta.SimulationData` check conditional to shallow comparison instead of referential comparison, to avoid triggering unnecessary coverage-check requests.
+- Removed signature data validation from the internal `makeInitSignatureCoverageCheckBody` function. ([#6906](https://github.com/MetaMask/core/pull/6906))
+  - As signature data is not always `string` (e.g. `eth_signTypedData` uses Array of Object) and the data is already validated in the SignatureController before adding to the state.
 
 ## [0.3.2]
 
