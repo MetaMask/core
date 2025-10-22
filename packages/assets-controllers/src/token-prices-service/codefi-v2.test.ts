@@ -1271,7 +1271,23 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
   });
 
-  describe('validateChainIdSupported', () => {
+  describe('fetchSupportedChainIds', () => {
+    it('should return the supported chain ids in hexadecimal format', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v1/supportedNetworks')
+        .reply(200, {
+          fullSupport: [1],
+          partialSupport: { spotPricesV2: [2] },
+        });
+
+      const supportedChainIds =
+        await new CodefiTokenPricesServiceV2().fetchSupportedChainIds();
+
+      expect(supportedChainIds).toEqual(['0x1', '0x2']);
+    });
+  });
+
+  /*   describe('validateChainIdSupported', () => {
     it.each(SUPPORTED_CHAIN_IDS)(
       'returns true if the given chain ID is %s',
       (chainId) => {
@@ -1288,7 +1304,7 @@ describe('CodefiTokenPricesServiceV2', () => {
         ),
       ).toBe(false);
     });
-  });
+  }); */
 
   describe('validateCurrencySupported', () => {
     it.each(SUPPORTED_CURRENCIES)(

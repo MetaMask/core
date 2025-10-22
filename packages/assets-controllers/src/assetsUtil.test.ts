@@ -783,5 +783,8 @@ function createMockPriceService(): AbstractTokenPricesService {
     async fetchTokenPrices() {
       return {};
     },
+    async fetchSupportedChainIds() {
+      return [];
+    },
   };
 }

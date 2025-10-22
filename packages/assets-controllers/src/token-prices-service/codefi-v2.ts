@@ -5,6 +5,7 @@ import {
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
   DEFAULT_MAX_RETRIES,
   handleFetch,
+  toHex,
 } from '@metamask/controller-utils';
 import type { ServicePolicy } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
@@ -276,6 +277,11 @@ type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
 const BASE_URL = 'https://price.api.cx.metamask.io/v2';
 
 /**
+ * All requests to V1 of the Price API start with this.
+ */
+const BASE_URL_V1 = 'https://price.api.cx.metamask.io/v1';
+
+/**
  * The shape of the data that the /spot-prices endpoint returns.
  */
 type MarketData = {
@@ -530,16 +536,31 @@ export class CodefiTokenPricesServiceV2
   }
 
   /**
+   * Fetches the supported chain ids from the price api.
+   *
+   * @returns The supported chain ids in hexadecimal format.
+   */
+  async fetchSupportedChainIds(): Promise<Hex[]> {
+    const url = new URL(`${BASE_URL_V1}/supportedNetworks`);
+    const response = await handleFetch(url);
+
+    const supportedChainIds = response.fullSupport.concat(
+      response.partialSupport.spotPricesV2,
+    );
+    return supportedChainIds.map((chainId: number) => toHex(chainId));
+  }
+
+  /**
    * Type guard for whether the API can return token prices for the given chain
    * ID.
    *
    * @param chainId - The chain ID to check.
    * @returns True if the API supports the chain ID, false otherwise.
    */
-  validateChainIdSupported(chainId: unknown): chainId is SupportedChainId {
+  /*   validateChainIdSupported(chainId: unknown): chainId is SupportedChainId {
     const supportedChainIds: readonly string[] = SUPPORTED_CHAIN_IDS;
     return typeof chainId === 'string' && supportedChainIds.includes(chainId);
-  }
+  } */
 
   /**
    * Type guard for whether the API can return token prices in the given

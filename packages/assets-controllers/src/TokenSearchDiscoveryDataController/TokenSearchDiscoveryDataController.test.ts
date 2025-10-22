@@ -133,8 +133,8 @@ function buildMockTokenPricesService(
     async fetchTokenPrices() {
       return {};
     },
-    validateChainIdSupported(_chainId: unknown): _chainId is Hex {
-      return true;
+    async fetchSupportedChainIds() {
+      return [];
     },
     validateCurrencySupported(_currency: unknown): _currency is string {
       return true;

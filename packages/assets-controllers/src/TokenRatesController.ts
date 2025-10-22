@@ -58,6 +58,8 @@ export type Token = {
 
 const DEFAULT_INTERVAL = 180000;
 
+const DEFAULT_CACHE_REFRESH_THRESHOLD = 1000 * 60 * 60 * 24; // 24 hours
+
 export type ContractExchangeRates = {
   [address: string]: number | undefined;
 };
@@ -123,9 +125,14 @@ export const controllerName = 'TokenRatesController';
  *
  * Token rates controller state
  * @property marketData - Market data for tokens, keyed by chain ID and then token contract address.
+ * @property supportedChainIds - Supported chain ids.
  */
 export type TokenRatesControllerState = {
   marketData: Record<Hex, Record<Hex, MarketDataDetails>>;
+  supportedChainIds: {
+    timestamp: number;
+    data: Hex[];
+  };
 };
 
 /**
@@ -209,6 +216,12 @@ const tokenRatesControllerMetadata = {
     anonymous: false,
     usedInUi: true,
   },
+  supportedChainIds: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
 };
 
 /**
@@ -220,6 +233,10 @@ export const getDefaultTokenRatesControllerState =
   (): TokenRatesControllerState => {
     return {
       marketData: {},
+      supportedChainIds: {
+        timestamp: 0,
+        data: [],
+      },
     };
   };
 
@@ -489,6 +506,32 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   /**
+   * Checks if the price api supported chain ids cache is valid.
+   *
+   * @returns True if the cache is valid, false otherwise.
+   */
+  #isPriceApiSupportedChainIdsCacheValid(): boolean {
+    const { supportedChainIds }: TokenRatesControllerState = this.state;
+    const { timestamp } = supportedChainIds;
+    const now = Date.now();
+    return (
+      timestamp !== undefined &&
+      now - timestamp < DEFAULT_CACHE_REFRESH_THRESHOLD
+    );
+  }
+
+  async #updateSupportedChainIdsCache(): Promise<void> {
+    const supportedChainIds =
+      await this.#tokenPricesService.fetchSupportedChainIds();
+    this.update((state) => {
+      state.supportedChainIds = {
+        timestamp: Date.now(),
+        data: supportedChainIds,
+      };
+    });
+  }
+
+  /**
    * Updates exchange rates for all tokens.
    *
    * @param chainIdAndNativeCurrency - The chain ID and native currency.
@@ -499,6 +542,9 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       nativeCurrency: string;
     }[],
   ) {
+    if (!this.#isPriceApiSupportedChainIdsCacheValid()) {
+      await this.#updateSupportedChainIdsCache();
+    }
     await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
   }
 
