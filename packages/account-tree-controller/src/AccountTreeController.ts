@@ -951,6 +951,26 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Sorts accounts based on a pre-defined type orders.
+   *
+   * @param group Account group to sort.
+   */
+  #sortAccountsOfGroup(group: AccountGroupObject) {
+    group.accounts.sort(
+      /* istanbul ignore next: Comparator branch execution (a===id vs b===id)
+       * and return attribution vary across engines; final ordering is covered
+       * by behavior tests. Ignoring the entire comparator avoids flaky line
+       * coverage without reducing scenario coverage.
+       */
+      (a, b) => {
+        const aSortOrder = this.#accountIdToContext.get(a)?.sortOrder;
+        const bSortOrder = this.#accountIdToContext.get(b)?.sortOrder;
+        return (aSortOrder ?? MAX_SORT_ORDER) - (bSortOrder ?? MAX_SORT_ORDER);
+      },
+    );
+  }
+
+  /**
    * Insert an account inside an account tree.
    *
    * We go over multiple rules to try to "match" the account following
@@ -1018,26 +1038,6 @@ export class AccountTreeController extends BaseController<
       this.#groupIdToWalletId.set(groupId, walletId);
     } else {
       group.accounts.push(id);
-      // We need to do this at every insertion because race conditions can happen
-      // during the account creation process where one provider completes before the other.
-      // The discovery process in the service can also lead to some accounts being created "out of order".
-      const { accounts } = group;
-      accounts.sort(
-        /* istanbul ignore next: Comparator branch execution (a===id vs b===id)
-         * and return attribution vary across engines; final ordering is covered
-         * by behavior tests. Ignoring the entire comparator avoids flaky line
-         * coverage without reducing scenario coverage.
-         */
-        (a, b) => {
-          const aSortOrder =
-            a === id ? sortOrder : this.#accountIdToContext.get(a)?.sortOrder;
-          const bSortOrder =
-            b === id ? sortOrder : this.#accountIdToContext.get(b)?.sortOrder;
-          return (
-            (aSortOrder ?? MAX_SORT_ORDER) - (bSortOrder ?? MAX_SORT_ORDER)
-          );
-        },
-      );
     }
     log(
       `[${groupId}] Add new account: { id: "${account.id}", type: "${account.type}", address: "${account.address}"`,
@@ -1049,6 +1049,11 @@ export class AccountTreeController extends BaseController<
       groupId: group.id,
       sortOrder,
     });
+
+    // We need to do this at every insertion because race conditions can happen
+    // during the account creation process where one provider completes before the other.
+    // The discovery process in the service can also lead to some accounts being created "out of order".
+    this.#sortAccountsOfGroup(group);
   }
 
   /**
@@ -1086,8 +1091,8 @@ export class AccountTreeController extends BaseController<
 
     // We always re-use the account list from the group (if accounts get
     // added/removed/re-ordered within the group).
-    const accounts = multichainAccountGroup
-      .getAccounts()
+    const accounts = multichainAccountGroup.getAccounts();
+    const accountIds = accounts
       // For now, we need this type-cast because `getAccounts` do not have the same
       // type-constraint (uses string[] instead of [string; ...string])
       .map((account) => account.id) as AccountGroupObject['accounts'];
@@ -1098,7 +1103,7 @@ export class AccountTreeController extends BaseController<
       group = {
         id: multichainAccountGroup.id,
         type: multichainAccountGroup.type,
-        accounts,
+        accounts: accountIds,
         metadata: {
           entropy: {
             groupIndex: multichainAccountGroup.groupIndex,
@@ -1109,7 +1114,7 @@ export class AccountTreeController extends BaseController<
         },
       };
     } else {
-      group.accounts = accounts;
+      group.accounts = accountIds;
     }
 
     if (!wallet) {
@@ -1142,13 +1147,18 @@ export class AccountTreeController extends BaseController<
     this.#groupIdToWalletId.set(groupId, walletId);
 
     // Update the reverse mapping for all accounts account.
-    for (const accountId of group.accounts) {
-      this.#accountIdToContext.set(accountId, {
+    for (const account of accounts) {
+      this.#accountIdToContext.set(account.id, {
         walletId: wallet.id,
         groupId: group.id,
-        sortOrder: 0,
+        sortOrder: ACCOUNT_TYPE_TO_SORT_ORDER[account.type] ?? MAX_SORT_ORDER,
       });
     }
+
+    // We need to do this at every insertion because race conditions can happen
+    // during the account creation process where one provider completes before the other.
+    // The discovery process in the service can also lead to some accounts being created "out of order".
+    this.#sortAccountsOfGroup(group);
   }
 
   /**
