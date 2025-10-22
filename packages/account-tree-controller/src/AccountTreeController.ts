@@ -136,6 +136,13 @@ export class AccountTreeController extends BaseController<
 
   readonly #backupAndSyncConfig: AccountTreeControllerInternalBackupAndSyncConfig;
 
+  /**
+   * Callbacks to migrate hidden and pinned account information from the account order controller
+   */
+  readonly #accountOrderCallbacks:
+    | AccountTreeControllerConfig['accountOrderCallbacks']
+    | undefined;
+
   #initialized: boolean;
 
   /**
@@ -197,6 +204,8 @@ export class AccountTreeController extends BaseController<
         );
       },
     };
+
+    this.#accountOrderCallbacks = config?.accountOrderCallbacks;
 
     // Initialize the backup and sync service
     this.#backupAndSyncService = new BackupAndSyncService(
@@ -668,10 +677,18 @@ export class AccountTreeController extends BaseController<
 
     // Apply persisted UI states
     if (persistedGroupMetadata?.pinned?.value !== undefined) {
-      group.metadata.pinned = persistedGroupMetadata.pinned.value;
+      group.metadata.pinned = this.#accountOrderCallbacks?.isPinnedAccount
+        ? Object.values(group.accounts).some((account) =>
+            this.#accountOrderCallbacks?.isPinnedAccount?.(account),
+          )
+        : persistedGroupMetadata.pinned.value;
     }
     if (persistedGroupMetadata?.hidden?.value !== undefined) {
-      group.metadata.hidden = persistedGroupMetadata.hidden.value;
+      group.metadata.hidden = this.#accountOrderCallbacks?.isHiddenAccount
+        ? Object.values(group.accounts).some((account) =>
+            this.#accountOrderCallbacks?.isHiddenAccount?.(account),
+          )
+        : persistedGroupMetadata.hidden.value;
     }
   }
 
