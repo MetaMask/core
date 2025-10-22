@@ -1,4 +1,10 @@
-import { ShieldRemoteBackend } from './backend';
+import {
+  EthMethod,
+  SignatureRequestType,
+} from '@metamask/signature-controller';
+
+import { parseSignatureRequestMethod, ShieldRemoteBackend } from './backend';
+import { SignTypedDataVersion } from './constants';
 import {
   generateMockSignatureRequest,
   generateMockTxMeta,
@@ -249,6 +255,45 @@ describe('ShieldRemoteBackend', () => {
           status: 'shown',
         }),
       ).rejects.toThrow('Failed to log transaction: 500');
+    });
+  });
+
+  describe('parseSignatureRequestMethod', () => {
+    it('parses personal sign', () => {
+      const signatureRequest = generateMockSignatureRequest();
+      expect(parseSignatureRequestMethod(signatureRequest)).toBe(
+        EthMethod.PersonalSign,
+      );
+    });
+
+    it('parses typed sign', () => {
+      const signatureRequest = generateMockSignatureRequest(
+        SignatureRequestType.TypedSign,
+        SignTypedDataVersion.V1,
+      );
+      expect(parseSignatureRequestMethod(signatureRequest)).toBe(
+        EthMethod.SignTypedDataV1,
+      );
+    });
+
+    it('parses typed sign v3', () => {
+      const signatureRequest = generateMockSignatureRequest(
+        SignatureRequestType.TypedSign,
+        SignTypedDataVersion.V3,
+      );
+      expect(parseSignatureRequestMethod(signatureRequest)).toBe(
+        EthMethod.SignTypedDataV3,
+      );
+    });
+
+    it('parses typed sign v4', () => {
+      const signatureRequest = generateMockSignatureRequest(
+        SignatureRequestType.TypedSign,
+        SignTypedDataVersion.V4,
+      );
+      expect(parseSignatureRequestMethod(signatureRequest)).toBe(
+        EthMethod.SignTypedDataV4,
+      );
     });
   });
 });

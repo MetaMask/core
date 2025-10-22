@@ -1,6 +1,11 @@
-import type { SignatureRequest } from '@metamask/signature-controller';
+import {
+  EthMethod,
+  SignatureRequestType,
+  type SignatureRequest,
+} from '@metamask/signature-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
+import { SignTypedDataVersion } from './constants';
 import type {
   CheckCoverageRequest,
   CheckSignatureCoverageRequest,
@@ -284,12 +289,36 @@ function makeInitSignatureCoverageCheckBody(
   if (typeof signatureRequest.messageParams.data !== 'string') {
     throw new Error('Signature data must be a string');
   }
-
+  const method = parseSignatureRequestMethod(signatureRequest);
   return {
     chainId: signatureRequest.chainId,
     data: signatureRequest.messageParams.data as string,
     from: signatureRequest.messageParams.from,
-    method: signatureRequest.type,
+    method,
     origin: signatureRequest.messageParams.origin,
   };
+}
+
+/**
+ * Parse the JSON-RPC method from the signature request.
+ *
+ * @param signatureRequest - The signature request.
+ * @returns The JSON-RPC method.
+ */
+export function parseSignatureRequestMethod(
+  signatureRequest: SignatureRequest,
+): string {
+  if (signatureRequest.type === SignatureRequestType.TypedSign) {
+    switch (signatureRequest.version) {
+      case SignTypedDataVersion.V3:
+        return EthMethod.SignTypedDataV3;
+      case SignTypedDataVersion.V4:
+        return EthMethod.SignTypedDataV4;
+      case SignTypedDataVersion.V1:
+      default:
+        return EthMethod.SignTypedDataV1;
+    }
+  }
+
+  return signatureRequest.type;
 }
