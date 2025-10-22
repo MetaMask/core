@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 627.0.0 ([#6888](https://github.com/MetaMask/core/pull/6888))
+- Release/624.0.0 ([#6845](https://github.com/MetaMask/core/pull/6845))
+- Release/622.0.0 ([#6841](https://github.com/MetaMask/core/pull/6841))
+- Release/620.0.0 ([#6838](https://github.com/MetaMask/core/pull/6838))
+- Release/612.0.0 ([#6814](https://github.com/MetaMask/core/pull/6814))
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
