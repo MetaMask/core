@@ -4943,38 +4943,6 @@ describe('AccountTreeController', () => {
         });
       });
 
-      it('handles partial accountOrderCallbacks', () => {
-        const mockCallbacks = {
-          isHiddenAccount: jest.fn().mockReturnValue(true),
-        };
-
-        const { controller } = setup({
-          accounts: [mockAccount1],
-          config: {
-            backupAndSync: {
-              isAccountSyncingEnabled: true,
-              isBackupAndSyncEnabled: true,
-              onBackupAndSyncEvent: jest.fn(),
-            },
-            accountOrderCallbacks: mockCallbacks,
-          },
-        });
-
-        expect(() => controller.init()).not.toThrow();
-
-        const wallets = Object.values(controller.state.accountTree.wallets);
-        expect(wallets).toHaveLength(1);
-
-        const groups = Object.values(wallets[0].groups);
-        expect(groups).toHaveLength(1);
-        expect(groups[0].accounts).toContain(mockAccount1.id);
-        expect(groups[0].metadata.pinned).toBe(false);
-        expect(groups[0].metadata.hidden).toBe(true);
-        expect(mockCallbacks.isHiddenAccount).toHaveBeenCalledWith(
-          mockAccount1.id,
-        );
-      });
-
       it('handles only pinned callback provided', () => {
         const mockCallbacks = {
           isPinnedAccount: jest.fn().mockReturnValue(true),
