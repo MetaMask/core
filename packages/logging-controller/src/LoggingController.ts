@@ -1,6 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller/next';
 import { BaseController } from '@metamask/base-controller/next';
 import type { Messenger } from '@metamask/messenger';
@@ -60,11 +61,11 @@ export type LoggingControllerMessenger = Messenger<
   LoggingControllerEvents
 >;
 
-const metadata = {
+const metadata: StateMetadata<LoggingControllerState> = {
   logs: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
 };

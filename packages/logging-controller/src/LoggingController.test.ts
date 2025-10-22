@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import {
   Messenger,
   MOCK_ANY_NAMESPACE,
@@ -197,8 +197,8 @@ describe('LoggingController', () => {
 
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
-      const unrestricted = getUnrestrictedMessenger();
-      const messenger = getRestrictedMessenger(unrestricted);
+      const rootMessenger = getRootMessenger();
+      const messenger = getLoggingControllerMessenger(rootMessenger);
       const controller = new LoggingController({
         messenger,
       });
@@ -207,14 +207,14 @@ describe('LoggingController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
 
     it('includes expected state in state logs', () => {
-      const unrestricted = getUnrestrictedMessenger();
-      const messenger = getRestrictedMessenger(unrestricted);
+      const rootMessenger = getRootMessenger();
+      const messenger = getLoggingControllerMessenger(rootMessenger);
       const controller = new LoggingController({
         messenger,
       });
@@ -233,8 +233,8 @@ describe('LoggingController', () => {
     });
 
     it('persists expected state', () => {
-      const unrestricted = getUnrestrictedMessenger();
-      const messenger = getRestrictedMessenger(unrestricted);
+      const rootMessenger = getRootMessenger();
+      const messenger = getLoggingControllerMessenger(rootMessenger);
       const controller = new LoggingController({
         messenger,
       });
@@ -253,8 +253,8 @@ describe('LoggingController', () => {
     });
 
     it('exposes expected state to UI', () => {
-      const unrestricted = getUnrestrictedMessenger();
-      const messenger = getRestrictedMessenger(unrestricted);
+      const rootMessenger = getRootMessenger();
+      const messenger = getLoggingControllerMessenger(rootMessenger);
       const controller = new LoggingController({
         messenger,
       });
