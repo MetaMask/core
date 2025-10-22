@@ -227,7 +227,7 @@ const MOCK_SNAP_ACCOUNT_2: InternalAccount = {
   },
 };
 
-const MOCK_TRX_ACCOUNT_1: InternalAccount = {
+const MOCK_TRX_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'mock-trx-id-1',
   address: 'TROn11',
   options: {
@@ -306,7 +306,9 @@ class MockMultichainAccountGroup
 
   readonly wallet: MultichainAccountWallet<Bip44Account<InternalAccount>>;
 
-  readonly #accounts: Bip44Account<InternalAccount>[];
+  // We do not make it private so we can push new accounts during tests too (which
+  // is not how those groups work normally, but that's ok for testing purposes).
+  readonly accounts: Bip44Account<InternalAccount>[];
 
   constructor({
     wallet,
@@ -319,7 +321,7 @@ class MockMultichainAccountGroup
   }) {
     this.groupIndex = groupIndex;
     this.id = toMultichainAccountGroupId(wallet.id, groupIndex);
-    this.#accounts = accounts;
+    this.accounts = accounts;
     // This is expected, we only mock partially this wallet, so we need to upcast it.
     // NOTE: We cannot use `MockMultichainAccountWallet` here either since it would
     // conflict with the expected type from `MultichainAccountGroup.wallet` base type.
@@ -329,7 +331,7 @@ class MockMultichainAccountGroup
   }
 
   getAccounts(): Bip44Account<InternalAccount>[] {
-    return this.#accounts;
+    return this.accounts;
   }
 }
 
@@ -344,7 +346,9 @@ class MockMultichainAccountWallet
 
   readonly entropySource: EntropySourceId;
 
-  readonly #groups: Record<number, MockMultichainAccountGroup>;
+  // We do not make it private so we can push new accounts during tests too (which
+  // is not how those wallets work normally, but that's ok for testing purposes).
+  readonly groups: Record<number, MockMultichainAccountGroup>;
 
   constructor({
     entropySource,
@@ -355,7 +359,7 @@ class MockMultichainAccountWallet
   }) {
     this.entropySource = entropySource;
     this.id = toMultichainAccountWalletId(entropySource);
-    this.#groups = Object.fromEntries(
+    this.groups = Object.fromEntries(
       Object.entries(groups).map(([groupIndex, accounts]) => {
         return [
           Number(groupIndex),
@@ -373,14 +377,19 @@ class MockMultichainAccountWallet
     Bip44Account<InternalAccount>
   >[] {
     // We're mocking partially this, so we have to cast.
-    return Object.values(this.#groups) as unknown as MultichainAccountGroup<
+    return Object.values(this.groups) as unknown as MultichainAccountGroup<
       Bip44Account<InternalAccount>
     >[];
   }
 }
 
-type MultichainAccountWallets = ReturnType<
-  MultichainAccountService['getMultichainAccountWallets']
+// FIXME: The type used by the service actually conflict with the `account-api`, this has to be
+// fixed at the service level.
+type MultichainAccountServiceWallet = ReturnType<
+  MultichainAccountService['getMultichainAccountWallet']
+>;
+type MultichainAccountServiceGroup = MultichainAccountGroup<
+  Bip44Account<InternalAccount>
 >;
 
 /**
@@ -435,6 +444,32 @@ function getAccountTreeControllerMessenger(
 }
 
 /**
+ * Cast mock multichain account wallet object to a proper multichain account wallet type.
+ *
+ * @param wallet - Mock multichain account wallet.
+ * @returns Multichain account wallet with proper type.
+ */
+function asMultichainAccountWallet(
+  wallet: MockMultichainAccountWallet,
+): MultichainAccountServiceWallet {
+  // We're mocking partially this, so we have to cast.
+  return wallet as unknown as MultichainAccountServiceWallet;
+}
+
+/**
+ * Cast mock multichain account group object to a proper multichain account group type.
+ *
+ * @param group - Mock multichain account group.
+ * @returns Multichain account group with proper type.
+ */
+function asMultichainAccountGroup(
+  group: MockMultichainAccountGroup,
+): MultichainAccountServiceGroup {
+  // We're mocking partially this, so we have to cast.
+  return group as unknown as MultichainAccountServiceGroup;
+}
+
+/**
  * Get multichain account wallets from an account list.
  *
  * @param accounts - Account list.
@@ -442,7 +477,7 @@ function getAccountTreeControllerMessenger(
  */
 function getMockMultichainAccountWallets(
   accounts: InternalAccount[],
-): MultichainAccountWallets {
+): MultichainAccountServiceWallet[] {
   const wallets = accounts.reduce(
     (acc, account) => {
       if (isBip44Account(account)) {
@@ -461,14 +496,14 @@ function getMockMultichainAccountWallets(
     >,
   );
 
-  return Object.entries(wallets).map(
-    ([entropySource, groups]) =>
+  return Object.entries(wallets).map(([entropySource, groups]) =>
+    asMultichainAccountWallet(
       new MockMultichainAccountWallet({
         entropySource,
         groups,
       }),
-    // We're mocking partially this, so we have to cast.
-  ) as unknown as MultichainAccountWallets;
+    ),
+  );
 }
 
 /**
@@ -536,7 +571,7 @@ function setup({
       getAccount: jest.Mock;
     };
     MultichainAccountService: {
-      wallets: MultichainAccountWallets;
+      wallets: MultichainAccountServiceWallet[];
       getMultichainAccountWallets: jest.Mock;
     };
     UserStorageController: {
@@ -1527,22 +1562,47 @@ describe('AccountTreeController', () => {
 
       const tronAccount = MOCK_TRX_ACCOUNT_1;
 
-      const { controller, messenger } = setup({
+      const { controller, messenger, mocks } = setup({
         accounts: [],
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
       controller.init();
 
-      // Publish in shuffled order: SOL, TRON, EVM
-      messenger.publish('AccountsController:accountAdded', solAccount);
-      messenger.publish('AccountsController:accountAdded', tronAccount);
-      messenger.publish('AccountsController:accountAdded', evmAccount);
-
-      const walletId = toMultichainAccountWalletId(
-        MOCK_HD_KEYRING_1.metadata.id,
-      );
+      const entropySource = MOCK_HD_KEYRING_1.metadata.id;
+      const walletId = toMultichainAccountWalletId(entropySource);
       const groupId = toMultichainAccountGroupId(walletId, 0);
+
+      const mockWallet = new MockMultichainAccountWallet({
+        entropySource,
+        groups: {
+          0: [], // No accounts for now.
+        },
+      });
+
+      const mockGroup = mockWallet.groups[0];
+      expect(mockGroup).toBeDefined();
+      expect(mockGroup.id).toBe(groupId);
+
+      mocks.MultichainAccountService.wallets = [
+        asMultichainAccountWallet(mockWallet),
+      ];
+
+      const addAccountToGroup = (account: Bip44Account<InternalAccount>) => {
+        mocks.AccountsController.accounts.push(account);
+
+        mockGroup.accounts.push(account);
+
+        messenger.publish(
+          'MultichainAccountService:multichainAccountGroupUpdated',
+          asMultichainAccountGroup(mockGroup),
+        );
+      };
+
+      // Publish in shuffled order: SOL, TRON, EVM
+      addAccountToGroup(solAccount);
+      addAccountToGroup(tronAccount);
+      addAccountToGroup(evmAccount);
 
       const group =
         controller.state.accountTree.wallets[walletId]?.groups[groupId];
@@ -3789,8 +3849,8 @@ describe('AccountTreeController', () => {
 
     it('emits accountTreeChange when account is added', () => {
       const { controller, messenger } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-        keyrings: [MOCK_HD_KEYRING_1],
+        accounts: [MOCK_SIMPLE_ACCOUNT_1],
+        keyrings: [MOCK_SIMPLE_KEYRING],
       });
 
       const accountTreeChangeListener = jest.fn();
@@ -3803,7 +3863,7 @@ describe('AccountTreeController', () => {
       jest.clearAllMocks();
 
       messenger.publish('AccountsController:accountAdded', {
-        ...MOCK_HD_ACCOUNT_2,
+        ...MOCK_SIMPLE_ACCOUNT_2,
       });
 
       expect(accountTreeChangeListener).toHaveBeenCalledWith(
@@ -3814,8 +3874,8 @@ describe('AccountTreeController', () => {
 
     it('emits accountTreeChange when account is removed', () => {
       const { controller, messenger } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
-        keyrings: [MOCK_HD_KEYRING_1],
+        accounts: [MOCK_SIMPLE_ACCOUNT_1, MOCK_SIMPLE_ACCOUNT_2],
+        keyrings: [MOCK_SIMPLE_KEYRING],
       });
 
       const accountTreeChangeListener = jest.fn();
@@ -3829,7 +3889,7 @@ describe('AccountTreeController', () => {
 
       messenger.publish(
         'AccountsController:accountRemoved',
-        MOCK_HD_ACCOUNT_2.id,
+        MOCK_SIMPLE_ACCOUNT_2.id,
       );
 
       expect(accountTreeChangeListener).toHaveBeenCalledWith(
@@ -3841,8 +3901,8 @@ describe('AccountTreeController', () => {
     it('emits selectedAccountGroupChange when account removal causes empty group and auto-selection', () => {
       // Set up with two accounts in different groups to ensure group change on removal
       const { controller, messenger } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
-        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+        accounts: [MOCK_SIMPLE_ACCOUNT_1, MOCK_SIMPLE_ACCOUNT_2],
+        keyrings: [MOCK_SIMPLE_KEYRING],
       });
 
       const selectedAccountGroupChangeListener = jest.fn();
@@ -3854,10 +3914,11 @@ describe('AccountTreeController', () => {
       controller.init();
 
       // Set selected group to be the group we're about to empty
-      const walletId = toMultichainAccountWalletId(
-        MOCK_HD_KEYRING_2.metadata.id,
+      const walletId = toAccountWalletId(
+        AccountWalletType.Keyring,
+        MOCK_SIMPLE_KEYRING.type,
       );
-      const groupId = toMultichainAccountGroupId(walletId, 1);
+      const groupId = toAccountGroupId(walletId, MOCK_SIMPLE_ACCOUNT_2.address);
       controller.setSelectedAccountGroup(groupId);
 
       jest.clearAllMocks();
@@ -3865,7 +3926,7 @@ describe('AccountTreeController', () => {
       // Remove the only account in the selected group, which should trigger auto-selection
       messenger.publish(
         'AccountsController:accountRemoved',
-        MOCK_SOL_ACCOUNT_1.id,
+        MOCK_SIMPLE_ACCOUNT_2.id,
       );
 
       const newSelectedGroup =
