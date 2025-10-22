@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add optional account order callbacks to migrate pinned and hidden state into the AccountTreeController.
+
 ## [1.5.0]
 
 ### Changed
