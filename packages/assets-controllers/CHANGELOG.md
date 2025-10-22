@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [82.0.0]
+
+### Added
+
+- **BREAKING:** Add new event listeners to refresh balances on `TransactionControllerUnapprovedTransactionAddedEvent` and `TransactionControllerTransactionConfirmedEvent` ([#6903](https://github.com/MetaMask/core/pull/6903))
+
+- Add multicall addresses in `MULTICALL_CONTRACT_BY_CHAINID` ([#6896](https://github.com/MetaMask/core/pull/6896))
+  - Add multicall address for Chains: `Injective`, `Hemi`, `Plasma`, `Nonmia`, `XRPL`, `Soneium`, `Genesys`, `EDU`, `Abstract`, `Berachain`, `MegaETH Testnet`, `Apechain`, `Matchain`, `Monad Testnet`, `Monad`, `Katana`, `Lens`, `Plume`, `XDC`
+
+### Changed
+
+- Batch `OnAssetConversion` and `OnAssetsMarketData` requests to non-EVM account Snaps ([#6886](https://github.com/MetaMask/core/pull/6886))
+
+## [81.0.1]
+
+### Fixed
+
+- Fix filter for staked Ethereum balances in `AccountTrackerController` ([#6846](https://github.com/MetaMask/core/pull/6846))
+
+## [81.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/core-backend` from `^1.0.1` to `^2.0.0` ([#6834](https://github.com/MetaMask/core/pull/6834))
+
+### Fixed
+
+- Fix address casing in WebSocket-based token balance updates to ensure consistency ([#6819](https://github.com/MetaMask/core/pull/6819))
+
 ## [80.0.0]
 
 ### Added
@@ -2117,7 +2150,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@80.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@82.0.0...HEAD
+[82.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.1...@metamask/assets-controllers@82.0.0
+[81.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.0...@metamask/assets-controllers@81.0.1
+[81.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@80.0.0...@metamask/assets-controllers@81.0.0
 [80.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@79.0.1...@metamask/assets-controllers@80.0.0
 [79.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@79.0.0...@metamask/assets-controllers@79.0.1
 [79.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@78.0.1...@metamask/assets-controllers@79.0.0
