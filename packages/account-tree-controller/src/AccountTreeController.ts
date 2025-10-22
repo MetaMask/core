@@ -521,12 +521,13 @@ export class AccountTreeController extends BaseController<
         'AccountsController:getAccount',
         id,
       );
-      if (!account) {
-        continue;
-      }
 
       // We only consider EVM account types for computed names.
-      if (isEvmAccountType(account.type) && account.metadata.name.length) {
+      if (
+        account &&
+        isEvmAccountType(account.type) &&
+        account.metadata.name.length
+      ) {
         proposedName = account.metadata.name;
         break;
       }
