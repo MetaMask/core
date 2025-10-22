@@ -31,7 +31,6 @@ import type {
   NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
 import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
-import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   PreferencesControllerGetStateAction,
@@ -144,8 +143,7 @@ export type AllowedActions =
   | TokensControllerAddDetectedTokensAction
   | TokensControllerAddTokensAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkEnablementControllerGetStateAction
-  | MultichainNetworkControllerGetStateAction;
+  | NetworkEnablementControllerGetStateAction;
 
 export type TokenDetectionControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
