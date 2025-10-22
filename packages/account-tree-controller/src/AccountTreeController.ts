@@ -205,6 +205,7 @@ export class AccountTreeController extends BaseController<
       },
     };
 
+    // Used when migrating initial hidden/pinned state for groups (if available).
     this.#accountOrderCallbacks = config?.accountOrderCallbacks;
 
     // Initialize the backup and sync service
