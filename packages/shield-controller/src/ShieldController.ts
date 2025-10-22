@@ -13,6 +13,7 @@ import {
   type TransactionControllerStateChangeEvent,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
+import { isEqual } from 'lodash';
 
 import { controllerName } from './constants';
 import { projectLogger, createModuleLogger } from './logger';
@@ -265,14 +266,14 @@ export class ShieldController extends BaseController<
       const previousTransaction = previousTransactionsById.get(transaction.id);
 
       // Check if the simulation data has changed.
-      const simulationDataChanged = this.#compareTransactionSimulationData(
+      const simulationDataNotChanged = isEqual(
         transaction.simulationData,
         previousTransaction?.simulationData,
       );
 
       // Check coverage if the transaction is new or if the simulation data has
       // changed.
-      if (!previousTransaction || simulationDataChanged) {
+      if (!previousTransaction || !simulationDataNotChanged) {
         this.checkCoverage(transaction).catch(
           // istanbul ignore next
           (error) => log('Error checking coverage:', error),
@@ -438,62 +439,5 @@ export class ShieldController extends BaseController<
 
   #getLatestCoverageId(itemId: string): string | undefined {
     return this.state.coverageResults[itemId]?.results[0]?.coverageId;
-  }
-
-  /**
-   * Compares the simulation data of a transaction.
-   *
-   * @param simulationData - The simulation data of the transaction.
-   * @param previousSimulationData - The previous simulation data of the transaction.
-   * @returns Whether the simulation data has changed.
-   */
-  #compareTransactionSimulationData(
-    simulationData?: TransactionMeta['simulationData'],
-    previousSimulationData?: TransactionMeta['simulationData'],
-  ) {
-    if (!simulationData && !previousSimulationData) {
-      return false;
-    }
-
-    // check the simulation error
-    if (
-      simulationData?.error?.code !== previousSimulationData?.error?.code ||
-      simulationData?.error?.message !== previousSimulationData?.error?.message
-    ) {
-      return true;
-    }
-
-    // check the native balance change
-    if (
-      simulationData?.nativeBalanceChange?.difference !==
-        previousSimulationData?.nativeBalanceChange?.difference ||
-      simulationData?.nativeBalanceChange?.newBalance !==
-        previousSimulationData?.nativeBalanceChange?.newBalance ||
-      simulationData?.nativeBalanceChange?.previousBalance !==
-        previousSimulationData?.nativeBalanceChange?.previousBalance ||
-      simulationData?.nativeBalanceChange?.isDecrease !==
-        previousSimulationData?.nativeBalanceChange?.isDecrease
-    ) {
-      return true;
-    }
-
-    // check the token balance changes
-    if (
-      simulationData?.tokenBalanceChanges?.length !==
-        previousSimulationData?.tokenBalanceChanges?.length ||
-      simulationData?.tokenBalanceChanges?.some(
-        (tokenBalanceChange, index) =>
-          tokenBalanceChange.difference !==
-          previousSimulationData?.tokenBalanceChanges?.[index]?.difference,
-      )
-    ) {
-      return true;
-    }
-
-    // check the isUpdatedAfterSecurityCheck
-    return (
-      simulationData?.isUpdatedAfterSecurityCheck !==
-      previousSimulationData?.isUpdatedAfterSecurityCheck
-    );
   }
 }
