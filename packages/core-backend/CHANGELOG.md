@@ -21,10 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 - Update `AccountActivityService` to use new `forceReconnection()` method instead of manually calling disconnect/connect ([#6861](https://github.com/MetaMask/core/pull/6861))
+- **BREAKING:** Update allowed actions for `AccountActivityService` messenger: remove `BackendWebSocketService:disconnect`, add `BackendWebSocketService:forceConnect` ([#6861](https://github.com/MetaMask/core/pull/6861))
 - Improve reconnection scheduling in `BackendWebSocketService` to be idempotent ([#6861](https://github.com/MetaMask/core/pull/6861))
   - Prevents duplicate reconnection timers and inflated attempt counters
   - Scheduler checks if reconnect is already scheduled before creating new timer
-  - Renamed internal `#scheduleReconnect()` to `#scheduleConnect()` for clarity
 - Improve error handling in `BackendWebSocketService.connect()` ([#6861](https://github.com/MetaMask/core/pull/6861))
   - Always schedule reconnect on connection failure (exponential backoff prevents aggressive retries)
   - Remove redundant schedule calls from error paths

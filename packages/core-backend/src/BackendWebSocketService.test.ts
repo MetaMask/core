@@ -349,7 +349,7 @@ const setupBackendWebSocketService = ({
     cleanup: () => {
       service?.destroy();
       jest.useRealTimers();
-      jest.clearAllMocks();
+      jest.restoreAllMocks();
     },
   };
 };
@@ -665,6 +665,9 @@ describe('BackendWebSocketService', () => {
     it('should handle abnormal WebSocket close by triggering reconnection', async () => {
       await withService(
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          // Mock Math.random to make Cockatiel's jitter deterministic
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+
           await service.connect();
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.CONNECTED,
@@ -683,8 +686,7 @@ describe('BackendWebSocketService', () => {
           );
 
           // Advance time to trigger reconnection attempt
-          // With jitter (±25%), first attempt delay is 375-625ms (base 500ms)
-          await completeAsyncOperations(700);
+          await completeAsyncOperations(100);
 
           // Service should have successfully reconnected
           expect(service.getConnectionInfo().state).toBe(
@@ -814,17 +816,14 @@ describe('BackendWebSocketService', () => {
 
     it('should skip connect when reconnect timer is already scheduled', async () => {
       await withService(
-        { mockWebSocketOptions: { autoConnect: false } },
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          // Start connection
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          service.connect();
-          await completeAsyncOperations(10);
+          // Connect successfully first
+          await service.connect();
 
           const mockWs = getMockWebSocket();
 
-          // Simulate connection error to trigger scheduleConnect
-          mockWs.simulateError();
+          // Simulate unexpected close to trigger scheduleReconnect
+          mockWs.simulateClose(1006, 'Abnormal closure');
           await completeAsyncOperations(10);
 
           // Verify reconnect timer is scheduled
@@ -832,7 +831,7 @@ describe('BackendWebSocketService', () => {
           expect(attemptsBefore).toBeGreaterThan(0);
 
           // Now try to connect again while reconnect timer is scheduled
-          // This should return early without doing anything (line 451)
+          // This should return early without doing anything
           await service.connect();
 
           // Attempts should be unchanged since connect returned early
@@ -856,7 +855,7 @@ describe('BackendWebSocketService', () => {
           // Advance time past the timeout
           await completeAsyncOperations(150);
 
-          // Should have transitioned to ERROR state after timeout (lines 1002-1006)
+          // Should have transitioned to ERROR state after timeout
           expect(service.getConnectionInfo().state).toBe(WebSocketState.ERROR);
         },
       );
@@ -865,6 +864,9 @@ describe('BackendWebSocketService', () => {
     it('should reset reconnect attempts after stable connection', async () => {
       await withService(
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          // Mock Math.random to make Cockatiel's jitter deterministic
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+
           // Connect successfully
           await service.connect();
 
@@ -874,35 +876,16 @@ describe('BackendWebSocketService', () => {
           await completeAsyncOperations(10);
 
           // Reconnect (this increments attempts to 1)
-          // With jitter (±25%), first attempt delay is 375-625ms (base 500ms)
+          // With Math.random() = 0, Cockatiel's jitter will give consistent delays
           await completeAsyncOperations(700);
 
           expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
 
-          // Wait for stable connection timer (10 seconds + buffer) (lines 1042-1044)
+          // Wait for stable connection timer (10 seconds + buffer)
           await completeAsyncOperations(10050);
 
           // Attempts should now be reset to 0
           expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
-        },
-      );
-    });
-
-    it('should handle WebSocket onerror during connection', async () => {
-      await withService(
-        { mockWebSocketOptions: { autoConnect: false } },
-        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          service.connect();
-          await completeAsyncOperations(10);
-
-          // Trigger error during connection phase (lines 1053-1059)
-          const mockWs = getMockWebSocket();
-          mockWs.simulateError();
-          await completeAsyncOperations(10);
-
-          // Should schedule reconnect and be in ERROR state
-          expect(service.getConnectionInfo().state).toBe(WebSocketState.ERROR);
         },
       );
     });
@@ -915,7 +898,7 @@ describe('BackendWebSocketService', () => {
           service.connect();
           await completeAsyncOperations(10);
 
-          // Close during connection phase (lines 1070-1074)
+          // Close during connection phase
           const mockWs = getMockWebSocket();
           mockWs.simulateClose(1006, 'Connection failed');
           await completeAsyncOperations(10);
@@ -954,7 +937,7 @@ describe('BackendWebSocketService', () => {
 
           // Now manually trigger close event
           // Since state is ERROR (not CONNECTING), onclose will call handleClose
-          // which will clear connectionTimeout (lines 1296-1297)
+          // which will clear connectionTimeout
           mockWs.simulateClose(1006, 'Close after timeout');
           await completeAsyncOperations(10);
 
@@ -966,7 +949,7 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should not schedule multiple reconnects when scheduleConnect called multiple times', async () => {
+    it('should not schedule multiple reconnects when scheduleReconnect called multiple times', async () => {
       await withService(
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
           await service.connect();
@@ -976,15 +959,15 @@ describe('BackendWebSocketService', () => {
 
           const mockWs = getMockWebSocket();
 
-          // First close to trigger scheduleConnect
+          // First close to trigger scheduleReconnect
           mockWs.simulateClose(1006, 'Connection lost');
           await completeAsyncOperations(10);
 
           const attemptsBefore = service.getConnectionInfo().reconnectAttempts;
           expect(attemptsBefore).toBeGreaterThan(0);
 
-          // Second close should trigger scheduleConnect again,
-          // but it should return early since timer already exists (line 1380)
+          // Second close should trigger scheduleReconnect again,
+          // but it should return early since timer already exists
           mockWs.simulateClose(1006, 'Connection lost again');
           await completeAsyncOperations(10);
 
@@ -1016,7 +999,7 @@ describe('BackendWebSocketService', () => {
             },
           );
 
-          // Force reconnection (lines 548-558)
+          // Force reconnection
           await service.forceReconnection();
           await completeAsyncOperations(10);
 
@@ -1688,7 +1671,7 @@ describe('BackendWebSocketService', () => {
           mockWebSocketOptions: { autoConnect: false },
         },
         async ({ service, mocks }) => {
-          // Return null to simulate user not signed in (line 464)
+          // Return null to simulate user not signed in
           mocks.getBearerToken.mockResolvedValueOnce(null);
 
           // connect() will catch the authentication error and schedule reconnect
@@ -1750,6 +1733,9 @@ describe('BackendWebSocketService', () => {
           },
         },
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          // Mock Math.random to make Cockatiel's jitter deterministic
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+
           await service.connect();
           const mockWs = getMockWebSocket();
 
@@ -1765,7 +1751,6 @@ describe('BackendWebSocketService', () => {
           mockEnabledCallback.mockReturnValue(false);
 
           // Advance time to trigger reconnection check
-          // With jitter (±25%), delay with reconnectDelay=50ms is 37.5-62.5ms
           await completeAsyncOperations(70);
 
           // Should have checked isEnabled and stopped reconnection

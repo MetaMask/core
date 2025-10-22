@@ -1,5 +1,6 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
+import { ExponentialBackoff } from '@metamask/controller-utils';
 import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
@@ -329,6 +330,9 @@ export class BackendWebSocketService {
   // Value: ChannelCallback configuration
   readonly #channelCallbacks = new Map<string, ChannelCallback>();
 
+  // Backoff instance for reconnection delays (reset on stable connection)
+  #backoff!: ReturnType<ExponentialBackoff<unknown>['next']>;
+
   // =============================================================================
   // 1. CONSTRUCTOR & INITIALIZATION
   // =============================================================================
@@ -354,6 +358,9 @@ export class BackendWebSocketService {
       maxReconnectDelay: options.maxReconnectDelay ?? 5000,
       requestTimeout: options.requestTimeout ?? 30000,
     };
+
+    // Initialize backoff for reconnection delays
+    this.#newBackoff();
 
     // Subscribe to authentication and keyring controller events
     this.#subscribeEvents();
@@ -485,7 +492,7 @@ export class BackendWebSocketService {
     } catch {
       // Always schedule reconnect on any failure
       // Exponential backoff will prevent aggressive retries
-      this.#scheduleConnect();
+      this.#scheduleReconnect();
     } finally {
       // Clear the connection promise when done (success or failure)
       this.#connectionPromise = null;
@@ -552,7 +559,7 @@ export class BackendWebSocketService {
     this.disconnect();
 
     // Schedule reconnection with exponential backoff
-    this.#scheduleConnect();
+    this.#scheduleReconnect();
   }
 
   /**
@@ -1034,7 +1041,9 @@ export class BackendWebSocketService {
             this.#stableConnectionTimer = setTimeout(() => {
               this.#stableConnectionTimer = null;
               this.#reconnectAttempts = 0;
-              log('Connection stable - reset reconnect attempts');
+              // Create new backoff sequence for fresh start on next disconnect
+              this.#newBackoff();
+              log('Connection stable - reset reconnect attempts and backoff');
             }, 10000);
 
             resolve();
@@ -1332,7 +1341,7 @@ export class BackendWebSocketService {
       },
     );
 
-    this.#scheduleConnect();
+    this.#scheduleReconnect();
   }
 
   /**
@@ -1351,10 +1360,10 @@ export class BackendWebSocketService {
   /**
    * Schedules a connection attempt with exponential backoff and jitter
    *
-   * This method is used for automatic reconnection with backoff:
+   * This method is used for automatic reconnection with Cockatiel's exponential backoff:
    * - Prevents duplicate reconnection timers (idempotent)
-   * - Applies exponential backoff based on previous failures
-   * - Adds jitter (±25%) to prevent thundering herd problem
+   * - Applies exponential backoff with jitter based on previous failures
+   * - Jitter uses decorrelated formula to prevent thundering herd problem
    * - Used ONLY for automatic retries, not user-initiated actions
    *
    * Call this from:
@@ -1368,7 +1377,7 @@ export class BackendWebSocketService {
    * - Inflated reconnect attempts counter
    * - Prematurely long delays
    */
-  #scheduleConnect(): void {
+  #scheduleReconnect(): void {
     // If a reconnect is already scheduled, don't schedule another one
     if (this.#reconnectTimer) {
       return;
@@ -1377,15 +1386,12 @@ export class BackendWebSocketService {
     // Increment attempts BEFORE calculating delay so backoff grows properly
     this.#reconnectAttempts += 1;
 
-    // Calculate delay with exponential backoff
-    const rawDelay =
-      this.#options.reconnectDelay * Math.pow(1.5, this.#reconnectAttempts - 1);
-    const baseDelay = Math.min(rawDelay, this.#options.maxReconnectDelay);
+    // Use Cockatiel's exponential backoff to get delay with jitter
+    const delay = this.#backoff.duration;
 
-    // Add jitter (±25%) to prevent thundering herd problem
-    // This randomizes reconnection timing across multiple clients
-    const jitterFactor = 0.75 + Math.random() * 0.5; // Random value between 0.75 and 1.25
-    const delay = Math.floor(baseDelay * jitterFactor);
+    // Progress to next backoff state for future reconnect attempts
+    // Pass attempt number as context (though ExponentialBackoff doesn't use it)
+    this.#backoff = this.#backoff.next({ attempt: this.#reconnectAttempts });
 
     log('Scheduling reconnect', {
       attempt: this.#reconnectAttempts,
@@ -1399,12 +1405,24 @@ export class BackendWebSocketService {
       // Check if connection is still enabled before reconnecting
       if (this.#isEnabled && !this.#isEnabled()) {
         this.#reconnectAttempts = 0;
+        // Create new backoff sequence when disabled
+        this.#newBackoff();
         return;
       }
 
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.connect();
     }, delay);
+  }
+
+  /**
+   * Creates a new exponential backoff sequence
+   */
+  #newBackoff(): void {
+    this.#backoff = new ExponentialBackoff({
+      initialDelay: this.#options.reconnectDelay,
+      maxDelay: this.#options.maxReconnectDelay,
+    }).next();
   }
 
   /**
