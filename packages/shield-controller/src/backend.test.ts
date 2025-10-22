@@ -272,7 +272,7 @@ describe('ShieldRemoteBackend', () => {
         SignTypedDataVersion.V1,
       );
       expect(parseSignatureRequestMethod(signatureRequest)).toBe(
-        EthMethod.SignTypedDataV1,
+        SignatureRequestType.TypedSign,
       );
     });
 

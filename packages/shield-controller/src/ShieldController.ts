@@ -13,11 +13,15 @@ import {
   type TransactionControllerStateChangeEvent,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
-import { isEqual } from 'lodash';
+import { cloneDeep, isEqual } from 'lodash';
 
 import { controllerName } from './constants';
 import { projectLogger, createModuleLogger } from './logger';
-import type { CoverageResult, ShieldBackend } from './types';
+import type {
+  CoverageResult,
+  NormalizeSignatureRequestFn,
+  ShieldBackend,
+} from './types';
 
 const log = createModuleLogger(projectLogger, 'ShieldController');
 
@@ -129,6 +133,13 @@ export type ShieldControllerOptions = {
   backend: ShieldBackend;
   transactionHistoryLimit?: number;
   coverageHistoryLimit?: number;
+  /**
+   * Normalize the signature request before sending it to the backend.
+   *
+   * @param signatureRequest - The signature request to normalize.
+   * @returns The normalized signature request.
+   */
+  normalizeSignatureRequest?: NormalizeSignatureRequestFn;
 };
 
 export class ShieldController extends BaseController<
@@ -141,6 +152,8 @@ export class ShieldController extends BaseController<
   readonly #coverageHistoryLimit: number;
 
   readonly #transactionHistoryLimit: number;
+
+  readonly #normalizeSignatureRequest?: NormalizeSignatureRequestFn;
 
   readonly #transactionControllerStateChangeHandler: (
     transactions: TransactionMeta[],
@@ -161,6 +174,7 @@ export class ShieldController extends BaseController<
       backend,
       transactionHistoryLimit = 100,
       coverageHistoryLimit = 10,
+      normalizeSignatureRequest,
     } = options;
     super({
       name: controllerName,
@@ -180,6 +194,7 @@ export class ShieldController extends BaseController<
     this.#signatureControllerStateChangeHandler =
       this.#handleSignatureControllerStateChange.bind(this);
     this.#started = false;
+    this.#normalizeSignatureRequest = normalizeSignatureRequest;
   }
 
   start() {
@@ -233,7 +248,8 @@ export class ShieldController extends BaseController<
       const previousSignatureRequest = previousSignatureRequestsById.get(
         signatureRequest.id,
       );
-
+      console.log('signatureRequest', signatureRequest);
+      console.log('previousSignatureRequest', previousSignatureRequest);
       // Check coverage if the signature request is new.
       if (!previousSignatureRequest) {
         this.checkSignatureCoverage(signatureRequest).catch(
@@ -330,8 +346,15 @@ export class ShieldController extends BaseController<
   ): Promise<CoverageResult> {
     // Check coverage
     const coverageId = this.#getLatestCoverageId(signatureRequest.id);
+
+    // Normalize the signature request before sending it to the backend.
+    // This is to ensure that the signature data is normalized and consistent as the security alerts api calls.
+    const clonedSignatureRequest = cloneDeep(signatureRequest);
+    const normalizedSignatureRequest =
+      this.#normalizeSignatureRequest?.(clonedSignatureRequest) ??
+      clonedSignatureRequest;
     const coverageResult = await this.#backend.checkSignatureCoverage({
-      signatureRequest,
+      signatureRequest: normalizedSignatureRequest,
       coverageId,
     });
 
