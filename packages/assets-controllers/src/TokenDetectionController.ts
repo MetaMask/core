@@ -31,6 +31,7 @@ import type {
   NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
 import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
+import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   PreferencesControllerGetStateAction,
@@ -143,7 +144,8 @@ export type AllowedActions =
   | TokensControllerAddDetectedTokensAction
   | TokensControllerAddTokensAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkEnablementControllerGetStateAction;
+  | NetworkEnablementControllerGetStateAction
+  | MultichainNetworkControllerGetStateAction;
 
 export type TokenDetectionControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
@@ -520,37 +522,20 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   /**
-   * Gets the selected network chain ID from the enabled network map.
-   * If multiple networks are enabled, defaults to Ethereum mainnet.
-   * If only one network is enabled, uses that network.
-   * Prioritizes EVM networks (eip155) but can return networks from other namespaces.
+   * Gets enabled EVM network chain IDs from the network enablement state.
+   * Only considers EVM networks (eip155 namespace) for token detection.
    *
-   * @returns The chain ID of the selected network
+   * @returns Array of enabled EVM chain IDs
    */
-  #getSelectedNetworkFromEnabledMap(): Hex {
+  #getEnabledEvmChainIds(): Hex[] {
     const { enabledNetworkMap } = this.messagingSystem.call(
       'NetworkEnablementController:getState',
     );
 
-    // Collect all enabled networks across all namespaces
-    const allEnabledNetworks: Hex[] = [];
-
-    Object.entries(enabledNetworkMap).forEach(([_namespace, networks]) => {
-      Object.entries(networks).forEach(([chainId, enabled]) => {
-        if (enabled) {
-          const hexChainId = chainId as Hex;
-          allEnabledNetworks.push(hexChainId);
-        }
-      });
-    });
-
-    // If only one network is enabled (regardless of namespace), use it
-    if (allEnabledNetworks.length === 1) {
-      return allEnabledNetworks[0];
-    }
-
-    // If multiple networks are enabled use mainnet
-    return ChainId.mainnet;
+    const evmNetworks = enabledNetworkMap.eip155 || {};
+    return Object.entries(evmNetworks)
+      .filter(([, enabled]) => enabled)
+      .map(([chainId]) => chainId as Hex);
   }
 
   #getCorrectNetworkClientIdByChainId(
@@ -560,35 +545,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       'NetworkController:getState',
     );
 
-    if (!chainIds) {
-      // Get the selected network from the enabled network map
-      const selectedChainId = this.#getSelectedNetworkFromEnabledMap();
-      const configuration = networkConfigurationsByChainId[selectedChainId];
+    const targetChainIds = chainIds?.length
+      ? chainIds
+      : this.#getEnabledEvmChainIds();
 
-      if (!configuration) {
-        // Fallback to mainnet if the selected network is not configured
-        const mainnetConfig = networkConfigurationsByChainId[ChainId.mainnet];
-        return [
-          {
-            chainId: ChainId.mainnet,
-            networkClientId:
-              mainnetConfig?.rpcEndpoints[mainnetConfig.defaultRpcEndpointIndex]
-                ?.networkClientId || 'mainnet',
-          },
-        ];
-      }
-
-      return [
-        {
-          chainId: selectedChainId,
-          networkClientId:
-            configuration.rpcEndpoints[configuration.defaultRpcEndpointIndex]
-              .networkClientId,
-        },
-      ];
-    }
-
-    return chainIds.map((chainId) => {
+    return targetChainIds.map((chainId) => {
       const configuration = networkConfigurationsByChainId[chainId];
       return {
         chainId,
