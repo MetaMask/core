@@ -186,16 +186,6 @@ describe('ShieldRemoteBackend', () => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(getAccessToken).toHaveBeenCalledTimes(2);
     });
-
-    it('throws with invalid data', async () => {
-      const { backend } = setup();
-
-      const signatureRequest = generateMockSignatureRequest();
-      signatureRequest.messageParams.data = [];
-      await expect(
-        backend.checkSignatureCoverage({ signatureRequest }),
-      ).rejects.toThrow('Signature data must be a string');
-    });
   });
 
   describe('logSignature', () => {

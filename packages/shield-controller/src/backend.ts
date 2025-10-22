@@ -4,6 +4,7 @@ import {
   type SignatureRequest,
 } from '@metamask/signature-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { Json } from '@metamask/utils';
 
 import { SignTypedDataVersion } from './constants';
 import type {
@@ -32,7 +33,7 @@ export type InitCoverageCheckRequest = {
 
 export type InitSignatureCoverageCheckRequest = {
   chainId: string;
-  data: string;
+  data: Json;
   from: string;
   method: string;
   origin?: string;
@@ -288,10 +289,11 @@ function makeInitCoverageCheckBody(
 function makeInitSignatureCoverageCheckBody(
   signatureRequest: SignatureRequest,
 ): InitSignatureCoverageCheckRequest {
-  if (typeof signatureRequest.messageParams.data !== 'string') {
-    throw new Error('Signature data must be a string');
-  }
+  // TODO: confirm that do we still need to validate the signature data?
+  // signature controller already validates the signature data before adding it to the state.
+  // @link https://github.com/MetaMask/core/blob/main/packages/signature-controller/src/SignatureController.ts#L408
   const method = parseSignatureRequestMethod(signatureRequest);
+
   return {
     chainId: signatureRequest.chainId,
     data: signatureRequest.messageParams.data as string,
