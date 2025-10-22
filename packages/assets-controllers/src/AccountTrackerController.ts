@@ -10,6 +10,7 @@ import type {
   ControllerGetStateAction,
   RestrictedMessenger,
 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import {
   query,
   safelyExecuteWithTimeout,
@@ -18,12 +19,12 @@ import {
 import EthQuery from '@metamask/eth-query';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
+  BlockTracker,
   NetworkClient,
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
-import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 import type {
   TransactionControllerTransactionConfirmedEvent,
@@ -33,6 +34,7 @@ import type {
 import { assert, type Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
+import { v4 as random } from 'uuid';
 
 import {
   STAKING_CONTRACT_ADDRESS_BY_CHAINID,
@@ -213,16 +215,10 @@ export type AccountTrackerControllerMessenger = RestrictedMessenger<
   AllowedEvents['type']
 >;
 
-/** The input to start polling for the {@link AccountTrackerController} */
-type AccountTrackerPollingInput = {
-  networkClientIds: NetworkClientId[];
-  queryAllAccounts?: boolean;
-};
-
 /**
  * Controller that tracks the network balances for all user accounts.
  */
-export class AccountTrackerController extends StaticIntervalPollingController<AccountTrackerPollingInput>()<
+export class AccountTrackerController extends BaseController<
   typeof controllerName,
   AccountTrackerControllerState,
   AccountTrackerControllerMessenger
@@ -237,30 +233,41 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
   readonly #balanceFetchers: BalanceFetcher[];
 
+  readonly #pollingTokenSets = new Map<NetworkClientId, Set<string>>();
+
+  readonly #listeners: Record<
+    NetworkClientId,
+    (blockNumber: string) => Promise<void>
+  > = {};
+
+  readonly #blockTracker: BlockTracker;
+
+  #currentBlockNumberByChainId: Record<Hex, string | null> = {};
+
   /**
    * Creates an AccountTracker instance.
    *
    * @param options - The controller options.
-   * @param options.interval - Polling interval used to fetch new account balances.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller messaging system.
+   * @param options.blockTracker - A block tracker, which emits events for each new block.
    * @param options.getStakedBalanceForChain - The function to get the staked native asset balance for a chain.
    * @param options.includeStakedAssets - Whether to include staked assets in the account balances.
    * @param options.accountsApiChainIds - Function that returns array of chainIds that should use Accounts-API strategy (if supported by API).
    * @param options.allowExternalServices - Disable external HTTP calls (privacy / offline mode).
    */
   constructor({
-    interval = 10000,
     state,
     messenger,
+    blockTracker,
     getStakedBalanceForChain,
     includeStakedAssets = false,
     accountsApiChainIds = () => [],
     allowExternalServices = () => true,
   }: {
-    interval?: number;
     state?: Partial<AccountTrackerControllerState>;
     messenger: AccountTrackerControllerMessenger;
+    blockTracker: BlockTracker;
     getStakedBalanceForChain: AssetsContractController['getStakedBalanceForChain'];
     includeStakedAssets?: boolean;
     accountsApiChainIds?: () => ChainIdHex[];
@@ -286,6 +293,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       },
       metadata: accountTrackerMetadata,
     });
+    this.#blockTracker = blockTracker;
     this.#getStakedBalanceForChain = getStakedBalanceForChain;
 
     this.#includeStakedAssets = includeStakedAssets;
@@ -302,8 +310,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         this.#includeStakedAssets,
       ),
     ];
-
-    this.setIntervalLength(interval);
 
     this.messagingSystem.subscribe(
       'AccountsController:selectedEvmAccountChange',
@@ -338,6 +344,40 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     );
 
     this.#registerMessageHandlers();
+  }
+
+  /**
+   * Given a block, updates account balances via Provider
+   *
+   * @param blockNumber - the block number to update to.
+   * @fires 'block' The updated state, if all account updates are successful
+   */
+  readonly #updateForBlock = async (blockNumber: string): Promise<void> => {
+    await this.#updateForBlockByNetworkClientId(undefined, blockNumber);
+  };
+
+  /**
+   * Given a block, updates account balances for a specific network client
+   *
+   * @param networkClientId - optional network client ID to use instead of the globally selected network.
+   * @param blockNumber - the block number to update to.
+   * @fires 'block' The updated state, if all account updates are successful
+   */
+  async #updateForBlockByNetworkClientId(
+    networkClientId: NetworkClientId | undefined,
+    blockNumber: string,
+  ): Promise<void> {
+    const { chainId } = this.#getCorrectNetworkClient(networkClientId);
+    this.#currentBlockNumberByChainId[chainId] = blockNumber;
+
+    try {
+      const networkClientIds = networkClientId
+        ? [networkClientId]
+        : this.#getNetworkClientIds();
+      await this.refresh(networkClientIds);
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   private syncAccounts(newChainIds: string[]) {
@@ -480,6 +520,24 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   }
 
   /**
+   * Gets the current chain ID.
+   *
+   * @returns The current chain ID
+   */
+  #getCurrentChainId(): Hex {
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    const {
+      configuration: { chainId },
+    } = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+    return chainId;
+  }
+
+  /**
    * Retrieves the list of network client IDs.
    *
    * @returns An array of network client IDs.
@@ -497,19 +555,124 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   }
 
   /**
-   * Refreshes the balances of the accounts using the networkClientId
-   *
-   * @param input - The input for the poll.
-   * @param input.networkClientIds - The network client IDs used to get balances.
-   * @param input.queryAllAccounts - Whether to query all accounts or just the selected account
+   * Starts polling with global selected network
    */
-  async _executePoll({
-    networkClientIds,
-    queryAllAccounts = false,
-  }: AccountTrackerPollingInput): Promise<void> {
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  start(): void {
+    // blockTracker.currentBlock may be null
+    this.#currentBlockNumberByChainId = {
+      [this.#getCurrentChainId()]: this.#blockTracker.getCurrentBlock(),
+    };
+    this.#blockTracker.once('latest', (blockNumber) => {
+      this.#currentBlockNumberByChainId[this.#getCurrentChainId()] =
+        blockNumber;
+    });
+
+    // remove first to avoid double add
+    this.#blockTracker.removeListener('latest', this.#updateForBlock);
+    // add listener
+    this.#blockTracker.addListener('latest', this.#updateForBlock);
+    // fetch account balances
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.refresh(networkClientIds, queryAllAccounts);
+    this.refresh([
+      this.messagingSystem.call('NetworkController:getState')
+        .selectedNetworkClientId,
+    ]);
+  }
+
+  /**
+   * Stops polling with global selected network
+   */
+  stop(): void {
+    // remove listener
+    this.#blockTracker.removeListener('latest', this.#updateForBlock);
+  }
+
+  /**
+   * Starts polling for a networkClientId
+   *
+   * @param networkClientId - The networkClientId to start polling for
+   * @returns pollingToken
+   */
+  startPollingByNetworkClientId(networkClientId: NetworkClientId): string {
+    const pollToken = random();
+
+    const pollingTokenSet = this.#pollingTokenSets.get(networkClientId);
+    if (pollingTokenSet) {
+      pollingTokenSet.add(pollToken);
+    } else {
+      const set = new Set<string>();
+      set.add(pollToken);
+      this.#pollingTokenSets.set(networkClientId, set);
+      this.#subscribeWithNetworkClientId(networkClientId);
+    }
+    return pollToken;
+  }
+
+  /**
+   * Stops polling for all networkClientIds
+   */
+  stopAllPolling(): void {
+    this.stop();
+    this.#pollingTokenSets.forEach((tokenSet, _networkClientId) => {
+      tokenSet.forEach((token) => {
+        this.stopPollingByPollingToken(token);
+      });
+    });
+  }
+
+  /**
+   * Stops polling for a networkClientId
+   *
+   * @param pollingToken - The polling token to stop polling for
+   */
+  stopPollingByPollingToken(pollingToken: string | undefined): void {
+    if (!pollingToken) {
+      throw new Error('pollingToken required');
+    }
+    this.#pollingTokenSets.forEach((tokenSet, key) => {
+      if (tokenSet.has(pollingToken)) {
+        tokenSet.delete(pollingToken);
+        if (tokenSet.size === 0) {
+          this.#pollingTokenSets.delete(key);
+          this.#unsubscribeWithNetworkClientId(key);
+        }
+      }
+    });
+  }
+
+  /**
+   * Subscribes from the block tracker for the given networkClientId if not currently subscribed
+   *
+   * @param networkClientId - network client ID to fetch a block tracker with
+   */
+  #subscribeWithNetworkClientId(networkClientId: NetworkClientId): void {
+    if (this.#listeners[networkClientId]) {
+      return;
+    }
+    const { blockTracker } = this.#getCorrectNetworkClient(networkClientId);
+    const updateForBlock = (blockNumber: string) =>
+      this.#updateForBlockByNetworkClientId(networkClientId, blockNumber);
+    blockTracker.addListener('latest', updateForBlock);
+
+    this.#listeners[networkClientId] = updateForBlock;
+
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.refresh([networkClientId]);
+  }
+
+  /**
+   * Unsubscribes from the block tracker for the given networkClientId if currently subscribed
+   *
+   * @param networkClientId - The network client ID to fetch a block tracker with
+   */
+  #unsubscribeWithNetworkClientId(networkClientId: NetworkClientId): void {
+    if (!this.#listeners[networkClientId]) {
+      return;
+    }
+    const { blockTracker } = this.#getCorrectNetworkClient(networkClientId);
+    blockTracker.removeListener('latest', this.#listeners[networkClientId]);
+
+    delete this.#listeners[networkClientId];
   }
 
   /**
@@ -517,7 +680,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * If multi-account is disabled, only updates the selected account balance.
    * If multi-account is enabled, updates balances for all accounts.
    *
-   * @param networkClientIds - Optional network client IDs to fetch a network client with
+   * @param networkClientIds - Network client IDs to fetch balances for
    * @param queryAllAccounts - Whether to query all accounts or just the selected account
    */
   async refresh(

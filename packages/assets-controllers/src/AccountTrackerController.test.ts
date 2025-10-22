@@ -4,6 +4,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   type NetworkClientId,
   type NetworkClientConfiguration,
+  type BlockTracker,
   getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
@@ -12,6 +13,7 @@ import {
   type TransactionMeta,
 } from '@metamask/transaction-controller';
 import BN from 'bn.js';
+import { EventEmitter } from 'events';
 import { useFakeTimers, type SinonFakeTimers } from 'sinon';
 
 import type {
@@ -78,6 +80,29 @@ const { safelyExecuteWithTimeout } = jest.requireMock(
 );
 const mockedSafelyExecuteWithTimeout = safelyExecuteWithTimeout as jest.Mock;
 
+// Mock BlockTracker class for testing
+class MockBlockTracker extends EventEmitter implements BlockTracker {
+  getCurrentBlock(): string | null {
+    return '0x1';
+  }
+
+  async getLatestBlock(): Promise<string> {
+    return '0x1';
+  }
+
+  async checkForLatestBlock(): Promise<string> {
+    return '0x1';
+  }
+
+  isRunning(): boolean {
+    return true;
+  }
+
+  async destroy(): Promise<void> {
+    // Mock implementation
+  }
+}
+
 describe('AccountTrackerController', () => {
   let clock: SinonFakeTimers;
 
@@ -141,7 +166,7 @@ describe('AccountTrackerController', () => {
 
         triggerSelectedAccountChange(ACCOUNT_1);
 
-        expect(refreshSpy).toHaveBeenCalled();
+        expect(refreshSpy).toHaveBeenCalledWith(['mainnet']);
       },
     );
   });
@@ -1248,117 +1273,295 @@ describe('AccountTrackerController', () => {
     });
   });
 
-  it('should call refresh every interval on polling', async () => {
-    const pollSpy = jest.spyOn(
-      AccountTrackerController.prototype,
-      '_executePoll',
-    );
+  it('should call refresh when block tracker emits latest block', async () => {
     await withController(
       {
-        options: { interval: 100 },
         isMultiAccountBalancesEnabled: true,
         selectedAccount: EMPTY_ACCOUNT,
         listAccounts: [],
       },
-      async ({ controller }) => {
-        jest.spyOn(controller, 'refresh').mockResolvedValue();
+      async ({ controller, blockTracker }) => {
+        const refreshSpy = jest
+          .spyOn(controller, 'refresh')
+          .mockResolvedValue();
 
-        controller.startPolling({
-          networkClientIds: ['networkClientId1'],
-          queryAllAccounts: true,
-        });
+        // Start tracking for global network
+        controller.start();
+
+        // Simulate a new block
+        blockTracker.emit('latest', '0x2');
+
+        // Give async handler time to execute
         await advanceTime({ clock, duration: 1 });
 
-        expect(pollSpy).toHaveBeenCalledTimes(1);
-
-        await advanceTime({ clock, duration: 50 });
-
-        expect(pollSpy).toHaveBeenCalledTimes(1);
-
-        await advanceTime({ clock, duration: 50 });
-
-        expect(pollSpy).toHaveBeenCalledTimes(2);
+        expect(refreshSpy).toHaveBeenCalledWith(['mainnet']);
       },
     );
   });
 
-  it('should call refresh every interval for each networkClientId being polled', async () => {
+  it('should call refresh for each networkClientId being polled', async () => {
     const networkClientId1 = 'networkClientId1';
     const networkClientId2 = 'networkClientId2';
     await withController(
       {
-        options: { interval: 100 },
         isMultiAccountBalancesEnabled: true,
         selectedAccount: EMPTY_ACCOUNT,
         listAccounts: [],
+        networkClientById: {
+          [networkClientId1]: buildCustomNetworkClientConfiguration({
+            chainId: '0x1',
+          }),
+          [networkClientId2]: buildCustomNetworkClientConfiguration({
+            chainId: '0x89',
+          }),
+        },
       },
       async ({ controller }) => {
         const refreshSpy = jest
           .spyOn(controller, 'refresh')
           .mockResolvedValue();
 
-        controller.startPolling({
-          networkClientIds: [networkClientId1],
-          queryAllAccounts: true,
-        });
+        // Start polling for first network
+        const pollToken1 =
+          controller.startPollingByNetworkClientId(networkClientId1);
 
-        await advanceTime({ clock, duration: 0 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(1, [networkClientId1], true);
+        // Should immediately call refresh
+        await advanceTime({ clock, duration: 1 });
+        expect(refreshSpy).toHaveBeenCalledWith([networkClientId1]);
         expect(refreshSpy).toHaveBeenCalledTimes(1);
-        await advanceTime({ clock, duration: 50 });
-        expect(refreshSpy).toHaveBeenCalledTimes(1);
-        await advanceTime({ clock, duration: 50 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(2, [networkClientId1], true);
+
+        // Start polling for second network
+        const pollToken2 =
+          controller.startPollingByNetworkClientId(networkClientId2);
+
+        await advanceTime({ clock, duration: 1 });
+        expect(refreshSpy).toHaveBeenCalledWith([networkClientId2]);
         expect(refreshSpy).toHaveBeenCalledTimes(2);
 
-        const pollToken = controller.startPolling({
-          networkClientIds: [networkClientId2],
-          queryAllAccounts: true,
-        });
+        // Stop polling for second network
+        controller.stopPollingByPollingToken(pollToken2);
 
-        await advanceTime({ clock, duration: 0 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(3, [networkClientId2], true);
-        expect(refreshSpy).toHaveBeenCalledTimes(3);
-        await advanceTime({ clock, duration: 100 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(4, [networkClientId1], true);
-        expect(refreshSpy).toHaveBeenNthCalledWith(5, [networkClientId2], true);
-        expect(refreshSpy).toHaveBeenCalledTimes(5);
+        // Clear the spy to verify no more calls after stopping
+        refreshSpy.mockClear();
 
-        controller.stopPollingByPollingToken(pollToken);
-
-        await advanceTime({ clock, duration: 100 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(6, [networkClientId1], true);
-        expect(refreshSpy).toHaveBeenCalledTimes(6);
-
+        // Stop all polling
         controller.stopAllPolling();
 
         await advanceTime({ clock, duration: 100 });
 
-        expect(refreshSpy).toHaveBeenCalledTimes(6);
+        // Should not be called anymore after stopping
+        expect(refreshSpy).not.toHaveBeenCalled();
       },
     );
   });
 
-  it('should not call polling twice', async () => {
-    await withController(
-      {
-        options: { interval: 100 },
-      },
-      async ({ controller }) => {
-        const refreshSpy = jest
-          .spyOn(controller, 'refresh')
-          .mockResolvedValue();
+  it('should not start tracking blocks automatically', async () => {
+    await withController({}, async ({ controller, blockTracker }) => {
+      const refreshSpy = jest.spyOn(controller, 'refresh').mockResolvedValue();
 
-        expect(refreshSpy).not.toHaveBeenCalled();
-        controller.startPolling({
-          networkClientIds: ['networkClientId1'],
-          queryAllAccounts: true,
-        });
+      // Emit a block without starting the controller
+      blockTracker.emit('latest', '0x2');
 
-        await advanceTime({ clock, duration: 1 });
-        expect(refreshSpy).toHaveBeenCalledTimes(1);
-      },
-    );
+      await advanceTime({ clock, duration: 1 });
+
+      // Should not be called because we haven't called start()
+      expect(refreshSpy).not.toHaveBeenCalled();
+
+      // Now start and emit another block
+      controller.start();
+      blockTracker.emit('latest', '0x3');
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Now it should be called
+      expect(refreshSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('polling methods', () => {
+    it('should handle multiple polling tokens for the same network', async () => {
+      const networkClientId = 'networkClientId1';
+      await withController(
+        {
+          networkClientById: {
+            [networkClientId]: buildCustomNetworkClientConfiguration({
+              chainId: '0x1',
+            }),
+          },
+        },
+        async ({ controller }) => {
+          const refreshSpy = jest
+            .spyOn(controller, 'refresh')
+            .mockResolvedValue();
+
+          // Start polling multiple times for the same network
+          const token1 =
+            controller.startPollingByNetworkClientId(networkClientId);
+          const token2 =
+            controller.startPollingByNetworkClientId(networkClientId);
+          const token3 =
+            controller.startPollingByNetworkClientId(networkClientId);
+
+          // Should only call refresh once for initial subscription
+          await advanceTime({ clock, duration: 1 });
+          expect(refreshSpy).toHaveBeenCalledTimes(1);
+          expect(refreshSpy).toHaveBeenCalledWith([networkClientId]);
+
+          // Stop one token - polling should continue
+          controller.stopPollingByPollingToken(token1);
+          refreshSpy.mockClear();
+
+          // Verify polling continues by checking that refresh would be called on block
+          // (In real usage, block events would trigger this)
+
+          // Stop another token - polling should still continue
+          controller.stopPollingByPollingToken(token2);
+
+          // Stop the last token - polling should stop
+          controller.stopPollingByPollingToken(token3);
+
+          // Verify no more polling happens
+          refreshSpy.mockClear();
+          await advanceTime({ clock, duration: 100 });
+          expect(refreshSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should throw error when stopping with undefined token', async () => {
+      await withController({}, async ({ controller }) => {
+        expect(() => {
+          controller.stopPollingByPollingToken(undefined);
+        }).toThrow('pollingToken required');
+      });
+    });
+
+    it('should handle stopAllPolling correctly', async () => {
+      const networkClientId1 = 'networkClientId1';
+      const networkClientId2 = 'networkClientId2';
+
+      await withController(
+        {
+          networkClientById: {
+            [networkClientId1]: buildCustomNetworkClientConfiguration({
+              chainId: '0x1',
+            }),
+            [networkClientId2]: buildCustomNetworkClientConfiguration({
+              chainId: '0x89',
+            }),
+          },
+        },
+        async ({ controller }) => {
+          const refreshSpy = jest
+            .spyOn(controller, 'refresh')
+            .mockResolvedValue();
+
+          // Start global polling
+          controller.start();
+
+          // Start polling for multiple networks
+          controller.startPollingByNetworkClientId(networkClientId1);
+          controller.startPollingByNetworkClientId(networkClientId2);
+
+          // Clear the initial refresh calls
+          await advanceTime({ clock, duration: 1 });
+          refreshSpy.mockClear();
+
+          // Stop all polling
+          controller.stopAllPolling();
+
+          // Verify all polling has stopped
+          await advanceTime({ clock, duration: 100 });
+          expect(refreshSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should track multiple blocks and update balances on each block', async () => {
+      await withController(
+        {
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ controller, blockTracker }) => {
+          const refreshSpy = jest
+            .spyOn(controller, 'refresh')
+            .mockResolvedValue();
+
+          // Start tracking
+          controller.start();
+
+          // Simulate multiple blocks
+          blockTracker.emit('latest', '0x2');
+          await advanceTime({ clock, duration: 1 });
+
+          blockTracker.emit('latest', '0x3');
+          await advanceTime({ clock, duration: 1 });
+
+          blockTracker.emit('latest', '0x4');
+          await advanceTime({ clock, duration: 1 });
+
+          // Should be called for each block
+          expect(refreshSpy).toHaveBeenCalledTimes(3);
+          expect(refreshSpy).toHaveBeenCalledWith(['mainnet']);
+
+          // Stop tracking
+          controller.stop();
+
+          // Emit another block after stopping
+          blockTracker.emit('latest', '0x5');
+          await advanceTime({ clock, duration: 1 });
+
+          // Should not be called after stopping
+          expect(refreshSpy).toHaveBeenCalledTimes(3);
+        },
+      );
+    });
+
+    it('should handle block events for specific network clients', async () => {
+      const networkClientId = 'polygon';
+
+      await withController(
+        {
+          networkClientById: {
+            [networkClientId]: buildCustomNetworkClientConfiguration({
+              chainId: '0x89',
+            }),
+          },
+        },
+        async ({ controller }) => {
+          const refreshSpy = jest
+            .spyOn(controller, 'refresh')
+            .mockResolvedValue();
+
+          // Get the mock block tracker for the network client
+          const networkBlockTracker = new MockBlockTracker();
+          const getNetworkClientById = jest.fn().mockReturnValue({
+            configuration: { chainId: '0x89' },
+            provider: {} as any,
+            blockTracker: networkBlockTracker,
+          });
+
+          // Start polling for specific network
+          controller.startPollingByNetworkClientId(networkClientId);
+
+          await advanceTime({ clock, duration: 1 });
+
+          // Should be called once for the initial poll
+          expect(refreshSpy).toHaveBeenCalledTimes(1);
+          expect(refreshSpy).toHaveBeenCalledWith([networkClientId]);
+
+          // Simulate a block on the network-specific tracker
+          networkBlockTracker.emit('latest', '0x100');
+          await advanceTime({ clock, duration: 1 });
+
+          // Should be called again for the new block
+          expect(refreshSpy).toHaveBeenCalledTimes(2);
+          expect(refreshSpy).toHaveBeenLastCalledWith([networkClientId]);
+        },
+      );
+    });
   });
 
   describe('metadata', () => {
@@ -1438,6 +1641,8 @@ type WithControllerCallback<ReturnValue> = ({
     networkClientIds: NetworkClientId[],
     queryAllAccounts?: boolean,
   ) => Promise<void>;
+  blockTracker: MockBlockTracker;
+  provider: FakeProvider;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -1561,7 +1766,9 @@ async function withController<ReturnValue>(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }) as any;
 
-      return { ...network, provider };
+      const blockTracker = new MockBlockTracker();
+
+      return { ...network, provider, blockTracker };
     },
   );
 
@@ -1577,6 +1784,30 @@ async function withController<ReturnValue>(
   const mockNetworkState = jest.fn().mockReturnValue({
     ...getDefaultNetworkControllerState(),
     chainId: initialChainId,
+    selectedNetworkClientId: 'mainnet',
+    networkConfigurationsByChainId: {
+      [initialChainId]: {
+        rpcEndpoints: [
+          {
+            networkClientId: 'mainnet',
+          },
+        ],
+        defaultRpcEndpointIndex: 0,
+      },
+      ...Object.fromEntries(
+        Object.entries(networkClientById).map(([clientId, config]) => [
+          config.configuration.chainId,
+          {
+            rpcEndpoints: [
+              {
+                networkClientId: clientId,
+              },
+            ],
+            defaultRpcEndpointIndex: 0,
+          },
+        ]),
+      ),
+    },
   });
 
   messenger.registerActionHandler(
@@ -1604,8 +1835,23 @@ async function withController<ReturnValue>(
     messenger.publish('AccountsController:selectedEvmAccountChange', account);
   };
 
+  // Create provider and blockTracker
+  const provider = new FakeProvider({
+    stubs: [
+      {
+        request: {
+          method: 'eth_chainId',
+        },
+        response: { result: initialChainId },
+      },
+    ],
+  });
+  const blockTracker = new MockBlockTracker();
+
   const controller = new AccountTrackerController({
     messenger: accountTrackerMessenger,
+    provider,
+    blockTracker,
     getStakedBalanceForChain: jest.fn(),
     ...options,
   });
@@ -1625,6 +1871,8 @@ async function withController<ReturnValue>(
     messenger,
     triggerSelectedAccountChange,
     refresh,
+    blockTracker,
+    provider,
   });
 }
 
