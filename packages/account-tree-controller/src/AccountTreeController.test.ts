@@ -8,6 +8,7 @@ import {
   toMultichainAccountWalletId,
   type AccountGroupId,
 } from '@metamask/account-api';
+import type { AccountId } from '@metamask/accounts-controller';
 import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   BtcAccountType,
@@ -293,6 +294,9 @@ function getAccountTreeControllerMessenger(
  * @param options.config.backupAndSync.onBackupAndSyncEvent - Event handler for backup and sync events.
  * @param options.config.backupAndSync.isAccountSyncingEnabled - Flag to enable account syncing.
  * @param options.config.backupAndSync.isBackupAndSyncEnabled - Flag to enable backup and sync.
+ * @param options.config.accountOrderCallbacks - Callbacks to migrate hidden and pinned account information from the account order controller.
+ * @param options.config.accountOrderCallbacks.isHiddenAccount - Callback to check if an account is hidden.
+ * @param options.config.accountOrderCallbacks.isPinnedAccount - Callback to check if an account is pinned.
  * @returns An object containing the controller instance and the messenger.
  */
 function setup({
@@ -305,6 +309,10 @@ function setup({
       isAccountSyncingEnabled: true,
       isBackupAndSyncEnabled: true,
       onBackupAndSyncEvent: jest.fn(),
+    },
+    accountOrderCallbacks: {
+      isHiddenAccount: jest.fn().mockReturnValue(false),
+      isPinnedAccount: jest.fn().mockReturnValue(false),
     },
   },
 }: {
@@ -322,6 +330,10 @@ function setup({
       onBackupAndSyncEvent?: (
         event: BackupAndSyncAnalyticsEventPayload,
       ) => void;
+    };
+    accountOrderCallbacks?: {
+      isHiddenAccount?: (accountId: AccountId) => boolean;
+      isPinnedAccount?: (accountId: AccountId) => boolean;
     };
   };
 } = {}): {
@@ -4782,6 +4794,175 @@ describe('AccountTreeController', () => {
       const mockGroup4 = getAccountGroupFromAccount(controller, mockAccount4);
       expect(mockGroup4).toBeDefined();
       expect(mockGroup4.metadata.name).toBe('Ledger Account 4');
+    });
+  });
+
+  describe('migrating account order callbacks', () => {
+    const mockAccount1 = {
+      ...MOCK_HD_ACCOUNT_1,
+      id: 'test-account-1' as AccountId,
+      address: '0x123',
+    };
+
+    describe('basic functionality', () => {
+      it('should initialize without callbacks and use default metadata values', () => {
+        const { controller } = setup({
+          accounts: [mockAccount1],
+          config: {
+            backupAndSync: {
+              isAccountSyncingEnabled: true,
+              isBackupAndSyncEnabled: true,
+              onBackupAndSyncEvent: jest.fn(),
+            },
+            // No accountOrderCallbacks provided
+          },
+        });
+
+        controller.init();
+
+        const wallets = Object.values(controller.state.accountTree.wallets);
+        expect(wallets).toHaveLength(1);
+
+        const groups = Object.values(wallets[0].groups);
+        expect(groups).toHaveLength(1);
+        expect(groups[0].accounts).toContain(mockAccount1.id);
+        expect(groups[0].metadata.pinned).toBe(false);
+        expect(groups[0].metadata.hidden).toBe(false);
+      });
+
+      it('should handle partial accountOrderCallbacks', () => {
+        const mockCallbacks = {
+          isHiddenAccount: jest.fn().mockReturnValue(true),
+        };
+
+        const { controller } = setup({
+          accounts: [mockAccount1],
+          config: {
+            backupAndSync: {
+              isAccountSyncingEnabled: true,
+              isBackupAndSyncEnabled: true,
+              onBackupAndSyncEvent: jest.fn(),
+            },
+            accountOrderCallbacks: mockCallbacks,
+          },
+        });
+
+        expect(() => controller.init()).not.toThrow();
+
+        const wallets = Object.values(controller.state.accountTree.wallets);
+        expect(wallets).toHaveLength(1);
+
+        const groups = Object.values(wallets[0].groups);
+        expect(groups).toHaveLength(1);
+        expect(groups[0].accounts).toContain(mockAccount1.id);
+        expect(groups[0].metadata.pinned).toBe(false);
+        expect(groups[0].metadata.hidden).toBe(true);
+        expect(mockCallbacks.isHiddenAccount).toHaveBeenCalledWith(
+          mockAccount1.id,
+        );
+      });
+
+      it('should prefer persisted metadata over callbacks', () => {
+        const mockIsHiddenAccount = jest.fn().mockReturnValue(true);
+        const mockIsPinnedAccount = jest.fn().mockReturnValue(true);
+
+        const { controller: tempController } = setup({
+          accounts: [mockAccount1],
+        });
+        tempController.init();
+        const tempWallets = Object.values(
+          tempController.state.accountTree.wallets,
+        );
+        const tempGroups = Object.values(tempWallets[0].groups);
+        const actualGroupId = tempGroups[0].id;
+
+        const { controller } = setup({
+          accounts: [mockAccount1],
+          state: {
+            accountGroupsMetadata: {
+              [actualGroupId]: {
+                pinned: {
+                  value: false,
+                  lastUpdatedAt: Date.now(),
+                },
+                hidden: {
+                  value: false,
+                  lastUpdatedAt: Date.now(),
+                },
+              },
+            },
+          },
+          config: {
+            backupAndSync: {
+              isAccountSyncingEnabled: true,
+              isBackupAndSyncEnabled: true,
+              onBackupAndSyncEvent: jest.fn(),
+            },
+            accountOrderCallbacks: {
+              isHiddenAccount: mockIsHiddenAccount,
+              isPinnedAccount: mockIsPinnedAccount,
+            },
+          },
+        });
+
+        controller.init();
+
+        // Verify callbacks were NOT called because persisted metadata takes precedence
+        expect(mockIsHiddenAccount).not.toHaveBeenCalled();
+        expect(mockIsPinnedAccount).not.toHaveBeenCalled();
+
+        const wallets = Object.values(controller.state.accountTree.wallets);
+        const groups = Object.values(wallets[0].groups);
+        expect(groups[0].accounts).toContain(mockAccount1.id);
+        expect(groups[0].metadata.pinned).toBe(false); // Persisted value used
+        expect(groups[0].metadata.hidden).toBe(false); // Persisted value used
+      });
+
+      it('should use persisted metadata when no callbacks are provided', () => {
+        const { controller: tempController } = setup({
+          accounts: [mockAccount1],
+        });
+        tempController.init();
+        const tempWallets = Object.values(
+          tempController.state.accountTree.wallets,
+        );
+        const tempGroups = Object.values(tempWallets[0].groups);
+        const actualGroupId = tempGroups[0].id;
+
+        const { controller } = setup({
+          accounts: [mockAccount1],
+          state: {
+            accountGroupsMetadata: {
+              [actualGroupId]: {
+                pinned: {
+                  value: true, // Persisted as pinned
+                  lastUpdatedAt: Date.now(),
+                },
+                hidden: {
+                  value: true, // Persisted as hidden
+                  lastUpdatedAt: Date.now(),
+                },
+              },
+            },
+          },
+          config: {
+            backupAndSync: {
+              isAccountSyncingEnabled: true,
+              isBackupAndSyncEnabled: true,
+              onBackupAndSyncEvent: jest.fn(),
+            },
+            // No accountOrderCallbacks provided
+          },
+        });
+
+        controller.init();
+
+        const wallets = Object.values(controller.state.accountTree.wallets);
+        const groups = Object.values(wallets[0].groups);
+        expect(groups[0].accounts).toContain(mockAccount1.id);
+        expect(groups[0].metadata.pinned).toBe(true);
+        expect(groups[0].metadata.hidden).toBe(true);
+      });
     });
   });
 });

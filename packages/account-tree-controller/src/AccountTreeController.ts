@@ -677,18 +677,24 @@ export class AccountTreeController extends BaseController<
 
     // Apply persisted UI states
     if (persistedGroupMetadata?.pinned?.value !== undefined) {
-      group.metadata.pinned = this.#accountOrderCallbacks?.isPinnedAccount
-        ? Object.values(group.accounts).some((account) =>
-            this.#accountOrderCallbacks?.isPinnedAccount?.(account),
-          )
-        : persistedGroupMetadata.pinned.value;
+      group.metadata.pinned = persistedGroupMetadata.pinned.value;
+    } else if (this.#accountOrderCallbacks?.isPinnedAccount) {
+      // If any accounts was previously pinned, then we consider the group to be pinned as well.
+      group.metadata.pinned = Object.values(group.accounts).some((account) =>
+        this.#accountOrderCallbacks?.isPinnedAccount?.(account),
+      );
+    } else {
+      group.metadata.pinned = false;
     }
     if (persistedGroupMetadata?.hidden?.value !== undefined) {
-      group.metadata.hidden = this.#accountOrderCallbacks?.isHiddenAccount
-        ? Object.values(group.accounts).some((account) =>
-            this.#accountOrderCallbacks?.isHiddenAccount?.(account),
-          )
-        : persistedGroupMetadata.hidden.value;
+      group.metadata.hidden = persistedGroupMetadata.hidden.value;
+    } else if (this.#accountOrderCallbacks?.isHiddenAccount) {
+      // If any accounts was previously hidden, then we consider the group to be hidden as well.
+      group.metadata.hidden = Object.values(group.accounts).some((account) =>
+        this.#accountOrderCallbacks?.isHiddenAccount?.(account),
+      );
+    } else {
+      group.metadata.hidden = false;
     }
   }
 
