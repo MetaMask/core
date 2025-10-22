@@ -135,6 +135,9 @@ export type ShieldControllerOptions = {
   coverageHistoryLimit?: number;
   /**
    * Normalize the signature request before sending it to the backend.
+   * Please note that the reason this is not being done internally is to
+   * align the request body (data & params) with the security-alerts API.
+   * The same normalization function which is used to normalize security-alerts request should be used here.
    *
    * @param signatureRequest - The signature request to normalize.
    * @returns The normalized signature request.

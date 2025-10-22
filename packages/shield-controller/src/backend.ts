@@ -294,7 +294,7 @@ function makeInitSignatureCoverageCheckBody(
 
   return {
     chainId: signatureRequest.chainId,
-    data: signatureRequest.messageParams.data as string,
+    data: signatureRequest.messageParams.data,
     from: signatureRequest.messageParams.from,
     method,
     origin: signatureRequest.messageParams.origin,

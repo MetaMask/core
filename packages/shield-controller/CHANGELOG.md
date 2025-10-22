@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added optional constructor params, `normalizeSignatureRequest` function which normalize the requests for TypedSignature similar to the security-alerts API. ([#6906](https://github.com/MetaMask/core/pull/6906))
+- Added util function, `parseSignatureRequestMethod` to correctly parse the Json-Rpc method value for the signature request. ([#6906](https://github.com/MetaMask/core/pull/6906))
 
 ### Changed
 
