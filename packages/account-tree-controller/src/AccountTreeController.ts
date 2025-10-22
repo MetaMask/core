@@ -1084,17 +1084,21 @@ export class AccountTreeController extends BaseController<
       group = wallet.groups[groupId];
     }
 
+    // We always re-use the account list from the group (if accounts get
+    // added/removed/re-ordered within the group).
+    const accounts = multichainAccountGroup
+      .getAccounts()
+      // For now, we need this type-cast because `getAccounts` do not have the same
+      // type-constraint (uses string[] instead of [string; ...string])
+      .map((account) => account.id) as AccountGroupObject['accounts'];
+
     // Create the group object first, to inject it in the wallet in case this wallet is
     // not part of the tree yet.
     if (!group) {
       group = {
         id: multichainAccountGroup.id,
         type: multichainAccountGroup.type,
-        accounts: multichainAccountGroup
-          .getAccounts()
-          // For now, we need this type-cast because `getAccounts` do not have the same
-          // type-constraint (uses string[] instead of [string; ...string])
-          .map((account) => account.id) as AccountGroupObject['accounts'],
+        accounts,
         metadata: {
           entropy: {
             groupIndex: multichainAccountGroup.groupIndex,
@@ -1104,6 +1108,8 @@ export class AccountTreeController extends BaseController<
           hidden: false,
         },
       };
+    } else {
+      group.accounts = accounts;
     }
 
     if (!wallet) {
