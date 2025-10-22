@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Prevent race condition causing excessive incoming transaction polling ([#6913](https://github.com/MetaMask/core/pull/6913))
+
 ## [60.9.0]
 
 ### Added
