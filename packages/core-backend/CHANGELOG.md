@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [2.1.0]
+
+### Added
+
+- Add optional `traceFn` parameter to `AccountActivityService` constructor for performance tracing integration ([#6842](https://github.com/MetaMask/core/pull/6842))
+  - Enables tracing of transaction message receipt with elapsed time from transaction timestamp to message arrival
+  - Trace captures `chain`, `status`, and `elapsed_ms` for monitoring transaction delivery latency
+
+### Fixed
+
+- Fix race condition in `BackendWebSocketService.connect()` that could create multiple concurrent WebSocket connections when called simultaneously from multiple event sources (e.g., `KeyringController:unlock`, `AuthenticationController:stateChange`, and `MetaMaskController.isClientOpen`) ([#6842](https://github.com/MetaMask/core/pull/6842))
+  - Connection promise is now set synchronously before any async operations to prevent duplicate connections
+
 ## [2.0.0]
 
 ### Added
@@ -68,7 +85,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.0.0...@metamask/core-backend@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@1.0.1...@metamask/core-backend@2.0.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@1.0.0...@metamask/core-backend@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/core-backend@1.0.0
