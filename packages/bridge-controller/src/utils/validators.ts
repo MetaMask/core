@@ -282,8 +282,7 @@ export const TronTradeDataSchema = type({
 export const QuoteResponseSchema = type({
   quote: QuoteSchema,
   estimatedProcessingTimeInSeconds: number(),
-  // TODO: remove this once approval type is fixed
-  approval: optional(nullable(TxDataSchema)),
+  approval: optional(TxDataSchema),
   trade: union([TxDataSchema, BitcoinTradeDataSchema, TronTradeDataSchema, string()]),
 });
 
