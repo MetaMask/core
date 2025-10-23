@@ -128,7 +128,7 @@ const getMessenger = (): {
   // Create mock action handlers
   const mockGetSelectedAccount = jest.fn();
   const mockConnect = jest.fn();
-  const mockDisconnect = jest.fn();
+  const mockForceReconnection = jest.fn();
   const mockSubscribe = jest.fn();
   const mockChannelHasSubscription = jest.fn();
   const mockGetSubscriptionsByChannel = jest.fn();
@@ -146,8 +146,8 @@ const getMessenger = (): {
     mockConnect,
   );
   rootMessenger.registerActionHandler(
-    'BackendWebSocketService:disconnect',
-    mockDisconnect,
+    'BackendWebSocketService:forceReconnection',
+    mockForceReconnection,
   );
   rootMessenger.registerActionHandler(
     'BackendWebSocketService:subscribe',
@@ -180,7 +180,7 @@ const getMessenger = (): {
     mocks: {
       getSelectedAccount: mockGetSelectedAccount,
       connect: mockConnect,
-      disconnect: mockDisconnect,
+      forceReconnection: mockForceReconnection,
       subscribe: mockSubscribe,
       channelHasSubscription: mockChannelHasSubscription,
       getSubscriptionsByChannel: mockGetSubscriptionsByChannel,
@@ -276,7 +276,7 @@ type WithServiceCallback<ReturnValue> = (payload: {
   mocks: {
     getSelectedAccount: jest.Mock;
     connect: jest.Mock;
-    disconnect: jest.Mock;
+    forceReconnection: jest.Mock;
     subscribe: jest.Mock;
     channelHasSubscription: jest.Mock;
     getSubscriptionsByChannel: jest.Mock;
@@ -518,28 +518,22 @@ describe('AccountActivityService', () => {
       );
     });
 
-    it('should handle disconnect failures during force reconnection by logging error and continuing gracefully', async () => {
+    it('should handle subscription failure by calling forceReconnection', async () => {
       await withService(async ({ service, mocks }) => {
-        // Mock disconnect to fail - this prevents the reconnect step from executing
-        mocks.disconnect.mockRejectedValue(
-          new Error('Disconnect failed during force reconnection'),
-        );
-
-        // Trigger scenario that causes force reconnection by making subscribe fail
+        // Mock subscribe to fail
         mocks.subscribe.mockRejectedValue(new Error('Subscription failed'));
 
-        // Should handle both subscription failure and disconnect failure gracefully - should not throw
+        // Should handle subscription failure gracefully - should not throw
         const result = await service.subscribe({ address: '0x123abc' });
         expect(result).toBeUndefined();
 
         // Verify the subscription was attempted
         expect(mocks.subscribe).toHaveBeenCalledTimes(1);
 
-        // Verify disconnect was attempted (but failed, preventing reconnection)
-        expect(mocks.disconnect).toHaveBeenCalledTimes(1);
+        // Verify forceReconnection was called (lines 289-290)
+        expect(mocks.forceReconnection).toHaveBeenCalledTimes(1);
 
-        // Connect is only called once at the start because disconnect failed,
-        // so the reconnect step never executes (it's in the same try-catch block)
+        // Connect is only called once at the start
         expect(mocks.connect).toHaveBeenCalledTimes(1);
       });
     });
@@ -590,14 +584,8 @@ describe('AccountActivityService', () => {
           // unsubscribe catches errors and forces reconnection instead of throwing
           await service.unsubscribe(mockSubscription);
 
-          // Should have attempted to force reconnection with exact sequence
-          expect(mocks.disconnect).toHaveBeenCalledTimes(1);
-          expect(mocks.connect).toHaveBeenCalledTimes(1);
-
-          // Verify disconnect was called before connect
-          const disconnectOrder = mocks.disconnect.mock.invocationCallOrder[0];
-          const connectOrder = mocks.connect.mock.invocationCallOrder[0];
-          expect(disconnectOrder).toBeLessThan(connectOrder);
+          // Should have attempted to force reconnection
+          expect(mocks.forceReconnection).toHaveBeenCalledTimes(1);
         },
       );
     });

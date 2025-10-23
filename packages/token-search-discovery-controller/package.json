@@ -47,7 +47,7 @@
     "since-latest-release": "../../scripts/since-latest-release.sh"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.4.1",
+    "@metamask/base-controller": "^8.4.2",
     "@metamask/messenger": "^0.3.0",
     "@metamask/utils": "^11.8.1"
   },

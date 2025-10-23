@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Resolve incompatibility of `ChildControllerStateChangeEvents` type with `BaseController` (when used in the `Events` type argument of `ComposableControllerMessenger`) by removing unnecessary nested logic from definition ([#6904](https://github.com/MetaMask/core/pull/6904))
   - Also update generic parameter names `ControllerName` and `ControllerState` to `ChildControllerName`, `ChildControllerState` for reduced ambiguity.
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 
 ## [11.1.0]
 
