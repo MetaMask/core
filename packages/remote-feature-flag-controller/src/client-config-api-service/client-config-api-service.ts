@@ -3,6 +3,7 @@ import {
   DEFAULT_CIRCUIT_BREAK_DURATION,
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
   DEFAULT_MAX_RETRIES,
+  ExponentialBackoff,
 } from '@metamask/controller-utils';
 import type { ServicePolicy } from '@metamask/controller-utils';
 
@@ -16,6 +17,22 @@ import type {
   ServiceResponse,
   ApiDataResponse,
 } from '../remote-feature-flag-controller-types';
+
+/**
+ * Custom backoff factory that implements exponential progression in minutes.
+ * 1st retry: 1 minute, 2nd retry: 2 minutes, 3rd retry: 4 minutes, etc.
+ * Uses Cockatiel's ExponentialBackoff with minute-based intervals.
+ */
+function createMinuteBasedExponentialBackoff() {
+  return new ExponentialBackoff({
+    // Start with 1 minute base delay (60,000 ms)
+    initialDelay: 60 * 1000,
+    // Use a multiplier of 2 for exponential progression (1min, 2min, 4min, 8min...)
+    exponent: 2,
+    // Maximum delay to prevent extremely long waits
+    maxDelay: 15 * 60 * 1000, // 15 minutes max
+  });
+}
 
 /**
  * This service is responsible for fetching feature flags from the ClientConfig API.
@@ -138,6 +155,7 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
       maxRetries: retries,
       maxConsecutiveFailures: maximumConsecutiveFailures,
       circuitBreakDuration,
+      backoff: createMinuteBasedExponentialBackoff(),
     });
     if (onBreak) {
       this.#policy.onBreak(onBreak);
