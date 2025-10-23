@@ -1128,7 +1128,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
                   this.messagingSystem,
                   quoteResponse,
                 ),
-                approval: quoteResponse.approval,
+                // TODO: remove this once approval type is fixed
+                approval: quoteResponse.approval ?? undefined,
                 trade: quoteResponse.trade as TxData,
                 quoteResponse,
                 requireApproval,

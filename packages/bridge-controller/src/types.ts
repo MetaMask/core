@@ -259,7 +259,8 @@ export type TronTradeData = Infer<typeof TronTradeDataSchema>;
 export type QuoteResponse<TxDataType = TxData | string | BitcoinTradeData | TronTradeData> =
   Infer<typeof QuoteResponseSchema> & {
     trade: TxDataType;
-    approval?: TxData;
+    // TODO: remove this once approval type is fixed
+    approval?: TxData | null;
     featureId?: FeatureId;
   };
 
