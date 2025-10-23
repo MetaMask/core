@@ -22,6 +22,8 @@ import type {
  * Custom backoff factory that implements exponential progression in minutes.
  * 1st retry: 1 minute, 2nd retry: 2 minutes, 3rd retry: 4 minutes, etc.
  * Uses Cockatiel's ExponentialBackoff with minute-based intervals.
+ * 
+ * @returns A Cockatiel ExponentialBackoff instance configured for minute-based intervals.
  */
 function createMinuteBasedExponentialBackoff() {
   return new ExponentialBackoff({
