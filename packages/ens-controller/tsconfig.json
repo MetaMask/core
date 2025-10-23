@@ -7,7 +7,7 @@
     { "path": "../base-controller" },
     { "path": "../controller-utils" },
     { "path": "../network-controller" },
-    { "path": "../messenger" },
+    { "path": "../messenger" }
   ],
   "include": ["../../types", "./src"]
 }
