@@ -9,9 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Add exponential backoff strategy in `ClientConfigApiService` to use proper Cockatiel `ExponentialBackoff` implementation ([#6922](https://github.com/MetaMask/core/pull/6922))
-  - Replace custom `ExponentialMinuteBackoff` class with `createMinuteBasedExponentialBackoff()` function that configures Cockatiel's `ExponentialBackoff` with minute-based intervals
-  - Ensures retry mechanism correctly implements the specified timing progression: 1st retry after 1 minute, 2nd retry after 2 minutes, 3rd retry after 4 minutes
+- Add custom backoff interval support in `ClientConfigApiService` ([#6922](https://github.com/MetaMask/core/pull/6922))
+  - New `customBackoffInterval` parameter allows specifying exact retry intervals in seconds
+  - Example: `[100, 200, 300]` means 1st retry after 100s, 2nd after 200s, 3rd after 300s
+  - Falls back to default exponential backoff when no custom intervals provided
+  - Includes validation to ensure intervals array is compatible with retry configuration
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 
 ## [1.9.0]

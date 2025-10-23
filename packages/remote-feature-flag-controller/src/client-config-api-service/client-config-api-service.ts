@@ -6,6 +6,7 @@ import {
   ExponentialBackoff,
 } from '@metamask/controller-utils';
 import type { ServicePolicy } from '@metamask/controller-utils';
+import type { IBackoff, IBackoffFactory } from 'cockatiel';
 
 import type { AbstractClientConfigApiService } from './abstract-client-config-api-service';
 import { BASE_URL } from '../constants';
@@ -19,21 +20,79 @@ import type {
 } from '../remote-feature-flag-controller-types';
 
 /**
- * Custom backoff factory that implements exponential progression in minutes.
- * 1st retry: 1 minute, 2nd retry: 2 minutes, 3rd retry: 4 minutes, etc.
- * Uses Cockatiel's ExponentialBackoff with minute-based intervals.
- *
- * @returns A Cockatiel ExponentialBackoff instance configured for minute-based intervals.
+ * Custom backoff implementation that uses specific interval values from an array.
+ * Each retry uses the corresponding interval from the array (in seconds).
  */
-function createMinuteBasedExponentialBackoff() {
-  return new ExponentialBackoff({
-    // Start with 1 minute base delay (60,000 ms)
-    initialDelay: 60 * 1000,
-    // Use a multiplier of 2 for exponential progression (1min, 2min, 4min, 8min...)
-    exponent: 2,
-    // Maximum delay to prevent extremely long waits
-    maxDelay: 15 * 60 * 1000, // 15 minutes max
-  });
+class CustomIntervalBackoff implements IBackoffFactory<unknown> {
+  private intervals: number[];
+  private currentIndex: number = 0;
+
+  constructor(intervals: number[]) {
+    // Convert seconds to milliseconds
+    this.intervals = intervals.map(interval => interval * 1000);
+  }
+
+  next(): IBackoff<unknown> {
+    const duration = this.intervals[this.currentIndex];
+    const nextIndex = this.currentIndex + 1;
+    
+    return {
+      duration,
+      next: () => {
+        const nextBackoff = new CustomIntervalBackoff(this.intervals.map(i => i / 1000));
+        nextBackoff.currentIndex = nextIndex;
+        return nextBackoff.next();
+      }
+    };
+  }
+}
+
+/**
+ * Validates that the custom backoff interval array exactly matches the number of retries.
+ * 
+ * @param customBackoffInterval - Array of retry intervals in seconds (must equal maxRetries length)
+ * @param maxRetries - Maximum number of retries configured
+ * @throws Error if validation fails
+ */
+function validateCustomBackoffInterval(customBackoffInterval: number[], maxRetries: number): void {
+  if (!Array.isArray(customBackoffInterval)) {
+    throw new Error('customBackoffInterval must be an array');
+  }
+  
+  if (customBackoffInterval.length === 0) {
+    throw new Error('customBackoffInterval array cannot be empty');
+  }
+  
+  if (customBackoffInterval.some(interval => typeof interval !== 'number' || interval <= 0)) {
+    throw new Error('All customBackoffInterval values must be positive numbers');
+  }
+  
+  if (customBackoffInterval.length !== maxRetries) {
+    throw new Error(
+      `customBackoffInterval array length (${customBackoffInterval.length}) must be equal to maxRetries (${maxRetries})`
+    );
+  }
+}
+
+/**
+ * Creates the appropriate backoff strategy based on the provided parameters.
+ * If customBackoffInterval is provided, uses array-based intervals.
+ * Otherwise, uses exponential backoff with minute-based progression.
+ * 
+ * @param customBackoffInterval - Optional array of retry intervals in seconds
+ * @param maxRetries - Maximum number of retries for validation
+ * @returns A backoff factory compatible with Cockatiel
+ */
+function createCustomBackoff(customBackoffInterval: number[], maxRetries: number): IBackoffFactory<unknown> {
+  if (customBackoffInterval) {
+    if (maxRetries !== undefined) {
+      validateCustomBackoffInterval(customBackoffInterval, maxRetries);
+    }
+    return new CustomIntervalBackoff(customBackoffInterval);
+  }
+  
+  // Default exponential backoff with minute-based intervals
+  return new ExponentialBackoff();
 }
 
 /**
@@ -64,6 +123,9 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
    * attempts.
    * @param args.circuitBreakDuration - The amount of time to wait when the
    * circuit breaks from too many consecutive failures.
+   * @param args.customBackoffInterval - Optional array of retry intervals in seconds.
+   * If provided, array length must exactly match the retries parameter.
+   * Example: [100, 200, 300] means 1st retry after 100s, 2nd after 200s, 3rd after 300s.
    * @param args.config - The configuration object, includes client,
    * distribution, and environment.
    * @param args.config.client - The client type (e.g., 'extension', 'mobile').
@@ -77,6 +139,7 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
     retries?: number;
     maximumConsecutiveFailures?: number;
     circuitBreakDuration?: number;
+    customBackoffInterval?: number[];
     config: {
       client: ClientType;
       distribution: DistributionType;
@@ -104,6 +167,9 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
    * for capturing metrics about network failures.
    * @param args.onDegraded - Callback for when the API responds successfully
    * but takes too long to respond (5 seconds or more).
+   * @param args.customBackoffInterval - Optional array of retry intervals in seconds.
+   * If provided, array length must exactly match the retries parameter.
+   * Example: [100, 200, 300] means 1st retry after 100s, 2nd after 200s, 3rd after 300s.
    * @param args.config - The configuration object, includes client,
    * distribution, and environment.
    * @param args.config.client - The client type (e.g., 'extension', 'mobile').
@@ -120,6 +186,7 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
     circuitBreakDuration?: number;
     onBreak?: () => void;
     onDegraded?: () => void;
+    customBackoffInterval?: number[];
     config: {
       client: ClientType;
       distribution: DistributionType;
@@ -132,6 +199,7 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
     retries = DEFAULT_MAX_RETRIES,
     maximumConsecutiveFailures = DEFAULT_MAX_CONSECUTIVE_FAILURES,
     circuitBreakDuration = DEFAULT_CIRCUIT_BREAK_DURATION,
+    customBackoffInterval,
     onBreak,
     onDegraded,
     config,
@@ -140,6 +208,7 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
     retries?: number;
     maximumConsecutiveFailures?: number;
     circuitBreakDuration?: number;
+    customBackoffInterval?: number[];
     onBreak?: () => void;
     onDegraded?: () => void;
     config: {
@@ -157,7 +226,7 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
       maxRetries: retries,
       maxConsecutiveFailures: maximumConsecutiveFailures,
       circuitBreakDuration,
-      backoff: createMinuteBasedExponentialBackoff(),
+      backoff: customBackoffInterval ? createCustomBackoff(customBackoffInterval, retries) : undefined,
     });
     if (onBreak) {
       this.#policy.onBreak(onBreak);
