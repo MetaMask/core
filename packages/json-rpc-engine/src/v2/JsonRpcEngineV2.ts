@@ -7,11 +7,7 @@ import {
 } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
-import type {
-  ContextConstraint,
-  DefaultContext,
-  MergeContexts,
-} from './MiddlewareContext';
+import type { ContextConstraint, MergeContexts } from './MiddlewareContext';
 import { MiddlewareContext } from './MiddlewareContext';
 import {
   isNotification,
@@ -54,7 +50,7 @@ export type MiddlewareParams<
 export type JsonRpcMiddleware<
   Request extends JsonRpcCall = JsonRpcCall,
   Result extends ResultConstraint<Request> = ResultConstraint<Request>,
-  Context extends ContextConstraint = DefaultContext,
+  Context extends ContextConstraint = MiddlewareContext,
 > = (
   params: MiddlewareParams<Request, Context>,
 ) => Readonly<Result> | undefined | Promise<Readonly<Result> | undefined>;
@@ -143,7 +139,7 @@ type InvalidEngine<Message extends string> = { [INVALID_ENGINE]: Message };
  */
 export class JsonRpcEngineV2<
   Request extends JsonRpcCall = JsonRpcCall,
-  Context extends ContextConstraint = DefaultContext,
+  Context extends ContextConstraint = MiddlewareContext,
 > {
   #middleware: Readonly<
     NonEmptyArray<

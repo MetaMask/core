@@ -4,6 +4,7 @@ import { createDeferredPromise } from '@metamask/utils';
 
 import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
+import type { EmptyContext } from './MiddlewareContext';
 import { MiddlewareContext } from './MiddlewareContext';
 import {
   isRequest,
@@ -344,12 +345,18 @@ describe('JsonRpcEngineV2', () => {
 
         const middleware3: JsonRpcMiddleware<
           JsonRpcCall,
+          ResultConstraint<JsonRpcCall>,
+          EmptyContext
+        > = ({ next }) => next();
+
+        const middleware4: JsonRpcMiddleware<
+          JsonRpcCall,
           string,
           MiddlewareContext<{ foo: string; bar: number }>
         > = ({ context }) => context.assertGet('foo');
 
         const engine = JsonRpcEngineV2.create({
-          middleware: [middleware1, middleware2, middleware3],
+          middleware: [middleware1, middleware2, middleware3, middleware4],
         });
 
         const result = await engine.handle(makeRequest());

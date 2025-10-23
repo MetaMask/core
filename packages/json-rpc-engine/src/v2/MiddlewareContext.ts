@@ -138,4 +138,9 @@ export type MergeContexts<Contexts extends ContextConstraint> =
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ContextConstraint = MiddlewareContext<any>;
 
-export type DefaultContext = MiddlewareContext;
+/**
+ * The empty context type, i.e. `MiddlewareContext<{}>`.
+ */
+// The empty object type is literally an empty object in this context.
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type EmptyContext = MiddlewareContext<{}>;
