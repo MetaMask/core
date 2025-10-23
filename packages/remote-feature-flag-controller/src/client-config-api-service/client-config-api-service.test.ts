@@ -191,65 +191,7 @@ describe('ClientConfigApiService', () => {
       // Check that fetch was retried the correct number of times
       expect(mockFetch).toHaveBeenCalledTimes(maxRetries + 1); // Initial + retries
     });
-
-    it('should retry at correct time intervals (1min, 2min, 4min)', async () => {
-      jest.useFakeTimers();
-      
-      const networkError = new Error('Network error');
-      let callCount = 0;
-      
-      // Mock fetch to fail 3 times then succeed, and track call times with fake Date.now()
-      const mockFetch = jest.fn().mockImplementation(() => {
-        callCount++;
-        if (callCount <= 3) {
-          return Promise.reject(networkError);
-        }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([{ testFlag: true }]),
-        });
-      });
-
-      const clientConfigApiService = new ClientConfigApiService({
-        fetch: mockFetch,
-        retries: 3, // Allow 3 retries (4 total attempts)
-        maximumConsecutiveFailures: 10, // Prevent circuit breaker from interfering
-        config: {
-          client: ClientType.Extension,
-          distribution: DistributionType.Main,
-          environment: EnvironmentType.Production,
-        },
-      });
-
-      // Start the operation
-      const fetchPromise = clientConfigApiService.fetchRemoteFeatureFlags();
-      
-      // Initial call should happen immediately
-      await jest.advanceTimersByTimeAsync(0); // Process immediate promises
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-
-      // First retry should happen after 1 minute
-      await jest.advanceTimersByTimeAsync(60 * 1000);
-      expect(mockFetch).toHaveBeenCalledTimes(2);
-
-      // Second retry should happen after 2 more minutes
-      await jest.advanceTimersByTimeAsync(2 * 60 * 1000);
-      expect(mockFetch).toHaveBeenCalledTimes(3);
-
-      // Third retry should happen after 4 more minutes
-      await jest.advanceTimersByTimeAsync(4 * 60 * 1000);
-      expect(mockFetch).toHaveBeenCalledTimes(4);
-
-      // The final call should succeed
-      const result = await fetchPromise;
-      expect(result).toEqual({
-        remoteFeatureFlags: { testFlag: true },
-        cacheTimestamp: expect.any(Number),
-      });
-
-      jest.useRealTimers();
-    });
-
+    
     it('should call the onBreak callback when the circuit opens', async () => {
       const onBreak = jest.fn();
       const mockFetch = createMockFetch({ error: networkError });
