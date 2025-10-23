@@ -110,12 +110,17 @@ const appendNonEvmFees = async (
     quotes.map(async (quoteResponse) => {
       const { trade, quote } = quoteResponse;
 
-      if (selectedAccount?.metadata?.snap?.id && trade) {
+      // Skip fee computation if no snap account or trade data
+      if (!selectedAccount?.metadata?.snap?.id || !trade) {
+        return quoteResponse;
+      }
+
+      try {
         const scope = formatChainIdToCaip(quote.srcChainId);
 
-        // Extract transaction string for snap
-        // For Bitcoin: extract unsignedPsbtBase64 from the trade object
-        // For Solana: trade is already a string
+        // Normalize trade data to string format expected by snap
+        // Solana: trade is already a base64 transaction string
+        // Bitcoin: extract unsignedPsbtBase64 from trade object
         const transaction =
           typeof trade === 'string'
             ? trade
@@ -139,16 +144,29 @@ const appendNonEvmFees = async (
           };
         }[];
 
-        const baseFee = response?.find((fee) => fee.type === 'base');
-        // Store fees in native units as returned by the snap (e.g., SOL, BTC)
-        const feeInNative = baseFee?.asset?.amount || '0';
+        // Bitcoin snap returns 'priority' fee, Solana returns 'base' fee
+        const fee =
+          response?.find((f) => f.type === 'base') ||
+          response?.find((f) => f.type === 'priority') ||
+          response?.[0];
+        const feeInNative = fee?.asset?.amount || '0';
 
         return {
           ...quoteResponse,
           nonEvmFeesInNative: feeInNative,
         };
+      } catch (error) {
+        // Return quote with undefined fee if snap fails (e.g., insufficient UTXO funds)
+        // Client can render special UI or skip the quote card row for quotes with missing fee data
+        console.error(
+          `Failed to compute non-EVM fees for quote ${quote.requestId}:`,
+          error,
+        );
+        return {
+          ...quoteResponse,
+          nonEvmFeesInNative: undefined,
+        };
       }
-      return quoteResponse;
     }),
   );
 
