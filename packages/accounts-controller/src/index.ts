@@ -13,7 +13,6 @@ export type {
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerGetNextAvailableAccountNameAction,
   AccountsControllerGetAccountAction,
-  AccountsControllerGetAccountsAction,
   AccountsControllerUpdateAccountMetadataAction,
   AllowedActions,
   AccountsControllerActions,

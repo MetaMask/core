@@ -124,11 +124,6 @@ export type AccountsControllerGetAccountAction = {
   handler: AccountsController['getAccount'];
 };
 
-export type AccountsControllerGetAccountsAction = {
-  type: `${typeof controllerName}:getAccounts`;
-  handler: AccountsController['getAccounts'];
-};
-
 export type AccountsControllerUpdateAccountMetadataAction = {
   type: `${typeof controllerName}:updateAccountMetadata`;
   handler: AccountsController['updateAccountMetadata'];
@@ -150,7 +145,6 @@ export type AccountsControllerActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetNextAvailableAccountNameAction
   | AccountsControllerGetAccountAction
-  | AccountsControllerGetAccountsAction
   | AccountsControllerGetSelectedMultichainAccountAction
   | AccountsControllerUpdateAccountMetadataAction;
 
@@ -307,16 +301,6 @@ export class AccountsController extends BaseController<
    */
   getAccount(accountId: string): InternalAccount | undefined {
     return this.state.internalAccounts.accounts[accountId];
-  }
-
-  /**
-   * Returns the internal account objects for the given account IDs, if they exist.
-   *
-   * @param accountIds - The IDs of the accounts to retrieve.
-   * @returns The internal account objects, or undefined if the account(s) do not exist.
-   */
-  getAccounts(accountIds: string[]): (InternalAccount | undefined)[] {
-    return accountIds.map((accountId) => this.getAccount(accountId));
   }
 
   /**
@@ -1319,11 +1303,6 @@ export class AccountsController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `AccountsController:getAccount`,
       this.getAccount.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `AccountsController:getAccounts`,
-      this.getAccounts.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
