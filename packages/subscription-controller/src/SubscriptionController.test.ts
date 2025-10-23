@@ -962,7 +962,7 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller }) => {
-          const result = await controller.getCryptoApproveTransactionParams({
+          const result = controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
             paymentTokenAddress: '0xtoken',
             productType: PRODUCT_TYPES.SHIELD,
