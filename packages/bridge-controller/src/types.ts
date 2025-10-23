@@ -27,6 +27,7 @@ import type {
 import type { BridgeController } from './bridge-controller';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 import type {
+  BitcoinTradeDataSchema,
   BridgeAssetSchema,
   ChainConfigurationSchema,
   FeatureId,
@@ -246,17 +247,18 @@ export type FeeData = Infer<typeof FeeDataSchema>;
 export type Quote = Infer<typeof QuoteSchema>;
 
 export type TxData = Infer<typeof TxDataSchema>;
+
+export type BitcoinTradeData = Infer<typeof BitcoinTradeDataSchema>;
 /**
  * This is the type for the quote response from the bridge-api
  * TxDataType can be overriden to be a string when the quote is non-evm
  */
-export type QuoteResponse<TxDataType = TxData> = Infer<
-  typeof QuoteResponseSchema
-> & {
-  trade: TxDataType;
-  approval?: TxData;
-  featureId?: FeatureId;
-};
+export type QuoteResponse<TxDataType = TxData | string | BitcoinTradeData> =
+  Infer<typeof QuoteResponseSchema> & {
+    trade: TxDataType;
+    approval?: TxData;
+    featureId?: FeatureId;
+  };
 
 export enum ChainId {
   ETH = 1,

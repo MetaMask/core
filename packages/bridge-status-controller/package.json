@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-status-controller",
-  "version": "52.1.0",
+  "version": "54.0.0",
   "description": "Manages bridge-related status fetching functionality for MetaMask",
   "keywords": [
     "MetaMask",
@@ -47,7 +47,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.4.1",
+    "@metamask/base-controller": "^8.4.2",
     "@metamask/controller-utils": "^11.14.1",
     "@metamask/polling-controller": "^14.0.1",
     "@metamask/superstruct": "^3.1.0",
@@ -58,7 +58,7 @@
   "devDependencies": {
     "@metamask/accounts-controller": "^33.1.1",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/bridge-controller": "^53.0.0",
+    "@metamask/bridge-controller": "^54.0.0",
     "@metamask/gas-fee-controller": "^24.1.0",
     "@metamask/network-controller": "^24.3.0",
     "@metamask/snaps-controllers": "^14.0.1",
@@ -76,7 +76,7 @@
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^33.0.0",
-    "@metamask/bridge-controller": "^53.0.0",
+    "@metamask/bridge-controller": "^54.0.0",
     "@metamask/gas-fee-controller": "^24.0.0",
     "@metamask/network-controller": "^24.0.0",
     "@metamask/snaps-controllers": "^14.0.0",

@@ -25,6 +25,8 @@ import type {
   BridgeAsset,
   BridgeControllerState,
   GenericQuoteRequest,
+  QuoteResponse,
+  TxData,
 } from '../types';
 import { ChainId } from '../types';
 
@@ -214,6 +216,12 @@ export const isNonEvmChainId = (
     isBitcoinChainId(chainId) ||
     isTronChainId(chainId)
   );
+};
+
+export const isEvmQuoteResponse = (
+  quoteResponse: QuoteResponse,
+): quoteResponse is QuoteResponse<TxData> => {
+  return !isNonEvmChainId(quoteResponse.quote.srcChainId);
 };
 
 /**

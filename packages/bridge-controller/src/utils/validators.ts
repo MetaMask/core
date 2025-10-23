@@ -286,23 +286,9 @@ export const QuoteResponseSchema = type({
   trade: union([TxDataSchema, BitcoinTradeDataSchema, TronTradeDataSchema, string()]),
 });
 
-export const BitcoinQuoteResponseSchema = type({
-  quote: QuoteSchema,
-  estimatedProcessingTimeInSeconds: number(),
-  approval: optional(TxDataSchema),
-  trade: BitcoinTradeDataSchema,
-});
-
 export const validateQuoteResponse = (
   data: unknown,
 ): data is Infer<typeof QuoteResponseSchema> => {
   assert(data, QuoteResponseSchema);
-  return true;
-};
-
-export const validateBitcoinQuoteResponse = (
-  data: unknown,
-): data is Infer<typeof BitcoinQuoteResponseSchema> => {
-  assert(data, BitcoinQuoteResponseSchema);
   return true;
 };

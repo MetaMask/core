@@ -2,6 +2,7 @@ export type {
   CoverageStatus,
   LogSignatureRequest,
   LogTransactionRequest,
+  NormalizeSignatureRequestFn,
 } from './types';
 export type {
   ShieldControllerActions,
@@ -16,4 +17,4 @@ export {
   ShieldController,
   getDefaultShieldControllerState,
 } from './ShieldController';
-export { ShieldRemoteBackend } from './backend';
+export { ShieldRemoteBackend, parseSignatureRequestMethod } from './backend';
