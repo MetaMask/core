@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "82.0.0",
+  "version": "83.0.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",
@@ -72,7 +72,7 @@
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
     "lodash": "^4.17.21",
-    "multiformats": "^13.1.0",
+    "multiformats": "^9.9.0",
     "reselect": "^5.1.1",
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^8.3.2"
@@ -80,11 +80,11 @@
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
     "@metamask/account-api": "^0.12.0",
-    "@metamask/account-tree-controller": "^1.5.0",
+    "@metamask/account-tree-controller": "^1.6.0",
     "@metamask/accounts-controller": "^33.1.1",
     "@metamask/approval-controller": "^7.2.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/core-backend": "^2.1.0",
+    "@metamask/core-backend": "^3.0.0",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/keyring-controller": "^23.1.1",
     "@metamask/keyring-internal-api": "^9.0.0",
@@ -115,7 +115,7 @@
     "@metamask/account-tree-controller": "^1.0.0",
     "@metamask/accounts-controller": "^33.0.0",
     "@metamask/approval-controller": "^7.0.0",
-    "@metamask/core-backend": "^2.0.0",
+    "@metamask/core-backend": "^3.0.0",
     "@metamask/keyring-controller": "^23.0.0",
     "@metamask/network-controller": "^24.0.0",
     "@metamask/permission-controller": "^11.0.0",

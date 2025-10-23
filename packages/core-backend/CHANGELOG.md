@@ -7,9 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
+### Added
+
+- Add `forceReconnection()` method to `BackendWebSocketService` for controlled subscription state cleanup ([#6861](https://github.com/MetaMask/core/pull/6861))
+  - Performs a controlled disconnect-then-reconnect sequence with exponential backoff
+  - Useful for recovering from subscription/unsubscription issues and cleaning up orphaned subscriptions
+  - Add `BackendWebSocketService:forceReconnection` messenger action
+- Add stable connection timer to prevent rapid reconnection loops ([#6861](https://github.com/MetaMask/core/pull/6861))
+  - Connection must stay stable for 10 seconds before resetting reconnect attempts
+  - Prevents issues when server accepts connection then immediately closes it
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+- Update `AccountActivityService` to use new `forceReconnection()` method instead of manually calling disconnect/connect ([#6861](https://github.com/MetaMask/core/pull/6861))
+- **BREAKING:** Update allowed actions for `AccountActivityService` messenger: remove `BackendWebSocketService:disconnect`, add `BackendWebSocketService:forceReconnection` ([#6861](https://github.com/MetaMask/core/pull/6861))
+- Improve reconnection scheduling in `BackendWebSocketService` to be idempotent ([#6861](https://github.com/MetaMask/core/pull/6861))
+  - Prevents duplicate reconnection timers and inflated attempt counters
+  - Scheduler checks if reconnect is already scheduled before creating new timer
+- Improve error handling in `BackendWebSocketService.connect()` ([#6861](https://github.com/MetaMask/core/pull/6861))
+  - Always schedule reconnect on connection failure (exponential backoff prevents aggressive retries)
+  - Remove redundant schedule calls from error paths
+- Update `BackendWebSocketService.disconnect()` to reset reconnect attempts counter ([#6861](https://github.com/MetaMask/core/pull/6861))
+- Update `BackendWebSocketService.disconnect()` return type from `Promise<void>` to `void` ([#6861](https://github.com/MetaMask/core/pull/6861))
+- Improve logging throughout `BackendWebSocketService` for better debugging ([#6861](https://github.com/MetaMask/core/pull/6861))
+
+### Fixed
+
+- Fix potential race condition in `BackendWebSocketService.connect()` that could bypass exponential backoff when reconnect is already scheduled ([#6861](https://github.com/MetaMask/core/pull/6861))
+- Fix memory leak from orphaned timers when multiple reconnects are scheduled ([#6861](https://github.com/MetaMask/core/pull/6861))
+- Fix issue where reconnect attempts counter could grow unnecessarily with duplicate scheduled reconnects ([#6861](https://github.com/MetaMask/core/pull/6861))
 
 ## [2.1.0]
 
@@ -85,7 +114,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.1.0...@metamask/core-backend@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.0.0...@metamask/core-backend@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@1.0.1...@metamask/core-backend@2.0.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@1.0.0...@metamask/core-backend@1.0.1

@@ -7,9 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `Monad Mainnet` into `SUPPORTED_NETWORKS_ACCOUNTS_API_V4`
+
+### Fixed
+
+- Fix incorrect balance scan contract address for `Monad Mainnet`
+  - Remove `Monad Mainnet` in `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID` ([#6929](https://github.com/MetaMask/core/pull/6929))
+
+## [83.0.0]
+
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/core-backend` from `^2.0.0` to `^3.0.0` ([#6923](https://github.com/MetaMask/core/pull/6923))
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+### Fixed
+
+- Downgrade `multiformats` to `^9.9.0` to avoid ESM-only dependency ([#6920](https://github.com/MetaMask/core/pull/6920))
 
 ## [82.0.0]
 
@@ -2150,7 +2166,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@82.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@83.0.0...HEAD
+[83.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@82.0.0...@metamask/assets-controllers@83.0.0
 [82.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.1...@metamask/assets-controllers@82.0.0
 [81.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.0...@metamask/assets-controllers@81.0.1
 [81.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@80.0.0...@metamask/assets-controllers@81.0.0
