@@ -30,6 +30,7 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
+import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   PreferencesControllerGetStateAction,
@@ -141,7 +142,8 @@ export type AllowedActions =
   | TokensControllerGetStateAction
   | TokensControllerAddDetectedTokensAction
   | TokensControllerAddTokensAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction;
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkEnablementControllerGetStateAction;
 
 export type TokenDetectionControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
@@ -517,27 +519,35 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     return isEqualValues;
   }
 
+  /**
+   * Gets enabled EVM network chain IDs from the network enablement state.
+   * Only considers EVM networks (eip155 namespace) for token detection.
+   *
+   * @returns Array of enabled EVM chain IDs
+   */
+  #getEnabledEvmChainIds(): Hex[] {
+    const { enabledNetworkMap } = this.messagingSystem.call(
+      'NetworkEnablementController:getState',
+    );
+
+    const evmNetworks = enabledNetworkMap.eip155 || {};
+    return Object.entries(evmNetworks)
+      .filter(([, enabled]) => enabled)
+      .map(([chainId]) => chainId as Hex);
+  }
+
   #getCorrectNetworkClientIdByChainId(
     chainIds: Hex[] | undefined,
   ): { chainId: Hex; networkClientId: NetworkClientId }[] {
-    const { networkConfigurationsByChainId, selectedNetworkClientId } =
-      this.messagingSystem.call('NetworkController:getState');
+    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
 
-    if (!chainIds) {
-      const networkConfiguration = this.messagingSystem.call(
-        'NetworkController:getNetworkConfigurationByNetworkClientId',
-        selectedNetworkClientId,
-      );
+    const targetChainIds = chainIds?.length
+      ? chainIds
+      : this.#getEnabledEvmChainIds();
 
-      return [
-        {
-          chainId: networkConfiguration?.chainId ?? ChainId.mainnet,
-          networkClientId: selectedNetworkClientId,
-        },
-      ];
-    }
-
-    return chainIds.map((chainId) => {
+    return targetChainIds.map((chainId) => {
       const configuration = networkConfigurationsByChainId[chainId];
       return {
         chainId,
