@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix Bitcoin network fee computation by extracting `unsignedPsbtBase64` from Bitcoin trade objects and supporting `'priority'` fee type from Bitcoin snap ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
 ## [55.0.0]
 
 ### Changed
