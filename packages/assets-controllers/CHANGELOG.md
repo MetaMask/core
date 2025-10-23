@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `Monad Mainnet` into `SUPPORTED_NETWORKS_ACCOUNTS_API_V4`
+
 ### Fixed
 
 - Fix incorrect balance scan contract address for `Monad Mainnet`
