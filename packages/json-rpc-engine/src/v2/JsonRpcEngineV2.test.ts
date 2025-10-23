@@ -376,7 +376,7 @@ describe('JsonRpcEngineV2', () => {
           middleware: [middleware1, middleware2],
         });
 
-        // @ts-expect-error - The engine is `never`, which is what we want.
+        // @ts-expect-error - The engine is `InvalidEngine`, which is what we want.
         expect(await engine.handle(makeRequest())).toBe('bar');
       });
 

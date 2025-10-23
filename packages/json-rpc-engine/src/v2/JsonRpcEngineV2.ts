@@ -97,6 +97,15 @@ type MergedContextOf<
   Middleware extends JsonRpcMiddleware<any, any, any>,
 > = MergeContexts<ContextOf<Middleware>>;
 
+const INVALID_ENGINE = Symbol('Invalid engine');
+
+/**
+ * An internal type for invalid engines that explains why the engine is invalid.
+ *
+ * @template Message - The message explaining why the engine is invalid.
+ */
+type InvalidEngine<Message extends string> = { [INVALID_ENGINE]: Message };
+
 /**
  * A JSON-RPC request and response processor.
  *
@@ -187,7 +196,7 @@ export class JsonRpcEngineV2<
     return new JsonRpcEngineV2<InputRequest, MergedContext>({
       middleware: mw,
     }) as MergedContext extends never
-      ? never
+      ? InvalidEngine<'Some middleware have incompatible context types'>
       : JsonRpcEngineV2<InputRequest, MergedContext>;
   }
 

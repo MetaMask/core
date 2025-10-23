@@ -70,10 +70,7 @@ export class MiddlewareContext<
 /**
  * Infer the KeyValues type from a {@link MiddlewareContext}.
  */
-// Using `any` in this constraint does not pollute other types.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type InferKeyValues<T extends MiddlewareContext<any>> =
-  T extends MiddlewareContext<infer U> ? U : never;
+type InferKeyValues<T> = T extends MiddlewareContext<infer U> ? U : never;
 
 /**
  * An unholy incantation that converts a union of object types into an
@@ -84,7 +81,7 @@ type InferKeyValues<T extends MiddlewareContext<any>> =
  * type B = UnionToIntersection<A>; // { a: string } & { b: number }
  */
 type UnionToIntersection<U> = (
-  U extends unknown ? (k: U) => void : never
+  U extends never ? never : (k: U) => void
 ) extends (k: infer I) => void
   ? I
   : never;
