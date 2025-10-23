@@ -183,7 +183,6 @@
     "jsdoc/require-jsdoc": 1
   },
   "packages/eth-json-rpc-middleware/src/block-tracker-inspector.ts": {
-    "@typescript-eslint/no-explicit-any": 1,
     "jsdoc/match-description": 1,
     "jsdoc/require-jsdoc": 2
   },
