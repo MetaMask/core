@@ -142,7 +142,7 @@ export class SubscriptionService implements ISubscriptionService {
   async submitSponsorshipIntents(
     request: SubmitSponsorshipIntentsRequest,
   ): Promise<void> {
-    const path = 'subscription-sponsorship/intents';
+    const path = 'transaction-sponsorship/intents';
     await this.#makeRequest(path, 'POST', request);
   }
 

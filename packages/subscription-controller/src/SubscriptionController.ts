@@ -79,6 +79,11 @@ export type SubscriptionControllerGetBillingPortalUrlAction = {
   handler: SubscriptionController['getBillingPortalUrl'];
 };
 
+export type SubscriptionControllerSubmitSponsorshipIntentsAction = {
+  type: `${typeof controllerName}:submitSponsorshipIntents`;
+  handler: SubscriptionController['submitSponsorshipIntents'];
+};
+
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   SubscriptionControllerState
@@ -93,7 +98,8 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerGetCryptoApproveTransactionParamsAction
   | SubscriptionControllerStartSubscriptionWithCryptoAction
   | SubscriptionControllerUpdatePaymentMethodAction
-  | SubscriptionControllerGetBillingPortalUrlAction;
+  | SubscriptionControllerGetBillingPortalUrlAction
+  | SubscriptionControllerSubmitSponsorshipIntentsAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -277,6 +283,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.messagingSystem.registerActionHandler(
       'SubscriptionController:getBillingPortalUrl',
       this.getBillingPortalUrl.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:submitSponsorshipIntents`,
+      this.submitSponsorshipIntents.bind(this),
     );
   }
 
@@ -496,7 +507,12 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * When the user has enabled the smart transaction feature, we will sponsor the gas fees for the subscription approval transaction.
    *
    * @param request - Request object containing the address and products.
-   * @example { address: '0x1234567890123456789012345678901234567890', products: [ProductType.Shield] }
+   * @example {
+   *   address: '0x1234567890123456789012345678901234567890',
+   *   products: [ProductType.Shield],
+   *   recurringInterval: RecurringInterval.Month,
+   *   billingCycles: 1,
+   * }
    */
   async submitSponsorshipIntents(request: SubmitSponsorshipIntentsRequest) {
     this.#assertIsUserNotSubscribed({ products: request.products });

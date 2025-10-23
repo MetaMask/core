@@ -135,6 +135,7 @@ export type StartCryptoSubscriptionRequest = {
    */
   tokenSymbol: string;
   rawTransaction: Hex;
+  isSponsored?: boolean;
 };
 
 export type StartCryptoSubscriptionResponse = {
@@ -239,9 +240,14 @@ export type SubmitUserEventRequest = {
   event: SubscriptionUserEventType;
 };
 
+/**
+ * Request object for submitting sponsorship intents.
+ */
 export type SubmitSponsorshipIntentsRequest = {
   address: `0x${string}`;
   products: ProductType[];
+  recurringInterval: RecurringInterval;
+  billingCycles: number;
 };
 
 export type ISubscriptionService = {
@@ -268,6 +274,21 @@ export type ISubscriptionService = {
   ): Promise<void>;
   getSubscriptionsEligibilities(): Promise<SubscriptionEligibility[]>;
   submitUserEvent(request: SubmitUserEventRequest): Promise<void>;
+
+  /**
+   * Submit sponsorship intents to the Subscription Service backend.
+   *
+   * This is intended to be used together with the crypto subscription flow.
+   * When the user has enabled the smart transaction feature, we will sponsor the gas fees for the subscription approval transaction.
+   *
+   * @param request - Request object containing the address and products.
+   * @example {
+   *   address: '0x1234567890123456789012345678901234567890',
+   *   products: [ProductType.Shield],
+   *   recurringInterval: RecurringInterval.Month,
+   *   billingCycles: 1,
+   * }
+   */
   submitSponsorshipIntents(
     request: SubmitSponsorshipIntentsRequest,
   ): Promise<void>;

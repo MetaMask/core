@@ -25,6 +25,7 @@ import type {
   UpdatePaymentMethodOpts,
   Product,
   SubscriptionEligibility,
+  SubmitSponsorshipIntentsRequest,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -1409,20 +1410,25 @@ describe('SubscriptionController', () => {
   });
 
   describe('submitSponsorshipIntents', () => {
+    const MOCK_SUBMISSION_INTENTS_REQUEST: SubmitSponsorshipIntentsRequest = {
+      address: '0x1234567890123456789012345678901234567890',
+      products: [PRODUCT_TYPES.SHIELD],
+      recurringInterval: RECURRING_INTERVALS.month,
+      billingCycles: 12,
+    };
+
     it('should submit sponsorship intents successfully', async () => {
       await withController(async ({ controller, mockService }) => {
         const submitSponsorshipIntentsSpy = jest
           .spyOn(mockService, 'submitSponsorshipIntents')
           .mockResolvedValue(undefined);
 
-        await controller.submitSponsorshipIntents({
-          address: '0x1234567890123456789012345678901234567890',
-          products: [PRODUCT_TYPES.SHIELD],
-        });
-        expect(submitSponsorshipIntentsSpy).toHaveBeenCalledWith({
-          address: '0x1234567890123456789012345678901234567890',
-          products: [PRODUCT_TYPES.SHIELD],
-        });
+        await controller.submitSponsorshipIntents(
+          MOCK_SUBMISSION_INTENTS_REQUEST,
+        );
+        expect(submitSponsorshipIntentsSpy).toHaveBeenCalledWith(
+          MOCK_SUBMISSION_INTENTS_REQUEST,
+        );
       });
     });
 
@@ -1435,10 +1441,9 @@ describe('SubscriptionController', () => {
         },
         async ({ controller, mockService }) => {
           await expect(
-            controller.submitSponsorshipIntents({
-              address: '0x1234567890123456789012345678901234567890',
-              products: [PRODUCT_TYPES.SHIELD],
-            }),
+            controller.submitSponsorshipIntents(
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.UserAlreadySubscribed,
           );
@@ -1457,10 +1462,7 @@ describe('SubscriptionController', () => {
         );
 
         await expect(
-          controller.submitSponsorshipIntents({
-            address: '0x1234567890123456789012345678901234567890',
-            products: [PRODUCT_TYPES.SHIELD],
-          }),
+          controller.submitSponsorshipIntents(MOCK_SUBMISSION_INTENTS_REQUEST),
         ).rejects.toThrow(SubscriptionServiceError);
       });
     });
