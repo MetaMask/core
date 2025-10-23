@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The `getAccounts` method in the `BaseBip44AccountProvider` class no longer relies on fetching the entire list of internal accounts from the `AccountsController`, instead it gets the specific accounts that it stores in its internal accounts list.
   - The `EvmAccountProvider` no longer fetches from the `AccountController` to get an account for its ID, we deterministically get the associated account ID through `getUUIDFromAddressOfNormalAccount`.
   - The `EvmAccountProvider` now uses the `getAccount` method from the `AccountsController` when fetching an account after account creation as it is more efficient.
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 
 ### Removed
 
