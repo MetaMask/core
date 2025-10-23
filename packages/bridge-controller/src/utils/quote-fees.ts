@@ -12,6 +12,7 @@ import type {
   NonEvmFees,
   TxData,
   BridgeControllerMessenger,
+  BitcoinTradeData,
 } from '../types';
 
 /**
@@ -109,14 +110,22 @@ const appendNonEvmFees = async (
     quotes.map(async (quoteResponse) => {
       const { trade, quote } = quoteResponse;
 
-      if (selectedAccount?.metadata?.snap?.id && typeof trade === 'string') {
+      if (selectedAccount?.metadata?.snap?.id && trade) {
         const scope = formatChainIdToCaip(quote.srcChainId);
+
+        // Extract transaction string for snap
+        // For Bitcoin: extract unsignedPsbtBase64 from the trade object
+        // For Solana: trade is already a string
+        const transaction =
+          typeof trade === 'string'
+            ? trade
+            : (trade as BitcoinTradeData).unsignedPsbtBase64;
 
         const response = (await messenger.call(
           'SnapController:handleRequest',
           computeFeeRequest(
             selectedAccount.metadata.snap?.id,
-            trade,
+            transaction,
             selectedAccount.id,
             scope,
           ),
