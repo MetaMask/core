@@ -1,6 +1,12 @@
-import type { SignatureRequest } from '@metamask/signature-controller';
+import {
+  EthMethod,
+  SignatureRequestType,
+  type SignatureRequest,
+} from '@metamask/signature-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { Json } from '@metamask/utils';
 
+import { SignTypedDataVersion } from './constants';
 import type {
   CheckCoverageRequest,
   CheckSignatureCoverageRequest,
@@ -27,7 +33,7 @@ export type InitCoverageCheckRequest = {
 
 export type InitSignatureCoverageCheckRequest = {
   chainId: string;
-  data: string;
+  data: Json;
   from: string;
   method: string;
   origin?: string;
@@ -281,15 +287,40 @@ function makeInitCoverageCheckBody(
 function makeInitSignatureCoverageCheckBody(
   signatureRequest: SignatureRequest,
 ): InitSignatureCoverageCheckRequest {
-  if (typeof signatureRequest.messageParams.data !== 'string') {
-    throw new Error('Signature data must be a string');
-  }
+  // TODO: confirm that do we still need to validate the signature data?
+  // signature controller already validates the signature data before adding it to the state.
+  // @link https://github.com/MetaMask/core/blob/main/packages/signature-controller/src/SignatureController.ts#L408
+  const method = parseSignatureRequestMethod(signatureRequest);
 
   return {
     chainId: signatureRequest.chainId,
-    data: signatureRequest.messageParams.data as string,
+    data: signatureRequest.messageParams.data,
     from: signatureRequest.messageParams.from,
-    method: signatureRequest.type,
+    method,
     origin: signatureRequest.messageParams.origin,
   };
+}
+
+/**
+ * Parse the JSON-RPC method from the signature request.
+ *
+ * @param signatureRequest - The signature request.
+ * @returns The JSON-RPC method.
+ */
+export function parseSignatureRequestMethod(
+  signatureRequest: SignatureRequest,
+): string {
+  if (signatureRequest.type === SignatureRequestType.TypedSign) {
+    switch (signatureRequest.version) {
+      case SignTypedDataVersion.V3:
+        return EthMethod.SignTypedDataV3;
+      case SignTypedDataVersion.V4:
+        return EthMethod.SignTypedDataV4;
+      case SignTypedDataVersion.V1:
+      default:
+        return SignatureRequestType.TypedSign;
+    }
+  }
+
+  return signatureRequest.type;
 }
