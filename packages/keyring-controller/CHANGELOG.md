@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add actions for `createNewVaultAndKeychain` and `createNewVaultAndRestore` ([#6654](https://github.com/MetaMask/core/pull/6708))
+- Add actions for `createNewVaultAndKeychain` and `createNewVaultAndRestore` ([#6928](https://github.com/MetaMask/core/pull/6928))
   - These actions are meant to to be consumed by the `MultichainAccountService` in its `createMultichainAccountWallet` method.
 
 ### Changed
