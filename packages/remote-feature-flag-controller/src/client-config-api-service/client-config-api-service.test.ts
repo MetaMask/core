@@ -191,7 +191,7 @@ describe('ClientConfigApiService', () => {
       // Check that fetch was retried the correct number of times
       expect(mockFetch).toHaveBeenCalledTimes(maxRetries + 1); // Initial + retries
     });
-    
+
     it('should call the onBreak callback when the circuit opens', async () => {
       const onBreak = jest.fn();
       const mockFetch = createMockFetch({ error: networkError });
