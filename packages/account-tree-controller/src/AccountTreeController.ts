@@ -638,6 +638,9 @@ export class AccountTreeController extends BaseController<
     const group = wallet.groups[groupId];
     const persistedGroupMetadata = state.accountGroupsMetadata[groupId];
 
+    // Ensure metadata object exists once at the beginning
+    state.accountGroupsMetadata[groupId] ??= {};
+
     // Apply persisted name if available (including empty strings)
     if (persistedGroupMetadata?.name !== undefined) {
       state.accountTree.wallets[walletId].groups[groupId].metadata.name =
@@ -666,7 +669,6 @@ export class AccountTreeController extends BaseController<
       log(`[${group.id}] Set default name to: "${group.metadata.name}"`);
 
       // Persist the generated name to ensure consistency
-      state.accountGroupsMetadata[groupId] ??= {};
       state.accountGroupsMetadata[groupId].name = {
         value: proposedName,
         // The `lastUpdatedAt` field is used for backup and sync, when comparing local names
@@ -687,7 +689,6 @@ export class AccountTreeController extends BaseController<
           this.#accountOrderCallbacks?.isPinnedAccount?.(account),
         );
       }
-      state.accountGroupsMetadata[groupId] ??= {};
       state.accountGroupsMetadata[groupId].pinned = {
         value: isPinned,
         lastUpdatedAt: 0,
@@ -706,7 +707,6 @@ export class AccountTreeController extends BaseController<
           this.#accountOrderCallbacks?.isHiddenAccount?.(account),
         );
       }
-      state.accountGroupsMetadata[groupId] ??= {};
       state.accountGroupsMetadata[groupId].hidden = {
         value: isHidden,
         lastUpdatedAt: 0,
