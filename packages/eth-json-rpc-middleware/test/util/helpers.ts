@@ -4,6 +4,17 @@ import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
 
+export const createRequest = <Request extends Partial<JsonRpcRequest>>(
+  request: Request,
+): JsonRpcRequest => {
+  return {
+    jsonrpc: '2.0',
+    id: request.id ?? '1',
+    method: request.method ?? 'test_request',
+    params: request.params === undefined ? [] : request.params,
+  };
+};
+
 /**
  * An object that can be used to assign a canned result to a request made via
  * `provider.request`.

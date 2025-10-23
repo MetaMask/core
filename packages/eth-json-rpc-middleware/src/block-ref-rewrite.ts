@@ -9,6 +9,14 @@ type BlockRefRewriteMiddlewareOptions = {
   blockTracker?: PollingBlockTracker;
 };
 
+/**
+ * Creates a middleware that rewrites "latest" block references to the known
+ * latest block number from a block tracker.
+ *
+ * @param options - The options for the middleware.
+ * @param options.blockTracker - The block tracker to use.
+ * @returns The middleware.
+ */
 export function createBlockRefRewriteMiddleware({
   blockTracker,
 }: BlockRefRewriteMiddlewareOptions = {}): JsonRpcMiddleware<
@@ -23,11 +31,10 @@ export function createBlockRefRewriteMiddleware({
 
   return createAsyncMiddleware(async (req, _res, next) => {
     const blockRefIndex: number | undefined = blockTagParamIndex(req.method);
-    // skip if method does not include blockRef
     if (blockRefIndex === undefined) {
       return next();
     }
-    // skip if not "latest"
+
     const blockRef: string | undefined =
       Array.isArray(req.params) && req.params[blockRefIndex]
         ? (req.params[blockRefIndex] as string)
@@ -37,6 +44,7 @@ export function createBlockRefRewriteMiddleware({
     if (blockRef !== 'latest') {
       return next();
     }
+
     // rewrite blockRef to block-tracker's block number
     const latestBlockNumber = await blockTracker.getLatestBlock();
     if (Array.isArray(req.params)) {
