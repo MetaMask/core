@@ -83,11 +83,11 @@ const getMessenger = (): {
   mocks: {
     getSelectedAccount: jest.Mock;
     connect: jest.Mock;
-    disconnect: jest.Mock;
     subscribe: jest.Mock;
     channelHasSubscription: jest.Mock;
     getSubscriptionsByChannel: jest.Mock;
     findSubscriptionsByChannelPrefix: jest.Mock;
+    forceReconnection: jest.Mock;
     addChannelCallback: jest.Mock;
     removeChannelCallback: jest.Mock;
   };
@@ -109,7 +109,7 @@ const getMessenger = (): {
     actions: [
       'AccountsController:getSelectedAccount',
       'BackendWebSocketService:connect',
-      'BackendWebSocketService:disconnect',
+      'BackendWebSocketService:forceReconnection',
       'BackendWebSocketService:subscribe',
       'BackendWebSocketService:getConnectionInfo',
       'BackendWebSocketService:channelHasSubscription',
