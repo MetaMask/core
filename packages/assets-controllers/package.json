@@ -72,7 +72,7 @@
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
     "lodash": "^4.17.21",
-    "multiformats": "^13.1.0",
+    "multiformats": "^9.9.0",
     "reselect": "^5.1.1",
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^8.3.2"
