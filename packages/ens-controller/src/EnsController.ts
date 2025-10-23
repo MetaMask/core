@@ -1,7 +1,7 @@
 import { Web3Provider } from '@ethersproject/providers';
 import {
   BaseController,
-  StateMetadata,
+  type StateMetadata,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
 } from '@metamask/base-controller/next';
