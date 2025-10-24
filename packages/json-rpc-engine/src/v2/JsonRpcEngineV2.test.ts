@@ -31,6 +31,49 @@ describe('JsonRpcEngineV2', () => {
         new JsonRpcEngineError('Middleware array cannot be empty'),
       );
     });
+
+    it('type errors if passed middleware with incompatible context types', async () => {
+      const middleware1: JsonRpcMiddleware<
+        JsonRpcCall,
+        ResultConstraint<JsonRpcCall>,
+        MiddlewareContext<{ foo: string }>
+      > = ({ next, context }) => {
+        context.set('foo', 'bar');
+        return next();
+      };
+
+      const middleware2: JsonRpcMiddleware<
+        JsonRpcCall,
+        ResultConstraint<JsonRpcCall>,
+        MiddlewareContext<{ foo: number }>
+      > = ({ context }) => context.assertGet('foo');
+      const engine = JsonRpcEngineV2.create({
+        middleware: [middleware1, middleware2],
+      });
+
+      // @ts-expect-error - The engine is `InvalidEngine`.
+      expect(await engine.handle(makeRequest())).toBe('bar');
+    });
+
+    // Keeping this here for documentation purposes.
+    // eslint-disable-next-line jest/no-disabled-tests
+    it.skip('type errors if passed middleware with incompatible request types', async () => {
+      const middleware1: JsonRpcMiddleware<JsonRpcNotification> = ({ next }) =>
+        next();
+      const middleware2: JsonRpcMiddleware<JsonRpcRequest> = () => {
+        return 'foo';
+      };
+      const engine = JsonRpcEngineV2.create({
+        middleware: [middleware1, middleware2],
+      });
+
+      // TODO: We want this to cause a type error, but it's unclear if it can be
+      // made to work due to the difficulty (impossibility?) of distinguishing
+      // between these two cases:
+      // - JsonRpcMiddleware<JsonRpcRequest> | JsonRpcMiddleware<JsonRpcNotification> (invalid)
+      // - JsonRpcMiddleware<JsonRpcRequest> | JsonRpcMiddleware<JsonRpcCall> (valid)
+      expect(await engine.handle(makeRequest() as JsonRpcRequest)).toBe('foo');
+    });
   });
 
   describe('handle', () => {
@@ -362,29 +405,6 @@ describe('JsonRpcEngineV2', () => {
         const result = await engine.handle(makeRequest());
 
         expect(result).toBe('bar');
-      });
-
-      it('type errors if different context types are mutually exclusive', async () => {
-        const middleware1: JsonRpcMiddleware<
-          JsonRpcCall,
-          ResultConstraint<JsonRpcCall>,
-          MiddlewareContext<{ foo: string }>
-        > = ({ next, context }) => {
-          context.set('foo', 'bar');
-          return next();
-        };
-
-        const middleware2: JsonRpcMiddleware<
-          JsonRpcCall,
-          ResultConstraint<JsonRpcCall>,
-          MiddlewareContext<{ foo: number }>
-        > = ({ context }) => context.assertGet('foo');
-        const engine = JsonRpcEngineV2.create({
-          middleware: [middleware1, middleware2],
-        });
-
-        // @ts-expect-error - The engine is `InvalidEngine`, which is what we want.
-        expect(await engine.handle(makeRequest())).toBe('bar');
       });
 
       it('throws if a middleware attempts to modify properties of the context', async () => {

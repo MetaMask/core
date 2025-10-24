@@ -74,9 +74,13 @@ type ConstructorOptions<
 };
 
 type RequestOf<Middleware> =
-  // Non-polluting `any` constraint.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Middleware extends JsonRpcMiddleware<infer Request, any, any>
+  Middleware extends JsonRpcMiddleware<
+    infer Request,
+    ResultConstraint<infer Request>,
+    // Non-polluting `any` constraint.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any
+  >
     ? Request
     : never;
 

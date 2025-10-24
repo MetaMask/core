@@ -513,6 +513,8 @@ engine in which they are used. To be used within the same engine, a set of middl
 compatible types. Specifically, all middleware must:
 
 - Handle either `JsonRpcRequest`, `JsonRpcNotification`, or both (i.e. `JsonRpcCall`)
+  - It is okay to mix `JsonRpcCall` middleware with either `JsonRpcRequest` or `JsonRpcNotification`
+    middleware, as long as the latter two are not mixed together.
 - Return valid results for the overall request type
 - Specify mutually inclusive context types
   - The context types may be the same, partially intersecting, or completely disjoint
@@ -547,12 +549,18 @@ const engine = JsonRpcEngineV2.create<Middleware>({
 
 The following middleware are incompatible due to mismatched request types:
 
+> [!WARNING]
+> Providing `JsonRpcRequest`- and `JsonRpcNotification`-only middleware to the same engine is
+> unsound and should be avoided. However, doing so will **not** cause a type error, and it
+> is the programmer's responsibility to prevent it from happening.
+
 ```ts
 const middleware1: JsonRpcMiddleware<JsonRpcNotification> = /* ... */;
 
 const middleware2: JsonRpcMiddleware<JsonRpcRequest> = /* ... */;
 
-// ❌ Attempting to call engine.handle() with any value will cause a type error
+// ⚠️ Attempting to call engine.handle() will NOT cause a type error, but it
+// may cause errors at runtime and should be avoided.
 const engine = JsonRpcEngineV2.create<Middleware>({
   middleware: [middleware1, middleware2],
 });

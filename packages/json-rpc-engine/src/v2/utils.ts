@@ -25,6 +25,20 @@ export const isNotification = <Params extends JsonRpcParams>(
 ): msg is JsonRpcNotification<Params> => !isRequest(msg);
 
 /**
+ * An unholy incantation that converts a union of object types into an
+ * intersection of object types.
+ *
+ * @example
+ * type A = { a: string } | { b: number };
+ * type B = UnionToIntersection<A>; // { a: string } & { b: number }
+ */
+export type UnionToIntersection<U> = (
+  U extends never ? never : (k: U) => void
+) extends (k: infer I) => void
+  ? I
+  : never;
+
+/**
  * JSON-stringifies a value.
  *
  * @param value - The value to stringify.

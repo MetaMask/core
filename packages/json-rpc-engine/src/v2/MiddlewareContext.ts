@@ -1,3 +1,5 @@
+import type { UnionToIntersection } from './utils';
+
 /**
  * An context object for middleware that attempts to protect against accidental
  * modifications. Its interface is frozen.
@@ -71,20 +73,6 @@ export class MiddlewareContext<
  * Infer the KeyValues type from a {@link MiddlewareContext}.
  */
 type InferKeyValues<T> = T extends MiddlewareContext<infer U> ? U : never;
-
-/**
- * An unholy incantation that converts a union of object types into an
- * intersection of object types.
- *
- * @example
- * type A = { a: string } | { b: number };
- * type B = UnionToIntersection<A>; // { a: string } & { b: number }
- */
-type UnionToIntersection<U> = (
-  U extends never ? never : (k: U) => void
-) extends (k: infer I) => void
-  ? I
-  : never;
 
 /**
  * Simplifies an object type by "merging" its properties.
