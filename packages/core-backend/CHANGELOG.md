@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6823](https://github.com/MetaMask/core/pull/6823))
   - Previously, `AccountActivityService` and `BackendWebSocketService` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- Bump `@metamask/profile-sync-controller` from `^25.1.1` to `^25.1.2` ([#6940](https://github.com/MetaMask/core/pull/6940))
 
 ### Removed
 

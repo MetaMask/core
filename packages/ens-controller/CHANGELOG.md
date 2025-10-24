@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.1.1]
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
@@ -318,7 +320,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@17.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@17.1.1...HEAD
+[17.1.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@17.1.0...@metamask/ens-controller@17.1.1
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@17.0.1...@metamask/ens-controller@17.1.0
 [17.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@17.0.0...@metamask/ens-controller@17.0.1
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@16.0.0...@metamask/ens-controller@17.0.0

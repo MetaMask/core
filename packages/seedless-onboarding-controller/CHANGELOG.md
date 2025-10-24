@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.1]
+
 ### Changed
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6364](https://github.com/MetaMask/core/pull/6364))
@@ -192,7 +194,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.1.1...HEAD
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.1.0...@metamask/seedless-onboarding-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.0.0...@metamask/seedless-onboarding-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@3.0.0...@metamask/seedless-onboarding-controller@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.6.0...@metamask/seedless-onboarding-controller@3.0.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.1]
+
 ### Changed
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6495](https://github.com/MetaMask/core/pull/6495))
@@ -105,7 +107,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This service is responsible for making search related requests to the Portfolio API
   - Specifically, it handles the `tokens-search` endpoint which returns a list of tokens based on the provided query parameters
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.5.1...HEAD
+[3.5.1]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.5.0...@metamask/token-search-discovery-controller@3.5.1
 [3.5.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.4.0...@metamask/token-search-discovery-controller@3.5.0
 [3.4.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.3.0...@metamask/token-search-discovery-controller@3.4.0
 [3.3.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.2.0...@metamask/token-search-discovery-controller@3.3.0

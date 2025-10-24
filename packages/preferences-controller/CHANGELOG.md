@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.1.1]
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
@@ -460,7 +462,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.1...HEAD
+[20.1.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.0...@metamask/preferences-controller@20.1.1
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.2...@metamask/preferences-controller@20.1.0
 [20.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.1...@metamask/preferences-controller@20.0.2
 [20.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.0...@metamask/preferences-controller@20.0.1

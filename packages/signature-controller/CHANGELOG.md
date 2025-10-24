@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [34.0.2]
+
 ### Changed
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6496](https://github.com/MetaMask/core/pull/6496))
@@ -589,7 +591,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@34.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@34.0.2...HEAD
+[34.0.2]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@34.0.1...@metamask/signature-controller@34.0.2
 [34.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@34.0.0...@metamask/signature-controller@34.0.1
 [34.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@33.0.0...@metamask/signature-controller@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@32.0.0...@metamask/signature-controller@33.0.0

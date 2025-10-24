@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1]
+
 ### Changed
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6459](https://github.com/MetaMask/core/pull/6459))
@@ -71,7 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5592](https://github.com/MetaMask/core/pull/5592))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@0.8.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@0.8.1...HEAD
+[0.8.1]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@0.8.0...@metamask/delegation-controller@0.8.1
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@0.7.0...@metamask/delegation-controller@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@0.6.0...@metamask/delegation-controller@0.7.0
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@0.5.0...@metamask/delegation-controller@0.6.0

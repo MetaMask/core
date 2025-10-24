@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.1.1]
+
 ### Changed
 
 - **BREAKING:** Migrate `ComposableController` to new `Messenger` from `@metamask/messenger` ([#6710](https://github.com/MetaMask/core/pull/6710))
@@ -242,7 +244,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.1.1...HEAD
+[11.1.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.1.0...@metamask/composable-controller@11.1.1
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.0.0...@metamask/composable-controller@11.1.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@10.0.0...@metamask/composable-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.1...@metamask/composable-controller@10.0.0
