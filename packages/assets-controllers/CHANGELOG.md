@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add options `fetchingEnabled` callback to `AccountTrackerController` to stop it from fetching from the client ([#6938](https://github.com/MetaMask/core/pull/6938))
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
