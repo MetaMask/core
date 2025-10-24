@@ -237,6 +237,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
   readonly #balanceFetchers: BalanceFetcher[];
 
+  readonly #fetchingEnabled: () => boolean;
+
   /**
    * Creates an AccountTracker instance.
    *
@@ -248,6 +250,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param options.includeStakedAssets - Whether to include staked assets in the account balances.
    * @param options.accountsApiChainIds - Function that returns array of chainIds that should use Accounts-API strategy (if supported by API).
    * @param options.allowExternalServices - Disable external HTTP calls (privacy / offline mode).
+   * @param options.fetchingEnabled - Function that returns whether the controller is fetching enabled.
    */
   constructor({
     interval = 10000,
@@ -257,6 +260,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     includeStakedAssets = false,
     accountsApiChainIds = () => [],
     allowExternalServices = () => true,
+    fetchingEnabled = () => true,
   }: {
     interval?: number;
     state?: Partial<AccountTrackerControllerState>;
@@ -265,6 +269,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     includeStakedAssets?: boolean;
     accountsApiChainIds?: () => ChainIdHex[];
     allowExternalServices?: () => boolean;
+    fetchingEnabled?: () => boolean;
   }) {
     const { selectedNetworkClientId } = messenger.call(
       'NetworkController:getState',
@@ -302,6 +307,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         this.#includeStakedAssets,
       ),
     ];
+
+    this.#fetchingEnabled = fetchingEnabled;
 
     this.setIntervalLength(interval);
 
@@ -565,6 +572,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     selectedAccount: ChecksumAddress;
     allAccounts: InternalAccount[];
   }) {
+    if (!this.#fetchingEnabled()) {
+      return;
+    }
+
     const releaseLock = await this.#refreshMutex.acquire();
     try {
       const chainIds = networkClientIds.map((networkClientId) => {

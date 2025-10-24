@@ -229,6 +229,34 @@ describe('AccountTrackerController', () => {
   });
 
   describe('refresh', () => {
+    it('does not refresh when fetching is disabled', async () => {
+      const initialState = {
+        accountsByChainId: {
+          '0x1': {
+            [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
+            foo: { balance: '0x0' },
+          },
+          '0x2': {
+            [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
+            foo: { balance: '0x0' },
+          },
+        },
+      };
+
+      await withController(
+        {
+          options: { fetchingEnabled: () => false, state: initialState },
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1, ACCOUNT_2],
+        },
+        async ({ controller, refresh }) => {
+          await refresh(clock, ['mainnet'], true);
+
+          expect(controller.state).toStrictEqual(initialState);
+        },
+      );
+    });
+
     describe('without networkClientId', () => {
       it('should sync addresses', async () => {
         await withController(
