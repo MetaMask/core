@@ -8163,7 +8163,7 @@ describe('TransactionController', () => {
       updateTransactionSpy.mockRestore();
     });
 
-    it('does not add duplicate transaction when it already exists', () => {
+    it('updates transaction when it already exists', () => {
       const selectedAccount = {
         ...INTERNAL_ACCOUNT_MOCK,
         address: ACCOUNT_2_MOCK,
@@ -8172,12 +8172,16 @@ describe('TransactionController', () => {
         id: 'tx4',
         chainId: CHAIN_ID_MOCK,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
-        status: TransactionStatus.approved,
+        status: TransactionStatus.unapproved,
         txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
         },
       } as TransactionMeta;
+      const newTransactionMeta = {
+        ...existingTransactionMeta,
+        status: TransactionStatus.approved,
+      };
 
       const { controller, messenger } = setupController({
         options: {
@@ -8198,7 +8202,7 @@ describe('TransactionController', () => {
         statusUpdatedListener,
       );
 
-      controller.emulateTransactionUpdate(existingTransactionMeta);
+      controller.emulateTransactionUpdate(newTransactionMeta);
 
       expect(controller.state.transactions).toHaveLength(1);
       expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
@@ -8207,6 +8211,7 @@ describe('TransactionController', () => {
       expect(updatedTransactionMeta.txParams.from).toBe(
         selectedAccount.address,
       );
+      expect(updatedTransactionMeta.status).toBe(TransactionStatus.approved);
       expect(statusUpdatedListener).toHaveBeenCalledTimes(1);
       expect(statusUpdatedListener).toHaveBeenCalledWith({
         transactionMeta: updatedTransactionMeta,
