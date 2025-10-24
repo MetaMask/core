@@ -40,7 +40,6 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/sample-controllers",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/sample-controllers",
     "since-latest-release": "../../scripts/since-latest-release.sh",
-    "publish:preview": "yarn npm publish --tag preview",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
