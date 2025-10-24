@@ -1,0 +1,31 @@
+{
+  "entryPoints": ["src/index.ts"],
+  "out": "docs",
+  "exclude": ["**/*.test.ts"],
+  "excludeExternals": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "readme": "README.md",
+  "name": "@metamask/eip-7702-internal-rpc-middleware",
+  "includeVersion": true,
+  "sort": ["source-order"],
+  "categorizeByGroup": false,
+  "defaultCategory": "Other",
+  "categoryOrder": ["Hooks", "Methods", "Types", "Other"],
+  "kindSortOrder": [
+    "Project",
+    "Module",
+    "Namespace",
+    "Enum",
+    "Class",
+    "Interface",
+    "Type alias",
+    "Constructor",
+    "Property",
+    "Variable",
+    "Function",
+    "Accessor",
+    "Method"
+  ]
+}

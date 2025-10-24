@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add a `getAccounts` method (and its associated action) that is the plural version of `getAccount` ([#6927](https://github.com/MetaMask/core/pull/6927))
+  - This method is added to primarily be consumed in the `MultichainAccountService`.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
 ## [33.1.1]
 
 ### Changed
@@ -15,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Previously, `AccountsController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.1` ([#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
 - Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.1` ([#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 
 ## [33.1.0]
 

@@ -117,6 +117,7 @@ import type {
   TransactionContainerType,
   GetSimulationConfig,
   AddTransactionOptions,
+  PublishHookResult,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -1131,6 +1132,7 @@ export class TransactionController extends BaseController<
 
     return await addTransactionBatch({
       addTransaction: this.addTransaction.bind(this),
+      estimateGas: this.estimateGas.bind(this),
       getChainId: this.#getChainId.bind(this),
       getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
       getGasFeeEstimates: this.#getGasFeeEstimates,
@@ -3105,41 +3107,31 @@ export class TransactionController extends BaseController<
 
       log('Publishing transaction', transactionMeta.txParams);
 
-      let hash: string | undefined;
-
       clearNonceLock?.();
       clearNonceLock = undefined;
+
+      let publishHook = this.#defaultPublishHook.bind(this, {
+        ethQuery,
+        publishHookOverride,
+        traceContext,
+      });
 
       if (transactionMeta.batchTransactions?.length) {
         log('Found batch transactions', transactionMeta.batchTransactions);
 
         const extraTransactionsPublishHook = new ExtraTransactionsPublishHook({
           addTransactionBatch: this.addTransactionBatch.bind(this),
+          getTransaction: this.#getTransactionOrThrow.bind(this),
+          originalPublishHook: publishHook,
         });
 
-        publishHookOverride = extraTransactionsPublishHook.getHook();
+        publishHook = extraTransactionsPublishHook.getHook();
       }
 
-      await this.#trace(
-        { name: 'Publish', parentContext: traceContext },
-        async () => {
-          const publishHook = publishHookOverride ?? this.#publish;
-
-          ({ transactionHash: hash } = await publishHook(
-            transactionMeta,
-            rawTx ?? '0x',
-          ));
-
-          if (hash === undefined) {
-            hash = await this.#publishTransaction(ethQuery, {
-              ...transactionMeta,
-              rawTx,
-            });
-          }
-        },
+      const { transactionHash: hash } = await publishHook(
+        transactionMeta,
+        rawTx ?? '0x',
       );
-
-      log('Publish successful', hash);
 
       transactionMeta = this.#updateTransactionInternal(
         {
@@ -4523,5 +4515,41 @@ export class TransactionController extends BaseController<
     );
 
     log('Updated transaction with afterSimulate data', updatedTransactionMeta);
+  }
+
+  async #defaultPublishHook(
+    {
+      ethQuery,
+      publishHookOverride,
+      traceContext,
+    }: {
+      ethQuery: EthQuery;
+      publishHookOverride?: PublishHook;
+      traceContext?: TraceContext;
+    },
+    transactionMeta: TransactionMeta,
+    signedTx: string,
+  ): Promise<PublishHookResult> {
+    let transactionHash: string | undefined;
+
+    await this.#trace(
+      { name: 'Publish', parentContext: traceContext },
+      async () => {
+        const publishHook = publishHookOverride ?? this.#publish;
+
+        ({ transactionHash } = await publishHook(transactionMeta, signedTx));
+
+        if (transactionHash === undefined) {
+          transactionHash = await this.#publishTransaction(ethQuery, {
+            ...transactionMeta,
+            rawTx: signedTx,
+          });
+        }
+      },
+    );
+
+    log('Publish successful', transactionHash);
+
+    return { transactionHash };
   }
 }

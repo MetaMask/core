@@ -1,5 +1,6 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
+import { ExponentialBackoff } from '@metamask/controller-utils';
 import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
@@ -18,6 +19,7 @@ const log = createModuleLogger(projectLogger, SERVICE_NAME);
 const MESSENGER_EXPOSED_METHODS = [
   'connect',
   'disconnect',
+  'forceReconnection',
   'sendMessage',
   'sendRequest',
   'subscribe',
@@ -299,6 +301,8 @@ export class BackendWebSocketService {
 
   #connectionTimeout: NodeJS.Timeout | null = null;
 
+  #stableConnectionTimer: NodeJS.Timeout | null = null;
+
   // Track the current connection promise to handle concurrent connection attempts
   #connectionPromise: Promise<void> | null = null;
 
@@ -326,6 +330,9 @@ export class BackendWebSocketService {
   // Value: ChannelCallback configuration
   readonly #channelCallbacks = new Map<string, ChannelCallback>();
 
+  // Backoff instance for reconnection delays (reset on stable connection)
+  #backoff!: ReturnType<ExponentialBackoff<unknown>['next']>;
+
   // =============================================================================
   // 1. CONSTRUCTOR & INITIALIZATION
   // =============================================================================
@@ -351,6 +358,9 @@ export class BackendWebSocketService {
       maxReconnectDelay: options.maxReconnectDelay ?? 5000,
       requestTimeout: options.requestTimeout ?? 30000,
     };
+
+    // Initialize backoff for reconnection delays
+    this.#newBackoff();
 
     // Subscribe to authentication and keyring controller events
     this.#subscribeEvents();
@@ -381,7 +391,6 @@ export class BackendWebSocketService {
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           this.connect();
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           this.disconnect();
         }
       },
@@ -396,7 +405,6 @@ export class BackendWebSocketService {
 
     // Subscribe to wallet lock event
     this.#messenger.subscribe('KeyringController:lock', () => {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.disconnect();
     });
   }
@@ -437,44 +445,54 @@ export class BackendWebSocketService {
     }
 
     // If already connecting, wait for the existing connection attempt to complete
-    if (this.#state === WebSocketState.CONNECTING && this.#connectionPromise) {
+    if (this.#connectionPromise) {
       await this.#connectionPromise;
       return;
     }
 
-    // Priority 2: Check authentication requirements (signed in)
-    let bearerToken: string;
-    try {
-      const token = await this.#messenger.call(
-        'AuthenticationController:getBearerToken',
-      );
-      if (!token) {
-        this.#scheduleReconnect();
-        return;
+    // If a reconnect is already scheduled, defer to it to avoid bypassing exponential backoff
+    // This prevents rapid loops when server accepts then immediately closes connections
+    if (this.#reconnectTimer) {
+      return;
+    }
+
+    // Create and store the connection promise IMMEDIATELY (before any async operations)
+    // This ensures subsequent connect() calls will wait for this promise instead of creating new connections
+    this.#connectionPromise = (async () => {
+      // Priority 2: Check authentication requirements (signed in)
+      let bearerToken: string;
+      try {
+        const token = await this.#messenger.call(
+          'AuthenticationController:getBearerToken',
+        );
+        if (!token) {
+          throw new Error('Authentication required: user not signed in');
+        }
+        bearerToken = token;
+      } catch (error) {
+        log('Failed to check authentication requirements', { error });
+        throw error;
       }
-      bearerToken = token;
-    } catch (error) {
-      log('Failed to check authentication requirements', { error });
 
-      // Can't connect - schedule retry
-      this.#scheduleReconnect();
-      return;
-    }
+      this.#setState(WebSocketState.CONNECTING);
 
-    this.#setState(WebSocketState.CONNECTING);
-
-    // Create and store the connection promise
-    this.#connectionPromise = this.#establishConnection(bearerToken);
+      // Establish the actual WebSocket connection
+      try {
+        await this.#establishConnection(bearerToken);
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+        log('Connection attempt failed', { errorMessage, error });
+        this.#setState(WebSocketState.ERROR);
+        throw error;
+      }
+    })();
 
     try {
       await this.#connectionPromise;
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      log('Connection attempt failed', { errorMessage, error });
-      this.#setState(WebSocketState.ERROR);
-
-      // Rethrow to propagate error to caller
-      throw error;
+    } catch {
+      // Always schedule reconnect on any failure
+      // Exponential backoff will prevent aggressive retries
+      this.#scheduleReconnect();
     } finally {
       // Clear the connection promise when done (success or failure)
       this.#connectionPromise = null;
@@ -483,10 +501,8 @@ export class BackendWebSocketService {
 
   /**
    * Closes WebSocket connection
-   *
-   * @returns Promise that resolves when disconnection is complete
    */
-  async disconnect(): Promise<void> {
+  disconnect(): void {
     if (
       this.#state === WebSocketState.DISCONNECTED ||
       this.#state === WebSocketState.DISCONNECTING
@@ -504,11 +520,46 @@ export class BackendWebSocketService {
     // Clear any pending connection promise
     this.#connectionPromise = null;
 
+    // Reset reconnect attempts on manual disconnect
+    this.#reconnectAttempts = 0;
+
     if (this.#ws) {
       this.#ws.close(1000, 'Normal closure');
     }
 
     log('WebSocket manually disconnected');
+  }
+
+  /**
+   * Forces a WebSocket reconnection to clean up subscription state
+   *
+   * This method is useful when subscription state may be out of sync and needs to be reset.
+   * It performs a controlled disconnect-then-reconnect sequence:
+   * - Disconnects cleanly to trigger subscription cleanup
+   * - Schedules reconnection with exponential backoff to prevent rapid loops
+   * - All subscriptions will be cleaned up automatically on disconnect
+   *
+   * Use cases:
+   * - Recovering from subscription/unsubscription issues
+   * - Cleaning up orphaned subscriptions
+   * - Forcing a fresh subscription state
+   *
+   * @returns Promise that resolves when disconnection is complete (reconnection is scheduled)
+   */
+  async forceReconnection(): Promise<void> {
+    // If a reconnect is already scheduled, don't force another one
+    if (this.#reconnectTimer) {
+      log('Reconnect already scheduled, skipping force reconnection');
+      return;
+    }
+
+    log('Forcing WebSocket reconnection to clean up subscription state');
+
+    // Perform controlled disconnect
+    this.disconnect();
+
+    // Schedule reconnection with exponential backoff
+    this.#scheduleReconnect();
   }
 
   /**
@@ -985,8 +1036,15 @@ export class BackendWebSocketService {
             this.#setState(WebSocketState.CONNECTED);
             this.#connectedAt = Date.now();
 
-            // Reset reconnect attempts on successful connection
-            this.#reconnectAttempts = 0;
+            // Only reset after connection stays stable for a period (10 seconds)
+            // This prevents rapid reconnect loops when server accepts then immediately closes
+            this.#stableConnectionTimer = setTimeout(() => {
+              this.#stableConnectionTimer = null;
+              this.#reconnectAttempts = 0;
+              // Create new backoff sequence for fresh start on next disconnect
+              this.#newBackoff();
+              log('Connection stable - reset reconnect attempts and backoff');
+            }, 10000);
 
             resolve();
           },
@@ -1154,13 +1212,11 @@ export class BackendWebSocketService {
       {
         name: `${SERVICE_NAME} Channel Message`,
         data: {
-          channel: message.channel,
           latency_ms: latency,
           event: message.event,
         },
         tags: {
           service: SERVICE_NAME,
-          channel_type: message.channel,
         },
       },
       () => {
@@ -1190,7 +1246,7 @@ export class BackendWebSocketService {
       const receivedAt = Date.now();
       const latency = receivedAt - timestamp;
 
-      // Trace notification processing with latency data
+      // Trace notification processing wi th latency data
       // Use stored channelType instead of parsing each time
       this.#trace(
         {
@@ -1238,7 +1294,15 @@ export class BackendWebSocketService {
     // Calculate connection duration before we clear state
     const connectionDuration = Date.now() - this.#connectedAt;
 
-    this.#clearTimers();
+    if (this.#connectionTimeout) {
+      clearTimeout(this.#connectionTimeout);
+      this.#connectionTimeout = null;
+    }
+    if (this.#stableConnectionTimer) {
+      clearTimeout(this.#stableConnectionTimer);
+      this.#stableConnectionTimer = null;
+    }
+
     this.#connectedAt = 0;
 
     // Clear any pending connection promise
@@ -1277,8 +1341,6 @@ export class BackendWebSocketService {
       },
     );
 
-    // For any unexpected disconnects, attempt reconnection
-    // The manualDisconnect flag is the only gate - if it's false, we reconnect
     this.#scheduleReconnect();
   }
 
@@ -1296,14 +1358,45 @@ export class BackendWebSocketService {
   // =============================================================================
 
   /**
-   * Schedules a reconnection attempt with exponential backoff
+   * Schedules a connection attempt with exponential backoff and jitter
+   *
+   * This method is used for automatic reconnection with Cockatiel's exponential backoff:
+   * - Prevents duplicate reconnection timers (idempotent)
+   * - Applies exponential backoff with jitter based on previous failures
+   * - Jitter uses decorrelated formula to prevent thundering herd problem
+   * - Used ONLY for automatic retries, not user-initiated actions
+   *
+   * Call this from:
+   * - connect() catch block (on connection failure)
+   * - #handleClose() (on unexpected disconnect)
+   *
+   * For user-initiated actions (sign in, unlock), call connect() directly instead.
+   *
+   * If a reconnect is already scheduled, this is a no-op to prevent:
+   * - Orphaned timers (memory leak)
+   * - Inflated reconnect attempts counter
+   * - Prematurely long delays
    */
   #scheduleReconnect(): void {
+    // If a reconnect is already scheduled, don't schedule another one
+    if (this.#reconnectTimer) {
+      return;
+    }
+
+    // Increment attempts BEFORE calculating delay so backoff grows properly
     this.#reconnectAttempts += 1;
 
-    const rawDelay =
-      this.#options.reconnectDelay * Math.pow(1.5, this.#reconnectAttempts - 1);
-    const delay = Math.min(rawDelay, this.#options.maxReconnectDelay);
+    // Use Cockatiel's exponential backoff to get delay with jitter
+    const delay = this.#backoff.duration;
+
+    // Progress to next backoff state for future reconnect attempts
+    // Pass attempt number as context (though ExponentialBackoff doesn't use it)
+    this.#backoff = this.#backoff.next({ attempt: this.#reconnectAttempts });
+
+    log('Scheduling reconnect', {
+      attempt: this.#reconnectAttempts,
+      delay_ms: delay,
+    });
 
     this.#reconnectTimer = setTimeout(() => {
       // Clear timer reference first
@@ -1312,14 +1405,24 @@ export class BackendWebSocketService {
       // Check if connection is still enabled before reconnecting
       if (this.#isEnabled && !this.#isEnabled()) {
         this.#reconnectAttempts = 0;
+        // Create new backoff sequence when disabled
+        this.#newBackoff();
         return;
       }
 
-      // Attempt to reconnect - if it fails, schedule another attempt
-      this.connect().catch(() => {
-        this.#scheduleReconnect();
-      });
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.connect();
     }, delay);
+  }
+
+  /**
+   * Creates a new exponential backoff sequence
+   */
+  #newBackoff(): void {
+    this.#backoff = new ExponentialBackoff({
+      initialDelay: this.#options.reconnectDelay,
+      maxDelay: this.#options.maxReconnectDelay,
+    }).next();
   }
 
   /**
@@ -1333,6 +1436,10 @@ export class BackendWebSocketService {
     if (this.#connectionTimeout) {
       clearTimeout(this.#connectionTimeout);
       this.#connectionTimeout = null;
+    }
+    if (this.#stableConnectionTimer) {
+      clearTimeout(this.#stableConnectionTimer);
+      this.#stableConnectionTimer = null;
     }
   }
 

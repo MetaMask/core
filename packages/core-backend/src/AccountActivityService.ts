@@ -10,6 +10,7 @@ import type {
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types';
@@ -64,6 +65,8 @@ export type SubscriptionOptions = {
 export type AccountActivityServiceOptions = {
   /** Custom subscription namespace (default: 'account-activity.v1') */
   subscriptionNamespace?: string;
+  /** Optional callback to trace performance of account activity operations (default: no-op) */
+  traceFn?: TraceCallback;
 };
 
 // =============================================================================
@@ -77,7 +80,7 @@ export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'AccountsController:getSelectedAccount',
   'BackendWebSocketService:connect',
-  'BackendWebSocketService:disconnect',
+  'BackendWebSocketService:forceReconnection',
   'BackendWebSocketService:subscribe',
   'BackendWebSocketService:getConnectionInfo',
   'BackendWebSocketService:channelHasSubscription',
@@ -189,7 +192,9 @@ export class AccountActivityService {
 
   readonly #messenger: AccountActivityServiceMessenger;
 
-  readonly #options: Required<AccountActivityServiceOptions>;
+  readonly #options: Required<Omit<AccountActivityServiceOptions, 'traceFn'>>;
+
+  readonly #trace: TraceCallback;
 
   // Track chains that are currently up (based on system notifications)
   readonly #chainsUp: Set<string> = new Set();
@@ -215,6 +220,12 @@ export class AccountActivityService {
       subscriptionNamespace:
         options.subscriptionNamespace ?? SUBSCRIPTION_NAMESPACE,
     };
+
+    // Default to no-op trace function to keep core platform-agnostic
+    this.#trace =
+      options.traceFn ??
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (((_request: any, fn?: any) => fn?.()) as TraceCallback);
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -335,20 +346,45 @@ export class AccountActivityService {
   #handleAccountActivityUpdate(payload: AccountActivityMessage): void {
     const { address, tx, updates } = payload;
 
+    // Calculate time elapsed between transaction time and message receipt
+    const txTimestampMs = tx.timestamp * 1000; // Convert Unix timestamp (seconds) to milliseconds
+    const elapsedMs = Date.now() - txTimestampMs;
+
     log('Handling account activity update', {
       address,
       updateCount: updates.length,
+      elapsedMs,
     });
 
-    // Process transaction update
-    this.#messenger.publish(`AccountActivityService:transactionUpdated`, tx);
+    // Trace message receipt with latency from transaction time to now
+    this.#trace(
+      {
+        name: `${SERVICE_NAME} Transaction Message`,
+        data: {
+          chain: tx.chain,
+          status: tx.status,
+          elapsed_ms: elapsedMs,
+        },
+        tags: {
+          service: SERVICE_NAME,
+          notification_type: this.#options.subscriptionNamespace,
+        },
+      },
+      () => {
+        // Process transaction update
+        this.#messenger.publish(
+          `AccountActivityService:transactionUpdated`,
+          tx,
+        );
 
-    // Publish comprehensive balance updates with transfer details
-    this.#messenger.publish(`AccountActivityService:balanceUpdated`, {
-      address,
-      chain: tx.chain,
-      updates,
-    });
+        // Publish comprehensive balance updates with transfer details
+        this.#messenger.publish(`AccountActivityService:balanceUpdated`, {
+          address,
+          chain: tx.chain,
+          updates,
+        });
+      },
+    );
   }
 
   /**
@@ -523,16 +559,11 @@ export class AccountActivityService {
    * Force WebSocket reconnection to clean up subscription state
    */
   async #forceReconnection(): Promise<void> {
-    try {
-      log('Forcing WebSocket reconnection to clean up subscription state');
+    log('Forcing WebSocket reconnection to clean up subscription state');
 
-      // All subscriptions will be cleaned up automatically on WebSocket disconnect
-
-      await this.#messenger.call('BackendWebSocketService:disconnect');
-      await this.#messenger.call('BackendWebSocketService:connect');
-    } catch (error) {
-      log('Failed to force WebSocket reconnection', { error });
-    }
+    // Use the dedicated forceReconnection method which performs a controlled
+    // disconnect-then-connect sequence to clean up subscription state
+    await this.#messenger.call('BackendWebSocketService:forceReconnection');
   }
 
   // =============================================================================

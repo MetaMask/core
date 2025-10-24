@@ -49,8 +49,8 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/multichain-network-controller": "^1.0.1",
-    "@metamask/network-controller": "^24.2.1",
-    "@metamask/transaction-controller": "^60.6.1",
+    "@metamask/network-controller": "^24.3.0",
+    "@metamask/transaction-controller": "^60.9.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -61,7 +61,7 @@
     "typescript": "~5.2.2"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.4.1",
+    "@metamask/base-controller": "^8.4.2",
     "@metamask/controller-utils": "^11.14.1",
     "@metamask/keyring-api": "^21.0.0",
     "@metamask/utils": "^11.8.1",
