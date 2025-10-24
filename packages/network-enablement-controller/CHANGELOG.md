@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.2]
+
 ### Uncategorized
 
 - Release 627.0.0 ([#6888](https://github.com/MetaMask/core/pull/6888))
@@ -136,7 +138,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.1.2...HEAD
+[2.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.1.1...@metamask/network-enablement-controller@2.1.2
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.1.0...@metamask/network-enablement-controller@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.0.0...@metamask/network-enablement-controller@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@1.2.0...@metamask/network-enablement-controller@2.0.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1]
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^24.2.1` to `^24.3.0` ([#6845](https://github.com/MetaMask/core/pull/6845), [#6883](https://github.com/MetaMask/core/pull/6883))
@@ -145,7 +147,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.2.1...HEAD
+[1.2.1]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.2.0...@metamask/chain-agnostic-permission@1.2.1
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.1.1...@metamask/chain-agnostic-permission@1.2.0
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.1.0...@metamask/chain-agnostic-permission@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.0.0...@metamask/chain-agnostic-permission@1.1.0

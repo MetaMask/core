@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.1.1]
+
 ### Uncategorized
 
 - Release/624.0.0 ([#6845](https://github.com/MetaMask/core/pull/6845))
@@ -442,7 +444,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@24.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@24.1.1...HEAD
+[24.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@24.1.0...@metamask/gas-fee-controller@24.1.1
 [24.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@24.0.0...@metamask/gas-fee-controller@24.1.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@23.0.0...@metamask/gas-fee-controller@24.0.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.3...@metamask/gas-fee-controller@23.0.0
