@@ -12,7 +12,6 @@ import type {
   Quote,
   QuoteMetadata,
   QuoteResponse,
-  TxData,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type {
@@ -29,6 +28,7 @@ import type {
   TransactionControllerTransactionFailedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { CaipAssetType } from '@metamask/utils';
 
 import type { BridgeStatusController } from './bridge-status-controller';
 import type { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
@@ -208,7 +208,7 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
   StartPollingForBridgeTxStatusArgs,
   'quoteResponse'
 > & {
-  quoteResponse: QuoteResponse<string | TxData> & Partial<QuoteMetadata>;
+  quoteResponse: QuoteResponse & Partial<QuoteMetadata>;
 };
 
 export type SourceChainTxMetaId = string;
@@ -263,9 +263,18 @@ export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof BRIDGE_STATUS_CONTROLLER_NAME,
   BridgeStatusControllerState
 >;
+/**
+ * This event is published when the destination bridge transaction is completed
+ * The payload is the asset received on the destination chain
+ */
+export type BridgeStatusControllerDestinationTransactionCompletedEvent = {
+  type: 'BridgeStatusController:destinationTransactionCompleted';
+  payload: [CaipAssetType];
+};
 
 export type BridgeStatusControllerEvents =
-  BridgeStatusControllerStateChangeEvent;
+  | BridgeStatusControllerStateChangeEvent
+  | BridgeStatusControllerDestinationTransactionCompletedEvent;
 
 /**
  * The external actions available to the BridgeStatusController.
