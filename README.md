@@ -311,6 +311,7 @@ linkStyle default opacity:0.5
   profile_sync_controller --> address_book_controller;
   profile_sync_controller --> keyring_controller;
   rate_limit_controller --> base_controller;
+  rate_limit_controller --> messenger;
   remote_feature_flag_controller --> base_controller;
   remote_feature_flag_controller --> controller_utils;
   remote_feature_flag_controller --> messenger;
