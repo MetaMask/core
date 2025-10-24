@@ -112,6 +112,16 @@ export type UserOperationStateChange = {
   payload: [UserOperationControllerState, Patch[]];
 };
 
+export type UserOperationAdded = {
+  type: `${typeof controllerName}:userOperationAdded`;
+  payload: [UserOperationMetadata];
+};
+
+export type UserOperationTransactionUpdated = {
+  type: `${typeof controllerName}:userOperationTransactionUpdated`;
+  payload: [TransactionMeta];
+};
+
 export type UserOperationControllerActions =
   | GetUserOperationState
   | NetworkControllerGetNetworkClientByIdAction
@@ -120,7 +130,10 @@ export type UserOperationControllerActions =
   | KeyringControllerPatchUserOperationAction
   | KeyringControllerSignUserOperationAction;
 
-export type UserOperationControllerEvents = UserOperationStateChange;
+export type UserOperationControllerEvents =
+  | UserOperationStateChange
+  | UserOperationAdded
+  | UserOperationTransactionUpdated;
 
 export type UserOperationControllerMessenger = RestrictedMessenger<
   typeof controllerName,
@@ -233,6 +246,20 @@ export class UserOperationController extends BaseController<
     });
 
     this.hub = new EventEmitter() as UserOperationControllerEventEmitter;
+
+    // Forward hub events to messenger
+    this.hub.on('user-operation-added', (userOperation) =>
+      this.messagingSystem.publish(
+        `${controllerName}:userOperationAdded`,
+        userOperation,
+      ),
+    );
+    this.hub.on('transaction-updated', (transactionMeta) =>
+      this.messagingSystem.publish(
+        `${controllerName}:userOperationTransactionUpdated`,
+        transactionMeta,
+      ),
+    );
 
     this.#entrypoint = entrypoint;
     this.#getGasFeeEstimates = getGasFeeEstimates;

@@ -79,6 +79,7 @@
     "@metamask/gas-fee-controller": "^24.1.0",
     "@metamask/network-controller": "^24.3.0",
     "@metamask/remote-feature-flag-controller": "^1.9.0",
+    "@metamask/user-operation-controller": "^39.2.0",
     "@ts-bridge/cli": "^0.6.1",
     "@types/bn.js": "^5.1.5",
     "@types/jest": "^27.4.1",
@@ -100,7 +101,8 @@
     "@metamask/eth-block-tracker": ">=9",
     "@metamask/gas-fee-controller": "^24.0.0",
     "@metamask/network-controller": "^24.0.0",
-    "@metamask/remote-feature-flag-controller": "^1.5.0"
+    "@metamask/remote-feature-flag-controller": "^1.5.0",
+    "@metamask/user-operation-controller": "^39.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

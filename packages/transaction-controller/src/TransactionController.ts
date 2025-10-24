@@ -50,6 +50,11 @@ import {
   providerErrors,
   JsonRpcError,
 } from '@metamask/rpc-errors';
+import type {
+  UserOperationAdded,
+  UserOperationMetadata,
+  UserOperationTransactionUpdated,
+} from '@metamask/user-operation-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -543,7 +548,10 @@ export type AllowedActions =
 /**
  * The external events available to the {@link TransactionController}.
  */
-export type AllowedEvents = NetworkControllerStateChangeEvent;
+export type AllowedEvents =
+  | NetworkControllerStateChangeEvent
+  | UserOperationAdded
+  | UserOperationTransactionUpdated;
 
 /**
  * Represents the `TransactionController:stateChange` event.
@@ -1076,6 +1084,16 @@ export class TransactionController extends BaseController<
     this.messagingSystem.subscribe(
       'TransactionController:stateChange',
       this.#checkForPendingTransactionAndStartPolling,
+    );
+
+    // Listen for user operations and emulate transaction events
+    this.messagingSystem.subscribe(
+      'UserOperationController:userOperationAdded',
+      this.#onUserOperationAdded,
+    );
+    this.messagingSystem.subscribe(
+      'UserOperationController:userOperationTransactionUpdated',
+      this.#onUserOperationTransactionUpdated,
     );
 
     new ResimulateHelper({
@@ -4551,5 +4569,57 @@ export class TransactionController extends BaseController<
     log('Publish successful', transactionHash);
 
     return { transactionHash };
+  }
+
+  #onUserOperationAdded(userOperationMeta: UserOperationMetadata) {
+    const transactionMeta = this.state.transactions.find(
+      (tx) => tx.id === userOperationMeta.id,
+    );
+
+    if (!transactionMeta) {
+      return;
+    }
+
+    if (transactionMeta.type === TransactionType.swap) {
+      this.messagingSystem.publish('TransactionController:transactionNewSwap', {
+        transactionMeta,
+      });
+    } else if (transactionMeta.type === TransactionType.swapApproval) {
+      this.messagingSystem.publish(
+        'TransactionController:transactionNewSwapApproval',
+        { transactionMeta },
+      );
+    }
+  }
+
+  #onUserOperationTransactionUpdated(transactionMeta: TransactionMeta) {
+    const updatedTransactionMeta = {
+      ...transactionMeta,
+      txParams: {
+        ...transactionMeta.txParams,
+        from: this.messagingSystem.call('AccountsController:getSelectedAccount')
+          .address,
+      },
+    };
+
+    const transactionExists = this.state.transactions.some(
+      (tx) => tx.id === updatedTransactionMeta.id,
+    );
+
+    if (!transactionExists) {
+      this.update((state) => {
+        state.transactions.push(updatedTransactionMeta);
+      });
+    }
+
+    this.updateTransaction(
+      updatedTransactionMeta,
+      'Generated from user operation',
+    );
+
+    this.messagingSystem.publish(
+      'TransactionController:transactionStatusUpdated',
+      { transactionMeta: updatedTransactionMeta },
+    );
   }
 }
