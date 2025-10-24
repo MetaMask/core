@@ -325,6 +325,7 @@ linkStyle default opacity:0.5
   selected_network_controller --> network_controller;
   selected_network_controller --> permission_controller;
   shield_controller --> base_controller;
+  shield_controller --> messenger;
   shield_controller --> signature_controller;
   shield_controller --> transaction_controller;
   signature_controller --> base_controller;

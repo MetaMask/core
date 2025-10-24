@@ -48,6 +48,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.4.2",
+    "@metamask/messenger": "^0.3.0",
     "@metamask/utils": "^11.8.1"
   },
   "devDependencies": {
@@ -81,7 +82,10 @@
   },
   "lavamoat": {
     "allowScripts": {
-      "@lavamoat/allow-scripts>@lavamoat/preinstall-always-fail": false
+      "@lavamoat/allow-scripts>@lavamoat/preinstall-always-fail": false,
+      "@lavamoat/preinstall-always-fail": false,
+      "@metamask/signature-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
+      "@metamask/signature-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
     }
   }
 }
