@@ -4405,12 +4405,12 @@ export class TransactionController extends BaseController<
       this.updateTransaction.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:emulateNewTransaction`,
       this.emulateNewTransaction.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:emulateTransactionUpdate`,
       this.emulateTransactionUpdate.bind(this),
     );
