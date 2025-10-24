@@ -4711,6 +4711,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.2"
     "@metamask/json-rpc-engine": "npm:^10.1.1"
+    "@metamask/messenger": "npm:^0.3.0"
     "@metamask/network-controller": "npm:^24.3.1"
     "@metamask/permission-controller": "npm:^11.1.1"
     "@metamask/swappable-obj-proxy": "npm:^2.3.0"

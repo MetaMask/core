@@ -1,4 +1,11 @@
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import {
   type ProviderProxy,
   type BlockTrackerProxy,
@@ -10,58 +17,61 @@ import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
 
 import type {
-  AllowedActions,
-  AllowedEvents,
-  SelectedNetworkControllerActions,
-  SelectedNetworkControllerEvents,
   SelectedNetworkControllerState,
   Domain,
   NetworkProxy,
+  SelectedNetworkControllerMessenger,
 } from '../src/SelectedNetworkController';
 import {
   METAMASK_DOMAIN,
   SelectedNetworkController,
-  controllerName,
 } from '../src/SelectedNetworkController';
 
+const controllerName = 'SelectedNetworkController';
+
+type AllSelectedNetworkControllerActions =
+  MessengerActions<SelectedNetworkControllerMessenger>;
+
+type AllSelectedNetworkControllerEvents =
+  MessengerEvents<SelectedNetworkControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllSelectedNetworkControllerActions,
+  AllSelectedNetworkControllerEvents
+>;
+
 /**
- * Builds a new instance of the Messenger class for the SelectedNetworkController.
+ * Constructs the root messenger.
  *
- * @returns A new instance of the Messenger class for the SelectedNetworkController.
+ * @returns A root messenger.
  */
-function buildMessenger() {
-  return new Messenger<
-    SelectedNetworkControllerActions | AllowedActions,
-    SelectedNetworkControllerEvents | AllowedEvents
-  >();
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 }
 
 /**
  * Build a restricted messenger for the selected network controller.
  *
  * @param options - The options bag.
- * @param options.messenger - A messenger.
+ * @param options.rootMessenger - A messenger.
  * @param options.getSubjectNames - Permissions controller list of domains with permissions
  * @returns The network controller restricted messenger.
  */
 function buildSelectedNetworkControllerMessenger({
-  messenger = new Messenger<
-    SelectedNetworkControllerActions | AllowedActions,
-    SelectedNetworkControllerEvents | AllowedEvents
-  >(),
+  rootMessenger,
   getSubjectNames,
 }: {
-  messenger?: Messenger<
-    SelectedNetworkControllerActions | AllowedActions,
-    SelectedNetworkControllerEvents | AllowedEvents
-  >;
+  rootMessenger: RootMessenger;
   getSubjectNames?: string[];
-} = {}) {
+}) {
   const mockGetNetworkClientById = jest.fn().mockReturnValue({
     provider: { request: jest.fn() },
     blockTracker: { getLatestBlock: jest.fn() },
   });
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     mockGetNetworkClientById,
   );
@@ -69,45 +79,54 @@ function buildSelectedNetworkControllerMessenger({
     provider: { request: jest.fn() },
     blockTracker: { getLatestBlock: jest.fn() },
   });
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'NetworkController:getSelectedNetworkClient',
     mockGetSelectedNetworkClient,
   );
   const mockNetworkControllerGetState = jest
     .fn()
     .mockReturnValue({ selectedNetworkClientId: 'mainnet' });
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'NetworkController:getState',
     mockNetworkControllerGetState,
   );
   const mockHasPermissions = jest.fn().mockReturnValue(true);
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'PermissionController:hasPermissions',
     mockHasPermissions,
   );
   const mockGetSubjectNames = jest.fn().mockReturnValue(getSubjectNames);
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'PermissionController:getSubjectNames',
     mockGetSubjectNames,
   );
 
-  const restrictedMessenger = messenger.getRestricted({
-    name: controllerName,
-    allowedActions: [
+  const messenger = new Messenger<
+    typeof controllerName,
+    AllSelectedNetworkControllerActions,
+    AllSelectedNetworkControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger,
+    actions: [
       'NetworkController:getNetworkClientById',
       'NetworkController:getSelectedNetworkClient',
       'NetworkController:getState',
       'PermissionController:hasPermissions',
       'PermissionController:getSubjectNames',
     ],
-    allowedEvents: [
+    events: [
       'NetworkController:stateChange',
       'PermissionController:stateChange',
     ],
   });
 
   return {
-    restrictedMessenger,
+    messenger,
     mockGetNetworkClientById,
     mockGetSelectedNetworkClient,
     mockNetworkControllerGetState,
@@ -161,21 +180,22 @@ const setup = ({
     }
     return mockProviderProxy;
   });
-  const messenger = buildMessenger();
-  const { restrictedMessenger, ...mockMessengerActions } =
+  const rootMessenger = getRootMessenger();
+  const { messenger, ...mockMessengerActions } =
     buildSelectedNetworkControllerMessenger({
-      messenger,
+      rootMessenger,
       getSubjectNames,
     });
 
   const controller = new SelectedNetworkController({
-    messenger: restrictedMessenger,
+    messenger,
     state,
     domainProxyMap,
   });
 
   return {
     controller,
+    rootMessenger,
     messenger,
     mockProviderProxy,
     mockBlockTrackerProxy,
@@ -247,7 +267,7 @@ describe('SelectedNetworkController', () => {
       const deleteNetwork = (
         chainId: Hex,
         networkControllerState: NetworkState,
-        messenger: ReturnType<typeof buildMessenger>,
+        messenger: RootMessenger,
         mockNetworkControllerGetState: jest.Mock,
       ) => {
         delete networkControllerState.networkConfigurationsByChainId[chainId];
@@ -267,9 +287,10 @@ describe('SelectedNetworkController', () => {
       };
 
       it('redirects domains to the globally selected network', () => {
-        const { controller, messenger, mockNetworkControllerGetState } = setup({
-          state: { domains: initialDomains },
-        });
+        const { controller, rootMessenger, mockNetworkControllerGetState } =
+          setup({
+            state: { domains: initialDomains },
+          });
 
         const networkControllerState = {
           ...getDefaultNetworkControllerState(),
@@ -279,7 +300,7 @@ describe('SelectedNetworkController', () => {
         deleteNetwork(
           '0xaa36a7',
           networkControllerState,
-          messenger,
+          rootMessenger,
           mockNetworkControllerGetState,
         );
 
@@ -293,7 +314,7 @@ describe('SelectedNetworkController', () => {
         const domainProxyMap = new Map();
         const {
           controller,
-          messenger,
+          rootMessenger,
           mockNetworkControllerGetState,
           mockGetNetworkClientById,
         } = setup({
@@ -324,7 +345,7 @@ describe('SelectedNetworkController', () => {
         deleteNetwork(
           '0xaa36a7',
           networkControllerState,
-          messenger,
+          rootMessenger,
           mockNetworkControllerGetState,
         );
 
@@ -342,9 +363,10 @@ describe('SelectedNetworkController', () => {
           'chain-with-new-default.com': 'sepolia',
         };
 
-        const { controller, messenger, mockNetworkControllerGetState } = setup({
-          state: { domains: initialDomains },
-        });
+        const { controller, rootMessenger, mockNetworkControllerGetState } =
+          setup({
+            state: { domains: initialDomains },
+          });
 
         const networkControllerState = getDefaultNetworkControllerState();
         const goerliNetwork =
@@ -362,7 +384,7 @@ describe('SelectedNetworkController', () => {
           networkControllerState,
         );
 
-        messenger.publish(
+        rootMessenger.publish(
           'NetworkController:stateChange',
           networkControllerState,
           [
@@ -385,9 +407,10 @@ describe('SelectedNetworkController', () => {
           'chain-with-new-default.com': 'sepolia',
         };
 
-        const { controller, messenger, mockNetworkControllerGetState } = setup({
-          state: { domains: initialDomains },
-        });
+        const { controller, rootMessenger, mockNetworkControllerGetState } =
+          setup({
+            state: { domains: initialDomains },
+          });
 
         const networkControllerState = getDefaultNetworkControllerState();
         const goerliNetwork =
@@ -406,7 +429,7 @@ describe('SelectedNetworkController', () => {
           networkControllerState,
         );
 
-        messenger.publish(
+        rootMessenger.publish(
           'NetworkController:stateChange',
           networkControllerState,
           [
@@ -733,7 +756,7 @@ describe('getProviderAndBlockTracker', () => {
 describe('PermissionController:stateChange', () => {
   describe('on permission add', () => {
     it('should add new domain to domains list', async () => {
-      const { controller, messenger } = setup({});
+      const { controller, rootMessenger } = setup({});
       const mockPermission = {
         parentCapability: 'eth_accounts',
         id: 'example.com',
@@ -741,13 +764,17 @@ describe('PermissionController:stateChange', () => {
         caveats: [{ type: 'restrictToAccounts', value: ['0x...'] }],
       };
 
-      messenger.publish('PermissionController:stateChange', { subjects: {} }, [
-        {
-          op: 'add',
-          path: ['subjects', 'example.com', 'permissions'],
-          value: mockPermission,
-        },
-      ]);
+      rootMessenger.publish(
+        'PermissionController:stateChange',
+        { subjects: {} },
+        [
+          {
+            op: 'add',
+            path: ['subjects', 'example.com', 'permissions'],
+            value: mockPermission,
+          },
+        ],
+      );
 
       const { domains } = controller.state;
       expect(domains['example.com']).toBeDefined();
@@ -755,11 +782,11 @@ describe('PermissionController:stateChange', () => {
 
     describe('on permission removal', () => {
       it('should remove domain from domains list', async () => {
-        const { controller, messenger } = setup({
+        const { controller, rootMessenger } = setup({
           state: { domains: { 'example.com': 'foo' } },
         });
 
-        messenger.publish(
+        rootMessenger.publish(
           'PermissionController:stateChange',
           { subjects: {} },
           [
@@ -775,12 +802,12 @@ describe('PermissionController:stateChange', () => {
       });
 
       it('should set the proxy to the globally selected network if the globally selected network client is initialized and a proxy exists for the domain', async () => {
-        const { controller, messenger, mockProviderProxy } = setup({
+        const { controller, rootMessenger, mockProviderProxy } = setup({
           state: { domains: { 'example.com': 'foo' } },
         });
         controller.getProviderAndBlockTracker('example.com');
 
-        messenger.publish(
+        rootMessenger.publish(
           'PermissionController:stateChange',
           { subjects: {} },
           [
@@ -803,7 +830,7 @@ describe('PermissionController:stateChange', () => {
       it('should delete the proxy if the globally selected network client is not initialized but a proxy exists for the domain', async () => {
         const {
           controller,
-          messenger,
+          rootMessenger,
           domainProxyMap,
           mockProviderProxy,
           mockGetSelectedNetworkClient,
@@ -814,7 +841,7 @@ describe('PermissionController:stateChange', () => {
 
         mockGetSelectedNetworkClient.mockReturnValue(undefined);
         expect(domainProxyMap.get('example.com')).toBeDefined();
-        messenger.publish(
+        rootMessenger.publish(
           'PermissionController:stateChange',
           { subjects: {} },
           [
@@ -839,7 +866,7 @@ describe('PermissionController:stateChange', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
