@@ -4404,6 +4404,16 @@ export class TransactionController extends BaseController<
       `${controllerName}:updateTransaction`,
       this.updateTransaction.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:emulateNewTransaction`,
+      this.emulateNewTransaction.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:emulateTransactionUpdate`,
+      this.emulateTransactionUpdate.bind(this),
+    );
   }
 
   #deleteTransaction(transactionId: string) {
