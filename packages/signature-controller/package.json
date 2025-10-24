@@ -1,6 +1,6 @@
 {
   "name": "@metamask/signature-controller",
-  "version": "34.0.1",
+  "version": "34.0.2",
   "description": "Processes signing requests in order to sign arbitrary and typed data",
   "keywords": [
     "MetaMask",
@@ -47,7 +47,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.4.1",
+    "@metamask/base-controller": "^8.4.2",
     "@metamask/controller-utils": "^11.14.1",
     "@metamask/eth-sig-util": "^8.2.0",
     "@metamask/utils": "^11.8.1",
@@ -56,13 +56,13 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^33.1.1",
-    "@metamask/approval-controller": "^7.2.0",
+    "@metamask/accounts-controller": "^33.2.0",
+    "@metamask/approval-controller": "^7.2.1",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/gator-permissions-controller": "^0.2.1",
-    "@metamask/keyring-controller": "^23.1.1",
-    "@metamask/logging-controller": "^6.1.0",
-    "@metamask/network-controller": "^24.3.0",
+    "@metamask/gator-permissions-controller": "^0.2.2",
+    "@metamask/keyring-controller": "^23.2.0",
+    "@metamask/logging-controller": "^6.1.1",
+    "@metamask/network-controller": "^24.3.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
