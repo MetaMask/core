@@ -2576,6 +2576,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.4.2"
     "@metamask/keyring-api": "npm:^21.0.0"
     "@metamask/keyring-controller": "npm:^23.2.0"
+    "@metamask/messenger": "npm:^0.3.0"
     "@metamask/multichain-account-service": "npm:^1.6.2"
     "@metamask/profile-sync-controller": "npm:^25.1.2"
     "@metamask/providers": "npm:^22.1.0"
