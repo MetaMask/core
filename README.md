@@ -218,6 +218,7 @@ linkStyle default opacity:0.5
   earn_controller --> transaction_controller;
   eip_5792_middleware --> transaction_controller;
   eip_5792_middleware --> keyring_controller;
+  eip_7702_internal_rpc_middleware --> controller_utils;
   eip1193_permission_middleware --> chain_agnostic_permission;
   eip1193_permission_middleware --> controller_utils;
   eip1193_permission_middleware --> json_rpc_engine;
@@ -330,6 +331,7 @@ linkStyle default opacity:0.5
   token_search_discovery_controller --> base_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
+  transaction_controller --> messenger;
   transaction_controller --> accounts_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> eth_block_tracker;

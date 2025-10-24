@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.1]
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
@@ -246,7 +248,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.2.1...HEAD
+[6.2.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.2.0...@metamask/address-book-controller@6.2.1
 [6.2.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.1.1...@metamask/address-book-controller@6.2.0
 [6.1.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.1.0...@metamask/address-book-controller@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.3...@metamask/address-book-controller@6.1.0
