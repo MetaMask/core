@@ -7984,6 +7984,262 @@ describe('TransactionController', () => {
     });
   });
 
+  describe('emulateNewTransaction', () => {
+    it('publishes swap event when transaction is a swap', () => {
+      const swapTransactionMeta = {
+        id: 'tx1',
+        chainId: CHAIN_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        status: TransactionStatus.approved,
+        type: TransactionType.swap,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as TransactionMeta;
+
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [swapTransactionMeta],
+          },
+        },
+      });
+
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(controller.state.transactions[0]).toMatchObject({
+        id: swapTransactionMeta.id,
+        type: TransactionType.swap,
+      });
+
+      const swapListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionNewSwap',
+        swapListener,
+      );
+
+      controller.emulateNewTransaction(swapTransactionMeta.id);
+
+      expect(swapListener).toHaveBeenCalledTimes(1);
+      expect(swapListener).toHaveBeenCalledWith({
+        transactionMeta: expect.objectContaining({
+          id: swapTransactionMeta.id,
+          type: TransactionType.swap,
+        }),
+      });
+    });
+
+    it('publishes swap approval event when transaction is a swap approval', () => {
+      const swapApprovalTransactionMeta = {
+        id: 'tx2',
+        chainId: CHAIN_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        status: TransactionStatus.approved,
+        type: TransactionType.swapApproval,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as TransactionMeta;
+
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [swapApprovalTransactionMeta],
+          },
+        },
+      });
+
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(controller.state.transactions[0]).toMatchObject({
+        id: swapApprovalTransactionMeta.id,
+        type: TransactionType.swapApproval,
+      });
+
+      const swapApprovalListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionNewSwapApproval',
+        swapApprovalListener,
+      );
+
+      controller.emulateNewTransaction(swapApprovalTransactionMeta.id);
+
+      expect(swapApprovalListener).toHaveBeenCalledTimes(1);
+      expect(swapApprovalListener).toHaveBeenCalledWith({
+        transactionMeta: expect.objectContaining({
+          id: swapApprovalTransactionMeta.id,
+          type: TransactionType.swapApproval,
+        }),
+      });
+    });
+
+    it('does not publish events when transaction is not a swap or swap approval', () => {
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      const swapListener = jest.fn();
+      const swapApprovalListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionNewSwap',
+        swapListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionNewSwapApproval',
+        swapApprovalListener,
+      );
+
+      controller.emulateNewTransaction(TRANSACTION_META_MOCK.id);
+
+      expect(swapListener).not.toHaveBeenCalled();
+      expect(swapApprovalListener).not.toHaveBeenCalled();
+    });
+
+    it('does not publish events when transaction does not exist', () => {
+      const { controller, messenger } = setupController();
+
+      const swapListener = jest.fn();
+      const swapApprovalListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionNewSwap',
+        swapListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionNewSwapApproval',
+        swapApprovalListener,
+      );
+
+      controller.emulateNewTransaction('missing-transaction-id');
+
+      expect(swapListener).not.toHaveBeenCalled();
+      expect(swapApprovalListener).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('emulateTransactionUpdate', () => {
+    it('adds transaction to state and publishes update when it does not exist', () => {
+      const selectedAccount = {
+        ...INTERNAL_ACCOUNT_MOCK,
+        address: ACCOUNT_2_MOCK,
+      };
+      const { controller, messenger, mockGetSelectedAccount } = setupController(
+        { selectedAccount },
+      );
+
+      const transactionMeta = {
+        id: 'tx3',
+        chainId: CHAIN_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        status: TransactionStatus.unapproved,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as TransactionMeta;
+
+      const statusUpdatedListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionStatusUpdated',
+        statusUpdatedListener,
+      );
+
+      controller.emulateTransactionUpdate(transactionMeta);
+
+      const transactionMetaWithUpdatedSender = {
+        ...transactionMeta,
+        txParams: {
+          ...transactionMeta.txParams,
+          from: ACCOUNT_2_MOCK,
+        },
+      };
+      const transactionMetaWithUpdatedSenderAndNormalized = {
+        ...transactionMetaWithUpdatedSender,
+        txParams: {
+          ...transactionMetaWithUpdatedSender.txParams,
+          value: '0x0',
+        },
+      };
+      expect(controller.state.transactions).toHaveLength(1);
+      // State updated after updating sender and normalizing
+      expect(controller.state.transactions[0]).toStrictEqual(
+        transactionMetaWithUpdatedSenderAndNormalized,
+      );
+      expect(mockGetSelectedAccount).toHaveBeenCalledTimes(1);
+      expect(statusUpdatedListener).toHaveBeenCalledTimes(1);
+      // Status published after updating sender, but before normalization
+      expect(statusUpdatedListener).toHaveBeenCalledWith({
+        transactionMeta: transactionMetaWithUpdatedSender,
+      });
+    });
+
+    it('updates transaction when it already exists', () => {
+      const selectedAccount = {
+        ...INTERNAL_ACCOUNT_MOCK,
+        address: ACCOUNT_2_MOCK,
+      };
+      const existingTransactionMeta = {
+        id: 'tx4',
+        chainId: CHAIN_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        status: TransactionStatus.unapproved,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as TransactionMeta;
+      const newTransactionMeta = {
+        ...existingTransactionMeta,
+        status: TransactionStatus.approved,
+      };
+
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [existingTransactionMeta],
+          },
+        },
+        selectedAccount,
+      });
+
+      const statusUpdatedListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionStatusUpdated',
+        statusUpdatedListener,
+      );
+
+      controller.emulateTransactionUpdate(newTransactionMeta);
+
+      const transactionMetaWithUpdatedSender = {
+        ...newTransactionMeta,
+        txParams: {
+          ...newTransactionMeta.txParams,
+          from: ACCOUNT_2_MOCK,
+        },
+      };
+      const transactionMetaWithUpdatedSenderAndNormalized = {
+        ...transactionMetaWithUpdatedSender,
+        txParams: {
+          ...transactionMetaWithUpdatedSender.txParams,
+          value: '0x0',
+        },
+      };
+      expect(controller.state.transactions).toHaveLength(1);
+      // State updated after updating sender and normalizing
+      expect(controller.state.transactions[0]).toStrictEqual(
+        transactionMetaWithUpdatedSenderAndNormalized,
+      );
+      expect(statusUpdatedListener).toHaveBeenCalledTimes(1);
+      // Status published after updating sender, but before normalization
+      expect(statusUpdatedListener).toHaveBeenCalledWith({
+        transactionMeta: transactionMetaWithUpdatedSender,
+      });
+    });
+  });
+
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
       const { controller } = setupController();

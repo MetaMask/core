@@ -2801,6 +2801,68 @@ export class TransactionController extends BaseController<
     });
   }
 
+  /**
+   * Emulate a new transaction.
+   *
+   * @param transactionId - The transaction ID.
+   */
+  emulateNewTransaction(transactionId: string) {
+    const transactionMeta = this.state.transactions.find(
+      (tx) => tx.id === transactionId,
+    );
+
+    if (!transactionMeta) {
+      return;
+    }
+
+    if (transactionMeta.type === TransactionType.swap) {
+      this.messagingSystem.publish('TransactionController:transactionNewSwap', {
+        transactionMeta,
+      });
+    } else if (transactionMeta.type === TransactionType.swapApproval) {
+      this.messagingSystem.publish(
+        'TransactionController:transactionNewSwapApproval',
+        { transactionMeta },
+      );
+    }
+  }
+
+  /**
+   * Emulate a transaction update.
+   *
+   * @param transactionMeta - Transaction metadata.
+   */
+  emulateTransactionUpdate(transactionMeta: TransactionMeta) {
+    const updatedTransactionMeta = {
+      ...transactionMeta,
+      txParams: {
+        ...transactionMeta.txParams,
+        from: this.messagingSystem.call('AccountsController:getSelectedAccount')
+          .address,
+      },
+    };
+
+    const transactionExists = this.state.transactions.some(
+      (tx) => tx.id === updatedTransactionMeta.id,
+    );
+
+    if (!transactionExists) {
+      this.update((state) => {
+        state.transactions.push(updatedTransactionMeta);
+      });
+    }
+
+    this.updateTransaction(
+      updatedTransactionMeta,
+      'Generated from user operation',
+    );
+
+    this.messagingSystem.publish(
+      'TransactionController:transactionStatusUpdated',
+      { transactionMeta: updatedTransactionMeta },
+    );
+  }
+
   #addMetadata(transactionMeta: TransactionMeta) {
     validateTxParams(transactionMeta.txParams);
     this.update((state) => {
