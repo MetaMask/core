@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix(core-backend): control randomness to fix flaky test ([#6936](https://github.com/MetaMask/core/pull/6936))
+
 ## [3.0.0]
 
 ### Added
