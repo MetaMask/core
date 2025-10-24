@@ -16,6 +16,7 @@ import {
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkClient,
   NetworkClientId,
@@ -24,6 +25,11 @@ import type {
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
+import type {
+  TransactionControllerTransactionConfirmedEvent,
+  TransactionControllerUnapprovedTransactionAddedEvent,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import { assert, type Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
@@ -192,7 +198,9 @@ export type AccountTrackerControllerEvents =
  */
 export type AllowedEvents =
   | AccountsControllerSelectedEvmAccountChangeEvent
-  | AccountsControllerSelectedAccountChangeEvent;
+  | AccountsControllerSelectedAccountChangeEvent
+  | TransactionControllerUnapprovedTransactionAddedEvent
+  | TransactionControllerTransactionConfirmedEvent;
 
 /**
  * The messenger of the {@link AccountTrackerController}.
@@ -307,6 +315,26 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         }
       },
       (event): string => event.address,
+    );
+
+    this.messagingSystem.subscribe(
+      'TransactionController:unapprovedTransactionAdded',
+      async (transactionMeta: TransactionMeta) => {
+        await this.#refreshAddress(
+          [transactionMeta.networkClientId],
+          transactionMeta.txParams.from,
+        );
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'TransactionController:transactionConfirmed',
+      async (transactionMeta: TransactionMeta) => {
+        await this.#refreshAddress(
+          [transactionMeta.networkClientId],
+          transactionMeta.txParams.from,
+        );
+      },
     );
 
     this.#registerMessageHandlers();
@@ -506,6 +534,37 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       'PreferencesController:getState',
     );
 
+    await this.#refreshAccounts({
+      networkClientIds,
+      queryAllAccounts: queryAllAccounts ?? isMultiAccountBalancesEnabled,
+      selectedAccount: toChecksumHexAddress(
+        selectedAccount.address,
+      ) as ChecksumAddress,
+      allAccounts,
+    });
+  }
+
+  async #refreshAddress(networkClientIds: NetworkClientId[], address: string) {
+    const checksumAddress = toChecksumHexAddress(address) as ChecksumAddress;
+    await this.#refreshAccounts({
+      networkClientIds,
+      queryAllAccounts: false,
+      selectedAccount: checksumAddress,
+      allAccounts: [],
+    });
+  }
+
+  async #refreshAccounts({
+    networkClientIds,
+    queryAllAccounts,
+    selectedAccount,
+    allAccounts,
+  }: {
+    networkClientIds: NetworkClientId[];
+    queryAllAccounts: boolean;
+    selectedAccount: ChecksumAddress;
+    allAccounts: InternalAccount[];
+  }) {
     const releaseLock = await this.#refreshMutex.acquire();
     try {
       const chainIds = networkClientIds.map((networkClientId) => {
@@ -531,10 +590,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         try {
           const balances = await fetcher.fetch({
             chainIds: supportedChains,
-            queryAllAccounts: queryAllAccounts ?? isMultiAccountBalancesEnabled,
-            selectedAccount: toChecksumHexAddress(
-              selectedAccount.address,
-            ) as ChecksumAddress,
+            queryAllAccounts,
+            selectedAccount,
             allAccounts,
           });
 
