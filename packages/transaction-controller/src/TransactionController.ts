@@ -2816,11 +2816,11 @@ export class TransactionController extends BaseController<
     }
 
     if (transactionMeta.type === TransactionType.swap) {
-      this.messagingSystem.publish('TransactionController:transactionNewSwap', {
+      this.messenger.publish('TransactionController:transactionNewSwap', {
         transactionMeta,
       });
     } else if (transactionMeta.type === TransactionType.swapApproval) {
-      this.messagingSystem.publish(
+      this.messenger.publish(
         'TransactionController:transactionNewSwapApproval',
         { transactionMeta },
       );
@@ -2837,7 +2837,7 @@ export class TransactionController extends BaseController<
       ...transactionMeta,
       txParams: {
         ...transactionMeta.txParams,
-        from: this.messagingSystem.call('AccountsController:getSelectedAccount')
+        from: this.messenger.call('AccountsController:getSelectedAccount')
           .address,
       },
     };
@@ -2857,10 +2857,9 @@ export class TransactionController extends BaseController<
       'Generated from user operation',
     );
 
-    this.messagingSystem.publish(
-      'TransactionController:transactionStatusUpdated',
-      { transactionMeta: updatedTransactionMeta },
-    );
+    this.messenger.publish('TransactionController:transactionStatusUpdated', {
+      transactionMeta: updatedTransactionMeta,
+    });
   }
 
   #addMetadata(transactionMeta: TransactionMeta) {
@@ -4635,66 +4634,5 @@ export class TransactionController extends BaseController<
     log('Publish successful', transactionHash);
 
     return { transactionHash };
-  }
-
-  /**
-   * Emulate a new transaction.
-   *
-   * @param transactionId - The transaction ID.
-   */
-  emulateNewTransaction(transactionId: string) {
-    const transactionMeta = this.state.transactions.find(
-      (tx) => tx.id === transactionId,
-    );
-
-    if (!transactionMeta) {
-      return;
-    }
-
-    if (transactionMeta.type === TransactionType.swap) {
-      this.messenger.publish('TransactionController:transactionNewSwap', {
-        transactionMeta,
-      });
-    } else if (transactionMeta.type === TransactionType.swapApproval) {
-      this.messenger.publish(
-        'TransactionController:transactionNewSwapApproval',
-        { transactionMeta },
-      );
-    }
-  }
-
-  /**
-   * Emmulate a transaction update.
-   *
-   * @param transactionMeta - Transaction metadata.
-   */
-  emulateTransactionUpdate(transactionMeta: TransactionMeta) {
-    const updatedTransactionMeta = {
-      ...transactionMeta,
-      txParams: {
-        ...transactionMeta.txParams,
-        from: this.messenger.call('AccountsController:getSelectedAccount')
-          .address,
-      },
-    };
-
-    const transactionExists = this.state.transactions.some(
-      (tx) => tx.id === updatedTransactionMeta.id,
-    );
-
-    if (!transactionExists) {
-      this.update((state) => {
-        state.transactions.push(updatedTransactionMeta);
-      });
-    }
-
-    this.updateTransaction(
-      updatedTransactionMeta,
-      'Generated from user operation',
-    );
-
-    this.messenger.publish('TransactionController:transactionStatusUpdated', {
-      transactionMeta: updatedTransactionMeta,
-    });
   }
 }
