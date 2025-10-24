@@ -8059,6 +8059,32 @@ describe('TransactionController', () => {
       });
     });
 
+    it('does not publish events when transaction is not a swap or swap approval', () => {
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      const swapListener = jest.fn();
+      const swapApprovalListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionNewSwap',
+        swapListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionNewSwapApproval',
+        swapApprovalListener,
+      );
+
+      controller.emulateNewTransaction(TRANSACTION_META_MOCK.id);
+
+      expect(swapListener).not.toHaveBeenCalled();
+      expect(swapApprovalListener).not.toHaveBeenCalled();
+    });
+
     it('does not publish events when transaction does not exist', () => {
       const { controller, messenger } = setupController();
 
