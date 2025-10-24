@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
 ## [4.1.0]
 
 ### Added
@@ -114,7 +120,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@4.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@4.1.1...HEAD
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@4.1.0...@metamask/permission-log-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@4.0.0...@metamask/permission-log-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@3.0.3...@metamask/permission-log-controller@4.0.0
 [3.0.3]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@3.0.2...@metamask/permission-log-controller@3.0.3

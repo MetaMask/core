@@ -216,6 +216,7 @@ linkStyle default opacity:0.5
   earn_controller --> transaction_controller;
   eip_5792_middleware --> transaction_controller;
   eip_5792_middleware --> keyring_controller;
+  eip_7702_internal_rpc_middleware --> controller_utils;
   eip1193_permission_middleware --> chain_agnostic_permission;
   eip1193_permission_middleware --> controller_utils;
   eip1193_permission_middleware --> json_rpc_engine;
@@ -243,6 +244,7 @@ linkStyle default opacity:0.5
   logging_controller --> controller_utils;
   message_manager --> base_controller;
   message_manager --> controller_utils;
+  message_manager --> messenger;
   multichain_account_service --> base_controller;
   multichain_account_service --> accounts_controller;
   multichain_account_service --> keyring_controller;
