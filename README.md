@@ -306,6 +306,7 @@ linkStyle default opacity:0.5
   sample_controllers --> controller_utils;
   sample_controllers --> network_controller;
   seedless_onboarding_controller --> base_controller;
+  seedless_onboarding_controller --> messenger;
   seedless_onboarding_controller --> keyring_controller;
   selected_network_controller --> base_controller;
   selected_network_controller --> json_rpc_engine;
