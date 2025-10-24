@@ -201,8 +201,8 @@ linkStyle default opacity:0.5
   chain_agnostic_permission --> permission_controller;
   composable_controller --> base_controller;
   composable_controller --> json_rpc_engine;
-  core_backend --> base_controller;
   core_backend --> controller_utils;
+  core_backend --> messenger;
   core_backend --> profile_sync_controller;
   core_backend --> accounts_controller;
   core_backend --> keyring_controller;
@@ -216,6 +216,7 @@ linkStyle default opacity:0.5
   earn_controller --> transaction_controller;
   eip_5792_middleware --> transaction_controller;
   eip_5792_middleware --> keyring_controller;
+  eip_7702_internal_rpc_middleware --> controller_utils;
   eip1193_permission_middleware --> chain_agnostic_permission;
   eip1193_permission_middleware --> controller_utils;
   eip1193_permission_middleware --> json_rpc_engine;

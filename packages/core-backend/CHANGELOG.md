@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6823](https://github.com/MetaMask/core/pull/6823))
   - Previously, `AccountActivityService` and `BackendWebSocketService` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6823](https://github.com/MetaMask/core/pull/6823))
 
 ### Removed
 
@@ -18,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed type exports: `BackendWebSocketServiceAllowedActions`, `BackendWebSocketServiceAllowedEvents`, `AccountActivityServiceAllowedActions`, `AccountActivityServiceAllowedEvents`
   - Removed constant exports: `ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS`, `ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS`
   - These types and constants were internal implementation details that should not have been exposed. Consumers should use the service-specific messenger types directly.
+- Bump `@metamask/profile-sync-controller` from `^25.1.1` to `^25.1.2` ([#6940](https://github.com/MetaMask/core/pull/6940))
 
 ## [3.0.0]
 
