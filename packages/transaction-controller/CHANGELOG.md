@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add actions `TranasctionController:emulateNewTransaction` and `TranasctionController:emulateTransactionUpdate` ([#6935](https://github.com/MetaMask/core/pull/6935))
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
