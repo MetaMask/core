@@ -11,6 +11,7 @@ import {
   toCaipChainId,
 } from '@metamask/utils';
 import BN from 'bn.js';
+import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController';
 import type { AbstractTokenPricesService } from './token-prices-service';
@@ -268,7 +269,6 @@ export async function getIpfsCIDv1AndPath(ipfsUrl: string): Promise<{
   const cid = index !== -1 ? url.substring(0, index) : url;
   const path = index !== -1 ? url.substring(index) : undefined;
 
-  const { CID } = await import('multiformats');
   // We want to ensure that the CID is v1 (https://docs.ipfs.io/concepts/content-addressing/#identifier-formats)
   // because most cid v0s appear to be incompatible with IPFS subdomains
   return {
