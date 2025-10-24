@@ -137,7 +137,7 @@
     "@typescript-eslint/no-misused-promises": 1
   },
   "packages/ens-controller/src/EnsController.test.ts": {
-    "import-x/order": 2
+    "import-x/order": 1
   },
   "packages/ens-controller/src/EnsController.ts": {
     "jsdoc/check-tag-names": 6
