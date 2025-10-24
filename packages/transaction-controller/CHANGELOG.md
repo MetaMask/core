@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add actions `TranasctionController:emulateNewTransaction` and `TranasctionController:emulateTransactionUpdate` ([#6935](https://github.com/MetaMask/core/pull/6935))
+- Add actions `TransactionController:emulateNewTransaction` and `TransactionController:emulateTransactionUpdate` ([#6935](https://github.com/MetaMask/core/pull/6935))
 
 ### Changed
 
