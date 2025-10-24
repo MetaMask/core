@@ -290,6 +290,7 @@ linkStyle default opacity:0.5
   network_enablement_controller --> transaction_controller;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
+  notification_services_controller --> messenger;
   notification_services_controller --> keyring_controller;
   notification_services_controller --> profile_sync_controller;
   permission_controller --> base_controller;
