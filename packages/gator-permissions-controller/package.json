@@ -1,6 +1,6 @@
 {
   "name": "@metamask/gator-permissions-controller",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Controller for managing gator permissions with profile sync integration",
   "keywords": [
     "MetaMask",
