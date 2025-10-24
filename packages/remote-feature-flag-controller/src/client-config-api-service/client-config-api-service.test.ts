@@ -408,7 +408,9 @@ function createMockFetch({
       .fn()
       .mockImplementation(
         () =>
-          new Promise((_, reject) => setTimeout(() => reject(error), delay)),
+          new Promise((_resolve, reject) =>
+            setTimeout(() => reject(error), delay),
+          ),
       );
   }
 
