@@ -351,6 +351,7 @@ linkStyle default opacity:0.5
   transaction_controller --> remote_feature_flag_controller;
   user_operation_controller --> base_controller;
   user_operation_controller --> controller_utils;
+  user_operation_controller --> messenger;
   user_operation_controller --> polling_controller;
   user_operation_controller --> approval_controller;
   user_operation_controller --> eth_block_tracker;
