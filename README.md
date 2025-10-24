@@ -306,6 +306,7 @@ linkStyle default opacity:0.5
   polling_controller --> network_controller;
   preferences_controller --> base_controller;
   preferences_controller --> controller_utils;
+  preferences_controller --> messenger;
   preferences_controller --> keyring_controller;
   profile_sync_controller --> base_controller;
   profile_sync_controller --> messenger;
