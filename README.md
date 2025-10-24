@@ -216,6 +216,7 @@ linkStyle default opacity:0.5
   delegation_controller --> keyring_controller;
   earn_controller --> base_controller;
   earn_controller --> controller_utils;
+  earn_controller --> messenger;
   earn_controller --> account_tree_controller;
   earn_controller --> network_controller;
   earn_controller --> transaction_controller;

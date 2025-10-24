@@ -52,6 +52,7 @@
     "@metamask/base-controller": "^8.4.2",
     "@metamask/controller-utils": "^11.14.1",
     "@metamask/keyring-api": "^21.0.0",
+    "@metamask/messenger": "^0.3.0",
     "@metamask/stake-sdk": "^3.2.1",
     "reselect": "^5.1.1"
   },
