@@ -1,5 +1,6 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 
+import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import { JsonRpcServer } from './JsonRpcServer';
 import { isRequest } from './utils';
@@ -7,7 +8,7 @@ import { isRequest } from './utils';
 const jsonrpc = '2.0' as const;
 
 const makeEngine = () => {
-  return new JsonRpcEngineV2({
+  return JsonRpcEngineV2.create<JsonRpcMiddleware>({
     middleware: [
       ({ request }) => {
         if (request.method !== 'hello') {

@@ -1,10 +1,16 @@
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { JsonRpcRequest } from '@metamask/utils';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { JsonRpcEngine } from '.';
 import { asV2Middleware } from './asV2Middleware';
 import { JsonRpcEngineV2 } from './v2/JsonRpcEngineV2';
-import { getExtraneousKeys, makeRequest } from '../tests/utils';
+import type { JsonRpcMiddleware as V2Middleware } from './v2/JsonRpcEngineV2';
+import type { MiddlewareContext } from './v2/MiddlewareContext';
+import {
+  getExtraneousKeys,
+  makeNullMiddleware,
+  makeRequest,
+} from '../tests/utils';
 
 describe('asV2Middleware', () => {
   it('converts a legacy engine to a v2 middleware', () => {
@@ -20,7 +26,7 @@ describe('asV2Middleware', () => {
       end();
     });
 
-    const v2Engine = new JsonRpcEngineV2({
+    const v2Engine = JsonRpcEngineV2.create({
       middleware: [asV2Middleware(legacyEngine)],
     });
 
@@ -35,7 +41,7 @@ describe('asV2Middleware', () => {
       end();
     });
 
-    const v2Engine = new JsonRpcEngineV2({
+    const v2Engine = JsonRpcEngineV2.create({
       middleware: [asV2Middleware(legacyEngine)],
     });
 
@@ -51,7 +57,7 @@ describe('asV2Middleware', () => {
       end();
     });
 
-    const v2Engine = new JsonRpcEngineV2({
+    const v2Engine = JsonRpcEngineV2.create({
       middleware: [asV2Middleware(legacyEngine)],
     });
 
@@ -67,8 +73,8 @@ describe('asV2Middleware', () => {
     });
     legacyEngine.push(legacyMiddleware);
 
-    const v2Engine = new JsonRpcEngineV2({
-      middleware: [asV2Middleware(legacyEngine), () => null],
+    const v2Engine = JsonRpcEngineV2.create({
+      middleware: [asV2Middleware(legacyEngine), makeNullMiddleware()],
     });
 
     const result = await v2Engine.handle(makeRequest());
@@ -90,24 +96,22 @@ describe('asV2Middleware', () => {
     });
     legacyEngine.push(legacyMiddleware);
 
-    const v2Engine = new JsonRpcEngineV2<JsonRpcRequest>({
-      middleware: [
-        ({ context, next }) => {
-          context.set('value', 1);
-          return next();
-        },
-        asV2Middleware(legacyEngine),
-        ({ context }) => {
-          observedContextValues.push(context.assertGet<number>('newValue'));
-
-          expect(Array.from(context.keys())).toStrictEqual([
-            'value',
-            'newValue',
-          ]);
-
-          return null;
-        },
-      ],
+    type Context = MiddlewareContext<Record<string, number>>;
+    const middleware1: V2Middleware<JsonRpcRequest, Json, Context> = ({
+      context,
+      next,
+    }) => {
+      context.set('value', 1);
+      return next();
+    };
+    const middleware2: V2Middleware<JsonRpcRequest, Json, Context> = ({
+      context,
+    }) => {
+      observedContextValues.push(context.assertGet('newValue'));
+      return null;
+    };
+    const v2Engine = JsonRpcEngineV2.create({
+      middleware: [middleware1, asV2Middleware(legacyEngine), middleware2],
     });
 
     await v2Engine.handle(makeRequest());

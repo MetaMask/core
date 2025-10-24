@@ -74,7 +74,7 @@ export class JsonRpcServer {
       // @ts-expect-error - hasProperty fails to narrow the type.
       this.#engine = options.engine;
     } else {
-      this.#engine = new JsonRpcEngineV2({ middleware: options.middleware });
+      this.#engine = JsonRpcEngineV2.create({ middleware: options.middleware });
     }
   }
 
@@ -201,7 +201,8 @@ function isMinimalRequest(rawRequest: unknown): rawRequest is MinimalRequest {
 }
 
 /**
- * Check if a request has valid params.
+ * Check if a request has valid params, i.e. an array or object.
+ * The contents of the params are not inspected.
  *
  * @param rawRequest - The request to check.
  * @returns `true` if the request has valid params, `false` otherwise.

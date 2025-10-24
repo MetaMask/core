@@ -123,7 +123,7 @@ describe('compatibility-utils', () => {
         params: undefined,
       };
 
-      // @ts-expect-error - Intentional abuse
+      // @ts-expect-error - Destructive testing
       const request = fromLegacyRequest(legacyRequest);
 
       expect(request).toStrictEqual({
@@ -140,7 +140,7 @@ describe('compatibility-utils', () => {
         id: 42,
       };
 
-      // @ts-expect-error - Intentional abuse
+      // @ts-expect-error - Destructive testing
       const request = fromLegacyRequest(legacyRequest);
 
       expect(request).toStrictEqual({
@@ -159,7 +159,7 @@ describe('compatibility-utils', () => {
         id: 42,
       };
 
-      // @ts-expect-error - Intentional abuse
+      // @ts-expect-error - Destructive testing
       const request = fromLegacyRequest(legacyRequest);
 
       expect(request).toStrictEqual({
@@ -265,7 +265,7 @@ describe('compatibility-utils', () => {
         params: [1],
         id: 42,
       };
-      const context = new MiddlewareContext();
+      const context = new MiddlewareContext<Record<string, unknown>>();
       context.set('extraProp', 'value');
       context.set('anotherProp', { nested: true });
 
@@ -282,16 +282,18 @@ describe('compatibility-utils', () => {
     });
 
     it('does not copy non-string properties from context to request', () => {
+      const symbol = Symbol('anotherProp');
+      const context = new MiddlewareContext();
+      context.set('extraProp', 'value');
+      context.set(symbol, { nested: true });
+      context.set(42, 'value');
+
       const request = {
         jsonrpc,
         method: 'test_method',
         params: [1],
         id: 42,
       };
-      const context = new MiddlewareContext();
-      context.set('extraProp', 'value');
-      context.set(Symbol('anotherProp'), { nested: true });
-
       propagateToRequest(request, context);
 
       expect(request).toStrictEqual({
@@ -301,6 +303,7 @@ describe('compatibility-utils', () => {
         id: 42,
         extraProp: 'value',
       });
+      expect(symbol in request).toBe(false);
     });
 
     it('excludes JSON-RPC properties from propagation', () => {
@@ -310,7 +313,7 @@ describe('compatibility-utils', () => {
         params: [1],
         id: 42,
       };
-      const context = new MiddlewareContext();
+      const context = new MiddlewareContext<Record<string, unknown>>();
       context.set('jsonrpc', '3.0');
       context.set('method', 'other_method');
       context.set('params', [2]);
@@ -336,7 +339,7 @@ describe('compatibility-utils', () => {
         id: 42,
         existingKey: 'oldValue',
       };
-      const context = new MiddlewareContext();
+      const context = new MiddlewareContext<Record<string, unknown>>();
       context.set('existingKey', 'newValue');
 
       propagateToRequest(request, context);

@@ -7,6 +7,7 @@ import {
 } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
+import type { ContextConstraint, MergeContexts } from './MiddlewareContext';
 import { MiddlewareContext } from './MiddlewareContext';
 import {
   isNotification,
@@ -37,17 +38,21 @@ export type Next<Request extends JsonRpcCall> = (
   request?: Readonly<Request>,
 ) => Promise<Readonly<ResultConstraint<Request>> | undefined>;
 
-export type MiddlewareParams<Request extends JsonRpcCall> = {
+export type MiddlewareParams<
+  Request extends JsonRpcCall,
+  Context extends MiddlewareContext,
+> = {
   request: Readonly<Request>;
-  context: MiddlewareContext;
+  context: Context;
   next: Next<Request>;
 };
 
 export type JsonRpcMiddleware<
   Request extends JsonRpcCall = JsonRpcCall,
   Result extends ResultConstraint<Request> = ResultConstraint<Request>,
+  Context extends ContextConstraint = MiddlewareContext,
 > = (
-  params: MiddlewareParams<Request>,
+  params: MiddlewareParams<Request, Context>,
 ) => Readonly<Result> | undefined | Promise<Readonly<Result> | undefined>;
 
 type RequestState<Request extends JsonRpcCall> = {
@@ -55,13 +60,51 @@ type RequestState<Request extends JsonRpcCall> = {
   result: Readonly<ResultConstraint<Request>> | undefined;
 };
 
-type Options<Request extends JsonRpcCall> = {
-  middleware: NonEmptyArray<JsonRpcMiddleware<Request>>;
+type HandleOptions<Context extends MiddlewareContext> = {
+  context?: Context;
 };
 
-type HandleOptions = {
-  context?: MiddlewareContext;
+type ConstructorOptions<
+  Request extends JsonRpcCall,
+  Context extends MiddlewareContext,
+> = {
+  middleware: NonEmptyArray<
+    JsonRpcMiddleware<Request, ResultConstraint<Request>, Context>
+  >;
 };
+
+type RequestOf<Middleware> =
+  Middleware extends JsonRpcMiddleware<
+    infer Request,
+    ResultConstraint<infer Request>,
+    // Non-polluting `any` constraint.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any
+  >
+    ? Request
+    : never;
+
+type ContextOf<Middleware> =
+  // Non-polluting `any` constraint.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Middleware extends JsonRpcMiddleware<any, ResultConstraint<any>, infer C>
+    ? C
+    : never;
+
+type MergedContextOf<
+  // Non-polluting `any` constraint.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Middleware extends JsonRpcMiddleware<any, any, any>,
+> = MergeContexts<ContextOf<Middleware>>;
+
+const INVALID_ENGINE = Symbol('Invalid engine');
+
+/**
+ * An internal type for invalid engines that explains why the engine is invalid.
+ *
+ * @template Message - The message explaining why the engine is invalid.
+ */
+type InvalidEngine<Message extends string> = { [INVALID_ENGINE]: Message };
 
 /**
  * A JSON-RPC request and response processor.
@@ -86,7 +129,7 @@ type HandleOptions = {
  *
  * @example
  * ```ts
- * const engine = new JsonRpcEngineV2({
+ * const engine = JsonRpcEngineV2.create({
  *   middleware,
  * });
  *
@@ -98,13 +141,63 @@ type HandleOptions = {
  * }
  * ```
  */
-export class JsonRpcEngineV2<Request extends JsonRpcCall = JsonRpcCall> {
-  #middleware: Readonly<NonEmptyArray<JsonRpcMiddleware<Request>>>;
+export class JsonRpcEngineV2<
+  Request extends JsonRpcCall = JsonRpcCall,
+  Context extends ContextConstraint = MiddlewareContext,
+> {
+  #middleware: Readonly<
+    NonEmptyArray<
+      JsonRpcMiddleware<Request, ResultConstraint<Request>, Context>
+    >
+  >;
 
   #isDestroyed = false;
 
-  constructor({ middleware }: Options<Request>) {
+  // See .create() for why this is private.
+  private constructor({ middleware }: ConstructorOptions<Request, Context>) {
     this.#middleware = [...middleware];
+  }
+
+  // We use a static factory method in order to construct a supertype of all middleware contexts,
+  // which enables us to instantiate an engine despite different middleware expecting different
+  // context types.
+  /**
+   * Create a new JSON-RPC engine.
+   *
+   * @throws If the middleware array is empty.
+   * @param options - The options for the engine.
+   * @param options.middleware - The middleware to use.
+   * @returns The JSON-RPC engine.
+   */
+  static create<
+    Middleware extends JsonRpcMiddleware<
+      // Non-polluting `any` constraint.
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      any,
+      ResultConstraint<any>,
+      any
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+    > = JsonRpcMiddleware,
+  >({ middleware }: { middleware: Middleware[] }) {
+    // We can't use NonEmptyArray for the params because it ruins type inference.
+    if (middleware.length === 0) {
+      throw new JsonRpcEngineError('Middleware array cannot be empty');
+    }
+
+    type MergedContext = MergedContextOf<Middleware>;
+    type InputRequest = RequestOf<Middleware>;
+    const mw = middleware as unknown as NonEmptyArray<
+      JsonRpcMiddleware<
+        InputRequest,
+        ResultConstraint<InputRequest>,
+        MergedContext
+      >
+    >;
+    return new JsonRpcEngineV2<InputRequest, MergedContext>({
+      middleware: mw,
+    }) as MergedContext extends never
+      ? InvalidEngine<'Some middleware have incompatible context types'>
+      : JsonRpcEngineV2<InputRequest, MergedContext>;
   }
 
   /**
@@ -119,7 +212,7 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall = JsonRpcCall> {
     request: Extract<Request, JsonRpcRequest> extends never
       ? never
       : Extract<Request, JsonRpcRequest>,
-    options?: HandleOptions,
+    options?: HandleOptions<Context>,
   ): Promise<
     Extract<Request, JsonRpcRequest> extends never
       ? never
@@ -137,7 +230,7 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall = JsonRpcCall> {
     notification: Extract<Request, JsonRpcNotification> extends never
       ? never
       : WithoutId<Extract<Request, JsonRpcNotification>>,
-    options?: HandleOptions,
+    options?: HandleOptions<Context>,
   ): Promise<
     Extract<Request, JsonRpcNotification> extends never
       ? never
@@ -155,12 +248,12 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall = JsonRpcCall> {
    */
   async handle(
     call: MixedParam<Request>,
-    options?: HandleOptions,
+    options?: HandleOptions<Context>,
   ): Promise<ResultConstraint<Request> | void>;
 
   async handle(
     request: Request,
-    { context }: HandleOptions = {},
+    { context }: HandleOptions<Context> = {},
   ): Promise<Readonly<ResultConstraint<Request>> | void> {
     const isReq = isRequest(request);
     const { result } = await this.#handle(request, context);
@@ -183,7 +276,7 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall = JsonRpcCall> {
    */
   async #handle(
     originalRequest: Request,
-    context: MiddlewareContext = new MiddlewareContext(),
+    context: Context = new MiddlewareContext() as Context,
   ): Promise<RequestState<Request>> {
     this.#assertIsNotDestroyed();
 
@@ -220,9 +313,11 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall = JsonRpcCall> {
    * @returns The `next()` function factory.
    */
   #makeNextFactory(
-    middlewareIterator: Iterator<JsonRpcMiddleware<Request>>,
+    middlewareIterator: Iterator<
+      JsonRpcMiddleware<Request, ResultConstraint<Request>, Context>
+    >,
     state: RequestState<Request>,
-    context: MiddlewareContext,
+    context: Context,
   ): () => Next<Request> {
     const makeNext = (): Next<Request> => {
       let wasCalled = false;
@@ -264,7 +359,9 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall = JsonRpcCall> {
     return makeNext;
   }
 
-  #makeMiddlewareIterator(): Iterator<JsonRpcMiddleware<Request>> {
+  #makeMiddlewareIterator(): Iterator<
+    JsonRpcMiddleware<Request, ResultConstraint<Request>, Context>
+  > {
     return this.#middleware[Symbol.iterator]();
   }
 
@@ -325,7 +422,11 @@ export class JsonRpcEngineV2<Request extends JsonRpcCall = JsonRpcCall> {
    *
    * @returns The JSON-RPC middleware.
    */
-  asMiddleware(): JsonRpcMiddleware<Request> {
+  asMiddleware(): JsonRpcMiddleware<
+    Request,
+    ResultConstraint<Request>,
+    Context
+  > {
     this.#assertIsNotDestroyed();
 
     return async ({ request, context, next }) => {

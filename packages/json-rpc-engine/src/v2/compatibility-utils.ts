@@ -87,7 +87,7 @@ export function makeContext<Request extends Record<string | symbol, unknown>>(
  */
 export function propagateToContext(
   req: Record<string, unknown>,
-  context: MiddlewareContext,
+  context: MiddlewareContext<Record<string, unknown>>,
 ) {
   Object.keys(req)
     .filter(
