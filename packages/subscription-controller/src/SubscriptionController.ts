@@ -419,9 +419,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @param request.interval - The interval
    * @returns The crypto approve transaction params
    */
-  async getCryptoApproveTransactionParams(
+  getCryptoApproveTransactionParams(
     request: GetCryptoApproveTransactionRequest,
-  ): Promise<GetCryptoApproveTransactionResponse> {
+  ): GetCryptoApproveTransactionResponse {
     const { pricing } = this.state;
     if (!pricing) {
       throw new Error('Subscription pricing not found');
