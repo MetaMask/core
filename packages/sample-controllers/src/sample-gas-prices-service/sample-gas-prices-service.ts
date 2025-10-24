@@ -1,4 +1,3 @@
-import type { RestrictedMessenger } from '@metamask/base-controller';
 import type {
   CreateServicePolicyOptions,
   ServicePolicy,
@@ -8,6 +7,7 @@ import {
   fromHex,
   HttpError,
 } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import { hasProperty, isPlainObject, type Hex } from '@metamask/utils';
 
 import type { SampleGasPricesServiceMethodActions } from './sample-gas-prices-service-method-action-types';
@@ -49,12 +49,12 @@ type AllowedEvents = never;
  * The messenger which is restricted to actions and events accessed by
  * {@link SampleGasPricesService}.
  */
-export type SampleGasPricesServiceMessenger = RestrictedMessenger<
+export type SampleGasPricesServiceMessenger = Messenger<
   typeof serviceName,
   SampleGasPricesServiceActions | AllowedActions,
-  SampleGasPricesServiceEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  // TODO: Disable this lint rule
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-arguments
+  SampleGasPricesServiceEvents | AllowedEvents
 >;
 
 // === SERVICE DEFINITION ===
@@ -76,20 +76,25 @@ type GasPricesResponse = {
  * @example
  *
  * ``` ts
- * import { Messenger } from '@metamask/base-controller';
+ * import { Messenger } from '@metamask/messenger';
  * import type {
  *   SampleGasPricesServiceActions,
  *   SampleGasPricesServiceEvents,
  * } from '@metamask/sample-controllers';
  *
- * const globalMessenger = new Messenger<
- *   SampleGasPricesServiceActions,
+ * const rootMessenger = new Messenger<
+ *   'Root',
+ *   SampleGasPricesServiceActions
  *   SampleGasPricesServiceEvents
- * >();
- * const gasPricesServiceMessenger = globalMessenger.getRestricted({
- *   name: 'SampleGasPricesService',
- *   allowedActions: [],
- *   allowedEvents: [],
+ * >({ namespace: 'Root' });
+ * const gasPricesServiceMessenger = new Messenger<
+ *   'SampleGasPricesService',
+ *   SampleGasPricesServiceActions,
+ *   SampleGasPricesServiceEvents,
+ *   typeof rootMessenger,
+ * >({
+ *   namespace: 'SampleGasPricesService',
+ *   parent: rootMessenger,
  * });
  * // Instantiate the service to register its actions on the messenger
  * new SampleGasPricesService({
@@ -99,7 +104,7 @@ type GasPricesResponse = {
  *
  * // Later...
  * // Fetch gas prices for Mainnet
- * const gasPrices = await globalMessenger.call(
+ * const gasPrices = await rootMessenger.call(
  *   'SampleGasPricesService:fetchGasPrices',
  *   '0x1',
  * );
