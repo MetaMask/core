@@ -8,6 +8,7 @@ import {
   TransactionType,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { SignTypedDataVersion } from 'src/constants';
 import { v1 as random } from 'uuid';
 
 import type { createMockMessenger } from './mocks/messenger';
@@ -39,13 +40,18 @@ export function generateMockTxMeta(): TransactionMeta {
 /**
  * Generate a mock signature request.
  *
+ * @param type - The type of the signature request.
+ * @param version - The version of the signature request.
  * @returns A mock signature request.
  */
-export function generateMockSignatureRequest(): SignatureRequest {
+export function generateMockSignatureRequest(
+  type: SignatureRequestType = SignatureRequestType.PersonalSign,
+  version?: SignTypedDataVersion,
+): SignatureRequest {
   return {
     chainId: '0x1',
     id: random(),
-    type: SignatureRequestType.PersonalSign,
+    type,
     messageParams: {
       data: '0x00',
       from: '0x0000000000000000000000000000000000000000',
@@ -54,6 +60,7 @@ export function generateMockSignatureRequest(): SignatureRequest {
     networkClientId: '1',
     status: SignatureRequestStatus.Unapproved,
     time: Date.now(),
+    version,
   };
 }
 

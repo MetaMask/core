@@ -971,6 +971,7 @@ describe('BridgeStatusController', () => {
       );
 
       expect(messengerMock.call.mock.calls).toMatchSnapshot();
+      expect(messengerMock.publish.mock.calls.at(-1)).toMatchSnapshot();
       // Cleanup
       jest.restoreAllMocks();
     });
@@ -1127,6 +1128,9 @@ describe('BridgeStatusController', () => {
       // Assertions
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
       expect(messengerMock.call.mock.calls).toMatchSnapshot();
+      expect(messengerMock.publish).not.toHaveBeenCalledWith(
+        'BridgeStatusController:destinationTransactionCompleted',
+      );
 
       // Cleanup
       jest.restoreAllMocks();
@@ -2303,7 +2307,7 @@ describe('BridgeStatusController', () => {
       };
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
       const result = await controller.submitTx(
-        quoteWithoutApproval.trade.from,
+        (quoteWithoutApproval.trade as TxData).from,
         {
           ...quoteWithoutApproval,
           quote: { ...quoteWithoutApproval.quote, destAsset: erc20Token },
@@ -2330,7 +2334,7 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
       const result = await controller.submitTx(
-        quoteWithoutApproval.trade.from,
+        (quoteWithoutApproval.trade as TxData).from,
         quoteWithoutApproval,
         true,
       );
@@ -2355,7 +2359,7 @@ describe('BridgeStatusController', () => {
 
       await expect(
         controller.submitTx(
-          quoteWithoutApproval.trade.from,
+          (quoteWithoutApproval.trade as TxData).from,
           quoteWithoutApproval,
           false,
         ),
@@ -2385,7 +2389,7 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         mockEvmQuoteResponse,
         false,
       );
@@ -2430,7 +2434,7 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         mockEvmQuoteResponse,
         true,
       );
@@ -2463,7 +2467,7 @@ describe('BridgeStatusController', () => {
 
       await expect(
         controller.submitTx(
-          mockEvmQuoteResponse.trade.from,
+          (mockEvmQuoteResponse.trade as TxData).from,
           mockEvmQuoteResponse,
           false,
         ),
@@ -2496,7 +2500,7 @@ describe('BridgeStatusController', () => {
 
       await expect(
         controller.submitTx(
-          mockEvmQuoteResponse.trade.from,
+          (mockEvmQuoteResponse.trade as TxData).from,
           mockEvmQuoteResponse,
           false,
         ),
@@ -2623,7 +2627,7 @@ describe('BridgeStatusController', () => {
       );
 
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         mockEvmQuoteResponse,
         false,
       );
@@ -2705,7 +2709,7 @@ describe('BridgeStatusController', () => {
       );
 
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         mockEvmQuoteResponse,
         false,
       );
@@ -2877,7 +2881,7 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         mockEvmQuoteResponse,
         false,
       );
@@ -2899,7 +2903,7 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         {
           quote: mockEvmQuoteResponse.quote,
           featureId: FeatureId.PERPS,
@@ -2938,7 +2942,7 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         {
           ...mockEvmQuoteResponse,
           quote: {
@@ -2995,7 +2999,7 @@ describe('BridgeStatusController', () => {
       };
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         {
           ...quoteWithoutApproval,
           quote: { ...quoteWithoutApproval.quote, destAsset: erc20Token },
@@ -3033,7 +3037,7 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         mockEvmQuoteResponse,
         true,
       );
@@ -3056,7 +3060,7 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
       await expect(
         controller.submitTx(
-          mockEvmQuoteResponse.trade.from,
+          (mockEvmQuoteResponse.trade as TxData).from,
           mockEvmQuoteResponse,
           true,
         ),
@@ -3095,7 +3099,7 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
       await expect(
         controller.submitTx(
-          mockEvmQuoteResponse.trade.from,
+          (mockEvmQuoteResponse.trade as TxData).from,
           mockEvmQuoteResponse,
           true,
         ),

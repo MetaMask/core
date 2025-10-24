@@ -6,7 +6,6 @@ import {
 import type { Messenger } from '@metamask/messenger';
 import {
   SignatureRequestStatus,
-  SignatureRequestType,
   type SignatureRequest,
   type SignatureStateChange,
 } from '@metamask/signature-controller';
@@ -15,10 +14,15 @@ import {
   type TransactionControllerStateChangeEvent,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
+import { cloneDeep, isEqual } from 'lodash';
 
 import { controllerName } from './constants';
 import { projectLogger, createModuleLogger } from './logger';
-import type { CoverageResult, ShieldBackend } from './types';
+import type {
+  CoverageResult,
+  NormalizeSignatureRequestFn,
+  ShieldBackend,
+} from './types';
 
 const log = createModuleLogger(projectLogger, 'ShieldController');
 
@@ -130,6 +134,16 @@ export type ShieldControllerOptions = {
   backend: ShieldBackend;
   transactionHistoryLimit?: number;
   coverageHistoryLimit?: number;
+  /**
+   * Normalize the signature request before sending it to the backend.
+   * Please note that the reason this is not being done internally is to
+   * align the request body (data & params) with the security-alerts API.
+   * The same normalization function which is used to normalize security-alerts request should be used here.
+   *
+   * @param signatureRequest - The signature request to normalize.
+   * @returns The normalized signature request.
+   */
+  normalizeSignatureRequest?: NormalizeSignatureRequestFn;
 };
 
 export class ShieldController extends BaseController<
@@ -142,6 +156,8 @@ export class ShieldController extends BaseController<
   readonly #coverageHistoryLimit: number;
 
   readonly #transactionHistoryLimit: number;
+
+  readonly #normalizeSignatureRequest?: NormalizeSignatureRequestFn;
 
   readonly #transactionControllerStateChangeHandler: (
     transactions: TransactionMeta[],
@@ -162,6 +178,7 @@ export class ShieldController extends BaseController<
       backend,
       transactionHistoryLimit = 100,
       coverageHistoryLimit = 10,
+      normalizeSignatureRequest,
     } = options;
     super({
       name: controllerName,
@@ -181,6 +198,7 @@ export class ShieldController extends BaseController<
     this.#signatureControllerStateChangeHandler =
       this.#handleSignatureControllerStateChange.bind(this);
     this.#started = false;
+    this.#normalizeSignatureRequest = normalizeSignatureRequest;
   }
 
   start() {
@@ -235,12 +253,8 @@ export class ShieldController extends BaseController<
         signatureRequest.id,
       );
 
-      // Check coverage if the signature request is new and has type
-      // `personal_sign`.
-      if (
-        !previousSignatureRequest &&
-        signatureRequest.type === SignatureRequestType.PersonalSign
-      ) {
+      // Check coverage if the signature request is new.
+      if (!previousSignatureRequest) {
         this.checkSignatureCoverage(signatureRequest).catch(
           // istanbul ignore next
           (error) => log('Error checking coverage:', error),
@@ -270,14 +284,15 @@ export class ShieldController extends BaseController<
     for (const transaction of transactions) {
       const previousTransaction = previousTransactionsById.get(transaction.id);
 
+      // Check if the simulation data has changed.
+      const simulationDataNotChanged = isEqual(
+        transaction.simulationData,
+        previousTransaction?.simulationData,
+      );
+
       // Check coverage if the transaction is new or if the simulation data has
       // changed.
-      if (
-        !previousTransaction ||
-        // Checking reference equality is sufficient because this object is
-        // replaced if the simulation data has changed.
-        previousTransaction.simulationData !== transaction.simulationData
-      ) {
+      if (!previousTransaction || !simulationDataNotChanged) {
         this.checkCoverage(transaction).catch(
           // istanbul ignore next
           (error) => log('Error checking coverage:', error),
@@ -334,8 +349,15 @@ export class ShieldController extends BaseController<
   ): Promise<CoverageResult> {
     // Check coverage
     const coverageId = this.#getLatestCoverageId(signatureRequest.id);
+
+    // Normalize the signature request before sending it to the backend.
+    // This is to ensure that the signature data is normalized and consistent as the security alerts api calls.
+    const clonedSignatureRequest = cloneDeep(signatureRequest);
+    const normalizedSignatureRequest =
+      this.#normalizeSignatureRequest?.(clonedSignatureRequest) ??
+      clonedSignatureRequest;
     const coverageResult = await this.#backend.checkSignatureCoverage({
-      signatureRequest,
+      signatureRequest: normalizedSignatureRequest,
       coverageId,
     });
 
