@@ -1,6 +1,6 @@
 {
   "name": "@metamask/permission-controller",
-  "version": "11.1.0",
+  "version": "11.1.1",
   "description": "Mediates access to JSON-RPC methods, used to interact with pieces of the MetaMask stack, via middleware for json-rpc-engine",
   "keywords": [
     "MetaMask",
@@ -47,7 +47,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.4.1",
+    "@metamask/base-controller": "^8.4.2",
     "@metamask/controller-utils": "^11.14.1",
     "@metamask/json-rpc-engine": "^10.1.1",
     "@metamask/messenger": "^0.3.0",
@@ -59,7 +59,7 @@
     "nanoid": "^3.3.8"
   },
   "devDependencies": {
-    "@metamask/approval-controller": "^7.2.0",
+    "@metamask/approval-controller": "^7.2.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
