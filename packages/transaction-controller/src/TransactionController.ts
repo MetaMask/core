@@ -2808,7 +2808,6 @@ export class TransactionController extends BaseController<
     });
   }
 
-
   /**
    * Emulate a new transaction.
    *
