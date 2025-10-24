@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6541](https://github.com/MetaMask/core/pull/6541))
   - Previously, `NameController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6541](https://github.com/MetaMask/core/pull/6541))
+
+## [8.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 
 ## [8.1.0]
 
@@ -179,7 +186,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1647](https://github.com/MetaMask/core/pull/1647))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.1.1...HEAD
+[8.1.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.1.0...@metamask/name-controller@8.1.1
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.3...@metamask/name-controller@8.1.0
 [8.0.3]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.2...@metamask/name-controller@8.0.3
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.1...@metamask/name-controller@8.0.2

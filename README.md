@@ -38,6 +38,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/delegation-controller`](packages/delegation-controller)
 - [`@metamask/earn-controller`](packages/earn-controller)
 - [`@metamask/eip-5792-middleware`](packages/eip-5792-middleware)
+- [`@metamask/eip-7702-internal-rpc-middleware`](packages/eip-7702-internal-rpc-middleware)
 - [`@metamask/eip1193-permission-middleware`](packages/eip1193-permission-middleware)
 - [`@metamask/ens-controller`](packages/ens-controller)
 - [`@metamask/error-reporting-service`](packages/error-reporting-service)
@@ -105,6 +106,7 @@ linkStyle default opacity:0.5
   delegation_controller(["@metamask/delegation-controller"]);
   earn_controller(["@metamask/earn-controller"]);
   eip_5792_middleware(["@metamask/eip-5792-middleware"]);
+  eip_7702_internal_rpc_middleware(["@metamask/eip-7702-internal-rpc-middleware"]);
   eip1193_permission_middleware(["@metamask/eip1193-permission-middleware"]);
   ens_controller(["@metamask/ens-controller"]);
   error_reporting_service(["@metamask/error-reporting-service"]);
@@ -214,6 +216,7 @@ linkStyle default opacity:0.5
   earn_controller --> transaction_controller;
   eip_5792_middleware --> transaction_controller;
   eip_5792_middleware --> keyring_controller;
+  eip_7702_internal_rpc_middleware --> controller_utils;
   eip1193_permission_middleware --> chain_agnostic_permission;
   eip1193_permission_middleware --> controller_utils;
   eip1193_permission_middleware --> json_rpc_engine;
@@ -261,6 +264,7 @@ linkStyle default opacity:0.5
   multichain_transactions_controller --> keyring_controller;
   name_controller --> base_controller;
   name_controller --> controller_utils;
+  name_controller --> messenger;
   network_controller --> base_controller;
   network_controller --> controller_utils;
   network_controller --> eth_block_tracker;
