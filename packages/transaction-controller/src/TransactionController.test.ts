@@ -8116,10 +8116,6 @@ describe('TransactionController', () => {
         { selectedAccount },
       );
 
-      const updateTransactionSpy = jest
-        .spyOn(controller, 'updateTransaction')
-        .mockImplementation(() => undefined);
-
       const transactionMeta = {
         id: 'tx3',
         chainId: CHAIN_ID_MOCK,
@@ -8139,28 +8135,31 @@ describe('TransactionController', () => {
 
       controller.emulateTransactionUpdate(transactionMeta);
 
-      expect(mockGetSelectedAccount).toHaveBeenCalledTimes(1);
-      expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
-      const updatedTransactionMeta = updateTransactionSpy.mock
-        .calls[0][0] as TransactionMeta;
-
-      expect(updatedTransactionMeta.txParams.from).toBe(
-        selectedAccount.address,
-      );
+      const transactionMetaWithUpdatedSender = {
+        ...transactionMeta,
+        txParams: {
+          ...transactionMeta.txParams,
+          from: ACCOUNT_2_MOCK,
+        },
+      };
+      const transactionMetaWithUpdatedSenderAndNormalized = {
+        ...transactionMetaWithUpdatedSender,
+        txParams: {
+          ...transactionMetaWithUpdatedSender.txParams,
+          value: '0x0',
+        },
+      };
       expect(controller.state.transactions).toHaveLength(1);
+      // State updated after updating sender and normalizing
       expect(controller.state.transactions[0]).toStrictEqual(
-        updatedTransactionMeta,
+        transactionMetaWithUpdatedSenderAndNormalized,
       );
-      expect(updateTransactionSpy).toHaveBeenCalledWith(
-        updatedTransactionMeta,
-        'Generated from user operation',
-      );
+      expect(mockGetSelectedAccount).toHaveBeenCalledTimes(1);
       expect(statusUpdatedListener).toHaveBeenCalledTimes(1);
+      // Status published after updating sender, but before normalization
       expect(statusUpdatedListener).toHaveBeenCalledWith({
-        transactionMeta: updatedTransactionMeta,
+        transactionMeta: transactionMetaWithUpdatedSender,
       });
-
-      updateTransactionSpy.mockRestore();
     });
 
     it('updates transaction when it already exists', () => {
@@ -8192,10 +8191,6 @@ describe('TransactionController', () => {
         selectedAccount,
       });
 
-      const updateTransactionSpy = jest
-        .spyOn(controller, 'updateTransaction')
-        .mockImplementation(() => undefined);
-
       const statusUpdatedListener = jest.fn();
       messenger.subscribe(
         'TransactionController:transactionStatusUpdated',
@@ -8204,20 +8199,30 @@ describe('TransactionController', () => {
 
       controller.emulateTransactionUpdate(newTransactionMeta);
 
+      const transactionMetaWithUpdatedSender = {
+        ...newTransactionMeta,
+        txParams: {
+          ...newTransactionMeta.txParams,
+          from: ACCOUNT_2_MOCK,
+        },
+      };
+      const transactionMetaWithUpdatedSenderAndNormalized = {
+        ...transactionMetaWithUpdatedSender,
+        txParams: {
+          ...transactionMetaWithUpdatedSender.txParams,
+          value: '0x0',
+        },
+      };
       expect(controller.state.transactions).toHaveLength(1);
-      expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
-      const updatedTransactionMeta = updateTransactionSpy.mock
-        .calls[0][0] as TransactionMeta;
-      expect(updatedTransactionMeta.txParams.from).toBe(
-        selectedAccount.address,
+      // State updated after updating sender and normalizing
+      expect(controller.state.transactions[0]).toStrictEqual(
+        transactionMetaWithUpdatedSenderAndNormalized,
       );
-      expect(updatedTransactionMeta.status).toBe(TransactionStatus.approved);
       expect(statusUpdatedListener).toHaveBeenCalledTimes(1);
+      // Status published after updating sender, but before normalization
       expect(statusUpdatedListener).toHaveBeenCalledWith({
-        transactionMeta: updatedTransactionMeta,
+        transactionMeta: transactionMetaWithUpdatedSender,
       });
-
-      updateTransactionSpy.mockRestore();
     });
   });
 
