@@ -41,3 +41,7 @@ export type ShieldBackend = {
     req: CheckSignatureCoverageRequest,
   ) => Promise<CoverageResult>;
 };
+
+export type NormalizeSignatureRequestFn = (
+  signatureRequest: SignatureRequest,
+) => SignatureRequest;
