@@ -359,6 +359,26 @@ export type TransactionControllerAddTransactionBatchAction = {
 };
 
 /**
+ * Emulate a new transaction.
+ *
+ * @param transactionId - The transaction ID.
+ */
+export type TransactionControllerEmulateNewTransaction = {
+  type: `${typeof controllerName}:emulateNewTransaction`;
+  handler: TransactionController['emulateNewTransaction'];
+};
+
+/**
+ * Emmulate a transaction update.
+ *
+ * @param transactionMeta - Transaction metadata.
+ */
+export type TransactionControllerEmulateTransactionUpdate = {
+  type: `${typeof controllerName}:emulateTransactionUpdate`;
+  handler: TransactionController['emulateTransactionUpdate'];
+};
+
+/**
  * The internal actions available to the TransactionController.
  */
 export type TransactionControllerActions =
@@ -370,7 +390,9 @@ export type TransactionControllerActions =
   | TransactionControllerGetStateAction
   | TransactionControllerGetTransactionsAction
   | TransactionControllerUpdateCustodialTransactionAction
-  | TransactionControllerUpdateTransactionAction;
+  | TransactionControllerUpdateTransactionAction
+  | TransactionControllerEmulateNewTransaction
+  | TransactionControllerEmulateTransactionUpdate;
 
 /**
  * Configuration options for the PendingTransactionTracker
@@ -2779,6 +2801,68 @@ export class TransactionController extends BaseController<
     });
   }
 
+  /**
+   * Emulate a new transaction.
+   *
+   * @param transactionId - The transaction ID.
+   */
+  emulateNewTransaction(transactionId: string) {
+    const transactionMeta = this.state.transactions.find(
+      (tx) => tx.id === transactionId,
+    );
+
+    if (!transactionMeta) {
+      return;
+    }
+
+    if (transactionMeta.type === TransactionType.swap) {
+      this.messagingSystem.publish('TransactionController:transactionNewSwap', {
+        transactionMeta,
+      });
+    } else if (transactionMeta.type === TransactionType.swapApproval) {
+      this.messagingSystem.publish(
+        'TransactionController:transactionNewSwapApproval',
+        { transactionMeta },
+      );
+    }
+  }
+
+  /**
+   * Emulate a transaction update.
+   *
+   * @param transactionMeta - Transaction metadata.
+   */
+  emulateTransactionUpdate(transactionMeta: TransactionMeta) {
+    const updatedTransactionMeta = {
+      ...transactionMeta,
+      txParams: {
+        ...transactionMeta.txParams,
+        from: this.messagingSystem.call('AccountsController:getSelectedAccount')
+          .address,
+      },
+    };
+
+    const transactionExists = this.state.transactions.some(
+      (tx) => tx.id === updatedTransactionMeta.id,
+    );
+
+    if (!transactionExists) {
+      this.update((state) => {
+        state.transactions.push(updatedTransactionMeta);
+      });
+    }
+
+    this.updateTransaction(
+      updatedTransactionMeta,
+      'Generated from user operation',
+    );
+
+    this.messagingSystem.publish(
+      'TransactionController:transactionStatusUpdated',
+      { transactionMeta: updatedTransactionMeta },
+    );
+  }
+
   #addMetadata(transactionMeta: TransactionMeta) {
     validateTxParams(transactionMeta.txParams);
     this.update((state) => {
@@ -4381,6 +4465,16 @@ export class TransactionController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:updateTransaction`,
       this.updateTransaction.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:emulateNewTransaction`,
+      this.emulateNewTransaction.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:emulateTransactionUpdate`,
+      this.emulateTransactionUpdate.bind(this),
     );
   }
 
