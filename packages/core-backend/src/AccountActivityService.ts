@@ -80,7 +80,7 @@ export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'AccountsController:getSelectedAccount',
   'BackendWebSocketService:connect',
-  'BackendWebSocketService:disconnect',
+  'BackendWebSocketService:forceReconnection',
   'BackendWebSocketService:subscribe',
   'BackendWebSocketService:getConnectionInfo',
   'BackendWebSocketService:channelHasSubscription',
@@ -559,16 +559,11 @@ export class AccountActivityService {
    * Force WebSocket reconnection to clean up subscription state
    */
   async #forceReconnection(): Promise<void> {
-    try {
-      log('Forcing WebSocket reconnection to clean up subscription state');
+    log('Forcing WebSocket reconnection to clean up subscription state');
 
-      // All subscriptions will be cleaned up automatically on WebSocket disconnect
-
-      await this.#messenger.call('BackendWebSocketService:disconnect');
-      await this.#messenger.call('BackendWebSocketService:connect');
-    } catch (error) {
-      log('Failed to force WebSocket reconnection', { error });
-    }
+    // Use the dedicated forceReconnection method which performs a controlled
+    // disconnect-then-connect sequence to clean up subscription state
+    await this.#messenger.call('BackendWebSocketService:forceReconnection');
   }
 
   // =============================================================================
