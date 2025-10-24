@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [33.2.0]
 
-### Uncategorized
-
-- Release/624.0.0 ([#6845](https://github.com/MetaMask/core/pull/6845))
-
 ### Added
 
 - Add a `getAccounts` method (and its associated action) that is the plural version of `getAccount` ([#6927](https://github.com/MetaMask/core/pull/6927))
