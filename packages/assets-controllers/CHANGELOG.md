@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add options `fetchingEnabled` callback to `AccountTrackerController` to stop it from fetching from the client ([#6938](https://github.com/MetaMask/core/pull/6938))
+- Add optional `fetchingEnabled` callback to `AccountTrackerController` constructor to stop it from fetching balances ([#6938](https://github.com/MetaMask/core/pull/6938))
 
 ## [83.1.0]
 
