@@ -298,6 +298,7 @@ linkStyle default opacity:0.5
   permission_controller --> approval_controller;
   permission_log_controller --> base_controller;
   permission_log_controller --> json_rpc_engine;
+  permission_log_controller --> messenger;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
   phishing_controller --> messenger;
