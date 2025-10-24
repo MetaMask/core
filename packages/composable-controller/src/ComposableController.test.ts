@@ -183,8 +183,8 @@ describe('ComposableController', () => {
         namespace: 'ComposableController',
         parent: messenger,
       });
-      composableControllerMessenger.delegate({
-        messenger: fooMessenger,
+      messenger.delegate({
+        messenger: composableControllerMessenger,
         events: ['FooController:stateChange', 'QuzController:stateChange'],
       });
       const composableController = new ComposableController<
