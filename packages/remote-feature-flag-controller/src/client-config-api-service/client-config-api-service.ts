@@ -29,47 +29,58 @@ class CustomIntervalBackoff implements IBackoffFactory<unknown> {
 
   constructor(intervals: number[]) {
     // Convert seconds to milliseconds
-    this.intervals = intervals.map(interval => interval * 1000);
+    this.intervals = intervals.map((interval) => interval * 1000);
   }
 
   next(): IBackoff<unknown> {
     const duration = this.intervals[this.currentIndex];
     const nextIndex = this.currentIndex + 1;
-    
+
     return {
       duration,
       next: () => {
-        const nextBackoff = new CustomIntervalBackoff(this.intervals.map(i => i / 1000));
+        const nextBackoff = new CustomIntervalBackoff(
+          this.intervals.map((i) => i / 1000),
+        );
         nextBackoff.currentIndex = nextIndex;
         return nextBackoff.next();
-      }
+      },
     };
   }
 }
 
 /**
  * Validates that the custom backoff interval array exactly matches the number of retries.
- * 
+ *
  * @param customBackoffInterval - Array of retry intervals in seconds (must equal maxRetries length)
  * @param maxRetries - Maximum number of retries configured
  * @throws Error if validation fails
  */
-function validateCustomBackoffInterval(customBackoffInterval: number[], maxRetries: number): void {
+function validateCustomBackoffInterval(
+  customBackoffInterval: number[],
+  maxRetries: number,
+): void {
   if (!Array.isArray(customBackoffInterval)) {
     throw new Error('customBackoffInterval must be an array');
   }
-  
+
   if (customBackoffInterval.length === 0) {
     throw new Error('customBackoffInterval array cannot be empty');
   }
-  
-  if (customBackoffInterval.some(interval => typeof interval !== 'number' || interval <= 0)) {
-    throw new Error('All customBackoffInterval values must be positive numbers');
+
+  if (
+    customBackoffInterval.some(
+      (interval) => typeof interval !== 'number' || interval <= 0,
+    )
+  ) {
+    throw new Error(
+      'All customBackoffInterval values must be positive numbers',
+    );
   }
-  
+
   if (customBackoffInterval.length !== maxRetries) {
     throw new Error(
-      `customBackoffInterval array length (${customBackoffInterval.length}) must be equal to maxRetries (${maxRetries})`
+      `customBackoffInterval array length (${customBackoffInterval.length}) must be equal to maxRetries (${maxRetries})`,
     );
   }
 }
@@ -78,19 +89,22 @@ function validateCustomBackoffInterval(customBackoffInterval: number[], maxRetri
  * Creates the appropriate backoff strategy based on the provided parameters.
  * If customBackoffInterval is provided, uses array-based intervals.
  * Otherwise, uses exponential backoff with minute-based progression.
- * 
+ *
  * @param customBackoffInterval - Optional array of retry intervals in seconds
  * @param maxRetries - Maximum number of retries for validation
  * @returns A backoff factory compatible with Cockatiel
  */
-function createCustomBackoff(customBackoffInterval: number[], maxRetries: number): IBackoffFactory<unknown> {
+function createCustomBackoff(
+  customBackoffInterval: number[],
+  maxRetries: number,
+): IBackoffFactory<unknown> {
   if (customBackoffInterval) {
     if (maxRetries !== undefined) {
       validateCustomBackoffInterval(customBackoffInterval, maxRetries);
     }
     return new CustomIntervalBackoff(customBackoffInterval);
   }
-  
+
   // Default exponential backoff with minute-based intervals
   return new ExponentialBackoff();
 }
@@ -226,7 +240,9 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
       maxRetries: retries,
       maxConsecutiveFailures: maximumConsecutiveFailures,
       circuitBreakDuration,
-      backoff: customBackoffInterval ? createCustomBackoff(customBackoffInterval, retries) : undefined,
+      backoff: customBackoffInterval
+        ? createCustomBackoff(customBackoffInterval, retries)
+        : undefined,
     });
     if (onBreak) {
       this.#policy.onBreak(onBreak);
