@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6542](https://github.com/MetaMask/core/pull/6542))
   - Previously, `MultichainTransactionsController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6542](https://github.com/MetaMask/core/pull/6542))
 
 ## [5.1.0]
 
