@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/polling-controller` from `^14.0.1` to `^14.0.2` ([#6940](https://github.com/MetaMask/core/pull/6940))
+
+## [83.1.0]
+
 ### Added
 
 - Add `Monad Mainnet` into `SUPPORTED_NETWORKS_ACCOUNTS_API_V4`
@@ -2166,7 +2172,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@83.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@83.1.0...HEAD
+[83.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@83.0.0...@metamask/assets-controllers@83.1.0
 [83.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@82.0.0...@metamask/assets-controllers@83.0.0
 [82.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.1...@metamask/assets-controllers@82.0.0
 [81.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.0...@metamask/assets-controllers@81.0.1
