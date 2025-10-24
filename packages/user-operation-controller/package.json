@@ -1,6 +1,6 @@
 {
   "name": "@metamask/user-operation-controller",
-  "version": "39.2.0",
+  "version": "39.2.1",
   "description": "Creates user operations and manages their life cycle",
   "keywords": [
     "MetaMask",
@@ -51,7 +51,7 @@
     "@metamask/base-controller": "^8.4.2",
     "@metamask/controller-utils": "^11.14.1",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/polling-controller": "^14.0.1",
+    "@metamask/polling-controller": "^14.0.2",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.8.1",
@@ -61,13 +61,13 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/approval-controller": "^7.2.0",
+    "@metamask/approval-controller": "^7.2.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-block-tracker": "^14.0.0",
-    "@metamask/gas-fee-controller": "^24.1.0",
-    "@metamask/keyring-controller": "^23.1.1",
-    "@metamask/network-controller": "^24.3.0",
-    "@metamask/transaction-controller": "^60.9.0",
+    "@metamask/gas-fee-controller": "^24.1.1",
+    "@metamask/keyring-controller": "^23.2.0",
+    "@metamask/network-controller": "^24.3.1",
+    "@metamask/transaction-controller": "^60.10.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
