@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add export for `CurrencyRateMessenger` ([#6444](https://github.com/MetaMask/core/pull/6444))
+
 ### Changed
 
+- **BREAKING:** Migrate controllers to new `Messenger` from `@metamask/messenger` ([#6444](https://github.com/MetaMask/core/pull/6444), [#6386](https://github.com/MetaMask/core/pull/6386), [#6745](https://github.com/MetaMask/core/pull/6745))
+  - Previously, the controllers accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 - Bump `@metamask/polling-controller` from `^14.0.1` to `^14.0.2` ([#6940](https://github.com/MetaMask/core/pull/6940))
 
 ## [83.1.0]
@@ -38,16 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Add new event listeners to refresh balances on `TransactionControllerUnapprovedTransactionAddedEvent` and `TransactionControllerTransactionConfirmedEvent` ([#6903](https://github.com/MetaMask/core/pull/6903))
-- Add export for `CurrencyRateMessenger` ([#6444](https://github.com/MetaMask/core/pull/6444))
 - Add multicall addresses in `MULTICALL_CONTRACT_BY_CHAINID` ([#6896](https://github.com/MetaMask/core/pull/6896))
   - Add multicall address for Chains: `Injective`, `Hemi`, `Plasma`, `Nonmia`, `XRPL`, `Soneium`, `Genesys`, `EDU`, `Abstract`, `Berachain`, `MegaETH Testnet`, `Apechain`, `Matchain`, `Monad Testnet`, `Monad`, `Katana`, `Lens`, `Plume`, `XDC`
 
 ### Changed
 
-- **BREAKING:** Migrate controllers to new `Messenger` from `@metamask/messenger` ([#6444](https://github.com/MetaMask/core/pull/6444), [#6386](https://github.com/MetaMask/core/pull/6386), [#6745](https://github.com/MetaMask/core/pull/6745))
-  - Previously, the controllers accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
-- Add multicall addresses in `MULTICALL_CONTRACT_BY_CHAINID` ([#6896](https://github.com/MetaMask/core/pull/6896))
-  - Add multicall address for Chains: `Injective`, `Hemi`, `Plasma`, `Nonmia`, `XRPL`, `Soneium`, `Genesys`, `EDU`, `Abstract`, `Berachain`, `MegaETH Testnet`, `Apechain`, `Matchain`, `Monad Testnet`, `Monad`, `Katana`, `Lens`, `Plume`, `XDC`
 - Batch `OnAssetConversion` and `OnAssetsMarketData` requests to non-EVM account Snaps ([#6886](https://github.com/MetaMask/core/pull/6886))
 
 ## [81.0.1]

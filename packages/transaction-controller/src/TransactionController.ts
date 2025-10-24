@@ -2816,11 +2816,11 @@ export class TransactionController extends BaseController<
     }
 
     if (transactionMeta.type === TransactionType.swap) {
-      this.messagingSystem.publish('TransactionController:transactionNewSwap', {
+      this.messenger.publish('TransactionController:transactionNewSwap', {
         transactionMeta,
       });
     } else if (transactionMeta.type === TransactionType.swapApproval) {
-      this.messagingSystem.publish(
+      this.messenger.publish(
         'TransactionController:transactionNewSwapApproval',
         { transactionMeta },
       );
@@ -2837,7 +2837,7 @@ export class TransactionController extends BaseController<
       ...transactionMeta,
       txParams: {
         ...transactionMeta.txParams,
-        from: this.messagingSystem.call('AccountsController:getSelectedAccount')
+        from: this.messenger.call('AccountsController:getSelectedAccount')
           .address,
       },
     };
@@ -2857,10 +2857,9 @@ export class TransactionController extends BaseController<
       'Generated from user operation',
     );
 
-    this.messagingSystem.publish(
-      'TransactionController:transactionStatusUpdated',
-      { transactionMeta: updatedTransactionMeta },
-    );
+    this.messenger.publish('TransactionController:transactionStatusUpdated', {
+      transactionMeta: updatedTransactionMeta,
+    });
   }
 
   #addMetadata(transactionMeta: TransactionMeta) {
