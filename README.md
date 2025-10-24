@@ -210,8 +210,8 @@ linkStyle default opacity:0.5
   composable_controller --> base_controller;
   composable_controller --> messenger;
   composable_controller --> json_rpc_engine;
-  core_backend --> base_controller;
   core_backend --> controller_utils;
+  core_backend --> messenger;
   core_backend --> profile_sync_controller;
   core_backend --> accounts_controller;
   core_backend --> keyring_controller;
