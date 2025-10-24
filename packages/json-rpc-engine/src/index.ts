@@ -1,3 +1,4 @@
+export { asV2Middleware } from './asV2Middleware';
 export type {
   AsyncJsonRpcEngineNextCallback,
   AsyncJsonrpcMiddleware,
