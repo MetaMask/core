@@ -267,6 +267,7 @@ linkStyle default opacity:0.5
   multichain_api_middleware --> multichain_transactions_controller;
   multichain_network_controller --> base_controller;
   multichain_network_controller --> controller_utils;
+  multichain_network_controller --> messenger;
   multichain_network_controller --> accounts_controller;
   multichain_network_controller --> keyring_controller;
   multichain_network_controller --> network_controller;
