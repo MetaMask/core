@@ -7970,6 +7970,226 @@ describe('TransactionController', () => {
     });
   });
 
+  describe('emulateNewTransaction', () => {
+    it('publishes swap event when transaction is a swap', () => {
+      const swapTransactionMeta = {
+        id: 'tx1',
+        chainId: CHAIN_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        status: TransactionStatus.approved,
+        type: TransactionType.swap,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as TransactionMeta;
+
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [swapTransactionMeta],
+          },
+        },
+      });
+
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(controller.state.transactions[0]).toMatchObject({
+        id: swapTransactionMeta.id,
+        type: TransactionType.swap,
+      });
+
+      const swapListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionNewSwap',
+        swapListener,
+      );
+
+      controller.emulateNewTransaction(swapTransactionMeta.id);
+
+      expect(swapListener).toHaveBeenCalledTimes(1);
+      expect(swapListener).toHaveBeenCalledWith({
+        transactionMeta: expect.objectContaining({
+          id: swapTransactionMeta.id,
+          type: TransactionType.swap,
+        }),
+      });
+    });
+
+    it('publishes swap approval event when transaction is a swap approval', () => {
+      const swapApprovalTransactionMeta = {
+        id: 'tx2',
+        chainId: CHAIN_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        status: TransactionStatus.approved,
+        type: TransactionType.swapApproval,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as TransactionMeta;
+
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [swapApprovalTransactionMeta],
+          },
+        },
+      });
+
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(controller.state.transactions[0]).toMatchObject({
+        id: swapApprovalTransactionMeta.id,
+        type: TransactionType.swapApproval,
+      });
+
+      const swapApprovalListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionNewSwapApproval',
+        swapApprovalListener,
+      );
+
+      controller.emulateNewTransaction(swapApprovalTransactionMeta.id);
+
+      expect(swapApprovalListener).toHaveBeenCalledTimes(1);
+      expect(swapApprovalListener).toHaveBeenCalledWith({
+        transactionMeta: expect.objectContaining({
+          id: swapApprovalTransactionMeta.id,
+          type: TransactionType.swapApproval,
+        }),
+      });
+    });
+
+    it('does not publish events when transaction does not exist', () => {
+      const { controller, messenger } = setupController();
+
+      const swapListener = jest.fn();
+      const swapApprovalListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionNewSwap',
+        swapListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionNewSwapApproval',
+        swapApprovalListener,
+      );
+
+      controller.emulateNewTransaction('missing-transaction-id');
+
+      expect(swapListener).not.toHaveBeenCalled();
+      expect(swapApprovalListener).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('emulateTransactionUpdate', () => {
+    it('adds transaction to state and publishes update when it does not exist', () => {
+      const selectedAccount = {
+        ...INTERNAL_ACCOUNT_MOCK,
+        address: ACCOUNT_2_MOCK,
+      };
+      const { controller, messenger, mockGetSelectedAccount } = setupController(
+        { selectedAccount },
+      );
+
+      const updateTransactionSpy = jest
+        .spyOn(controller, 'updateTransaction')
+        .mockImplementation(() => undefined);
+
+      const transactionMeta = {
+        id: 'tx3',
+        chainId: CHAIN_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        status: TransactionStatus.unapproved,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as TransactionMeta;
+
+      const statusUpdatedListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionStatusUpdated',
+        statusUpdatedListener,
+      );
+
+      controller.emulateTransactionUpdate(transactionMeta);
+
+      expect(mockGetSelectedAccount).toHaveBeenCalledTimes(1);
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
+      const updatedTransactionMeta = updateTransactionSpy.mock
+        .calls[0][0] as TransactionMeta;
+
+      expect(updatedTransactionMeta.txParams.from).toBe(
+        selectedAccount.address,
+      );
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(controller.state.transactions[0]).toStrictEqual(
+        updatedTransactionMeta,
+      );
+      expect(updateTransactionSpy).toHaveBeenCalledWith(
+        updatedTransactionMeta,
+        'Generated from user operation',
+      );
+      expect(statusUpdatedListener).toHaveBeenCalledTimes(1);
+      expect(statusUpdatedListener).toHaveBeenCalledWith({
+        transactionMeta: updatedTransactionMeta,
+      });
+
+      updateTransactionSpy.mockRestore();
+    });
+
+    it('does not add duplicate transaction when it already exists', () => {
+      const selectedAccount = {
+        ...INTERNAL_ACCOUNT_MOCK,
+        address: ACCOUNT_2_MOCK,
+      };
+      const existingTransactionMeta = {
+        id: 'tx4',
+        chainId: CHAIN_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        status: TransactionStatus.approved,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as TransactionMeta;
+
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [existingTransactionMeta],
+          },
+        },
+        selectedAccount,
+      });
+
+      const updateTransactionSpy = jest
+        .spyOn(controller, 'updateTransaction')
+        .mockImplementation(() => undefined);
+
+      const statusUpdatedListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionStatusUpdated',
+        statusUpdatedListener,
+      );
+
+      controller.emulateTransactionUpdate(existingTransactionMeta);
+
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
+      const updatedTransactionMeta = updateTransactionSpy.mock
+        .calls[0][0] as TransactionMeta;
+      expect(updatedTransactionMeta.txParams.from).toBe(
+        selectedAccount.address,
+      );
+      expect(statusUpdatedListener).toHaveBeenCalledTimes(1);
+      expect(statusUpdatedListener).toHaveBeenCalledWith({
+        transactionMeta: updatedTransactionMeta,
+      });
+
+      updateTransactionSpy.mockRestore();
+    });
+  });
+
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
       const { controller } = setupController();
