@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-controller",
-  "version": "24.3.0",
+  "version": "24.3.1",
   "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
   "keywords": [
     "MetaMask",
@@ -47,7 +47,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.4.1",
+    "@metamask/base-controller": "^8.4.2",
     "@metamask/controller-utils": "^11.14.1",
     "@metamask/eth-block-tracker": "^14.0.0",
     "@metamask/eth-json-rpc-infura": "^10.3.0",
@@ -69,7 +69,7 @@
   "devDependencies": {
     "@json-rpc-specification/meta-schema": "^1.0.6",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/error-reporting-service": "^2.2.1",
+    "@metamask/error-reporting-service": "^2.2.2",
     "@types/jest": "^27.4.1",
     "@types/jest-when": "^2.7.3",
     "@types/lodash": "^4.14.191",
