@@ -1791,12 +1791,12 @@ export class KeyringController extends BaseController<
       this.addNewKeyring.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:createNewVaultAndKeychain`,
       this.createNewVaultAndKeychain.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:createNewVaultAndRestore`,
       this.createNewVaultAndRestore.bind(this),
     );
