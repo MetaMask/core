@@ -71,7 +71,7 @@ jobs:
       - run: ./scripts/prepare-preview-builds.sh @metamask-previews ${{ steps.commit-sha.outputs.COMMIT_SHA }}
       - run: yarn build
       - name: Publish preview builds
-        run: yarn workspaces foreach --all --no-private --parallel --verbose run yarn npm publish --tag preview
+        run: yarn workspaces foreach --all --no-private --parallel --verbose run npm publish --tag preview
         env:
           YARN_NPM_AUTH_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
       - name: Post list of preview build identifiers
