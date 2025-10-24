@@ -166,8 +166,10 @@ linkStyle default opacity:0.5
   app_metadata_controller --> base_controller;
   app_metadata_controller --> messenger;
   approval_controller --> base_controller;
+  approval_controller --> messenger;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
+  assets_controllers --> messenger;
   assets_controllers --> polling_controller;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
@@ -185,6 +187,7 @@ linkStyle default opacity:0.5
   bridge_controller --> base_controller;
   bridge_controller --> controller_utils;
   bridge_controller --> gas_fee_controller;
+  bridge_controller --> messenger;
   bridge_controller --> multichain_network_controller;
   bridge_controller --> polling_controller;
   bridge_controller --> accounts_controller;
@@ -288,6 +291,7 @@ linkStyle default opacity:0.5
   network_controller --> eth_json_rpc_middleware;
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
+  network_controller --> messenger;
   network_controller --> error_reporting_service;
   network_enablement_controller --> base_controller;
   network_enablement_controller --> controller_utils;
@@ -355,12 +359,14 @@ linkStyle default opacity:0.5
   signature_controller --> network_controller;
   subscription_controller --> base_controller;
   subscription_controller --> controller_utils;
+  subscription_controller --> messenger;
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
   token_search_discovery_controller --> base_controller;
   token_search_discovery_controller --> messenger;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
+  transaction_controller --> messenger;
   transaction_controller --> accounts_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> eth_block_tracker;
