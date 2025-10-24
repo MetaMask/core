@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
 ## [13.0.1]
 
 ### Changed
@@ -399,7 +405,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.2...HEAD
+[13.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.1...@metamask/message-manager@13.0.2
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.0...@metamask/message-manager@13.0.1
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.2...@metamask/message-manager@13.0.0
 [12.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.1...@metamask/message-manager@12.0.2
