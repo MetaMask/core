@@ -14,6 +14,8 @@ import type {
   SubscriptionControllerStartSubscriptionWithCryptoAction,
   SubscriptionControllerGetStateAction,
   SubscriptionControllerGetCryptoApproveTransactionParamsAction,
+  TokenPaymentInfo,
+  ProductPrice,
 } from '@metamask/subscription-controller';
 import {
   PAYMENT_TYPES,
@@ -336,6 +338,10 @@ export class ShieldController extends BaseController<
           // istanbul ignore next
           (error) => log('Error logging transaction:', error),
         );
+
+        this.#handleSubscriptionCryptoApproval(transaction).catch((error) =>
+          log('Error handling subscription crypto approval:', error),
+        );
       }
     }
   }
@@ -496,7 +502,7 @@ export class ShieldController extends BaseController<
     }
     const decodedApprovalAmount = decodeResponse?.data?.[0]?.params?.find(
       (param) => param.name === 'value' || param.name === 'amount',
-    )?.value;
+    )?.value as string;
     if (!decodedApprovalAmount) {
       throw new Error('Approval amount not found');
     }
@@ -528,39 +534,12 @@ export class ShieldController extends BaseController<
       throw new Error('Selected token price not found');
     }
 
-    const getProductPriceByApprovalAmount = async () => {
-      const getCryptoApproveTransactionParams = {
-        chainId,
-        paymentTokenAddress: selectedTokenPrice.address,
-        productType: PRODUCT_TYPES.SHIELD,
-      };
-      // Get all intervals from RECURRING_INTERVALS
-      const intervals = Object.values(RECURRING_INTERVALS);
-
-      // Fetch approval amounts for all intervals
-      const approvalAmounts = await Promise.all(
-        intervals.map((interval) =>
-          this.messagingSystem.call(
-            'SubscriptionController:getCryptoApproveTransactionParams',
-            {
-              ...getCryptoApproveTransactionParams,
-              interval,
-            },
-          ),
-        ),
-      );
-
-      // Find the matching plan by comparing approval amounts
-      for (let i = 0; i < approvalAmounts.length; i++) {
-        if (approvalAmounts[i]?.approveAmount === decodedApprovalAmount) {
-          return pricingPlans?.find((plan) => plan.interval === intervals[i]);
-        }
-      }
-
-      return undefined;
-    };
-
-    const productPrice = await getProductPriceByApprovalAmount();
+    const productPrice = await this.#getProductPriceByApprovalAmount({
+      approvalAmount: decodedApprovalAmount,
+      chainId,
+      selectedTokenPrice,
+      pricingPlans: pricingPlans ?? [],
+    });
     if (!productPrice) {
       throw new Error('Product price not found');
     }
@@ -580,6 +559,48 @@ export class ShieldController extends BaseController<
       params,
     );
     await this.messagingSystem.call('SubscriptionController:getSubscriptions');
+  }
+
+  async #getProductPriceByApprovalAmount({
+    approvalAmount,
+    chainId,
+    selectedTokenPrice,
+    pricingPlans,
+  }: {
+    approvalAmount: string;
+    pricingPlans: ProductPrice[];
+    chainId: Hex;
+    selectedTokenPrice: TokenPaymentInfo;
+  }) {
+    const getCryptoApproveTransactionParams = {
+      chainId,
+      paymentTokenAddress: selectedTokenPrice.address,
+      productType: PRODUCT_TYPES.SHIELD,
+    };
+    // Get all intervals from RECURRING_INTERVALS
+    const intervals = Object.values(RECURRING_INTERVALS);
+
+    // Fetch approval amounts for all intervals
+    const approvalAmounts = await Promise.all(
+      intervals.map((interval) =>
+        this.messagingSystem.call(
+          'SubscriptionController:getCryptoApproveTransactionParams',
+          {
+            ...getCryptoApproveTransactionParams,
+            interval,
+          },
+        ),
+      ),
+    );
+
+    // Find the matching plan by comparing approval amounts
+    for (let i = 0; i < approvalAmounts.length; i++) {
+      if (approvalAmounts[i]?.approveAmount === approvalAmount) {
+        return pricingPlans?.find((plan) => plan.interval === intervals[i]);
+      }
+    }
+
+    return undefined;
   }
 
   #getSelectedAddress(): Hex | undefined {
