@@ -184,6 +184,16 @@ export type KeyringControllerWithKeyringAction = {
   handler: KeyringController['withKeyring'];
 };
 
+export type KeyringControllerCreateNewVaultAndKeychainAction = {
+  type: `${typeof name}:createNewVaultAndKeychain`;
+  handler: KeyringController['createNewVaultAndKeychain'];
+};
+
+export type KeyringControllerCreateNewVaultAndRestoreAction = {
+  type: `${typeof name}:createNewVaultAndRestore`;
+  handler: KeyringController['createNewVaultAndRestore'];
+};
+
 export type KeyringControllerAddNewKeyringAction = {
   type: `${typeof name}:addNewKeyring`;
   handler: KeyringController['addNewKeyring'];
@@ -226,7 +236,9 @@ export type KeyringControllerActions =
   | KeyringControllerSignUserOperationAction
   | KeyringControllerAddNewAccountAction
   | KeyringControllerWithKeyringAction
-  | KeyringControllerAddNewKeyringAction;
+  | KeyringControllerAddNewKeyringAction
+  | KeyringControllerCreateNewVaultAndKeychainAction
+  | KeyringControllerCreateNewVaultAndRestoreAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -1777,6 +1789,16 @@ export class KeyringController extends BaseController<
     this.messenger.registerActionHandler(
       `${name}:addNewKeyring`,
       this.addNewKeyring.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:createNewVaultAndKeychain`,
+      this.createNewVaultAndKeychain.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:createNewVaultAndRestore`,
+      this.createNewVaultAndRestore.bind(this),
     );
   }
 
