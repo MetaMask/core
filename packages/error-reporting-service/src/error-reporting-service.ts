@@ -95,17 +95,17 @@ type ErrorReportingServiceOptions = {
  * import { ErrorReportingService } from '@metamask/error-reporting-service';
  * import { ExampleController } from './example-controller';
  *
- * type AllActions = MessengerActions<ErrorReportingServiceMessenger>;
+ * type RootMessenger = Messenger<
+ *   'Root',
+ *   MessengerActions<ErrorReportingServiceMessenger>,
+ *   MessengerEvents<ErrorReportingServiceMessenger>
+ * >;
  *
- * type AllEvents = MessengerEvents<ErrorReportingServiceMessenger>;
- *
- * type RootMessenger = Messenger<'Root', AllActions, AllEvents>;
- *
- * // Create a global messenger.
- * const globalMessenger = new Messenger();
+ * // Create a root messenger.
+ * const rootMessenger = new Messenger();
  *
  * // Register handler for the `ErrorReportingService:captureException`
- * // action in the global messenger.
+ * // action in the root messenger.
  * const errorReportingServiceMessenger = new Messenger<
  *   'ErrorReportingService',
  *   MessengerActions<ErrorReportingServiceMessenger>,
@@ -113,7 +113,7 @@ type ErrorReportingServiceOptions = {
  *   RootMessenger
  * >({
  *   namespace: 'ErrorReportingService',
- *   parent: globalMessenger,
+ *   parent: rootMessenger,
  * });
  * const errorReportingService = new ErrorReportingService({
  *   messenger: errorReportingServiceMessenger,
@@ -127,9 +127,9 @@ type ErrorReportingServiceOptions = {
  *  RootMessenger
  * >({
  *   namespace: 'ExampleController',
- *   parent: globalMessenger,
+ *   parent: rootMessenger,
  * });
- * globalMessenger.delegate({
+ * rootMessenger.delegate({
  *   messenger: exampleControllerMessenger,
  *   actions: ['ErrorReportingService:captureException'],
  * });
