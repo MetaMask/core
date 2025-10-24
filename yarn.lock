@@ -4722,9 +4722,11 @@ __metadata:
     "@babel/runtime": "npm:^7.23.9"
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
+    "@metamask/accounts-controller": "npm:^33.1.1"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.2"
     "@metamask/signature-controller": "npm:^34.0.1"
+    "@metamask/subscription-controller": "npm:^2.0.0"
     "@metamask/transaction-controller": "npm:^60.9.0"
     "@metamask/utils": "npm:^11.8.1"
     "@ts-bridge/cli": "npm:^0.6.1"
@@ -4906,7 +4908,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/subscription-controller@workspace:packages/subscription-controller":
+"@metamask/subscription-controller@npm:^2.0.0, @metamask/subscription-controller@workspace:packages/subscription-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/subscription-controller@workspace:packages/subscription-controller"
   dependencies:

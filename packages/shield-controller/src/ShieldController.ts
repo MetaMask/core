@@ -1,3 +1,4 @@
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerStateChangeEvent,
@@ -8,17 +9,31 @@ import {
   type SignatureRequest,
   type SignatureStateChange,
 } from '@metamask/signature-controller';
+import type {
+  SubscriptionControllerGetSubscriptionsAction,
+  SubscriptionControllerStartSubscriptionWithCryptoAction,
+  SubscriptionControllerGetStateAction,
+  SubscriptionControllerGetCryptoApproveTransactionParamsAction,
+} from '@metamask/subscription-controller';
+import {
+  PAYMENT_TYPES,
+  PRODUCT_TYPES,
+  RECURRING_INTERVALS,
+} from '@metamask/subscription-controller';
 import {
   TransactionStatus,
   type TransactionControllerStateChangeEvent,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import { cloneDeep, isEqual } from 'lodash';
 
 import { controllerName } from './constants';
 import { projectLogger, createModuleLogger } from './logger';
 import type {
   CoverageResult,
+  DecodeTransactionDataHandler,
   NormalizeSignatureRequestFn,
   ShieldBackend,
 } from './types';
@@ -88,7 +103,12 @@ export type ShieldControllerEvents =
 /**
  * The external actions available to the ShieldController.
  */
-type AllowedActions = never;
+type AllowedActions =
+  | AccountsControllerGetSelectedAccountAction
+  | SubscriptionControllerStartSubscriptionWithCryptoAction
+  | SubscriptionControllerGetCryptoApproveTransactionParamsAction
+  | SubscriptionControllerGetStateAction
+  | SubscriptionControllerGetSubscriptionsAction;
 
 /**
  * The external events available to the ShieldController.
@@ -143,6 +163,11 @@ export type ShieldControllerOptions = {
    * @returns The normalized signature request.
    */
   normalizeSignatureRequest?: NormalizeSignatureRequestFn;
+  /**
+   * Handler to decode transaction data.
+   * Depend on client provider, not being handled internally
+   */
+  decodeTransactionDataHandler: DecodeTransactionDataHandler;
 };
 
 export class ShieldController extends BaseController<
@@ -168,6 +193,8 @@ export class ShieldController extends BaseController<
     previousSignatureRequests: Record<string, SignatureRequest> | undefined,
   ) => void;
 
+  readonly #decodeTransactionDataHandler: DecodeTransactionDataHandler;
+
   #started: boolean;
 
   constructor(options: ShieldControllerOptions) {
@@ -178,6 +205,7 @@ export class ShieldController extends BaseController<
       transactionHistoryLimit = 100,
       coverageHistoryLimit = 10,
       normalizeSignatureRequest,
+      decodeTransactionDataHandler,
     } = options;
     super({
       name: controllerName,
@@ -198,6 +226,7 @@ export class ShieldController extends BaseController<
       this.#handleSignatureControllerStateChange.bind(this);
     this.#started = false;
     this.#normalizeSignatureRequest = normalizeSignatureRequest;
+    this.#decodeTransactionDataHandler = decodeTransactionDataHandler;
   }
 
   start() {
@@ -447,6 +476,118 @@ export class ShieldController extends BaseController<
       transactionHash,
       status,
     });
+  }
+
+  async #handleSubscriptionCryptoApproval(txMeta: TransactionMeta) {
+    if (txMeta.type !== TransactionType.shieldSubscriptionApprove) {
+      return;
+    }
+    const { chainId, rawTx, txParams } = txMeta;
+    if (!chainId || !rawTx) {
+      throw new Error('Chain ID or raw transaction not found');
+    }
+    const decodeResponse = await this.#decodeTransactionDataHandler({
+      transactionData: txParams.data as Hex,
+      contractAddress: txParams.to as Hex,
+      chainId,
+    });
+    if (!decodeResponse) {
+      throw new Error('Invalid transaction');
+    }
+    const decodedApprovalAmount = decodeResponse?.data?.[0]?.params?.find(
+      (param) => param.name === 'value' || param.name === 'amount',
+    )?.value;
+    if (!decodedApprovalAmount) {
+      throw new Error('Approval amount not found');
+    }
+
+    const { pricing, trialedProducts } = this.messagingSystem.call(
+      'SubscriptionController:getState',
+    );
+    if (!pricing) {
+      throw new Error('Subscription pricing not found');
+    }
+
+    const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
+    const pricingPlans = pricing?.products.find(
+      (product) => product.name === PRODUCT_TYPES.SHIELD,
+    )?.prices;
+    const cryptoPaymentMethod = pricing?.paymentMethods.find(
+      (paymentMethod) => paymentMethod.type === PAYMENT_TYPES.byCrypto,
+    );
+    const selectedTokenPrice = cryptoPaymentMethod?.chains
+      ?.find(
+        (chain) =>
+          chain.chainId.toLowerCase() === txMeta?.chainId.toLowerCase(),
+      )
+      ?.tokens.find(
+        (token) =>
+          token.address.toLowerCase() === txMeta?.txParams?.to?.toLowerCase(),
+      );
+    if (!selectedTokenPrice) {
+      throw new Error('Selected token price not found');
+    }
+
+    const getProductPriceByApprovalAmount = async () => {
+      const getCryptoApproveTransactionParams = {
+        chainId,
+        paymentTokenAddress: selectedTokenPrice.address,
+        productType: PRODUCT_TYPES.SHIELD,
+      };
+      // Get all intervals from RECURRING_INTERVALS
+      const intervals = Object.values(RECURRING_INTERVALS);
+
+      // Fetch approval amounts for all intervals
+      const approvalAmounts = await Promise.all(
+        intervals.map((interval) =>
+          this.messagingSystem.call(
+            'SubscriptionController:getCryptoApproveTransactionParams',
+            {
+              ...getCryptoApproveTransactionParams,
+              interval,
+            },
+          ),
+        ),
+      );
+
+      // Find the matching plan by comparing approval amounts
+      for (let i = 0; i < approvalAmounts.length; i++) {
+        if (approvalAmounts[i]?.approveAmount === decodedApprovalAmount) {
+          return pricingPlans?.find((plan) => plan.interval === intervals[i]);
+        }
+      }
+
+      return undefined;
+    };
+
+    const productPrice = await getProductPriceByApprovalAmount();
+    if (!productPrice) {
+      throw new Error('Product price not found');
+    }
+
+    const params = {
+      products: [PRODUCT_TYPES.SHIELD],
+      isTrialRequested: !isTrialed,
+      recurringInterval: productPrice.interval,
+      billingCycles: productPrice.minBillingCycles,
+      chainId,
+      payerAddress: this.#getSelectedAddress() as Hex,
+      tokenSymbol: selectedTokenPrice.symbol,
+      rawTransaction: rawTx as Hex,
+    };
+    await this.messagingSystem.call(
+      'SubscriptionController:startSubscriptionWithCrypto',
+      params,
+    );
+    await this.messagingSystem.call('SubscriptionController:getSubscriptions');
+  }
+
+  #getSelectedAddress(): Hex | undefined {
+    // If the address is not defined (or empty), we fallback to the currently selected account's address
+    const account = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
+    );
+    return account?.address as Hex | undefined;
   }
 
   #getCoverageStatus(itemId: string) {

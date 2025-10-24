@@ -4,8 +4,10 @@
     "baseUrl": "./"
   },
   "references": [
+    { "path": "../accounts-controller" },
     { "path": "../base-controller" },
     { "path": "../signature-controller" },
+    { "path": "../subscription-controller" },
     { "path": "../transaction-controller" }
   ],
   "include": ["../../types", "./src", "./tests"]
