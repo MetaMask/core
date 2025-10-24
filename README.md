@@ -256,6 +256,7 @@ linkStyle default opacity:0.5
   logging_controller --> messenger;
   message_manager --> base_controller;
   message_manager --> controller_utils;
+  message_manager --> messenger;
   multichain_account_service --> base_controller;
   multichain_account_service --> messenger;
   multichain_account_service --> accounts_controller;
