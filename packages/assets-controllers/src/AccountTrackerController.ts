@@ -3,7 +3,6 @@ import type {
   AccountsControllerSelectedEvmAccountChangeEvent,
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerListAccountsAction,
-  AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerStateChangeEvent,
@@ -16,12 +15,14 @@ import {
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import type { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkClient,
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
+  NetworkControllerNetworkAddedEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
@@ -198,9 +199,10 @@ export type AccountTrackerControllerEvents =
  */
 export type AllowedEvents =
   | AccountsControllerSelectedEvmAccountChangeEvent
-  | AccountsControllerSelectedAccountChangeEvent
   | TransactionControllerUnapprovedTransactionAddedEvent
-  | TransactionControllerTransactionConfirmedEvent;
+  | TransactionControllerTransactionConfirmedEvent
+  | NetworkControllerNetworkAddedEvent
+  | KeyringControllerUnlockEvent;
 
 /**
  * The messenger of the {@link AccountTrackerController}.
@@ -323,6 +325,17 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       },
       (event): string => event.address,
     );
+
+    this.messagingSystem.subscribe(
+      'NetworkController:networkAdded',
+      async () => {
+        await this.refresh(this.#getNetworkClientIds());
+      },
+    );
+
+    this.messagingSystem.subscribe('KeyringController:unlock', async () => {
+      await this.refresh(this.#getNetworkClientIds());
+    });
 
     this.messagingSystem.subscribe(
       'TransactionController:unapprovedTransactionAdded',
