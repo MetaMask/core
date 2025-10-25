@@ -12,6 +12,7 @@ export type {
   GatorPermissionsControllerEnableGatorPermissionsAction,
   GatorPermissionsControllerDisableGatorPermissionsAction,
   GatorPermissionsControllerSubmitRevocationAction,
+  GatorPermissionsControllerAddPendingRevocationAction,
   GatorPermissionsControllerActions,
   GatorPermissionsControllerEvents,
   GatorPermissionsControllerStateChangeEvent,

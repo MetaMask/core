@@ -149,6 +149,10 @@ export type StoredGatorPermission<
 > = {
   permissionResponse: PermissionResponse<TSigner, TPermission>;
   siteOrigin: string;
+  /**
+   * Flag indicating whether this permission has been revoked.
+   */
+  isRevoked?: boolean;
 };
 
 /**
@@ -163,6 +167,10 @@ export type StoredGatorPermissionSanitized<
 > = {
   permissionResponse: PermissionResponseSanitized<TSigner, TPermission>;
   siteOrigin: string;
+  /**
+   * Flag indicating whether this permission has been revoked.
+   */
+  isRevoked?: boolean;
 };
 
 /**

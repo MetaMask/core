@@ -10,6 +10,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
+import type { Hex, Json } from '@metamask/utils';
 
 import type { DecodedPermission } from './decodePermission';
 import {
@@ -190,6 +191,14 @@ export type GatorPermissionsControllerSubmitRevocationAction = {
 };
 
 /**
+ * The action which can be used to add a pending revocation.
+ */
+export type GatorPermissionsControllerAddPendingRevocationAction = {
+  type: `${typeof controllerName}:addPendingRevocation`;
+  handler: GatorPermissionsController['addPendingRevocation'];
+};
+
+/**
  * All actions that {@link GatorPermissionsController} registers, to be called
  * externally.
  */
@@ -199,7 +208,8 @@ export type GatorPermissionsControllerActions =
   | GatorPermissionsControllerEnableGatorPermissionsAction
   | GatorPermissionsControllerDisableGatorPermissionsAction
   | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction
-  | GatorPermissionsControllerSubmitRevocationAction;
+  | GatorPermissionsControllerSubmitRevocationAction
+  | GatorPermissionsControllerAddPendingRevocationAction;
 
 /**
  * All actions that {@link GatorPermissionsController} calls internally.
@@ -208,6 +218,14 @@ export type GatorPermissionsControllerActions =
  * internally because they are used to fetch gator permissions from the Snap.
  */
 type AllowedActions = HandleSnapRequest | HasSnap;
+
+/**
+ * Event emitted when a transaction is confirmed.
+ */
+export type TransactionControllerTransactionConfirmedEvent = {
+  type: 'TransactionController:transactionConfirmed';
+  payload: [transactionMeta: { id: string }];
+};
 
 /**
  * The event that {@link GatorPermissionsController} publishes when updating state.
@@ -228,7 +246,9 @@ export type GatorPermissionsControllerEvents =
 /**
  * Events that {@link GatorPermissionsController} is allowed to subscribe to internally.
  */
-type AllowedEvents = GatorPermissionsControllerStateChangeEvent;
+type AllowedEvents =
+  | GatorPermissionsControllerStateChangeEvent
+  | TransactionControllerTransactionConfirmedEvent;
 
 /**
  * Messenger type for the GatorPermissionsController.
@@ -320,6 +340,11 @@ export default class GatorPermissionsController extends BaseController<
     console.log(
       '[GatorPermissionsController] submitRevocation action registered successfully',
     );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:addPendingRevocation`,
+      this.addPendingRevocation.bind(this),
+    );
   }
 
   /**
@@ -338,12 +363,15 @@ export default class GatorPermissionsController extends BaseController<
    *
    * @param args - The request parameters.
    * @param args.snapId - The ID of the Snap of the gator permissions provider snap.
+   * @param args.params - Optional parameters to pass to the snap method.
    * @returns A promise that resolves with the gator permissions.
    */
   async #handleSnapRequestToGatorPermissionsProvider({
     snapId,
+    params,
   }: {
     snapId: SnapId;
+    params?: Json;
   }): Promise<
     StoredGatorPermission<Signer, PermissionTypesWithCustom>[] | null
   > {
@@ -358,6 +386,7 @@ export default class GatorPermissionsController extends BaseController<
             jsonrpc: '2.0',
             method:
               GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
+            ...(params !== undefined && { params }),
           },
         },
       )) as StoredGatorPermission<Signer, PermissionTypesWithCustom>[] | null;
@@ -510,10 +539,13 @@ export default class GatorPermissionsController extends BaseController<
   /**
    * Fetches the gator permissions from profile sync and updates the state.
    *
+   * @param params - Optional parameters to pass to the snap's getGrantedPermissions method.
    * @returns A promise that resolves to the gator permissions map.
    * @throws {GatorPermissionsFetchError} If the gator permissions fetch fails.
    */
-  public async fetchAndUpdateGatorPermissions(): Promise<GatorPermissionsMap> {
+  public async fetchAndUpdateGatorPermissions(
+    params?: Json,
+  ): Promise<GatorPermissionsMap> {
     try {
       this.#setIsFetchingGatorPermissions(true);
       this.#assertGatorPermissionsEnabled();
@@ -521,6 +553,7 @@ export default class GatorPermissionsController extends BaseController<
       const permissionsData =
         await this.#handleSnapRequestToGatorPermissionsProvider({
           snapId: this.state.gatorPermissionsProviderSnapId,
+          params,
         });
 
       const gatorPermissionsMap =
@@ -717,5 +750,78 @@ export default class GatorPermissionsController extends BaseController<
         cause: error as Error,
       });
     }
+  }
+
+  /**
+   * Adds a pending revocation that will be submitted once the transaction is confirmed.
+   *
+   * @param txId - The transaction metadata ID to monitor.
+   * @param permissionContext - The permission context to revoke once the transaction is confirmed.
+   * @returns A promise that resolves when the listener is set up.
+   */
+  public async addPendingRevocation(
+    txId: string,
+    permissionContext: Hex,
+  ): Promise<void> {
+    console.log('[GatorPermissionsController] addPendingRevocation called', {
+      txId,
+      permissionContext,
+    });
+    controllerLog('addPendingRevocation method called', {
+      txId,
+      permissionContext,
+    });
+
+    const handler = (transactionMeta: { id: string }) => {
+      console.log(
+        '[GatorPermissionsController] Transaction confirmed event received',
+        {
+          receivedTxId: transactionMeta.id,
+          waitingForTxId: txId,
+          matches: transactionMeta.id === txId,
+        },
+      );
+
+      if (transactionMeta.id === txId) {
+        console.log(
+          '[GatorPermissionsController] Transaction ID matched, submitting revocation',
+          {
+            txId,
+            permissionContext,
+          },
+        );
+
+        this.messagingSystem.unsubscribe(
+          'TransactionController:transactionConfirmed',
+          handler,
+        );
+        console.log(
+          '[GatorPermissionsController] Unsubscribed from transaction confirmed events',
+        );
+
+        this.submitRevocation({ permissionContext }).catch((error) => {
+          console.error(
+            '[GatorPermissionsController] Failed to submit revocation after transaction confirmed',
+            error,
+          );
+          controllerLog(
+            'Failed to submit revocation after transaction confirmed',
+            {
+              txId,
+              permissionContext,
+              error,
+            },
+          );
+        });
+      }
+    };
+
+    this.messagingSystem.subscribe(
+      'TransactionController:transactionConfirmed',
+      handler,
+    );
+    console.log(
+      '[GatorPermissionsController] Subscribed to transaction confirmed events',
+    );
   }
 }
