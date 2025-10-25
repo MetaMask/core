@@ -966,7 +966,7 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller }) => {
-          const result = await controller.getCryptoApproveTransactionParams({
+          const result = controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
             paymentTokenAddress: '0xtoken',
             productType: PRODUCT_TYPES.SHIELD,
@@ -985,14 +985,14 @@ describe('SubscriptionController', () => {
 
     it('throws when pricing not found', async () => {
       await withController(async ({ controller }) => {
-        await expect(
+        expect(() =>
           controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
             paymentTokenAddress: '0xtoken',
             productType: PRODUCT_TYPES.SHIELD,
             interval: RECURRING_INTERVALS.month,
           }),
-        ).rejects.toThrow('Subscription pricing not found');
+        ).toThrow('Subscription pricing not found');
       });
     });
 
@@ -1007,14 +1007,14 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller }) => {
-          await expect(
+          expect(() =>
             controller.getCryptoApproveTransactionParams({
               chainId: '0x1',
               paymentTokenAddress: '0xtoken',
               productType: PRODUCT_TYPES.SHIELD,
               interval: RECURRING_INTERVALS.month,
             }),
-          ).rejects.toThrow('Product price not found');
+          ).toThrow('Product price not found');
         },
       );
     });
@@ -1044,14 +1044,14 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller }) => {
-          await expect(
+          expect(() =>
             controller.getCryptoApproveTransactionParams({
               chainId: '0x1',
               paymentTokenAddress: '0xtoken',
               productType: PRODUCT_TYPES.SHIELD,
               interval: RECURRING_INTERVALS.month,
             }),
-          ).rejects.toThrow('Price not found');
+          ).toThrow('Price not found');
         },
       );
     });
@@ -1071,14 +1071,14 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller }) => {
-          await expect(
+          expect(() =>
             controller.getCryptoApproveTransactionParams({
               chainId: '0x1',
               paymentTokenAddress: '0xtoken',
               productType: PRODUCT_TYPES.SHIELD,
               interval: RECURRING_INTERVALS.month,
             }),
-          ).rejects.toThrow('Chains payment info not found');
+          ).toThrow('Chains payment info not found');
         },
       );
     });
@@ -1105,14 +1105,14 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller }) => {
-          await expect(
+          expect(() =>
             controller.getCryptoApproveTransactionParams({
               chainId: '0x1',
               paymentTokenAddress: '0xtoken',
               productType: PRODUCT_TYPES.SHIELD,
               interval: RECURRING_INTERVALS.month,
             }),
-          ).rejects.toThrow('Invalid chain id');
+          ).toThrow('Invalid chain id');
         },
       );
     });
@@ -1125,14 +1125,14 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller }) => {
-          await expect(
+          expect(() =>
             controller.getCryptoApproveTransactionParams({
               chainId: '0x1',
               paymentTokenAddress: '0xtoken-invalid',
               productType: PRODUCT_TYPES.SHIELD,
               interval: RECURRING_INTERVALS.month,
             }),
-          ).rejects.toThrow('Invalid token address');
+          ).toThrow('Invalid token address');
         },
       );
     });
@@ -1166,14 +1166,14 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller }) => {
-          await expect(
+          expect(() =>
             controller.getCryptoApproveTransactionParams({
               chainId: '0x1',
               paymentTokenAddress: '0xtoken',
               productType: PRODUCT_TYPES.SHIELD,
               interval: RECURRING_INTERVALS.month,
             }),
-          ).rejects.toThrow('Conversion rate not found');
+          ).toThrow('Conversion rate not found');
         },
       );
     });
