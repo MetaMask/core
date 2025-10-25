@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `fetchingEnabled` callback to `AccountTrackerController` constructor to stop it from fetching balances ([#6938](https://github.com/MetaMask/core/pull/6938))
 
+### Changed
+
+- Bump `@metamask/polling-controller` from `^14.0.1` to `^14.0.2` ([#6940](https://github.com/MetaMask/core/pull/6940))
+
 ## [83.1.0]
 
 ### Added

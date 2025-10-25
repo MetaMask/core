@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- In experimental `next` export, fix the `StatePropertyMetadataConstraint` type ([#6942](https://github.com/MetaMask/core/pull/6942))
+  - It incorrectly used the old metadata property `anonymous` instead of `includeInDebugSnapshot`
+
 ## [8.4.2]
 
 ### Fixed
