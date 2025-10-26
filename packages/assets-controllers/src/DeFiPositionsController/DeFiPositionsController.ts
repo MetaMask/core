@@ -187,10 +187,6 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     this.messagingSystem.subscribe(
       'TransactionController:transactionConfirmed',
       async (transactionMeta) => {
-        if (!this.#isEnabled()) {
-          return;
-        }
-
         const selectedAddress = this.#getSelectedEvmAdress();
 
         if (
@@ -240,6 +236,10 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
   }
 
   async #updateAccountPositions(accountAddress: string): Promise<void> {
+    if (!this.#isEnabled()) {
+      return;
+    }
+
     const accountPositionsPerChain =
       await this.#fetchAccountPositions(accountAddress);
 
