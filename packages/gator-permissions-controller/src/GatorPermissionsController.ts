@@ -63,6 +63,12 @@ const defaultGatorPermissionsMap: GatorPermissionsMap = {
  */
 export const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
 
+/**
+ * Timeout duration for pending revocations (2 hours in milliseconds).
+ * After this time, event listeners will be cleaned up to prevent memory leaks.
+ */
+const PENDING_REVOCATION_TIMEOUT = 2 * 60 * 60 * 1000;
+
 const contractsByChainId = DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION];
 
 // === STATE ===
@@ -227,6 +233,27 @@ export type TransactionControllerTransactionConfirmedEvent = {
 };
 
 /**
+ * Event emitted when a transaction fails.
+ */
+export type TransactionControllerTransactionFailedEvent = {
+  type: 'TransactionController:transactionFailed';
+  payload: [
+    {
+      transactionMeta: { id: string };
+      error: string;
+    },
+  ];
+};
+
+/**
+ * Event emitted when a transaction is dropped.
+ */
+export type TransactionControllerTransactionDroppedEvent = {
+  type: 'TransactionController:transactionDropped';
+  payload: [transactionMeta: { id: string }];
+};
+
+/**
  * The event that {@link GatorPermissionsController} publishes when updating state.
  */
 export type GatorPermissionsControllerStateChangeEvent =
@@ -247,7 +274,9 @@ export type GatorPermissionsControllerEvents =
  */
 type AllowedEvents =
   | GatorPermissionsControllerStateChangeEvent
-  | TransactionControllerTransactionConfirmedEvent;
+  | TransactionControllerTransactionConfirmedEvent
+  | TransactionControllerTransactionFailedEvent
+  | TransactionControllerTransactionDroppedEvent;
 
 /**
  * Messenger type for the GatorPermissionsController.
@@ -705,6 +734,10 @@ export default class GatorPermissionsController extends BaseController<
   /**
    * Adds a pending revocation that will be submitted once the transaction is confirmed.
    *
+   * This method sets up listeners for terminal transaction states (confirmed, failed, dropped)
+   * and includes a timeout safety net to prevent memory leaks if the transaction never
+   * reaches a terminal state.
+   *
    * @param txId - The transaction metadata ID to monitor.
    * @param permissionContext - The permission context to revoke once the transaction is confirmed.
    * @returns A promise that resolves when the listener is set up.
@@ -718,17 +751,59 @@ export default class GatorPermissionsController extends BaseController<
       permissionContext,
     });
 
-    const handler = (transactionMeta: { id: string }) => {
+    this.#assertGatorPermissionsEnabled();
+
+    // Track handlers and timeout for cleanup
+    const handlers = {
+      confirmed: undefined as
+        | ((transactionMeta: { id: string }) => void)
+        | undefined,
+      failed: undefined as
+        | ((payload: {
+            transactionMeta: { id: string };
+            error: string;
+          }) => void)
+        | undefined,
+      dropped: undefined as
+        | ((transactionMeta: { id: string }) => void)
+        | undefined,
+      timeoutId: undefined as ReturnType<typeof setTimeout> | undefined,
+    };
+
+    // Cleanup function to unsubscribe from all events and clear timeout
+    const cleanup = () => {
+      if (handlers.confirmed) {
+        this.messagingSystem.unsubscribe(
+          'TransactionController:transactionConfirmed',
+          handlers.confirmed,
+        );
+      }
+      if (handlers.failed) {
+        this.messagingSystem.unsubscribe(
+          'TransactionController:transactionFailed',
+          handlers.failed,
+        );
+      }
+      if (handlers.dropped) {
+        this.messagingSystem.unsubscribe(
+          'TransactionController:transactionDropped',
+          handlers.dropped,
+        );
+      }
+      if (handlers.timeoutId !== undefined) {
+        clearTimeout(handlers.timeoutId);
+      }
+    };
+
+    // Handle confirmed transaction - submit revocation
+    handlers.confirmed = (transactionMeta: { id: string }) => {
       if (transactionMeta.id === txId) {
-        controllerLog('Transaction ID matched, submitting revocation', {
+        controllerLog('Transaction confirmed, submitting revocation', {
           txId,
           permissionContext,
         });
 
-        this.messagingSystem.unsubscribe(
-          'TransactionController:transactionConfirmed',
-          handler,
-        );
+        cleanup();
 
         this.submitRevocation({ permissionContext }).catch((error) => {
           controllerLog(
@@ -743,9 +818,55 @@ export default class GatorPermissionsController extends BaseController<
       }
     };
 
+    // Handle failed transaction - cleanup without submitting revocation
+    handlers.failed = (payload: {
+      transactionMeta: { id: string };
+      error: string;
+    }) => {
+      if (payload.transactionMeta.id === txId) {
+        controllerLog('Transaction failed, cleaning up revocation listener', {
+          txId,
+          permissionContext,
+          error: payload.error,
+        });
+
+        cleanup();
+      }
+    };
+
+    // Handle dropped transaction - cleanup without submitting revocation
+    handlers.dropped = (transactionMeta: { id: string }) => {
+      if (transactionMeta.id === txId) {
+        controllerLog('Transaction dropped, cleaning up revocation listener', {
+          txId,
+          permissionContext,
+        });
+
+        cleanup();
+      }
+    };
+
+    // Subscribe to terminal transaction events
     this.messagingSystem.subscribe(
       'TransactionController:transactionConfirmed',
-      handler,
+      handlers.confirmed,
     );
+    this.messagingSystem.subscribe(
+      'TransactionController:transactionFailed',
+      handlers.failed,
+    );
+    this.messagingSystem.subscribe(
+      'TransactionController:transactionDropped',
+      handlers.dropped,
+    );
+
+    // Set timeout as safety net to prevent memory leaks
+    handlers.timeoutId = setTimeout(() => {
+      controllerLog('Pending revocation timed out, cleaning up listeners', {
+        txId,
+        permissionContext,
+      });
+      cleanup();
+    }, PENDING_REVOCATION_TIMEOUT);
   }
 }
