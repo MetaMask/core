@@ -56,7 +56,7 @@ export class PollingWithCockatielPolicy {
 
   #shouldRetry(error: Error): boolean {
     if (error instanceof HttpError) {
-      // Note: we don't retry on 4xx errors, only on 5xx errors.
+      // Note: we don't retry on 5xx errors, only on 4xx errors.
       // but we won't retry on 400 coz it means that the request body is invalid.
       return error.httpStatus > 400 && error.httpStatus < 500;
     }

@@ -16,6 +16,8 @@ import type {
   LogTransactionRequest,
   ShieldBackend,
 } from './types';
+import { PollingWithCockatielPolicy } from './polling-with-policy';
+import { HttpError } from '@metamask/controller-utils';
 
 export type InitCoverageCheckRequest = {
   txParams: [
@@ -64,6 +66,8 @@ export class ShieldRemoteBackend implements ShieldBackend {
 
   readonly #fetch: typeof globalThis.fetch;
 
+  readonly #pollingPolicy: PollingWithCockatielPolicy;
+
   constructor({
     getAccessToken,
     getCoverageResultTimeout = 5000, // milliseconds
@@ -82,6 +86,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     this.#getCoverageResultPollInterval = getCoverageResultPollInterval;
     this.#baseUrl = baseUrl;
     this.#fetch = fetchFn;
+    this.#pollingPolicy = new PollingWithCockatielPolicy();
   }
 
   async checkCoverage(req: CheckCoverageRequest): Promise<CoverageResult> {
@@ -95,9 +100,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     }
 
     const txCoverageResultUrl = `${this.#baseUrl}/v1/transaction/coverage/result`;
-    const coverageResult = await this.#getCoverageResult(coverageId, {
-      coverageResultUrl: txCoverageResultUrl,
-    });
+    const coverageResult = await this.#getCoverageResult(req.txMeta.id, coverageId, txCoverageResultUrl);
     return {
       coverageId,
       message: coverageResult.message,
@@ -119,9 +122,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     }
 
     const signatureCoverageResultUrl = `${this.#baseUrl}/v1/signature/coverage/result`;
-    const coverageResult = await this.#getCoverageResult(coverageId, {
-      coverageResultUrl: signatureCoverageResultUrl,
-    });
+    const coverageResult = await this.#getCoverageResult(req.signatureRequest.id, coverageId, signatureCoverageResultUrl);
     return {
       coverageId,
       message: coverageResult.message,
@@ -137,6 +138,9 @@ export class ShieldRemoteBackend implements ShieldBackend {
       status: req.status,
       ...initBody,
     };
+
+    // cancel the pending get coverage result request
+    this.#pollingPolicy.abortPendingRequest(req.signatureRequest.id);
 
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/signature/coverage/log`,
@@ -158,6 +162,9 @@ export class ShieldRemoteBackend implements ShieldBackend {
       status: req.status,
       ...initBody,
     };
+
+    // cancel the pending get coverage result request
+    this.#pollingPolicy.abortPendingRequest(req.txMeta.id);
 
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/transaction/coverage/log`,
@@ -188,51 +195,39 @@ export class ShieldRemoteBackend implements ShieldBackend {
   }
 
   async #getCoverageResult(
+    requestId: string,
     coverageId: string,
-    configs: {
-      coverageResultUrl: string;
-      timeout?: number;
-      pollInterval?: number;
-    },
+    coverageResultUrl: string,
   ): Promise<GetCoverageResultResponse> {
     const reqBody: GetCoverageResultRequest = {
       coverageId,
     };
 
-    const timeout = configs?.timeout ?? this.#getCoverageResultTimeout;
-    const pollInterval =
-      configs?.pollInterval ?? this.#getCoverageResultPollInterval;
-
     const headers = await this.#createHeaders();
-    return await new Promise((resolve, reject) => {
-      let timeoutReached = false;
-      setTimeout(() => {
-        timeoutReached = true;
-        reject(new Error('Timeout waiting for coverage result'));
-      }, timeout);
 
-      const poll = async (): Promise<GetCoverageResultResponse> => {
-        // The timeoutReached variable is modified in the timeout callback.
-        // eslint-disable-next-line no-unmodified-loop-condition
-        while (!timeoutReached) {
-          const startTime = Date.now();
-          const res = await this.#fetch(configs.coverageResultUrl, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(reqBody),
-          });
-          if (res.status === 200) {
-            return (await res.json()) as GetCoverageResultResponse;
-          }
-          await sleep(pollInterval - (Date.now() - startTime));
-        }
-        // The following line will not have an effect as the upper level promise
-        // will already be rejected by now.
-        throw new Error('unexpected error');
-      };
+    const getCoverageResultFn = async (signal: AbortSignal) => {
+        const res = await this.#fetch(coverageResultUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(reqBody),
+        signal,
+      });
+      if (res.status === 200) {
+        return (await res.json()) as GetCoverageResultResponse;
+      }
 
-      poll().then(resolve).catch(reject);
-    });
+      // parse the error message from the response body
+      let errorMessage = 'Timeout waiting for coverage result';
+      try {
+        const errorJson = await res.json();
+        errorMessage = `Timeout waiting for coverage result: ${errorJson.status}`;
+      } catch (error) {
+        errorMessage = 'Timeout waiting for coverage result';
+      }
+      throw new HttpError(res.status, errorMessage);
+    }
+
+    return this.#pollingPolicy.start(requestId, getCoverageResultFn);
   }
 
   async #createHeaders() {
@@ -242,16 +237,6 @@ export class ShieldRemoteBackend implements ShieldBackend {
       Authorization: `Bearer ${accessToken}`,
     };
   }
-}
-
-/**
- * Sleep for a specified amount of time.
- *
- * @param ms - The number of milliseconds to sleep.
- * @returns A promise that resolves after the specified amount of time.
- */
-async function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
