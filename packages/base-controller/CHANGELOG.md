@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- In experimental `next` export, fix the `StatePropertyMetadataConstraint` type ([#6942](https://github.com/MetaMask/core/pull/6942))
+  - It incorrectly used the old metadata property `anonymous` instead of `includeInDebugSnapshot`
+
+## [8.4.2]
+
+### Fixed
+
+- Fix TypeScript module resolution for `/next` subpath export with legacy resolution mode ([#6915](https://github.com/MetaMask/core/pull/6915))
+  - Added `next.d.ts` file to enable imports like `import { BaseController } from '@metamask/base-controller/next'` to work with both legacy TypeScript module resolution and Node16/NodeNext resolution modes
+  - Previously, this import pattern only worked with Node16/NodeNext resolution which uses the `exports` field in package.json
+
+## [8.4.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
 ## [8.4.0]
 
 ### Added
@@ -380,7 +399,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.2...HEAD
+[8.4.2]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.1...@metamask/base-controller@8.4.2
+[8.4.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.0...@metamask/base-controller@8.4.1
 [8.4.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.3.0...@metamask/base-controller@8.4.0
 [8.3.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.2.0...@metamask/base-controller@8.3.0
 [8.2.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.1.0...@metamask/base-controller@8.2.0

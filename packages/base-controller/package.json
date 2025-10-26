@@ -1,6 +1,6 @@
 {
   "name": "@metamask/base-controller",
-  "version": "8.4.0",
+  "version": "8.4.2",
   "description": "Provides scaffolding for controllers as well a communication system for all controllers",
   "keywords": [
     "MetaMask",
@@ -42,7 +42,8 @@
   "types": "./dist/index.d.cts",
   "files": [
     "dist/",
-    "next.js"
+    "next.js",
+    "next.d.ts"
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
@@ -58,12 +59,12 @@
   },
   "dependencies": {
     "@metamask/messenger": "^0.3.0",
-    "@metamask/utils": "^11.8.0",
+    "@metamask/utils": "^11.8.1",
     "immer": "^9.0.6"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/json-rpc-engine": "^10.1.0",
+    "@metamask/json-rpc-engine": "^10.1.1",
     "@types/jest": "^27.4.1",
     "@types/sinon": "^9.0.10",
     "deepmerge": "^4.2.2",

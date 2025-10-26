@@ -1,5 +1,6 @@
 import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
+import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import { RpcEndpointType } from '@metamask/network-controller';
 import {
   TransactionStatus,
@@ -22,7 +23,6 @@ import type {
   AllowedActions,
   NetworkEnablementControllerMessenger,
 } from './NetworkEnablementController';
-import { BtcScope, SolScope } from './types';
 import { advanceTime } from '../../../tests/helpers';
 
 const setupController = ({
@@ -123,6 +123,11 @@ describe('NetworkEnablementController', () => {
           [BtcScope.Testnet]: false,
           [BtcScope.Signet]: false,
         },
+        [KnownCaipNamespace.Tron]: {
+          [TrxScope.Mainnet]: true,
+          [TrxScope.Nile]: false,
+          [TrxScope.Shasta]: false,
+        },
       },
     });
   });
@@ -168,6 +173,11 @@ describe('NetworkEnablementController', () => {
           [BtcScope.Testnet]: false,
           [BtcScope.Signet]: false,
         },
+        [KnownCaipNamespace.Tron]: {
+          [TrxScope.Mainnet]: true,
+          [TrxScope.Nile]: false,
+          [TrxScope.Shasta]: false,
+        },
       },
     });
   });
@@ -208,6 +218,11 @@ describe('NetworkEnablementController', () => {
           [BtcScope.Mainnet]: true,
           [BtcScope.Testnet]: false,
           [BtcScope.Signet]: false,
+        },
+        [KnownCaipNamespace.Tron]: {
+          [TrxScope.Mainnet]: true,
+          [TrxScope.Nile]: false,
+          [TrxScope.Shasta]: false,
         },
       },
     });
@@ -326,6 +341,11 @@ describe('NetworkEnablementController', () => {
           [BtcScope.Testnet]: false,
           [BtcScope.Signet]: false,
         },
+        [KnownCaipNamespace.Tron]: {
+          [TrxScope.Mainnet]: true,
+          [TrxScope.Nile]: false,
+          [TrxScope.Shasta]: false,
+        },
       },
     });
   });
@@ -396,6 +416,11 @@ describe('NetworkEnablementController', () => {
             [BtcScope.Mainnet]: true,
             [BtcScope.Testnet]: false,
             [BtcScope.Signet]: false,
+          },
+          [KnownCaipNamespace.Tron]: {
+            [TrxScope.Mainnet]: true,
+            [TrxScope.Nile]: false,
+            [TrxScope.Shasta]: false,
           },
         },
       });
@@ -757,6 +782,10 @@ describe('NetworkEnablementController', () => {
                   chainId: BtcScope.Mainnet,
                   name: 'Bitcoin Mainnet',
                 },
+                [TrxScope.Mainnet]: {
+                  chainId: TrxScope.Mainnet,
+                  name: 'Tron Mainnet',
+                },
               },
               selectedMultichainNetworkChainId:
                 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
@@ -788,6 +817,11 @@ describe('NetworkEnablementController', () => {
             [BtcScope.Testnet]: false,
             [BtcScope.Signet]: false,
           },
+          [KnownCaipNamespace.Tron]: {
+            [TrxScope.Mainnet]: true,
+            [TrxScope.Nile]: false,
+            [TrxScope.Shasta]: false,
+          },
         },
       });
 
@@ -810,6 +844,11 @@ describe('NetworkEnablementController', () => {
             [BtcScope.Mainnet]: true,
             [BtcScope.Testnet]: false,
             [BtcScope.Signet]: false,
+          },
+          [KnownCaipNamespace.Tron]: {
+            [TrxScope.Mainnet]: true,
+            [TrxScope.Nile]: false,
+            [TrxScope.Shasta]: false,
           },
         },
       });
@@ -887,6 +926,11 @@ describe('NetworkEnablementController', () => {
             [BtcScope.Mainnet]: true,
             [BtcScope.Testnet]: false,
             [BtcScope.Signet]: false,
+          },
+          [KnownCaipNamespace.Tron]: {
+            [TrxScope.Mainnet]: false,
+            [TrxScope.Nile]: false,
+            [TrxScope.Shasta]: false,
           },
         },
       });
@@ -1049,6 +1093,11 @@ describe('NetworkEnablementController', () => {
             [BtcScope.Testnet]: false,
             [BtcScope.Signet]: false,
           },
+          [KnownCaipNamespace.Tron]: {
+            [TrxScope.Mainnet]: true,
+            [TrxScope.Nile]: false,
+            [TrxScope.Shasta]: false,
+          },
         },
       });
 
@@ -1071,6 +1120,11 @@ describe('NetworkEnablementController', () => {
             [BtcScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
             [BtcScope.Testnet]: false,
             [BtcScope.Signet]: false,
+          },
+          [KnownCaipNamespace.Tron]: {
+            [TrxScope.Mainnet]: false,
+            [TrxScope.Nile]: false,
+            [TrxScope.Shasta]: false,
           },
         },
       });
@@ -1115,6 +1169,11 @@ describe('NetworkEnablementController', () => {
             [BtcScope.Testnet]: false,
             [BtcScope.Signet]: false,
           },
+          [KnownCaipNamespace.Tron]: {
+            [TrxScope.Mainnet]: false,
+            [TrxScope.Nile]: false,
+            [TrxScope.Shasta]: false,
+          },
         },
       });
 
@@ -1139,6 +1198,11 @@ describe('NetworkEnablementController', () => {
             [BtcScope.Testnet]: false,
             [BtcScope.Signet]: false,
           },
+          [KnownCaipNamespace.Tron]: {
+            [TrxScope.Mainnet]: false,
+            [TrxScope.Nile]: false,
+            [TrxScope.Shasta]: false,
+          },
         },
       });
 
@@ -1162,6 +1226,11 @@ describe('NetworkEnablementController', () => {
             [BtcScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
             [BtcScope.Testnet]: false,
             [BtcScope.Signet]: false,
+          },
+          [KnownCaipNamespace.Tron]: {
+            [TrxScope.Mainnet]: false,
+            [TrxScope.Nile]: false,
+            [TrxScope.Shasta]: false,
           },
         },
       });
@@ -1198,6 +1267,11 @@ describe('NetworkEnablementController', () => {
             [BtcScope.Testnet]: false,
             [BtcScope.Signet]: false,
           },
+          [KnownCaipNamespace.Tron]: {
+            [TrxScope.Mainnet]: false,
+            [TrxScope.Nile]: false,
+            [TrxScope.Shasta]: false,
+          },
         },
       });
     });
@@ -1226,6 +1300,11 @@ describe('NetworkEnablementController', () => {
             [SolScope.Mainnet]: false,
             [SolScope.Testnet]: false,
             [SolScope.Devnet]: false,
+          },
+          [KnownCaipNamespace.Tron]: {
+            [TrxScope.Mainnet]: false,
+            [TrxScope.Nile]: false,
+            [TrxScope.Shasta]: false,
           },
         },
       });
@@ -1270,6 +1349,11 @@ describe('NetworkEnablementController', () => {
             [BtcScope.Testnet]: false,
             [BtcScope.Signet]: false,
           },
+          [KnownCaipNamespace.Tron]: {
+            [TrxScope.Mainnet]: false,
+            [TrxScope.Nile]: false,
+            [TrxScope.Shasta]: false,
+          },
         },
       });
     });
@@ -1298,6 +1382,11 @@ describe('NetworkEnablementController', () => {
             [BtcScope.Mainnet]: true,
             [BtcScope.Testnet]: false,
             [BtcScope.Signet]: false,
+          },
+          [KnownCaipNamespace.Tron]: {
+            [TrxScope.Mainnet]: true,
+            [TrxScope.Nile]: false,
+            [TrxScope.Shasta]: false,
           },
         },
       });
@@ -1335,6 +1424,11 @@ describe('NetworkEnablementController', () => {
             [BtcScope.Mainnet]: true,
             [BtcScope.Testnet]: false,
             [BtcScope.Signet]: false,
+          },
+          [KnownCaipNamespace.Tron]: {
+            [TrxScope.Mainnet]: true,
+            [TrxScope.Nile]: false,
+            [TrxScope.Shasta]: false,
           },
         },
       });
@@ -1793,6 +1887,278 @@ describe('NetworkEnablementController', () => {
     });
   });
 
+  describe('Tron Support', () => {
+    it('initializes with only Tron mainnet enabled by default', () => {
+      const { controller } = setupController();
+
+      // Only Tron mainnet should be enabled by default
+      expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(false);
+      expect(controller.isNetworkEnabled(TrxScope.Shasta)).toBe(false);
+
+      expect(
+        controller.state.enabledNetworkMap[KnownCaipNamespace.Tron],
+      ).toStrictEqual({
+        [TrxScope.Mainnet]: true,
+        [TrxScope.Nile]: false,
+        [TrxScope.Shasta]: false,
+      });
+    });
+
+    it('enables and disables Tron networks using CAIP chain IDs with exclusive behavior', () => {
+      const { controller } = setupController();
+
+      // Initially only Tron mainnet is enabled
+      expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(false);
+      expect(controller.isNetworkEnabled(TrxScope.Shasta)).toBe(false);
+
+      // Enable Tron Nile (should disable all others in all namespaces due to exclusive behavior)
+      controller.enableNetwork(TrxScope.Nile);
+      expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(true);
+      expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(false);
+      expect(controller.isNetworkEnabled(TrxScope.Shasta)).toBe(false);
+      // Check that EVM, Solana, and Bitcoin networks are also disabled
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+
+      // Enable Tron Shasta (should disable Nile and all other networks)
+      controller.enableNetwork(TrxScope.Shasta);
+      expect(controller.isNetworkEnabled(TrxScope.Shasta)).toBe(true);
+      expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(false);
+      expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(false);
+      // EVM, Solana, and Bitcoin networks should remain disabled
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+
+      // Re-enable mainnet (should disable Shasta and all other networks)
+      controller.enableNetwork(TrxScope.Mainnet);
+      expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(TrxScope.Shasta)).toBe(false);
+      // EVM, Solana, and Bitcoin networks should remain disabled
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+    });
+
+    it('allows disabling Tron networks when multiple are enabled', () => {
+      const { controller } = setupController();
+
+      // Initially only Tron mainnet is enabled
+      expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(false);
+      expect(controller.isNetworkEnabled(TrxScope.Shasta)).toBe(false);
+
+      // Enable Nile (this will disable mainnet and all other networks due to exclusive behavior)
+      controller.enableNetwork(TrxScope.Nile);
+      expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(true);
+      expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(false);
+      // EVM, Solana, and Bitcoin networks should also be disabled
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+
+      // Now enable mainnet again (this will disable Nile and all other networks)
+      controller.enableNetwork(TrxScope.Mainnet);
+      expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(false);
+      // EVM, Solana, and Bitcoin networks should remain disabled
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+
+      // Enable Shasta (this will disable mainnet and all other networks)
+      controller.enableNetwork(TrxScope.Shasta);
+      expect(controller.isNetworkEnabled(TrxScope.Shasta)).toBe(true);
+      expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(false);
+      // EVM, Solana, and Bitcoin networks should remain disabled
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+    });
+
+    it('prevents disabling the last remaining Tron network', () => {
+      const { controller } = setupController();
+
+      // Only Tron mainnet is enabled by default
+      expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(false);
+      expect(controller.isNetworkEnabled(TrxScope.Shasta)).toBe(false);
+
+      // Should not be able to disable the last remaining Tron network
+      expect(() => controller.disableNetwork(TrxScope.Mainnet)).not.toThrow();
+    });
+
+    it('allows disabling the last Tron network', () => {
+      const { controller } = setupController();
+
+      // Only Tron mainnet is enabled by default in the Tron namespace
+      expect(() => controller.disableNetwork(TrxScope.Mainnet)).not.toThrow();
+    });
+
+    it('handles all Tron testnet variants', () => {
+      const { controller } = setupController();
+
+      // Test each Tron testnet variant
+      const testnets = [
+        { scope: TrxScope.Nile, name: 'Nile' },
+        { scope: TrxScope.Shasta, name: 'Shasta' },
+      ];
+
+      testnets.forEach(({ scope }) => {
+        // Enable the testnet (should disable all others in all namespaces due to exclusive behavior)
+        controller.enableNetwork(scope);
+        expect(controller.isNetworkEnabled(scope)).toBe(true);
+        expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(false);
+
+        // Check that EVM, Solana, and Bitcoin networks are also disabled
+        expect(controller.isNetworkEnabled('0x1')).toBe(false);
+        expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+        expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+        expect(
+          controller.isNetworkEnabled(
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          ),
+        ).toBe(false);
+        expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+
+        // Verify other testnets are also disabled
+        testnets.forEach(({ scope: otherScope }) => {
+          expect(controller.isNetworkEnabled(otherScope)).toBe(
+            otherScope === scope,
+          );
+        });
+      });
+    });
+
+    it('handles Tron network addition dynamically', async () => {
+      const { controller, messenger } = setupController();
+
+      // Add Tron Nile dynamically
+      messenger.publish('NetworkController:networkAdded', {
+        // @ts-expect-error Testing with Tron network
+        chainId: TrxScope.Nile,
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Tron Nile',
+        nativeCurrency: 'TRX',
+        rpcEndpoints: [
+          {
+            url: 'https://nile.trongrid.io',
+            networkClientId: 'trx-nile',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Tron Nile should be enabled, others should be disabled (exclusive behavior across all namespaces)
+      expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(true);
+      expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(false);
+      expect(controller.isNetworkEnabled(TrxScope.Shasta)).toBe(false);
+      // EVM, Solana, and Bitcoin networks should also be disabled
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+    });
+
+    it('maintains Tron network state independently when disabling networks from other namespaces', () => {
+      const { controller } = setupController();
+
+      // Disable EVM networks (disableNetwork should not affect other namespaces)
+      controller.disableNetwork('0x1');
+      controller.disableNetwork('0xe708');
+
+      // Tron mainnet should still be enabled, testnets remain disabled
+      expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(false);
+      expect(controller.isNetworkEnabled(TrxScope.Shasta)).toBe(false);
+
+      // Disable Solana network - this should not affect Tron networks
+      expect(() =>
+        controller.disableNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).not.toThrow();
+
+      // Tron mainnet should still be enabled, testnets remain disabled
+      expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(false);
+      expect(controller.isNetworkEnabled(TrxScope.Shasta)).toBe(false);
+    });
+
+    it('validates Tron network chain IDs are correct', () => {
+      const { controller } = setupController();
+
+      // Test that Tron networks have the correct chain IDs and default states
+      expect(controller.isNetworkEnabled('tron:728126428')).toBe(true); // Mainnet (enabled by default)
+      expect(controller.isNetworkEnabled('tron:3448148188')).toBe(false); // Nile (disabled by default)
+      expect(controller.isNetworkEnabled('tron:2494104990')).toBe(false); // Shasta (disabled by default)
+    });
+
+    it('enables a Tron network in the Tron namespace', () => {
+      const { controller } = setupInitializedController();
+
+      // Enable Tron Nile in the Tron namespace
+      controller.enableNetworkInNamespace(
+        TrxScope.Nile,
+        KnownCaipNamespace.Tron,
+      );
+
+      // Only Tron Nile should be enabled in Tron namespace
+      expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(true);
+      expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(false);
+      expect(controller.isNetworkEnabled(TrxScope.Shasta)).toBe(false);
+
+      // Other namespaces should remain unchanged
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(true);
+      expect(controller.isNetworkEnabled(SolScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
+    });
+
+    it('throws error when Tron chainId namespace does not match provided namespace', () => {
+      const { controller } = setupInitializedController();
+
+      // Try to enable Tron network in Solana namespace
+      expect(() => {
+        controller.enableNetworkInNamespace(
+          TrxScope.Mainnet,
+          KnownCaipNamespace.Solana,
+        );
+      }).toThrow(
+        `Chain ID ${TrxScope.Mainnet} belongs to namespace tron, but namespace solana was specified`,
+      );
+
+      // Try to enable Ethereum network in Tron namespace
+      expect(() => {
+        controller.enableNetworkInNamespace('0x1', KnownCaipNamespace.Tron);
+      }).toThrow(
+        'Chain ID 0x1 belongs to namespace eip155, but namespace tron was specified',
+      );
+    });
+  });
+
   describe('enableNetworkInNamespace', () => {
     it('enables a network in the specified namespace and disables others in same namespace', () => {
       const { controller } = setupInitializedController();
@@ -1813,6 +2179,7 @@ describe('NetworkEnablementController', () => {
       // Other namespaces should remain unchanged
       expect(controller.isNetworkEnabled(SolScope.Mainnet)).toBe(true);
       expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(TrxScope.Mainnet)).toBe(true);
     });
 
     it('enables a network using CAIP chain ID in the specified namespace', () => {
@@ -2021,6 +2388,11 @@ describe('NetworkEnablementController', () => {
               "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
               "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
             },
+            "tron": Object {
+              "tron:2494104990": false,
+              "tron:3448148188": false,
+              "tron:728126428": true,
+            },
           },
         }
       `);
@@ -2052,6 +2424,11 @@ describe('NetworkEnablementController', () => {
               "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": false,
               "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
               "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
+            },
+            "tron": Object {
+              "tron:2494104990": false,
+              "tron:3448148188": false,
+              "tron:728126428": true,
             },
           },
         }
@@ -2085,6 +2462,11 @@ describe('NetworkEnablementController', () => {
               "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
               "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
             },
+            "tron": Object {
+              "tron:2494104990": false,
+              "tron:3448148188": false,
+              "tron:728126428": true,
+            },
           },
         }
       `);
@@ -2116,6 +2498,11 @@ describe('NetworkEnablementController', () => {
               "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": false,
               "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
               "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
+            },
+            "tron": Object {
+              "tron:2494104990": false,
+              "tron:3448148188": false,
+              "tron:728126428": true,
             },
           },
         }

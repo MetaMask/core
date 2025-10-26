@@ -84,7 +84,6 @@ import {
 import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook';
 import { projectLogger as log } from './logger';
 import type {
-  AssetsFiatValues,
   DappSuggestedGasFees,
   Layer1GasFeeFlow,
   SavedGasFees,
@@ -93,7 +92,6 @@ import type {
   TransactionParams,
   TransactionMeta,
   TransactionReceipt,
-  WalletDevice,
   SecurityAlertResponse,
   GasFeeFlow,
   SimulationData,
@@ -117,8 +115,9 @@ import type {
   AfterSimulateHook,
   BeforeSignHook,
   TransactionContainerType,
-  NestedTransactionMetadata,
   GetSimulationConfig,
+  AddTransactionOptions,
+  PublishHookResult,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -346,17 +345,53 @@ export type TransactionControllerUpdateTransactionAction = {
   handler: TransactionController['updateTransaction'];
 };
 
+/** Add a single transaction to be submitted after approval. */
+export type TransactionControllerAddTransactionAction = {
+  type: `${typeof controllerName}:addTransaction`;
+  handler: TransactionController['addTransaction'];
+};
+
+/** Add a batch of transactions to be submitted after approval. */
+export type TransactionControllerAddTransactionBatchAction = {
+  type: `${typeof controllerName}:addTransactionBatch`;
+  handler: TransactionController['addTransactionBatch'];
+};
+
+/**
+ * Emulate a new transaction.
+ *
+ * @param transactionId - The transaction ID.
+ */
+export type TransactionControllerEmulateNewTransaction = {
+  type: `${typeof controllerName}:emulateNewTransaction`;
+  handler: TransactionController['emulateNewTransaction'];
+};
+
+/**
+ * Emmulate a transaction update.
+ *
+ * @param transactionMeta - Transaction metadata.
+ */
+export type TransactionControllerEmulateTransactionUpdate = {
+  type: `${typeof controllerName}:emulateTransactionUpdate`;
+  handler: TransactionController['emulateTransactionUpdate'];
+};
+
 /**
  * The internal actions available to the TransactionController.
  */
 export type TransactionControllerActions =
+  | TransactionControllerAddTransactionAction
+  | TransactionControllerAddTransactionBatchAction
   | TransactionControllerConfirmExternalTransactionAction
   | TransactionControllerEstimateGasAction
   | TransactionControllerGetNonceLockAction
   | TransactionControllerGetStateAction
   | TransactionControllerGetTransactionsAction
   | TransactionControllerUpdateCustodialTransactionAction
-  | TransactionControllerUpdateTransactionAction;
+  | TransactionControllerUpdateTransactionAction
+  | TransactionControllerEmulateNewTransaction
+  | TransactionControllerEmulateTransactionUpdate;
 
 /**
  * Configuration options for the PendingTransactionTracker
@@ -1119,6 +1154,7 @@ export class TransactionController extends BaseController<
 
     return await addTransactionBatch({
       addTransaction: this.addTransaction.bind(this),
+      estimateGas: this.estimateGas.bind(this),
       getChainId: this.#getChainId.bind(this),
       getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
       getGasFeeEstimates: this.#getGasFeeEstimates,
@@ -1167,56 +1203,16 @@ export class TransactionController extends BaseController<
 
   /**
    * Add a new unapproved transaction to state. Parameters will be validated, a
-   * unique transaction id will be generated, and gas and gasPrice will be calculated
-   * if not provided. If A `<tx.id>:unapproved` hub event will be emitted once added.
+   * unique transaction ID will be generated, and `gas` and `gasPrice` will be calculated
+   * if not provided. A `<tx.id>:unapproved` hub event will be emitted once added.
    *
    * @param txParams - Standard parameters for an Ethereum transaction.
    * @param options - Additional options to control how the transaction is added.
-   * @param options.actionId - Unique ID to prevent duplicate requests.
-   * @param options.assetsFiatValues - The fiat values of the assets being sent and received.
-   * @param options.batchId - A custom ID for the batch this transaction belongs to.
-   * @param options.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
-   * @param options.disableGasBuffer - Whether to disable the gas estimation buffer.
-   * @param options.isGasFeeIncluded - Whether MetaMask will be compensated for the gas fee by the transaction.
-   * @param options.method - RPC method that requested the transaction.
-   * @param options.nestedTransactions - Params for any nested transactions encoded in the data.
-   * @param options.origin - The origin of the transaction request, such as a dApp hostname.
-   * @param options.publishHook - Custom logic to publish the transaction.
-   * @param options.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
-   * @param options.securityAlertResponse - Response from security validator.
-   * @param options.sendFlowHistory - The sendFlowHistory entries to add.
-   * @param options.type - Type of transaction to add, such as 'cancel' or 'swap'.
-   * @param options.swaps - Options for swaps transactions.
-   * @param options.swaps.hasApproveTx - Whether the transaction has an approval transaction.
-   * @param options.swaps.meta - Metadata for swap transaction.
-   * @param options.networkClientId - The id of the network client for this transaction.
-   * @param options.traceContext - The parent context for any new traces.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
     txParams: TransactionParams,
-    options: {
-      actionId?: string;
-      assetsFiatValues?: AssetsFiatValues;
-      batchId?: Hex;
-      deviceConfirmedOn?: WalletDevice;
-      disableGasBuffer?: boolean;
-      isGasFeeIncluded?: boolean;
-      method?: string;
-      nestedTransactions?: NestedTransactionMetadata[];
-      networkClientId: NetworkClientId;
-      origin?: string;
-      publishHook?: PublishHook;
-      requireApproval?: boolean | undefined;
-      securityAlertResponse?: SecurityAlertResponse;
-      sendFlowHistory?: SendFlowHistoryEntry[];
-      swaps?: {
-        hasApproveTx?: boolean;
-        meta?: Partial<TransactionMeta>;
-      };
-      traceContext?: unknown;
-      type?: TransactionType;
-    },
+    options: AddTransactionOptions,
   ): Promise<Result> {
     log('Adding transaction', txParams, options);
 
@@ -2812,6 +2808,68 @@ export class TransactionController extends BaseController<
     });
   }
 
+  /**
+   * Emulate a new transaction.
+   *
+   * @param transactionId - The transaction ID.
+   */
+  emulateNewTransaction(transactionId: string) {
+    const transactionMeta = this.state.transactions.find(
+      (tx) => tx.id === transactionId,
+    );
+
+    if (!transactionMeta) {
+      return;
+    }
+
+    if (transactionMeta.type === TransactionType.swap) {
+      this.messagingSystem.publish('TransactionController:transactionNewSwap', {
+        transactionMeta,
+      });
+    } else if (transactionMeta.type === TransactionType.swapApproval) {
+      this.messagingSystem.publish(
+        'TransactionController:transactionNewSwapApproval',
+        { transactionMeta },
+      );
+    }
+  }
+
+  /**
+   * Emulate a transaction update.
+   *
+   * @param transactionMeta - Transaction metadata.
+   */
+  emulateTransactionUpdate(transactionMeta: TransactionMeta) {
+    const updatedTransactionMeta = {
+      ...transactionMeta,
+      txParams: {
+        ...transactionMeta.txParams,
+        from: this.messagingSystem.call('AccountsController:getSelectedAccount')
+          .address,
+      },
+    };
+
+    const transactionExists = this.state.transactions.some(
+      (tx) => tx.id === updatedTransactionMeta.id,
+    );
+
+    if (!transactionExists) {
+      this.update((state) => {
+        state.transactions.push(updatedTransactionMeta);
+      });
+    }
+
+    this.updateTransaction(
+      updatedTransactionMeta,
+      'Generated from user operation',
+    );
+
+    this.messagingSystem.publish(
+      'TransactionController:transactionStatusUpdated',
+      { transactionMeta: updatedTransactionMeta },
+    );
+  }
+
   #addMetadata(transactionMeta: TransactionMeta) {
     validateTxParams(transactionMeta.txParams);
     this.update((state) => {
@@ -3133,41 +3191,31 @@ export class TransactionController extends BaseController<
 
       log('Publishing transaction', transactionMeta.txParams);
 
-      let hash: string | undefined;
-
       clearNonceLock?.();
       clearNonceLock = undefined;
+
+      let publishHook = this.#defaultPublishHook.bind(this, {
+        ethQuery,
+        publishHookOverride,
+        traceContext,
+      });
 
       if (transactionMeta.batchTransactions?.length) {
         log('Found batch transactions', transactionMeta.batchTransactions);
 
         const extraTransactionsPublishHook = new ExtraTransactionsPublishHook({
           addTransactionBatch: this.addTransactionBatch.bind(this),
+          getTransaction: this.#getTransactionOrThrow.bind(this),
+          originalPublishHook: publishHook,
         });
 
-        publishHookOverride = extraTransactionsPublishHook.getHook();
+        publishHook = extraTransactionsPublishHook.getHook();
       }
 
-      await this.#trace(
-        { name: 'Publish', parentContext: traceContext },
-        async () => {
-          const publishHook = publishHookOverride ?? this.#publish;
-
-          ({ transactionHash: hash } = await publishHook(
-            transactionMeta,
-            rawTx ?? '0x',
-          ));
-
-          if (hash === undefined) {
-            hash = await this.#publishTransaction(ethQuery, {
-              ...transactionMeta,
-              rawTx,
-            });
-          }
-        },
+      const { transactionHash: hash } = await publishHook(
+        transactionMeta,
+        rawTx ?? '0x',
       );
-
-      log('Publish successful', hash);
 
       transactionMeta = this.#updateTransactionInternal(
         {
@@ -4192,7 +4240,12 @@ export class TransactionController extends BaseController<
             blockTime,
             chainId,
             ethQuery: this.#getEthQuery({ networkClientId }),
-            getSimulationConfig: this.#getSimulationConfig,
+            getSimulationConfig: (url, opts) => {
+              return this.#getSimulationConfig(url, {
+                txMeta: transactionMeta,
+                ...opts,
+              });
+            },
             nestedTransactions,
             txParams,
           }),
@@ -4385,6 +4438,16 @@ export class TransactionController extends BaseController<
 
   #registerActionHandlers(): void {
     this.messagingSystem.registerActionHandler(
+      `${controllerName}:addTransaction`,
+      this.addTransaction.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:addTransactionBatch`,
+      this.addTransactionBatch.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       `${controllerName}:confirmExternalTransaction`,
       this.confirmExternalTransaction.bind(this),
     );
@@ -4412,6 +4475,16 @@ export class TransactionController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:updateTransaction`,
       this.updateTransaction.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:emulateNewTransaction`,
+      this.emulateNewTransaction.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:emulateTransactionUpdate`,
+      this.emulateTransactionUpdate.bind(this),
     );
   }
 
@@ -4536,5 +4609,41 @@ export class TransactionController extends BaseController<
     );
 
     log('Updated transaction with afterSimulate data', updatedTransactionMeta);
+  }
+
+  async #defaultPublishHook(
+    {
+      ethQuery,
+      publishHookOverride,
+      traceContext,
+    }: {
+      ethQuery: EthQuery;
+      publishHookOverride?: PublishHook;
+      traceContext?: TraceContext;
+    },
+    transactionMeta: TransactionMeta,
+    signedTx: string,
+  ): Promise<PublishHookResult> {
+    let transactionHash: string | undefined;
+
+    await this.#trace(
+      { name: 'Publish', parentContext: traceContext },
+      async () => {
+        const publishHook = publishHookOverride ?? this.#publish;
+
+        ({ transactionHash } = await publishHook(transactionMeta, signedTx));
+
+        if (transactionHash === undefined) {
+          transactionHash = await this.#publishTransaction(ethQuery, {
+            ...transactionMeta,
+            rawTx: signedTx,
+          });
+        }
+      },
+    );
+
+    log('Publish successful', transactionHash);
+
+    return { transactionHash };
   }
 }

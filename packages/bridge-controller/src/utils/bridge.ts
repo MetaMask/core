@@ -25,6 +25,8 @@ import type {
   BridgeAsset,
   BridgeControllerState,
   GenericQuoteRequest,
+  QuoteResponse,
+  TxData,
 } from '../types';
 import { ChainId } from '../types';
 
@@ -188,6 +190,25 @@ export const isBitcoinChainId = (
     return chainId === BtcScope.Mainnet.toString();
   }
   return chainId.toString() === ChainId.BTC.toString();
+};
+
+/**
+ * Checks if a chain ID represents a non-EVM blockchain supported by swaps
+ * Currently supports Solana and Bitcoin
+ *
+ * @param chainId - The chain ID to check
+ * @returns True if the chain is a supported non-EVM chain, false otherwise
+ */
+export const isNonEvmChainId = (
+  chainId: GenericQuoteRequest['srcChainId'],
+): boolean => {
+  return isSolanaChainId(chainId) || isBitcoinChainId(chainId);
+};
+
+export const isEvmQuoteResponse = (
+  quoteResponse: QuoteResponse,
+): quoteResponse is QuoteResponse<TxData> => {
+  return !isNonEvmChainId(quoteResponse.quote.srcChainId);
 };
 
 /**

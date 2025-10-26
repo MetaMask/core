@@ -2,7 +2,11 @@ export type {
   MethodData,
   Result,
   TransactionControllerActions,
+  TransactionControllerAddTransactionAction,
+  TransactionControllerAddTransactionBatchAction,
   TransactionControllerConfirmExternalTransactionAction,
+  TransactionControllerEmulateNewTransaction,
+  TransactionControllerEmulateTransactionUpdate,
   TransactionControllerEvents,
   TransactionControllerEstimateGasAction,
   TransactionControllerGetNonceLockAction,
@@ -36,6 +40,7 @@ export {
   TransactionController,
 } from './TransactionController';
 export type {
+  AddTransactionOptions,
   AfterAddHook,
   AfterSimulateHook,
   Authorization,

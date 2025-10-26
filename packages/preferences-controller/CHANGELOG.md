@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [20.1.0]
+
+### Added
+
+- Add support for MONAD (chain ID `0x8f`) ([#6827](https://github.com/MetaMask/core/pull/6827))
+  - Add `MONAD` into constant `ETHERSCAN_SUPPORTED_CHAIN_IDS`
+  - Update default controller state so MONAD (Chain ID `0x8f`) is automatically enabled in `showIncomingTransactions`
+
+## [20.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [20.0.1]
+
+### Changed
+
+- Change default for `showMultiRpcModal` to `false` ([#6723](https://github.com/MetaMask/core/pull/6723))
+
+## [20.0.0]
+
 ### Added
 
 - Add a new controller state property: `tokenNetworkFilter` ([#6707](https://github.com/MetaMask/core/pull/6707))
@@ -21,7 +50,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Rename controller method from `setOpenSeaEnabled` to `setDisplayNftMedia` ([#4774](https://github.com/MetaMask/core/pull/4774))
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.4.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
-- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
 ## [19.0.0]
 
@@ -429,7 +457,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.1...HEAD
+[20.1.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.0...@metamask/preferences-controller@20.1.1
+[20.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.2...@metamask/preferences-controller@20.1.0
+[20.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.1...@metamask/preferences-controller@20.0.2
+[20.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.0...@metamask/preferences-controller@20.0.1
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@19.0.0...@metamask/preferences-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.1...@metamask/preferences-controller@19.0.0
 [18.4.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.0...@metamask/preferences-controller@18.4.1
 [18.4.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.3.0...@metamask/preferences-controller@18.4.0

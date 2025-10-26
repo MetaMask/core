@@ -7,15 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [1.9.0]
+
+### Added
+
+- Export additional controller types from package index ([#6835](https://github.com/MetaMask/core/pull/6835))
+  - Export `RemoteFeatureFlagControllerActions` - union type of all controller actions
+  - Export `RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction` - action type for updating feature flags
+  - Export `RemoteFeatureFlagControllerEvents` - union type of all controller events
+  - Export `RemoteFeatureFlagControllerStateChangeEvent` - state change event type
+
+## [1.8.0]
+
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6574](https://github.com/MetaMask/core/pull/6574))
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^8.0.1` to `^8.4.0` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
-- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.14.0` ([#6303](https://github.com/MetaMask/core/pull/6303), [#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
-- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.1` ([#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.4.1` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.14.1` ([#6303](https://github.com/MetaMask/core/pull/6303), [#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629), [#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [1.7.0]
 
@@ -99,7 +117,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of the RemoteFeatureFlagController. ([#4931](https://github.com/MetaMask/core/pull/4931))
   - This controller manages the retrieval and caching of remote feature flags. It fetches feature flags from a remote API, caches them, and provides methods to access and manage these flags. The controller ensures that feature flags are refreshed based on a specified interval and handles cases where the controller is disabled or the network is unavailable.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.7.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.9.1...HEAD
+[1.9.1]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.9.0...@metamask/remote-feature-flag-controller@1.9.1
+[1.9.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.8.0...@metamask/remote-feature-flag-controller@1.9.0
+[1.8.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.7.0...@metamask/remote-feature-flag-controller@1.8.0
 [1.7.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.6.0...@metamask/remote-feature-flag-controller@1.7.0
 [1.6.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.5.0...@metamask/remote-feature-flag-controller@1.6.0
 [1.5.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.4.0...@metamask/remote-feature-flag-controller@1.5.0

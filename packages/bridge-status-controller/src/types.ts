@@ -1,7 +1,4 @@
-import type {
-  AccountsControllerGetAccountByAddressAction,
-  AccountsControllerGetSelectedMultichainAccountAction,
-} from '@metamask/accounts-controller';
+import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -11,10 +8,10 @@ import type {
   BridgeBackgroundAction,
   BridgeControllerAction,
   ChainId,
+  FeatureId,
   Quote,
   QuoteMetadata,
   QuoteResponse,
-  TxData,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type {
@@ -31,6 +28,7 @@ import type {
   TransactionControllerTransactionFailedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { CaipAssetType } from '@metamask/utils';
 
 import type { BridgeStatusController } from './bridge-status-controller';
 import type { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
@@ -129,6 +127,7 @@ export type BridgeHistoryItem = {
   account: string;
   hasApprovalTx: boolean;
   approvalTxId?: string;
+  featureId?: FeatureId;
   isStxEnabled?: boolean;
   /**
    * Attempts tracking for exponential backoff on failed fetches.
@@ -209,7 +208,7 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
   StartPollingForBridgeTxStatusArgs,
   'quoteResponse'
 > & {
-  quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata;
+  quoteResponse: QuoteResponse & Partial<QuoteMetadata>;
 };
 
 export type SourceChainTxMetaId = string;
@@ -264,9 +263,18 @@ export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof BRIDGE_STATUS_CONTROLLER_NAME,
   BridgeStatusControllerState
 >;
+/**
+ * This event is published when the destination bridge transaction is completed
+ * The payload is the asset received on the destination chain
+ */
+export type BridgeStatusControllerDestinationTransactionCompletedEvent = {
+  type: 'BridgeStatusController:destinationTransactionCompleted';
+  payload: [CaipAssetType];
+};
 
 export type BridgeStatusControllerEvents =
-  BridgeStatusControllerStateChangeEvent;
+  | BridgeStatusControllerStateChangeEvent
+  | BridgeStatusControllerDestinationTransactionCompletedEvent;
 
 /**
  * The external actions available to the BridgeStatusController.
@@ -275,7 +283,6 @@ type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | AccountsControllerGetSelectedMultichainAccountAction
   | HandleSnapRequest
   | TransactionControllerGetStateAction
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>

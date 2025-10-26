@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [2.2.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [2.2.0]
+
+### Added
+
+- Add `name` and `state` properties to support modular initialization ([#6781](https://github.com/MetaMask/core/pull/6781))
+
 ## [2.1.0]
 
 ### Changed
@@ -27,7 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5882](https://github.com/MetaMask/core/pull/5882))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/error-reporting-service@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/error-reporting-service@2.2.2...HEAD
+[2.2.2]: https://github.com/MetaMask/core/compare/@metamask/error-reporting-service@2.2.1...@metamask/error-reporting-service@2.2.2
+[2.2.1]: https://github.com/MetaMask/core/compare/@metamask/error-reporting-service@2.2.0...@metamask/error-reporting-service@2.2.1
+[2.2.0]: https://github.com/MetaMask/core/compare/@metamask/error-reporting-service@2.1.0...@metamask/error-reporting-service@2.2.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/error-reporting-service@2.0.0...@metamask/error-reporting-service@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/error-reporting-service@1.0.0...@metamask/error-reporting-service@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/error-reporting-service@1.0.0

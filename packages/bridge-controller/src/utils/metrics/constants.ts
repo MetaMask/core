@@ -11,7 +11,6 @@ export enum UnifiedSwapBridgeEventName {
   QuotesRequested = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Requested`,
   QuotesReceived = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Received`,
   QuotesError = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Error`,
-  SnapConfirmationViewed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Snap Confirmation Page Viewed`,
   Submitted = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Submitted`,
   Completed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Completed`,
   Failed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Failed`,

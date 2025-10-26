@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.3.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [24.3.0]
+
+### Changed
+
+- Bump `@metamask/eth-json-rpc-middleware` from `^19.0.1` to `^21.0.0` ([#6866](https://github.com/MetaMask/core/pull/6866), [#6883](https://github.com/MetaMask/core/pull/6883))
+- Bump `@metamask/eth-block-tracker` from `^13.0.0` to `^14.0.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+
+## [24.2.2]
+
+### Changed
+
+- Bump `@metamask/eth-block-tracker` from `^12.0.1` to `^12.2.1` ([#6811](https://github.com/MetaMask/core/pull/6811))
+- Bump `@metamask/eth-json-rpc-infura` from `^10.2.0` to `^10.3.0` ([#6811](https://github.com/MetaMask/core/pull/6811))
+- Bump `@metamask/eth-json-rpc-middleware` from `^18.0.0` to `^19.0.1` ([#6811](https://github.com/MetaMask/core/pull/6811))
+
+## [24.2.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+- Update `@metamask/eth-json-rpc-middleware` from `^17.0.1` to `^18.0.0` ([#6714](https://github.com/MetaMask/core/pull/6714))
+- Bump `@metamask/error-reporting-service` from `^2.1.0` to `^2.2.0` ([#6782](https://github.com/MetaMask/core/pull/6782))
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/eth-json-rpc-provider` from `^5.0.0` to `^5.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/json-rpc-engine` from `^10.1.0` to `^10.1.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
 ## [24.2.0]
 
 ### Added
@@ -942,7 +975,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.1...HEAD
+[24.3.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.0...@metamask/network-controller@24.3.1
+[24.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.2...@metamask/network-controller@24.3.0
+[24.2.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.1...@metamask/network-controller@24.2.2
+[24.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.0...@metamask/network-controller@24.2.1
 [24.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.1.0...@metamask/network-controller@24.2.0
 [24.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.1...@metamask/network-controller@24.1.0
 [24.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.0...@metamask/network-controller@24.0.1

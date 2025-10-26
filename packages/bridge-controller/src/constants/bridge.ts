@@ -3,7 +3,10 @@ import { BtcScope, SolScope } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
 
 import { CHAIN_IDS } from './chains';
-import type { BridgeControllerState } from '../types';
+import type {
+  BridgeControllerState,
+  FeatureFlagsPlatformConfig,
+} from '../types';
 
 export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.MAINNET,
@@ -16,6 +19,7 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.LINEA_MAINNET,
   CHAIN_IDS.BASE,
   CHAIN_IDS.SEI,
+  CHAIN_IDS.MONAD,
   SolScope.Mainnet,
   BtcScope.Mainnet,
 ] as const;
@@ -43,7 +47,7 @@ export const DEFAULT_MAX_REFRESH_COUNT = 5;
 
 export const BRIDGE_CONTROLLER_NAME = 'BridgeController';
 
-export const DEFAULT_FEATURE_FLAG_CONFIG = {
+export const DEFAULT_FEATURE_FLAG_CONFIG: FeatureFlagsPlatformConfig = {
   minimumVersion: '0.0.0',
   refreshRate: REFRESH_INTERVAL_MS,
   maxRefreshCount: DEFAULT_MAX_REFRESH_COUNT,

@@ -5,7 +5,8 @@ import {
 } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import { isNativeAddress, isSolanaChainId } from './bridge';
+import { isNativeAddress, isNonEvmChainId } from './bridge';
+import { FeatureId } from './validators';
 import type {
   BridgeAsset,
   ExchangeRate,
@@ -14,7 +15,8 @@ import type {
   Quote,
   QuoteMetadata,
   QuoteResponse,
-  SolanaFees,
+  NonEvmFees,
+  TxData,
 } from '../types';
 
 export const isValidQuoteRequest = (
@@ -31,12 +33,18 @@ export const isValidQuoteRequest = (
   if (requireAmount) {
     stringFields.push('srcTokenAmount');
   }
-  // If bridging and one of the chains is solana, require the dest wallet address
+  // If bridging between different chain types or different non-EVM chains, require dest wallet address
+  // Cases that need destWalletAddress:
+  // 1. EVM -> non-EVM
+  // 2. non-EVM -> EVM
+  // 3. non-EVM -> different non-EVM (e.g., SOL -> BTC)
+  // Only same-chain swaps don't need destWalletAddress
   if (
     partialRequest.destChainId &&
     partialRequest.srcChainId &&
-    isSolanaChainId(partialRequest.destChainId) ===
-      !isSolanaChainId(partialRequest.srcChainId)
+    partialRequest.destChainId !== partialRequest.srcChainId && // Different chains
+    (isNonEvmChainId(partialRequest.destChainId) ||
+      isNonEvmChainId(partialRequest.srcChainId)) // At least one is non-EVM
   ) {
     stringFields.push('destWalletAddress');
     if (!partialRequest.destWalletAddress) {
@@ -88,20 +96,20 @@ const calcTokenAmount = (value: string | BigNumber, decimals: number) => {
   return new BigNumber(value).div(divisor);
 };
 
-export const calcSolanaTotalNetworkFee = (
-  bridgeQuote: QuoteResponse & SolanaFees,
+export const calcNonEvmTotalNetworkFee = (
+  bridgeQuote: QuoteResponse & NonEvmFees,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  const { solanaFeesInLamports } = bridgeQuote;
-  const solanaFeeInNative = calcTokenAmount(solanaFeesInLamports ?? '0', 9);
+  const { nonEvmFeesInNative } = bridgeQuote;
+  // Fees are now stored directly in native units (SOL, BTC) without conversion
+  const feeInNative = new BigNumber(nonEvmFeesInNative ?? '0');
+
   return {
-    amount: solanaFeeInNative.toString(),
+    amount: feeInNative.toString(),
     valueInCurrency: exchangeRate
-      ? solanaFeeInNative.times(exchangeRate).toString()
+      ? feeInNative.times(exchangeRate).toString()
       : null,
-    usd: usdExchangeRate
-      ? solanaFeeInNative.times(usdExchangeRate).toString()
-      : null,
+    usd: usdExchangeRate ? feeInNative.times(usdExchangeRate).toString() : null,
   };
 };
 
@@ -150,9 +158,10 @@ export const calcSentAmount = (
 };
 
 export const calcRelayerFee = (
-  { quote, trade }: QuoteResponse,
+  quoteResponse: QuoteResponse<TxData>,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
+  const { quote, trade } = quoteResponse;
   const relayerFeeAmount = new BigNumber(
     convertHexToDecimal(trade.value || '0x0'),
   );
@@ -228,7 +237,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
-  bridgeQuote: QuoteResponse & L1GasFees;
+  bridgeQuote: QuoteResponse<TxData> & L1GasFees;
   estimatedBaseFeeInDecGwei: string;
   maxFeePerGasInDecGwei: string;
   maxPriorityFeePerGasInDecGwei: string;
@@ -458,4 +467,19 @@ export const formatEtaInMinutes = (
     return `< 1`;
   }
   return (estimatedProcessingTimeInSeconds / 60).toFixed();
+};
+
+export const sortQuotes = (
+  quotes: QuoteResponse[],
+  featureId: FeatureId | null,
+) => {
+  // Sort perps quotes by increasing estimated processing time (fastest first)
+  if (featureId === FeatureId.PERPS) {
+    return quotes.sort((a, b) => {
+      return (
+        a.estimatedProcessingTimeInSeconds - b.estimatedProcessingTimeInSeconds
+      );
+    });
+  }
+  return quotes;
 };
