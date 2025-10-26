@@ -758,6 +758,8 @@ export enum TransactionType {
 
   /**
    * Buy a position via Predict.
+   *
+   * @deprecated Not used.
    */
   predictBuy = 'predictBuy',
 
@@ -773,8 +775,15 @@ export enum TransactionType {
 
   /**
    * Sell a position via Predict.
+   *
+   * @deprecated Not used.
    */
   predictSell = 'predictSell',
+
+  /**
+   * Withdraw funds from Predict.
+   */
+  predictWithdraw = 'predictWithdraw',
 
   /**
    * When a transaction is failed it can be retried by
@@ -875,6 +884,11 @@ export enum TransactionType {
    * Increase the allowance by a given increment
    */
   tokenMethodIncreaseAllowance = 'increaseAllowance',
+
+  /**
+   * A token approval transaction subscribing to the shield insurance service
+   */
+  shieldSubscriptionApprove = 'shieldSubscriptionApprove',
 }
 
 export enum TransactionContainerType {
@@ -1669,6 +1683,9 @@ export type TransactionBatchSingleRequest = {
 
     /** Optional callback to be invoked once the transaction is published. */
     onPublish?: (request: {
+      /** Updated signature for the transaction, if applicable. */
+      newSignature?: Hex;
+
       /** Hash of the transaction on the network. */
       transactionHash?: string;
     }) => void;
@@ -2009,7 +2026,12 @@ export type MetamaskPayMetadata = {
 /**
  * Parameters for the transaction simulation API.
  */
-export type GetSimulationConfig = (url: string) => Promise<{
+export type GetSimulationConfig = (
+  url: string,
+  opts?: {
+    txMeta?: TransactionMeta;
+  },
+) => Promise<{
   newUrl?: string;
   authorization?: string;
 }>;

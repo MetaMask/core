@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.1.3]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+- Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.8.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+
+## [14.1.2]
+
+### Changed
+
+- Update hotlist endpoint from v1 to v2 for blocklistPaths support ([#6815](https://github.com/MetaMask/core/pull/6815))
+  - Changed `METAMASK_HOTLIST_DIFF_FILE` from `/v1/diffsSince` to `/v2/diffsSince`
+  - Removed query parameter approach for blocklistPaths in favor of v2 endpoint
+
+## [14.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+### Fixed
+
+- Fetches the hotlist endpoint with a query param for blocklistPaths ([#6808](https://github.com/MetaMask/core/pull/6808))
+
+## [14.1.0]
+
+### Added
+
+- Add path-based blocking [#6416](https://github.com/MetaMask/core/pull/6416)
+  - Add `blocklistPaths` to `PhishingDetectorList`
+  - Add `blocklistPaths` to `PhishingDetectorConfiguration`
+  - Add `whitelistPaths` to `PhishingControllerState`
+  - Adds a type called PathTrie
+
+### Fixed
+
+- Fixed phishing detector initialization failure when domain lists contain invalid values (numbers, null, undefined) by filtering them out ([#6767](https://github.com/MetaMask/core/pull/6767))
+
 ## [14.0.0]
 
 ### Added
@@ -416,7 +456,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.3...HEAD
+[14.1.3]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.2...@metamask/phishing-controller@14.1.3
+[14.1.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.1...@metamask/phishing-controller@14.1.2
+[14.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.0...@metamask/phishing-controller@14.1.1
+[14.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.0.0...@metamask/phishing-controller@14.1.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@13.1.0...@metamask/phishing-controller@14.0.0
 [13.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@13.0.0...@metamask/phishing-controller@13.1.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.6.0...@metamask/phishing-controller@13.0.0

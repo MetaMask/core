@@ -7,6 +7,108 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/polling-controller` from `^14.0.1` to `^14.0.2` ([#6940](https://github.com/MetaMask/core/pull/6940))
+- Bump `@metamask/gas-fee-controller` from `^24.1.0` to `^24.1.1` ([#6940](https://github.com/MetaMask/core/pull/6940))
+- Bump `@metamask/multichain-network-controller` from `^1.0.1` to `^1.0.2` ([#6940](https://github.com/MetaMask/core/pull/6940))
+
+## [55.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^82.0.0` to `^83.0.0` ([#6923](https://github.com/MetaMask/core/pull/6923))
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [54.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^81.0.0` to `^82.0.0` ([#6908](https://github.com/MetaMask/core/pull/6908))
+
+## [53.1.0]
+
+### Added
+
+- Add `MONAD` network support ([#6828](https://github.com/MetaMask/core/pull/6828))
+  - Add `MONAD` into constants `ALLOWED_BRIDGE_CHAIN_IDS`, `SWAPS_TOKEN_OBJECT` and `NETWORK_TO_NAME_MAP`
+- Implement `fetchServerEvents` util that parses server events and parses them into JSON ([#6892](https://github.com/MetaMask/core/pull/6892))
+
+### Changed
+
+- **BREAKING:** Add BitcoinTradeData to QuoteResponse validation ([#6892](https://github.com/MetaMask/core/pull/6892))
+- Replace `fetchEventSource` with `fetchServerEvents` ([#6892](https://github.com/MetaMask/core/pull/6892))
+
+### Removed
+
+- Removed dependency on `@microsoft/fetch-event-source` at `^2.0.1` ([#6892](https://github.com/MetaMask/core/pull/6892))
+
+## [53.0.0]
+
+### Changed
+
+- **BREAKING:** Require clientVersion in BridgeController constructor ([#6891](https://github.com/MetaMask/core/pull/6891))
+- Update the `sseEnabled` LD flag to include minimumVersion, which is used to determine whether to enable SSE ([#6891](https://github.com/MetaMask/core/pull/6891))
+- Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+- Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.8.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+
+## [52.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^80.0.0` to `^81.0.0` ([#6834](https://github.com/MetaMask/core/pull/6834))
+
+## [51.0.0]
+
+### Added
+
+- Introduce server‑sent events quote streaming and integrates incremental quote updates into the bridge controller polling flow ([#6760](https://github.com/MetaMask/core/pull/6760))
+  - Add private `handleQuoteStreaming` method that calls `getQuoteStream` when the `sseEnabled` flag is enabled in LaunchDarkly
+  - Reuse existing polling, metrics and validation utilities when processing server-sent quotes
+- Add dependency on `@microsoft/fetch-event-source` at `^2.0.1` ([#6760](https://github.com/MetaMask/core/pull/6760))
+  - Note that clients need to patch this library such that it rejects instead of resolving when the quote request is cancelled. This preserves the controller's expected request cancellation behavior
+
+### Changed
+
+- Extract some logic from bridge-controller and move them to utility files for better readability ([#6760](https://github.com/MetaMask/core/pull/6760))
+
+### Removed
+
+- Remove cache options from spot-prices and getQuote api calls since they are only required by the extension client ([#6760](https://github.com/MetaMask/core/pull/6760))
+
+### Fixed
+
+- Pass abortSignal to fetchAssetPricesForCurrency in order to cancel exchange rate fetching when quote parameters change ([#6760](https://github.com/MetaMask/core/pull/6760))
+
+## [50.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^79.0.0` to `^80.0.0` ([#6818](https://github.com/MetaMask/core/pull/6818))
+
+## [49.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/gas-fee-controller` from `^24.0.0` to `^24.1.0` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/multichain-network-controller` from `^1.0.0` to `^1.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/polling-controller` from `^14.0.0` to `^14.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [49.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^78.0.0` to `^79.0.0` ([#6806](https://github.com/MetaMask/core/pull/6806))
+- Add optional `Client-Version` header to bridge API requests ([#6791](https://github.com/MetaMask/core/pull/6791))
+
+## [48.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^77.0.0` to `^78.0.0` ([#6780](https://github.com/MetaMask/core/pull/6780))
+
 ## [47.2.0]
 
 ### Added
@@ -667,7 +769,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@47.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@55.0.0...HEAD
+[55.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@54.0.0...@metamask/bridge-controller@55.0.0
+[54.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@53.1.0...@metamask/bridge-controller@54.0.0
+[53.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@53.0.0...@metamask/bridge-controller@53.1.0
+[53.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@52.0.0...@metamask/bridge-controller@53.0.0
+[52.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@51.0.0...@metamask/bridge-controller@52.0.0
+[51.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@50.0.0...@metamask/bridge-controller@51.0.0
+[50.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@49.0.1...@metamask/bridge-controller@50.0.0
+[49.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@49.0.0...@metamask/bridge-controller@49.0.1
+[49.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@48.0.0...@metamask/bridge-controller@49.0.0
+[48.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@47.2.0...@metamask/bridge-controller@48.0.0
 [47.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@47.1.0...@metamask/bridge-controller@47.2.0
 [47.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@47.0.0...@metamask/bridge-controller@47.1.0
 [47.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@46.0.0...@metamask/bridge-controller@47.0.0

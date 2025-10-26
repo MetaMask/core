@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.1.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [25.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
 ## [25.1.0]
 
 ### Changed
@@ -739,7 +751,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.2...HEAD
+[25.1.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.1...@metamask/profile-sync-controller@25.1.2
+[25.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.0...@metamask/profile-sync-controller@25.1.1
 [25.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.0.0...@metamask/profile-sync-controller@25.1.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@24.0.0...@metamask/profile-sync-controller@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@23.0.0...@metamask/profile-sync-controller@24.0.0

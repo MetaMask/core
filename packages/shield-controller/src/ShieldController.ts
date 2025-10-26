@@ -5,7 +5,6 @@ import type {
 } from '@metamask/base-controller';
 import {
   SignatureRequestStatus,
-  SignatureRequestType,
   type SignatureRequest,
   type SignatureStateChange,
 } from '@metamask/signature-controller';
@@ -14,10 +13,15 @@ import {
   type TransactionControllerStateChangeEvent,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
+import { cloneDeep, isEqual } from 'lodash';
 
 import { controllerName } from './constants';
 import { projectLogger, createModuleLogger } from './logger';
-import type { CoverageResult, ShieldBackend } from './types';
+import type {
+  CoverageResult,
+  NormalizeSignatureRequestFn,
+  ShieldBackend,
+} from './types';
 
 const log = createModuleLogger(projectLogger, 'ShieldController');
 
@@ -129,6 +133,16 @@ export type ShieldControllerOptions = {
   backend: ShieldBackend;
   transactionHistoryLimit?: number;
   coverageHistoryLimit?: number;
+  /**
+   * Normalize the signature request before sending it to the backend.
+   * Please note that the reason this is not being done internally is to
+   * align the request body (data & params) with the security-alerts API.
+   * The same normalization function which is used to normalize security-alerts request should be used here.
+   *
+   * @param signatureRequest - The signature request to normalize.
+   * @returns The normalized signature request.
+   */
+  normalizeSignatureRequest?: NormalizeSignatureRequestFn;
 };
 
 export class ShieldController extends BaseController<
@@ -142,6 +156,8 @@ export class ShieldController extends BaseController<
 
   readonly #transactionHistoryLimit: number;
 
+  readonly #normalizeSignatureRequest?: NormalizeSignatureRequestFn;
+
   readonly #transactionControllerStateChangeHandler: (
     transactions: TransactionMeta[],
     previousTransactions: TransactionMeta[] | undefined,
@@ -152,6 +168,8 @@ export class ShieldController extends BaseController<
     previousSignatureRequests: Record<string, SignatureRequest> | undefined,
   ) => void;
 
+  #started: boolean;
+
   constructor(options: ShieldControllerOptions) {
     const {
       messenger,
@@ -159,6 +177,7 @@ export class ShieldController extends BaseController<
       backend,
       transactionHistoryLimit = 100,
       coverageHistoryLimit = 10,
+      normalizeSignatureRequest,
     } = options;
     super({
       name: controllerName,
@@ -177,9 +196,16 @@ export class ShieldController extends BaseController<
       this.#handleTransactionControllerStateChange.bind(this);
     this.#signatureControllerStateChangeHandler =
       this.#handleSignatureControllerStateChange.bind(this);
+    this.#started = false;
+    this.#normalizeSignatureRequest = normalizeSignatureRequest;
   }
 
   start() {
+    if (this.#started) {
+      return;
+    }
+    this.#started = true;
+
     this.messagingSystem.subscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
@@ -194,6 +220,11 @@ export class ShieldController extends BaseController<
   }
 
   stop() {
+    if (!this.#started) {
+      return;
+    }
+    this.#started = false;
+
     this.messagingSystem.unsubscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
@@ -221,12 +252,8 @@ export class ShieldController extends BaseController<
         signatureRequest.id,
       );
 
-      // Check coverage if the signature request is new and has type
-      // `personal_sign`.
-      if (
-        !previousSignatureRequest &&
-        signatureRequest.type === SignatureRequestType.PersonalSign
-      ) {
+      // Check coverage if the signature request is new.
+      if (!previousSignatureRequest) {
         this.checkSignatureCoverage(signatureRequest).catch(
           // istanbul ignore next
           (error) => log('Error checking coverage:', error),
@@ -256,14 +283,15 @@ export class ShieldController extends BaseController<
     for (const transaction of transactions) {
       const previousTransaction = previousTransactionsById.get(transaction.id);
 
+      // Check if the simulation data has changed.
+      const simulationDataNotChanged = isEqual(
+        transaction.simulationData,
+        previousTransaction?.simulationData,
+      );
+
       // Check coverage if the transaction is new or if the simulation data has
       // changed.
-      if (
-        !previousTransaction ||
-        // Checking reference equality is sufficient because this object is
-        // replaced if the simulation data has changed.
-        previousTransaction.simulationData !== transaction.simulationData
-      ) {
+      if (!previousTransaction || !simulationDataNotChanged) {
         this.checkCoverage(transaction).catch(
           // istanbul ignore next
           (error) => log('Error checking coverage:', error),
@@ -291,7 +319,11 @@ export class ShieldController extends BaseController<
    */
   async checkCoverage(txMeta: TransactionMeta): Promise<CoverageResult> {
     // Check coverage
-    const coverageResult = await this.#backend.checkCoverage(txMeta);
+    const coverageId = this.#getLatestCoverageId(txMeta.id);
+    const coverageResult = await this.#backend.checkCoverage({
+      txMeta,
+      coverageId,
+    });
 
     // Publish coverage result
     this.messagingSystem.publish(
@@ -315,8 +347,18 @@ export class ShieldController extends BaseController<
     signatureRequest: SignatureRequest,
   ): Promise<CoverageResult> {
     // Check coverage
-    const coverageResult =
-      await this.#backend.checkSignatureCoverage(signatureRequest);
+    const coverageId = this.#getLatestCoverageId(signatureRequest.id);
+
+    // Normalize the signature request before sending it to the backend.
+    // This is to ensure that the signature data is normalized and consistent as the security alerts api calls.
+    const clonedSignatureRequest = cloneDeep(signatureRequest);
+    const normalizedSignatureRequest =
+      this.#normalizeSignatureRequest?.(clonedSignatureRequest) ??
+      clonedSignatureRequest;
+    const coverageResult = await this.#backend.checkSignatureCoverage({
+      signatureRequest: normalizedSignatureRequest,
+      coverageId,
+    });
 
     // Publish coverage result
     this.messagingSystem.publish(
@@ -331,6 +373,12 @@ export class ShieldController extends BaseController<
   }
 
   #addCoverageResult(txId: string, coverageResult: CoverageResult) {
+    // Assert the coverageId hasn't changed.
+    const latestCoverageId = this.#getLatestCoverageId(txId);
+    if (latestCoverageId && coverageResult.coverageId !== latestCoverageId) {
+      throw new Error('Coverage ID has changed');
+    }
+
     this.update((draft) => {
       // Fetch coverage result entry.
       let newEntry = false;
@@ -372,47 +420,49 @@ export class ShieldController extends BaseController<
   }
 
   async #logSignature(signatureRequest: SignatureRequest) {
-    const coverageId = this.#getLatestCoverageId(signatureRequest.id);
-    if (!coverageId) {
-      throw new Error('Coverage ID not found');
-    }
-
-    const sig = signatureRequest.rawSig;
-    if (!sig) {
+    const signature = signatureRequest.rawSig;
+    if (!signature) {
       throw new Error('Signature not found');
     }
 
+    const { status } = this.#getCoverageStatus(signatureRequest.id);
+
     await this.#backend.logSignature({
-      coverageId,
-      signature: sig,
-      // Status is 'shown' because the coverageId can only be retrieved after
-      // the result is in the state. If the result is in the state, we assume
-      // that it has been shown.
-      status: 'shown',
+      signatureRequest,
+      signature,
+      status,
     });
   }
 
   async #logTransaction(txMeta: TransactionMeta) {
-    const coverageId = this.#getLatestCoverageId(txMeta.id);
-    if (!coverageId) {
-      throw new Error('Coverage ID not found');
-    }
-
-    const txHash = txMeta.hash;
-    if (!txHash) {
+    const transactionHash = txMeta.hash;
+    if (!transactionHash) {
       throw new Error('Transaction hash not found');
     }
+
+    const { status } = this.#getCoverageStatus(txMeta.id);
+
     await this.#backend.logTransaction({
-      coverageId,
-      transactionHash: txHash,
-      // Status is 'shown' because the coverageId can only be retrieved after
-      // the result is in the state. If the result is in the state, we assume
-      // that it has been shown.
-      status: 'shown',
+      txMeta,
+      transactionHash,
+      status,
     });
   }
 
-  #getLatestCoverageId(itemId: string) {
+  #getCoverageStatus(itemId: string) {
+    // The status is assigned as follows:
+    // - 'shown' if we have a result
+    // - 'not_shown' if we don't have a result
+    const coverageId = this.#getLatestCoverageId(itemId);
+    let status = 'shown';
+    if (!coverageId) {
+      log('Coverage ID not found for', itemId);
+      status = 'not_shown';
+    }
+    return { status };
+  }
+
+  #getLatestCoverageId(itemId: string): string | undefined {
     return this.state.coverageResults[itemId]?.results[0]?.coverageId;
   }
 }

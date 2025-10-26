@@ -7,10 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.4]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.10.0` ([#6883](https://github.com/MetaMask/core/pull/6883), [#6888](https://github.com/MetaMask/core/pull/6888), [#6940](https://github.com/MetaMask/core/pull/6940))
+
+## [1.2.3]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^60.6.1` to `^60.7.0` ([#6841](https://github.com/MetaMask/core/pull/6841))
+
+## [1.2.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^60.6.0` to `^60.6.1` ([#6810](https://github.com/MetaMask/core/pull/6810))
+
+## [1.2.1]
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
-- Bump `@metamask/transaction-controller` from `^60.4.0` to `^60.5.0` ([#6708](https://github.com/MetaMask/core/pull/6733))
+- Bump `@metamask/transaction-controller` from `^60.4.0` to `^60.6.0` ([#6708](https://github.com/MetaMask/core/pull/6733), [#6771](https://github.com/MetaMask/core/pull/6771))
+- Remove dependency `@metamask/eth-json-rpc-middleware` ([#6714](https://github.com/MetaMask/core/pull/6714))
 
 ## [1.2.0]
 
@@ -32,7 +53,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6458](https://github.com/MetaMask/core/pull/6458))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.4...HEAD
+[1.2.4]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.3...@metamask/eip-5792-middleware@1.2.4
+[1.2.3]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.2...@metamask/eip-5792-middleware@1.2.3
+[1.2.2]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.1...@metamask/eip-5792-middleware@1.2.2
+[1.2.1]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.0...@metamask/eip-5792-middleware@1.2.1
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.1.0...@metamask/eip-5792-middleware@1.2.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.0.0...@metamask/eip-5792-middleware@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/eip-5792-middleware@1.0.0

@@ -117,6 +117,7 @@ import type {
   TransactionContainerType,
   GetSimulationConfig,
   AddTransactionOptions,
+  PublishHookResult,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -357,6 +358,26 @@ export type TransactionControllerAddTransactionBatchAction = {
 };
 
 /**
+ * Emulate a new transaction.
+ *
+ * @param transactionId - The transaction ID.
+ */
+export type TransactionControllerEmulateNewTransaction = {
+  type: `${typeof controllerName}:emulateNewTransaction`;
+  handler: TransactionController['emulateNewTransaction'];
+};
+
+/**
+ * Emmulate a transaction update.
+ *
+ * @param transactionMeta - Transaction metadata.
+ */
+export type TransactionControllerEmulateTransactionUpdate = {
+  type: `${typeof controllerName}:emulateTransactionUpdate`;
+  handler: TransactionController['emulateTransactionUpdate'];
+};
+
+/**
  * The internal actions available to the TransactionController.
  */
 export type TransactionControllerActions =
@@ -368,7 +389,9 @@ export type TransactionControllerActions =
   | TransactionControllerGetStateAction
   | TransactionControllerGetTransactionsAction
   | TransactionControllerUpdateCustodialTransactionAction
-  | TransactionControllerUpdateTransactionAction;
+  | TransactionControllerUpdateTransactionAction
+  | TransactionControllerEmulateNewTransaction
+  | TransactionControllerEmulateTransactionUpdate;
 
 /**
  * Configuration options for the PendingTransactionTracker
@@ -1131,6 +1154,7 @@ export class TransactionController extends BaseController<
 
     return await addTransactionBatch({
       addTransaction: this.addTransaction.bind(this),
+      estimateGas: this.estimateGas.bind(this),
       getChainId: this.#getChainId.bind(this),
       getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
       getGasFeeEstimates: this.#getGasFeeEstimates,
@@ -2784,6 +2808,68 @@ export class TransactionController extends BaseController<
     });
   }
 
+  /**
+   * Emulate a new transaction.
+   *
+   * @param transactionId - The transaction ID.
+   */
+  emulateNewTransaction(transactionId: string) {
+    const transactionMeta = this.state.transactions.find(
+      (tx) => tx.id === transactionId,
+    );
+
+    if (!transactionMeta) {
+      return;
+    }
+
+    if (transactionMeta.type === TransactionType.swap) {
+      this.messagingSystem.publish('TransactionController:transactionNewSwap', {
+        transactionMeta,
+      });
+    } else if (transactionMeta.type === TransactionType.swapApproval) {
+      this.messagingSystem.publish(
+        'TransactionController:transactionNewSwapApproval',
+        { transactionMeta },
+      );
+    }
+  }
+
+  /**
+   * Emulate a transaction update.
+   *
+   * @param transactionMeta - Transaction metadata.
+   */
+  emulateTransactionUpdate(transactionMeta: TransactionMeta) {
+    const updatedTransactionMeta = {
+      ...transactionMeta,
+      txParams: {
+        ...transactionMeta.txParams,
+        from: this.messagingSystem.call('AccountsController:getSelectedAccount')
+          .address,
+      },
+    };
+
+    const transactionExists = this.state.transactions.some(
+      (tx) => tx.id === updatedTransactionMeta.id,
+    );
+
+    if (!transactionExists) {
+      this.update((state) => {
+        state.transactions.push(updatedTransactionMeta);
+      });
+    }
+
+    this.updateTransaction(
+      updatedTransactionMeta,
+      'Generated from user operation',
+    );
+
+    this.messagingSystem.publish(
+      'TransactionController:transactionStatusUpdated',
+      { transactionMeta: updatedTransactionMeta },
+    );
+  }
+
   #addMetadata(transactionMeta: TransactionMeta) {
     validateTxParams(transactionMeta.txParams);
     this.update((state) => {
@@ -3105,41 +3191,31 @@ export class TransactionController extends BaseController<
 
       log('Publishing transaction', transactionMeta.txParams);
 
-      let hash: string | undefined;
-
       clearNonceLock?.();
       clearNonceLock = undefined;
+
+      let publishHook = this.#defaultPublishHook.bind(this, {
+        ethQuery,
+        publishHookOverride,
+        traceContext,
+      });
 
       if (transactionMeta.batchTransactions?.length) {
         log('Found batch transactions', transactionMeta.batchTransactions);
 
         const extraTransactionsPublishHook = new ExtraTransactionsPublishHook({
           addTransactionBatch: this.addTransactionBatch.bind(this),
+          getTransaction: this.#getTransactionOrThrow.bind(this),
+          originalPublishHook: publishHook,
         });
 
-        publishHookOverride = extraTransactionsPublishHook.getHook();
+        publishHook = extraTransactionsPublishHook.getHook();
       }
 
-      await this.#trace(
-        { name: 'Publish', parentContext: traceContext },
-        async () => {
-          const publishHook = publishHookOverride ?? this.#publish;
-
-          ({ transactionHash: hash } = await publishHook(
-            transactionMeta,
-            rawTx ?? '0x',
-          ));
-
-          if (hash === undefined) {
-            hash = await this.#publishTransaction(ethQuery, {
-              ...transactionMeta,
-              rawTx,
-            });
-          }
-        },
+      const { transactionHash: hash } = await publishHook(
+        transactionMeta,
+        rawTx ?? '0x',
       );
-
-      log('Publish successful', hash);
 
       transactionMeta = this.#updateTransactionInternal(
         {
@@ -4164,7 +4240,12 @@ export class TransactionController extends BaseController<
             blockTime,
             chainId,
             ethQuery: this.#getEthQuery({ networkClientId }),
-            getSimulationConfig: this.#getSimulationConfig,
+            getSimulationConfig: (url, opts) => {
+              return this.#getSimulationConfig(url, {
+                txMeta: transactionMeta,
+                ...opts,
+              });
+            },
             nestedTransactions,
             txParams,
           }),
@@ -4395,6 +4476,16 @@ export class TransactionController extends BaseController<
       `${controllerName}:updateTransaction`,
       this.updateTransaction.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:emulateNewTransaction`,
+      this.emulateNewTransaction.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:emulateTransactionUpdate`,
+      this.emulateTransactionUpdate.bind(this),
+    );
   }
 
   #deleteTransaction(transactionId: string) {
@@ -4518,5 +4609,41 @@ export class TransactionController extends BaseController<
     );
 
     log('Updated transaction with afterSimulate data', updatedTransactionMeta);
+  }
+
+  async #defaultPublishHook(
+    {
+      ethQuery,
+      publishHookOverride,
+      traceContext,
+    }: {
+      ethQuery: EthQuery;
+      publishHookOverride?: PublishHook;
+      traceContext?: TraceContext;
+    },
+    transactionMeta: TransactionMeta,
+    signedTx: string,
+  ): Promise<PublishHookResult> {
+    let transactionHash: string | undefined;
+
+    await this.#trace(
+      { name: 'Publish', parentContext: traceContext },
+      async () => {
+        const publishHook = publishHookOverride ?? this.#publish;
+
+        ({ transactionHash } = await publishHook(transactionMeta, signedTx));
+
+        if (transactionHash === undefined) {
+          transactionHash = await this.#publishTransaction(ethQuery, {
+            ...transactionMeta,
+            rawTx: signedTx,
+          });
+        }
+      },
+    );
+
+    log('Publish successful', transactionHash);
+
+    return { transactionHash };
   }
 }

@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/polling-controller` from `^14.0.1` to `^14.0.2` ([#6940](https://github.com/MetaMask/core/pull/6940))
+
+## [2.1.0]
+
+### Changed
+
+- Make `getCryptoApproveTransactionParams` synchronous ([#6930](https://github.com/MetaMask/core/pull/6930))
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [2.0.0]
+
+### Added
+
+- **BREAKING**: Added two new public methods, `getSubscriptionsEligibilities` and `submitUserEvent` to `SubscriptionService` and `ISubscriptionService` interface. ([#6826](https://github.com/MetaMask/core/pull/6826))
+  - `getSubscriptionsEligibilities` (get user eligibilities for subscriptions).
+  - `submitUserEvent` (submit user UI events, e.g. EntryModalViewed).
+- Added two new public methods, `getSubscriptionsEligibilities` and `submitUserEvent` to controller. ([#6826](https://github.com/MetaMask/core/pull/6826))
+- Exported `SubscriptionUserEvent` from the Controller. ([#6826](https://github.com/MetaMask/core/pull/6826))
+
+## [1.1.0] [DEPRECATED]
+
+### Added
+
+- **BREAKING**: Added two new public methods, `getSubscriptionsEligibilities` and `submitUserEvent` to `SubscriptionService` and `ISubscriptionService` interface. ([#6826](https://github.com/MetaMask/core/pull/6826))
+  - `getSubscriptionsEligibilities` (get user eligibilities for subscriptions).
+  - `submitUserEvent` (submit user UI events, e.g. EntryModalViewed).
+- Added two new public methods, `getSubscriptionsEligibilities` and `submitUserEvent` to controller. ([#6826](https://github.com/MetaMask/core/pull/6826))
+- Exported `SubscriptionUserEvent` from the Controller. ([#6826](https://github.com/MetaMask/core/pull/6826))
+
+## [1.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/polling-controller` from `^14.0.0` to `^14.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [1.0.0]
+
+### Added
+
+- Added new public method, `getSubscriptionByProduct` which accepts `product` name as parameter and return the relevant subscription. ([#6770](https://github.com/MetaMask/core/pull/6770))
+
+### Changed
+
+- Updated controller exports. ([#6785](https://github.com/MetaMask/core/pull/6785))
+  - PaymentMethod types (`CryptoPaymentMethodError`, `UpdatePaymentMethodCryptoRequest`, `UpdatePaymentMethodCardRequest`, `UpdatePaymentMethodCardResponse`).
+  - PaymentMethod error constants, `CRYPTO_PAYMENT_METHOD_ERRORS`.
+- **BREAKING**: The `SubscriptionController` now extends `StaticIntervalPollingController`, and the new polling API `startPolling` must be used to initiate polling (`startPolling`, `stopPollingByPollingToken`). ([#6770](https://github.com/MetaMask/core/pull/6770))
+- **BREAKING**: The `SubscriptionController` now accepts an optional `pollingInterval` property in the constructor argument, to enable the configurable polling interval. ([#6770](https://github.com/MetaMask/core/pull/6770))
+- Prevent unnecessary state updates to avoid emitting `:stateChange` in `getSubscriptions` method. ([#6770](https://github.com/MetaMask/core/pull/6770))
+
 ## [0.5.0]
 
 ### Changed
@@ -59,7 +113,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@0.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@2.0.0...@metamask/subscription-controller@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@1.1.0...@metamask/subscription-controller@2.0.0
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@1.0.1...@metamask/subscription-controller@1.1.0
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@1.0.0...@metamask/subscription-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@0.5.0...@metamask/subscription-controller@1.0.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@0.4.0...@metamask/subscription-controller@0.5.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@0.3.0...@metamask/subscription-controller@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@0.2.0...@metamask/subscription-controller@0.3.0

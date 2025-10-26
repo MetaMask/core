@@ -136,6 +136,13 @@ export class AccountTreeController extends BaseController<
 
   readonly #backupAndSyncConfig: AccountTreeControllerInternalBackupAndSyncConfig;
 
+  /**
+   * Callbacks to migrate hidden and pinned account information from the account order controller
+   */
+  readonly #accountOrderCallbacks:
+    | AccountTreeControllerConfig['accountOrderCallbacks']
+    | undefined;
+
   #initialized: boolean;
 
   /**
@@ -197,6 +204,9 @@ export class AccountTreeController extends BaseController<
         );
       },
     };
+
+    // Used when migrating initial hidden/pinned state for groups (if available).
+    this.#accountOrderCallbacks = config?.accountOrderCallbacks;
 
     // Initialize the backup and sync service
     this.#backupAndSyncService = new BackupAndSyncService(
@@ -482,12 +492,18 @@ export class AccountTreeController extends BaseController<
         'AccountsController:getAccount',
         id,
       );
-      if (!account) {
+      if (!account || !account.metadata.name.length) {
         continue;
       }
 
-      // We only consider EVM account types for computed names.
-      if (isEvmAccountType(account.type) && account.metadata.name.length) {
+      // We only pick a new proposed name if we don't have one yet.
+      if (!proposedName) {
+        proposedName = account.metadata.name;
+      }
+
+      // But EVM accounts take precedence over any other computed names.
+      if (isEvmAccountType(account.type)) {
+        // So we just overwrite the proposed name and stop looping right away.
         proposedName = account.metadata.name;
         break;
       }
@@ -620,7 +636,7 @@ export class AccountTreeController extends BaseController<
   ) {
     const wallet = state.accountTree.wallets[walletId];
     const group = wallet.groups[groupId];
-    const persistedGroupMetadata = state.accountGroupsMetadata[group.id];
+    const persistedGroupMetadata = state.accountGroupsMetadata[groupId];
 
     // Apply persisted name if available (including empty strings)
     if (persistedGroupMetadata?.name !== undefined) {
@@ -663,9 +679,40 @@ export class AccountTreeController extends BaseController<
     // Apply persisted UI states
     if (persistedGroupMetadata?.pinned?.value !== undefined) {
       group.metadata.pinned = persistedGroupMetadata.pinned.value;
+    } else {
+      let isPinned = false;
+
+      if (this.#accountOrderCallbacks?.isPinnedAccount) {
+        isPinned = group.accounts.some((account) =>
+          this.#accountOrderCallbacks?.isPinnedAccount?.(account),
+        );
+      }
+      state.accountGroupsMetadata[groupId] ??= {};
+      state.accountGroupsMetadata[groupId].pinned = {
+        value: isPinned,
+        lastUpdatedAt: 0,
+      };
+      // If any accounts was previously pinned, then we consider the group to be pinned as well.
+      group.metadata.pinned = isPinned;
     }
+
     if (persistedGroupMetadata?.hidden?.value !== undefined) {
       group.metadata.hidden = persistedGroupMetadata.hidden.value;
+    } else {
+      let isHidden = false;
+
+      if (this.#accountOrderCallbacks?.isHiddenAccount) {
+        isHidden = group.accounts.some((account) =>
+          this.#accountOrderCallbacks?.isHiddenAccount?.(account),
+        );
+      }
+      state.accountGroupsMetadata[groupId] ??= {};
+      state.accountGroupsMetadata[groupId].hidden = {
+        value: isHidden,
+        lastUpdatedAt: 0,
+      };
+      // If any accounts was previously hidden, then we consider the group to be hidden as well.
+      group.metadata.hidden = isHidden;
     }
   }
 
@@ -891,6 +938,8 @@ export class AccountTreeController extends BaseController<
 
     if (Object.keys(wallets[walletId].groups).length === 0) {
       delete wallets[walletId];
+      // Clean up metadata for the pruned wallet
+      delete state.accountWalletsMetadata[walletId];
     }
     return state;
   }

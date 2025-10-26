@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [20.1.0]
+
+### Added
+
+- Add support for MONAD (chain ID `0x8f`) ([#6827](https://github.com/MetaMask/core/pull/6827))
+  - Add `MONAD` into constant `ETHERSCAN_SUPPORTED_CHAIN_IDS`
+  - Update default controller state so MONAD (Chain ID `0x8f`) is automatically enabled in `showIncomingTransactions`
+
+## [20.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
 ## [20.0.1]
 
 ### Changed
@@ -436,7 +457,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.1...HEAD
+[20.1.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.0...@metamask/preferences-controller@20.1.1
+[20.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.2...@metamask/preferences-controller@20.1.0
+[20.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.1...@metamask/preferences-controller@20.0.2
 [20.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.0...@metamask/preferences-controller@20.0.1
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@19.0.0...@metamask/preferences-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.1...@metamask/preferences-controller@19.0.0

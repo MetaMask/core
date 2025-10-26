@@ -7,6 +7,10 @@ import {
   getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
+import {
+  TransactionStatus,
+  type TransactionMeta,
+} from '@metamask/transaction-controller';
 import BN from 'bn.js';
 import { useFakeTimers, type SinonFakeTimers } from 'sinon';
 
@@ -138,6 +142,88 @@ describe('AccountTrackerController', () => {
         triggerSelectedAccountChange(ACCOUNT_1);
 
         expect(refreshSpy).toHaveBeenCalled();
+      },
+    );
+  });
+
+  it('refreshes address when unapproved transaction is added', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+      },
+      async ({ controller, messenger }) => {
+        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+          tokenBalances: {
+            '0x0000000000000000000000000000000000000000': {
+              [CHECKSUM_ADDRESS_1]: new BN('123456', 16),
+            },
+          },
+          stakedBalances: {},
+        });
+
+        const transactionMeta: TransactionMeta = {
+          networkClientId: 'mainnet',
+          chainId: '0x1' as const,
+          id: 'test-tx-1',
+          status: TransactionStatus.unapproved,
+          time: Date.now(),
+          txParams: {
+            from: ADDRESS_1,
+          },
+        };
+
+        messenger.publish(
+          'TransactionController:unapprovedTransactionAdded',
+          transactionMeta,
+        );
+
+        await clock.tickAsync(1);
+
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
+        ).toBe('0x123456');
+      },
+    );
+  });
+
+  it('refreshes address when transaction is confirmed', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+      },
+      async ({ controller, messenger }) => {
+        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+          tokenBalances: {
+            '0x0000000000000000000000000000000000000000': {
+              [CHECKSUM_ADDRESS_1]: new BN('abcdef', 16),
+            },
+          },
+          stakedBalances: {},
+        });
+
+        const transactionMeta: TransactionMeta = {
+          networkClientId: 'mainnet',
+          chainId: '0x1' as const,
+          id: 'test-tx-2',
+          status: TransactionStatus.confirmed,
+          time: Date.now(),
+          txParams: {
+            from: ADDRESS_1,
+          },
+        };
+
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          transactionMeta,
+        );
+
+        await clock.tickAsync(1);
+
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
+        ).toBe('0xabcdef');
       },
     );
   });
@@ -868,7 +954,7 @@ describe('AccountTrackerController', () => {
                   },
                 },
               },
-              accountsApiChainIds: [], // Disable API balance fetchers to force RPC usage
+              accountsApiChainIds: () => [], // Disable API balance fetchers to force RPC usage
             },
             isMultiAccountBalancesEnabled: true,
             selectedAccount: ACCOUNT_1,
@@ -911,7 +997,7 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             options: {
-              accountsApiChainIds: ['0x1'],
+              accountsApiChainIds: () => ['0x1'],
               // allowExternalServices not provided - should default to () => true (line 390)
             },
             isMultiAccountBalancesEnabled: true,
@@ -944,7 +1030,7 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             options: {
-              accountsApiChainIds: ['0x1'],
+              accountsApiChainIds: () => ['0x1'],
               allowExternalServices: () => true, // Explicitly set to true
             },
             isMultiAccountBalancesEnabled: true,
@@ -958,7 +1044,7 @@ describe('AccountTrackerController', () => {
             // Refresh balances for mainnet (supported by API)
             await refresh(clock, ['mainnet'], true);
 
-            // Since allowExternalServices is true and accountsApiChainIds includes '0x1',
+            // Since allowExternalServices is true and accountsApiChainIds returns ['0x1'],
             // the API fetcher should be used, which means fetch should be called
             expect(fetchSpy).toHaveBeenCalled();
 
@@ -977,7 +1063,7 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             options: {
-              accountsApiChainIds: ['0x1'],
+              accountsApiChainIds: () => ['0x1'],
               allowExternalServices: () => false, // Explicitly set to false
             },
             isMultiAccountBalancesEnabled: true,
@@ -1012,7 +1098,7 @@ describe('AccountTrackerController', () => {
       await withController(
         {
           options: {
-            accountsApiChainIds: ['0x1'], // Configure to use AccountsAPI for mainnet
+            accountsApiChainIds: () => ['0x1'], // Configure to use AccountsAPI for mainnet
             allowExternalServices: () => true,
           },
           isMultiAccountBalancesEnabled: true,
@@ -1051,7 +1137,7 @@ describe('AccountTrackerController', () => {
       await withController(
         {
           options: {
-            accountsApiChainIds: ['0x1'], // Configure to use AccountsAPI for mainnet
+            accountsApiChainIds: () => ['0x1'], // Configure to use AccountsAPI for mainnet
             allowExternalServices: () => true,
           },
           isMultiAccountBalancesEnabled: true,
@@ -1342,6 +1428,10 @@ type WithControllerCallback<ReturnValue> = ({
   controller,
 }: {
   controller: AccountTrackerController;
+  messenger: Messenger<
+    ExtractAvailableAction<AccountTrackerControllerMessenger> | AllowedActions,
+    ExtractAvailableEvent<AccountTrackerControllerMessenger> | AllowedEvents
+  >;
   triggerSelectedAccountChange: (account: InternalAccount) => void;
   refresh: (
     clock: SinonFakeTimers,
@@ -1503,7 +1593,11 @@ async function withController<ReturnValue>(
       'AccountsController:getSelectedAccount',
       'AccountsController:listAccounts',
     ],
-    allowedEvents: ['AccountsController:selectedEvmAccountChange'],
+    allowedEvents: [
+      'AccountsController:selectedEvmAccountChange',
+      'TransactionController:unapprovedTransactionAdded',
+      'TransactionController:transactionConfirmed',
+    ],
   });
 
   const triggerSelectedAccountChange = (account: InternalAccount) => {
@@ -1528,6 +1622,7 @@ async function withController<ReturnValue>(
 
   return await testFunction({
     controller,
+    messenger,
     triggerSelectedAccountChange,
     refresh,
   });

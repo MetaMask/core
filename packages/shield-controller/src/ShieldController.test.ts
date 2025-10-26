@@ -11,11 +11,14 @@ import {
 } from '@metamask/transaction-controller';
 
 import { ShieldController } from './ShieldController';
+import type { NormalizeSignatureRequestFn } from './types';
+import { TX_META_SIMULATION_DATA_MOCKS } from '../tests/data';
 import { createMockBackend, MOCK_COVERAGE_ID } from '../tests/mocks/backend';
 import { createMockMessenger } from '../tests/mocks/messenger';
 import {
   generateMockSignatureRequest,
   generateMockTxMeta,
+  setupCoverageResultReceived,
 } from '../tests/utils';
 
 /**
@@ -24,14 +27,17 @@ import {
  * @param options - The options for setup.
  * @param options.coverageHistoryLimit - The coverage history limit.
  * @param options.transactionHistoryLimit - The transaction history limit.
+ * @param options.normalizeSignatureRequest - The function to normalize the signature request.
  * @returns Objects that have been created for testing.
  */
 function setup({
   coverageHistoryLimit,
   transactionHistoryLimit,
+  normalizeSignatureRequest,
 }: {
   coverageHistoryLimit?: number;
   transactionHistoryLimit?: number;
+  normalizeSignatureRequest?: NormalizeSignatureRequestFn;
 } = {}) {
   const backend = createMockBackend();
   const { messenger, baseMessenger } = createMockMessenger();
@@ -41,6 +47,7 @@ function setup({
     coverageHistoryLimit,
     transactionHistoryLimit,
     messenger,
+    normalizeSignatureRequest,
   });
   controller.start();
   return {
@@ -56,19 +63,31 @@ describe('ShieldController', () => {
     it('should trigger checkCoverage when a new transaction is added', async () => {
       const { baseMessenger, backend } = setup();
       const txMeta = generateMockTxMeta();
-      const coverageResultReceived = new Promise<void>((resolve) => {
-        baseMessenger.subscribe(
-          'ShieldController:coverageResultReceived',
-          (_coverageResult) => resolve(),
-        );
-      });
+      const coverageResultReceived = setupCoverageResultReceived(baseMessenger);
       baseMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [txMeta] } as TransactionControllerState,
         undefined as never,
       );
       expect(await coverageResultReceived).toBeUndefined();
-      expect(backend.checkCoverage).toHaveBeenCalledWith(txMeta);
+      expect(backend.checkCoverage).toHaveBeenCalledWith({ txMeta });
+    });
+
+    it('should tolerate calling start and stop multiple times', async () => {
+      const { backend, baseMessenger, controller } = setup();
+      controller.stop();
+      controller.stop();
+      controller.start();
+      controller.start();
+      const txMeta = generateMockTxMeta();
+      const coverageResultReceived = setupCoverageResultReceived(baseMessenger);
+      baseMessenger.publish(
+        'TransactionController:stateChange',
+        { transactions: [txMeta] } as TransactionControllerState,
+        undefined as never,
+      );
+      expect(await coverageResultReceived).toBeUndefined();
+      expect(backend.checkCoverage).toHaveBeenCalledWith({ txMeta });
     });
 
     it('should no longer trigger checkCoverage when controller is stopped', async () => {
@@ -126,12 +145,7 @@ describe('ShieldController', () => {
     it('should check coverage when a transaction is simulated', async () => {
       const { baseMessenger, backend } = setup();
       const txMeta = generateMockTxMeta();
-      const coverageResultReceived = new Promise<void>((resolve) => {
-        baseMessenger.subscribe(
-          'ShieldController:coverageResultReceived',
-          (_coverageResult) => resolve(),
-        );
-      });
+      const coverageResultReceived = setupCoverageResultReceived(baseMessenger);
 
       // Add transaction.
       baseMessenger.publish(
@@ -140,26 +154,89 @@ describe('ShieldController', () => {
         undefined as never,
       );
       expect(await coverageResultReceived).toBeUndefined();
-      expect(backend.checkCoverage).toHaveBeenCalledWith(txMeta);
+      expect(backend.checkCoverage).toHaveBeenCalledWith({ txMeta });
 
       // Simulate transaction.
-      txMeta.simulationData = {
+      const txMeta2 = { ...txMeta };
+      txMeta2.simulationData = {
         tokenBalanceChanges: [],
       };
+      const coverageResultReceived2 =
+        setupCoverageResultReceived(baseMessenger);
       baseMessenger.publish(
         'TransactionController:stateChange',
-        { transactions: [txMeta] } as TransactionControllerState,
+        { transactions: [txMeta2] } as TransactionControllerState,
         undefined as never,
       );
-      expect(await coverageResultReceived).toBeUndefined();
-      expect(backend.checkCoverage).toHaveBeenCalledWith(txMeta);
+      expect(await coverageResultReceived2).toBeUndefined();
+      expect(backend.checkCoverage).toHaveBeenCalledWith({
+        coverageId: MOCK_COVERAGE_ID,
+        txMeta: txMeta2,
+      });
+    });
+
+    TX_META_SIMULATION_DATA_MOCKS.forEach(
+      ({ description, previousSimulationData, newSimulationData }) => {
+        it(`should check coverage when ${description}`, async () => {
+          const { baseMessenger, backend } = setup();
+          const previousTxMeta = {
+            ...generateMockTxMeta(),
+            simulationData: previousSimulationData,
+          };
+          const coverageResultReceived =
+            setupCoverageResultReceived(baseMessenger);
+
+          // Add transaction.
+          baseMessenger.publish(
+            'TransactionController:stateChange',
+            { transactions: [previousTxMeta] } as TransactionControllerState,
+            undefined as never,
+          );
+          expect(await coverageResultReceived).toBeUndefined();
+          expect(backend.checkCoverage).toHaveBeenCalledWith({
+            txMeta: previousTxMeta,
+          });
+
+          // Simulate transaction.
+          const txMeta2 = { ...previousTxMeta };
+          txMeta2.simulationData = newSimulationData;
+          const coverageResultReceived2 =
+            setupCoverageResultReceived(baseMessenger);
+          baseMessenger.publish(
+            'TransactionController:stateChange',
+            { transactions: [txMeta2] } as TransactionControllerState,
+            undefined as never,
+          );
+          expect(await coverageResultReceived2).toBeUndefined();
+          expect(backend.checkCoverage).toHaveBeenCalledWith({
+            coverageId: MOCK_COVERAGE_ID,
+            txMeta: txMeta2,
+          });
+        });
+      },
+    );
+
+    it('throws an error when the coverage ID has changed', async () => {
+      const { controller, backend } = setup();
+      backend.checkCoverage.mockResolvedValueOnce({
+        coverageId: '0x00',
+      });
+      backend.checkCoverage.mockResolvedValueOnce({
+        coverageId: '0x01',
+      });
+      const txMeta = generateMockTxMeta();
+      await controller.checkCoverage(txMeta);
+      await expect(controller.checkCoverage(txMeta)).rejects.toThrow(
+        'Coverage ID has changed',
+      );
     });
   });
 
   describe('checkSignatureCoverage', () => {
+    const MOCK_SIGNATURE_REQUEST = generateMockSignatureRequest();
+
     it('should check signature coverage', async () => {
       const { baseMessenger, backend } = setup();
-      const signatureRequest = generateMockSignatureRequest();
       const coverageResultReceived = new Promise<void>((resolve) => {
         baseMessenger.subscribe(
           'ShieldController:coverageResultReceived',
@@ -169,13 +246,56 @@ describe('ShieldController', () => {
       baseMessenger.publish(
         'SignatureController:stateChange',
         {
-          signatureRequests: { [signatureRequest.id]: signatureRequest },
+          signatureRequests: {
+            [MOCK_SIGNATURE_REQUEST.id]: MOCK_SIGNATURE_REQUEST,
+          },
         } as SignatureControllerState,
         undefined as never,
       );
       expect(await coverageResultReceived).toBeUndefined();
-      expect(backend.checkSignatureCoverage).toHaveBeenCalledWith(
-        signatureRequest,
+      expect(backend.checkSignatureCoverage).toHaveBeenCalledWith({
+        signatureRequest: MOCK_SIGNATURE_REQUEST,
+      });
+    });
+
+    it('should normalize the signature request if a normalizeSignatureRequest function is provided', async () => {
+      const MOCK_NORMALIZED_SIGNATURE_REQUEST = {
+        ...MOCK_SIGNATURE_REQUEST,
+        messageParams: {
+          ...MOCK_SIGNATURE_REQUEST.messageParams,
+          data: 'normalized data',
+        },
+      };
+      const normalizeSignatureRequestMock = jest
+        .fn()
+        .mockImplementationOnce((_signatureRequest: SignatureRequest) => {
+          return MOCK_NORMALIZED_SIGNATURE_REQUEST;
+        });
+      const { baseMessenger, backend } = setup({
+        normalizeSignatureRequest: normalizeSignatureRequestMock,
+      });
+      const coverageResultReceived = new Promise<void>((resolve) => {
+        baseMessenger.subscribe(
+          'ShieldController:coverageResultReceived',
+          (_coverageResult) => resolve(),
+        );
+      });
+      baseMessenger.publish(
+        'SignatureController:stateChange',
+        {
+          signatureRequests: {
+            [MOCK_SIGNATURE_REQUEST.id]: MOCK_SIGNATURE_REQUEST,
+          },
+        } as SignatureControllerState,
+        undefined as never,
+      );
+
+      expect(await coverageResultReceived).toBeUndefined();
+      expect(backend.checkSignatureCoverage).toHaveBeenCalledWith({
+        signatureRequest: MOCK_NORMALIZED_SIGNATURE_REQUEST,
+      });
+      expect(normalizeSignatureRequestMock).toHaveBeenCalledWith(
+        MOCK_SIGNATURE_REQUEST,
       );
     });
   });
@@ -199,9 +319,9 @@ describe('ShieldController', () => {
       undefined as never,
     );
     expect(await coverageResultReceived1).toBeUndefined();
-    expect(backend.checkSignatureCoverage).toHaveBeenCalledWith(
-      signatureRequest1,
-    );
+    expect(backend.checkSignatureCoverage).toHaveBeenCalledWith({
+      signatureRequest: signatureRequest1,
+    });
 
     const signatureRequest2 = generateMockSignatureRequest();
     const coverageResultReceived2 = new Promise<void>((resolve) => {
@@ -221,9 +341,9 @@ describe('ShieldController', () => {
     );
 
     expect(await coverageResultReceived2).toBeUndefined();
-    expect(backend.checkSignatureCoverage).toHaveBeenCalledWith(
-      signatureRequest2,
-    );
+    expect(backend.checkSignatureCoverage).toHaveBeenCalledWith({
+      signatureRequest: signatureRequest2,
+    });
   });
 
   describe('logSignature', () => {
@@ -233,6 +353,7 @@ describe('ShieldController', () => {
      * @param components - An object containing the messenger and base messenger.
      * @param options - An object containing optional parameters.
      * @param options.updateSignatureRequest - A function that updates the signature request.
+     * @returns The signature request.
      */
     async function runTest(
       components: ReturnType<typeof setup>,
@@ -272,22 +393,24 @@ describe('ShieldController', () => {
         } as SignatureControllerState,
         undefined as never,
       );
+
+      return { signatureRequest, updatedSignatureRequest };
     }
 
     it('logs a signature', async () => {
       const components = setup();
 
-      await runTest(components);
+      const { updatedSignatureRequest } = await runTest(components);
 
       // Check that backend was called
       expect(components.backend.logSignature).toHaveBeenCalledWith({
-        coverageId: MOCK_COVERAGE_ID,
+        signatureRequest: updatedSignatureRequest,
         signature: '0x00',
         status: 'shown',
       });
     });
 
-    it('does not log when coverageId is missing', async () => {
+    it('logs not_shown when coverageId is missing', async () => {
       const components = setup();
 
       components.backend.checkSignatureCoverage.mockResolvedValue({
@@ -295,10 +418,14 @@ describe('ShieldController', () => {
         status: 'unknown',
       });
 
-      await runTest(components);
+      const { updatedSignatureRequest } = await runTest(components);
 
-      // Check that backend was not called
-      expect(components.backend.logSignature).not.toHaveBeenCalled();
+      // Check that backend was called
+      expect(components.backend.logSignature).toHaveBeenCalledWith({
+        signatureRequest: updatedSignatureRequest,
+        signature: '0x00',
+        status: 'not_shown',
+      });
     });
 
     it('does not log when signature is missing', async () => {
@@ -322,6 +449,7 @@ describe('ShieldController', () => {
      * @param components - An object containing the messenger and base messenger.
      * @param options - Options for the test.
      * @param options.updateTransaction - A function that updates the transaction.
+     * @returns The transaction meta.
      */
     async function runTest(
       components: ReturnType<typeof setup>,
@@ -354,21 +482,23 @@ describe('ShieldController', () => {
         { transactions: [updatedTxMeta] } as TransactionControllerState,
         undefined as never,
       );
+
+      return { txMeta, updatedTxMeta };
     }
 
     it('logs a transaction', async () => {
       const components = setup();
-      await runTest(components);
+      const { updatedTxMeta } = await runTest(components);
 
       // Check that backend was called
       expect(components.backend.logTransaction).toHaveBeenCalledWith({
-        coverageId: MOCK_COVERAGE_ID,
+        txMeta: updatedTxMeta,
         status: 'shown',
         transactionHash: '0x00',
       });
     });
 
-    it('does not log when coverageId is missing', async () => {
+    it('logs not_shown when coverageId is missing', async () => {
       const components = setup();
 
       components.backend.checkCoverage.mockResolvedValue({
@@ -376,10 +506,14 @@ describe('ShieldController', () => {
         status: 'unknown',
       });
 
-      await runTest(components);
+      const { updatedTxMeta } = await runTest(components);
 
-      // Check that backend was not called
-      expect(components.backend.logTransaction).not.toHaveBeenCalled();
+      // Check that backend was called
+      expect(components.backend.logTransaction).toHaveBeenCalledWith({
+        status: 'not_shown',
+        transactionHash: '0x00',
+        txMeta: updatedTxMeta,
+      });
     });
 
     it('does not log when hash is missing', async () => {

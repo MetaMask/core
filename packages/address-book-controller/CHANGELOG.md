@@ -7,14 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [6.2.0]
+
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6473](https://github.com/MetaMask/core/pull/6473))
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^8.0.1` to `^8.4.0` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
-- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.14.0` ([#6303](https://github.com/MetaMask/core/pull/6303), [#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.4.1` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.14.1` ([#6303](https://github.com/MetaMask/core/pull/6303), [#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629), [#6807](https://github.com/MetaMask/core/pull/6807))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.1` ([#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
 
 ## [6.1.1]
@@ -240,7 +248,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.2.1...HEAD
+[6.2.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.2.0...@metamask/address-book-controller@6.2.1
+[6.2.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.1.1...@metamask/address-book-controller@6.2.0
 [6.1.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.1.0...@metamask/address-book-controller@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.3...@metamask/address-book-controller@6.1.0
 [6.0.3]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.2...@metamask/address-book-controller@6.0.3

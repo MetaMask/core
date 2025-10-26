@@ -2,6 +2,10 @@ export { TokenSearchDiscoveryController } from './token-search-discovery-control
 export type {
   TokenSearchDiscoveryControllerMessenger,
   TokenSearchDiscoveryControllerState,
+  TokenSearchDiscoveryControllerActions,
+  TokenSearchDiscoveryControllerGetStateAction,
+  TokenSearchDiscoveryControllerEvents,
+  TokenSearchDiscoveryControllerStateChangeEvent,
 } from './token-search-discovery-controller';
 export type {
   TokenSearchResponseItem,

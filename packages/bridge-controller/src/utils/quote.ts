@@ -6,6 +6,7 @@ import {
 import { BigNumber } from 'bignumber.js';
 
 import { isNativeAddress, isNonEvmChainId } from './bridge';
+import { FeatureId } from './validators';
 import type {
   BridgeAsset,
   ExchangeRate,
@@ -15,6 +16,7 @@ import type {
   QuoteMetadata,
   QuoteResponse,
   NonEvmFees,
+  TxData,
 } from '../types';
 
 export const isValidQuoteRequest = (
@@ -156,9 +158,10 @@ export const calcSentAmount = (
 };
 
 export const calcRelayerFee = (
-  { quote, trade }: QuoteResponse,
+  quoteResponse: QuoteResponse<TxData>,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
+  const { quote, trade } = quoteResponse;
   const relayerFeeAmount = new BigNumber(
     convertHexToDecimal(trade.value || '0x0'),
   );
@@ -234,7 +237,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
-  bridgeQuote: QuoteResponse & L1GasFees;
+  bridgeQuote: QuoteResponse<TxData> & L1GasFees;
   estimatedBaseFeeInDecGwei: string;
   maxFeePerGasInDecGwei: string;
   maxPriorityFeePerGasInDecGwei: string;
@@ -464,4 +467,19 @@ export const formatEtaInMinutes = (
     return `< 1`;
   }
   return (estimatedProcessingTimeInSeconds / 60).toFixed();
+};
+
+export const sortQuotes = (
+  quotes: QuoteResponse[],
+  featureId: FeatureId | null,
+) => {
+  // Sort perps quotes by increasing estimated processing time (fastest first)
+  if (featureId === FeatureId.PERPS) {
+    return quotes.sort((a, b) => {
+      return (
+        a.estimatedProcessingTimeInSeconds - b.estimatedProcessingTimeInSeconds
+      );
+    });
+  }
+  return quotes;
 };

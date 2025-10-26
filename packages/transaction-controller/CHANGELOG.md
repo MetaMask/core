@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [60.10.0]
+
+### Added
+
+- Add actions `TransactionController:emulateNewTransaction` and `TransactionController:emulateTransactionUpdate` ([#6935](https://github.com/MetaMask/core/pull/6935))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+### Fixed
+
+- Prevent race condition causing excessive incoming transaction polling ([#6913](https://github.com/MetaMask/core/pull/6913))
+
+## [60.9.0]
+
+### Added
+
+- Add `predictWithdraw` to `TransactionType` ([#6860](https://github.com/MetaMask/core/pull/6860))
+
+## [60.8.0]
+
+### Added
+
+- Convert existing transaction to EIP-7702 on publish if `batchTransactions` are set ([#6844](https://github.com/MetaMask/core/pull/6844))
+  - Add optional `newSignature` to `onPublish` callback in `TransactionBatchSingleRequest`.
+- Add `MONAD` network support ([#6827](https://github.com/MetaMask/core/pull/6827))
+  - Add account address relationship API support
+  - Add incoming transactions API support
+
+### Changed
+
+- Bump `@metamask/eth-block-tracker` from `^13.0.0` to `^14.0.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+- Update dependencies that indirectly use v4 of `eth-json-rpc-provider` ([#6811](https://github.com/MetaMask/core/pull/6811))
+
+## [60.7.0]
+
+### Added
+
+- Add `txMeta` property to `GetSimulationConfig` callback ([#6833](https://github.com/MetaMask/core/pull/6833))
+
+## [60.6.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [60.6.0]
+
 ### Added
 
 - Expose `addTransaction` and `addTransactionBatch` methods through the messenger ([#6749](https://github.com/MetaMask/core/pull/6749))
@@ -14,6 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `AddTransactionOptions`
     - `TransactionControllerAddTransactionAction`
     - `TransactionControllerAddTransactionBatchAction`
+- Add new `shieldSubscriptionApprove` transaction type for shield subscription confirmation ([#6769](https://github.com/MetaMask/core/pull/6769))
 
 ## [60.5.0]
 
@@ -1840,7 +1891,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.10.0...HEAD
+[60.10.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.9.0...@metamask/transaction-controller@60.10.0
+[60.9.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.8.0...@metamask/transaction-controller@60.9.0
+[60.8.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.7.0...@metamask/transaction-controller@60.8.0
+[60.7.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.6.1...@metamask/transaction-controller@60.7.0
+[60.6.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.6.0...@metamask/transaction-controller@60.6.1
+[60.6.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.5.0...@metamask/transaction-controller@60.6.0
 [60.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.4.0...@metamask/transaction-controller@60.5.0
 [60.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.3.0...@metamask/transaction-controller@60.4.0
 [60.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.2.0...@metamask/transaction-controller@60.3.0
