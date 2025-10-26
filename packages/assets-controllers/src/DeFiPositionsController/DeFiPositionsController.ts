@@ -9,7 +9,6 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
-import type { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
 import type { KeyringControllerLockEvent } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -115,7 +114,6 @@ export type AllowedActions =
  * The external events available to the {@link DeFiPositionsController}.
  */
 export type AllowedEvents =
-  | KeyringControllerUnlockEvent
   | KeyringControllerLockEvent
   | TransactionControllerTransactionConfirmedEvent
   | AccountTreeControllerSelectedAccountGroupChangeEvent;
@@ -175,10 +173,6 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
 
     this.#fetchPositions = buildPositionFetcher();
     this.#isEnabled = isEnabled;
-
-    this.messagingSystem.subscribe('KeyringController:unlock', () => {
-      this.startPolling(null);
-    });
 
     this.messagingSystem.subscribe('KeyringController:lock', () => {
       this.stopAllPolling();
