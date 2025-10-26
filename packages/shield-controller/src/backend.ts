@@ -17,7 +17,7 @@ import type {
   ShieldBackend,
 } from './types';
 import { PollingWithCockatielPolicy } from './polling-with-policy';
-import { HttpError } from '@metamask/controller-utils';
+import { ConstantBackoff, HttpError } from '@metamask/controller-utils';
 
 export type InitCoverageCheckRequest = {
   txParams: [
@@ -58,10 +58,6 @@ export type GetCoverageResultResponse = {
 export class ShieldRemoteBackend implements ShieldBackend {
   readonly #getAccessToken: () => Promise<string>;
 
-  readonly #getCoverageResultTimeout: number;
-
-  readonly #getCoverageResultPollInterval: number;
-
   readonly #baseUrl: string;
 
   readonly #fetch: typeof globalThis.fetch;
@@ -82,11 +78,15 @@ export class ShieldRemoteBackend implements ShieldBackend {
     fetch: typeof globalThis.fetch;
   }) {
     this.#getAccessToken = getAccessToken;
-    this.#getCoverageResultTimeout = getCoverageResultTimeout;
-    this.#getCoverageResultPollInterval = getCoverageResultPollInterval;
     this.#baseUrl = baseUrl;
     this.#fetch = fetchFn;
-    this.#pollingPolicy = new PollingWithCockatielPolicy();
+
+    const { backoff, maxRetries } = computePollingIntervalAndRetryCount(getCoverageResultTimeout, getCoverageResultPollInterval);
+
+    this.#pollingPolicy = new PollingWithCockatielPolicy({
+      backoff,
+      maxRetries,
+    });
   }
 
   async checkCoverage(req: CheckCoverageRequest): Promise<CoverageResult> {
@@ -308,4 +308,21 @@ export function parseSignatureRequestMethod(
   }
 
   return signatureRequest.type;
+}
+
+
+/**
+ * Compute the polling interval and retry count for the Cockatiel policy based on the timeout and poll interval given.
+ *
+ * @param timeout - The timeout in milliseconds.
+ * @param pollInterval - The poll interval in milliseconds.
+ * @returns The polling interval and retry count.
+ */
+function computePollingIntervalAndRetryCount(timeout: number, pollInterval: number) {
+  const backoff = new ConstantBackoff(pollInterval);
+  const maxRetries = Math.floor(timeout / pollInterval) + 1;
+  return {
+    backoff,
+    maxRetries,
+  };
 }
