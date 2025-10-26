@@ -48,7 +48,9 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.4.2",
-    "@metamask/utils": "^11.8.1"
+    "@metamask/controller-utils": "^11.14.1",
+    "@metamask/utils": "^11.8.1",
+    "cockatiel": "^3.1.2"
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
