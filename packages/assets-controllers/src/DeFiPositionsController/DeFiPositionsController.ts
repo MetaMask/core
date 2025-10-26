@@ -235,9 +235,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     const accountPositions = await this.#fetchAccountPositions(selectedAddress);
 
     this.update((state) => {
-      state.allDeFiPositions = {
-        [selectedAddress]: accountPositions,
-      };
+      state.allDeFiPositions[selectedAddress] = accountPositions;
     });
   }
 
