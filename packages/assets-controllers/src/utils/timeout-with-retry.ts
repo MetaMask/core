@@ -16,7 +16,7 @@ export async function timeoutWithRetry<T extends () => Promise<unknown>>(
   maxRetries: number,
   // @ts-expect-error TS2366: Assertion guarantees loop executes
 ): Promise<Awaited<ReturnType<T>>> {
-  assert(maxRetries > 0, 'maxRetries must be greater than 0');
+  assert(maxRetries >= 0, 'maxRetries must be greater than or equal to 0');
 
   let attempt = 0;
 
