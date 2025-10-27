@@ -99,6 +99,7 @@ describe('EIP-5792', () => {
       actions: [
         'AccountsController:getState',
         'PreferencesController:getState',
+        'NetworkController:getState',
       ],
     });
 
