@@ -113,9 +113,9 @@ export type StateDeriverConstraint = (value: never) => Json;
  */
 export type StatePropertyMetadataConstraint = {
   includeInDebugSnapshot: boolean | StateDeriverConstraint;
-  includeInStateLogs?: boolean | StateDeriverConstraint;
+  includeInStateLogs: boolean | StateDeriverConstraint;
   persist: boolean | StateDeriverConstraint;
-  usedInUi?: boolean;
+  usedInUi: boolean;
 };
 
 /**
