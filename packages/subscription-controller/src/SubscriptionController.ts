@@ -45,7 +45,10 @@ export type SubscriptionControllerState = {
    * This is used to display the last selected payment method in the UI.
    * This state is also meant to be used internally to track the last selected payment method for the user. (e.g. for crypto subscriptions)
    */
-  lastSelectedPaymentMethod?: CachedLastSelectedPaymentMethods[];
+  lastSelectedPaymentMethod?: Record<
+    ProductType,
+    CachedLastSelectedPaymentMethods
+  >;
 };
 
 // Messenger Actions
@@ -505,6 +508,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   /**
    * Cache the last selected payment method for a specific product.
    *
+   * @param product - The product to cache the payment method for.
    * @param paymentMethod - The payment method to cache.
    * @param paymentMethod.type - The type of the payment method.
    * @param paymentMethod.paymentTokenAddress - The payment token address.
@@ -512,6 +516,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @param paymentMethod.product - The product of the payment method.
    */
   cacheLastSelectedPaymentMethod(
+    product: ProductType,
     paymentMethod: CachedLastSelectedPaymentMethods,
   ) {
     if (
@@ -524,11 +529,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     }
 
     this.update((state) => {
-      const existingMethods = state.lastSelectedPaymentMethod || [];
-      const filteredMethods = existingMethods.filter(
-        (method) => method.product !== paymentMethod.product,
-      );
-      state.lastSelectedPaymentMethod = [...filteredMethods, paymentMethod];
+      state.lastSelectedPaymentMethod = {
+        ...state.lastSelectedPaymentMethod,
+        [product]: paymentMethod,
+      };
     });
   }
 

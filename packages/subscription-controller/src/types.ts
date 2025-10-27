@@ -316,5 +316,4 @@ export type CachedLastSelectedPaymentMethods = {
   type: PaymentType;
   paymentTokenAddress?: `0x${string}`;
   plan: RecurringInterval;
-  product: ProductType;
 };

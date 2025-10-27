@@ -25,6 +25,7 @@ import type {
   UpdatePaymentMethodOpts,
   Product,
   SubscriptionEligibility,
+  CachedLastSelectedPaymentMethods,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -1408,19 +1409,17 @@ describe('SubscriptionController', () => {
   describe('cacheLastSelectedPaymentMethod', () => {
     it('should cache last selected payment method successfully', async () => {
       await withController(async ({ controller }) => {
-        controller.cacheLastSelectedPaymentMethod({
+        controller.cacheLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD, {
           type: PAYMENT_TYPES.byCard,
           plan: RECURRING_INTERVALS.month,
-          product: PRODUCT_TYPES.SHIELD,
         });
 
-        expect(controller.state.lastSelectedPaymentMethod).toStrictEqual([
-          {
+        expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({
+          [PRODUCT_TYPES.SHIELD]: {
             type: PAYMENT_TYPES.byCard,
             plan: RECURRING_INTERVALS.month,
-            product: PRODUCT_TYPES.SHIELD,
           },
-        ]);
+        });
       });
     });
 
@@ -1428,39 +1427,35 @@ describe('SubscriptionController', () => {
       await withController(
         {
           state: {
-            lastSelectedPaymentMethod: [
-              {
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
                 type: PAYMENT_TYPES.byCard,
                 plan: RECURRING_INTERVALS.month,
-                product: PRODUCT_TYPES.SHIELD,
               },
-            ],
+            },
           },
         },
         async ({ controller }) => {
-          expect(controller.state.lastSelectedPaymentMethod).toStrictEqual([
-            {
+          expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({
+            [PRODUCT_TYPES.SHIELD]: {
               type: PAYMENT_TYPES.byCard,
               plan: RECURRING_INTERVALS.month,
-              product: PRODUCT_TYPES.SHIELD,
             },
-          ]);
+          });
 
-          controller.cacheLastSelectedPaymentMethod({
+          controller.cacheLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD, {
             type: PAYMENT_TYPES.byCrypto,
             paymentTokenAddress: '0x123',
             plan: RECURRING_INTERVALS.month,
-            product: PRODUCT_TYPES.SHIELD,
           });
 
-          expect(controller.state.lastSelectedPaymentMethod).toStrictEqual([
-            {
+          expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({
+            [PRODUCT_TYPES.SHIELD]: {
               type: PAYMENT_TYPES.byCrypto,
               paymentTokenAddress: '0x123',
               plan: RECURRING_INTERVALS.month,
-              product: PRODUCT_TYPES.SHIELD,
             },
-          ]);
+          });
         },
       );
     });
@@ -1468,11 +1463,10 @@ describe('SubscriptionController', () => {
     it('should throw error when payment token address is not provided for crypto payment', async () => {
       await withController(({ controller }) => {
         expect(() =>
-          controller.cacheLastSelectedPaymentMethod({
+          controller.cacheLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD, {
             type: PAYMENT_TYPES.byCrypto,
             plan: RECURRING_INTERVALS.month,
-            product: PRODUCT_TYPES.SHIELD,
-          }),
+          } as CachedLastSelectedPaymentMethods),
         ).toThrow(
           SubscriptionControllerErrorMessage.PaymentTokenAddressRequiredForCrypto,
         );
