@@ -9,23 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Update `BaseController` type and constructor to require new `Messenger` from `@metamask/messenger` rather than `RestrictedMessenger` ([#6318](https://github.com/MetaMask/core/pull/6318), [#6926](https://github.com/MetaMask/core/pull/6926))
-- Rename `anonymous` metadata property to `includeInDebugSnapshot` ([#6593](https://github.com/MetaMask/core/pull/6593), [#6926](https://github.com/MetaMask/core/pull/6926))
-- Make `includeInStateLogs` and `usedInUi` metadata properties required ([#6593](https://github.com/MetaMask/core/pull/6593), [#6926](https://github.com/MetaMask/core/pull/6926))
-- Rename `ListenerV2` type export to `StateChangeListener` ([#6339](https://github.com/MetaMask/core/pull/6339), [#6926](https://github.com/MetaMask/core/pull/6926))
-- Rename `messagingSystem` protected instance variable to `messenger` ([#6337](https://github.com/MetaMask/core/pull/6337), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Update `BaseController` type and constructor to require new `Messenger` from `@metamask/messenger` rather than `RestrictedMessenger` ([#6318](https://github.com/MetaMask/core/pull/6318), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Rename `anonymous` metadata property to `includeInDebugSnapshot` ([#6593](https://github.com/MetaMask/core/pull/6593), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Make `includeInStateLogs` and `usedInUi` metadata properties required ([#6593](https://github.com/MetaMask/core/pull/6593), [#6926](https://github.com/MetaMask/core/pull/6926))
+  - This applies both to the `BaseController` type and the `StatePropertyMetadataConstraint` type
+- **BREAKING:** Rename `ListenerV2` type export to `StateChangeListener` ([#6339](https://github.com/MetaMask/core/pull/6339), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Rename `messagingSystem` protected instance variable to `messenger` ([#6337](https://github.com/MetaMask/core/pull/6337), [#6926](https://github.com/MetaMask/core/pull/6926))
 
 ### Removed
 
-- Remove `Messenger` and `RestrictedMessenger` ([#6926](https://github.com/MetaMask/core/pull/6926))
-- Remove `isBaseController` ([#6341](https://github.com/MetaMask/core/pull/6341), [#6926](https://github.com/MetaMask/core/pull/6926))
-- Remove deprecated exports `getPersistentState` and `getAnonymizedState` ([#6611](https://github.com/MetaMask/core/pull/6611), [#6926](https://github.com/MetaMask/core/pull/6926))
-- Remove `next` export ([#6926](https://github.com/MetaMask/core/pull/6926))
-
-### Fixed
-
-- In experimental `next` export, fix the `StatePropertyMetadataConstraint` type ([#6942](https://github.com/MetaMask/core/pull/6942))
-  - It incorrectly used the old metadata property `anonymous` instead of `includeInDebugSnapshot`
+- **BREAKING:** Remove `Messenger` and `RestrictedMessenger` ([#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Remove `isBaseController` ([#6341](https://github.com/MetaMask/core/pull/6341), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Remove deprecated exports `getPersistentState` and `getAnonymizedState` ([#6611](https://github.com/MetaMask/core/pull/6611), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Remove `next` export ([#6926](https://github.com/MetaMask/core/pull/6926))
 
 ## [8.4.2]
 
