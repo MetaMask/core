@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6495](https://github.com/MetaMask/core/pull/6495))
+  - Previously, `TokenSearchDiscoveryController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6495](https://github.com/MetaMask/core/pull/6495))
+
 ## [3.5.1]
 
 ### Changed
