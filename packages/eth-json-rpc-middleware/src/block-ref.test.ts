@@ -29,6 +29,21 @@ const createEngine = (
 };
 
 describe('createBlockRefMiddleware', () => {
+  let provider: ReturnType<typeof createProviderAndBlockTracker>['provider'];
+  let blockTracker: ReturnType<
+    typeof createProviderAndBlockTracker
+  >['blockTracker'];
+
+  beforeEach(() => {
+    const providerAndBlockTracker = createProviderAndBlockTracker();
+    provider = providerAndBlockTracker.provider;
+    blockTracker = providerAndBlockTracker.blockTracker;
+  });
+
+  afterEach(async () => {
+    await blockTracker.destroy();
+  });
+
   // This list corresponds to the list in the `blockTagParamIndex` function
   // within `src/utils/cache.ts`
   (
@@ -50,8 +65,6 @@ describe('createBlockRefMiddleware', () => {
       describe(`when the RPC method is ${method}`, () => {
         describe('if the block param is "latest"', () => {
           it('makes a direct request through the provider, replacing the block param with the latest block number', async () => {
-            const { provider, blockTracker } = createProviderAndBlockTracker();
-
             const engine = createEngine(
               createBlockRefMiddleware({
                 provider,
@@ -94,7 +107,6 @@ describe('createBlockRefMiddleware', () => {
           it('does not proceed to the next middleware after making a request through the provider', async () => {
             const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
 
-            const { provider, blockTracker } = createProviderAndBlockTracker();
             const engine = createEngine(
               createBlockRefMiddleware({
                 provider,
@@ -134,7 +146,6 @@ describe('createBlockRefMiddleware', () => {
 
         describe('if no block param is provided', () => {
           it('makes a direct request through the provider, replacing the block param with the latest block number', async () => {
-            const { provider, blockTracker } = createProviderAndBlockTracker();
             const engine = createEngine(
               createBlockRefMiddleware({
                 provider,
@@ -174,7 +185,6 @@ describe('createBlockRefMiddleware', () => {
           it('does not proceed to the next middleware after making a request through the provider', async () => {
             const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
 
-            const { provider, blockTracker } = createProviderAndBlockTracker();
             const engine = createEngine(
               createBlockRefMiddleware({
                 provider,
@@ -215,8 +225,6 @@ describe('createBlockRefMiddleware', () => {
             it('does not make a direct request through the provider', async () => {
               const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
 
-              const { provider, blockTracker } =
-                createProviderAndBlockTracker();
               const engine = createEngine(
                 createBlockRefMiddleware({
                   provider,
@@ -246,8 +254,6 @@ describe('createBlockRefMiddleware', () => {
             it('proceeds to the next middleware', async () => {
               const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
 
-              const { provider, blockTracker } =
-                createProviderAndBlockTracker();
               const engine = createEngine(
                 createBlockRefMiddleware({
                   provider,
@@ -292,7 +298,6 @@ describe('createBlockRefMiddleware', () => {
     it('does not make a direct request through the provider', async () => {
       const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
 
-      const { provider, blockTracker } = createProviderAndBlockTracker();
       const engine = createEngine(
         createBlockRefMiddleware({
           provider,
@@ -319,7 +324,6 @@ describe('createBlockRefMiddleware', () => {
     it('proceeds to the next middleware', async () => {
       const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
 
-      const { provider, blockTracker } = createProviderAndBlockTracker();
       const engine = createEngine(
         createBlockRefMiddleware({
           provider,
