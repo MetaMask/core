@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: Fix incorrect property name referenced in comment ([#6956](https://github.com/MetaMask/core/pull/6956))
+- refactor: migrate `{Approval,Transaction,Network,GasFee,AssetsContract,Nft,Tokens}Controller` messengers ([#6386](https://github.com/MetaMask/core/pull/6386))
+- fix: Fix mistake in `StatePropertyMetadataConstraint` type ([#6942](https://github.com/MetaMask/core/pull/6942))
+
 ### Changed
 
 - **BREAKING:** Update `BaseController` type and constructor to require new `Messenger` from `@metamask/messenger` rather than `RestrictedMessenger` ([#6318](https://github.com/MetaMask/core/pull/6318), [#6926](https://github.com/MetaMask/core/pull/6926))

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
+- chore: Use consistent variable name for messenger ([#6957](https://github.com/MetaMask/core/pull/6957))
+- chore: Update obsolete property name in error message ([#6955](https://github.com/MetaMask/core/pull/6955))
+
 ### Changed
 
 - **BREAKING:** Migrate `ComposableController` to new `Messenger` from `@metamask/messenger` ([#6710](https://github.com/MetaMask/core/pull/6710))

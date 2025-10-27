@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
+- chore: Migrate test fixture to messenger ([#6961](https://github.com/MetaMask/core/pull/6961))
+
 ### Changed
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6533](https://github.com/MetaMask/core/pull/6533))

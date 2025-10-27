@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
+- refactor: migrate `{Approval,Transaction,Network,GasFee,AssetsContract,Nft,Tokens}Controller` messengers ([#6386](https://github.com/MetaMask/core/pull/6386))
+
 ### Changed
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` for `StaticIntervalPollingController` and `BlockTrackerPollingController` ([#6444](https://github.com/MetaMask/core/pull/6444))

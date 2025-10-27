@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
+- Release 641.0.0 ([#6940](https://github.com/MetaMask/core/pull/6940))
+
 ### Added
 
 - Add new controller action `ShieldControllerGetStateAction` ([#6497](https://github.com/MetaMask/core/pull/6497))

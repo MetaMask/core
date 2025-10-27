@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
+- Release/639.0.0 ([#6931](https://github.com/MetaMask/core/pull/6931))
+
 ### Added
 
 - Add `BridgeControllerGetStateAction` and `BridgeControllerStateChangeEvent` types ([#6444](https://github.com/MetaMask/core/pull/6444))
