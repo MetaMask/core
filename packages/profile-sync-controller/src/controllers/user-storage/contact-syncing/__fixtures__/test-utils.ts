@@ -5,8 +5,12 @@ import type {
 import type {
   ActionConstraint,
   EventConstraint,
-} from '@metamask/base-controller';
-import { Messenger as MessengerImpl } from '@metamask/base-controller';
+  MockAnyNamespace,
+} from '@metamask/messenger';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger as MessengerImpl,
+} from '@metamask/messenger';
 
 import { MOCK_LOCAL_CONTACTS } from './mockContacts';
 
@@ -32,14 +36,18 @@ export function mockUserStorageMessengerForContactSyncing(options?: {
     clearEventSubscriptions: unknown;
     registerInitialEventPayload: jest.Mock;
   };
-  baseMessenger: MessengerImpl<ActionConstraint, EventConstraint>;
+  baseMessenger: MessengerImpl<
+    MockAnyNamespace,
+    ActionConstraint,
+    EventConstraint
+  >;
   mockAddressBookList: jest.Mock;
   mockAddressBookSet: jest.Mock;
   mockAddressBookDelete: jest.Mock;
   contactsUpdatedFromSync: AddressBookEntry[]; // Track contacts that were updated via sync
 } {
   // Start with a fresh messenger mock
-  const baseMessenger = new MessengerImpl();
+  const baseMessenger = new MessengerImpl({ namespace: MOCK_ANY_NAMESPACE });
 
   // Contacts that are synced/updated will be stored here for test inspection
   const contactsUpdatedFromSync: AddressBookEntry[] = [];
