@@ -148,6 +148,7 @@ linkStyle default opacity:0.5
   transaction_controller(["@metamask/transaction-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
   account_tree_controller --> base_controller;
+  account_tree_controller --> messenger;
   account_tree_controller --> accounts_controller;
   account_tree_controller --> keyring_controller;
   account_tree_controller --> multichain_account_service;
