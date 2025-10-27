@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export new Messenger action/event types: `PermissionLogControllerActions`, `PermissionLogControllerGetStateAction`, `PermissionLogControllerEvents`, and `PermissionLogControllerStateChangeEvent` ([#6536](https://github.com/MetaMask/core/pull/6536))
+- Export new messenger action and event types: `PermissionLogControllerActions`, `PermissionLogControllerGetStateAction`, `PermissionLogControllerEvents`, and `PermissionLogControllerStateChangeEvent` ([#6536](https://github.com/MetaMask/core/pull/6536))
 
 ### Changed
 
