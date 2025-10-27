@@ -103,7 +103,6 @@ function setupController({
     messenger: defiPositionControllerMessenger,
     actions: ['AccountTreeController:getAccountsFromSelectedAccountGroup'],
     events: [
-      'DeFiPositionsController:stateChange',
       'KeyringController:lock',
       'TransactionController:transactionConfirmed',
       'AccountTreeController:selectedAccountGroupChange',
