@@ -8,6 +8,7 @@ import {
   type MessengerEvents,
   type MockAnyNamespace,
 } from '@metamask/messenger';
+import type { NetworkConfiguration } from '@metamask/network-controller';
 import {
   type NetworkClientId,
   type NetworkClientConfiguration,
@@ -228,6 +229,66 @@ describe('AccountTrackerController', () => {
         messenger.publish(
           'TransactionController:transactionConfirmed',
           transactionMeta,
+        );
+
+        await clock.tickAsync(1);
+
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
+        ).toBe('0xabcdef');
+      },
+    );
+  });
+
+  it('refreshes addresses when network is added', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+      },
+      async ({ controller, messenger }) => {
+        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+          tokenBalances: {
+            '0x0000000000000000000000000000000000000000': {
+              [CHECKSUM_ADDRESS_1]: new BN('abcdef', 16),
+            },
+          },
+          stakedBalances: {},
+        });
+
+        messenger.publish(
+          'NetworkController:networkAdded',
+          {} as NetworkConfiguration,
+        );
+
+        await clock.tickAsync(1);
+
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
+        ).toBe('0xabcdef');
+      },
+    );
+  });
+
+  it('refreshes addresses when keyring is unlocked', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+      },
+      async ({ controller, messenger }) => {
+        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+          tokenBalances: {
+            '0x0000000000000000000000000000000000000000': {
+              [CHECKSUM_ADDRESS_1]: new BN('abcdef', 16),
+            },
+          },
+          stakedBalances: {},
+        });
+
+        messenger.publish(
+          'NetworkController:networkAdded',
+          {} as NetworkConfiguration,
         );
 
         await clock.tickAsync(1);
@@ -1637,6 +1698,8 @@ async function withController<ReturnValue>(
       'AccountsController:selectedEvmAccountChange',
       'TransactionController:unapprovedTransactionAdded',
       'TransactionController:transactionConfirmed',
+      'NetworkController:networkAdded',
+      'KeyringController:unlock',
     ],
   });
 
