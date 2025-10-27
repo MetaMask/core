@@ -67,9 +67,9 @@ class FooController extends BaseController<
   FooControllerState,
   FooMessenger
 > {
-  constructor(messagingSystem: FooMessenger) {
+  constructor(messenger: FooMessenger) {
     super({
-      messenger: messagingSystem,
+      messenger,
       metadata: fooControllerStateMetadata,
       name: 'FooController',
       state: { foo: 'foo' },
@@ -116,9 +116,9 @@ class QuzController extends BaseController<
   QuzControllerState,
   QuzMessenger
 > {
-  constructor(messagingSystem: QuzMessenger) {
+  constructor(messenger: QuzMessenger) {
     super({
-      messenger: messagingSystem,
+      messenger,
       metadata: quzControllerStateMetadata,
       name: 'QuzController',
       state: { quz: 'quz' },

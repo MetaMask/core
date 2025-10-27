@@ -1,9 +1,9 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
+import { BaseController } from '@metamask/base-controller/next';
+import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
 import type {
@@ -51,7 +51,7 @@ const stateMetadata = {
   subjectMetadata: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -89,12 +89,10 @@ export type SubjectMetadataControllerEvents = SubjectMetadataStateChange;
 
 type AllowedActions = HasPermissions;
 
-export type SubjectMetadataControllerMessenger = RestrictedMessenger<
+export type SubjectMetadataControllerMessenger = Messenger<
   typeof controllerName,
   SubjectMetadataControllerActions | AllowedActions,
-  SubjectMetadataControllerEvents,
-  AllowedActions['type'],
-  never
+  SubjectMetadataControllerEvents
 >;
 
 type SubjectMetadataControllerOptions = {
@@ -146,14 +144,14 @@ export class SubjectMetadataController extends BaseController<
     this.subjectCacheLimit = subjectCacheLimit;
     this.subjectsWithoutPermissionsEncounteredSinceStartup = new Set();
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // ESLint is confused by the string literal type.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getSubjectMetadata`,
       this.getSubjectMetadata.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // ESLint is confused by the string literal type.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:addSubjectMetadata`,
