@@ -36,7 +36,7 @@ import type {
 export const generateActionId = () => (Date.now() + Math.random()).toString();
 
 export const getUSDTAllowanceResetTx = async (
-  messagingSystem: BridgeStatusControllerMessenger,
+  messenger: BridgeStatusControllerMessenger,
   quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
 ) => {
   const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
@@ -45,7 +45,7 @@ export const getUSDTAllowanceResetTx = async (
     isEthUsdt(hexChainId, quoteResponse.quote.srcAsset.address)
   ) {
     const allowance = new BigNumber(
-      await messagingSystem.call(
+      await messenger.call(
         'BridgeController:getBridgeERC20Allowance',
         quoteResponse.quote.srcAsset.address,
         hexChainId,
