@@ -7,20 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [84.0.0]
-
 ### Added
 
 - Add optional `fetchingEnabled` callback to `AccountTrackerController` constructor to stop it from fetching balances ([#6938](https://github.com/MetaMask/core/pull/6938))
 
 ### Changed
 
-- **BREAKING:** Modify AccountTrackerController event subscriptions ([#6938](https://github.com/MetaMask/core/pull/6938))
+- **BREAKING:** Modify AccountTrackerController events and actions ([#6938](https://github.com/MetaMask/core/pull/6938))
   - `AccountsController:selectedAccountChange` is no longer part of the list of allowed events
   - `NetworkController:getState` refetches balances
   - `TransactionController:unapprovedTransactionAdded` refetches balances
   - `TransactionController:transactionConfirmed'` refetches balances
   - `TransactionController:transactionConfirmed` only updates DeFi positions if the transaction is for the selected address
+
+## [84.0.0]
+
+### Changed
+
 - **BREAKING:** Migrate controllers to new `Messenger` from `@metamask/messenger` ([#6444](https://github.com/MetaMask/core/pull/6444), [#6386](https://github.com/MetaMask/core/pull/6386), [#6745](https://github.com/MetaMask/core/pull/6745))
   - Previously, the controllers accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 - **BREAKING:** Bump `@metamask/account-tree-controller` from `^1.0.0` to `^2.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
