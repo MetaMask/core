@@ -249,7 +249,10 @@ module.exports = defineConfig({
         // All non-root packages must have a valid README.md file.
         await expectReadme(workspace, workspaceBasename);
 
-        await expectCodeowner(workspace, workspaceBasename);
+        // TEMPORARY: Codeowner validation disabled during code freeze
+        // During the migration period, all packages are owned by core-platform
+        // through the global * rule in CODEOWNERS file
+        // await expectCodeowner(workspace, workspaceBasename);
       }
     }
 
