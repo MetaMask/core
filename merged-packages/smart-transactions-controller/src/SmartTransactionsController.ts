@@ -2,7 +2,6 @@ import { hexlify } from '@ethersproject/bytes';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import {
@@ -13,6 +12,7 @@ import {
   type TraceCallback,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
@@ -82,7 +82,7 @@ const controllerMetadata: StateMetadata<SmartTransactionsControllerState> = {
   smartTransactionsState: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
 };
@@ -187,12 +187,10 @@ type AllowedEvents = NetworkControllerStateChangeEvent;
 /**
  * The messenger of the {@link SmartTransactionsController}.
  */
-export type SmartTransactionsControllerMessenger = RestrictedMessenger<
+export type SmartTransactionsControllerMessenger = Messenger<
   typeof controllerName,
   SmartTransactionsControllerActions | AllowedActions,
-  SmartTransactionsControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  SmartTransactionsControllerEvents | AllowedEvents
 >;
 
 type SmartTransactionsControllerOptions = {
@@ -294,13 +292,13 @@ export class SmartTransactionsController extends StaticIntervalPollingController
 
     this.initializeSmartTransactionsForChainId();
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'NetworkController:stateChange',
       ({ selectedNetworkClientId }) => {
         const {
           configuration: { chainId },
           provider,
-        } = this.messagingSystem.call(
+        } = this.messenger.call(
           'NetworkController:getNetworkClientById',
           selectedNetworkClientId,
         );
@@ -311,9 +309,8 @@ export class SmartTransactionsController extends StaticIntervalPollingController
       },
     );
 
-    this.messagingSystem.subscribe(
-      `${controllerName}:stateChange`,
-      (currentState) => this.checkPoll(currentState),
+    this.messenger.subscribe(`${controllerName}:stateChange`, (currentState) =>
+      this.checkPoll(currentState),
     );
   }
 
@@ -430,7 +427,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     let ethQuery = this.#ethQuery;
     let chainId = this.#chainId;
     if (networkClientId) {
-      const { configuration, provider } = this.messagingSystem.call(
+      const { configuration, provider } = this.messenger.call(
         'NetworkController:getNetworkClientById',
         networkClientId,
       );
@@ -565,7 +562,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
 
     // We have to emit this event here, because then a txHash is returned to the TransactionController once it's available
     // and the #doesTransactionNeedConfirmation function will work properly, since it will find the txHash in the regular transactions list.
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `SmartTransactionsController:smartTransaction`,
       nextSmartTransaction,
     );
@@ -580,9 +577,9 @@ export class SmartTransactionsController extends StaticIntervalPollingController
       markRegularTransactionAsFailed({
         smartTransaction: nextSmartTransaction,
         getRegularTransactions: () =>
-          this.messagingSystem.call('TransactionController:getTransactions'),
+          this.messenger.call('TransactionController:getTransactions'),
         updateTransaction: (transactionMeta: TransactionMeta, note: string) =>
-          this.messagingSystem.call(
+          this.messenger.call(
             'TransactionController:updateTransaction',
             transactionMeta,
             note,
@@ -650,7 +647,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     if (!txHash) {
       return true;
     }
-    const transactions = this.messagingSystem.call(
+    const transactions = this.messenger.call(
       'TransactionController:getTransactions',
     );
     const foundTransaction = transactions?.find((tx) => {
@@ -733,7 +730,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
             : originalTxMeta;
 
         if (this.#doesTransactionNeedConfirmation(txHash)) {
-          this.messagingSystem.call(
+          this.messenger.call(
             'TransactionController:confirmExternalTransaction',
             // TODO: Replace 'as' assertion with correct typing for `txMeta`
             txMeta as TransactionMeta,
@@ -763,7 +760,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
       });
       console.error('confirm error', error);
     } finally {
-      this.messagingSystem.publish(
+      this.messenger.publish(
         `SmartTransactionsController:smartTransactionConfirmationDone`,
         smartTransaction,
       );
@@ -829,7 +826,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     transaction: UnsignedTransaction,
     networkClientId: NetworkClientId,
   ): Promise<UnsignedTransaction> {
-    const nonceLock = await this.messagingSystem.call(
+    const nonceLock = await this.messenger.call(
       'TransactionController:getNonceLock',
       transaction.from,
       networkClientId,
@@ -861,8 +858,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
   ): Promise<Fees> {
     const selectedNetworkClientId =
       networkClientId ??
-      this.messagingSystem.call('NetworkController:getState')
-        .selectedNetworkClientId;
+      this.messenger.call('NetworkController:getState').selectedNetworkClientId;
     const chainId = this.#getChainId({
       networkClientId: selectedNetworkClientId,
     });
@@ -942,8 +938,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
   }) {
     const selectedNetworkClientId =
       networkClientId ??
-      this.messagingSystem.call('NetworkController:getState')
-        .selectedNetworkClientId;
+      this.messenger.call('NetworkController:getState').selectedNetworkClientId;
     const chainId = this.#getChainId({
       networkClientId: selectedNetworkClientId,
     });
@@ -985,7 +980,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     // This should only happen for Swaps. Non-swaps transactions should already have a nonce
     if (requiresNonce) {
       try {
-        nonceLock = await this.messagingSystem.call(
+        nonceLock = await this.messenger.call(
           'TransactionController:getNonceLock',
           txParams.from,
           selectedNetworkClientId,
@@ -1041,7 +1036,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     networkClientId,
   }: { networkClientId?: NetworkClientId } = {}): Hex {
     if (networkClientId) {
-      return this.messagingSystem.call(
+      return this.messenger.call(
         'NetworkController:getNetworkClientById',
         networkClientId,
       ).configuration.chainId;
@@ -1051,7 +1046,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
   }
 
   #getChainIds(): Hex[] {
-    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+    const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
     return Object.keys(networkConfigurationsByChainId).filter(
@@ -1061,7 +1056,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
   }
 
   #getNetworkClientId({ chainId }: { chainId: string }): string {
-    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+    const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
     return networkConfigurationsByChainId[chainId as Hex].rpcEndpoints[
@@ -1075,7 +1070,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     networkClientId?: NetworkClientId;
   } = {}): EthQuery {
     if (networkClientId) {
-      const { provider } = this.messagingSystem.call(
+      const { provider } = this.messenger.call(
         'NetworkController:getNetworkClientById',
         networkClientId,
       );

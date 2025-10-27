@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Migrate `SmartTransactionsController` to new `Messenger` from `@metamask/messenger` ([#543](https://github.com/MetaMask/smart-transactions-controller/pull/543))
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#543](https://github.com/MetaMask/smart-transactions-controller/pull/543))
+- **BREAKING:** Bump `@metamask/network-controller` peer dependency from `^24.0.O` to `^25.0.0` ([#543](https://github.com/MetaMask/smart-transactions-controller/pull/543))
+- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency from `^60.4.0` to `^61.0.0` ([#543](https://github.com/MetaMask/smart-transactions-controller/pull/543))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^9.0.0`([#543](https://github.com/MetaMask/smart-transactions-controller/pull/543))
+- Bump `@metamask/polling-controller` from `^14.0.0` to `^15.0.0`([#543](https://github.com/MetaMask/smart-transactions-controller/pull/543))
+- Set `moduleResolution` option to `Node16` ([#543](https://github.com/MetaMask/smart-transactions-controller/pull/543))
+
 ## [19.2.1]
 
 ### Fixed

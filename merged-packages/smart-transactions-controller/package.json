@@ -45,11 +45,12 @@
     "@ethersproject/bytes": "^5.7.0",
     "@ethersproject/keccak256": "^5.8.0",
     "@ethersproject/transactions": "^5.7.0",
-    "@metamask/base-controller": "^8.3.0",
+    "@metamask/base-controller": "^9.0.0",
     "@metamask/controller-utils": "^11.0.0",
     "@metamask/eth-json-rpc-provider": "^4.1.6",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/polling-controller": "^14.0.0",
+    "@metamask/messenger": "^0.3.0",
+    "@metamask/polling-controller": "^15.0.0",
     "bignumber.js": "^9.0.1",
     "fast-json-patch": "^3.1.0",
     "lodash": "^4.17.21"
@@ -65,8 +66,8 @@
     "@metamask/eslint-config-typescript": "^12.1.0",
     "@metamask/gas-fee-controller": "^22.0.0",
     "@metamask/json-rpc-engine": "^10.0.1",
-    "@metamask/network-controller": "^24.0.0",
-    "@metamask/transaction-controller": "^60.4.0",
+    "@metamask/network-controller": "^25.0.0",
+    "@metamask/transaction-controller": "^61.0.0",
     "@ts-bridge/cli": "^0.6.3",
     "@types/jest": "^26.0.24",
     "@types/lodash": "^4.14.194",
@@ -92,8 +93,8 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^24.0.0",
-    "@metamask/transaction-controller": "^60.4.0"
+    "@metamask/network-controller": "^25.0.0",
+    "@metamask/transaction-controller": "^61.0.0"
   },
   "peerDependenciesMeta": {
     "@metamask/accounts-controller": {
