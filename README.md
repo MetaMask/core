@@ -325,6 +325,7 @@ linkStyle default opacity:0.5
   seedless_onboarding_controller --> keyring_controller;
   selected_network_controller --> base_controller;
   selected_network_controller --> json_rpc_engine;
+  selected_network_controller --> messenger;
   selected_network_controller --> network_controller;
   selected_network_controller --> permission_controller;
   shield_controller --> base_controller;
