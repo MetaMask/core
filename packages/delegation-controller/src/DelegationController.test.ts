@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import {
   Messenger,

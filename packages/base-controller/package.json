@@ -26,24 +26,12 @@
         "default": "./dist/index.cjs"
       }
     },
-    "./next": {
-      "import": {
-        "types": "./dist/next/index.d.mts",
-        "default": "./dist/next/index.mjs"
-      },
-      "require": {
-        "types": "./dist/next/index.d.cts",
-        "default": "./dist/next/index.cjs"
-      }
-    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.cjs",
   "types": "./dist/index.d.cts",
   "files": [
-    "dist/",
-    "next.js",
-    "next.d.ts"
+    "dist/"
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
