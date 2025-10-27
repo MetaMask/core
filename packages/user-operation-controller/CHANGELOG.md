@@ -9,15 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [40.0.0]
 
-### Uncategorized
-
-- feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
-
 ### Changed
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6494](https://github.com/MetaMask/core/pull/6494))
   - Previously, `UserOperationController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 - **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6494](https://github.com/MetaMask/core/pull/6494))
+- **BREAKING:** Bump `@metamask/approval-controller` from `^7.0.0` to `^8.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/gas-fee-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^23.0.0` to `^24.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^60.0.0` to `^61.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/polling-controller` from `^14.0.2` to `^15.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 
 ## [39.2.1]
 

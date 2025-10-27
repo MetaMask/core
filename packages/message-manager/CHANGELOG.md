@@ -9,14 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [14.0.0]
 
-### Uncategorized
-
-- feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
-
 ### Changed
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6545](https://github.com/MetaMask/core/pull/6545))
   - Previously, `AbstractMessageManager`, `DecryptMessageManager` and `EncryptionPublicKeyManager` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 
 ## [13.0.2]
 

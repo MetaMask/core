@@ -9,15 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [34.0.0]
 
-### Uncategorized
-
-- feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
-
 ### Changed
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6426](https://github.com/MetaMask/core/pull/6426))
   - Previously, `AccountsController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^23.0.0` to `^24.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 - Bump `@metamask/eth-snap-keyring` from `^17.0.0` to `^18.0.0` ([#6951](https://github.com/MetaMask/core/pull/6951))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 
 ## [33.2.0]
 

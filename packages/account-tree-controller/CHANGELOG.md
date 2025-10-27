@@ -9,15 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0]
 
-### Uncategorized
-
-- feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
-- Release 641.0.0 ([#6940](https://github.com/MetaMask/core/pull/6940))
-
 ### Changed
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6380](https://github.com/MetaMask/core/pull/6380))
   - Previously, `AccountTreeController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^33.0.0` to `^34.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^23.0.0` to `^24.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/multichain-account-service` from `^1.0.0` to `^2.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/profile-sync-controller` from `^25.0.0` to `^26.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 
 ## [1.6.0]
 

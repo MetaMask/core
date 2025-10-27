@@ -9,14 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0]
 
-### Uncategorized
-
-- feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
-
 ### Changed
 
 - **BREAKING:** Migrate to new `Messenger` class ([#6335](https://github.com/MetaMask/core/pull/6335))
 - **BREAKING:** Rename metadata property `anonymous` to `includeInDebugSnapshot` ([#6335](https://github.com/MetaMask/core/pull/6335))
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 
 ## [2.0.2]
 

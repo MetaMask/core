@@ -9,15 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [7.0.0]
 
-### Uncategorized
-
-- feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
-
 ### Changed
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6463](https://github.com/MetaMask/core/pull/6463))
   - Previously, `LoggingController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 - **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6463](https://github.com/MetaMask/core/pull/6463))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 
 ## [6.1.1]
 

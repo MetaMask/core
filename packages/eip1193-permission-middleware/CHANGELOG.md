@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/chain-agnostic-permission` from `^1.2.0` to `^1.2.1` ([#6940](https://github.com/MetaMask/core/pull/6940))
-- Bump `@metamask/permission-controller` from `^11.1.0` to `^11.1.1` ([#6940](https://github.com/MetaMask/core/pull/6940))
+- Bump `@metamask/permission-controller` from `^11.1.0` to `^12.0.0` ([#6940](https://github.com/MetaMask/core/pull/6940), [#6962](https://github.com/MetaMask/core/pull/6962))
 
 ## [1.0.1]
 

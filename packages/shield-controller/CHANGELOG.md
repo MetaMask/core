@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0]
 
-### Uncategorized
-
-- feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
-- Release 641.0.0 ([#6940](https://github.com/MetaMask/core/pull/6940))
-
 ### Added
 
 - Add new controller action `ShieldControllerGetStateAction` ([#6497](https://github.com/MetaMask/core/pull/6497))
@@ -23,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6497](https://github.com/MetaMask/core/pull/6497))
   - Previously, `ShieldController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 - **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6497](https://github.com/MetaMask/core/pull/6497))
+- **BREAKING:** Bump `@metamask/signature-controller` from `^34.0.0` to `^35.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^60.0.0` to `^61.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 
 ## [0.4.0]
 

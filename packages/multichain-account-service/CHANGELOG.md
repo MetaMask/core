@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6544](https://github.com/MetaMask/core/pull/6544))
   - Previously, `MultichainAccountService` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^33.0.0` to `^34.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^23.0.0` to `^24.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 - Bump `@metamask/eth-snap-keyring` from `^17.0.0` to `^18.0.0` ([#6951](https://github.com/MetaMask/core/pull/6951))
 
 ## [1.6.2]
