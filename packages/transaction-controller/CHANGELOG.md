@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6386](https://github.com/MetaMask/core/pull/6386))
+  - Previously, `TransactionController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+
+## [60.10.0]
+
+### Added
+
+- Add actions `TransactionController:emulateNewTransaction` and `TransactionController:emulateTransactionUpdate` ([#6935](https://github.com/MetaMask/core/pull/6935))
+
+### Changed
+
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 
 ### Fixed
@@ -1885,7 +1896,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.9.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.10.0...HEAD
+[60.10.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.9.0...@metamask/transaction-controller@60.10.0
 [60.9.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.8.0...@metamask/transaction-controller@60.9.0
 [60.8.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.7.0...@metamask/transaction-controller@60.8.0
 [60.7.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.6.1...@metamask/transaction-controller@60.7.0

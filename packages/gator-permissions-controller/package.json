@@ -1,6 +1,6 @@
 {
   "name": "@metamask/gator-permissions-controller",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Controller for managing gator permissions with profile sync integration",
   "keywords": [
     "MetaMask",
@@ -51,6 +51,7 @@
     "@metamask/base-controller": "^8.4.2",
     "@metamask/delegation-core": "^0.2.0",
     "@metamask/delegation-deployments": "^0.12.0",
+    "@metamask/messenger": "^0.3.0",
     "@metamask/snaps-sdk": "^9.0.0",
     "@metamask/snaps-utils": "^11.0.0",
     "@metamask/utils": "^11.8.1"

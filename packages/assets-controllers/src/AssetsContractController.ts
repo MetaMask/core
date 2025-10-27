@@ -2,11 +2,8 @@
 import type { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import type {
-  ActionConstraint,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
+import type { Messenger, ActionConstraint } from '@metamask/messenger';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
@@ -74,8 +71,6 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID = {
     '0x6aa75276052d96696134252587894ef5ffa520af',
   [SupportedTokenDetectionNetworks.moonriver]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
-  [SupportedTokenDetectionNetworks.monad_mainnet]:
-    '0xC856736BFe4DcB217F6678Ff2C4D7A7939B29A88',
 } as const satisfies Record<Hex, string>;
 
 export const STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
@@ -207,12 +202,10 @@ export type AllowedEvents =
 /**
  * The messenger of the {@link AssetsContractController}.
  */
-export type AssetsContractControllerMessenger = RestrictedMessenger<
+export type AssetsContractControllerMessenger = Messenger<
   typeof name,
   AssetsContractControllerActions | AllowedActions,
-  AssetsContractControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  AssetsContractControllerEvents | AllowedEvents
 >;
 
 export type StakedBalance = string | undefined;

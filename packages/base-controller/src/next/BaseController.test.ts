@@ -1,5 +1,9 @@
 /* eslint-disable jest/no-export */
-import { Messenger } from '@metamask/messenger';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import type { Draft, Patch } from 'immer';
 import * as sinon from 'sinon';
@@ -728,10 +732,10 @@ describe('BaseController', () => {
     it('should allow messaging between controllers', () => {
       // Construct root messenger
       const rootMessenger = new Messenger<
-        'Root',
+        MockAnyNamespace,
         VisitorControllerActions | VisitorOverflowControllerActions,
         VisitorControllerEvents | VisitorOverflowControllerEvents
-      >({ namespace: 'Root' });
+      >({ namespace: MOCK_ANY_NAMESPACE });
       // Construct controller messengers, delegating to parent
       const visitorControllerMessenger = new Messenger<
         typeof visitorName,

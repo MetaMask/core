@@ -68,7 +68,7 @@
   },
   "packages/assets-controllers/src/TokensController.test.ts": {
     "import-x/namespace": 1,
-    "import-x/order": 4,
+    "import-x/order": 3,
     "jest/no-conditional-in-test": 2
   },
   "packages/assets-controllers/src/TokensController.ts": {
@@ -107,9 +107,6 @@
   "packages/composable-controller/src/ComposableController.test.ts": {
     "import-x/namespace": 3
   },
-  "packages/composable-controller/src/ComposableController.ts": {
-    "@typescript-eslint/no-unused-vars": 1
-  },
   "packages/controller-utils/jest.environment.js": {
     "n/prefer-global/text-encoder": 1,
     "n/prefer-global/text-decoder": 1,
@@ -137,7 +134,7 @@
     "@typescript-eslint/no-misused-promises": 1
   },
   "packages/ens-controller/src/EnsController.test.ts": {
-    "import-x/order": 2
+    "import-x/order": 1
   },
   "packages/ens-controller/src/EnsController.ts": {
     "jsdoc/check-tag-names": 6
@@ -286,12 +283,6 @@
   },
   "packages/gas-fee-controller/src/determineGasFeeCalculations.ts": {
     "jsdoc/tag-lines": 4
-  },
-  "packages/json-rpc-engine/src/JsonRpcEngine.test.ts": {
-    "jest/no-conditional-in-test": 2
-  },
-  "packages/json-rpc-engine/src/JsonRpcEngine.ts": {
-    "@typescript-eslint/prefer-promise-reject-errors": 2
   },
   "packages/json-rpc-middleware-stream/src/index.test.ts": {
     "@typescript-eslint/prefer-promise-reject-errors": 3,

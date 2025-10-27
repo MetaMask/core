@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/polling-controller` from `^14.0.1` to `^14.0.2` ([#6940](https://github.com/MetaMask/core/pull/6940))
+
+## [55.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/bridge-controller` from `^54.0.0` to `^55.0.0` ([#6923](https://github.com/MetaMask/core/pull/6923))
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 
 ## [54.0.0]
@@ -701,7 +708,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@54.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@55.0.0...HEAD
+[55.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@54.0.0...@metamask/bridge-status-controller@55.0.0
 [54.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@53.0.0...@metamask/bridge-status-controller@54.0.0
 [53.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@52.1.0...@metamask/bridge-status-controller@53.0.0
 [52.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@52.0.0...@metamask/bridge-status-controller@52.1.0

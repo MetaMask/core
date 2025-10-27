@@ -1,6 +1,6 @@
 {
   "name": "@metamask/approval-controller",
-  "version": "7.2.0",
+  "version": "7.2.1",
   "description": "Manages requests that require user approval",
   "keywords": [
     "MetaMask",
@@ -48,6 +48,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.4.2",
+    "@metamask/messenger": "^0.3.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.8.1",
     "nanoid": "^3.3.8"
