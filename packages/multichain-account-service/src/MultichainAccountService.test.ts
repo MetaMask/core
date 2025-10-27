@@ -1,5 +1,6 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
+import type { Bip44AccountProvider } from '@metamask/account-api';
 import type { Messenger } from '@metamask/base-controller';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { KeyringAccount } from '@metamask/keyring-api';
@@ -9,7 +10,6 @@ import type { EthKeyring } from '@metamask/keyring-internal-api';
 
 import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
-import type { NamedAccountProvider } from './providers';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
 import {
   EVM_ACCOUNT_PROVIDER_NAME,
@@ -36,7 +36,7 @@ import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
   makeMockAccountProvider,
-  setupNamedAccountProvider,
+  setupBip44AccountProvider,
 } from './tests';
 import type {
   AllowedActions,
@@ -77,7 +77,7 @@ type Mocks = {
   SolAccountProvider: MockAccountProvider;
 };
 
-function mockAccountProvider<Provider extends NamedAccountProvider>(
+function mockAccountProvider<Provider extends Bip44AccountProvider>(
   providerClass: new (messenger: MultichainAccountServiceMessenger) => Provider,
   mocks: MockAccountProvider,
   accounts: KeyringAccount[],
@@ -88,7 +88,7 @@ function mockAccountProvider<Provider extends NamedAccountProvider>(
     return mocks as unknown as Provider;
   });
 
-  setupNamedAccountProvider({
+  setupBip44AccountProvider({
     mocks,
     accounts,
     index: idx,

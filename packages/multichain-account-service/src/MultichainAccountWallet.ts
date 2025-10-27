@@ -28,7 +28,7 @@ import {
   MultichainAccountGroup,
 } from './MultichainAccountGroup';
 import type { ServiceState, StateKeys } from './MultichainAccountService';
-import { type BaseBip44AccountProvider, EvmAccountProvider } from './providers';
+import { type Bip44AccountProvider, EvmAccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
 
 /**
@@ -37,7 +37,7 @@ import type { MultichainAccountServiceMessenger } from './types';
 type AccountProviderDiscoveryContext<
   Account extends Bip44Account<KeyringAccount>,
 > = {
-  provider: BaseBip44AccountProvider;
+  provider: Bip44AccountProvider<Account>;
   stopped: boolean;
   groupIndex: number;
   accounts: Account[];
@@ -60,7 +60,7 @@ export class MultichainAccountWallet<
 
   readonly #id: MultichainAccountWalletId;
 
-  readonly #providers: BaseBip44AccountProvider[];
+  readonly #providers: Bip44AccountProvider<Account>[];
 
   readonly #entropySource: EntropySourceId;
 
@@ -79,7 +79,7 @@ export class MultichainAccountWallet<
     entropySource,
     messenger,
   }: {
-    providers: BaseBip44AccountProvider[];
+    providers: Bip44AccountProvider<Account>[];
     entropySource: EntropySourceId;
     messenger: MultichainAccountServiceMessenger;
   }) {

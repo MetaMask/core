@@ -16,7 +16,7 @@ import { projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import type {
-  BaseBip44AccountProvider,
+  Bip44AccountProvider,
   EvmAccountProviderConfig,
   SolAccountProviderConfig,
 } from './providers';
@@ -35,7 +35,7 @@ export const serviceName = 'MultichainAccountService';
  */
 export type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
-  providers?: BaseBip44AccountProvider[];
+  providers?: Bip44AccountProvider[];
   providerConfigs?: {
     [EvmAccountProvider.NAME]?: EvmAccountProviderConfig;
     [SolAccountProvider.NAME]?: SolAccountProviderConfig;
@@ -97,7 +97,7 @@ type CreateWalletValidatedParams =
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  readonly #providers: BaseBip44AccountProvider[];
+  readonly #providers: Bip44AccountProvider[];
 
   readonly #wallets: Map<
     MultichainAccountWalletId,

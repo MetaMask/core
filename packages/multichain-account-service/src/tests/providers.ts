@@ -14,7 +14,8 @@ export type MockAccountProvider = {
   createAccounts: jest.Mock;
   discoverAccounts: jest.Mock;
   addAccounts: jest.Mock;
-  isAccountCompatible?: jest.Mock;
+  removeAccountsFromList: jest.Mock;
+  isAccountCompatible: jest.Mock;
   getName: jest.Mock;
   isEnabled: boolean;
   isDisabled: jest.Mock;
@@ -33,6 +34,7 @@ export function makeMockAccountProvider(
     createAccounts: jest.fn(),
     discoverAccounts: jest.fn(),
     addAccounts: jest.fn(),
+    removeAccountsFromList: jest.fn(),
     isAccountCompatible: jest.fn(),
     getName: jest.fn(),
     isDisabled: jest.fn(),
@@ -41,7 +43,7 @@ export function makeMockAccountProvider(
   };
 }
 
-export function setupNamedAccountProvider({
+export function setupBip44AccountProvider({
   name = 'Mocked Provider',
   accounts,
   mocks = makeMockAccountProvider(),
