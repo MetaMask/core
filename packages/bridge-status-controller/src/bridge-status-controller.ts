@@ -54,6 +54,7 @@ import type {
 } from './types';
 import { type BridgeStatusControllerMessenger } from './types';
 import { BridgeClientId } from './types';
+import { IntentApiImpl } from './intent-api';
 import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
@@ -1572,22 +1573,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         intent,
       );
 
-      // Submit intent order using the intent manager
       const submissionParams = {
         quote: intentQuote,
         signature,
         userAddress: accountAddress,
       };
-      const endpoint = `${this.#config.customBridgeApiBaseUrl}/submitIntent`;
-      const fetchResponse = await this.#fetchFn(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submissionParams),
-      });
-      if (!fetchResponse.ok) {
-        throw new Error(`Failed to submit intent: ${fetchResponse.statusText}`);
-      }
-      const intentOrder = await fetchResponse.json();
+      const intentApi = new IntentApiImpl(this.#config.customBridgeApiBaseUrl, this.#fetchFn);
+      const intentOrder = await intentApi.submitIntent(submissionParams);
 
       const chainId = quoteResponse.quote.srcChainId;
       const orderUid = intentOrder.id;
