@@ -1,19 +1,32 @@
-import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
+import { createAsyncMiddleware, type JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type {
   JsonRpcParams,
   Json,
   PendingJsonRpcResponse,
+  JsonRpcRequest,
 } from '@metamask/utils';
 import { klona } from 'klona/full';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
-import type { JsonRpcRequestToCache, JsonRpcCacheMiddleware } from './types';
+import type { JsonRpcRequestToCache } from './types';
 import { cacheIdentifierForRequest } from './utils/cache';
 
 type RequestHandlers = (handledRes: PendingJsonRpcResponse) => void;
 type InflightRequest = {
   [cacheId: string]: RequestHandlers[];
 };
+
+export type JsonRpcCacheMiddleware<
+  Params extends JsonRpcParams,
+  Result extends Json,
+> =
+  JsonRpcMiddleware<Params, Result> extends (
+    req: JsonRpcRequest<Params>,
+    ...args: infer X
+  ) => infer Y
+    ? (req: JsonRpcRequestToCache<Params>, ...args: X) => Y
+    : never;
+
 
 const log = createModuleLogger(projectLogger, 'inflight-cache');
 
