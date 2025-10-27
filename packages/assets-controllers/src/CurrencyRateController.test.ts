@@ -4,10 +4,7 @@ import {
   NetworkType,
   NetworksTicker,
 } from '@metamask/controller-utils';
-<<<<<<< HEAD
-import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
-=======
 import {
   MOCK_ANY_NAMESPACE,
   Messenger,
@@ -15,7 +12,6 @@ import {
   type MessengerEvents,
   type MockAnyNamespace,
 } from '@metamask/messenger';
->>>>>>> main
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
@@ -37,7 +33,6 @@ type RootMessenger = Messenger<
 >;
 
 /**
-<<<<<<< HEAD
  * Builds a mock token prices service.
  *
  * @param overrides - The properties of the token prices service you want to
@@ -65,10 +60,7 @@ function buildMockTokenPricesService(
 }
 
 /**
- * Constructs a restricted messenger.
-=======
  * Constructs a messenger for CurrencyRateController.
->>>>>>> main
  *
  * @returns A controller messenger.
  */
@@ -153,12 +145,8 @@ describe('CurrencyRateController', () => {
   });
 
   it('should initialize with initial state', () => {
-<<<<<<< HEAD
-    const messenger = getRestrictedMessenger();
     const tokenPricesService = buildMockTokenPricesService();
-=======
     const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
     const existingState = { currentCurrency: 'rep' };
     const controller = new CurrencyRateController({
       messenger,
@@ -182,12 +170,8 @@ describe('CurrencyRateController', () => {
 
   it('should not poll before being started', async () => {
     const fetchMultiExchangeRateStub = jest.fn();
-<<<<<<< HEAD
-    const messenger = getRestrictedMessenger();
     const tokenPricesService = buildMockTokenPricesService();
-=======
     const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
     const controller = new CurrencyRateController({
       interval: 100,
       fetchMultiExchangeRate: fetchMultiExchangeRateStub,
@@ -220,8 +204,6 @@ describe('CurrencyRateController', () => {
           usd: 22,
         },
       });
-<<<<<<< HEAD
-    const messenger = getRestrictedMessenger();
     const tokenPricesService = buildMockTokenPricesService();
 
     const fetchExchangeRatesSpy = jest
@@ -234,9 +216,7 @@ describe('CurrencyRateController', () => {
           currencyType: 'crypto',
         },
       });
-=======
     const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
     const controller = new CurrencyRateController({
       interval: 100,
       fetchMultiExchangeRate: fetchMultiExchangeRateStub,
@@ -279,9 +259,6 @@ describe('CurrencyRateController', () => {
 
   it('should not poll after being stopped', async () => {
     const fetchMultiExchangeRateStub = jest.fn();
-<<<<<<< HEAD
-
-    const messenger = getRestrictedMessenger();
     const tokenPricesService = buildMockTokenPricesService();
 
     const fetchExchangeRatesSpy = jest
@@ -294,9 +271,7 @@ describe('CurrencyRateController', () => {
           currencyType: 'crypto',
         },
       });
-=======
     const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
     const controller = new CurrencyRateController({
       interval: 100,
       fetchMultiExchangeRate: fetchMultiExchangeRateStub,
@@ -325,8 +300,7 @@ describe('CurrencyRateController', () => {
   it('should poll correctly after being started, stopped, and started again', async () => {
     const fetchMultiExchangeRateStub = jest.fn();
 
-<<<<<<< HEAD
-    const messenger = getRestrictedMessenger();
+    const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
 
     const fetchExchangeRatesSpy = jest
@@ -339,9 +313,6 @@ describe('CurrencyRateController', () => {
           currencyType: 'crypto',
         },
       });
-=======
-    const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
     const controller = new CurrencyRateController({
       interval: 100,
       fetchMultiExchangeRate: fetchMultiExchangeRateStub,
@@ -376,23 +347,19 @@ describe('CurrencyRateController', () => {
     const fetchMultiExchangeRateStub = jest
       .fn()
       .mockResolvedValue({ eth: { [currentCurrency]: 10, usd: 111 } });
-<<<<<<< HEAD
-    const messenger = getRestrictedMessenger();
-    const tokenPricesService = buildMockTokenPricesService();
-    const fetchExchangeRatesSpy = jest
-      .spyOn(tokenPricesService, 'fetchExchangeRates')
-      .mockResolvedValue({
-        eth: {
-          name: 'Ether',
-          ticker: 'eth',
-          value: 0.000240977533824818,
-          currencyType: 'crypto',
-          usd: 111,
-        },
-      });
-=======
-    const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
+  const messenger = getCurrencyRateControllerMessenger();
+      const tokenPricesService = buildMockTokenPricesService();
+      const fetchExchangeRatesSpy = jest
+        .spyOn(tokenPricesService, 'fetchExchangeRates')
+        .mockResolvedValue({
+          eth: {
+            name: 'Ether',
+            ticker: 'eth',
+            value: 0.000240977533824818,
+            currencyType: 'crypto',
+            usd: 111,
+          },
+        });
     const controller = new CurrencyRateController({
       interval: 10,
       fetchMultiExchangeRate: fetchMultiExchangeRateStub,
@@ -448,9 +415,8 @@ describe('CurrencyRateController', () => {
           },
         };
       });
-<<<<<<< HEAD
 
-    const messenger = getRestrictedMessenger();
+    const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
 
     const fetchExchangeRatesSpy = jest
@@ -464,9 +430,6 @@ describe('CurrencyRateController', () => {
           usd: 0.001,
         },
       });
-=======
-    const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
     const controller = new CurrencyRateController({
       fetchMultiExchangeRate: fetchMultiExchangeRateStub,
       messenger,
@@ -510,8 +473,7 @@ describe('CurrencyRateController', () => {
       eth: { [currentCurrency]: 10, usd: 11 },
       btc: { [currentCurrency]: 10, usd: 11 },
     });
-<<<<<<< HEAD
-    const messenger = getRestrictedMessenger();
+    const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
     jest.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
       eth: {
@@ -529,9 +491,6 @@ describe('CurrencyRateController', () => {
         usd: 0.0022,
       },
     });
-=======
-    const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
     const controller = new CurrencyRateController({
       interval: 10,
       fetchMultiExchangeRate: fetchMultiExchangeRateStub,
@@ -588,8 +547,7 @@ describe('CurrencyRateController', () => {
   });
   it('should add usd rate to state when includeUsdRate is configured true', async () => {
     const fetchMultiExchangeRateStub = jest.fn().mockResolvedValue({});
-<<<<<<< HEAD
-    const messenger = getRestrictedMessenger();
+    const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
     const fetchExchangeRatesSpy = jest
       .spyOn(tokenPricesService, 'fetchExchangeRates')
@@ -602,9 +560,6 @@ describe('CurrencyRateController', () => {
           usd: 0.0055,
         },
       });
-=======
-    const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
     const controller = new CurrencyRateController({
       includeUsdRate: true,
       fetchMultiExchangeRate: fetchMultiExchangeRateStub,
@@ -630,9 +585,8 @@ describe('CurrencyRateController', () => {
 
   it('should default to fetching exchange rate from price api', async () => {
     jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-<<<<<<< HEAD
 
-    const messenger = getRestrictedMessenger();
+    const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
 
     const fetchExchangeRatesSpy = jest
@@ -645,14 +599,6 @@ describe('CurrencyRateController', () => {
           currencyType: 'crypto',
         },
       });
-=======
-    const cryptoCompareHost = 'https://min-api.cryptocompare.com';
-    nock(cryptoCompareHost)
-      .get('/data/pricemulti?fsyms=ETH&tsyms=xyz')
-      .reply(200, { ETH: { XYZ: 2000.42 } })
-      .persist();
-    const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
     const controller = new CurrencyRateController({
       messenger,
       state: { currentCurrency: 'xyz' },
@@ -687,15 +633,11 @@ describe('CurrencyRateController', () => {
       })
       .persist();
 
-<<<<<<< HEAD
-    const messenger = getRestrictedMessenger();
+    const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
     const fetchExchangeRatesSpy = jest
       .spyOn(tokenPricesService, 'fetchExchangeRates')
       .mockRejectedValue(new Error('Failed to fetch'));
-=======
-    const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
     const controller = new CurrencyRateController({
       messenger,
       state: { currentCurrency: 'xyz' },
@@ -728,8 +670,7 @@ describe('CurrencyRateController', () => {
         },
       },
     };
-<<<<<<< HEAD
-    const messenger = getRestrictedMessenger();
+    const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
     jest
       .spyOn(tokenPricesService, 'fetchExchangeRates')
@@ -739,10 +680,6 @@ describe('CurrencyRateController', () => {
       state,
       tokenPricesService,
     });
-=======
-    const messenger = getCurrencyRateControllerMessenger();
-    const controller = new CurrencyRateController({ messenger, state });
->>>>>>> main
 
     // Error should still be thrown
     await expect(controller.updateExchangeRate(['ETH'])).rejects.toThrow(
@@ -758,7 +695,7 @@ describe('CurrencyRateController', () => {
   it('fetches exchange rates for multiple native currencies from price api', async () => {
     jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
-    const messenger = getRestrictedMessenger();
+    const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
 
     const fetchExchangeRatesSpy = jest
@@ -828,15 +765,11 @@ describe('CurrencyRateController', () => {
         POL: { XYZ: 0.3 },
       })
       .persist();
-<<<<<<< HEAD
-    const messenger = getRestrictedMessenger();
+    const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
     jest
       .spyOn(tokenPricesService, 'fetchExchangeRates')
       .mockRejectedValue(new Error('Failed to fetch'));
-=======
-    const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
     const controller = new CurrencyRateController({
       messenger,
       state: { currentCurrency: 'xyz' },
@@ -880,17 +813,13 @@ describe('CurrencyRateController', () => {
       })
       .persist();
 
-<<<<<<< HEAD
-    const messenger = getRestrictedMessenger();
+    const messenger = getCurrencyRateControllerMessenger();
 
     const tokenPricesService = buildMockTokenPricesService();
 
     jest
       .spyOn(tokenPricesService, 'fetchExchangeRates')
       .mockRejectedValue(new Error('Failed to fetch'));
-=======
-    const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
     const controller = new CurrencyRateController({
       messenger,
       state: { currentCurrency: 'xyz' },
@@ -919,7 +848,7 @@ describe('CurrencyRateController', () => {
   it('skips updating empty or undefined native currencies when calling price api', async () => {
     jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
-    const messenger = getRestrictedMessenger();
+    const messenger = getCurrencyRateControllerMessenger();
 
     const tokenPricesService = buildMockTokenPricesService();
 
@@ -959,12 +888,8 @@ describe('CurrencyRateController', () => {
   describe('useExternalServices', () => {
     it('should not fetch exchange rates when useExternalServices is false', async () => {
       const fetchMultiExchangeRateStub = jest.fn();
-<<<<<<< HEAD
-      const messenger = getRestrictedMessenger();
-      const tokenPricesService = buildMockTokenPricesService();
-=======
       const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
+      const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
         useExternalServices: () => false,
         fetchMultiExchangeRate: fetchMultiExchangeRateStub,
@@ -989,12 +914,8 @@ describe('CurrencyRateController', () => {
 
     it('should not poll when useExternalServices is false', async () => {
       const fetchMultiExchangeRateStub = jest.fn();
-<<<<<<< HEAD
-      const messenger = getRestrictedMessenger();
-      const tokenPricesService = buildMockTokenPricesService();
-=======
       const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
+      const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
         useExternalServices: () => false,
         interval: 100,
@@ -1018,12 +939,8 @@ describe('CurrencyRateController', () => {
 
     it('should not fetch exchange rates when useExternalServices is false even with multiple currencies', async () => {
       const fetchMultiExchangeRateStub = jest.fn();
-<<<<<<< HEAD
-      const messenger = getRestrictedMessenger();
-      const tokenPricesService = buildMockTokenPricesService();
-=======
       const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
+      const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
         useExternalServices: () => false,
         fetchMultiExchangeRate: fetchMultiExchangeRateStub,
@@ -1048,12 +965,8 @@ describe('CurrencyRateController', () => {
 
     it('should not fetch exchange rates when useExternalServices is false even with testnet currencies', async () => {
       const fetchMultiExchangeRateStub = jest.fn();
-<<<<<<< HEAD
-      const messenger = getRestrictedMessenger();
-      const tokenPricesService = buildMockTokenPricesService();
-=======
       const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
+      const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
         useExternalServices: () => false,
         fetchMultiExchangeRate: fetchMultiExchangeRateStub,
@@ -1078,12 +991,8 @@ describe('CurrencyRateController', () => {
 
     it('should not fetch exchange rates when useExternalServices is false even with includeUsdRate true', async () => {
       const fetchMultiExchangeRateStub = jest.fn();
-<<<<<<< HEAD
-      const messenger = getRestrictedMessenger();
-      const tokenPricesService = buildMockTokenPricesService();
-=======
       const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
+      const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
         useExternalServices: () => false,
         includeUsdRate: true,
@@ -1112,8 +1021,7 @@ describe('CurrencyRateController', () => {
       const fetchMultiExchangeRateStub = jest
         .fn()
         .mockResolvedValue({ eth: { usd: 2000, eur: 1800 } });
-<<<<<<< HEAD
-      const messenger = getRestrictedMessenger();
+      const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
       const fetchExchangeRatesSpy = jest
         .spyOn(tokenPricesService, 'fetchExchangeRates')
@@ -1126,9 +1034,6 @@ describe('CurrencyRateController', () => {
             usd: 1 / 2000,
           },
         });
-=======
-      const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
       const controller = new CurrencyRateController({
         useExternalServices: () => true,
         fetchMultiExchangeRate: fetchMultiExchangeRateStub,
@@ -1162,8 +1067,7 @@ describe('CurrencyRateController', () => {
       const fetchMultiExchangeRateStub = jest
         .fn()
         .mockResolvedValue({ eth: { usd: 2000, gbp: 1600 } });
-<<<<<<< HEAD
-      const messenger = getRestrictedMessenger();
+      const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
 
       const fetchExchangeRatesSpy = jest
@@ -1177,9 +1081,6 @@ describe('CurrencyRateController', () => {
             usd: 1 / 2000,
           },
         });
-=======
-      const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
       const controller = new CurrencyRateController({
         fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
@@ -1211,12 +1112,8 @@ describe('CurrencyRateController', () => {
       const fetchMultiExchangeRateStub = jest
         .fn()
         .mockRejectedValue(new Error('API Error'));
-<<<<<<< HEAD
-      const messenger = getRestrictedMessenger();
-      const tokenPricesService = buildMockTokenPricesService();
-=======
       const messenger = getCurrencyRateControllerMessenger();
->>>>>>> main
+      const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
         useExternalServices: () => false,
         fetchMultiExchangeRate: fetchMultiExchangeRateStub,
@@ -1238,12 +1135,8 @@ describe('CurrencyRateController', () => {
     it('includes expected state in debug snapshots', () => {
       const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
-<<<<<<< HEAD
-        messenger: getRestrictedMessenger(),
-        tokenPricesService,
-=======
         messenger: getCurrencyRateControllerMessenger(),
->>>>>>> main
+        tokenPricesService,
       });
 
       expect(
@@ -1269,12 +1162,8 @@ describe('CurrencyRateController', () => {
     it('includes expected state in state logs', () => {
       const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
-<<<<<<< HEAD
-        messenger: getRestrictedMessenger(),
-        tokenPricesService,
-=======
         messenger: getCurrencyRateControllerMessenger(),
->>>>>>> main
+        tokenPricesService,
       });
 
       expect(
@@ -1300,12 +1189,8 @@ describe('CurrencyRateController', () => {
     it('persists expected state', () => {
       const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
-<<<<<<< HEAD
-        messenger: getRestrictedMessenger(),
-        tokenPricesService,
-=======
         messenger: getCurrencyRateControllerMessenger(),
->>>>>>> main
+        tokenPricesService,
       });
 
       expect(
@@ -1330,12 +1215,8 @@ describe('CurrencyRateController', () => {
 
     it('exposes expected state to UI', () => {
       const controller = new CurrencyRateController({
-<<<<<<< HEAD
-        messenger: getRestrictedMessenger(),
-        tokenPricesService: buildMockTokenPricesService(),
-=======
         messenger: getCurrencyRateControllerMessenger(),
->>>>>>> main
+        tokenPricesService: buildMockTokenPricesService(),
       });
 
       expect(
