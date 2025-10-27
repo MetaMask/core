@@ -1,4 +1,11 @@
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import * as sinon from 'sinon';
 
 import {
@@ -9,7 +16,6 @@ import { SubscriptionServiceError } from './errors';
 import {
   getDefaultSubscriptionControllerState,
   SubscriptionController,
-  type AllowedActions,
   type AllowedEvents,
   type SubscriptionControllerMessenger,
   type SubscriptionControllerOptions,
@@ -34,6 +40,12 @@ import {
   SubscriptionUserEvent,
 } from './types';
 import { advanceTime } from '../../../tests/helpers';
+
+type AllActions = MessengerActions<SubscriptionControllerMessenger>;
+
+type AllEvents = MessengerEvents<SubscriptionControllerMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
@@ -113,25 +125,30 @@ const MOCK_GET_SUBSCRIPTIONS_RESPONSE = {
 function createCustomSubscriptionMessenger(props?: {
   overrideEvents?: AllowedEvents['type'][];
 }) {
-  const baseMessenger = new Messenger<AllowedActions, AllowedEvents>();
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
-  const messenger = baseMessenger.getRestricted<
+  const messenger = new Messenger<
     typeof controllerName,
-    AllowedActions['type'],
-    AllowedEvents['type']
+    AllActions,
+    AllEvents,
+    RootMessenger
   >({
-    name: controllerName,
-    allowedActions: [
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger,
+    actions: [
       'AuthenticationController:getBearerToken',
       'AuthenticationController:performSignOut',
     ],
-    allowedEvents: props?.overrideEvents ?? [
-      'AuthenticationController:stateChange',
-    ],
+    events: props?.overrideEvents ?? ['AuthenticationController:stateChange'],
   });
 
   return {
-    baseMessenger,
+    rootMessenger,
     messenger,
   };
 }
@@ -140,25 +157,25 @@ function createCustomSubscriptionMessenger(props?: {
  * Jest Mock Utility to generate a mock Subscription Messenger
  *
  * @param overrideMessengers - override messengers if need to modify the underlying permissions
- * @param overrideMessengers.baseMessenger - base messenger to override
+ * @param overrideMessengers.rootMessenger - base messenger to override
  * @param overrideMessengers.messenger - messenger to override
  * @returns series of mocks to actions that can be called
  */
 function createMockSubscriptionMessenger(overrideMessengers?: {
-  baseMessenger: Messenger<AllowedActions, AllowedEvents>;
+  rootMessenger: RootMessenger;
   messenger: SubscriptionControllerMessenger;
 }) {
-  const { baseMessenger, messenger } =
+  const { rootMessenger, messenger } =
     overrideMessengers ?? createCustomSubscriptionMessenger();
 
   const mockPerformSignOut = jest.fn();
-  baseMessenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'AuthenticationController:performSignOut',
     mockPerformSignOut,
   );
 
   return {
-    baseMessenger,
+    rootMessenger,
     messenger,
     mockPerformSignOut,
   };
@@ -216,7 +233,7 @@ type WithControllerCallback<ReturnValue> = (params: {
   controller: SubscriptionController;
   initialState: SubscriptionControllerState;
   messenger: SubscriptionControllerMessenger;
-  baseMessenger: Messenger<AllowedActions, AllowedEvents>;
+  rootMessenger: RootMessenger;
   mockService: ReturnType<typeof createMockSubscriptionService>['mockService'];
   mockPerformSignOut: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
@@ -237,7 +254,7 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ) {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { messenger, mockPerformSignOut, baseMessenger } =
+  const { messenger, mockPerformSignOut, rootMessenger } =
     createMockSubscriptionMessenger();
   const { mockService } = createMockSubscriptionService();
 
@@ -251,7 +268,7 @@ async function withController<ReturnValue>(
     controller,
     initialState: controller.state,
     messenger,
-    baseMessenger,
+    rootMessenger,
     mockService,
     mockPerformSignOut,
   });
@@ -1192,7 +1209,7 @@ describe('SubscriptionController', () => {
           deriveStateFromMetadata(
             controller.state,
             controller.metadata,
-            'anonymous',
+            'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`
           Object {

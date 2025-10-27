@@ -12,7 +12,8 @@
     { "path": "../eth-json-rpc-middleware/tsconfig.build.json" },
     { "path": "../eth-json-rpc-provider/tsconfig.build.json" },
     { "path": "../json-rpc-engine/tsconfig.build.json" },
-    { "path": "../error-reporting-service/tsconfig.build.json" }
+    { "path": "../error-reporting-service/tsconfig.build.json" },
+    { "path": "../messenger/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]
 }

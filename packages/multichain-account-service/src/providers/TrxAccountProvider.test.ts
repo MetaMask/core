@@ -1,5 +1,4 @@
 import { isBip44Account } from '@metamask/account-api';
-import type { Messenger } from '@metamask/base-controller';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type {
@@ -17,13 +16,8 @@ import {
   MOCK_TRX_ACCOUNT_1,
   MOCK_TRX_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
+  type RootMessenger,
 } from '../tests';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  MultichainAccountServiceActions,
-  MultichainAccountServiceEvents,
-} from '../types';
 
 class MockTronKeyring {
   readonly type = 'MockTronKeyring';
@@ -94,17 +88,11 @@ function setup({
   messenger = getRootMessenger(),
   accounts = [],
 }: {
-  messenger?: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  messenger?: RootMessenger;
   accounts?: InternalAccount[];
 } = {}): {
   provider: AccountProviderWrapper;
-  messenger: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  messenger: RootMessenger;
   keyring: MockTronKeyring;
   mocks: {
     handleRequest: jest.Mock;

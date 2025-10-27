@@ -3,8 +3,11 @@ import type {
   AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
-import type { RestrictedMessenger } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+} from '@metamask/base-controller/next';
 import { ApprovalType } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
@@ -13,6 +16,7 @@ import type {
   KeyringControllerPatchUserOperationAction,
   KeyringControllerSignUserOperationAction,
 } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   Provider,
@@ -28,7 +32,6 @@ import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
-import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 import { v1 as random } from 'uuid';
 
@@ -60,7 +63,7 @@ const stateMetadata = {
   userOperations: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -102,15 +105,15 @@ export type UserOperationControllerState = {
   userOperations: Record<string, UserOperationMetadata>;
 };
 
-export type GetUserOperationState = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => UserOperationControllerState;
-};
+export type GetUserOperationState = ControllerGetStateAction<
+  typeof controllerName,
+  UserOperationControllerState
+>;
 
-export type UserOperationStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [UserOperationControllerState, Patch[]];
-};
+export type UserOperationStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  UserOperationControllerState
+>;
 
 export type UserOperationControllerActions =
   | GetUserOperationState
@@ -122,12 +125,10 @@ export type UserOperationControllerActions =
 
 export type UserOperationControllerEvents = UserOperationStateChange;
 
-export type UserOperationControllerMessenger = RestrictedMessenger<
+export type UserOperationControllerMessenger = Messenger<
   typeof controllerName,
   UserOperationControllerActions,
-  UserOperationControllerEvents,
-  UserOperationControllerActions['type'],
-  UserOperationControllerEvents['type']
+  UserOperationControllerEvents
 >;
 
 export type UserOperationControllerOptions = {
@@ -339,7 +340,7 @@ export class UserOperationController extends BaseController<
 
     const smartContractAccount =
       requestSmartContractAccount ??
-      new SnapSmartContractAccount(this.messagingSystem);
+      new SnapSmartContractAccount(this.messenger);
 
     const cache: UserOperationCache = {
       chainId,
@@ -739,7 +740,7 @@ export class UserOperationController extends BaseController<
     const type = ApprovalType.Transaction;
     const requestData = { txId: id };
 
-    return (await this.messagingSystem.call(
+    return (await this.messenger.call(
       'ApprovalController:addRequest',
       {
         id,
@@ -774,7 +775,7 @@ export class UserOperationController extends BaseController<
   async #getProvider(
     networkClientId: string,
   ): Promise<{ provider: Provider; chainId: string }> {
-    const { provider, configuration } = this.messagingSystem.call(
+    const { provider, configuration } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );

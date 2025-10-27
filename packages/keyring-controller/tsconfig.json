@@ -9,6 +9,9 @@
     },
     {
       "path": "../message-manager"
+    },
+    {
+      "path": "../messenger"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

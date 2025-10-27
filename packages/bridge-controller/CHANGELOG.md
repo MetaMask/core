@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `BridgeControllerGetStateAction` and `BridgeControllerStateChangeEvent` types ([#6444](https://github.com/MetaMask/core/pull/6444))
+
 ### Changed
 
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6444](https://github.com/MetaMask/core/pull/6444))
+  - Previously, `BridgeController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6444](https://github.com/MetaMask/core/pull/6444))
 - Bump `@metamask/polling-controller` from `^14.0.1` to `^14.0.2` ([#6940](https://github.com/MetaMask/core/pull/6940))
 - Bump `@metamask/gas-fee-controller` from `^24.1.0` to `^24.1.1` ([#6940](https://github.com/MetaMask/core/pull/6940))
 - Bump `@metamask/multichain-network-controller` from `^1.0.1` to `^1.0.2` ([#6940](https://github.com/MetaMask/core/pull/6940))

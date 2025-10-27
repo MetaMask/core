@@ -1,6 +1,12 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import {
+  Messenger,
+  type MockAnyNamespace,
+  type MessengerActions,
+  type MessengerEvents,
+  MOCK_ANY_NAMESPACE,
+} from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
 
@@ -16,7 +22,6 @@ import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
 } from './feature-flags';
-import { Messenger } from '../../../base-controller/src';
 import type { KeyringControllerSignEip7702AuthorizationAction } from '../../../keyring-controller/src';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { AuthorizationList } from '../types';
@@ -73,10 +78,10 @@ const AUTHORIZATION_LIST_MOCK: AuthorizationList = [
 ];
 
 describe('EIP-7702 Utils', () => {
-  let baseMessenger: Messenger<
-    | KeyringControllerSignEip7702AuthorizationAction
-    | RemoteFeatureFlagControllerGetStateAction,
-    never
+  let rootMessenger: Messenger<
+    MockAnyNamespace,
+    MessengerActions<TransactionControllerMessenger>,
+    MessengerEvents<TransactionControllerMessenger>
   >;
 
   const getCodeMock = jest.mocked(query);
@@ -95,21 +100,33 @@ describe('EIP-7702 Utils', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    baseMessenger = new Messenger();
+    rootMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 
     signAuthorizationMock = jest
       .fn()
       .mockResolvedValue(AUTHORIZATION_SIGNATURE_MOCK);
 
-    baseMessenger.registerActionHandler(
+    const keyringControllerMessenger = new Messenger<
+      'KeyringController',
+      KeyringControllerSignEip7702AuthorizationAction,
+      never,
+      typeof rootMessenger
+    >({
+      namespace: 'KeyringController',
+      parent: rootMessenger,
+    });
+    keyringControllerMessenger.registerActionHandler(
       'KeyringController:signEip7702Authorization',
       signAuthorizationMock,
     );
 
-    controllerMessenger = baseMessenger.getRestricted({
-      name: 'TransactionController',
-      allowedActions: ['KeyringController:signEip7702Authorization'],
-      allowedEvents: [],
+    controllerMessenger = new Messenger({
+      namespace: 'TransactionController',
+      parent: rootMessenger,
+    });
+    rootMessenger.delegate({
+      messenger: controllerMessenger,
+      actions: ['KeyringController:signEip7702Authorization'],
     });
   });
 

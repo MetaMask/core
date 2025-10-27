@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import type nock from 'nock';
 
 import { mockUserStorageMessenger } from './__fixtures__/mockMessenger';
@@ -766,7 +766,7 @@ describe('metadata', () => {
       deriveStateFromMetadata(
         controller.state,
         controller.metadata,
-        'anonymous',
+        'includeInDebugSnapshot',
       ),
     ).toMatchInlineSnapshot(`
       Object {

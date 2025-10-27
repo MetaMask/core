@@ -1,9 +1,10 @@
 import type {
-  ActionConstraint,
-  EventConstraint,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from '@metamask/base-controller/next';
 import { ApprovalType } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
+import {} from '@metamask/messenger';
 
 import type {
   AbstractMessage,
@@ -30,14 +31,20 @@ export type DecryptMessageManagerUpdateBadgeEvent = {
   payload: [];
 };
 
-export type DecryptMessageManagerMessenger = RestrictedMessenger<
+type DecryptMessageManagerActions = ControllerGetStateAction<
   typeof managerName,
-  ActionConstraint,
-  | EventConstraint
+  DecryptMessageManagerState
+>;
+
+type DecryptMessageManagerEvents =
+  | ControllerStateChangeEvent<typeof managerName, DecryptMessageManagerState>
   | DecryptMessageManagerUnapprovedMessageAddedEvent
-  | DecryptMessageManagerUpdateBadgeEvent,
-  string,
-  string
+  | DecryptMessageManagerUpdateBadgeEvent;
+
+export type DecryptMessageManagerMessenger = Messenger<
+  typeof managerName,
+  DecryptMessageManagerActions,
+  DecryptMessageManagerEvents
 >;
 
 type DecryptMessageManagerOptions = {
@@ -97,10 +104,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
   DecryptMessage,
   DecryptMessageParams,
   DecryptMessageParamsMetamask,
-  ActionConstraint,
-  | EventConstraint
-  | DecryptMessageManagerUnapprovedMessageAddedEvent
-  | DecryptMessageManagerUpdateBadgeEvent
+  DecryptMessageManagerMessenger
 > {
   constructor({
     additionalFinishStatuses,
@@ -194,7 +198,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
     const messageId = messageData.id;
 
     await this.addMessage(messageData);
-    this.messagingSystem.publish(`${managerName}:unapprovedMessage`, {
+    this.messenger.publish(`${managerName}:unapprovedMessage`, {
       ...updatedMessageParams,
       metamaskId: messageId,
     });

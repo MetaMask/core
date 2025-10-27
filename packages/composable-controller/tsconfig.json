@@ -8,6 +8,9 @@
       "path": "../base-controller"
     },
     {
+      "path": "../messenger"
+    },
+    {
       "path": "../json-rpc-engine"
     }
   ],

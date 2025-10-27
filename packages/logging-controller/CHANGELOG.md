@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6463](https://github.com/MetaMask/core/pull/6463))
+  - Previously, `LoggingController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6463](https://github.com/MetaMask/core/pull/6463))
+
 ## [6.1.1]
 
 ### Changed

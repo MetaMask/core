@@ -1651,7 +1651,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const result = await getAddTransactionBatchParams({
         quoteResponse: mockQuoteResponse,
-        messagingSystem: mockMessagingSystem,
+        messenger: mockMessagingSystem,
         isBridgeTx: true,
         trade: mockQuoteResponse.trade,
         approval: mockQuoteResponse.approval,
@@ -1674,7 +1674,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const result = await getAddTransactionBatchParams({
         quoteResponse: mockQuoteResponse,
-        messagingSystem: mockMessagingSystem,
+        messenger: mockMessagingSystem,
         isBridgeTx: false,
         trade: mockQuoteResponse.trade,
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
@@ -1697,7 +1697,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const result = await getAddTransactionBatchParams({
         quoteResponse: mockQuoteResponse,
-        messagingSystem: mockMessagingSystem,
+        messenger: mockMessagingSystem,
         isBridgeTx: true,
         trade: mockQuoteResponse.trade,
         resetApproval: mockQuoteResponse.resetApproval,
@@ -1720,7 +1720,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const result = await getAddTransactionBatchParams({
         quoteResponse: mockQuoteResponse,
-        messagingSystem: mockMessagingSystem,
+        messenger: mockMessagingSystem,
         isBridgeTx: false,
         trade: mockQuoteResponse.trade,
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
@@ -1737,7 +1737,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const result = await getAddTransactionBatchParams({
         quoteResponse: mockQuoteResponse,
-        messagingSystem: mockMessagingSystem,
+        messenger: mockMessagingSystem,
         isBridgeTx: false,
         trade: mockQuoteResponse.trade,
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
@@ -1754,7 +1754,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const result = await getAddTransactionBatchParams({
         quoteResponse: mockQuoteResponse,
-        messagingSystem: mockMessagingSystem,
+        messenger: mockMessagingSystem,
         isBridgeTx: false,
         trade: mockQuoteResponse.trade,
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
@@ -1827,7 +1827,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       };
 
       findAndUpdateTransactionsInBatch({
-        messagingSystem: mockMessagingSystem,
+        messenger: mockMessagingSystem,
         batchId,
         txDataByType,
         updateTransactionFn: mockUpdateTransactionFn,
@@ -1871,7 +1871,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       };
 
       findAndUpdateTransactionsInBatch({
-        messagingSystem: mockMessagingSystem,
+        messenger: mockMessagingSystem,
         batchId,
         txDataByType,
         updateTransactionFn: mockUpdateTransactionFn,
@@ -1905,7 +1905,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       };
 
       findAndUpdateTransactionsInBatch({
-        messagingSystem: mockMessagingSystem,
+        messenger: mockMessagingSystem,
         batchId,
         txDataByType,
         updateTransactionFn: mockUpdateTransactionFn,
@@ -1943,7 +1943,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       };
 
       findAndUpdateTransactionsInBatch({
-        messagingSystem: mockMessagingSystem,
+        messenger: mockMessagingSystem,
         batchId,
         txDataByType,
         updateTransactionFn: mockUpdateTransactionFn,
@@ -1985,7 +1985,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       };
 
       findAndUpdateTransactionsInBatch({
-        messagingSystem: mockMessagingSystem,
+        messenger: mockMessagingSystem,
         batchId,
         txDataByType,
         updateTransactionFn: mockUpdateTransactionFn,
@@ -2015,7 +2015,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       // Test with bridge transaction (not swap)
       findAndUpdateTransactionsInBatch({
-        messagingSystem: mockMessagingSystem,
+        messenger: mockMessagingSystem,
         batchId,
         txDataByType,
         updateTransactionFn: mockUpdateTransactionFn,

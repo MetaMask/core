@@ -112,6 +112,7 @@
     "@contentful/rich-text-html-renderer": "^16.5.2",
     "@metamask/base-controller": "^8.4.2",
     "@metamask/controller-utils": "^11.14.1",
+    "@metamask/messenger": "^0.3.0",
     "@metamask/utils": "^11.8.1",
     "bignumber.js": "^9.1.2",
     "firebase": "^11.2.0",
