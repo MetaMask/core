@@ -1,5 +1,6 @@
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import { PollingBlockTracker } from '@metamask/eth-block-tracker';
+import { providerFromEngine, type SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import { JsonRpcEngine, type JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
@@ -76,6 +77,24 @@ export function buildFinalMiddlewareWithDefaultResult<
     end();
   });
 }
+
+/**
+ * Creates a provider and block tracker. The provider is the block tracker's
+ * provider.
+ *
+ * @returns The provider and block tracker.
+ */
+export function createProviderAndBlockTracker() {
+  const engine = new JsonRpcEngine();
+  const provider = providerFromEngine(engine);
+
+  const blockTracker = new PollingBlockTracker({
+    provider,
+  });
+
+  return { provider, blockTracker };
+}
+
 
 /**
  * Creates a middleware function that just ends the request, but is also a Jest

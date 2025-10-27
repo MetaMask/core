@@ -1,6 +1,3 @@
-import { PollingBlockTracker } from '@metamask/eth-block-tracker';
-import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 
@@ -13,21 +10,8 @@ import {
   buildFinalMiddlewareWithDefaultResult,
   buildMockParamsWithoutBlockParamAt,
   expectProviderRequestNotToHaveBeenMade,
+  createProviderAndBlockTracker,
 } from '../test/util/helpers';
-
-const createProviderAndBlockTracker = (): {
-  provider: SafeEventEmitterProvider;
-  blockTracker: PollingBlockTracker;
-} => {
-  const engine = new JsonRpcEngine();
-  engine.push(buildFinalMiddlewareWithDefaultResult());
-  const provider = providerFromEngine(engine);
-  const blockTracker = new PollingBlockTracker({
-    provider,
-  });
-
-  return { provider, blockTracker };
-};
 
 const createEngine = (
   middlewareUnderTest: JsonRpcMiddleware<any, any>,
