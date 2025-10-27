@@ -225,6 +225,7 @@ linkStyle default opacity:0.5
   earn_controller --> account_tree_controller;
   earn_controller --> network_controller;
   earn_controller --> transaction_controller;
+  eip_5792_middleware --> messenger;
   eip_5792_middleware --> transaction_controller;
   eip_5792_middleware --> keyring_controller;
   eip_7702_internal_rpc_middleware --> controller_utils;
