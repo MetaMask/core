@@ -275,6 +275,7 @@ linkStyle default opacity:0.5
   multichain_network_controller --> keyring_controller;
   multichain_network_controller --> network_controller;
   multichain_transactions_controller --> base_controller;
+  multichain_transactions_controller --> messenger;
   multichain_transactions_controller --> polling_controller;
   multichain_transactions_controller --> accounts_controller;
   multichain_transactions_controller --> keyring_controller;
