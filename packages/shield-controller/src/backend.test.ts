@@ -144,12 +144,11 @@ describe('ShieldRemoteBackend', () => {
     // Mock get coverage result: result unavailable.
     fetchMock.mockResolvedValue({
       status: 404,
-      json: jest.fn().mockResolvedValue({ status: 'unavailable' }),
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
     await expect(backend.checkCoverage({ txMeta })).rejects.toThrow(
-      'Timeout waiting for coverage result: unavailable',
+      'Failed to get coverage result: 404',
     );
 
     // Waiting here ensures coverage of the unexpected error and lets us know
@@ -171,12 +170,16 @@ describe('ShieldRemoteBackend', () => {
 
     // Mock get coverage result: result unavailable.
     fetchMock.mockResolvedValue({
-      status: 404,
+      status: 412,
+      json: jest.fn().mockResolvedValue({
+        message: 'Results are not available yet',
+        statusCode: 412,
+      }),
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
     await expect(backend.checkCoverage({ txMeta })).rejects.toThrow(
-      'Timeout waiting for coverage result',
+      'Failed to get coverage result: Results are not available yet',
     );
 
     // Waiting here ensures coverage of the unexpected error and lets us know

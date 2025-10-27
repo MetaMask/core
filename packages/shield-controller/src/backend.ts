@@ -235,9 +235,9 @@ export class ShieldRemoteBackend implements ShieldBackend {
       let errorMessage = 'Timeout waiting for coverage result';
       try {
         const errorJson = await res.json();
-        errorMessage = `Timeout waiting for coverage result: ${errorJson.status}`;
+        errorMessage = `Failed to get coverage result: ${errorJson.message || errorJson.status}`;
       } catch {
-        errorMessage = 'Timeout waiting for coverage result';
+        errorMessage = `Failed to get coverage result: ${res.status}`;
       }
       throw new HttpError(res.status, errorMessage);
     };
@@ -339,9 +339,10 @@ function computePollingIntervalAndRetryCount(
   const backoff = new ConstantBackoff(pollInterval);
   const computedMaxRetries = Math.floor(timeout / pollInterval) + 1;
 
-  const maxRetries = isNaN(computedMaxRetries)
-    ? DEFAULT_MAX_RETRIES
-    : computedMaxRetries;
+  const maxRetries =
+    isNaN(computedMaxRetries) || !isFinite(computedMaxRetries)
+      ? DEFAULT_MAX_RETRIES
+      : computedMaxRetries;
 
   return {
     backoff,
