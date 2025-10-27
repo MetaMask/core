@@ -1,5 +1,8 @@
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { Json, JsonRpcSuccess } from '@metamask/utils';
+import {
+  JsonRpcEngineV2,
+  MiddlewareContext,
+} from '@metamask/json-rpc-engine/v2';
+import type { Json } from '@metamask/utils';
 
 import { createBlockCacheMiddleware } from '.';
 import {
@@ -40,32 +43,31 @@ describe('block cache middleware', () => {
       ]);
 
       let hitCount = 0;
-      const engine = new JsonRpcEngine();
-      engine.push(createBlockCacheMiddleware({ blockTracker }));
-      engine.push((_req, res, _next, end) => {
-        hitCount += 1;
-        res.result = `0x${hitCount}`;
-        end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockCacheMiddleware({ blockTracker }),
+          () => {
+            hitCount += 1;
+            return `0x${hitCount}`;
+          },
+        ],
       });
 
-      const requestWithSkipCache = {
-        ...createRequest({
-          method: 'eth_getBalance',
-          params: ['0x1234'],
-        }),
-        skipCache: true,
-      };
+      const request = createRequest({
+        method: 'eth_getBalance',
+        params: ['0x1234'],
+      });
 
-      const result1 = (await engine.handle(
-        requestWithSkipCache,
-      )) as JsonRpcSuccess;
-      const result2 = (await engine.handle(
-        requestWithSkipCache,
-      )) as JsonRpcSuccess;
+      const context = new MiddlewareContext<{ skipCache?: boolean }>([
+        ['skipCache', true],
+      ]);
+
+      const result1 = await engine.handle(request, { context });
+      const result2 = await engine.handle(request, { context });
 
       expect(hitCount).toBe(2);
-      expect(result1.result).toBe('0x1');
-      expect(result2.result).toBe('0x2');
+      expect(result1).toBe('0x1');
+      expect(result2).toBe('0x2');
     });
 
     it('skips caching methods with Never strategy', async () => {
@@ -77,12 +79,14 @@ describe('block cache middleware', () => {
       ]);
 
       let hitCount = 0;
-      const engine = new JsonRpcEngine();
-      engine.push(createBlockCacheMiddleware({ blockTracker }));
-      engine.push((_req, res, _next, end) => {
-        hitCount += 1;
-        res.result = `0x${hitCount}`;
-        end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockCacheMiddleware({ blockTracker }),
+          () => {
+            hitCount += 1;
+            return `0x${hitCount}`;
+          },
+        ],
       });
 
       // eth_sendTransaction is a method that is not cacheable
@@ -90,12 +94,12 @@ describe('block cache middleware', () => {
         method: 'eth_sendTransaction',
       });
 
-      const result1 = (await engine.handle(request)) as JsonRpcSuccess;
-      const result2 = (await engine.handle(request)) as JsonRpcSuccess;
+      const result1 = await engine.handle(request);
+      const result2 = await engine.handle(request);
 
       expect(hitCount).toBe(2);
-      expect(result1.result).toBe('0x1');
-      expect(result2.result).toBe('0x2');
+      expect(result1).toBe('0x1');
+      expect(result2).toBe('0x2');
     });
 
     it('skips caching requests with pending blockTag', async () => {
@@ -107,12 +111,14 @@ describe('block cache middleware', () => {
       ]);
 
       let hitCount = 0;
-      const engine = new JsonRpcEngine();
-      engine.push(createBlockCacheMiddleware({ blockTracker }));
-      engine.push((_req, res, _next, end) => {
-        hitCount += 1;
-        res.result = `0x${hitCount}`;
-        end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockCacheMiddleware({ blockTracker }),
+          () => {
+            hitCount += 1;
+            return `0x${hitCount}`;
+          },
+        ],
       });
 
       const request = createRequest({
@@ -120,12 +126,12 @@ describe('block cache middleware', () => {
         params: ['0x1234', 'pending'],
       });
 
-      const result1 = (await engine.handle(request)) as JsonRpcSuccess;
-      const result2 = (await engine.handle(request)) as JsonRpcSuccess;
+      const result1 = await engine.handle(request);
+      const result2 = await engine.handle(request);
 
       expect(hitCount).toBe(2);
-      expect(result1.result).toBe('0x1');
-      expect(result2.result).toBe('0x2');
+      expect(result1).toBe('0x1');
+      expect(result2).toBe('0x2');
     });
 
     it('caches requests with cacheable method and valid blockTag', async () => {
@@ -138,12 +144,14 @@ describe('block cache middleware', () => {
       ]);
 
       let hitCount = 0;
-      const engine = new JsonRpcEngine();
-      engine.push(createBlockCacheMiddleware({ blockTracker }));
-      engine.push((_req, res, _next, end) => {
-        hitCount += 1;
-        res.result = `0x${hitCount}`;
-        end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockCacheMiddleware({ blockTracker }),
+          () => {
+            hitCount += 1;
+            return `0x${hitCount}`;
+          },
+        ],
       });
 
       const request = createRequest({
@@ -151,13 +159,13 @@ describe('block cache middleware', () => {
         params: ['0x1234', 'latest'],
       });
 
-      const result1 = (await engine.handle(request)) as JsonRpcSuccess;
-      const result2 = (await engine.handle(request)) as JsonRpcSuccess;
+      const result1 = await engine.handle(request);
+      const result2 = await engine.handle(request);
 
       expect(hitCount).toBe(1);
       expect(getLatestBlockSpy).toHaveBeenCalledTimes(2);
-      expect(result1.result).toBe('0x1');
-      expect(result2.result).toBe('0x1');
+      expect(result1).toBe('0x1');
+      expect(result2).toBe('0x1');
     });
 
     it('defaults cacheable request block tags to "latest"', async () => {
@@ -170,12 +178,14 @@ describe('block cache middleware', () => {
       ]);
 
       let hitCount = 0;
-      const engine = new JsonRpcEngine();
-      engine.push(createBlockCacheMiddleware({ blockTracker }));
-      engine.push((_req, res, _next, end) => {
-        hitCount += 1;
-        res.result = `0x${hitCount}`;
-        end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockCacheMiddleware({ blockTracker }),
+          () => {
+            hitCount += 1;
+            return `0x${hitCount}`;
+          },
+        ],
       });
 
       const request = createRequest({
@@ -183,13 +193,13 @@ describe('block cache middleware', () => {
         params: ['0x1234'],
       });
 
-      const result1 = (await engine.handle(request)) as JsonRpcSuccess;
-      const result2 = (await engine.handle(request)) as JsonRpcSuccess;
+      const result1 = await engine.handle(request);
+      const result2 = await engine.handle(request);
 
       expect(hitCount).toBe(1);
       expect(getLatestBlockSpy).toHaveBeenCalledTimes(2);
-      expect(result1.result).toBe('0x1');
-      expect(result2.result).toBe('0x1');
+      expect(result1).toBe('0x1');
+      expect(result2).toBe('0x1');
     });
 
     it('caches requests with "earliest" block tag', async () => {
@@ -202,12 +212,14 @@ describe('block cache middleware', () => {
       ]);
 
       let hitCount = 0;
-      const engine = new JsonRpcEngine();
-      engine.push(createBlockCacheMiddleware({ blockTracker }));
-      engine.push((_req, res, _next, end) => {
-        hitCount += 1;
-        res.result = `0x${hitCount}`;
-        end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockCacheMiddleware({ blockTracker }),
+          () => {
+            hitCount += 1;
+            return `0x${hitCount}`;
+          },
+        ],
       });
 
       const request = createRequest({
@@ -215,13 +227,13 @@ describe('block cache middleware', () => {
         params: ['0x1234', 'earliest'],
       });
 
-      const result1 = (await engine.handle(request)) as JsonRpcSuccess;
-      const result2 = (await engine.handle(request)) as JsonRpcSuccess;
+      const result1 = await engine.handle(request);
+      const result2 = await engine.handle(request);
 
       expect(hitCount).toBe(1);
       expect(getLatestBlockSpy).not.toHaveBeenCalled();
-      expect(result1.result).toBe('0x1');
-      expect(result2.result).toBe('0x1');
+      expect(result1).toBe('0x1');
+      expect(result2).toBe('0x1');
     });
 
     it('caches requests with hex block tag', async () => {
@@ -234,12 +246,14 @@ describe('block cache middleware', () => {
       ]);
 
       let hitCount = 0;
-      const engine = new JsonRpcEngine();
-      engine.push(createBlockCacheMiddleware({ blockTracker }));
-      engine.push((_req, res, _next, end) => {
-        hitCount += 1;
-        res.result = `0x${hitCount}`;
-        end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockCacheMiddleware({ blockTracker }),
+          () => {
+            hitCount += 1;
+            return `0x${hitCount}`;
+          },
+        ],
       });
 
       const request = createRequest({
@@ -247,18 +261,19 @@ describe('block cache middleware', () => {
         params: ['0x1234', '0x2'],
       });
 
-      const result1 = (await engine.handle(request)) as JsonRpcSuccess;
-      const result2 = (await engine.handle(request)) as JsonRpcSuccess;
+      const result1 = await engine.handle(request);
+      const result2 = await engine.handle(request);
 
       expect(hitCount).toBe(1);
       expect(getLatestBlockSpy).not.toHaveBeenCalled();
-      expect(result1.result).toBe('0x1');
-      expect(result2.result).toBe('0x1');
+      expect(result1).toBe('0x1');
+      expect(result2).toBe('0x1');
     });
   });
 
   describe('cache strategy edge cases', () => {
-    it.each([undefined, null, '\u003cnil\u003e'])(
+    // `undefined` is also an empty value, but returning that causes the engine to throw
+    it.each([null, '\u003cnil\u003e'])(
       'skips caching "empty" result values: %s',
       async (emptyValue) => {
         stubProviderRequests(provider, [
@@ -269,12 +284,14 @@ describe('block cache middleware', () => {
         ]);
 
         let hitCount = 0;
-        const engine = new JsonRpcEngine();
-        engine.push(createBlockCacheMiddleware({ blockTracker }));
-        engine.push((_req, res, _next, end) => {
-          hitCount += 1;
-          res.result = emptyValue;
-          end();
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createBlockCacheMiddleware({ blockTracker }),
+            () => {
+              hitCount += 1;
+              return emptyValue;
+            },
+          ],
         });
 
         const request = createRequest({
@@ -282,12 +299,12 @@ describe('block cache middleware', () => {
           params: ['0x1234'],
         });
 
-        const result1 = (await engine.handle(request)) as JsonRpcSuccess;
-        const result2 = (await engine.handle(request)) as JsonRpcSuccess;
+        const result1 = await engine.handle(request);
+        const result2 = await engine.handle(request);
 
         expect(hitCount).toBe(2);
-        expect(result1.result).toBe(emptyValue);
-        expect(result2.result).toBe(emptyValue);
+        expect(result1).toBe(emptyValue);
+        expect(result2).toBe(emptyValue);
       },
     );
 
@@ -302,7 +319,7 @@ describe('block cache middleware', () => {
             blockHash:
               '0x0000000000000000000000000000000000000000000000000000000000000000',
           },
-        ] as Json[])('%o', async (result) => {
+        ] as Json[])('%o', async (expectedResult) => {
           stubProviderRequests(provider, [
             {
               request: { method: 'eth_blockNumber' },
@@ -311,12 +328,14 @@ describe('block cache middleware', () => {
           ]);
 
           let hitCount = 0;
-          const engine = new JsonRpcEngine();
-          engine.push(createBlockCacheMiddleware({ blockTracker }));
-          engine.push((_req, res, _next, end) => {
-            hitCount += 1;
-            res.result = result;
-            end();
+          const engine = JsonRpcEngineV2.create({
+            middleware: [
+              createBlockCacheMiddleware({ blockTracker }),
+              () => {
+                hitCount += 1;
+                return expectedResult;
+              },
+            ],
           });
 
           const request = createRequest({
@@ -324,12 +343,12 @@ describe('block cache middleware', () => {
             params: ['0x123'],
           });
 
-          const result1 = (await engine.handle(request)) as JsonRpcSuccess;
-          const result2 = (await engine.handle(request)) as JsonRpcSuccess;
+          const result1 = await engine.handle(request);
+          const result2 = await engine.handle(request);
 
           expect(hitCount).toBe(2);
-          expect(result1.result).toBe(result);
-          expect(result2.result).toBe(result);
+          expect(result1).toBe(expectedResult);
+          expect(result2).toBe(expectedResult);
         });
       },
     );
@@ -347,12 +366,14 @@ describe('block cache middleware', () => {
       ]);
 
       let hitCount = 0;
-      const engine = new JsonRpcEngine();
-      engine.push(createBlockCacheMiddleware({ blockTracker }));
-      engine.push((_req, res, _next, end) => {
-        hitCount += 1;
-        res.result = `0x${hitCount}`;
-        end();
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createBlockCacheMiddleware({ blockTracker }),
+          () => {
+            hitCount += 1;
+            return `0x${hitCount}`;
+          },
+        ],
       });
 
       const request = createRequest({
@@ -360,13 +381,13 @@ describe('block cache middleware', () => {
         params: ['0x1234', 'latest'],
       });
 
-      const result1 = (await engine.handle(request)) as JsonRpcSuccess;
-      const result2 = (await engine.handle(request)) as JsonRpcSuccess;
+      const result1 = await engine.handle(request);
+      const result2 = await engine.handle(request);
 
       expect(hitCount).toBe(2);
       expect(getLatestBlockSpy).toHaveBeenCalledTimes(2);
-      expect(result1.result).toBe('0x1');
-      expect(result2.result).toBe('0x2');
+      expect(result1).toBe('0x1');
+      expect(result2).toBe('0x2');
     });
   });
 });
