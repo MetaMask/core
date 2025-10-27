@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add and Export new Controller Action `ShieldControllerGetStateAction` ([#6497](https://github.com/MetaMask/core/pull/6497))
+- Add new controller action `ShieldControllerGetStateAction` ([#6497](https://github.com/MetaMask/core/pull/6497))
 
 ### Changed
 
