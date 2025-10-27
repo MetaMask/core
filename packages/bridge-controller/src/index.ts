@@ -132,7 +132,6 @@ export {
 
 export {
   selectBridgeQuotes,
-  selectDefaultSlippagePercentage,
   type BridgeAppState,
   selectExchangeRateByChainIdAndAddress,
   selectIsQuoteExpired,
@@ -144,4 +143,7 @@ export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge';
 
 export { getBridgeFeatureFlags } from './utils/feature-flags';
 
-export { BRIDGE_DEFAULT_SLIPPAGE } from './utils/slippage';
+export {
+  BRIDGE_DEFAULT_SLIPPAGE,
+  getDefaultSlippagePercentage,
+} from './utils/slippage';

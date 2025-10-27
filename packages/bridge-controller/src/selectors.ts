@@ -48,7 +48,6 @@ import {
   calcTotalEstimatedNetworkFee,
   calcTotalMaxNetworkFee,
 } from './utils/quote';
-import { getDefaultSlippagePercentage } from './utils/slippage';
 
 /**
  * The controller states that provide exchange rates
@@ -451,39 +450,3 @@ export const selectMinimumBalanceForRentExemptionInSOL = (
   new BigNumber(state.minimumBalanceForRentExemptionInLamports ?? 0)
     .div(10 ** 9)
     .toString();
-
-export const selectDefaultSlippagePercentage = createBridgeSelector(
-  [
-    (state) => selectBridgeFeatureFlags(state).chains,
-    (_, slippageParams: Parameters<typeof getDefaultSlippagePercentage>[0]) =>
-      slippageParams.srcTokenAddress,
-    (_, slippageParams: Parameters<typeof getDefaultSlippagePercentage>[0]) =>
-      slippageParams.destTokenAddress,
-    (_, slippageParams: Parameters<typeof getDefaultSlippagePercentage>[0]) =>
-      slippageParams.srcChainId
-        ? formatChainIdToCaip(slippageParams.srcChainId)
-        : undefined,
-    (_, slippageParams: Parameters<typeof getDefaultSlippagePercentage>[0]) =>
-      slippageParams.destChainId
-        ? formatChainIdToCaip(slippageParams.destChainId)
-        : undefined,
-  ],
-  (
-    featureFlagsByChain,
-    srcTokenAddress,
-    destTokenAddress,
-    srcChainId,
-    destChainId,
-  ) => {
-    return getDefaultSlippagePercentage(
-      {
-        srcTokenAddress,
-        destTokenAddress,
-        srcChainId,
-        destChainId,
-      },
-      srcChainId ? featureFlagsByChain[srcChainId]?.stablecoins : undefined,
-      destChainId ? featureFlagsByChain[destChainId]?.stablecoins : undefined,
-    );
-  },
-);

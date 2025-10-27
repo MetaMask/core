@@ -1,6 +1,7 @@
 import { AddressZero } from '@ethersproject/constants';
 import type { MarketDataDetails } from '@metamask/assets-controllers';
 import { toHex } from '@metamask/controller-utils';
+import type { CaipAssetType } from '@metamask/keyring-api';
 import { SolScope } from '@metamask/keyring-api';
 import { BigNumber } from 'bignumber.js';
 
@@ -12,11 +13,11 @@ import {
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
   selectMinimumBalanceForRentExemptionInSOL,
-  selectDefaultSlippagePercentage,
 } from './selectors';
 import type { BridgeAsset, QuoteResponse } from './types';
 import { SortOrder, RequestStatus, ChainId } from './types';
 import { isNativeAddress } from './utils/bridge';
+import { getDefaultSlippagePercentage } from './utils/slippage';
 
 describe('Bridge Selectors', () => {
   describe('selectExchangeRateByChainIdAndAddress', () => {
@@ -1162,11 +1163,14 @@ describe('Bridge Selectors', () => {
       refreshRate: 3,
       maxRefreshCount: 1,
       support: true,
+      stablecoins: [
+        'eips:1/erc20:0x123',
+        'eips:1/erc20:0x456',
+      ] as CaipAssetType[],
       chains: {
         '1': {
           isActiveSrc: true,
           isActiveDest: true,
-          stablecoins: ['0x123', '0x456'],
         },
         '10': {
           isActiveSrc: true,
@@ -1180,180 +1184,91 @@ describe('Bridge Selectors', () => {
     };
 
     it('should return swap default slippage when stablecoins list is not defined', () => {
-      const result = selectDefaultSlippagePercentage(
-        {
-          remoteFeatureFlags: {
-            bridgeConfig: mockValidBridgeConfig,
-          },
-        } as never,
-        {
-          srcTokenAddress: '0x123',
-          destTokenAddress: '0x456',
-          srcChainId: '10',
-          destChainId: '10',
-        },
-      );
+      const result = getDefaultSlippagePercentage({
+        srcAssetId: 'eips:10/erc20:0x123',
+        destAssetId: 'eips:10/erc20:0x456',
+        stablecoins: mockValidBridgeConfig.stablecoins,
+      });
 
       expect(result).toBe(2);
     });
 
     it('should return bridge default slippage when requesting an EVM bridge quote', () => {
-      const result = selectDefaultSlippagePercentage(
-        {
-          remoteFeatureFlags: {
-            bridgeConfig: mockValidBridgeConfig,
-          },
-        } as never,
-        {
-          srcTokenAddress: '0x123',
-          destTokenAddress: '0x456',
-          srcChainId: '1',
-          destChainId: ChainId.SOLANA,
-        },
-      );
+      const result = getDefaultSlippagePercentage({
+        srcAssetId: 'eips:1/erc20:0x123',
+        destAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:0x456',
+        stablecoins: mockValidBridgeConfig.stablecoins,
+      });
 
       expect(result).toBe(0.5);
     });
 
     it('should return bridge default slippage when requesting a Solana bridge quote', () => {
-      const result = selectDefaultSlippagePercentage(
-        {
-          remoteFeatureFlags: {
-            bridgeConfig: mockValidBridgeConfig,
-          },
-        } as never,
-        {
-          srcTokenAddress: '0x123',
-          destTokenAddress: '0x456',
-          destChainId: '1',
-          srcChainId: ChainId.SOLANA,
-        },
-      );
+      const result = getDefaultSlippagePercentage({
+        srcAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:0x123',
+        destAssetId: 'eips:1/erc20:0x456',
+        stablecoins: mockValidBridgeConfig.stablecoins,
+      });
 
       expect(result).toBe(0.5);
     });
 
     it('should return swap auto slippage when requesting a Solana swap quote', () => {
-      const result = selectDefaultSlippagePercentage(
-        {
-          remoteFeatureFlags: {
-            bridgeConfig: mockValidBridgeConfig,
-          },
-        } as never,
-        {
-          srcTokenAddress: '0x123',
-          destTokenAddress: '0x456',
-          destChainId: ChainId.SOLANA,
-          srcChainId: ChainId.SOLANA,
-        },
-      );
+      const result = getDefaultSlippagePercentage({
+        srcAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:0x123',
+        destAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:0x456',
+        stablecoins: mockValidBridgeConfig.stablecoins,
+      });
 
       expect(result).toBeUndefined();
     });
 
     it('should return swap default slippage when dest token is not a stablecoin', () => {
-      const result = selectDefaultSlippagePercentage(
-        {
-          remoteFeatureFlags: {
-            bridgeConfig: mockValidBridgeConfig,
-          },
-        } as never,
-        {
-          srcTokenAddress: '0x123',
-          destTokenAddress: '0x789',
-          destChainId: '1',
-          srcChainId: '1',
-        },
-      );
+      const result = getDefaultSlippagePercentage({
+        srcAssetId: 'eips:1/erc20:0x123',
+        destAssetId: 'eips:1/erc20:0x789',
+        stablecoins: mockValidBridgeConfig.stablecoins,
+      });
 
       expect(result).toBe(2);
     });
 
     it('should return swap default slippage when src token is not a stablecoin', () => {
-      const result = selectDefaultSlippagePercentage(
-        {
-          remoteFeatureFlags: {
-            bridgeConfig: mockValidBridgeConfig,
-          },
-        } as never,
-        {
-          srcTokenAddress: '0x789',
-          destTokenAddress: '0x456',
-          destChainId: '1',
-          srcChainId: '1',
-        },
-      );
+      const result = getDefaultSlippagePercentage({
+        srcAssetId: 'eips:1/erc20:0x789',
+        destAssetId: 'eips:1/erc20:0x456',
+        stablecoins: mockValidBridgeConfig.stablecoins,
+      });
 
       expect(result).toBe(2);
     });
 
     it('should return swap stablecoin slippage when both tokens are stablecoins', () => {
-      const result = selectDefaultSlippagePercentage(
-        {
-          remoteFeatureFlags: {
-            bridgeConfig: mockValidBridgeConfig,
-          },
-        } as never,
-        {
-          srcTokenAddress: '0x123',
-          destTokenAddress: '0x456',
-          destChainId: '1',
-          srcChainId: '1',
-        },
-      );
+      const result = getDefaultSlippagePercentage({
+        srcAssetId: 'eips:1/erc20:0x123',
+        destAssetId: 'eips:1/erc20:0x456',
+        stablecoins: mockValidBridgeConfig.stablecoins,
+      });
 
       expect(result).toBe(0.5);
     });
 
     it('should return bridge default slippage when srcChainId is undefined', () => {
-      const result = selectDefaultSlippagePercentage(
-        {
-          remoteFeatureFlags: {
-            bridgeConfig: mockValidBridgeConfig,
-          },
-        } as never,
-        {
-          srcTokenAddress: '0x123',
-          destTokenAddress: '0x456',
-          destChainId: '1',
-        },
-      );
+      const result = getDefaultSlippagePercentage({
+        destAssetId: 'eips:1/erc20:0x456',
+        stablecoins: mockValidBridgeConfig.stablecoins,
+      });
 
       expect(result).toBe(0.5);
     });
 
     it('should return swap stablecoin slippage when destChainId is undefined', () => {
-      const result = selectDefaultSlippagePercentage(
-        {
-          remoteFeatureFlags: {
-            bridgeConfig: mockValidBridgeConfig,
-          },
-        } as never,
-        {
-          srcTokenAddress: '0x123',
-          destTokenAddress: '0x456',
-          srcChainId: '1',
-        },
-      );
+      const result = getDefaultSlippagePercentage({
+        srcAssetId: 'eips:1/erc20:0x123',
+        stablecoins: mockValidBridgeConfig.stablecoins,
+      });
 
       expect(result).toBe(0.5);
-    });
-
-    it('should return swap default slippage when destChainId is undefined', () => {
-      const result = selectDefaultSlippagePercentage(
-        {
-          remoteFeatureFlags: {
-            bridgeConfig: mockValidBridgeConfig,
-          },
-        } as never,
-        {
-          srcTokenAddress: '0x789',
-          destTokenAddress: '0x456',
-          srcChainId: '1',
-        },
-      );
-
-      expect(result).toBe(2);
     });
   });
 });
