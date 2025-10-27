@@ -300,6 +300,7 @@ linkStyle default opacity:0.5
   permission_controller --> base_controller;
   permission_controller --> controller_utils;
   permission_controller --> json_rpc_engine;
+  permission_controller --> messenger;
   permission_controller --> approval_controller;
   permission_log_controller --> base_controller;
   permission_log_controller --> json_rpc_engine;
