@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added Arbitrum, bsc, optimism, polygon, sei Network for networks to track in `TokenDetectionController` ([#5902](https://github.com/MetaMask/core/pull/5902))
+  - Network changes were added in `@metamask/controller-utils`
+
 ## [84.0.0]
 
 ### Added

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add `TransactionBatch` in approval types enum ([#5902](https://github.com/MetaMask/core/pull/5902))
+- Add Arbitrum, BSC, Optimism, Polygon, and Sei networks to Infura networks ([#5902](https://github.com/MetaMask/core/pull/5902))
+  - Add `arbitrum-mainnet`, `bsc-mainnet`, `optimism-mainnet`, `polygon-mainnet`, `sei-mainnet` to `BUILT_IN_NETWORKS`
+  - Add `arbitrum-mainnet`, `bsc-mainnet`, `optimism-mainnet`, `polygon-mainnet`, `sei-mainnet` to `InfuraNetworkType`
+  - Add corresponding entries to `BuiltInNetworkName` enum
+  - Add corresponding entries to `ChainId` type
+  - Add corresponding entries to `NetworksTicker` enum
+  - Add corresponding entries to `BlockExplorerUrl` quasi-enum
+  - Add corresponding entries to `NetworkNickname` quasi-enum
+
 ## [11.14.1]
 
 ### Changed
