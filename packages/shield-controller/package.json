@@ -82,10 +82,7 @@
   },
   "lavamoat": {
     "allowScripts": {
-      "@lavamoat/allow-scripts>@lavamoat/preinstall-always-fail": false,
-      "@lavamoat/preinstall-always-fail": false,
-      "@metamask/signature-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
-      "@metamask/signature-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
+      "@lavamoat/allow-scripts>@lavamoat/preinstall-always-fail": false
     }
   }
 }
