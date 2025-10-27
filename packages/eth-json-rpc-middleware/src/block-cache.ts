@@ -1,5 +1,8 @@
 import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
-import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
+import type {
+  JsonRpcMiddleware,
+  MiddlewareContext,
+} from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
@@ -8,7 +11,6 @@ import type {
   BlockCache,
   // eslint-disable-next-line @typescript-eslint/no-shadow
   Cache,
-  JsonRpcCacheMiddleware,
   JsonRpcRequestToCache,
 } from './types';
 import {
@@ -21,7 +23,7 @@ import {
 
 const log = createModuleLogger(projectLogger, 'block-cache');
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
-const emptyValues = [undefined, null, '\u003cnil\u003e'];
+const emptyValues: unknown[] = [undefined, null, '\u003cnil\u003e'];
 
 type BlockCacheMiddlewareOptions = {
   blockTracker?: PollingBlockTracker;
@@ -98,7 +100,7 @@ class BlockCacheStrategy {
 
   canCacheResult(request: JsonRpcRequest, result: Block): boolean {
     // never cache empty values (e.g. undefined)
-    if (emptyValues.includes(result as any)) {
+    if (emptyValues.includes(result)) {
       return false;
     }
 
@@ -134,18 +136,17 @@ class BlockCacheStrategy {
 
 export function createBlockCacheMiddleware({
   blockTracker,
-}: BlockCacheMiddlewareOptions = {}): JsonRpcCacheMiddleware<
-  JsonRpcParams,
-  Json
+}: BlockCacheMiddlewareOptions = {}): JsonRpcMiddleware<
+  JsonRpcRequestToCache<JsonRpcParams>,
+  Json,
+  MiddlewareContext<{ skipCache?: boolean }>
 > {
-  // validate options
   if (!blockTracker) {
     throw new Error(
       'createBlockCacheMiddleware - No PollingBlockTracker specified',
     );
   }
 
-  // create caching strategies
   const blockCache: BlockCacheStrategy = new BlockCacheStrategy();
   const strategies: Record<CacheStrategy, BlockCacheStrategy | undefined> = {
     [CacheStrategy.Permanent]: blockCache,
@@ -154,82 +155,72 @@ export function createBlockCacheMiddleware({
     [CacheStrategy.Never]: undefined,
   };
 
-  return createAsyncMiddleware(
-    async (req: JsonRpcRequestToCache<JsonRpcParams>, res, next) => {
-      // allow cach to be skipped if so specified
-      if (req.skipCache) {
-        return next();
-      }
-      // check type and matching strategy
-      const type = cacheTypeForMethod(req.method);
-      const strategy = strategies[type];
-      // If there's no strategy in place, pass it down the chain.
-      if (!strategy) {
-        return next();
-      }
+  return async ({ request, next, context }) => {
+    if (context.get('skipCache')) {
+      return next();
+    }
 
-      // If the strategy can't cache this request, ignore it.
-      if (!strategy.canCacheRequest(req)) {
-        return next();
-      }
+    const type = cacheTypeForMethod(request.method);
+    const strategy = strategies[type];
+    if (!strategy) {
+      return next();
+    }
 
-      // get block reference (number or keyword)
-      const requestBlockTag = blockTagForRequest(req);
-      const blockTag =
-        requestBlockTag && typeof requestBlockTag === 'string'
-          ? requestBlockTag
-          : 'latest';
+    if (!strategy.canCacheRequest(request)) {
+      return next();
+    }
 
-      log('blockTag = %o, req = %o', blockTag, req);
+    const requestBlockTag = blockTagForRequest(request);
+    const blockTag =
+      requestBlockTag && typeof requestBlockTag === 'string'
+        ? requestBlockTag
+        : 'latest';
 
-      // get exact block number
-      let requestedBlockNumber: string;
-      if (blockTag === 'earliest') {
-        // this just exists for symmetry with "latest"
-        requestedBlockNumber = '0x00';
-      } else if (blockTag === 'latest') {
-        // fetch latest block number
-        log('Fetching latest block number to determine cache key');
-        const latestBlockNumber = await blockTracker.getLatestBlock();
-        // clear all cache before latest block
-        log(
-          'Clearing values stored under block numbers before %o',
-          latestBlockNumber,
-        );
-        blockCache.clearBefore(latestBlockNumber);
-        requestedBlockNumber = latestBlockNumber;
-      } else {
-        // We have a hex number
-        requestedBlockNumber = blockTag;
-      }
-      // end on a hit, continue on a miss
-      const cacheResult: Block | undefined = await strategy.get(
-        req,
+    log('blockTag = %o, req = %o', blockTag, request);
+
+    // get exact block number
+    let requestedBlockNumber: string;
+    if (blockTag === 'earliest') {
+      // this just exists for symmetry with "latest"
+      requestedBlockNumber = '0x00';
+    } else if (blockTag === 'latest') {
+      log('Fetching latest block number to determine cache key');
+      const latestBlockNumber = await blockTracker.getLatestBlock();
+
+      // clear all cache before latest block
+      log(
+        'Clearing values stored under block numbers before %o',
+        latestBlockNumber,
+      );
+      blockCache.clearBefore(latestBlockNumber);
+      requestedBlockNumber = latestBlockNumber;
+    } else {
+      // we have a hex number
+      requestedBlockNumber = blockTag;
+    }
+
+    // end on a hit, continue on a miss
+    const cacheResult = await strategy.get(request, requestedBlockNumber);
+    if (cacheResult === undefined) {
+      // cache miss
+      // wait for other middleware to handle request
+      log(
+        'No cache stored under block number %o, carrying request forward',
         requestedBlockNumber,
       );
-      if (cacheResult === undefined) {
-        // cache miss
-        // wait for other middleware to handle request
-        log(
-          'No cache stored under block number %o, carrying request forward',
-          requestedBlockNumber,
-        );
-        await next();
+      const result = await next();
 
-        // add result to cache
-        // it's safe to cast res.result as Block, due to runtime type checks
-        // performed when strategy.set is called
-        log('Populating cache with', res);
-        await strategy.set(req, requestedBlockNumber, res.result as Block);
-      } else {
-        // fill in result from cache
-        log(
-          'Cache hit, reusing cache result stored under block number %o',
-          requestedBlockNumber,
-        );
-        res.result = cacheResult;
-      }
-      return undefined;
-    },
-  );
+      // add result to cache
+      // it's safe to cast res.result as Block, due to runtime type checks
+      // performed when strategy.set is called
+      log('Populating cache with', result);
+      await strategy.set(request, requestedBlockNumber, result as Block);
+      return result;
+    }
+    log(
+      'Cache hit, reusing cache result stored under block number %o',
+      requestedBlockNumber,
+    );
+    return cacheResult;
+  };
 }

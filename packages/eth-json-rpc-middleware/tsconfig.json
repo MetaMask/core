@@ -20,5 +20,5 @@
       "path": "../network-controller"
     }
   ],
-  "include": ["../../types", "./src", "./test", "./types"]
+  "include": ["../../types", "./src", "./test"]
 }
