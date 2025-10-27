@@ -314,6 +314,6 @@ export type BillingPortalResponse = {
  */
 export type CachedLastSelectedPaymentMethods = {
   type: PaymentType;
-  paymentTokenAddress?: `0x${string}`;
+  paymentTokenAddress?: Hex;
   plan: RecurringInterval;
 };
