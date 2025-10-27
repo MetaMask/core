@@ -9,7 +9,7 @@ import {
   type AccountGroupId,
 } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
-import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   BtcAccountType,
   EthAccountType,

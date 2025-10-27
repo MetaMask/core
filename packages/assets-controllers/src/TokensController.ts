@@ -11,8 +11,8 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
-} from '@metamask/base-controller/next';
-import { BaseController } from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import contractsMap from '@metamask/contract-metadata';
 import {
   toChecksumHexAddress,

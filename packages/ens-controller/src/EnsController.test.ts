@@ -1,5 +1,5 @@
 import * as providersModule from '@ethersproject/providers';
-import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   toChecksumHexAddress,
   toHex,
