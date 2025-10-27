@@ -3,8 +3,11 @@ import type { ActionConstraint, EventConstraint } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
-import type { CaveatConstraint } from './Caveat';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { CaveatConstraint, Caveat } from './Caveat';
 import type {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  PermissionController,
   PermissionsRequest,
   SideEffectMessenger,
 } from './PermissionController';

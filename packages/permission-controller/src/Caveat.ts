@@ -12,6 +12,8 @@ import type {
   RestrictedMethodParameters,
 } from './Permission';
 import { PermissionType } from './Permission';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { PermissionController } from './PermissionController';
 
 export type CaveatConstraint = {
   /**
