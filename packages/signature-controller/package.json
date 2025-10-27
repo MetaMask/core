@@ -60,7 +60,7 @@
     "@metamask/accounts-controller": "^34.0.0",
     "@metamask/approval-controller": "^8.0.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/gator-permissions-controller": "^1.0.0",
+    "@metamask/gator-permissions-controller": "^0.3.0",
     "@metamask/keyring-controller": "^24.0.0",
     "@metamask/logging-controller": "^7.0.0",
     "@metamask/network-controller": "^25.0.0",
@@ -75,7 +75,7 @@
   "peerDependencies": {
     "@metamask/accounts-controller": "^34.0.0",
     "@metamask/approval-controller": "^8.0.0",
-    "@metamask/gator-permissions-controller": "^1.0.0",
+    "@metamask/gator-permissions-controller": "^0.3.0",
     "@metamask/keyring-controller": "^24.0.0",
     "@metamask/logging-controller": "^7.0.0",
     "@metamask/network-controller": "^25.0.0"
