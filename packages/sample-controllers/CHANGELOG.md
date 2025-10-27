@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
 ### Changed
 
 - **BREAKING:** Migrate to new `Messenger` class ([#6335](https://github.com/MetaMask/core/pull/6335))
 - **BREAKING:** Rename metadata property `anonymous` to `includeInDebugSnapshot` ([#6335](https://github.com/MetaMask/core/pull/6335))
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 
 ## [2.0.2]
 
@@ -70,7 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/sample-controllers.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@2.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@2.0.2...@metamask/sample-controllers@3.0.0
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@2.0.1...@metamask/sample-controllers@2.0.2
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@2.0.0...@metamask/sample-controllers@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@1.0.0...@metamask/sample-controllers@2.0.0
