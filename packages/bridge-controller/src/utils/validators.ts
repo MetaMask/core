@@ -106,7 +106,6 @@ export const ChainConfigurationSchema = type({
   isActiveDest: boolean(),
   refreshRate: optional(number()),
   topAssets: optional(array(string())),
-  stablecoins: optional(array(string())),
   isUnifiedUIEnabled: optional(boolean()),
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
   isGaslessSwapEnabled: optional(boolean()),
@@ -154,6 +153,10 @@ export const PlatformConfigSchema = type({
       minimumVersion: VersionStringSchema,
     }),
   ),
+  /**
+   * The list of stablecoin assetIds in CAIP format. EVM assetIds are lowercased. Non-EVM assetIds are not lowercased.
+   */
+  stablecoins: array(CaipAssetTypeStruct),
 });
 
 export const validateFeatureFlagsResponse = (
