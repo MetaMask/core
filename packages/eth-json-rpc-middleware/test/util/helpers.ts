@@ -4,6 +4,7 @@ import {
   type InternalProvider,
 } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
@@ -108,16 +109,15 @@ export function createProviderAndBlockTracker() {
 export function createEngine(
   middlewareUnderTest: JsonRpcMiddleware<any, any>,
   ...otherMiddleware: JsonRpcMiddleware<any, any>[]
-): JsonRpcEngine {
-  const engine = new JsonRpcEngine();
-  engine.push(middlewareUnderTest);
-  if (otherMiddleware.length === 0) {
-    otherMiddleware.push(createFinalMiddlewareWithDefaultResult());
-  }
-  for (const middleware of otherMiddleware) {
-    engine.push(middleware);
-  }
-  return engine;
+): JsonRpcEngineV2 {
+  return JsonRpcEngineV2.create({
+    middleware: [
+      middlewareUnderTest,
+      ...(otherMiddleware.length === 0
+        ? [createFinalMiddlewareWithDefaultResult()]
+        : otherMiddleware),
+    ],
+  });
 }
 
 /**
