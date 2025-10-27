@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
 import {

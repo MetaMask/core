@@ -1,5 +1,5 @@
-import type { StateMetadata } from '@metamask/base-controller/next';
-import { BaseController } from '@metamask/base-controller/next';
+import type { StateMetadata } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import { hexToNumber } from '@metamask/utils';
 

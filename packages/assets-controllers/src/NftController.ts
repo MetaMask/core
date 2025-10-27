@@ -10,7 +10,7 @@ import {
   type ControllerStateChangeEvent,
   type ControllerGetStateAction,
   type StateMetadata,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import {
   safelyExecute,
   handleFetch,

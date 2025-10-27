@@ -1,5 +1,5 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
-import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { EncryptionKey } from '@metamask/browser-passworder';
 import {
   encrypt,

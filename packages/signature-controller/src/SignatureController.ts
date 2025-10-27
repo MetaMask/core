@@ -8,7 +8,7 @@ import {
   BaseController,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import {
   ApprovalType,

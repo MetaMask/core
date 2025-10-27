@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.0.0]
+
 ### Changed
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6386](https://github.com/MetaMask/core/pull/6386))
   - Previously, `NetworkController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Bump `@metamask/error-reporting-service` from `^2.0.0` to `^3.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 
 ## [24.3.1]
 
@@ -980,7 +984,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@25.0.0...HEAD
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.1...@metamask/network-controller@25.0.0
 [24.3.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.0...@metamask/network-controller@24.3.1
 [24.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.2...@metamask/network-controller@24.3.0
 [24.2.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.1...@metamask/network-controller@24.2.2

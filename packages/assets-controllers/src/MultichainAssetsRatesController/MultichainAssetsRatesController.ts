@@ -7,7 +7,7 @@ import type {
   ControllerStateChangeEvent,
   ControllerGetStateAction,
   StateMetadata,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import { type CaipAssetType, isEvmAccountType } from '@metamask/keyring-api';
 import type {
   KeyringControllerLockEvent,

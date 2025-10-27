@@ -2,7 +2,7 @@ import {
   type StateMetadata,
   type ControllerStateChangeEvent,
   type ControllerGetStateAction,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';

@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+
 ### Changed
 
 - **BREAKING:** Migrate `ComposableController` to new `Messenger` from `@metamask/messenger` ([#6710](https://github.com/MetaMask/core/pull/6710))
   - Previously, the controller accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 - **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6710](https://github.com/MetaMask/core/pull/6710))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 
 ### Fixed
 
@@ -248,7 +251,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.1.1...@metamask/composable-controller@12.0.0
 [11.1.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.1.0...@metamask/composable-controller@11.1.1
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.0.0...@metamask/composable-controller@11.1.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@10.0.0...@metamask/composable-controller@11.0.0
