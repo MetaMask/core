@@ -1,6 +1,6 @@
 {
   "name": "@metamask/subscription-controller",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Handle user subscription",
   "keywords": [
     "MetaMask",
@@ -49,12 +49,13 @@
   "dependencies": {
     "@metamask/base-controller": "^8.4.2",
     "@metamask/controller-utils": "^11.14.1",
-    "@metamask/polling-controller": "^14.0.1",
+    "@metamask/messenger": "^0.3.0",
+    "@metamask/polling-controller": "^14.0.2",
     "@metamask/utils": "^11.8.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/profile-sync-controller": "^25.1.1",
+    "@metamask/profile-sync-controller": "^25.1.2",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

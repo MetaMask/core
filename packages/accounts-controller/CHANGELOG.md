@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6426](https://github.com/MetaMask/core/pull/6426))
+  - Previously, `AccountsController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- Bump `@metamask/eth-snap-keyring` from `^17.0.0` to `^18.0.0` ([#6951](https://github.com/MetaMask/core/pull/6951))
+
+## [33.2.0]
+
+### Added
+
+- Add a `getAccounts` method (and its associated action) that is the plural version of `getAccount` ([#6927](https://github.com/MetaMask/core/pull/6927))
+  - This method is added to primarily be consumed in the `MultichainAccountService`.
+
+### Changed
+
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 
 ## [33.1.1]
@@ -631,7 +644,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@33.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@33.2.0...HEAD
+[33.2.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@33.1.1...@metamask/accounts-controller@33.2.0
 [33.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@33.1.0...@metamask/accounts-controller@33.1.1
 [33.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@33.0.0...@metamask/accounts-controller@33.1.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@32.0.2...@metamask/accounts-controller@33.0.0

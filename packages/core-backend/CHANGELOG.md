@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6823](https://github.com/MetaMask/core/pull/6823))
+  - Previously, `AccountActivityService` and `BackendWebSocketService` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6823](https://github.com/MetaMask/core/pull/6823))
+
+### Removed
+
+- **BREAKING:** Remove exported type aliases and constants that were specific to controller messenger integration ([#6823](https://github.com/MetaMask/core/pull/6823))
+  - Removed type exports: `BackendWebSocketServiceAllowedActions`, `BackendWebSocketServiceAllowedEvents`, `AccountActivityServiceAllowedActions`, `AccountActivityServiceAllowedEvents`
+  - Removed constant exports: `ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS`, `ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS`
+  - These types and constants were internal implementation details that should not have been exposed. Consumers should use the service-specific messenger types directly.
+- Bump `@metamask/profile-sync-controller` from `^25.1.1` to `^25.1.2` ([#6940](https://github.com/MetaMask/core/pull/6940))
+
+## [3.0.0]
+
 ### Added
 
 - Add `forceReconnection()` method to `BackendWebSocketService` for controlled subscription state cleanup ([#6861](https://github.com/MetaMask/core/pull/6861))
@@ -21,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 - Update `AccountActivityService` to use new `forceReconnection()` method instead of manually calling disconnect/connect ([#6861](https://github.com/MetaMask/core/pull/6861))
-- **BREAKING:** Update allowed actions for `AccountActivityService` messenger: remove `BackendWebSocketService:disconnect`, add `BackendWebSocketService:forceConnect` ([#6861](https://github.com/MetaMask/core/pull/6861))
+- **BREAKING:** Update allowed actions for `AccountActivityService` messenger: remove `BackendWebSocketService:disconnect`, add `BackendWebSocketService:forceReconnection` ([#6861](https://github.com/MetaMask/core/pull/6861))
 - Improve reconnection scheduling in `BackendWebSocketService` to be idempotent ([#6861](https://github.com/MetaMask/core/pull/6861))
   - Prevents duplicate reconnection timers and inflated attempt counters
   - Scheduler checks if reconnect is already scheduled before creating new timer
@@ -112,7 +128,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.1.0...@metamask/core-backend@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.0.0...@metamask/core-backend@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@1.0.1...@metamask/core-backend@2.0.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@1.0.0...@metamask/core-backend@1.0.1

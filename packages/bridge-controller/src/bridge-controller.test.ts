@@ -2829,7 +2829,7 @@ describe('BridgeController', function () {
         deriveStateFromMetadata(
           bridgeController.state,
           bridgeController.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6544](https://github.com/MetaMask/core/pull/6544))
+  - Previously, `MultichainAccountService` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- Bump `@metamask/eth-snap-keyring` from `^17.0.0` to `^18.0.0` ([#6951](https://github.com/MetaMask/core/pull/6951))
+
+## [1.6.2]
+
+### Changed
+
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 
 ## [1.6.1]
@@ -231,7 +239,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.6.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.6.2...HEAD
+[1.6.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.6.1...@metamask/multichain-account-service@1.6.2
 [1.6.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.6.0...@metamask/multichain-account-service@1.6.1
 [1.6.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.5.0...@metamask/multichain-account-service@1.6.0
 [1.5.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.4.0...@metamask/multichain-account-service@1.5.0
