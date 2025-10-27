@@ -10,6 +10,7 @@ on:
 
 jobs:
   ensure-blocking-pr-labels-absent:
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
