@@ -3,7 +3,7 @@ import { isEvmAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
 import type { AccountGroupObjectOf } from '../group';
-import { BaseRule, type Rule, type RuleResult } from '../rule';
+import { BaseRule } from '../rule';
 import type { AccountWalletObjectOf } from '../wallet';
 
 export class EntropyRule extends BaseRule {
