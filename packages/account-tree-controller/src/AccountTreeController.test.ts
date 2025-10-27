@@ -1708,6 +1708,14 @@ describe('AccountTreeController', () => {
               value: MOCK_SIMPLE_ACCOUNT_1.metadata.name,
               lastUpdatedAt: expect.any(Number),
             },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
           },
           // New group metadata.
           [walletId2Group]: {
