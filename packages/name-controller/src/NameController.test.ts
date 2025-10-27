@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 
 import type {
   SetNameRequest,
@@ -2765,7 +2765,7 @@ describe('NameController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });

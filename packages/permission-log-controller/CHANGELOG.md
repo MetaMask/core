@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export new messenger action and event types: `PermissionLogControllerActions`, `PermissionLogControllerGetStateAction`, `PermissionLogControllerEvents`, and `PermissionLogControllerStateChangeEvent` ([#6536](https://github.com/MetaMask/core/pull/6536))
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6536](https://github.com/MetaMask/core/pull/6536))
+  - Previously, `PermissionLogController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6536](https://github.com/MetaMask/core/pull/6536))
+
 ## [4.1.1]
 
 ### Changed

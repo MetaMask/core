@@ -1,4 +1,4 @@
-import { type StateMetadata } from '@metamask/base-controller';
+import { type StateMetadata } from '@metamask/base-controller/next';
 import {
   type CaipChainId,
   BtcScope,
@@ -160,25 +160,25 @@ export const MULTICHAIN_NETWORK_CONTROLLER_METADATA = {
   multichainNetworkConfigurationsByChainId: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   selectedMultichainNetworkChainId: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   isEvmSelected: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   networksWithTransactionActivity: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
 } satisfies StateMetadata<MultichainNetworkControllerState>;
