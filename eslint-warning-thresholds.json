@@ -168,8 +168,7 @@
     "jsdoc/match-description": 1
   },
   "packages/eth-json-rpc-middleware/src/block-tracker-inspector.ts": {
-    "jsdoc/match-description": 1,
-    "jsdoc/require-jsdoc": 1
+    "jsdoc/match-description": 2
   },
   "packages/eth-json-rpc-middleware/src/fetch.test.ts": {
     "jsdoc/match-description": 1
