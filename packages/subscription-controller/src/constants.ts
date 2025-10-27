@@ -1,3 +1,5 @@
+import { SUBSCRIPTION_STATUSES } from "./types";
+
 export const controllerName = 'SubscriptionController';
 
 export enum Env {
@@ -43,3 +45,5 @@ export enum SubscriptionControllerErrorMessage {
 }
 
 export const DEFAULT_POLLING_INTERVAL = 5 * 60 * 1_000; // 5 minutes
+
+export const ACTIVE_SUBSCRIPTION_STATUSES = [SUBSCRIPTION_STATUSES.active, SUBSCRIPTION_STATUSES.trialing, SUBSCRIPTION_STATUSES.provisional] as string[];

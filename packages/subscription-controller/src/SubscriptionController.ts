@@ -8,6 +8,7 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
 import {
+  ACTIVE_SUBSCRIPTION_STATUSES,
   controllerName,
   DEFAULT_POLLING_INTERVAL,
   SubscriptionControllerErrorMessage,
@@ -27,6 +28,7 @@ import type {
 } from './types';
 import {
   PAYMENT_TYPES,
+  SUBSCRIPTION_STATUSES,
   type ISubscriptionService,
   type PricingResponse,
   type ProductType,
@@ -516,7 +518,13 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    */
   async submitSponsorshipIntents(request: SubmitSponsorshipIntentsRequest) {
     this.#assertIsUserNotSubscribed({ products: request.products });
-    await this.#subscriptionService.submitSponsorshipIntents(request);
+
+    // verify if the user has trailed the provided products before
+    const hasTrailedBefore = this.state.trialedProducts.some((product) => request.products.includes(product));
+    // if the user has not trailed the provided products before, submit the sponsorship intents
+    if (!hasTrailedBefore) {
+      await this.#subscriptionService.submitSponsorshipIntents(request);
+    }
   }
 
   /**
@@ -601,11 +609,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {
-    if (
-      this.state.subscriptions.find((subscription) =>
-        subscription.products.some((p) => products.includes(p.name)),
-      )
-    ) {
+    const subscription = this.state.subscriptions.find((subscription) =>
+      subscription.products.some((p) => products.includes(p.name)),
+    );
+
+    if (subscription && ACTIVE_SUBSCRIPTION_STATUSES.includes(subscription.status)) {
       throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
     }
   }
