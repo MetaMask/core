@@ -1,4 +1,8 @@
-import { Messenger } from '@metamask/base-controller';
+import {
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+} from '@metamask/messenger';
 import { captureException as sentryCaptureException } from '@sentry/core';
 
 import type { ErrorReportingServiceMessenger } from './error-reporting-service';
@@ -68,9 +72,11 @@ describe('ErrorReportingService', () => {
  * @returns The messenger.
  */
 function buildMessenger(): ErrorReportingServiceMessenger {
-  return new Messenger().getRestricted({
-    name: 'ErrorReportingService',
-    allowedActions: [],
-    allowedEvents: [],
+  return new Messenger<
+    'ErrorReportingService',
+    MessengerActions<ErrorReportingServiceMessenger>,
+    MessengerEvents<ErrorReportingServiceMessenger>
+  >({
+    namespace: 'ErrorReportingService',
   });
 }

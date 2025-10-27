@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `StaticIntervalPollingControllerNext` to extend from `@metamask/base-controller/next` ([#6386](https://github.com/MetaMask/core/pull/6386))
+
 ## [14.0.2]
 
 ### Changed

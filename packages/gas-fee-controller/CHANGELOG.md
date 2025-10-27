@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `GasFeeMessenger` type ([#6386](https://github.com/MetaMask/core/pull/6386))
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6386](https://github.com/MetaMask/core/pull/6386))
+  - Previously, `GasFeeController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+
 ## [24.1.1]
 
 ### Changed
