@@ -25,10 +25,7 @@ const FROM_MOCK_HARDWARE = '0xdef456';
 const FROM_MOCK_SIMPLE = '0x789abc';
 const DELEGATION_ADDRESS_MOCK = '0x1234567890abcdef1234567890abcdef12345678';
 
-type AllActions =
-  | MessengerActions<EIP5792Messenger>
-  | PreferencesControllerGetStateAction
-  | AccountsControllerGetStateAction;
+type AllActions = MessengerActions<EIP5792Messenger>;
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions>;
 
