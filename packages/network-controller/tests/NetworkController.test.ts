@@ -1904,7 +1904,7 @@ describe('NetworkController', () => {
                   failoverRpcUrls: [],
                   infuraProjectId,
                   chainId: '0xa4b1',
-                  ticker: 'ETG',
+                  ticker: 'ETH',
                   network: InfuraNetworkType['arbitrum-one'],
                 },
                 provider: expect.anything(),
