@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
-- Bump `@metamask/eth-snap-keyring` from `^17.0.0` to `^18.0.0` ([#????](https://github.com/MetaMask/core/pull/????))
+- Bump `@metamask/eth-snap-keyring` from `^17.0.0` to `^18.0.0` ([#6951](https://github.com/MetaMask/core/pull/6951))
 
 ## [1.6.1]
 
