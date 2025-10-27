@@ -1,7 +1,10 @@
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
-import type { RestrictedMessenger } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+} from '@metamask/base-controller/next';
 import {
   toChecksumHexAddress,
   ChainId,
@@ -11,6 +14,7 @@ import {
   handleFetch,
   toHex,
 } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClient,
   NetworkControllerGetNetworkClientByIdAction,
@@ -37,6 +41,7 @@ const controllerName = 'NftDetectionController';
 export type NFTDetectionControllerState = Record<never, never>;
 
 export type AllowedActions =
+  | ControllerGetStateAction<typeof controllerName, NFTDetectionControllerState>
   | AddApprovalRequest
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
@@ -45,15 +50,17 @@ export type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction;
 
 export type AllowedEvents =
+  | ControllerStateChangeEvent<
+      typeof controllerName,
+      NFTDetectionControllerState
+    >
   | PreferencesControllerStateChangeEvent
   | NetworkControllerStateChangeEvent;
 
-export type NftDetectionControllerMessenger = RestrictedMessenger<
+export type NftDetectionControllerMessenger = Messenger<
   typeof controllerName,
   AllowedActions,
-  AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  AllowedEvents
 >;
 
 /**
@@ -498,7 +505,7 @@ export class NftDetectionController extends BaseController<
     this.#getNftState = getNftState;
     this.#addNft = addNft;
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'PreferencesController:stateChange',
       this.#onPreferencesControllerStateChange.bind(this),
     );
@@ -510,12 +517,12 @@ export class NftDetectionController extends BaseController<
    * @returns Whether current network is mainnet.
    */
   isMainnet(): boolean {
-    const { selectedNetworkClientId } = this.messagingSystem.call(
+    const { selectedNetworkClientId } = this.messenger.call(
       'NetworkController:getState',
     );
     const {
       configuration: { chainId },
-    } = this.messagingSystem.call(
+    } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     );
@@ -586,8 +593,7 @@ export class NftDetectionController extends BaseController<
   async detectNfts(chainIds: Hex[], options?: { userAddress?: string }) {
     const userAddress =
       options?.userAddress ??
-      this.messagingSystem.call('AccountsController:getSelectedAccount')
-        .address;
+      this.messenger.call('AccountsController:getSelectedAccount').address;
 
     // filter out unsupported chainIds
     const supportedChainIds = chainIds.filter((chainId) =>
@@ -693,7 +699,7 @@ export class NftDetectionController extends BaseController<
               collection && { collection },
               chainId && { chainId },
             );
-            const networkClientId = this.messagingSystem.call(
+            const networkClientId = this.messenger.call(
               'NetworkController:findNetworkClientIdByChainId',
               toHex(chainId),
             );

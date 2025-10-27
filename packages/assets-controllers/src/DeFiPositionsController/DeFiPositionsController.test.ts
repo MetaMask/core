@@ -1,5 +1,12 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { BtcAccountType, EthAccountType } from '@metamask/keyring-api';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 
 import * as calculateDefiMetrics from './calculate-defi-metrics';
 import type { DeFiPositionsControllerMessenger } from './DeFiPositionsController';
@@ -11,11 +18,6 @@ import * as fetchPositions from './fetch-positions';
 import * as groupDeFiPositions from './group-defi-positions';
 import { flushPromises } from '../../../../tests/helpers';
 import { createMockInternalAccount } from '../../../accounts-controller/src/tests/mocks';
-import { Messenger } from '../../../base-controller/src/Messenger';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../../base-controller/tests/helpers';
 import type {
   InternalAccount,
   TransactionMeta,
@@ -40,9 +42,16 @@ const GROUP_ACCOUNTS_NO_EVM = [
   }),
 ];
 
-type MainMessenger = Messenger<
-  ExtractAvailableAction<DeFiPositionsControllerMessenger>,
-  ExtractAvailableEvent<DeFiPositionsControllerMessenger>
+type AllDefiPositionsControllerActions =
+  MessengerActions<DeFiPositionsControllerMessenger>;
+
+type AllDefiPositionsControllerEvents =
+  MessengerEvents<DeFiPositionsControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllDefiPositionsControllerActions,
+  AllDefiPositionsControllerEvents
 >;
 
 /**
@@ -72,19 +81,29 @@ function setupController({
   mockTrackEvent?: jest.Mock;
   mockGroupAccounts?: InternalAccount[];
 } = {}) {
-  const messenger: MainMessenger = new Messenger();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   messenger.registerActionHandler(
     'AccountTreeController:getAccountsFromSelectedAccountGroup',
     () => mockGroupAccounts,
   );
 
-  const restrictedMessenger = messenger.getRestricted({
-    name: 'DeFiPositionsController',
-    allowedActions: [
-      'AccountTreeController:getAccountsFromSelectedAccountGroup',
-    ],
-    allowedEvents: [
+  const defiPositionControllerMessenger = new Messenger<
+    'DeFiPositionsController',
+    AllDefiPositionsControllerActions,
+    AllDefiPositionsControllerEvents,
+    RootMessenger
+  >({
+    namespace: 'DeFiPositionsController',
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: defiPositionControllerMessenger,
+    actions: ['AccountTreeController:getAccountsFromSelectedAccountGroup'],
+    events: [
+      'DeFiPositionsController:stateChange',
       'KeyringController:lock',
       'TransactionController:transactionConfirmed',
       'AccountTreeController:selectedAccountGroupChange',
@@ -112,7 +131,7 @@ function setupController({
   groupDeFiPositionsSpy.mockImplementation(mockGroupDeFiPositions);
 
   const controller = new DeFiPositionsController({
-    messenger: restrictedMessenger,
+    messenger: defiPositionControllerMessenger,
     isEnabled,
     trackEvent: mockTrackEvent,
   });
@@ -486,7 +505,7 @@ describe('DeFiPositionsController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });

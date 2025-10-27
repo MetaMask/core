@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `GasFeeMessenger` type ([#6386](https://github.com/MetaMask/core/pull/6386))
+- Export `GasFeeMessenger` type ([#6386](https://github.com/MetaMask/core/pull/6386), [#6444](https://github.com/MetaMask/core/pull/6444))
 
 ### Changed
 

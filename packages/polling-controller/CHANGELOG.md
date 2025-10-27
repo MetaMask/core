@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- Add `StaticIntervalPollingControllerNext` to extend from `@metamask/base-controller/next` ([#6386](https://github.com/MetaMask/core/pull/6386))
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` for `StaticIntervalPollingController` and `BlockTrackerPollingController` ([#6444](https://github.com/MetaMask/core/pull/6444))
+  - Previously, `StaticIntervalPollingController` and `BlockTrackerPollingController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 
 ## [14.0.2]
 

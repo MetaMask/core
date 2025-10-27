@@ -1,10 +1,16 @@
 import type { AccountsController } from '@metamask/accounts-controller';
-import { Messenger } from '@metamask/base-controller';
 import {
   NFT_API_BASE_URL,
   ChainId,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import {
   getDefaultNetworkControllerState,
   NetworkClientType,
@@ -36,9 +42,14 @@ import { getDefaultNftControllerState } from './NftController';
 import {
   NftDetectionController,
   BlockaidResultType,
-  type AllowedActions,
-  type AllowedEvents,
+  type NftDetectionControllerMessenger,
 } from './NftDetectionController';
+
+type AllActions = MessengerActions<NftDetectionControllerMessenger>;
+
+type AllEvents = MessengerEvents<NftDetectionControllerMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const controllerName = 'NftDetectionController' as const;
 
@@ -1069,7 +1080,9 @@ async function withController<ReturnValue>(
     testFunction,
   ] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger = new Messenger<AllowedActions, AllowedEvents>();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   messenger.registerActionHandler(
     'NetworkController:getState',
@@ -1109,21 +1122,32 @@ async function withController<ReturnValue>(
     }),
   );
 
+  const nftDetectionControllerMessenger = new Messenger<
+    typeof controllerName,
+    AllActions,
+    AllEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: nftDetectionControllerMessenger,
+    actions: [
+      'NetworkController:getState',
+      'NetworkController:getNetworkClientById',
+      'PreferencesController:getState',
+      'AccountsController:getSelectedAccount',
+      'NetworkController:findNetworkClientIdByChainId',
+    ],
+    events: [
+      'NetworkController:stateChange',
+      'PreferencesController:stateChange',
+    ],
+  });
+
   const controller = new NftDetectionController({
-    messenger: messenger.getRestricted({
-      name: controllerName,
-      allowedActions: [
-        'NetworkController:getState',
-        'NetworkController:getNetworkClientById',
-        'PreferencesController:getState',
-        'AccountsController:getSelectedAccount',
-        'NetworkController:findNetworkClientIdByChainId',
-      ],
-      allowedEvents: [
-        'NetworkController:stateChange',
-        'PreferencesController:stateChange',
-      ],
-    }),
+    messenger: nftDetectionControllerMessenger,
     disabled: true,
     addNft: jest.fn(),
     getNftState: getDefaultNftControllerState,
