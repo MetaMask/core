@@ -1,4 +1,8 @@
-import { ConstantBackoff, HttpError } from '@metamask/controller-utils';
+import {
+  ConstantBackoff,
+  DEFAULT_MAX_RETRIES,
+  HttpError,
+} from '@metamask/controller-utils';
 import {
   EthMethod,
   SignatureRequestType,
@@ -333,7 +337,12 @@ function computePollingIntervalAndRetryCount(
   pollInterval: number,
 ) {
   const backoff = new ConstantBackoff(pollInterval);
-  const maxRetries = Math.floor(timeout / pollInterval) + 1;
+  const computedMaxRetries = Math.floor(timeout / pollInterval) + 1;
+
+  const maxRetries = isNaN(computedMaxRetries)
+    ? DEFAULT_MAX_RETRIES
+    : computedMaxRetries;
+
   return {
     backoff,
     maxRetries,

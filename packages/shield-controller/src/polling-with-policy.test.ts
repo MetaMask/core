@@ -86,7 +86,8 @@ describe('PollingWithCockatielPolicy', () => {
             if (abortSignal.aborted) {
               reject(new Error('test error'));
             }
-            reject(new Error('test error'));
+            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- HttpError is a valid error which extends Error class
+            reject(new HttpError(412, 'Results are not available yet'));
           }, 100);
         });
       });
