@@ -320,6 +320,7 @@ linkStyle default opacity:0.5
   preferences_controller --> messenger;
   preferences_controller --> keyring_controller;
   profile_sync_controller --> base_controller;
+  profile_sync_controller --> messenger;
   profile_sync_controller --> address_book_controller;
   profile_sync_controller --> keyring_controller;
   rate_limit_controller --> base_controller;
