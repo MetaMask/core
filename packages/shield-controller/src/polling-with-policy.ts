@@ -27,12 +27,9 @@ export class PollingWithCockatielPolicy {
     const abortController = this.#addNewRequestEntry(requestId);
 
     try {
-      const result = await this.#policy.execute(
-        async ({ signal }) => {
-          return requestFn(signal);
-        },
-        abortController.signal,
-      );
+      const result = await this.#policy.execute(async ({ signal }) => {
+        return requestFn(signal);
+      }, abortController.signal);
       return result;
     } catch (error) {
       if (abortController.signal.aborted) {

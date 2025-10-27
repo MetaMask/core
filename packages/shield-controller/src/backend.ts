@@ -1,3 +1,4 @@
+import { ConstantBackoff, HttpError } from '@metamask/controller-utils';
 import {
   EthMethod,
   SignatureRequestType,
@@ -7,6 +8,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Json } from '@metamask/utils';
 
 import { SignTypedDataVersion } from './constants';
+import { PollingWithCockatielPolicy } from './polling-with-policy';
 import type {
   CheckCoverageRequest,
   CheckSignatureCoverageRequest,
@@ -16,8 +18,6 @@ import type {
   LogTransactionRequest,
   ShieldBackend,
 } from './types';
-import { PollingWithCockatielPolicy } from './polling-with-policy';
-import { ConstantBackoff, HttpError } from '@metamask/controller-utils';
 
 export type InitCoverageCheckRequest = {
   txParams: [
@@ -81,7 +81,10 @@ export class ShieldRemoteBackend implements ShieldBackend {
     this.#baseUrl = baseUrl;
     this.#fetch = fetchFn;
 
-    const { backoff, maxRetries } = computePollingIntervalAndRetryCount(getCoverageResultTimeout, getCoverageResultPollInterval);
+    const { backoff, maxRetries } = computePollingIntervalAndRetryCount(
+      getCoverageResultTimeout,
+      getCoverageResultPollInterval,
+    );
 
     this.#pollingPolicy = new PollingWithCockatielPolicy({
       backoff,
@@ -100,7 +103,11 @@ export class ShieldRemoteBackend implements ShieldBackend {
     }
 
     const txCoverageResultUrl = `${this.#baseUrl}/v1/transaction/coverage/result`;
-    const coverageResult = await this.#getCoverageResult(req.txMeta.id, coverageId, txCoverageResultUrl);
+    const coverageResult = await this.#getCoverageResult(
+      req.txMeta.id,
+      coverageId,
+      txCoverageResultUrl,
+    );
     return {
       coverageId,
       message: coverageResult.message,
@@ -122,7 +129,11 @@ export class ShieldRemoteBackend implements ShieldBackend {
     }
 
     const signatureCoverageResultUrl = `${this.#baseUrl}/v1/signature/coverage/result`;
-    const coverageResult = await this.#getCoverageResult(req.signatureRequest.id, coverageId, signatureCoverageResultUrl);
+    const coverageResult = await this.#getCoverageResult(
+      req.signatureRequest.id,
+      coverageId,
+      signatureCoverageResultUrl,
+    );
     return {
       coverageId,
       message: coverageResult.message,
@@ -206,7 +217,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     const headers = await this.#createHeaders();
 
     const getCoverageResultFn = async (signal: AbortSignal) => {
-        const res = await this.#fetch(coverageResultUrl, {
+      const res = await this.#fetch(coverageResultUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify(reqBody),
@@ -221,11 +232,11 @@ export class ShieldRemoteBackend implements ShieldBackend {
       try {
         const errorJson = await res.json();
         errorMessage = `Timeout waiting for coverage result: ${errorJson.status}`;
-      } catch (error) {
+      } catch {
         errorMessage = 'Timeout waiting for coverage result';
       }
       throw new HttpError(res.status, errorMessage);
-    }
+    };
 
     return this.#pollingPolicy.start(requestId, getCoverageResultFn);
   }
@@ -310,7 +321,6 @@ export function parseSignatureRequestMethod(
   return signatureRequest.type;
 }
 
-
 /**
  * Compute the polling interval and retry count for the Cockatiel policy based on the timeout and poll interval given.
  *
@@ -318,7 +328,10 @@ export function parseSignatureRequestMethod(
  * @param pollInterval - The poll interval in milliseconds.
  * @returns The polling interval and retry count.
  */
-function computePollingIntervalAndRetryCount(timeout: number, pollInterval: number) {
+function computePollingIntervalAndRetryCount(
+  timeout: number,
+  pollInterval: number,
+) {
   const backoff = new ConstantBackoff(pollInterval);
   const maxRetries = Math.floor(timeout / pollInterval) + 1;
   return {
