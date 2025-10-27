@@ -6,15 +6,70 @@ on:
   merge_group:
 
 jobs:
-  check_changelog:
-    if: github.event_name != 'merge_group'
+  get-pull-request:
+    name: Get pull request context
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get context
+        uses: actions/github-script@v8
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PULL_REQUEST_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
+          PULL_REQUEST_HEAD_REF: ${{ github.head_ref || '' }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || '' }}
+          PULL_REQUEST_LABELS: ${{ toJSON(github.event.pull_request.labels) || '[]' }}
+          MERGE_QUEUE_BASE_REF: ${{ github.event.merge_group.base_ref || '' }}
+          MERGE_QUEUE_HEAD_REF: ${{ github.event.merge_group.head_ref || '' }}
+        with:
+          script: |
+            // GitHub recommends using environment variables to provide inputs,
+            // rather than injecting them directly into the script.
+            const eventName = process.env.EVENT_NAME;
+
+            if (eventName === 'pull_request') {
+              return {
+                baseRef: process.env.PULL_REQUEST_BASE_REF,
+                headRef: process.env.PULL_REQUEST_HEAD_REF,
+                prNumber: process.env.PULL_REQUEST_NUMBER,
+                labels: JSON.parse(process.env.PULL_REQUEST_LABELS),
+              };
+            }
+
+            if (eventName === 'merge_group') {
+              const pr = process.env.MERGE_QUEUE_HEAD_REF.match(/gh-readonly-queue\/.+\/pr-(\d+)-\w+/u);
+              if (!pr) {
+                throw new Error('Could not extract PR number from merge group head ref.');
+              }
+
+              const { owner, repo } = context.repo;
+              const prNumber = parseInt(pr[1], 10);
+
+              const labels = await github.rest.issues.listLabelsOnIssue({
+                owner,
+                repo,
+                issue_number: prNumber,
+              });
+
+              return {
+                baseRef: process.env.MERGE_QUEUE_BASE_REF,
+                headRef: process.env.MERGE_QUEUE_HEAD_REF,
+                prNumber,
+                labels: labels.data,
+              };
+            }
+
+            throw new Error(`Unsupported event: "${eventName}".`);
+
+  check-changelog:
+    name: Check changelog
     uses: MetaMask/github-tools/.github/workflows/changelog-check.yml@fc6fe1a3fb591f6afa61f0dbbe7698bd50fab9c7
+    needs: get-pull-request
     with:
       action-sha: fc6fe1a3fb591f6afa61f0dbbe7698bd50fab9c7
-      base-branch: ${{ github.event.pull_request.base.ref }}
-      head-ref: ${{ github.head_ref }}
-      labels: ${{ toJSON(github.event.pull_request.labels) }}
-      pr-number: ${{ github.event.pull_request.number }}
+      base-branch: ${{ needs.get-pull-request.outputs.baseRef }}
+      head-ref: ${{ needs.get-pull-request.outputs.headRef }}
+      labels: ${{ toJson(needs.get-pull-request.outputs.labels) }}
+      pr-number: ${{ needs.get-pull-request.outputs.prNumber }}
       repo: ${{ github.repository }}
     secrets:
       gh-token: ${{ secrets.GITHUB_TOKEN }}
