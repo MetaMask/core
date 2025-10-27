@@ -1,11 +1,9 @@
-import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 import {
   Messenger,
   MOCK_ANY_NAMESPACE,
   type MessengerActions,
   type MockAnyNamespace,
 } from '@metamask/messenger';
-import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type {
   TransactionControllerGetStateAction,
@@ -44,10 +42,7 @@ const TRANSACTION_META_MOCK = {
   },
 };
 
-type AllActions =
-  | MessengerActions<EIP5792Messenger>
-  | PreferencesControllerGetStateAction
-  | AccountsControllerGetStateAction;
+type AllActions = MessengerActions<EIP5792Messenger>;
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions>;
 

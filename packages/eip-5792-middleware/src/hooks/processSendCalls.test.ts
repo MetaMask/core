@@ -16,7 +16,6 @@ import type {
   CustomNetworkClientConfiguration,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
-import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { Hex, JsonRpcRequest } from '@metamask/utils';
 
@@ -55,10 +54,7 @@ const REQUEST_MOCK = {
   params: [SEND_CALLS_MOCK],
 } as JsonRpcRequest<SendCallsParams> & { networkClientId: string };
 
-type AllActions =
-  | MessengerActions<EIP5792Messenger>
-  | PreferencesControllerGetStateAction
-  | AccountsControllerGetStateAction;
+type AllActions = MessengerActions<EIP5792Messenger>;
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions>;
 
