@@ -113,7 +113,6 @@ export const ChainId = {
   [BuiltInNetworkName.OptimismMainnet]: '0xa', // toHex(10)
   [BuiltInNetworkName.PolygonMainnet]: '0x89', // toHex(137)
   [BuiltInNetworkName.SeiMainnet]: '0x531', // toHex(1329)
-
 } as const;
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
@@ -132,6 +131,7 @@ export enum NetworksTicker {
   'base-mainnet' = 'ETH',
   'arbitrum-one' = 'ETG',
   'bsc-mainnet' = 'BNB',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'optimism-mainnet' = 'ETH',
   'polygon-mainnet' = 'POL',
   'sei-mainnet' = 'SEI',
