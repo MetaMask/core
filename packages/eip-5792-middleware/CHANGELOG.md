@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ## [1.2.4]
 
 ### Changed

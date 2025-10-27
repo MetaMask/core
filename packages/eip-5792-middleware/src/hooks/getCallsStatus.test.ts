@@ -1,4 +1,11 @@
-import { Messenger } from '@metamask/base-controller';
+import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
+import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type {
   TransactionControllerGetStateAction,
@@ -37,22 +44,50 @@ const TRANSACTION_META_MOCK = {
   },
 };
 
+type AllActions =
+  | MessengerActions<EIP5792Messenger>
+  | PreferencesControllerGetStateAction
+  | AccountsControllerGetStateAction;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions>;
+
 describe('EIP-5792', () => {
   const getTransactionControllerStateMock: jest.MockedFn<
     TransactionControllerGetStateAction['handler']
   > = jest.fn();
 
-  let messenger: EIP5792Messenger;
+  let rootMessenger: RootMessenger;
+
+  let messenger: Messenger<'EIP5792', AllActions, never, RootMessenger>;
 
   beforeEach(() => {
     jest.resetAllMocks();
 
-    messenger = new Messenger();
+    rootMessenger = new Messenger<MockAnyNamespace, AllActions>({
+      namespace: MOCK_ANY_NAMESPACE,
+    });
 
-    messenger.registerActionHandler(
+    rootMessenger.registerActionHandler(
       'TransactionController:getState',
       getTransactionControllerStateMock,
     );
+
+    messenger = new Messenger({
+      namespace: 'EIP5792',
+      parent: rootMessenger,
+    });
+
+    rootMessenger.delegate({
+      messenger,
+      actions: [
+        'AccountsController:getState',
+        'AccountsController:getSelectedAccount',
+        'PreferencesController:getState',
+        'NetworkController:getNetworkClientById',
+        'NetworkController:getState',
+        'TransactionController:getState',
+      ],
+    });
   });
 
   describe('getCallsStatus', () => {
