@@ -332,7 +332,9 @@ describe('createBlockRefMiddleware', () => {
         finalMiddleware,
       );
 
-      stubProviderRequests(provider, [createStubForBlockNumberRequest('0x100')]);
+      stubProviderRequests(provider, [
+        createStubForBlockNumberRequest('0x100'),
+      ]);
 
       await engine.handle({
         id: 1,
