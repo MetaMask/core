@@ -21,11 +21,11 @@ export class IntentApiImpl implements IntentApi {
 
   async submitIntent(params: IntentSubmissionParams): Promise<any> {
     const endpoint = `${this.baseUrl}/submitIntent`;
-    const response = await this.fetchFn(endpoint, {
+    const response = (await this.fetchFn(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
-    });
+    })) as Response;
     if (!response.ok) {
       throw new Error(`Failed to submit intent: ${response.statusText}`);
     }
