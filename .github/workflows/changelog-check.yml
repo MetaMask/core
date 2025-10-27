@@ -9,8 +9,14 @@ jobs:
   get-pull-request:
     name: Get pull request context
     runs-on: ubuntu-latest
+    outputs:
+      baseRef: ${{ steps.get-context.outputs.baseRef }}
+      headRef: ${{ steps.get-context.outputs.headRef }}
+      prNumber: ${{ steps.get-context.outputs.prNumber }}
+      labels: ${{ steps.get-context.outputs.labels }}
     steps:
       - name: Get context
+        id: get-context
         uses: actions/github-script@v8
         env:
           EVENT_NAME: ${{ github.event_name }}
