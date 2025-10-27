@@ -12,7 +12,7 @@ import type { Messenger } from '@metamask/messenger';
 export const controllerName = 'ComposableController';
 
 export const INVALID_CONTROLLER_ERROR =
-  'Invalid controller: controller must have a `messagingSystem` and inherit from `BaseController`.';
+  'Invalid controller: controller must inherit from `BaseController`.';
 
 /**
  * The narrowest supertype for the composable controller state object.
