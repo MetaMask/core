@@ -2,8 +2,9 @@ import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import {
   JsonRpcEngine,
-  type JsonRpcMiddleware,
+  JsonRpcMiddleware as LegacyJsonRpcMiddleware,
 } from '@metamask/json-rpc-engine';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
@@ -66,22 +67,15 @@ export type ProviderRequestStub<
  * @template Result - The type that represents the result.
  * @returns The created middleware, as a mock function.
  */
-export function createFinalMiddlewareWithDefaultResult<
-  Params extends JsonRpcParams,
-  Result extends Json,
->(): JsonRpcMiddleware<Params, Result | 'default result'> {
-  return jest.fn((req, res, _next, end) => {
-    if (res.id === undefined) {
-      res.id = req.id;
+export function createFinalMiddlewareWithDefaultResult(): JsonRpcMiddleware<JsonRpcRequest> {
+  return jest.fn(async ({ next }) => {
+    // Not a Node.js callback
+    // eslint-disable-next-line n/callback-return
+    const result = await next();
+    if (result === undefined) {
+      return 'default result';
     }
-
-    res.jsonrpc ??= '2.0';
-
-    if (res.result === undefined) {
-      res.result = 'default result';
-    }
-
-    end();
+    return result;
   });
 }
 
@@ -91,7 +85,10 @@ export function createFinalMiddlewareWithDefaultResult<
  *
  * @returns The provider and block tracker.
  */
-export function createProviderAndBlockTracker() {
+export function createProviderAndBlockTracker(): {
+  provider: InternalProvider;
+  blockTracker: PollingBlockTracker;
+} {
   const engine = new JsonRpcEngine();
   const provider = new InternalProvider({ engine });
 
@@ -112,13 +109,16 @@ export function createProviderAndBlockTracker() {
  * @returns The created engine.
  */
 export function createEngine(
-  middlewareUnderTest: JsonRpcMiddleware<any, any>,
-  ...otherMiddleware: JsonRpcMiddleware<any, any>[]
+  middlewareUnderTest: LegacyJsonRpcMiddleware<any, any>,
+  ...otherMiddleware: LegacyJsonRpcMiddleware<any, any>[]
 ): JsonRpcEngine {
   const engine = new JsonRpcEngine();
   engine.push(middlewareUnderTest);
   if (otherMiddleware.length === 0) {
-    otherMiddleware.push(createFinalMiddlewareWithDefaultResult());
+    otherMiddleware.push((_req, res, _next, end) => {
+      res.result = 'default result';
+      end();
+    });
   }
   for (const middleware of otherMiddleware) {
     engine.push(middleware);
