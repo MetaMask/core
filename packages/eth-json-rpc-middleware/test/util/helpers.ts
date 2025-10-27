@@ -3,10 +3,8 @@ import {
   providerFromEngine,
   type InternalProvider,
 } from '@metamask/eth-json-rpc-provider';
-import {
-  JsonRpcEngine,
-  type JsonRpcMiddleware,
-} from '@metamask/json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
@@ -69,22 +67,15 @@ export type ProviderRequestStub<
  * @template Result - The type that represents the result.
  * @returns The created middleware, as a mock function.
  */
-export function createFinalMiddlewareWithDefaultResult<
-  Params extends JsonRpcParams,
-  Result extends Json,
->(): JsonRpcMiddleware<Params, Result | 'default result'> {
-  return jest.fn((req, res, _next, end) => {
-    if (res.id === undefined) {
-      res.id = req.id;
+export function createFinalMiddlewareWithDefaultResult(): JsonRpcMiddleware<JsonRpcRequest> {
+  return jest.fn(async ({ next }) => {
+    // Not a Node.js callback
+    // eslint-disable-next-line n/callback-return
+    const result = await next();
+    if (result === undefined) {
+      return 'default result';
     }
-
-    res.jsonrpc ??= '2.0';
-
-    if (res.result === undefined) {
-      res.result = 'default result';
-    }
-
-    end();
+    return result;
   });
 }
 
