@@ -334,6 +334,7 @@ linkStyle default opacity:0.5
   shield_controller --> transaction_controller;
   signature_controller --> base_controller;
   signature_controller --> controller_utils;
+  signature_controller --> messenger;
   signature_controller --> accounts_controller;
   signature_controller --> approval_controller;
   signature_controller --> gator_permissions_controller;
