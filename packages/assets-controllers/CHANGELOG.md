@@ -17,8 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `AccountsController:selectedAccountChange` is no longer part of the list of allowed events
   - `NetworkController:getState` refetches balances
   - `TransactionController:unapprovedTransactionAdded` refetches balances
-  - `TransactionController:transactionConfirmed'` refetches balances
-  - `TransactionController:transactionConfirmed` only updates DeFi positions if the transaction is for the selected address
+  - `TransactionController:unapprovedTransactionAdded'` refetches balances for the transaction from address and network
+  - `TransactionController:transactionConfirmed` refetches balances for the transaction from address and network
 
 ## [84.0.0]
 
