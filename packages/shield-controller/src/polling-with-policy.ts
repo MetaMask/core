@@ -24,13 +24,12 @@ export class PollingWithCockatielPolicy {
   }
 
   async start<ReturnType>(requestId: string, requestFn: RequestFn<ReturnType>) {
-    this.abortPendingRequest(requestId);
-    const abortController = this.addNewRequestEntry(requestId);
+    const abortController = this.#addNewRequestEntry(requestId);
 
     try {
       const result = await this.#policy.execute(
-        async ({ signal: abortSignal }) => {
-          return requestFn(abortSignal);
+        async ({ signal }) => {
+          return requestFn(signal);
         },
         abortController.signal,
       );
@@ -40,18 +39,34 @@ export class PollingWithCockatielPolicy {
         throw new Error('Request cancelled');
       }
       throw error;
+    } finally {
+      // Only cleanup if this abort controller is still active. If a new request with the same
+      // requestId started while this one was running, it would have replaced with a new abort controller.
+      // We must not delete the new request's controller when this older request finishes.
+      if (abortController === this.#requestEntry.get(requestId)) {
+        this.#cleanup(requestId);
+      }
     }
-  }
-
-  addNewRequestEntry(requestId: string) {
-    const abortController = new AbortController();
-    this.#requestEntry.set(requestId, abortController);
-    return abortController;
   }
 
   abortPendingRequest(requestId: string) {
     const abortController = this.#requestEntry.get(requestId);
     abortController?.abort();
+    this.#cleanup(requestId);
+  }
+
+  #addNewRequestEntry(requestId: string) {
+    // abort the previous request if it exists
+    this.abortPendingRequest(requestId);
+
+    // create a new abort controller for the new request
+    const abortController = new AbortController();
+    this.#requestEntry.set(requestId, abortController);
+    return abortController;
+  }
+
+  #cleanup(requestId: string) {
+    this.#requestEntry.delete(requestId);
   }
 
   #shouldRetry(error: Error): boolean {
