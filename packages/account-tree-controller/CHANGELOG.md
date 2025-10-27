@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6380](https://github.com/MetaMask/core/pull/6380))
   - Previously, `AccountTreeController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Use `MultichainAccountService` to build multichain account (BIP-44) nodes ([#6646](https://github.com/MetaMask/core/pull/6646))
+  - Previously, the controller was using a similar matching logic for BIP-44 accounts, which was redundant with the logic from this service.
+  - Wallets and groups are now directly consumed from the service, making the service be the source of truth for accounts related to BIP-44.
 
 ## [1.6.0]
 
