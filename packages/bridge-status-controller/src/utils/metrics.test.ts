@@ -996,7 +996,7 @@ describe('metrics utils', () => {
         stx_enabled: false,
         token_address_source: 'eip155:1/slip44:60',
         token_address_destination:
-          'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+          'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'.toLowerCase(),
         custom_slippage: false,
         is_hardware_wallet: false,
         swap_type: MetricsSwapType.SINGLE,
@@ -1068,8 +1068,8 @@ describe('metrics utils', () => {
       const result = getEVMTxPropertiesFromTransactionMeta(
         noAddressesTransactionMeta,
       );
-      expect(result.token_address_source).toBe('');
-      expect(result.token_address_destination).toBe('');
+      expect(result.token_address_source).toBe('eip155:1/token:fsdxfs');
+      expect(result.token_address_destination).toBe('eip155:1/token:fsdxfs');
     });
 
     it('should handle crosschain swap type', () => {
