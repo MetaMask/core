@@ -148,6 +148,7 @@ linkStyle default opacity:0.5
   transaction_controller(["@metamask/transaction-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
   account_tree_controller --> base_controller;
+  account_tree_controller --> messenger;
   account_tree_controller --> accounts_controller;
   account_tree_controller --> keyring_controller;
   account_tree_controller --> multichain_account_service;
@@ -216,6 +217,7 @@ linkStyle default opacity:0.5
   earn_controller --> transaction_controller;
   eip_5792_middleware --> transaction_controller;
   eip_5792_middleware --> keyring_controller;
+  eip_7702_internal_rpc_middleware --> controller_utils;
   eip1193_permission_middleware --> chain_agnostic_permission;
   eip1193_permission_middleware --> controller_utils;
   eip1193_permission_middleware --> json_rpc_engine;

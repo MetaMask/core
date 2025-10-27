@@ -249,7 +249,10 @@ module.exports = defineConfig({
         // All non-root packages must have a valid README.md file.
         await expectReadme(workspace, workspaceBasename);
 
-        await expectCodeowner(workspace, workspaceBasename);
+        // TEMPORARY: Codeowner validation disabled during code freeze
+        // During the migration period, all packages are owned by core-platform
+        // through the global * rule in CODEOWNERS file
+        // await expectCodeowner(workspace, workspaceBasename);
       }
     }
 
@@ -861,61 +864,65 @@ async function expectReadme(workspace, workspaceBasename) {
   }
 }
 
+// TEMPORARY: cachedCodeownersFile commented out during code freeze
 // A promise resolving to the codeowners file contents
-let cachedCodeownersFile;
+// let cachedCodeownersFile;
 
-/**
- * Expect that the workspace has a codeowner set, and that the CHANGELOG.md and
- * package.json files are co-owned with the wallet framework team.
- *
- * @param {Workspace} workspace - The workspace to check.
- * @param {string} workspaceBasename - The name of the workspace.
- * @returns {Promise<void>}
- */
-async function expectCodeowner(workspace, workspaceBasename) {
-  if (!cachedCodeownersFile) {
-    cachedCodeownersFile = readFile(
-      resolve(__dirname, '.github', 'CODEOWNERS'),
-      'utf8',
-    );
-  }
-  const codeownersFile = await cachedCodeownersFile;
-  const codeownerRules = codeownersFile.split('\n');
-
-  const packageCodeownerRule = codeownerRules.find((rule) =>
-    // Matcher includes intentional trailing space to ensure there is a package-wide rule, not
-    // just a rule for specific files/directories in the package.
-    rule.startsWith(`/packages/${workspaceBasename} `),
-  );
-
-  if (!packageCodeownerRule) {
-    workspace.error('Missing CODEOWNER rule for package');
-    return;
-  }
-
-  if (!packageCodeownerRule.includes('@MetaMask/core-platform')) {
-    if (
-      !codeownerRules.some(
-        (rule) =>
-          rule.startsWith(`/packages/${workspaceBasename}/CHANGELOG.md`) &&
-          rule.includes('@MetaMask/core-platform'),
-      )
-    ) {
-      workspace.error(
-        'Missing CODEOWNER rule for CHANGELOG.md co-ownership with core platform team',
-      );
-    }
-
-    if (
-      !codeownerRules.some(
-        (rule) =>
-          rule.startsWith(`/packages/${workspaceBasename}/package.json`) &&
-          rule.includes('@MetaMask/core-platform'),
-      )
-    ) {
-      workspace.error(
-        'Missing CODEOWNER rule for package.json co-ownership with core platform team',
-      );
-    }
-  }
-}
+// TEMPORARY: expectCodeowner function commented out during code freeze
+// During the migration period, all packages are owned by core-platform
+// through the global * rule in CODEOWNERS file
+// /**
+//  * Expect that the workspace has a codeowner set, and that the CHANGELOG.md and
+//  * package.json files are co-owned with the wallet framework team.
+//  *
+//  * @param {Workspace} workspace - The workspace to check.
+//  * @param {string} workspaceBasename - The name of the workspace.
+//  * @returns {Promise<void>}
+//  */
+// async function expectCodeowner(workspace, workspaceBasename) {
+//   if (!cachedCodeownersFile) {
+//     cachedCodeownersFile = readFile(
+//       resolve(__dirname, '.github', 'CODEOWNERS'),
+//       'utf8',
+//     );
+//   }
+//   const codeownersFile = await cachedCodeownersFile;
+//   const codeownerRules = codeownersFile.split('\n');
+//
+//   const packageCodeownerRule = codeownerRules.find((rule) =>
+//     // Matcher includes intentional trailing space to ensure there is a package-wide rule, not
+//     // just a rule for specific files/directories in the package.
+//     rule.startsWith(`/packages/${workspaceBasename} `),
+//   );
+//
+//   if (!packageCodeownerRule) {
+//     workspace.error('Missing CODEOWNER rule for package');
+//     return;
+//   }
+//
+//   if (!packageCodeownerRule.includes('@MetaMask/core-platform')) {
+//     if (
+//       !codeownerRules.some(
+//         (rule) =>
+//           rule.startsWith(`/packages/${workspaceBasename}/CHANGELOG.md`) &&
+//           rule.includes('@MetaMask/core-platform'),
+//       )
+//     ) {
+//       workspace.error(
+//         'Missing CODEOWNER rule for CHANGELOG.md co-ownership with core platform team',
+//       );
+//     }
+//
+//     if (
+//       !codeownerRules.some(
+//         (rule) =>
+//           rule.startsWith(`/packages/${workspaceBasename}/package.json`) &&
+//           rule.includes('@MetaMask/core-platform'),
+//       )
+//     ) {
+//       workspace.error(
+//         'Missing CODEOWNER rule for package.json co-ownership with core platform team',
+//       );
+//     }
+//   }
+// }

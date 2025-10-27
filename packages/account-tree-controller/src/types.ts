@@ -12,10 +12,10 @@ import type {
 import {
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-  type RestrictedMessenger,
 } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { MultichainAccountServiceCreateMultichainAccountGroupAction } from '@metamask/multichain-account-service';
 import type {
   AuthenticationController,
@@ -174,12 +174,10 @@ export type AccountTreeControllerEvents =
   | AccountTreeControllerAccountTreeChangeEvent
   | AccountTreeControllerSelectedAccountGroupChangeEvent;
 
-export type AccountTreeControllerMessenger = RestrictedMessenger<
+export type AccountTreeControllerMessenger = Messenger<
   typeof controllerName,
   AccountTreeControllerActions | AllowedActions,
-  AccountTreeControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  AccountTreeControllerEvents | AllowedEvents
 >;
 
 export type AccountTreeControllerConfig = {
