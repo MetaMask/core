@@ -1404,4 +1404,38 @@ describe('SubscriptionController', () => {
       });
     });
   });
+
+  describe('cacheLastSelectedPaymentMethod', () => {
+    it('should cache last selected payment method successfully', async () => {
+      await withController(async ({ controller }) => {
+        controller.cacheLastSelectedPaymentMethod({
+          type: PAYMENT_TYPES.byCard,
+          plan: RECURRING_INTERVALS.month,
+          product: PRODUCT_TYPES.SHIELD,
+        });
+
+        expect(controller.state.lastSelectedPaymentMethod).toStrictEqual([
+          {
+            type: PAYMENT_TYPES.byCard,
+            plan: RECURRING_INTERVALS.month,
+            product: PRODUCT_TYPES.SHIELD,
+          },
+        ]);
+      });
+    });
+
+    it('should throw error when payment token address is not provided for crypto payment', async () => {
+      await withController(({ controller }) => {
+        expect(() =>
+          controller.cacheLastSelectedPaymentMethod({
+            type: PAYMENT_TYPES.byCrypto,
+            plan: RECURRING_INTERVALS.month,
+            product: PRODUCT_TYPES.SHIELD,
+          }),
+        ).toThrow(
+          SubscriptionControllerErrorMessage.PaymentTokenAddressRequiredForCrypto,
+        );
+      });
+    });
+  });
 });

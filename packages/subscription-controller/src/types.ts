@@ -307,3 +307,14 @@ export type UpdatePaymentMethodCryptoRequest = {
 export type BillingPortalResponse = {
   url: string;
 };
+
+/**
+ * The cached result of last selected payment methods for the user.
+ * These details are being cached to be used internally to track the last selected payment method for the user. (e.g. for crypto subscriptions)
+ */
+export type CachedLastSelectedPaymentMethods = {
+  type: PaymentType;
+  paymentTokenAddress?: `0x${string}`;
+  plan: RecurringInterval;
+  product: ProductType;
+};
