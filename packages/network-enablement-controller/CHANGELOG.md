@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6540](https://github.com/MetaMask/core/pull/6540))
+  - Previously, `NetworkEnablementController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6540](https://github.com/MetaMask/core/pull/6540))
+
 ## [2.1.2]
 
 ### Changed
