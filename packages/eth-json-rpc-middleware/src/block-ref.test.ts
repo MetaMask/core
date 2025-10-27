@@ -3,12 +3,12 @@ import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 
 import { createBlockRefMiddleware } from '.';
 import {
-  buildMockParamsWithBlockParamAt,
+  createMockParamsWithBlockParamAt,
   stubProviderRequests,
-  buildStubForBlockNumberRequest,
-  buildStubForGenericRequest,
-  buildFinalMiddlewareWithDefaultResult,
-  buildMockParamsWithoutBlockParamAt,
+  createStubForBlockNumberRequest,
+  createStubForGenericRequest,
+  createFinalMiddlewareWithDefaultResult,
+  createMockParamsWithoutBlockParamAt,
   expectProviderRequestNotToHaveBeenMade,
   createProviderAndBlockTracker,
 } from '../test/util/helpers';
@@ -20,7 +20,7 @@ const createEngine = (
   const engine = new JsonRpcEngine();
   engine.push(middlewareUnderTest);
   if (otherMiddleware.length === 0) {
-    otherMiddleware.push(buildFinalMiddlewareWithDefaultResult());
+    otherMiddleware.push(createFinalMiddlewareWithDefaultResult());
   }
   for (const middleware of otherMiddleware) {
     engine.push(middleware);
@@ -76,17 +76,17 @@ describe('createBlockRefMiddleware', () => {
               id: 1,
               jsonrpc: '2.0' as const,
               method,
-              params: buildMockParamsWithBlockParamAt(
+              params: createMockParamsWithBlockParamAt(
                 blockParamIndex,
                 'latest',
               ),
             };
             stubProviderRequests(provider, [
-              buildStubForBlockNumberRequest('0x100'),
-              buildStubForGenericRequest({
+              createStubForBlockNumberRequest('0x100'),
+              createStubForGenericRequest({
                 request: {
                   ...request,
-                  params: buildMockParamsWithBlockParamAt(
+                  params: createMockParamsWithBlockParamAt(
                     blockParamIndex,
                     '0x100',
                   ),
@@ -105,7 +105,7 @@ describe('createBlockRefMiddleware', () => {
           });
 
           it('does not proceed to the next middleware after making a request through the provider', async () => {
-            const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
+            const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
             const engine = createEngine(
               createBlockRefMiddleware({
@@ -119,17 +119,17 @@ describe('createBlockRefMiddleware', () => {
               id: 1,
               jsonrpc: '2.0' as const,
               method,
-              params: buildMockParamsWithBlockParamAt(
+              params: createMockParamsWithBlockParamAt(
                 blockParamIndex,
                 'latest',
               ),
             };
             stubProviderRequests(provider, [
-              buildStubForBlockNumberRequest('0x100'),
-              buildStubForGenericRequest({
+              createStubForBlockNumberRequest('0x100'),
+              createStubForGenericRequest({
                 request: {
                   ...request,
-                  params: buildMockParamsWithBlockParamAt(
+                  params: createMockParamsWithBlockParamAt(
                     blockParamIndex,
                     '0x100',
                   ),
@@ -157,14 +157,14 @@ describe('createBlockRefMiddleware', () => {
               jsonrpc: '2.0' as const,
               id: 1,
               method,
-              params: buildMockParamsWithoutBlockParamAt(blockParamIndex),
+              params: createMockParamsWithoutBlockParamAt(blockParamIndex),
             };
             stubProviderRequests(provider, [
-              buildStubForBlockNumberRequest('0x100'),
-              buildStubForGenericRequest({
+              createStubForBlockNumberRequest('0x100'),
+              createStubForGenericRequest({
                 request: {
                   ...request,
-                  params: buildMockParamsWithBlockParamAt(
+                  params: createMockParamsWithBlockParamAt(
                     blockParamIndex,
                     '0x100',
                   ),
@@ -183,7 +183,7 @@ describe('createBlockRefMiddleware', () => {
           });
 
           it('does not proceed to the next middleware after making a request through the provider', async () => {
-            const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
+            const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
             const engine = createEngine(
               createBlockRefMiddleware({
@@ -197,14 +197,14 @@ describe('createBlockRefMiddleware', () => {
               id: 1,
               jsonrpc: '2.0' as const,
               method,
-              params: buildMockParamsWithoutBlockParamAt(blockParamIndex),
+              params: createMockParamsWithoutBlockParamAt(blockParamIndex),
             };
             stubProviderRequests(provider, [
-              buildStubForBlockNumberRequest('0x100'),
-              buildStubForGenericRequest({
+              createStubForBlockNumberRequest('0x100'),
+              createStubForGenericRequest({
                 request: {
                   ...request,
-                  params: buildMockParamsWithBlockParamAt(
+                  params: createMockParamsWithBlockParamAt(
                     blockParamIndex,
                     '0x100',
                   ),
@@ -223,7 +223,7 @@ describe('createBlockRefMiddleware', () => {
           'if the block param is something other than "latest", like %o',
           (blockParam) => {
             it('does not make a direct request through the provider', async () => {
-              const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
+              const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
               const engine = createEngine(
                 createBlockRefMiddleware({
@@ -237,13 +237,13 @@ describe('createBlockRefMiddleware', () => {
                 id: 1,
                 jsonrpc: '2.0' as const,
                 method,
-                params: buildMockParamsWithBlockParamAt(
+                params: createMockParamsWithBlockParamAt(
                   blockParamIndex,
                   blockParam,
                 ),
               };
               const requestSpy = stubProviderRequests(provider, [
-                buildStubForBlockNumberRequest('0x100'),
+                createStubForBlockNumberRequest('0x100'),
               ]);
 
               await engine.handle(request);
@@ -252,7 +252,7 @@ describe('createBlockRefMiddleware', () => {
             });
 
             it('proceeds to the next middleware', async () => {
-              const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
+              const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
               const engine = createEngine(
                 createBlockRefMiddleware({
@@ -263,14 +263,14 @@ describe('createBlockRefMiddleware', () => {
               );
 
               stubProviderRequests(provider, [
-                buildStubForBlockNumberRequest('0x100'),
+                createStubForBlockNumberRequest('0x100'),
               ]);
 
               await engine.handle({
                 id: 1,
                 jsonrpc: '2.0' as const,
                 method,
-                params: buildMockParamsWithBlockParamAt(
+                params: createMockParamsWithBlockParamAt(
                   blockParamIndex,
                   blockParam,
                 ),
@@ -278,7 +278,7 @@ describe('createBlockRefMiddleware', () => {
 
               expect(finalMiddleware).toHaveBeenCalledWith(
                 expect.objectContaining({
-                  params: buildMockParamsWithBlockParamAt(
+                  params: createMockParamsWithBlockParamAt(
                     blockParamIndex,
                     blockParam,
                   ),
@@ -296,7 +296,7 @@ describe('createBlockRefMiddleware', () => {
 
   describe('when the RPC method does not take a block parameter', () => {
     it('does not make a direct request through the provider', async () => {
-      const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
+      const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
       const engine = createEngine(
         createBlockRefMiddleware({
@@ -313,7 +313,7 @@ describe('createBlockRefMiddleware', () => {
         params: ['some value', '0x200'],
       };
       const requestSpy = stubProviderRequests(provider, [
-        buildStubForBlockNumberRequest('0x100'),
+        createStubForBlockNumberRequest('0x100'),
       ]);
 
       await engine.handle(request);
@@ -322,7 +322,7 @@ describe('createBlockRefMiddleware', () => {
     });
 
     it('proceeds to the next middleware', async () => {
-      const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
+      const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
       const engine = createEngine(
         createBlockRefMiddleware({
@@ -332,7 +332,7 @@ describe('createBlockRefMiddleware', () => {
         finalMiddleware,
       );
 
-      stubProviderRequests(provider, [buildStubForBlockNumberRequest('0x100')]);
+      stubProviderRequests(provider, [createStubForBlockNumberRequest('0x100')]);
 
       await engine.handle({
         id: 1,

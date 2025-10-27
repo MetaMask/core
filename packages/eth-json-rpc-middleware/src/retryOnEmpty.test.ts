@@ -9,11 +9,11 @@ import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { createRetryOnEmptyMiddleware } from '.';
 import type { ProviderRequestStub } from '../test/util/helpers';
 import {
-  buildFinalMiddlewareWithDefaultResult,
-  buildMockParamsWithBlockParamAt,
-  buildMockParamsWithoutBlockParamAt,
-  buildSimpleFinalMiddleware,
-  buildStubForBlockNumberRequest,
+  createFinalMiddlewareWithDefaultResult,
+  createMockParamsWithBlockParamAt,
+  createMockParamsWithoutBlockParamAt,
+  createSimpleFinalMiddleware,
+  createStubForBlockNumberRequest,
   expectProviderRequestNotToHaveBeenMade,
   requestMatches,
   stubProviderRequests,
@@ -143,13 +143,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                 id: 1,
                 jsonrpc: '2.0',
                 method,
-                params: buildMockParamsWithBlockParamAt(
+                params: createMockParamsWithBlockParamAt(
                   blockParamIndex,
                   blockNumber,
                 ),
               };
               const requestSpy = stubProviderRequests(provider, [
-                buildStubForBlockNumberRequest(blockNumber),
+                createStubForBlockNumberRequest(blockNumber),
                 stubRequestThatFailsThenFinallySucceeds({
                   request,
                   numberOfTimesToFail: 9,
@@ -191,13 +191,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                 id: 1,
                 jsonrpc: '2.0',
                 method,
-                params: buildMockParamsWithBlockParamAt(
+                params: createMockParamsWithBlockParamAt(
                   blockParamIndex,
                   blockNumber,
                 ),
               };
               const requestSpy = stubProviderRequests(provider, [
-                buildStubForBlockNumberRequest(blockNumber),
+                createStubForBlockNumberRequest(blockNumber),
                 stubGenericRequest({
                   request,
                   result: () => {
@@ -228,7 +228,7 @@ describe('createRetryOnEmptyMiddleware', () => {
         });
 
         it('does not proceed to the next middleware after making a request through the provider', async () => {
-          const finalMiddleware = buildSimpleFinalMiddleware();
+          const finalMiddleware = createSimpleFinalMiddleware();
 
           await withTestSetup(
             {
@@ -248,13 +248,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                 id: 1,
                 jsonrpc: '2.0',
                 method,
-                params: buildMockParamsWithBlockParamAt(
+                params: createMockParamsWithBlockParamAt(
                   blockParamIndex,
                   blockNumber,
                 ),
               };
               stubProviderRequests(provider, [
-                buildStubForBlockNumberRequest(blockNumber),
+                createStubForBlockNumberRequest(blockNumber),
                 stubGenericRequest({
                   request,
                   result: async () => 'success',
@@ -286,13 +286,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                   id: 1,
                   jsonrpc: '2.0',
                   method,
-                  params: buildMockParamsWithBlockParamAt(
+                  params: createMockParamsWithBlockParamAt(
                     blockParamIndex,
                     '0x100',
                   ),
                 };
                 const requestSpy = stubProviderRequests(provider, [
-                  buildStubForBlockNumberRequest('0x0'),
+                  createStubForBlockNumberRequest('0x0'),
                 ]);
 
                 await engine.handle(request);
@@ -303,7 +303,7 @@ describe('createRetryOnEmptyMiddleware', () => {
           });
 
           it('proceeds to the next middleware', async () => {
-            const finalMiddleware = buildSimpleFinalMiddleware();
+            const finalMiddleware = createSimpleFinalMiddleware();
 
             await withTestSetup(
               {
@@ -322,13 +322,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                   id: 1,
                   jsonrpc: '2.0',
                   method,
-                  params: buildMockParamsWithBlockParamAt(
+                  params: createMockParamsWithBlockParamAt(
                     blockParamIndex,
                     '0x100',
                   ),
                 };
                 stubProviderRequests(provider, [
-                  buildStubForBlockNumberRequest('0x0'),
+                  createStubForBlockNumberRequest('0x0'),
                 ]);
 
                 await engine.handle(request);
@@ -359,13 +359,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                     id: 1,
                     jsonrpc: '2.0',
                     method,
-                    params: buildMockParamsWithBlockParamAt(
+                    params: createMockParamsWithBlockParamAt(
                       blockParamIndex,
                       blockParam,
                     ),
                   };
                   const requestSpy = stubProviderRequests(provider, [
-                    buildStubForBlockNumberRequest('0x0'),
+                    createStubForBlockNumberRequest('0x0'),
                   ]);
 
                   await engine.handle(request);
@@ -376,7 +376,7 @@ describe('createRetryOnEmptyMiddleware', () => {
             });
 
             it('proceeds to the next middleware', async () => {
-              const finalMiddleware = buildSimpleFinalMiddleware();
+              const finalMiddleware = createSimpleFinalMiddleware();
 
               await withTestSetup(
                 {
@@ -395,13 +395,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                     id: 1,
                     jsonrpc: '2.0',
                     method,
-                    params: buildMockParamsWithBlockParamAt(
+                    params: createMockParamsWithBlockParamAt(
                       blockParamIndex,
                       blockParam,
                     ),
                   };
                   stubProviderRequests(provider, [
-                    buildStubForBlockNumberRequest('0x0'),
+                    createStubForBlockNumberRequest('0x0'),
                   ]);
 
                   await engine.handle(request);
@@ -433,13 +433,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                     id: 1,
                     jsonrpc: '2.0',
                     method,
-                    params: buildMockParamsWithBlockParamAt(
+                    params: createMockParamsWithBlockParamAt(
                       blockParamIndex,
                       blockParam,
                     ),
                   };
                   const requestSpy = stubProviderRequests(provider, [
-                    buildStubForBlockNumberRequest(),
+                    createStubForBlockNumberRequest(),
                   ]);
 
                   await engine.handle(request);
@@ -450,7 +450,7 @@ describe('createRetryOnEmptyMiddleware', () => {
             });
 
             it('proceeds to the next middleware', async () => {
-              const finalMiddleware = buildSimpleFinalMiddleware();
+              const finalMiddleware = createSimpleFinalMiddleware();
 
               await withTestSetup(
                 {
@@ -469,13 +469,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                     id: 1,
                     jsonrpc: '2.0',
                     method,
-                    params: buildMockParamsWithBlockParamAt(
+                    params: createMockParamsWithBlockParamAt(
                       blockParamIndex,
                       blockParam,
                     ),
                   };
                   stubProviderRequests(provider, [
-                    buildStubForBlockNumberRequest(),
+                    createStubForBlockNumberRequest(),
                   ]);
 
                   await engine.handle(request);
@@ -505,10 +505,10 @@ describe('createRetryOnEmptyMiddleware', () => {
                   id: 1,
                   jsonrpc: '2.0',
                   method,
-                  params: buildMockParamsWithoutBlockParamAt(blockParamIndex),
+                  params: createMockParamsWithoutBlockParamAt(blockParamIndex),
                 };
                 const requestSpy = stubProviderRequests(provider, [
-                  buildStubForBlockNumberRequest(),
+                  createStubForBlockNumberRequest(),
                 ]);
 
                 await engine.handle(request);
@@ -519,7 +519,7 @@ describe('createRetryOnEmptyMiddleware', () => {
           });
 
           it('proceeds to the next middleware', async () => {
-            const finalMiddleware = buildSimpleFinalMiddleware();
+            const finalMiddleware = createSimpleFinalMiddleware();
 
             await withTestSetup(
               {
@@ -538,10 +538,10 @@ describe('createRetryOnEmptyMiddleware', () => {
                   id: 1,
                   jsonrpc: '2.0',
                   method,
-                  params: buildMockParamsWithoutBlockParamAt(blockParamIndex),
+                  params: createMockParamsWithoutBlockParamAt(blockParamIndex),
                 };
                 stubProviderRequests(provider, [
-                  buildStubForBlockNumberRequest(),
+                  createStubForBlockNumberRequest(),
                 ]);
 
                 await engine.handle(request);
@@ -576,7 +576,7 @@ describe('createRetryOnEmptyMiddleware', () => {
             method,
           };
           const requestSpy = stubProviderRequests(provider, [
-            buildStubForBlockNumberRequest(),
+            createStubForBlockNumberRequest(),
           ]);
 
           await engine.handle(request);
@@ -587,7 +587,7 @@ describe('createRetryOnEmptyMiddleware', () => {
     });
 
     it('proceeds to the next middleware', async () => {
-      const finalMiddleware = buildSimpleFinalMiddleware();
+      const finalMiddleware = createSimpleFinalMiddleware();
 
       await withTestSetup(
         {
@@ -635,10 +635,10 @@ describe('createRetryOnEmptyMiddleware', () => {
             id: 123,
             jsonrpc: '2.0',
             method: 'eth_call',
-            params: buildMockParamsWithBlockParamAt(1, '100'),
+            params: createMockParamsWithBlockParamAt(1, '100'),
           };
           stubProviderRequests(provider, [
-            buildStubForBlockNumberRequest(),
+            createStubForBlockNumberRequest(),
             {
               request,
               result: () => {
@@ -685,7 +685,7 @@ async function withTestSetup<T>(
 
   const {
     middlewareUnderTest,
-    otherMiddleware = [buildFinalMiddlewareWithDefaultResult()],
+    otherMiddleware = [createFinalMiddlewareWithDefaultResult()],
   } = configureMiddleware({ engine, provider, blockTracker });
 
   for (const middleware of [middlewareUnderTest, ...otherMiddleware]) {
@@ -699,7 +699,7 @@ async function withTestSetup<T>(
 }
 
 /**
- * Builds a canned result for a request made to `provider.request`. Intended
+ * Creates a canned result for a request made to `provider.request`. Intended
  * to be used in conjunction with `stubProviderRequests`. Although not strictly
  * necessary, it helps to assign a proper type to a request/result pair.
  *
@@ -713,7 +713,7 @@ function stubGenericRequest<T extends JsonRpcParams, U extends Json>(
 }
 
 /**
- * Builds a canned result for a request made to `provider.request` which
+ * Creates a canned result for a request made to `provider.request` which
  * will error for the first N instances and then succeed on the last instance.
  * Intended to be used in conjunction with `stubProviderRequests`.
  *

@@ -4,7 +4,7 @@ import type { JsonRpcRequest } from '@metamask/utils';
 
 import { createBlockRefRewriteMiddleware } from './block-ref-rewrite';
 import {
-  buildFinalMiddlewareWithDefaultResult,
+  createFinalMiddlewareWithDefaultResult,
   createRequest,
 } from '../test/util/helpers';
 
@@ -85,7 +85,7 @@ describe('createBlockRefRewriteMiddleware', () => {
       capturedRequest = { ...req };
       return next();
     });
-    engine.push(buildFinalMiddlewareWithDefaultResult());
+    engine.push(createFinalMiddlewareWithDefaultResult());
 
     const originalRequest = createRequest({
       method: 'eth_getBalance',
@@ -152,7 +152,7 @@ describe('createBlockRefRewriteMiddleware', () => {
       capturedRequest = { ...req };
       return next();
     });
-    engine.push(buildFinalMiddlewareWithDefaultResult());
+    engine.push(createFinalMiddlewareWithDefaultResult());
 
     const originalRequest = createRequest({
       method: 'eth_getBalance',

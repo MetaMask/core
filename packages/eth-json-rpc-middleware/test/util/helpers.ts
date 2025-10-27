@@ -66,7 +66,7 @@ export type ProviderRequestStub<
  * @template Result - The type that represents the result.
  * @returns The created middleware, as a mock function.
  */
-export function buildFinalMiddlewareWithDefaultResult<
+export function createFinalMiddlewareWithDefaultResult<
   Params extends JsonRpcParams,
   Result extends Json,
 >(): JsonRpcMiddleware<Params, Result | 'default result'> {
@@ -108,7 +108,7 @@ export function createProviderAndBlockTracker() {
  *
  * @returns The created middleware, as a mock function.
  */
-export function buildSimpleFinalMiddleware() {
+export function createSimpleFinalMiddleware() {
   return jest.fn((_req, _res, _next, end) => {
     end();
   });
@@ -118,14 +118,14 @@ export function buildSimpleFinalMiddleware() {
  * Some JSON-RPC endpoints take a "block" param (example: `eth_blockNumber`)
  * which can optionally be left out. Additionally, the endpoint may support some
  * number of arguments, although the "block" param will always be last, even if
- * it is optional. Given this, this function builds a `params` array for such an
+ * it is optional. Given this, this function creates a `params` array for such an
  * endpoint with the given "block" param added at the end.
  *
  * @param blockParamIndex - The index within the `params` array to add the "block" param.
  * @param blockParam - The desired "block" param to add.
  * @returns The mock params.
  */
-export function buildMockParamsWithBlockParamAt(
+export function createMockParamsWithBlockParamAt(
   blockParamIndex: number,
   blockParam: string,
 ): string[] {
@@ -143,7 +143,7 @@ export function buildMockParamsWithBlockParamAt(
  * Some JSON-RPC endpoints take a "block" param (example: `eth_blockNumber`)
  * which can optionally be left out. Additionally, the endpoint may support some
  * number of arguments, although the "block" param will always be last, even if
- * it is optional. Given this, this function builds a mock `params` array for
+ * it is optional. Given this, this function creates a mock `params` array for
  * such an endpoint, filling it with arbitrary values, but with the "block"
  * param missing.
  *
@@ -151,7 +151,7 @@ export function buildMockParamsWithBlockParamAt(
  * would* appear.
  * @returns The mock params.
  */
-export function buildMockParamsWithoutBlockParamAt(
+export function createMockParamsWithoutBlockParamAt(
   blockParamIndex: number,
 ): string[] {
   const params = [];
@@ -164,14 +164,14 @@ export function buildMockParamsWithoutBlockParamAt(
 }
 
 /**
- * Builds a canned result for a `eth_blockNumber` request made to
+ * Creates a canned result for a `eth_blockNumber` request made to
  * `provider.request` such that the result will return the given block
  * number. Intended to be used in conjunction with `stubProviderRequests`.
  *
  * @param blockNumber - The block number (default: '0x0').
  * @returns The request/result pair.
  */
-export function buildStubForBlockNumberRequest(
+export function createStubForBlockNumberRequest(
   blockNumber = '0x0',
 ): ProviderRequestStub<JsonRpcParams, Json> {
   return {
@@ -184,7 +184,7 @@ export function buildStubForBlockNumberRequest(
 }
 
 /**
- * Builds a canned result for a request made to `provider.request`. Intended
+ * Creates a canned result for a request made to `provider.request`. Intended
  * to be used in conjunction with `stubProviderRequests`. Although not strictly
  * necessary, it helps to assign a proper type to a request/result pair.
  *
@@ -193,7 +193,7 @@ export function buildStubForBlockNumberRequest(
  * @param requestStub - The request/result pair.
  * @returns The request/result pair, properly typed.
  */
-export function buildStubForGenericRequest<
+export function createStubForGenericRequest<
   Params extends JsonRpcParams,
   Result extends Json,
 >(requestStub: ProviderRequestStub<Params, Result>) {

@@ -3,7 +3,7 @@ import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 
 import { createBlockTrackerInspectorMiddleware } from './block-tracker-inspector';
 import {
-  buildFinalMiddlewareWithDefaultResult,
+  createFinalMiddlewareWithDefaultResult,
   createRequest,
 } from '../test/util/helpers';
 
@@ -107,7 +107,7 @@ describe('createBlockTrackerInspectorMiddleware', () => {
           blockTracker: mockBlockTracker,
         }),
       );
-      engine.push(buildFinalMiddlewareWithDefaultResult());
+      engine.push(createFinalMiddlewareWithDefaultResult());
 
       const request = createRequest({
         method: 'eth_chainId', // Not in futureBlockRefRequests
