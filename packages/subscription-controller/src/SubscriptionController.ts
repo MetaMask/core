@@ -23,7 +23,6 @@ import type {
   TokenPaymentInfo,
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodOpts,
-  SubscriptionPaymentMethod,
   CachedLastSelectedPaymentMethods,
 } from './types';
 import {
