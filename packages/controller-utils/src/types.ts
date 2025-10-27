@@ -129,7 +129,7 @@ export enum NetworksTicker {
   'monad-testnet' = 'MON',
   // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'base-mainnet' = 'ETH',
-  'arbitrum-one' = 'ETG',
+  'arbitrum-one' = 'ETH',
   'bsc-mainnet' = 'BNB',
   // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'optimism-mainnet' = 'ETH',
