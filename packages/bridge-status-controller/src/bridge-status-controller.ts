@@ -1511,10 +1511,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
     const { quoteResponse, signature, accountAddress } = params;
 
-    if (!this.#intentManager) {
-      throw new Error('Intent manager not initialized');
-    }
-
     // Build pre-confirmation properties for error tracking parity with submitTx
     const account = this.messagingSystem.call(
       'AccountsController:getAccountByAddress',
@@ -1581,9 +1577,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         quote: intentQuote,
         signature,
         userAddress: accountAddress,
-      } as IntentSubmissionParams;
-      const intentOrder =
-        await this.#intentManager.submitIntent(submissionParams);
+      };
+      const endpoint = `${this.#config.customBridgeApiBaseUrl}/submitIntent`;
+      const fetchResponse = await this.#fetchFn(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(submissionParams),
+      });
+      if (!fetchResponse.ok) {
+        throw new Error(`Failed to submit intent: ${fetchResponse.statusText}`);
+      }
+      const intentOrder = await fetchResponse.json();
 
       const chainId = quoteResponse.quote.srcChainId;
       const orderUid = intentOrder.id;
