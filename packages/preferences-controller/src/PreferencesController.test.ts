@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { getDefaultKeyringState } from '@metamask/keyring-controller';
 import {
   Messenger,

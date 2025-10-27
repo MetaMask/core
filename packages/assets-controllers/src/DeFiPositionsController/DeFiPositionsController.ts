@@ -6,7 +6,7 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import type { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
 import type { KeyringControllerLockEvent } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';

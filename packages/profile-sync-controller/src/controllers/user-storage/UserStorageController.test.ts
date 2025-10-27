@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type nock from 'nock';
 
 import { mockUserStorageMessenger } from './__fixtures__/mockMessenger';
