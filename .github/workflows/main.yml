@@ -26,6 +26,7 @@ jobs:
 
   analyse-code:
     name: Code scanner
+    if: github.event_name != 'merge_group'
     needs: check-workflows
     uses: ./.github/workflows/security-code-scanner.yml
     permissions:
