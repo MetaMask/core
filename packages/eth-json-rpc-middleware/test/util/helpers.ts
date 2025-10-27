@@ -1,9 +1,7 @@
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { InternalProvider } from '@metamask/eth-json-rpc-provider';
-import {
-  JsonRpcEngine,
-  JsonRpcMiddleware as LegacyJsonRpcMiddleware,
-} from '@metamask/json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
@@ -109,21 +107,17 @@ export function createProviderAndBlockTracker(): {
  * @returns The created engine.
  */
 export function createEngine(
-  middlewareUnderTest: LegacyJsonRpcMiddleware<any, any>,
-  ...otherMiddleware: LegacyJsonRpcMiddleware<any, any>[]
-): JsonRpcEngine {
-  const engine = new JsonRpcEngine();
-  engine.push(middlewareUnderTest);
-  if (otherMiddleware.length === 0) {
-    otherMiddleware.push((_req, res, _next, end) => {
-      res.result = 'default result';
-      end();
-    });
-  }
-  for (const middleware of otherMiddleware) {
-    engine.push(middleware);
-  }
-  return engine;
+  middlewareUnderTest: JsonRpcMiddleware<any, any>,
+  ...otherMiddleware: JsonRpcMiddleware<any, any>[]
+): JsonRpcEngineV2 {
+  return JsonRpcEngineV2.create({
+    middleware: [
+      middlewareUnderTest,
+      ...(otherMiddleware.length === 0
+        ? [createFinalMiddlewareWithDefaultResult()]
+        : otherMiddleware),
+    ],
+  });
 }
 
 /**
