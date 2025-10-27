@@ -405,9 +405,7 @@
     "@typescript-eslint/prefer-readonly": 1
   },
   "packages/rate-limit-controller/src/RateLimitController.ts": {
-    "jsdoc/check-tag-names": 4,
-    "jsdoc/require-returns": 1,
-    "jsdoc/tag-lines": 3
+    "jsdoc/check-tag-names": 4
   },
   "packages/remote-feature-flag-controller/src/client-config-api-service/client-config-api-service.test.ts": {
     "import-x/order": 1,
