@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Migrate `ComposableController` to new `Messenger` from `@metamask/messenger` ([#6710](https://github.com/MetaMask/core/pull/6710))
+  - Previously, the controller accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6710](https://github.com/MetaMask/core/pull/6710))
+
+### Fixed
+
+- Resolve incompatibility of `ChildControllerStateChangeEvents` type with `BaseController` (when used in the `Events` type argument of `ComposableControllerMessenger`) by removing unnecessary nested logic from definition ([#6904](https://github.com/MetaMask/core/pull/6904))
+  - Also update generic parameter names `ControllerName` and `ControllerState` to `ChildControllerName`, `ChildControllerState` for reduced ambiguity.
+
 ## [11.1.1]
 
 ### Changed

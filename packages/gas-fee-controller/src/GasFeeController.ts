@@ -19,7 +19,7 @@ import type {
   NetworkState,
   ProviderProxy,
 } from '@metamask/network-controller';
-import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import { StaticIntervalPollingControllerNext } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { v1 as random } from 'uuid';
 
@@ -285,7 +285,7 @@ type GasFeePollingInput = {
 /**
  * Controller that retrieves gas fee estimate data and polls for updated data on a set interval
  */
-export class GasFeeController extends StaticIntervalPollingController<GasFeePollingInput>()<
+export class GasFeeController extends StaticIntervalPollingControllerNext<GasFeePollingInput>()<
   typeof name,
   GasFeeState,
   GasFeeMessenger

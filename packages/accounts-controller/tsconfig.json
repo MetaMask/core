@@ -10,7 +10,8 @@
     {
       "path": "../keyring-controller"
     },
-    { "path": "../network-controller" }
+    { "path": "../network-controller" },
+    { "path": "../messenger" }
   ],
   "include": ["../../types", "./src", "src/tests"]
 }
