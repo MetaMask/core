@@ -9,7 +9,7 @@ import type {
   ControllerStateChangeEvent,
   ControllerGetStateAction,
   StateMetadata,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import {
   query,
   safelyExecuteWithTimeout,

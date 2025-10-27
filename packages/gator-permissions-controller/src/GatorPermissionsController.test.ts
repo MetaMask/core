@@ -1,5 +1,5 @@
 import type { AccountSigner } from '@metamask/7715-permission-types';
-import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   createTimestampTerms,
   createNativeTokenStreamingTerms,

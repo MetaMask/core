@@ -2,7 +2,7 @@ import type { AccountsControllerListMultichainAccountsAction } from '@metamask/a
 import {
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import type {
   BtcScope,
   CaipAssetType,

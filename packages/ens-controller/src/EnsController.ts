@@ -4,7 +4,7 @@ import {
   type StateMetadata,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import type { ChainId } from '@metamask/controller-utils';
 import {
   normalizeEnsName,

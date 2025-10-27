@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix TypeScript module resolution for `/next` subpath export with legacy resolution mode ([#6915](https://github.com/MetaMask/core/pull/6915))
-  - Added `next.d.ts` file to enable imports like `import { BaseController } from '@metamask/base-controller/next'` to work with both legacy TypeScript module resolution and Node16/NodeNext resolution modes
+  - Added `next.d.ts` file to enable imports like `import { BaseController } from '@metamask/base-controller'` to work with both legacy TypeScript module resolution and Node16/NodeNext resolution modes
   - Previously, this import pattern only worked with Node16/NodeNext resolution which uses the `exports` field in package.json
 
 ## [8.4.1]

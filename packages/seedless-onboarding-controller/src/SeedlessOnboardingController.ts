@@ -2,7 +2,7 @@ import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import {
   BaseController,
   type StateMetadata,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import type {
   KeyPair,
   RecoverEncryptionKeyResult,

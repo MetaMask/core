@@ -2,8 +2,8 @@ import type {
   StateMetadata,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-} from '@metamask/base-controller/next';
-import { BaseController } from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
 // Unique name for the controller

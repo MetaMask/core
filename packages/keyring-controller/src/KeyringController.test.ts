@@ -1,7 +1,7 @@
 import { Chain, Common, Hardfork } from '@ethereumjs/common';
 import type { TypedTxData } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
-import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { HdKeyring } from '@metamask/eth-hd-keyring';
 import {
   normalize,
