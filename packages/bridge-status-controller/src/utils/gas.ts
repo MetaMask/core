@@ -62,7 +62,7 @@ export const getTxGasEstimates = ({
 
 export const calculateGasFees = async (
   disable7702: boolean,
-  messagingSystem: BridgeStatusControllerMessenger,
+  messenger: BridgeStatusControllerMessenger,
   estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee,
   { chainId: _, gasLimit, ...trade }: TxData,
   networkClientId: string,
@@ -82,7 +82,7 @@ export const calculateGasFees = async (
     to: trade.to as `0x${string}`,
     value: trade.value as `0x${string}`,
   };
-  const { gasFeeEstimates } = messagingSystem.call('GasFeeController:getState');
+  const { gasFeeEstimates } = messenger.call('GasFeeController:getState');
   const { estimates: txGasFeeEstimates } = await estimateGasFeeFn({
     transactionParams,
     chainId,

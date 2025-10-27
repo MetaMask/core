@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Migrate to new `Messenger` class ([#6335](https://github.com/MetaMask/core/pull/6335))
+- **BREAKING:** Rename metadata property `anonymous` to `includeInDebugSnapshot` ([#6335](https://github.com/MetaMask/core/pull/6335))
+
 ## [2.0.2]
 
 ### Changed

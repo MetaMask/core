@@ -1,6 +1,8 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
-import type { StateMetadata } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import {
+  BaseController,
+  type StateMetadata,
+} from '@metamask/base-controller/next';
 import type {
   KeyPair,
   RecoverEncryptionKeyResult,
@@ -99,86 +101,86 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     vault: {
       includeInStateLogs: false,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: false,
     },
     socialBackupsMetadata: {
       includeInStateLogs: false,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: false,
     },
     nodeAuthTokens: {
       includeInStateLogs: (nodeAuthTokens) =>
         !isNullOrUndefined(nodeAuthTokens),
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: false,
     },
     authConnection: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: true,
+      includeInDebugSnapshot: true,
       usedInUi: true,
     },
     authConnectionId: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: true,
+      includeInDebugSnapshot: true,
       usedInUi: false,
     },
     groupedAuthConnectionId: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: true,
+      includeInDebugSnapshot: true,
       usedInUi: false,
     },
     userId: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: false,
     },
     socialLoginEmail: {
       includeInStateLogs: false,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: true,
     },
     vaultEncryptionKey: {
       includeInStateLogs: false,
       persist: false,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: false,
     },
     vaultEncryptionSalt: {
       includeInStateLogs: false,
       persist: false,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: false,
     },
     authPubKey: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: false,
     },
     passwordOutdatedCache: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: true,
+      includeInDebugSnapshot: true,
       usedInUi: false,
     },
     refreshToken: {
       includeInStateLogs: (refreshToken) => !isNullOrUndefined(refreshToken),
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: false,
     },
     revokeToken: {
       includeInStateLogs: (revokeToken) => !isNullOrUndefined(revokeToken),
       persist: false,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: false,
     },
     pendingToBeRevokedTokens: {
@@ -186,14 +188,14 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
         !isNullOrUndefined(pendingToBeRevokedTokens) &&
         pendingToBeRevokedTokens.length > 0,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: false,
     },
     // stays in vault
     accessToken: {
       includeInStateLogs: (accessToken) => !isNullOrUndefined(accessToken),
       persist: false,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: false,
     },
     // stays outside of vault as this token is accessed by the metadata service
@@ -202,25 +204,25 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       includeInStateLogs: (metadataAccessToken) =>
         !isNullOrUndefined(metadataAccessToken),
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: false,
     },
     encryptedSeedlessEncryptionKey: {
       includeInStateLogs: false,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: false,
     },
     encryptedKeyringEncryptionKey: {
       includeInStateLogs: false,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: false,
     },
     isSeedlessOnboardingUserAuthenticated: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: true,
+      includeInDebugSnapshot: true,
       usedInUi: false,
     },
   };
