@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Modify AccountTrackerController event subscriptions ([#6938](https://github.com/MetaMask/core/pull/6938))
+
+  - `AccountsController:selectedAccountChange` is no longer part of the list of allowed events
+  - `NetworkController:getState` refetches balances
+  - `TransactionController:unapprovedTransactionAdded` refetches balances
+  - `TransactionController:transactionConfirmed'` refetches balances
+  - `TransactionController:transactionConfirmed` only updates DeFi positions if the transaction is for the selected address
+
 - Bump `@metamask/polling-controller` from `^14.0.1` to `^14.0.2` ([#6940](https://github.com/MetaMask/core/pull/6940))
 
 ## [83.1.0]

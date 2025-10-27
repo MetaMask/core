@@ -585,10 +585,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     selectedAccount: ChecksumAddress;
     allAccounts: InternalAccount[];
   }) {
-    if (!this.#fetchingEnabled()) {
-      return;
-    }
-
     const releaseLock = await this.#refreshMutex.acquire();
     try {
       const chainIds = networkClientIds.map((networkClientId) => {
@@ -597,6 +593,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       });
 
       this.syncAccounts(chainIds);
+
+      if (!this.#fetchingEnabled()) {
+        return;
+      }
 
       // Use balance fetchers with fallback strategy
       const aggregated: ProcessedBalance[] = [];
