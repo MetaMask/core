@@ -6,6 +6,7 @@ on:
       - synchronize
       - labeled
       - unlabeled
+  merge_group:
 
 jobs:
   ensure-blocking-pr-labels-absent:
