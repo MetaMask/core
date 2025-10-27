@@ -14,9 +14,9 @@ import {
   toMultichainAccountWalletId,
   type AccountGroupId,
 } from '@metamask/account-api';
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
-import type { EntropySourceId } from '@metamask/keyring-api';
 import type { AccountId } from '@metamask/accounts-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type { EntropySourceId } from '@metamask/keyring-api';
 import {
   BtcAccountType,
   EthAccountType,
