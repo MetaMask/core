@@ -349,6 +349,7 @@ linkStyle default opacity:0.5
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
   token_search_discovery_controller --> base_controller;
+  token_search_discovery_controller --> messenger;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
   transaction_controller --> messenger;
