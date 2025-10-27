@@ -1,6 +1,5 @@
 import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { JsonRpcSuccess } from '@metamask/utils';
 
 import { createBlockTrackerInspectorMiddleware } from './block-tracker-inspector';
 import {
@@ -226,7 +225,9 @@ describe('createBlockTrackerInspectorMiddleware', () => {
 
     it('handles null current block gracefully', async () => {
       const mockBlockTracker = buildMockBlockTracker();
-      const getCurrentBlockSpy = jest.spyOn(mockBlockTracker, 'getCurrentBlock').mockReturnValue(null);
+      const getCurrentBlockSpy = jest
+        .spyOn(mockBlockTracker, 'getCurrentBlock')
+        .mockReturnValue(null);
       const checkForLatestBlockSpy = jest.spyOn(
         mockBlockTracker,
         'checkForLatestBlock',
@@ -263,7 +264,10 @@ describe('createBlockTrackerInspectorMiddleware', () => {
   describe('edge cases', () => {
     it('skips processing for error responses', async () => {
       const mockBlockTracker = buildMockBlockTracker();
-      const getCurrentBlockSpy = jest.spyOn(mockBlockTracker, 'getCurrentBlock');
+      const getCurrentBlockSpy = jest.spyOn(
+        mockBlockTracker,
+        'getCurrentBlock',
+      );
       const checkForLatestBlockSpy = jest.spyOn(
         mockBlockTracker,
         'checkForLatestBlock',
@@ -301,38 +305,43 @@ describe('createBlockTrackerInspectorMiddleware', () => {
     ])(
       'skips processing for result values: $description',
       async ({ result }) => {
-      const mockBlockTracker = buildMockBlockTracker();
-      const getCurrentBlockSpy = jest.spyOn(mockBlockTracker, 'getCurrentBlock').mockReturnValue('0x100');
-      const checkForLatestBlockSpy = jest.spyOn(
-        mockBlockTracker,
-        'checkForLatestBlock',
-      );
-      const engine = new JsonRpcEngine();
-      engine.push(
-        createBlockTrackerInspectorMiddleware({
-          blockTracker: mockBlockTracker,
-        }),
-      );
+        const mockBlockTracker = buildMockBlockTracker();
+        const getCurrentBlockSpy = jest
+          .spyOn(mockBlockTracker, 'getCurrentBlock')
+          .mockReturnValue('0x100');
+        const checkForLatestBlockSpy = jest.spyOn(
+          mockBlockTracker,
+          'checkForLatestBlock',
+        );
+        const engine = new JsonRpcEngine();
+        engine.push(
+          createBlockTrackerInspectorMiddleware({
+            blockTracker: mockBlockTracker,
+          }),
+        );
 
-      engine.push((_req, res, _next, end) => {
-        res.result = result;
-        return end();
-      });
+        engine.push((_req, res, _next, end) => {
+          res.result = result;
+          return end();
+        });
 
-      const request = createRequest({
-        method: 'eth_getTransactionByHash',
-        params: ['0xhash'],
-      });
+        const request = createRequest({
+          method: 'eth_getTransactionByHash',
+          params: ['0xhash'],
+        });
 
-      await engine.handle(request);
+        await engine.handle(request);
 
-      expect(getCurrentBlockSpy).not.toHaveBeenCalled();
-      expect(checkForLatestBlockSpy).not.toHaveBeenCalled();
-    });
+        expect(getCurrentBlockSpy).not.toHaveBeenCalled();
+        expect(checkForLatestBlockSpy).not.toHaveBeenCalled();
+      },
+    );
 
     it('skips processing for non-string block numbers', async () => {
       const mockBlockTracker = buildMockBlockTracker();
-      const getCurrentBlockSpy = jest.spyOn(mockBlockTracker, 'getCurrentBlock').mockReturnValue('0x100');
+      const getCurrentBlockSpy = jest
+        .spyOn(mockBlockTracker, 'getCurrentBlock')
+        .mockReturnValue('0x100');
       const checkForLatestBlockSpy = jest.spyOn(
         mockBlockTracker,
         'checkForLatestBlock',

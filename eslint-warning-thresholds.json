@@ -163,28 +163,24 @@
   "packages/eth-block-tracker/tests/withBlockTracker.ts": {
     "@typescript-eslint/no-explicit-any": 1
   },
-  "packages/eth-json-rpc-middleware/src/block-cache.test.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
   "packages/eth-json-rpc-middleware/src/block-cache.ts": {
     "@typescript-eslint/no-explicit-any": 1,
     "jsdoc/require-jsdoc": 1,
     "no-restricted-syntax": 1
   },
   "packages/eth-json-rpc-middleware/src/block-ref-rewrite.ts": {
-    "jsdoc/require-jsdoc": 1
+    "jsdoc/match-description": 1
   },
   "packages/eth-json-rpc-middleware/src/block-ref.test.ts": {
     "@typescript-eslint/no-explicit-any": 4,
-    "jest/expect-expect": 2,
-    "jsdoc/match-description": 1
+    "jest/expect-expect": 2
   },
   "packages/eth-json-rpc-middleware/src/block-ref.ts": {
     "jsdoc/require-jsdoc": 1
   },
   "packages/eth-json-rpc-middleware/src/block-tracker-inspector.ts": {
     "jsdoc/match-description": 1,
-    "jsdoc/require-jsdoc": 2
+    "jsdoc/require-jsdoc": 1
   },
   "packages/eth-json-rpc-middleware/src/fetch.test.ts": {
     "jsdoc/match-description": 1
@@ -192,20 +188,11 @@
   "packages/eth-json-rpc-middleware/src/fetch.ts": {
     "jsdoc/match-description": 1
   },
-  "packages/eth-json-rpc-middleware/src/inflight-cache.test.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
   "packages/eth-json-rpc-middleware/src/inflight-cache.ts": {
     "@typescript-eslint/no-explicit-any": 1,
     "jsdoc/require-jsdoc": 4
   },
-  "packages/eth-json-rpc-middleware/src/methods/wallet-request-execution-permissions.test.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
   "packages/eth-json-rpc-middleware/src/methods/wallet-request-execution-permissions.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/methods/wallet-revoke-execution-permission.test.ts": {
     "jsdoc/require-jsdoc": 1
   },
   "packages/eth-json-rpc-middleware/src/methods/wallet-revoke-execution-permission.ts": {
@@ -231,9 +218,6 @@
   "packages/eth-json-rpc-middleware/src/utils/error.ts": {
     "jsdoc/require-jsdoc": 1
   },
-  "packages/eth-json-rpc-middleware/src/utils/normalize.test.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
   "packages/eth-json-rpc-middleware/src/utils/normalize.ts": {
     "jsdoc/match-description": 3
   },
@@ -242,9 +226,6 @@
   },
   "packages/eth-json-rpc-middleware/src/utils/validation.ts": {
     "jsdoc/require-jsdoc": 4
-  },
-  "packages/eth-json-rpc-middleware/src/wallet.test.ts": {
-    "jsdoc/require-jsdoc": 1
   },
   "packages/eth-json-rpc-middleware/src/wallet.ts": {
     "@typescript-eslint/no-explicit-any": 2,
@@ -261,7 +242,7 @@
   },
   "packages/eth-json-rpc-middleware/test/util/helpers.ts": {
     "@typescript-eslint/no-explicit-any": 1,
-    "jsdoc/match-description": 9
+    "jsdoc/match-description": 10
   },
   "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.test.ts": {
     "import-x/namespace": 1

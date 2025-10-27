@@ -3,7 +3,10 @@ import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { JsonRpcRequest } from '@metamask/utils';
 
 import { createBlockRefRewriteMiddleware } from './block-ref-rewrite';
-import { buildFinalMiddlewareWithDefaultResult, createRequest } from '../test/util/helpers';
+import {
+  buildFinalMiddlewareWithDefaultResult,
+  createRequest,
+} from '../test/util/helpers';
 
 const buildMockBlockTracker = (): PollingBlockTracker => {
   return {
@@ -15,7 +18,9 @@ describe('createBlockRefRewriteMiddleware', () => {
   it('throws an error when blockTracker is not provided', () => {
     expect(() => {
       createBlockRefRewriteMiddleware();
-    }).toThrow('BlockRefRewriteMiddleware - mandatory "blockTracker" option is missing.');
+    }).toThrow(
+      'BlockRefRewriteMiddleware - mandatory "blockTracker" option is missing.',
+    );
   });
 
   it('skips processing when method does not have a block reference parameter', async () => {
@@ -23,10 +28,12 @@ describe('createBlockRefRewriteMiddleware', () => {
     const getLatestBlockSpy = jest.spyOn(mockBlockTracker, 'getLatestBlock');
 
     const engine = new JsonRpcEngine();
-    engine.push(createBlockRefRewriteMiddleware({
-      blockTracker: mockBlockTracker,
-    }));
-    
+    engine.push(
+      createBlockRefRewriteMiddleware({
+        blockTracker: mockBlockTracker,
+      }),
+    );
+
     const originalRequest = createRequest({
       method: 'eth_chainId',
     });
@@ -42,10 +49,12 @@ describe('createBlockRefRewriteMiddleware', () => {
     const getLatestBlockSpy = jest.spyOn(mockBlockTracker, 'getLatestBlock');
 
     const engine = new JsonRpcEngine();
-    engine.push(createBlockRefRewriteMiddleware({
-      blockTracker: mockBlockTracker,
-    }));
-    
+    engine.push(
+      createBlockRefRewriteMiddleware({
+        blockTracker: mockBlockTracker,
+      }),
+    );
+
     const originalRequest = createRequest({
       method: 'eth_getBalance',
       params: ['0x1234567890abcdef', '0x99'],
@@ -59,13 +68,17 @@ describe('createBlockRefRewriteMiddleware', () => {
 
   it('rewrites "latest" block reference to actual block number for methods with a block reference parameter', async () => {
     const mockBlockTracker = buildMockBlockTracker();
-    jest.spyOn(mockBlockTracker, 'getLatestBlock').mockResolvedValue('0xabc123');
+    jest
+      .spyOn(mockBlockTracker, 'getLatestBlock')
+      .mockResolvedValue('0xabc123');
 
     const engine = new JsonRpcEngine();
-    engine.push(createBlockRefRewriteMiddleware({
-      blockTracker: mockBlockTracker,
-    }));
-    
+    engine.push(
+      createBlockRefRewriteMiddleware({
+        blockTracker: mockBlockTracker,
+      }),
+    );
+
     // Mock a middleware that captures the request after modification
     let capturedRequest: JsonRpcRequest | undefined;
     engine.push(async (req, _res, next) => {
@@ -73,7 +86,7 @@ describe('createBlockRefRewriteMiddleware', () => {
       return next();
     });
     engine.push(buildFinalMiddlewareWithDefaultResult());
-    
+
     const originalRequest = createRequest({
       method: 'eth_getBalance',
       params: ['0x1234567890abcdef', 'latest'],
@@ -82,24 +95,31 @@ describe('createBlockRefRewriteMiddleware', () => {
     await engine.handle(originalRequest);
 
     expect(mockBlockTracker.getLatestBlock).toHaveBeenCalledTimes(1);
-    expect(capturedRequest?.params).toStrictEqual(['0x1234567890abcdef', '0xabc123']);
+    expect(capturedRequest?.params).toStrictEqual([
+      '0x1234567890abcdef',
+      '0xabc123',
+    ]);
   });
 
   it('treats omitted block reference as "latest" and rewrites it', async () => {
     const mockBlockTracker = buildMockBlockTracker();
-    jest.spyOn(mockBlockTracker, 'getLatestBlock').mockResolvedValue('0x111222');
+    jest
+      .spyOn(mockBlockTracker, 'getLatestBlock')
+      .mockResolvedValue('0x111222');
 
     const engine = new JsonRpcEngine();
-    engine.push(createBlockRefRewriteMiddleware({
-      blockTracker: mockBlockTracker,
-    }));
-    
+    engine.push(
+      createBlockRefRewriteMiddleware({
+        blockTracker: mockBlockTracker,
+      }),
+    );
+
     let capturedRequest: JsonRpcRequest | undefined;
     engine.push(async (req, _res, next) => {
       capturedRequest = { ...req };
       return next();
     });
-    
+
     const originalRequest = createRequest({
       method: 'eth_getBalance',
       params: ['0x1234567890abcdef'], // No block reference provided (should default to "latest")
@@ -108,17 +128,24 @@ describe('createBlockRefRewriteMiddleware', () => {
     await engine.handle(originalRequest);
 
     expect(mockBlockTracker.getLatestBlock).toHaveBeenCalled();
-    expect(capturedRequest?.params).toStrictEqual(['0x1234567890abcdef', '0x111222']);
+    expect(capturedRequest?.params).toStrictEqual([
+      '0x1234567890abcdef',
+      '0x111222',
+    ]);
   });
 
   it('handles non-array params gracefully', async () => {
     const mockBlockTracker = buildMockBlockTracker();
-    jest.spyOn(mockBlockTracker, 'getLatestBlock').mockResolvedValue('0xffffff');
+    jest
+      .spyOn(mockBlockTracker, 'getLatestBlock')
+      .mockResolvedValue('0xffffff');
 
     const engine = new JsonRpcEngine();
-    engine.push(createBlockRefRewriteMiddleware({
-      blockTracker: mockBlockTracker,
-    }));
+    engine.push(
+      createBlockRefRewriteMiddleware({
+        blockTracker: mockBlockTracker,
+      }),
+    );
 
     let capturedRequest: JsonRpcRequest | undefined;
     engine.push(async (req, _res, next) => {
@@ -126,7 +153,7 @@ describe('createBlockRefRewriteMiddleware', () => {
       return next();
     });
     engine.push(buildFinalMiddlewareWithDefaultResult());
-    
+
     const originalRequest = createRequest({
       method: 'eth_getBalance',
       // @ts-expect-error - Destructive testing

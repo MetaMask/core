@@ -20,17 +20,17 @@ const testTxHash =
 const testMsgSig =
   '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c';
 
-function createTestSetup() {
+const createProviderAndEngine = () => {
   const engine = new JsonRpcEngine();
   const provider = providerFromEngine(engine);
 
   return { engine, provider };
-}
+};
 
 describe('wallet', () => {
   describe('accounts', () => {
     it('returns null for coinbase when no accounts', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => [];
       engine.push(createWalletMiddleware({ getAccounts }));
       const coinbaseResult = await pify(engine.handle).call(engine, {
@@ -40,7 +40,7 @@ describe('wallet', () => {
     });
 
     it('should return the correct value from getAccounts', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       engine.push(createWalletMiddleware({ getAccounts }));
       const coinbaseResult = await pify(engine.handle).call(engine, {
@@ -50,7 +50,7 @@ describe('wallet', () => {
     });
 
     it('should return the correct value from getAccounts with multiple accounts', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       engine.push(createWalletMiddleware({ getAccounts }));
       const coinbaseResult = await pify(engine.handle).call(engine, {
@@ -62,7 +62,7 @@ describe('wallet', () => {
 
   describe('transactions', () => {
     it('processes transaction with valid address', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processTransaction = async (_txParams: TransactionParams) => {
@@ -84,7 +84,7 @@ describe('wallet', () => {
     });
 
     it('throws when provided an invalid address', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processTransaction = async (_txParams: TransactionParams) => {
@@ -103,7 +103,7 @@ describe('wallet', () => {
     });
 
     it('throws unauthorized for unknown addresses', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processTransaction = async (_txParams: TransactionParams) => {
@@ -123,7 +123,7 @@ describe('wallet', () => {
     });
 
     it('should not override other request params', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processTransaction = async (_txParams: TransactionParams) => {
@@ -145,7 +145,7 @@ describe('wallet', () => {
 
   describe('signTransaction', () => {
     it('should process sign transaction when provided a valid address', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processSignTransaction = async (_txParams: TransactionParams) => {
@@ -170,7 +170,7 @@ describe('wallet', () => {
     });
 
     it('should not override other request params', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processSignTransaction = async (_txParams: TransactionParams) => {
@@ -193,7 +193,7 @@ describe('wallet', () => {
     });
 
     it('should throw when provided invalid address', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processSignTransaction = async (_txParams: TransactionParams) => {
@@ -215,7 +215,7 @@ describe('wallet', () => {
     });
 
     it('should throw when provided unknown address', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processSignTransaction = async (_txParams: TransactionParams) => {
@@ -240,7 +240,7 @@ describe('wallet', () => {
 
   describe('signTypedData', () => {
     it('should sign with a valid address', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageV1Params[] = [];
       const processTypedMessage = async (msgParams: TypedMessageV1Params) => {
@@ -276,7 +276,7 @@ describe('wallet', () => {
     });
 
     it('should throw with invalid address', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageV1Params[] = [];
       const processTypedMessage = async (msgParams: TypedMessageV1Params) => {
@@ -303,7 +303,7 @@ describe('wallet', () => {
     });
 
     it('should throw with unknown address', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageV1Params[] = [];
       const processTypedMessage = async (msgParams: TypedMessageV1Params) => {
@@ -333,7 +333,7 @@ describe('wallet', () => {
 
   describe('signTypedDataV3', () => {
     it('should sign data and normalizes verifyingContract', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV3 = async (msgParams: TypedMessageParams) => {
@@ -393,7 +393,7 @@ describe('wallet', () => {
     });
 
     it('should throw if verifyingContract is invalid hex value', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV3 = async (msgParams: TypedMessageParams) => {
@@ -434,7 +434,7 @@ describe('wallet', () => {
     });
 
     it('should not throw if verifyingContract is undefined', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV3 = async (msgParams: TypedMessageParams) => {
@@ -513,7 +513,7 @@ describe('wallet', () => {
     });
 
     it('should not throw if request is permit with valid hex value for verifyingContract address', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
@@ -542,7 +542,7 @@ describe('wallet', () => {
     });
 
     it('should throw if request is permit with invalid hex value for verifyingContract address', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
@@ -570,7 +570,7 @@ describe('wallet', () => {
     });
 
     it('should not throw if request is permit with undefined value for verifyingContract address', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
@@ -599,7 +599,7 @@ describe('wallet', () => {
     });
 
     it('should not throw if request is permit with verifyingContract address equal to "cosmos"', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
@@ -628,7 +628,7 @@ describe('wallet', () => {
     });
 
     it('should throw if message does not have types defined', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
@@ -655,7 +655,7 @@ describe('wallet', () => {
     });
 
     it('should throw if type of primaryType is not defined', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
@@ -687,7 +687,7 @@ describe('wallet', () => {
 
   describe('sign', () => {
     it('should sign with a valid address', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: MessageParams[] = [];
       const processPersonalMessage = async (msgParams: MessageParams) => {
@@ -718,7 +718,7 @@ describe('wallet', () => {
     });
 
     it('should error when provided invalid address', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: MessageParams[] = [];
       const processPersonalMessage = async (msgParams: MessageParams) => {
@@ -742,7 +742,7 @@ describe('wallet', () => {
     });
 
     it('should error when provided unknown address', async () => {
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: MessageParams[] = [];
       const processPersonalMessage = async (msgParams: MessageParams) => {
@@ -779,7 +779,7 @@ describe('wallet', () => {
         addressHex: '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',
       };
 
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       engine.push(createWalletMiddleware({ getAccounts }));
 
       const payload = {
@@ -805,7 +805,7 @@ describe('wallet', () => {
         addressHex: '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',
       };
 
-      const { engine } = createTestSetup();
+      const { engine } = createProviderAndEngine();
       engine.push(createWalletMiddleware({ getAccounts }));
 
       const payload = {

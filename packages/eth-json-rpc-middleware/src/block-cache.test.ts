@@ -1,13 +1,13 @@
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { Json, JsonRpcSuccess } from '@metamask/utils';
 
+import { createBlockCacheMiddleware } from '.';
 import createHitTrackerMiddleware from '../test/util/createHitTrackerMiddleware';
 import {
   createProviderAndBlockTracker,
   createRequest,
   stubProviderRequests,
 } from '../test/util/helpers';
-import { createBlockCacheMiddleware } from '.';
 
 describe('block cache middleware', () => {
   let provider: ReturnType<typeof createProviderAndBlockTracker>['provider'];

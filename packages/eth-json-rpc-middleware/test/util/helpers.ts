@@ -1,6 +1,12 @@
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
-import { providerFromEngine, type SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import { JsonRpcEngine, type JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import {
+  providerFromEngine,
+  type SafeEventEmitterProvider,
+} from '@metamask/eth-json-rpc-provider';
+import {
+  JsonRpcEngine,
+  type JsonRpcMiddleware,
+} from '@metamask/json-rpc-engine';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
@@ -12,6 +18,7 @@ export const createRequest = <Request extends Partial<JsonRpcRequest>>(
     jsonrpc: '2.0',
     id: request.id ?? '1',
     method: request.method ?? 'test_request',
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     params: request.params === undefined ? [] : request.params,
   };
 };
@@ -94,7 +101,6 @@ export function createProviderAndBlockTracker() {
 
   return { provider, blockTracker };
 }
-
 
 /**
  * Creates a middleware function that just ends the request, but is also a Jest
