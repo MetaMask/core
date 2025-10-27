@@ -320,6 +320,7 @@ linkStyle default opacity:0.5
   rate_limit_controller --> messenger;
   remote_feature_flag_controller --> base_controller;
   remote_feature_flag_controller --> controller_utils;
+  remote_feature_flag_controller --> messenger;
   sample_controllers --> base_controller;
   sample_controllers --> controller_utils;
   sample_controllers --> network_controller;
