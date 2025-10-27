@@ -6,7 +6,7 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { KeyringControllerLockEvent } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';

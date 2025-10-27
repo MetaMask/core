@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+
 ### Changed
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6537](https://github.com/MetaMask/core/pull/6537))
   - Previously, `PermissionController` and `SubjectMetadataController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 - **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6537](https://github.com/MetaMask/core/pull/6537))
+- **BREAKING:** Bump `@metamask/approval-controller` from `^7.0.0` to `^8.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 
 ## [11.1.1]
 
@@ -355,7 +359,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.1.1...@metamask/permission-controller@12.0.0
 [11.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.1.0...@metamask/permission-controller@11.1.1
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.6...@metamask/permission-controller@11.1.0
 [11.0.6]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.5...@metamask/permission-controller@11.0.6

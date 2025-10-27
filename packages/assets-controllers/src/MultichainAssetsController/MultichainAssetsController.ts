@@ -9,7 +9,7 @@ import {
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
   type StateMetadata,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
   AccountAssetListUpdatedEventPayload,
