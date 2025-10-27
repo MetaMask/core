@@ -1705,6 +1705,28 @@ describe('AccountTreeController', () => {
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
       } as AccountTreeControllerState);
     });
+
+    it('skips BIP-44 account', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_SIMPLE_ACCOUNT_1],
+        keyrings: [MOCK_SIMPLE_KEYRING],
+      });
+
+      controller.init();
+
+      // Adding a BIP-44 accounts should not trigger any change.
+      const mockAccountTreeChange = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountTreeChange',
+        mockAccountTreeChange,
+      );
+
+      // BIP-44 accounts are skipped, we only listen to the `MultichainAccountService` change
+      // for those accounts!
+      messenger.publish('AccountsController:accountAdded', MOCK_HD_ACCOUNT_1);
+
+      expect(mockAccountTreeChange).not.toHaveBeenCalled();
+    });
   });
 
   describe('on MultichainAccountService:multichainAccountGroupCreated', () => {
