@@ -76,7 +76,6 @@ export const fetchServerEvents = async (
   } finally {
     try {
       await reader?.cancel();
-      reader?.releaseLock();
     } catch (error) {
       console.error('Error cleaning up stream reader', error);
     }
