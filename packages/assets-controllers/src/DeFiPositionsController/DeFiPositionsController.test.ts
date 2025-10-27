@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import { BtcAccountType, EthAccountType } from '@metamask/keyring-api';
 import {
   MOCK_ANY_NAMESPACE,
