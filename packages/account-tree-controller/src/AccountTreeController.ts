@@ -1020,31 +1020,32 @@ export class AccountTreeController extends BaseController<
     }
 
     const groupId = result.group.id;
-    let group = wallet.groups[groupId];
-    const { type, id } = account;
-    const sortOrder = ACCOUNT_TYPE_TO_SORT_ORDER[type];
+    assert(
+      result.group.type === AccountGroupType.SingleAccount,
+      `Single account insertion should always result in a '${AccountGroupType.SingleAccount}' group type`,
+    );
+    assert(
+      !wallet.groups[groupId],
+      'Single account insertion cannot re-use existing group',
+    );
 
-    if (!group) {
-      log(`[${walletId}] Add new group: [${groupId}]`);
-      wallet.groups[groupId] = {
-        ...result.group,
-        // Type-wise, we are guaranteed to always have at least 1 account.
-        accounts: [id],
-        metadata: {
-          name: '',
-          ...{ pinned: false, hidden: false }, // Default UI states
-          ...result.group.metadata, // Allow rules to override defaults
-        },
-        // We do need to type-cast since we're not narrowing `result` with
-        // the union tag `result.group.type`.
-      } as AccountGroupObject;
-      group = wallet.groups[groupId];
+    log(`[${walletId}] Add new group: [${groupId}]`);
+    const group = {
+      ...result.group,
+      // Type-wise, we are guaranteed to always have at least 1 account.
+      accounts: [account.id],
+      metadata: {
+        name: '',
+        ...{ pinned: false, hidden: false }, // Default UI states
+        ...result.group.metadata, // Allow rules to override defaults
+      },
+      // We do need to type-cast since we're not narrowing `result` with
+      // the union tag `result.group.type`.
+    } as AccountGroupObject;
+    wallet.groups[groupId] = group;
 
-      // Map group ID to its containing wallet ID for efficient direct access
-      this.#groupIdToWalletId.set(groupId, walletId);
-    } else {
-      group.accounts.push(id);
-    }
+    // Map group ID to its containing wallet ID for efficient direct access
+    this.#groupIdToWalletId.set(groupId, walletId);
     log(
       `[${groupId}] Add new account: { id: "${account.id}", type: "${account.type}", address: "${account.address}"`,
     );
@@ -1053,7 +1054,7 @@ export class AccountTreeController extends BaseController<
     this.#accountIdToContext.set(account.id, {
       walletId: wallet.id,
       groupId: group.id,
-      sortOrder,
+      sortOrder: ACCOUNT_TYPE_TO_SORT_ORDER[account.type],
     });
 
     // We need to do this at every insertion because race conditions can happen
@@ -1157,7 +1158,7 @@ export class AccountTreeController extends BaseController<
       this.#accountIdToContext.set(account.id, {
         walletId: wallet.id,
         groupId: group.id,
-        sortOrder: ACCOUNT_TYPE_TO_SORT_ORDER[account.type] ?? MAX_SORT_ORDER,
+        sortOrder: ACCOUNT_TYPE_TO_SORT_ORDER[account.type],
       });
     }
 
