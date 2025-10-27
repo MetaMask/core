@@ -207,6 +207,7 @@ linkStyle default opacity:0.5
   chain_agnostic_permission --> network_controller;
   chain_agnostic_permission --> permission_controller;
   composable_controller --> base_controller;
+  composable_controller --> messenger;
   composable_controller --> json_rpc_engine;
   core_backend --> base_controller;
   core_backend --> controller_utils;
