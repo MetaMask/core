@@ -79,14 +79,7 @@ describe('EIP-5792', () => {
 
     rootMessenger.delegate({
       messenger,
-      actions: [
-        'AccountsController:getState',
-        'AccountsController:getSelectedAccount',
-        'PreferencesController:getState',
-        'NetworkController:getNetworkClientById',
-        'NetworkController:getState',
-        'TransactionController:getState',
-      ],
+      actions: ['TransactionController:getState'],
     });
   });
 
