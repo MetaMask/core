@@ -136,6 +136,7 @@ export type StartCryptoSubscriptionRequest = {
   tokenSymbol: string;
   rawTransaction: Hex;
   isSponsored?: boolean;
+  smartTransactionId?: string;
 };
 
 export type StartCryptoSubscriptionResponse = {
