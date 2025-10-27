@@ -4,7 +4,6 @@ import {
   NetworkType,
   NetworksTicker,
 } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
 import {
   MOCK_ANY_NAMESPACE,
   Messenger,
@@ -12,13 +11,14 @@ import {
   type MessengerEvents,
   type MockAnyNamespace,
 } from '@metamask/messenger';
+import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
-import { advanceTime } from '../../../tests/helpers';
 import type { CurrencyRateMessenger } from './CurrencyRateController';
 import { CurrencyRateController } from './CurrencyRateController';
 import type { AbstractTokenPricesService } from './token-prices-service';
+import { advanceTime } from '../../../tests/helpers';
 
 const namespace = 'CurrencyRateController' as const;
 
@@ -347,19 +347,19 @@ describe('CurrencyRateController', () => {
     const fetchMultiExchangeRateStub = jest
       .fn()
       .mockResolvedValue({ eth: { [currentCurrency]: 10, usd: 111 } });
-  const messenger = getCurrencyRateControllerMessenger();
-      const tokenPricesService = buildMockTokenPricesService();
-      const fetchExchangeRatesSpy = jest
-        .spyOn(tokenPricesService, 'fetchExchangeRates')
-        .mockResolvedValue({
-          eth: {
-            name: 'Ether',
-            ticker: 'eth',
-            value: 0.000240977533824818,
-            currencyType: 'crypto',
-            usd: 111,
-          },
-        });
+    const messenger = getCurrencyRateControllerMessenger();
+    const tokenPricesService = buildMockTokenPricesService();
+    const fetchExchangeRatesSpy = jest
+      .spyOn(tokenPricesService, 'fetchExchangeRates')
+      .mockResolvedValue({
+        eth: {
+          name: 'Ether',
+          ticker: 'eth',
+          value: 0.000240977533824818,
+          currencyType: 'crypto',
+          usd: 111,
+        },
+      });
     const controller = new CurrencyRateController({
       interval: 10,
       fetchMultiExchangeRate: fetchMultiExchangeRateStub,

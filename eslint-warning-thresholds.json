@@ -15,11 +15,7 @@
     "no-shadow": 2
   },
   "packages/assets-controllers/src/CurrencyRateController.test.ts": {
-    "import-x/order": 1,
     "jest/no-conditional-in-test": 1
-  },
-  "packages/assets-controllers/src/CurrencyRateController.ts": {
-    "jsdoc/check-tag-names": 6
   },
   "packages/assets-controllers/src/NftController.test.ts": {
     "import-x/namespace": 9,
@@ -58,9 +54,6 @@
     "import-x/namespace": 7,
     "import-x/order": 2,
     "jest/no-conditional-in-test": 2
-  },
-  "packages/assets-controllers/src/TokenRatesController.test.ts": {
-    "import-x/order": 3
   },
   "packages/assets-controllers/src/TokenRatesController.ts": {
     "@typescript-eslint/prefer-readonly": 1,
