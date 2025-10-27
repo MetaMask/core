@@ -82,6 +82,8 @@ export const formatChainIdToDec = (
  *
  * @param chainId - The chainId to convert
  * @returns The hex string
+ *
+ * @throws {Error} If the chainId is not an EVM chainId
  */
 export const formatChainIdToHex = (
   chainId: Hex | CaipChainId | string | number,
@@ -108,6 +110,10 @@ export const formatChainIdToHex = (
  *
  * @param address - The address to convert
  * @returns The converted address
+ *
+ * @deprecated This function should not be used
+ * // TODO find usages and deprecate
+ * @throws {Error} If the address is not a valid hex string or CAIP address
  */
 export const formatAddressToCaipReference = (address: string) => {
   if (isStrictHexString(address)) {
@@ -122,7 +128,7 @@ export const formatAddressToCaipReference = (address: string) => {
   // If the address is not a valid hex string or CAIP address, throw an error
   // This should never happen, but it's a sanity check
   if (!addressWithoutPrefix) {
-    throw new Error('Invalid address');
+    throw new Error('Invalid CAIP asset');
   }
   return addressWithoutPrefix;
 };
@@ -133,26 +139,27 @@ export const formatAddressToCaipReference = (address: string) => {
  * @param addressOrAssetId - The address or assetId to convert
  * @param chainId - The chainId of the asset
  * @returns The CaipAssetType
+ *
+ * @throws {Error} If the chain is not supported by swap/bridge
  */
 export const formatAddressToAssetId = (
   addressOrAssetId: Hex | CaipAssetType | string,
   chainId: GenericQuoteRequest['srcChainId'],
-): CaipAssetType | undefined => {
+): CaipAssetType => {
   if (isCaipAssetType(addressOrAssetId)) {
     return addressOrAssetId;
   }
   if (isNativeAddress(addressOrAssetId)) {
     return getNativeAssetForChainId(chainId).assetId;
   }
-  if (chainId === SolScope.Mainnet) {
-    return CaipAssetTypeStruct.create(`${chainId}/token:${addressOrAssetId}`);
-  }
-
   // EVM assets
-  if (!isStrictHexString(addressOrAssetId)) {
-    return undefined;
+  if (isStrictHexString(addressOrAssetId)) {
+    return CaipAssetTypeStruct.create(
+      `${formatChainIdToCaip(chainId)}/erc20:${addressOrAssetId.toLowerCase()}`,
+    );
   }
+  // Non-EVM assets
   return CaipAssetTypeStruct.create(
-    `${formatChainIdToCaip(chainId)}/erc20:${addressOrAssetId}`,
+    `${formatChainIdToCaip(chainId)}/token:${addressOrAssetId}`,
   );
 };
