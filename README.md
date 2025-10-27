@@ -292,6 +292,7 @@ linkStyle default opacity:0.5
   network_controller --> error_reporting_service;
   network_enablement_controller --> base_controller;
   network_enablement_controller --> controller_utils;
+  network_enablement_controller --> messenger;
   network_enablement_controller --> multichain_network_controller;
   network_enablement_controller --> network_controller;
   network_enablement_controller --> transaction_controller;
