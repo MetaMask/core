@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add support for Arbitrum, BSC, Optimism, Polygon, and Sei networks as popular networks ([#6972](https://github.com/MetaMask/core/pull/6972))
+  - These networks will now be included when calling `enableAllPopularNetworks()`
+  - Network definitions added in `@metamask/controller-utils`
+
 ## [3.0.0]
 
 ### Changed

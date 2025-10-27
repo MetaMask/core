@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Add Arbitrum, BSC, Optimism, Polygon, and Sei networks to default infura networks ([#5902](https://github.com/MetaMask/core/pull/5902))
+- Add Arbitrum, BSC, Optimism, Polygon, and Sei networks to default infura networks ([#6972](https://github.com/MetaMask/core/pull/6972))
   - Network changes were added in `@metamask/controller-utils`
 
 ## [25.0.0]
