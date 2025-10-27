@@ -54,7 +54,7 @@
     "@babel/runtime": "^7.23.9",
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
-    "@metamask/accounts-controller": "^33.1.1",
+    "@metamask/accounts-controller": "^33.2.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/signature-controller": "^34.0.2",
     "@metamask/subscription-controller": "^2.1.0",
