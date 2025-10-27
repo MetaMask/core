@@ -245,7 +245,8 @@ export type SubmitUserEventRequest = {
  * Request object for submitting sponsorship intents.
  */
 export type SubmitSponsorshipIntentsRequest = {
-  address: `0x${string}`;
+  chainId: Hex;
+  address: Hex;
   products: ProductType[];
   recurringInterval: RecurringInterval;
   billingCycles: number;

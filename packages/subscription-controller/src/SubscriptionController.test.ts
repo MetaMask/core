@@ -1411,6 +1411,7 @@ describe('SubscriptionController', () => {
 
   describe('submitSponsorshipIntents', () => {
     const MOCK_SUBMISSION_INTENTS_REQUEST: SubmitSponsorshipIntentsRequest = {
+      chainId: '0x1',
       address: '0x1234567890123456789012345678901234567890',
       products: [PRODUCT_TYPES.SHIELD],
       recurringInterval: RECURRING_INTERVALS.month,
