@@ -8,7 +8,7 @@ import {
   createRequest,
 } from '../test/util/helpers';
 
-const buildMockBlockTracker = (): PollingBlockTracker => {
+const createMockBlockTracker = (): PollingBlockTracker => {
   return {
     getLatestBlock: jest.fn(),
   } as unknown as PollingBlockTracker;
@@ -24,7 +24,7 @@ describe('createBlockRefRewriteMiddleware', () => {
   });
 
   it('skips processing when method does not have a block reference parameter', async () => {
-    const mockBlockTracker = buildMockBlockTracker();
+    const mockBlockTracker = createMockBlockTracker();
     const getLatestBlockSpy = jest.spyOn(mockBlockTracker, 'getLatestBlock');
 
     const engine = new JsonRpcEngine();
@@ -45,7 +45,7 @@ describe('createBlockRefRewriteMiddleware', () => {
   });
 
   it('skips processing when block reference is not "latest"', async () => {
-    const mockBlockTracker = buildMockBlockTracker();
+    const mockBlockTracker = createMockBlockTracker();
     const getLatestBlockSpy = jest.spyOn(mockBlockTracker, 'getLatestBlock');
 
     const engine = new JsonRpcEngine();
@@ -67,7 +67,7 @@ describe('createBlockRefRewriteMiddleware', () => {
   });
 
   it('rewrites "latest" block reference to actual block number for methods with a block reference parameter', async () => {
-    const mockBlockTracker = buildMockBlockTracker();
+    const mockBlockTracker = createMockBlockTracker();
     jest
       .spyOn(mockBlockTracker, 'getLatestBlock')
       .mockResolvedValue('0xabc123');
@@ -102,7 +102,7 @@ describe('createBlockRefRewriteMiddleware', () => {
   });
 
   it('treats omitted block reference as "latest" and rewrites it', async () => {
-    const mockBlockTracker = buildMockBlockTracker();
+    const mockBlockTracker = createMockBlockTracker();
     jest
       .spyOn(mockBlockTracker, 'getLatestBlock')
       .mockResolvedValue('0x111222');
@@ -135,7 +135,7 @@ describe('createBlockRefRewriteMiddleware', () => {
   });
 
   it('handles non-array params gracefully', async () => {
-    const mockBlockTracker = buildMockBlockTracker();
+    const mockBlockTracker = createMockBlockTracker();
     jest
       .spyOn(mockBlockTracker, 'getLatestBlock')
       .mockResolvedValue('0xffffff');
