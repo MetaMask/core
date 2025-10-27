@@ -1,5 +1,7 @@
+import type { CaipAssetType } from '@metamask/utils';
+import { parseCaipAssetType } from '@metamask/utils';
+
 import { isCrossChain, isSolanaChainId } from './bridge';
-import type { GenericQuoteRequest } from '../types';
 
 export const BRIDGE_DEFAULT_SLIPPAGE = 0.5;
 const SWAP_SOLANA_SLIPPAGE = undefined;
@@ -16,48 +18,41 @@ const SWAP_EVM_DEFAULT_SLIPPAGE = 2;
  * - Swap on EVM other pairs: 2%
  *
  * @param options - the options for the destination chain
- * @param options.srcTokenAddress - the source token address
- * @param options.destTokenAddress - the destination token address
- * @param options.srcChainId - the source chain id
- * @param options.destChainId - the destination chain id
- * @param srcStablecoins - the list of stablecoins on the source chain
- * @param destStablecoins - the list of stablecoins on the destination chain
- 
+ * @param options.stablecoins - the list of stablecoins
+ * @param options.srcAssetId - the source token asset id
+ * @param options.destAssetId - the destination token asset id
  * @returns the default slippage percentage for the chain and token pair
  */
-export const getDefaultSlippagePercentage = (
-  {
-    srcTokenAddress,
-    destTokenAddress,
-    srcChainId,
-    destChainId,
-  }: Partial<
-    Pick<
-      GenericQuoteRequest,
-      'srcTokenAddress' | 'destTokenAddress' | 'srcChainId' | 'destChainId'
-    >
-  >,
-  srcStablecoins?: string[],
-  destStablecoins?: string[],
-) => {
-  if (!srcChainId || isCrossChain(srcChainId, destChainId)) {
+export const getDefaultSlippagePercentage = ({
+  srcAssetId,
+  destAssetId,
+  stablecoins,
+}: {
+  srcAssetId?: CaipAssetType;
+  destAssetId?: CaipAssetType;
+  stablecoins: CaipAssetType[];
+}) => {
+  if (!srcAssetId || !destAssetId) {
     return BRIDGE_DEFAULT_SLIPPAGE;
   }
 
+  // Parse the chainId from the token assetIds
+  const { chainId: srcChainId } = parseCaipAssetType(srcAssetId);
+  const { chainId: destChainId } = parseCaipAssetType(destAssetId);
+
+  if (isCrossChain(srcChainId, destChainId)) {
+    return BRIDGE_DEFAULT_SLIPPAGE;
+  }
+
+  // Solana swap AUTO slippage
   if (isSolanaChainId(srcChainId)) {
     return SWAP_SOLANA_SLIPPAGE;
   }
 
+  // Swap between 2 EVM stablecoins
   if (
-    srcTokenAddress &&
-    destTokenAddress &&
-    srcStablecoins
-      ?.map((stablecoin) => stablecoin.toLowerCase())
-      .includes(srcTokenAddress.toLowerCase()) &&
-    // If destChainId is undefined, treat req as a swap and fallback to srcStablecoins
-    (destStablecoins ?? srcStablecoins)
-      ?.map((stablecoin) => stablecoin.toLowerCase())
-      .includes(destTokenAddress.toLowerCase())
+    stablecoins.includes(srcAssetId.toLowerCase() as CaipAssetType) &&
+    stablecoins.includes(destAssetId.toLowerCase() as CaipAssetType)
   ) {
     return SWAP_EVM_STABLECOIN_SLIPPAGE;
   }
