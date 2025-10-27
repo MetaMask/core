@@ -6,10 +6,7 @@ import type { AccountGroupObjectOf } from '../group';
 import { BaseRule, type Rule, type RuleResult } from '../rule';
 import type { AccountWalletObjectOf } from '../wallet';
 
-export class EntropyRule
-  extends BaseRule
-  implements Rule<AccountWalletType.Entropy, AccountGroupType.MultichainAccount>
-{
+export class EntropyRule extends BaseRule {
   readonly walletType = AccountWalletType.Entropy;
 
   readonly groupType = AccountGroupType.MultichainAccount;
@@ -20,12 +17,6 @@ export class EntropyRule
     return keyrings
       .filter((keyring) => keyring.type === (KeyringTypes.hd as string))
       .findIndex((keyring) => keyring.metadata.id === entropySource);
-  }
-
-  match():
-    | RuleResult<AccountWalletType.Entropy, AccountGroupType.MultichainAccount>
-    | undefined {
-    throw new Error('Entropy rule is no longer supported');
   }
 
   getDefaultAccountWalletName(
