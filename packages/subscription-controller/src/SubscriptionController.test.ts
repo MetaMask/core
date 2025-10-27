@@ -1424,6 +1424,47 @@ describe('SubscriptionController', () => {
       });
     });
 
+    it('should update the last selected payment method for the same product', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: [
+              {
+                type: PAYMENT_TYPES.byCard,
+                plan: RECURRING_INTERVALS.month,
+                product: PRODUCT_TYPES.SHIELD,
+              },
+            ],
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.lastSelectedPaymentMethod).toStrictEqual([
+            {
+              type: PAYMENT_TYPES.byCard,
+              plan: RECURRING_INTERVALS.month,
+              product: PRODUCT_TYPES.SHIELD,
+            },
+          ]);
+
+          controller.cacheLastSelectedPaymentMethod({
+            type: PAYMENT_TYPES.byCrypto,
+            paymentTokenAddress: '0x123',
+            plan: RECURRING_INTERVALS.month,
+            product: PRODUCT_TYPES.SHIELD,
+          });
+
+          expect(controller.state.lastSelectedPaymentMethod).toStrictEqual([
+            {
+              type: PAYMENT_TYPES.byCrypto,
+              paymentTokenAddress: '0x123',
+              plan: RECURRING_INTERVALS.month,
+              product: PRODUCT_TYPES.SHIELD,
+            },
+          ]);
+        },
+      );
+    });
+
     it('should throw error when payment token address is not provided for crypto payment', async () => {
       await withController(({ controller }) => {
         expect(() =>

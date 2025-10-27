@@ -524,10 +524,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     }
 
     this.update((state) => {
-      state.lastSelectedPaymentMethod = [
-        ...(state.lastSelectedPaymentMethod || []),
-        paymentMethod,
-      ];
+      const existingMethods = state.lastSelectedPaymentMethod || [];
+      const filteredMethods = existingMethods.filter(
+        (method) => method.product !== paymentMethod.product,
+      );
+      state.lastSelectedPaymentMethod = [...filteredMethods, paymentMethod];
     });
   }
 
