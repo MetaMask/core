@@ -237,9 +237,6 @@
     "@typescript-eslint/no-explicit-any": 3,
     "jsdoc/match-description": 2
   },
-  "packages/eth-json-rpc-middleware/test/util/createHitTrackerMiddleware.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
   "packages/eth-json-rpc-middleware/test/util/helpers.ts": {
     "@typescript-eslint/no-explicit-any": 1,
     "jsdoc/match-description": 10

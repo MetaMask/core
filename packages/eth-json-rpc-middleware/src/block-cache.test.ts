@@ -2,7 +2,6 @@ import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { Json, JsonRpcSuccess } from '@metamask/utils';
 
 import { createBlockCacheMiddleware } from '.';
-import createHitTrackerMiddleware from '../test/util/createHitTrackerMiddleware';
 import {
   createProviderAndBlockTracker,
   createRequest,
@@ -42,8 +41,6 @@ describe('block cache middleware', () => {
 
       let hitCount = 0;
       const engine = new JsonRpcEngine();
-      const hitCountMiddleware = createHitTrackerMiddleware();
-      engine.push(hitCountMiddleware);
       engine.push(createBlockCacheMiddleware({ blockTracker }));
       engine.push((_req, res, _next, end) => {
         hitCount += 1;
