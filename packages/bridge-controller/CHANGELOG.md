@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^14.0.0` to `^16.0.0` ([#6974](https://github.com/MetaMask/core/pull/6974))
+
 ## [56.0.0]
 
 ### Added
