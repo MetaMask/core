@@ -9,7 +9,7 @@ import {
   type AccountGroupId,
 } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import {
   BtcAccountType,
   EthAccountType,
@@ -36,14 +36,11 @@ import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analy
 import { BackupAndSyncService } from './backup-and-sync/service';
 import { isAccountGroupNameUnique } from './group';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
+import { type AccountTreeControllerState } from './types';
 import {
-  type AccountTreeControllerMessenger,
-  type AccountTreeControllerActions,
-  type AccountTreeControllerEvents,
-  type AccountTreeControllerState,
-  type AllowedActions,
-  type AllowedEvents,
-} from './types';
+  getAccountTreeControllerMessenger,
+  getRootMessenger,
+} from '../tests/mockMessenger';
 
 // Local mock of EMPTY_ACCOUNT to avoid circular dependency
 const EMPTY_ACCOUNT_MOCK: InternalAccount = {
@@ -233,53 +230,7 @@ const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
   },
 };
 
-/**
- * Creates a new root messenger instance for testing.
- *
- * @returns A new Messenger instance.
- */
-function getRootMessenger() {
-  return new Messenger<
-    AccountTreeControllerActions | AllowedActions,
-    AccountTreeControllerEvents | AllowedEvents
-  >();
-}
-
-/**
- * Retrieves a restricted messenger for the AccountTreeController.
- *
- * @param messenger - The root messenger instance. Defaults to a new Messenger created by getRootMessenger().
- * @returns The restricted messenger for the AccountTreeController.
- */
-function getAccountTreeControllerMessenger(
-  messenger = getRootMessenger(),
-): AccountTreeControllerMessenger {
-  return messenger.getRestricted({
-    name: 'AccountTreeController',
-    allowedEvents: [
-      'AccountsController:accountAdded',
-      'AccountsController:accountRemoved',
-      'AccountsController:selectedAccountChange',
-      'UserStorageController:stateChange',
-      'MultichainAccountService:walletStatusChange',
-    ],
-    allowedActions: [
-      'AccountsController:listMultichainAccounts',
-      'AccountsController:getAccount',
-      'AccountsController:getSelectedMultichainAccount',
-      'AccountsController:setSelectedAccount',
-      'UserStorageController:getState',
-      'UserStorageController:performGetStorage',
-      'UserStorageController:performGetStorageAllFeatureEntries',
-      'UserStorageController:performSetStorage',
-      'UserStorageController:performBatchSetStorage',
-      'AuthenticationController:getSessionProfile',
-      'MultichainAccountService:createMultichainAccountGroup',
-      'KeyringController:getState',
-      'SnapController:get',
-    ],
-  });
-}
+const mockGetSelectedMultichainAccountActionHandler = jest.fn();
 
 /**
  * Sets up the AccountTreeController for testing.
@@ -317,10 +268,7 @@ function setup({
   },
 }: {
   state?: Partial<AccountTreeControllerState>;
-  messenger?: Messenger<
-    AccountTreeControllerActions | AllowedActions,
-    AccountTreeControllerEvents | AllowedEvents
-  >;
+  messenger?: ReturnType<typeof getRootMessenger>;
   accounts?: InternalAccount[];
   keyrings?: KeyringObject[];
   config?: {
@@ -338,9 +286,9 @@ function setup({
   };
 } = {}): {
   controller: AccountTreeController;
-  messenger: Messenger<
-    AccountTreeControllerActions | AllowedActions,
-    AccountTreeControllerEvents | AllowedEvents
+  messenger: ReturnType<typeof getRootMessenger>;
+  accountTreeControllerMessenger: ReturnType<
+    typeof getAccountTreeControllerMessenger
   >;
   spies: {
     consoleWarn: jest.SpyInstance;
@@ -401,6 +349,7 @@ function setup({
     mocks.AccountsController.listMultichainAccounts.mockImplementation(
       () => mocks.AccountsController.accounts,
     );
+
     messenger.registerActionHandler(
       'AccountsController:listMultichainAccounts',
       mocks.AccountsController.listMultichainAccounts,
@@ -474,8 +423,10 @@ function setup({
     );
   }
 
+  const accountTreeControllerMessenger =
+    getAccountTreeControllerMessenger(messenger);
   const controller = new AccountTreeController({
-    messenger: getAccountTreeControllerMessenger(messenger),
+    messenger: accountTreeControllerMessenger,
     state,
     ...(config && { config }),
   });
@@ -487,6 +438,7 @@ function setup({
   return {
     controller,
     messenger,
+    accountTreeControllerMessenger,
     spies: { consoleWarn: consoleWarnSpy },
     mocks,
   };
@@ -1802,12 +1754,15 @@ describe('AccountTreeController', () => {
     });
 
     it('updates AccountsController selected account (with EVM account) when selectedAccountGroup changes', () => {
-      const { controller, messenger } = setup({
+      const { controller, accountTreeControllerMessenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      const setSelectedAccountSpy = jest.spyOn(messenger, 'call');
+      const setSelectedAccountSpy = jest.spyOn(
+        accountTreeControllerMessenger,
+        'call',
+      );
 
       controller.init();
 
@@ -1839,7 +1794,7 @@ describe('AccountTreeController', () => {
           },
         },
       } as const;
-      const { controller, messenger } = setup({
+      const { controller, accountTreeControllerMessenger } = setup({
         accounts: [
           MOCK_HD_ACCOUNT_1,
           nonEvmAccount2, // Wallet 2 > Account 1.
@@ -1847,7 +1802,10 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      const setSelectedAccountSpy = jest.spyOn(messenger, 'call');
+      const setSelectedAccountSpy = jest.spyOn(
+        accountTreeControllerMessenger,
+        'call',
+      );
 
       controller.init();
 
@@ -1969,18 +1927,14 @@ describe('AccountTreeController', () => {
     });
 
     it('falls back to first wallet first group when AccountsController returns EMPTY_ACCOUNT', () => {
-      const { controller, messenger } = setup({
+      const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      // Unregister existing handler and register new one BEFORE init
-      messenger.unregisterActionHandler(
-        'AccountsController:getSelectedMultichainAccount',
-      );
-      messenger.registerActionHandler(
-        'AccountsController:getSelectedMultichainAccount',
-        () => EMPTY_ACCOUNT_MOCK,
+      // Mock action handler BEFORE init
+      mockGetSelectedMultichainAccountActionHandler.mockReturnValue(
+        EMPTY_ACCOUNT_MOCK,
       );
 
       controller.init();
@@ -1998,7 +1952,7 @@ describe('AccountTreeController', () => {
     });
 
     it('falls back to first wallet first group when selected account is not in tree', () => {
-      const { controller, messenger } = setup({
+      const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
@@ -2009,12 +1963,8 @@ describe('AccountTreeController', () => {
         id: 'unknown-account-id',
       };
 
-      messenger.unregisterActionHandler(
-        'AccountsController:getSelectedMultichainAccount',
-      );
-      messenger.registerActionHandler(
-        'AccountsController:getSelectedMultichainAccount',
-        () => unknownAccount,
+      mockGetSelectedMultichainAccountActionHandler.mockReturnValue(
+        unknownAccount,
       );
 
       controller.init();
@@ -2032,18 +1982,14 @@ describe('AccountTreeController', () => {
     });
 
     it('returns empty string when no wallets exist and getSelectedMultichainAccount returns EMPTY_ACCOUNT', () => {
-      const { controller, messenger } = setup({
+      const { controller } = setup({
         accounts: [],
         keyrings: [],
       });
 
-      // Mock getSelectedMultichainAccount to return EMPTY_ACCOUNT_MOCK (id is '') BEFORE init
-      messenger.unregisterActionHandler(
-        'AccountsController:getSelectedMultichainAccount',
-      );
-      messenger.registerActionHandler(
-        'AccountsController:getSelectedMultichainAccount',
-        () => EMPTY_ACCOUNT_MOCK,
+      // Mock getSelectedAccount to return EMPTY_ACCOUNT_MOCK (id is '') BEFORE init
+      mockGetSelectedMultichainAccountActionHandler.mockReturnValue(
+        EMPTY_ACCOUNT_MOCK,
       );
 
       controller.init();
@@ -4328,7 +4274,7 @@ describe('AccountTreeController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
