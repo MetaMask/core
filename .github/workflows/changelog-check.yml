@@ -20,12 +20,12 @@ jobs:
         uses: actions/github-script@v8
         env:
           EVENT_NAME: ${{ github.event_name }}
-          PULL_REQUEST_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
-          PULL_REQUEST_HEAD_REF: ${{ github.head_ref || '' }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || '' }}
+          PULL_REQUEST_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PULL_REQUEST_HEAD_REF: ${{ github.head_ref }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           PULL_REQUEST_LABELS: ${{ toJSON(github.event.pull_request.labels) || '[]' }}
-          MERGE_QUEUE_BASE_REF: ${{ github.event.merge_group.base_ref || '' }}
-          MERGE_QUEUE_HEAD_REF: ${{ github.event.merge_group.head_ref || '' }}
+          MERGE_QUEUE_BASE_REF: ${{ github.event.merge_group.base_ref }}
+          MERGE_QUEUE_HEAD_REF: ${{ github.event.merge_group.head_ref }}
         with:
           script: |
             // GitHub recommends using environment variables to provide inputs,
