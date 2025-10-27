@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.0]
+
 ### Uncategorized
 
 - feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
@@ -886,7 +888,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.2.0...@metamask/keyring-controller@24.0.0
 [23.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.1.1...@metamask/keyring-controller@23.2.0
 [23.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.1.0...@metamask/keyring-controller@23.1.1
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.0.0...@metamask/keyring-controller@23.1.0

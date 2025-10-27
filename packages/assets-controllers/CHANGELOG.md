@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [84.0.0]
+
 ### Uncategorized
 
 - feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
@@ -2182,7 +2184,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@83.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@84.0.0...HEAD
+[84.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@83.1.0...@metamask/assets-controllers@84.0.0
 [83.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@83.0.0...@metamask/assets-controllers@83.1.0
 [83.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@82.0.0...@metamask/assets-controllers@83.0.0
 [82.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@81.0.1...@metamask/assets-controllers@82.0.0

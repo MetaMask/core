@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Uncategorized
 
 - feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
@@ -99,7 +101,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@0.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@0.4.0...@metamask/shield-controller@1.0.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@0.3.2...@metamask/shield-controller@0.4.0
 [0.3.2]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@0.3.1...@metamask/shield-controller@0.3.2
 [0.3.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@0.3.0...@metamask/shield-controller@0.3.1

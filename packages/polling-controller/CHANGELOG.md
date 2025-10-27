@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+
 ### Uncategorized
 
 - feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
@@ -274,7 +276,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@14.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@14.0.2...@metamask/polling-controller@15.0.0
 [14.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@14.0.1...@metamask/polling-controller@14.0.2
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@14.0.0...@metamask/polling-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@13.0.0...@metamask/polling-controller@14.0.0

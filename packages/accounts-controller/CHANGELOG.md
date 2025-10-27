@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [34.0.0]
+
 ### Uncategorized
 
 - feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
@@ -648,7 +650,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@33.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@34.0.0...HEAD
+[34.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@33.2.0...@metamask/accounts-controller@34.0.0
 [33.2.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@33.1.1...@metamask/accounts-controller@33.2.0
 [33.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@33.1.0...@metamask/accounts-controller@33.1.1
 [33.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@33.0.0...@metamask/accounts-controller@33.1.0

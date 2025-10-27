@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2]
+
 ### Changed
 
 - Bump `@metamask/chain-agnostic-permission` from `^1.2.0` to `^1.2.1` ([#6940](https://github.com/MetaMask/core/pull/6940))
@@ -36,7 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@1.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@1.0.2...HEAD
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@1.0.1...@metamask/eip1193-permission-middleware@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@1.0.0...@metamask/eip1193-permission-middleware@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@0.1.0...@metamask/eip1193-permission-middleware@1.0.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/eip1193-permission-middleware@0.1.0

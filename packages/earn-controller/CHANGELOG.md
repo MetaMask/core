@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+
 ### Uncategorized
 
 - feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
@@ -311,7 +313,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.2...@metamask/earn-controller@9.0.0
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.1...@metamask/earn-controller@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.0...@metamask/earn-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@7.0.0...@metamask/earn-controller@8.0.0

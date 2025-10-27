@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
 ### Uncategorized
 
 - feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
@@ -204,7 +206,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.1.1...@metamask/rate-limit-controller@7.0.0
 [6.1.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.1.0...@metamask/rate-limit-controller@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.3...@metamask/rate-limit-controller@6.1.0
 [6.0.3]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.2...@metamask/rate-limit-controller@6.0.3

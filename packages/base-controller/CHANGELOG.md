@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+
 ### Uncategorized
 
 - chore: Fix incorrect property name referenced in comment ([#6956](https://github.com/MetaMask/core/pull/6956))
@@ -416,7 +418,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.2...@metamask/base-controller@9.0.0
 [8.4.2]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.1...@metamask/base-controller@8.4.2
 [8.4.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.0...@metamask/base-controller@8.4.1
 [8.4.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.3.0...@metamask/base-controller@8.4.0

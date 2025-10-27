@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [40.0.0]
+
 ### Uncategorized
 
 - feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
@@ -484,7 +486,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@40.0.0...HEAD
+[40.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.2.1...@metamask/user-operation-controller@40.0.0
 [39.2.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.2.0...@metamask/user-operation-controller@39.2.1
 [39.2.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.1.0...@metamask/user-operation-controller@39.2.0
 [39.1.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.0.0...@metamask/user-operation-controller@39.1.0

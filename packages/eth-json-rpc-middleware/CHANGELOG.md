@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 641.0.0 ([#6940](https://github.com/MetaMask/core/pull/6940))
-
 ### Changed
 
 - Migrate all uses of `interface` to `type` ([#6885](https://github.com/MetaMask/core/pull/6885))

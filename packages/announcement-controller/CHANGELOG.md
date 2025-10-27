@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+
 ### Uncategorized
 
 - feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
@@ -202,7 +204,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.1.1...@metamask/announcement-controller@8.0.0
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.1.0...@metamask/announcement-controller@7.1.1
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.3...@metamask/announcement-controller@7.1.0
 [7.0.3]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.2...@metamask/announcement-controller@7.0.3

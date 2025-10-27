@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
 ### Uncategorized
 
 - feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
@@ -185,7 +187,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial Release
   - Add logging controller ([#1089](https://github.com/MetaMask/core.git/pull/1089))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.1.1...@metamask/logging-controller@7.0.0
 [6.1.1]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.1.0...@metamask/logging-controller@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.0.4...@metamask/logging-controller@6.1.0
 [6.0.4]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.0.3...@metamask/logging-controller@6.0.4

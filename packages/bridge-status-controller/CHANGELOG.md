@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [56.0.0]
+
 ### Uncategorized
 
 - feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
@@ -715,7 +717,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@55.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@56.0.0...HEAD
+[56.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@55.0.0...@metamask/bridge-status-controller@56.0.0
 [55.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@54.0.0...@metamask/bridge-status-controller@55.0.0
 [54.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@53.0.0...@metamask/bridge-status-controller@54.0.0
 [53.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@52.1.0...@metamask/bridge-status-controller@53.0.0

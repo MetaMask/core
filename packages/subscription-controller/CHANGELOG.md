@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
 ### Uncategorized
 
 - feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
@@ -119,7 +121,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@2.1.0...@metamask/subscription-controller@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@2.0.0...@metamask/subscription-controller@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@1.1.0...@metamask/subscription-controller@2.0.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@1.0.1...@metamask/subscription-controller@1.1.0

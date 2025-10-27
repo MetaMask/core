@@ -1,6 +1,6 @@
 {
   "name": "@metamask/error-reporting-service",
-  "version": "2.2.2",
+  "version": "3.0.0",
   "description": "Logs errors to an error reporting service such as Sentry",
   "keywords": [
     "MetaMask",
@@ -47,7 +47,7 @@
     "since-latest-release": "../../scripts/since-latest-release.sh"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.4.2",
+    "@metamask/base-controller": "^9.0.0",
     "@metamask/messenger": "^0.3.0"
   },
   "devDependencies": {

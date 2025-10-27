@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.0]
+
 ### Uncategorized
 
 - feat: New `base-controller` API ([#6926](https://github.com/MetaMask/core/pull/6926))
@@ -596,7 +598,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.3.1...@metamask/notification-services-controller@19.0.0
 [18.3.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.3.0...@metamask/notification-services-controller@18.3.1
 [18.3.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.2.0...@metamask/notification-services-controller@18.3.0
 [18.2.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.1.0...@metamask/notification-services-controller@18.2.0
