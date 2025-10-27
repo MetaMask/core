@@ -290,7 +290,7 @@ export const toBatchTxParams = (
 };
 
 export const getAddTransactionBatchParams = async ({
-  messagingSystem,
+  messenger,
   isBridgeTx,
   approval,
   resetApproval,
@@ -307,7 +307,7 @@ export const getAddTransactionBatchParams = async ({
   requireApproval = false,
   estimateGasFeeFn,
 }: {
-  messagingSystem: BridgeStatusControllerMessenger;
+  messenger: BridgeStatusControllerMessenger;
   isBridgeTx: boolean;
   trade: TxData;
   quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> &
@@ -318,7 +318,7 @@ export const getAddTransactionBatchParams = async ({
   requireApproval?: boolean;
 }) => {
   const isGasless = gasIncluded || gasIncluded7702;
-  const selectedAccount = messagingSystem.call(
+  const selectedAccount = messenger.call(
     'AccountsController:getAccountByAddress',
     trade.from,
   );
@@ -328,7 +328,7 @@ export const getAddTransactionBatchParams = async ({
     );
   }
   const hexChainId = formatChainIdToHex(trade.chainId);
-  const networkClientId = messagingSystem.call(
+  const networkClientId = messenger.call(
     'NetworkController:findNetworkClientIdByChainId',
     hexChainId,
   );
@@ -340,7 +340,7 @@ export const getAddTransactionBatchParams = async ({
   if (resetApproval) {
     const gasFees = await calculateGasFees(
       disable7702,
-      messagingSystem,
+      messenger,
       estimateGasFeeFn,
       resetApproval,
       networkClientId,
@@ -357,7 +357,7 @@ export const getAddTransactionBatchParams = async ({
   if (approval) {
     const gasFees = await calculateGasFees(
       disable7702,
-      messagingSystem,
+      messenger,
       estimateGasFeeFn,
       approval,
       networkClientId,
@@ -373,7 +373,7 @@ export const getAddTransactionBatchParams = async ({
   }
   const gasFees = await calculateGasFees(
     disable7702,
-    messagingSystem,
+    messenger,
     estimateGasFeeFn,
     trade,
     networkClientId,
@@ -404,19 +404,17 @@ export const getAddTransactionBatchParams = async ({
 };
 
 export const findAndUpdateTransactionsInBatch = ({
-  messagingSystem,
+  messenger,
   updateTransactionFn,
   batchId,
   txDataByType,
 }: {
-  messagingSystem: BridgeStatusControllerMessenger;
+  messenger: BridgeStatusControllerMessenger;
   updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
   batchId: string;
   txDataByType: { [key in TransactionType]?: string };
 }) => {
-  const txs = messagingSystem.call(
-    'TransactionController:getState',
-  ).transactions;
+  const txs = messenger.call('TransactionController:getState').transactions;
   const txBatch: {
     approvalMeta?: TransactionMeta;
     tradeMeta?: TransactionMeta;

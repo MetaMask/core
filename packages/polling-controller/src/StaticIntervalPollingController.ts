@@ -1,4 +1,4 @@
-import { BaseController } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller/next';
 import type { Json } from '@metamask/utils';
 
 import {
