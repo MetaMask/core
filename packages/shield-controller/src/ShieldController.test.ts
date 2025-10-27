@@ -4,12 +4,26 @@ import {
   SignatureRequestStatus,
   type SignatureControllerState,
 } from '@metamask/signature-controller';
+import type {
+  PricingPaymentMethod,
+  PricingResponse,
+  ProductPricing,
+  StartCryptoSubscriptionResponse,
+  SubscriptionControllerState,
+} from '@metamask/subscription-controller';
+import {
+  PAYMENT_TYPES,
+  PRODUCT_TYPES,
+  RECURRING_INTERVALS,
+  SUBSCRIPTION_STATUSES,
+} from '@metamask/subscription-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import {
   TransactionStatus,
   TransactionType,
   type TransactionControllerState,
 } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 
 import { ShieldController } from './ShieldController';
 import type {
@@ -601,9 +615,96 @@ describe('ShieldController', () => {
     });
   });
 
-  describe.only('#handleSubscriptionCryptoApproval', () => {
+  const MOCK_PRODUCT_PRICE: ProductPricing = {
+    name: PRODUCT_TYPES.SHIELD,
+    prices: [
+      {
+        interval: RECURRING_INTERVALS.month,
+        currency: 'usd',
+        unitAmount: 900,
+        unitDecimals: 2,
+        trialPeriodDays: 0,
+        minBillingCycles: 1,
+      },
+    ],
+  };
+
+  const MOCK_PRICING_PAYMENT_METHOD: PricingPaymentMethod = {
+    type: PAYMENT_TYPES.byCrypto,
+    chains: [
+      {
+        chainId: '0x1',
+        paymentAddress: '0xspender',
+        tokens: [
+          {
+            address: '0xtoken',
+            symbol: 'USDT',
+            decimals: 18,
+            conversionRate: { usd: '1.0' },
+          },
+        ],
+      },
+    ],
+  };
+
+  const MOCK_PRICE_INFO_RESPONSE: PricingResponse = {
+    products: [MOCK_PRODUCT_PRICE],
+    paymentMethods: [MOCK_PRICING_PAYMENT_METHOD],
+  };
+
+  describe('#handleSubscriptionCryptoApproval', () => {
     it('should handle subscription crypto approval when shield subscription transaction is submitted', async () => {
       const { baseMessenger, decodeTransactionDataHandler } = setup();
+
+      // Create a promise that resolves when startSubscriptionWithCrypto is called
+      let startSubscriptionResolve: () => void;
+      const startSubscriptionPromise = new Promise<void>((resolve) => {
+        startSubscriptionResolve = resolve;
+      });
+
+      baseMessenger.registerActionHandler(
+        'SubscriptionController:getState',
+        () =>
+          ({
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+          }) as SubscriptionControllerState,
+      );
+
+      baseMessenger.registerActionHandler(
+        'SubscriptionController:startSubscriptionWithCrypto',
+        () => {
+          return Promise.resolve({
+            subscriptionId: 'sub_123',
+            status: SUBSCRIPTION_STATUSES.trialing,
+          } as StartCryptoSubscriptionResponse);
+        },
+      );
+
+      baseMessenger.registerActionHandler(
+        'SubscriptionController:getSubscriptions',
+        () => {
+          startSubscriptionResolve();
+          return Promise.resolve([]);
+        },
+      );
+
+      baseMessenger.registerActionHandler(
+        'SubscriptionController:getCryptoApproveTransactionParams',
+        () => ({
+          approveAmount: '90000',
+          paymentAddress: '0xabc' as Hex,
+          paymentTokenAddress: '0xdef' as Hex,
+          chainId: '0x1' as Hex,
+        }),
+      );
+
+      baseMessenger.registerActionHandler(
+        'AccountsController:getSelectedAccount',
+        // @ts-expect-error - Mocking the return type
+        () => Promise.resolve({ address: '0xabc' }),
+      );
 
       // Mock decode response
       decodeTransactionDataHandler.mockResolvedValue({
@@ -613,7 +714,7 @@ describe('ShieldController', () => {
             params: [
               {
                 name: 'value',
-                value: '1000000000000000000',
+                value: '90000',
                 type: 'uint256',
               },
             ],
@@ -629,28 +730,60 @@ describe('ShieldController', () => {
         rawTx: '0x123',
         txParams: {
           data: '0x456',
-          to: '0x789',
+          to: '0xtoken',
         },
         status: TransactionStatus.submitted,
         hash: '0x123',
       };
 
-      // Publish the transaction state change to trigger the handler
-      baseMessenger.publish(
-        'TransactionController:stateChange',
-        { transactions: [txMeta] } as TransactionControllerState,
-        undefined as never,
-      );
+      // Publish the transaction submitted event to trigger the handler
+      baseMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: txMeta as TransactionMeta,
+      });
 
-      // Wait for async operations
-      await new Promise((resolve) => setTimeout(resolve, 1));
+      // Wait for the subscription to be started
+      await startSubscriptionPromise;
 
       // Verify that decodeTransactionDataHandler was called
       expect(decodeTransactionDataHandler).toHaveBeenCalledWith({
         transactionData: '0x456',
-        contractAddress: '0x789',
+        contractAddress: '0xtoken',
         chainId: '0x1',
       });
+    });
+
+    it('should not handle subscription crypto approval when pricing is not found', async () => {
+      const { baseMessenger, decodeTransactionDataHandler } = setup();
+
+      baseMessenger.registerActionHandler(
+        'SubscriptionController:getState',
+        () =>
+          ({
+            pricing: undefined,
+            trialedProducts: [],
+            subscriptions: [],
+          }) as SubscriptionControllerState,
+      );
+
+      // Create a non-shield subscription transaction
+      const txMeta = {
+        ...generateMockTxMeta(),
+        type: TransactionType.shieldSubscriptionApprove,
+        status: TransactionStatus.submitted,
+        hash: '0x123',
+        rawTx: '0x123',
+      };
+
+      // Publish the transaction state change
+      baseMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: txMeta as TransactionMeta,
+      });
+
+      // Wait for async operations
+      await new Promise((resolve) => setTimeout(resolve, 1));
+
+      // Verify that decodeTransactionDataHandler was not called
+      expect(decodeTransactionDataHandler).not.toHaveBeenCalled();
     });
 
     it('should not handle subscription crypto approval for non-shield subscription transactions', async () => {
@@ -665,11 +798,9 @@ describe('ShieldController', () => {
       };
 
       // Publish the transaction state change
-      baseMessenger.publish(
-        'TransactionController:stateChange',
-        { transactions: [txMeta] } as TransactionControllerState,
-        undefined as never,
-      );
+      baseMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: txMeta as TransactionMeta,
+      });
 
       // Wait for async operations
       await new Promise((resolve) => setTimeout(resolve, 1));
@@ -696,11 +827,9 @@ describe('ShieldController', () => {
       };
 
       // Publish the transaction state change
-      baseMessenger.publish(
-        'TransactionController:stateChange',
-        { transactions: [txMeta] } as unknown as TransactionControllerState,
-        undefined as never,
-      );
+      baseMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: txMeta as unknown as TransactionMeta,
+      });
 
       // Wait for async operations
       await new Promise((resolve) => setTimeout(resolve, 1));
@@ -727,11 +856,9 @@ describe('ShieldController', () => {
       };
 
       // Publish the transaction state change
-      baseMessenger.publish(
-        'TransactionController:stateChange',
-        { transactions: [txMeta] } as unknown as TransactionControllerState,
-        undefined as never,
-      );
+      baseMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: txMeta as TransactionMeta,
+      });
 
       // Wait for async operations
       await new Promise((resolve) => setTimeout(resolve, 1));
@@ -742,6 +869,16 @@ describe('ShieldController', () => {
 
     it('should throw error when decodeResponse is undefined', async () => {
       const { baseMessenger, decodeTransactionDataHandler } = setup();
+
+      baseMessenger.registerActionHandler(
+        'SubscriptionController:getState',
+        () =>
+          ({
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+          }) as SubscriptionControllerState,
+      );
 
       // Mock decode response to return undefined
       decodeTransactionDataHandler.mockResolvedValue(undefined);
@@ -761,11 +898,9 @@ describe('ShieldController', () => {
       };
 
       // Publish the transaction state change
-      baseMessenger.publish(
-        'TransactionController:stateChange',
-        { transactions: [txMeta] } as unknown as TransactionControllerState,
-        undefined as never,
-      );
+      baseMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: txMeta as TransactionMeta,
+      });
 
       // Wait for async operations
       await new Promise((resolve) => setTimeout(resolve, 1));
@@ -780,6 +915,16 @@ describe('ShieldController', () => {
 
     it('should throw error when approval amount is not found', async () => {
       const { baseMessenger, decodeTransactionDataHandler } = setup();
+
+      baseMessenger.registerActionHandler(
+        'SubscriptionController:getState',
+        () =>
+          ({
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+          }) as SubscriptionControllerState,
+      );
 
       // Mock decode response without approval amount
       decodeTransactionDataHandler.mockResolvedValue({
@@ -812,11 +957,9 @@ describe('ShieldController', () => {
       };
 
       // Publish the transaction state change
-      baseMessenger.publish(
-        'TransactionController:stateChange',
-        { transactions: [txMeta] } as unknown as TransactionControllerState,
-        undefined as never,
-      );
+      baseMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: txMeta as TransactionMeta,
+      });
 
       // Wait for async operations
       await new Promise((resolve) => setTimeout(resolve, 1));
@@ -827,6 +970,147 @@ describe('ShieldController', () => {
         contractAddress: '0x789',
         chainId: '0x1',
       });
+    });
+
+    it('should throw error when selected token price is not found', async () => {
+      const { baseMessenger, decodeTransactionDataHandler } = setup();
+
+      baseMessenger.registerActionHandler(
+        'SubscriptionController:getState',
+        () =>
+          ({
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+          }) as SubscriptionControllerState,
+      );
+
+      // Mock decode response with approval amount
+      decodeTransactionDataHandler.mockResolvedValue({
+        data: [
+          {
+            name: 'approve',
+            params: [
+              {
+                name: 'value',
+                value: '90000',
+                type: 'uint256',
+              },
+            ],
+          },
+        ],
+      });
+
+      // Create a shield subscription approval transaction with token address that doesn't exist
+      const txMeta = {
+        ...generateMockTxMeta(),
+        type: TransactionType.shieldSubscriptionApprove,
+        chainId: '0x1',
+        rawTx: '0x123',
+        txParams: {
+          data: '0x456',
+          to: '0xnonexistent',
+        },
+        status: TransactionStatus.submitted,
+        hash: '0x123',
+      };
+
+      // Publish the transaction submitted event to trigger the handler
+      baseMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: txMeta as TransactionMeta,
+      });
+
+      // Wait for async operations
+      await new Promise((resolve) => setTimeout(resolve, 1));
+
+      // Verify that decodeTransactionDataHandler was called
+      expect(decodeTransactionDataHandler).toHaveBeenCalled();
+    });
+
+    it('should throw error when product price is not found', async () => {
+      const { baseMessenger, decodeTransactionDataHandler } = setup();
+
+      const mockGetSubscriptionState = jest.fn().mockReturnValue({
+        pricing: MOCK_PRICE_INFO_RESPONSE,
+        trialedProducts: [],
+        subscriptions: [],
+      } as SubscriptionControllerState);
+
+      baseMessenger.registerActionHandler(
+        'SubscriptionController:getState',
+        mockGetSubscriptionState,
+      );
+
+      baseMessenger.registerActionHandler(
+        'SubscriptionController:getCryptoApproveTransactionParams',
+        // Mock with a different approval amount that won't match any pricing plan
+        () => ({
+          approveAmount: '999999',
+          paymentAddress: '0xabc' as Hex,
+          paymentTokenAddress: '0xdef' as Hex,
+          chainId: '0x1' as Hex,
+        }),
+      );
+
+      // Mock decode response with approval amount that won't match
+      decodeTransactionDataHandler.mockResolvedValue({
+        data: [
+          {
+            name: 'approve',
+            params: [
+              {
+                name: 'value',
+                value: '90000',
+                type: 'uint256',
+              },
+            ],
+          },
+        ],
+      });
+
+      // Create a shield subscription approval transaction
+      const txMeta = {
+        ...generateMockTxMeta(),
+        type: TransactionType.shieldSubscriptionApprove,
+        chainId: '0x1',
+        rawTx: '0x123',
+        txParams: {
+          data: '0x456',
+          to: '0xtoken',
+        },
+        status: TransactionStatus.submitted,
+        hash: '0x123',
+      };
+
+      // Publish the transaction submitted event to trigger the handler
+      baseMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: txMeta as TransactionMeta,
+      });
+
+      // Wait for async operations
+      await new Promise((resolve) => setTimeout(resolve, 1));
+
+      // Verify that decodeTransactionDataHandler was called
+      expect(decodeTransactionDataHandler).toHaveBeenCalled();
+
+      mockGetSubscriptionState.mockReturnValue({
+        pricing: {
+          ...MOCK_PRICE_INFO_RESPONSE,
+          products: [],
+        },
+        trialedProducts: [],
+        subscriptions: [],
+      } as SubscriptionControllerState);
+
+      // Publish the transaction submitted event to trigger the handler
+      baseMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: txMeta as TransactionMeta,
+      });
+
+      // Wait for async operations
+      await new Promise((resolve) => setTimeout(resolve, 1));
+
+      expect(decodeTransactionDataHandler).toHaveBeenCalled();
     });
   });
 });

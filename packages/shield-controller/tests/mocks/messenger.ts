@@ -23,10 +23,17 @@ export function createMockMessenger() {
   >();
   const messenger = baseMessenger.getRestricted({
     name: controllerName,
-    allowedActions: [],
+    allowedActions: [
+      'AccountsController:getSelectedAccount',
+      'SubscriptionController:getState',
+      'SubscriptionController:getSubscriptions',
+      'SubscriptionController:startSubscriptionWithCrypto',
+      'SubscriptionController:getCryptoApproveTransactionParams',
+    ],
     allowedEvents: [
       'SignatureController:stateChange',
       'TransactionController:stateChange',
+      'TransactionController:transactionSubmitted',
     ],
   });
 
