@@ -166,8 +166,10 @@ linkStyle default opacity:0.5
   app_metadata_controller --> base_controller;
   app_metadata_controller --> messenger;
   approval_controller --> base_controller;
+  approval_controller --> messenger;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
+  assets_controllers --> messenger;
   assets_controllers --> polling_controller;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
@@ -275,6 +277,7 @@ linkStyle default opacity:0.5
   network_controller --> eth_json_rpc_middleware;
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
+  network_controller --> messenger;
   network_controller --> error_reporting_service;
   network_enablement_controller --> base_controller;
   network_enablement_controller --> controller_utils;
@@ -333,6 +336,7 @@ linkStyle default opacity:0.5
   token_search_discovery_controller --> base_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
+  transaction_controller --> messenger;
   transaction_controller --> accounts_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> eth_block_tracker;
