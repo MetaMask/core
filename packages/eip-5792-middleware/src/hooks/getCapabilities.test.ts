@@ -98,11 +98,7 @@ describe('EIP-5792', () => {
       messenger,
       actions: [
         'AccountsController:getState',
-        'AccountsController:getSelectedAccount',
         'PreferencesController:getState',
-        'NetworkController:getNetworkClientById',
-        'NetworkController:getState',
-        'TransactionController:getState',
       ],
     });
 
