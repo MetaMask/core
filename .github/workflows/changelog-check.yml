@@ -30,18 +30,16 @@ jobs:
           script: |
             // GitHub recommends using environment variables to provide inputs,
             // rather than injecting them directly into the script.
-            const eventName = process.env.EVENT_NAME;
 
-            if (eventName === 'pull_request') {
-              return {
-                baseRef: process.env.PULL_REQUEST_BASE_REF,
-                headRef: process.env.PULL_REQUEST_HEAD_REF,
-                prNumber: process.env.PULL_REQUEST_NUMBER,
-                labels: JSON.parse(process.env.PULL_REQUEST_LABELS),
-              };
+            if (context.eventName === 'pull_request') {
+              core.setOutput('baseRef', process.env.PULL_REQUEST_BASE_REF);
+              core.setOutput('headRef', process.env.PULL_REQUEST_HEAD_REF);
+              core.setOutput('prNumber', process.env.PULL_REQUEST_NUMBER);
+              core.setOutput('labels', process.env.PULL_REQUEST_LABELS);
+              return;
             }
 
-            if (eventName === 'merge_group') {
+            if (context.eventName === 'merge_group') {
               const pr = process.env.MERGE_QUEUE_HEAD_REF.match(/gh-readonly-queue\/.+\/pr-(\d+)-\w+/u);
               if (!pr) {
                 throw new Error('Could not extract PR number from merge group head ref.');
@@ -56,15 +54,14 @@ jobs:
                 issue_number: prNumber,
               });
 
-              return {
-                baseRef: process.env.MERGE_QUEUE_BASE_REF,
-                headRef: process.env.MERGE_QUEUE_HEAD_REF,
-                prNumber,
-                labels: labels.data,
-              };
+              core.setOutput('baseRef', process.env.MERGE_QUEUE_BASE_REF);
+              core.setOutput('headRef', process.env.MERGE_QUEUE_HEAD_REF);
+              core.setOutput('prNumber', prNumber.toString());
+              core.setOutput('labels', JSON.stringify(labels.data));
+              return;
             }
 
-            throw new Error(`Unsupported event: "${eventName}".`);
+            throw new Error(`Unsupported event: "${context.eventName}".`);
 
   check-changelog:
     name: Check changelog
@@ -74,7 +71,7 @@ jobs:
       action-sha: fc6fe1a3fb591f6afa61f0dbbe7698bd50fab9c7
       base-branch: ${{ needs.get-pull-request.outputs.baseRef }}
       head-ref: ${{ needs.get-pull-request.outputs.headRef }}
-      labels: ${{ toJson(needs.get-pull-request.outputs.labels) }}
+      labels: ${{ needs.get-pull-request.outputs.labels }}
       pr-number: ${{ needs.get-pull-request.outputs.prNumber }}
       repo: ${{ github.repository }}
     secrets:
