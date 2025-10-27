@@ -18,7 +18,7 @@ import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
 import {
   isAccountProviderWrapper,
-  type BaseBip44AccountProvider,
+  type Bip44AccountProvider,
 } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
 
@@ -38,11 +38,17 @@ export class MultichainAccountGroup<
 
   readonly #groupIndex: number;
 
-  readonly #providers: BaseBip44AccountProvider[];
+  readonly #providers: Bip44AccountProvider<Account>[];
 
-  readonly #providerToAccounts: Map<BaseBip44AccountProvider, Account['id'][]>;
+  readonly #providerToAccounts: Map<
+    Bip44AccountProvider<Account>,
+    Account['id'][]
+  >;
 
-  readonly #accountToProvider: Map<Account['id'], BaseBip44AccountProvider>;
+  readonly #accountToProvider: Map<
+    Account['id'],
+    Bip44AccountProvider<Account>
+  >;
 
   readonly #messenger: MultichainAccountServiceMessenger;
 
@@ -58,7 +64,7 @@ export class MultichainAccountGroup<
   }: {
     groupIndex: number;
     wallet: MultichainAccountWallet<Account>;
-    providers: BaseBip44AccountProvider[];
+    providers: Bip44AccountProvider<Account>[];
     messenger: MultichainAccountServiceMessenger;
   }) {
     this.#id = toMultichainAccountGroupId(wallet.id, groupIndex);
@@ -181,8 +187,7 @@ export class MultichainAccountGroup<
           // If for some reason we cannot get this account from the provider, it
           // might means it has been deleted or something, so we just filter it
           // out.
-          // We cast here because TS cannot infer the type of the account from the provider
-          allAccounts.push(account as Account);
+          allAccounts.push(account);
         }
       }
     }
@@ -214,8 +219,7 @@ export class MultichainAccountGroup<
       return undefined;
     }
 
-    // We cast here because TS cannot infer the type of the account from the provider
-    return provider.getAccount(id) as Account;
+    return provider.getAccount(id);
   }
 
   /**
@@ -247,7 +251,7 @@ export class MultichainAccountGroup<
    */
   #removeAccountsFromDisabledProvider(
     accounts: Account['id'][],
-    provider: BaseBip44AccountProvider,
+    provider: Bip44AccountProvider<Account>,
   ): void {
     accounts.forEach((account) => {
       this.#accountToProvider.delete(account);

@@ -37,13 +37,42 @@ export function assertAreBip44Accounts(
   accounts.forEach(assertIsBip44Account);
 }
 
-export type NamedAccountProvider<
+export type Bip44AccountProvider<
   Account extends Bip44Account<KeyringAccount> = Bip44Account<KeyringAccount>,
 > = AccountProvider<Account> & {
+  /**
+   * Get the provider unique name.
+   *
+   * @returns The provider name.
+   */
   getName(): string;
+
+  /**
+   * Add accounts to the provider.
+   *
+   * @param accounts - The accounts to add.
+   */
+  addAccounts(accounts: Account['id'][]): void;
+
+  /**
+   * Remove accounts from the provider
+   *
+   * @param accounts - The accounts to remove.
+   */
+  removeAccountsFromList(accounts: Account['id'][]): void;
+
+  /**
+   * Check if an account is compatible with this provider.
+   *
+   * @returns True if account is compatible, false otherwise.
+   */
+  isAccountCompatible(account: Account): boolean;
 };
 
-export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
+export abstract class BaseBip44AccountProvider<
+  Account extends Bip44Account<KeyringAccount> = Bip44Account<KeyringAccount>,
+> implements Bip44AccountProvider<Account>
+{
   protected readonly messenger: MultichainAccountServiceMessenger;
 
   accounts: Bip44Account<KeyringAccount>['id'][] = [];
@@ -52,14 +81,12 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
     this.messenger = messenger;
   }
 
-  abstract getName(): string;
-
   /**
    * Add accounts to the provider.
    *
    * @param accounts - The accounts to add.
    */
-  addAccounts(accounts: Bip44Account<KeyringAccount>['id'][]): void {
+  addAccounts(accounts: Account['id'][]): void {
     this.accounts.push(...accounts);
   }
 
@@ -68,11 +95,16 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
    *
    * @returns The accounts list.
    */
-  #getAccountIds(): Bip44Account<KeyringAccount>['id'][] {
+  #getAccountIds(): Account['id'][] {
     return this.accounts;
   }
 
-  removeAccountsFromList(accounts: Bip44Account<KeyringAccount>['id'][]): void {
+  /**
+   * Remove accounts from the provider.
+   *
+   * @param accounts - The accounts to remove.
+   */
+  removeAccountsFromList(accounts: Account['id'][]): void {
     this.accounts = this.accounts.filter(
       (account) => !accounts.includes(account),
     );
@@ -83,14 +115,14 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
    *
    * @returns The accounts list.
    */
-  getAccounts(): Bip44Account<KeyringAccount>[] {
+  getAccounts(): Account[] {
     const accountsIds = this.#getAccountIds();
     const internalAccounts = this.messenger.call(
       'AccountsController:getAccounts',
       accountsIds,
     );
-    // we cast here because we know that the accounts are BIP-44 compatible
-    return internalAccounts as Bip44Account<KeyringAccount>[];
+    // We cast here because we know that the accounts are BIP-44 compatible
+    return internalAccounts as unknown as Account[];
   }
 
   /**
@@ -100,9 +132,7 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
    * @returns The account.
    * @throws If the account is not found.
    */
-  getAccount(
-    id: Bip44Account<KeyringAccount>['id'],
-  ): Bip44Account<KeyringAccount> {
+  getAccount(id: Account['id']): Account {
     const found = this.getAccounts().find((account) => account.id === id);
 
     if (!found) {
@@ -135,7 +165,9 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
     return result as CallbackResult;
   }
 
-  abstract isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
+  abstract getName(): string;
+
+  abstract isAccountCompatible(account: Account): boolean;
 
   abstract createAccounts({
     entropySource,
@@ -143,7 +175,7 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]>;
+  }): Promise<Account[]>;
 
   abstract discoverAccounts({
     entropySource,
@@ -151,5 +183,5 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]>;
+  }): Promise<Account[]>;
 }

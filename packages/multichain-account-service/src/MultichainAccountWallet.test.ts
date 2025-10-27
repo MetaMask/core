@@ -33,7 +33,7 @@ import {
   MOCK_WALLET_1_EVM_ACCOUNT,
   MOCK_WALLET_1_SOL_ACCOUNT,
   MockAccountBuilder,
-  setupNamedAccountProvider,
+  setupBip44AccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
 } from './tests';
@@ -71,20 +71,21 @@ function setup({
   providers: MockAccountProvider[];
   messenger: MultichainAccountServiceMessenger;
 } {
-  const providersList = (providers ??
+  const providersList =
+    providers ??
     accounts.map((providerAccounts, i) => {
-      return setupNamedAccountProvider({
+      return setupBip44AccountProvider({
         name: `Mocked Provider ${i}`,
         accounts: providerAccounts,
         index: i,
       });
-    })) as MockAccountProvider[];
+    });
 
   const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
 
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
     entropySource,
-    providers: providersList as unknown as BaseBip44AccountProvider[],
+    providers: providersList,
     messenger: serviceMessenger,
   });
 
