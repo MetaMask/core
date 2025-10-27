@@ -1453,22 +1453,29 @@ describe('SubscriptionController', () => {
         },
       );
     });
-    
-    it('should not submit sponsorship intents if the user has trailed the products before', async () => {
-      await withController({
-        state: {
-          subscriptions: [{
-            ...MOCK_SUBSCRIPTION,
-            status: SUBSCRIPTION_STATUSES.canceled,
-          }],
-          trialedProducts: [PRODUCT_TYPES.SHIELD],
-        },
-      }, async ({ controller, mockService }) => {
-        mockService.submitSponsorshipIntents.mockResolvedValue(undefined);
 
-        await controller.submitSponsorshipIntents(MOCK_SUBMISSION_INTENTS_REQUEST);
-        expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
-      });
+    it('should not submit sponsorship intents if the user has trailed the products before', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [
+              {
+                ...MOCK_SUBSCRIPTION,
+                status: SUBSCRIPTION_STATUSES.canceled,
+              },
+            ],
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.submitSponsorshipIntents.mockResolvedValue(undefined);
+
+          await controller.submitSponsorshipIntents(
+            MOCK_SUBMISSION_INTENTS_REQUEST,
+          );
+          expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
+        },
+      );
     });
 
     it('should handle subscription service errors', async () => {
