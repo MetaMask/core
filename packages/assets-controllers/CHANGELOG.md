@@ -9,11 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `AssetsByAccountGroup` to list of exported types ([#6983](https://github.com/MetaMask/core/pull/6983))
+
 - **BREAKING:** Added constructor argument `tokenPricesService` in `currencyRateController` ([#6863](https://github.com/MetaMask/core/pull/6863))
 
 - Added `fetchExchangeRates` function to fetch exchange rates from price-api ([#6863](https://github.com/MetaMask/core/pull/6863))
 
 ### Changed
+
+- `isNative` is inferred as `true` for all non-evm assets with slip44 as its asset namespace ([#6983](https://github.com/MetaMask/core/pull/6983))
 
 - `CurrencyRateController` now fetches exchange rates from price-api and fallback to cryptoCompare ([#6863](https://github.com/MetaMask/core/pull/6863))
 
