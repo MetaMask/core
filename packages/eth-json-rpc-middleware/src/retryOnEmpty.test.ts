@@ -13,6 +13,7 @@ import {
   stubProviderRequests,
   createProviderAndBlockTracker,
   createEngine,
+  createRequest,
 } from '../test/util/helpers';
 
 const originalSetTimeout = globalThis.setTimeout;
@@ -82,15 +83,14 @@ describe('createRetryOnEmptyMiddleware', () => {
           );
 
           const blockNumber = '0x0';
-          const request: JsonRpcRequest<string[]> = {
+          const request = createRequest({
             id: 1,
-            jsonrpc: '2.0',
             method,
             params: createMockParamsWithBlockParamAt(
               blockParamIndex,
               blockNumber,
             ),
-          };
+          });
           const requestSpy = stubProviderRequests(provider, [
             createStubForBlockNumberRequest(blockNumber),
             stubRequestThatFailsThenFinallySucceeds({
@@ -123,15 +123,13 @@ describe('createRetryOnEmptyMiddleware', () => {
           );
 
           const blockNumber = '0x0';
-          const request: JsonRpcRequest<string[]> = {
-            id: 1,
-            jsonrpc: '2.0',
+          const request = createRequest({
             method,
             params: createMockParamsWithBlockParamAt(
               blockParamIndex,
               blockNumber,
             ),
-          };
+          });
           const requestSpy = stubProviderRequests(provider, [
             createStubForBlockNumberRequest(blockNumber),
             stubGenericRequest({
@@ -173,15 +171,13 @@ describe('createRetryOnEmptyMiddleware', () => {
           );
 
           const blockNumber = '0x0';
-          const request: JsonRpcRequest<string[]> = {
-            id: 1,
-            jsonrpc: '2.0',
+          const request = createRequest({
             method,
             params: createMockParamsWithBlockParamAt(
               blockParamIndex,
               blockNumber,
             ),
-          };
+          });
           stubProviderRequests(provider, [
             createStubForBlockNumberRequest(blockNumber),
             stubGenericRequest({
@@ -206,15 +202,13 @@ describe('createRetryOnEmptyMiddleware', () => {
               }),
             );
 
-            const request: JsonRpcRequest<string[]> = {
-              id: 1,
-              jsonrpc: '2.0',
+            const request = createRequest({
               method,
               params: createMockParamsWithBlockParamAt(
                 blockParamIndex,
                 '0x100',
               ),
-            };
+            });
             const requestSpy = stubProviderRequests(provider, [
               createStubForBlockNumberRequest('0x0'),
             ]);
@@ -235,15 +229,13 @@ describe('createRetryOnEmptyMiddleware', () => {
               finalMiddleware,
             );
 
-            const request: JsonRpcRequest<string[]> = {
-              id: 1,
-              jsonrpc: '2.0',
+            const request = createRequest({
               method,
               params: createMockParamsWithBlockParamAt(
                 blockParamIndex,
                 '0x100',
               ),
-            };
+            });
             stubProviderRequests(provider, [
               createStubForBlockNumberRequest('0x0'),
             ]);
@@ -267,15 +259,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                 }),
               );
 
-              const request: JsonRpcRequest<string[]> = {
-                id: 1,
-                jsonrpc: '2.0',
+              const request = createRequest({
                 method,
                 params: createMockParamsWithBlockParamAt(
                   blockParamIndex,
                   blockParam,
                 ),
-              };
+              });
               const requestSpy = stubProviderRequests(provider, [
                 createStubForBlockNumberRequest('0x0'),
               ]);
@@ -296,15 +286,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                 finalMiddleware,
               );
 
-              const request: JsonRpcRequest<string[]> = {
-                id: 1,
-                jsonrpc: '2.0',
+              const request = createRequest({
                 method,
                 params: createMockParamsWithBlockParamAt(
                   blockParamIndex,
                   blockParam,
                 ),
-              };
+              });
               stubProviderRequests(provider, [
                 createStubForBlockNumberRequest('0x0'),
               ]);
@@ -329,15 +317,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                 }),
               );
 
-              const request: JsonRpcRequest<string[]> = {
-                id: 1,
-                jsonrpc: '2.0',
+              const request = createRequest({
                 method,
                 params: createMockParamsWithBlockParamAt(
                   blockParamIndex,
                   blockParam,
                 ),
-              };
+              });
               const requestSpy = stubProviderRequests(provider, [
                 createStubForBlockNumberRequest(),
               ]);
@@ -389,12 +375,10 @@ describe('createRetryOnEmptyMiddleware', () => {
               }),
             );
 
-            const request: JsonRpcRequest<string[]> = {
-              id: 1,
-              jsonrpc: '2.0',
+            const request = createRequest({
               method,
               params: createMockParamsWithoutBlockParamAt(blockParamIndex),
-            };
+            });
             const requestSpy = stubProviderRequests(provider, [
               createStubForBlockNumberRequest(),
             ]);
@@ -415,12 +399,10 @@ describe('createRetryOnEmptyMiddleware', () => {
               finalMiddleware,
             );
 
-            const request: JsonRpcRequest<string[]> = {
-              id: 1,
-              jsonrpc: '2.0',
+            const request = createRequest({
               method,
               params: createMockParamsWithoutBlockParamAt(blockParamIndex),
-            };
+            });
             stubProviderRequests(provider, [createStubForBlockNumberRequest()]);
 
             await engine.handle(request);
@@ -444,11 +426,7 @@ describe('createRetryOnEmptyMiddleware', () => {
       );
 
       const method = 'a_non_block_param_method';
-      const request: JsonRpcRequest<string[]> = {
-        id: 1,
-        jsonrpc: '2.0',
-        method,
-      };
+      const request = createRequest({ method });
       const requestSpy = stubProviderRequests(provider, [
         createStubForBlockNumberRequest(),
       ]);
@@ -470,11 +448,7 @@ describe('createRetryOnEmptyMiddleware', () => {
       );
 
       const method = 'a_non_block_param_method';
-      const request: JsonRpcRequest<string[]> = {
-        id: 1,
-        jsonrpc: '2.0',
-        method,
-      };
+      const request = createRequest({ method });
 
       await engine.handle(request);
 
@@ -491,12 +465,10 @@ describe('createRetryOnEmptyMiddleware', () => {
         }),
       );
 
-      const request: JsonRpcRequest<string[]> = {
-        id: 123,
-        jsonrpc: '2.0',
+      const request = createRequest({
         method: 'eth_call',
         params: createMockParamsWithBlockParamAt(1, '100'),
-      };
+      });
       stubProviderRequests(provider, [
         createStubForBlockNumberRequest(),
         {

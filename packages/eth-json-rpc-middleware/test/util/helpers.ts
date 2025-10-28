@@ -11,16 +11,19 @@ import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
 
-export const createRequest = <Request extends Partial<JsonRpcRequest>>(
-  request: Request,
-): JsonRpcRequest => {
+export const createRequest = <
+  Input extends Partial<JsonRpcRequest>,
+  Output extends Input & JsonRpcRequest,
+>(
+  request: Input,
+): Output => {
   return {
     jsonrpc: '2.0',
     id: request.id ?? '1',
     method: request.method ?? 'test_request',
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     params: request.params === undefined ? [] : request.params,
-  };
+  } as Output;
 };
 
 /**
