@@ -770,8 +770,6 @@ describe('JsonRpcEngineV2', () => {
           middleware: [inflightMiddleware, resultMiddleware],
         });
 
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore - Jest blows up here, but there's no error at dev time.
         const requests: JsonRpcRequest[] = Array.from({ length: N }, (_, i) =>
           makeRequest({
             id: `${i}`,
