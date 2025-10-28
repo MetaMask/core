@@ -131,11 +131,11 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: BlockExplorerUrl['base-mainnet'],
     },
   },
-  [NetworkType['arbitrum-one']]: {
-    chainId: ChainId['arbitrum-one'],
-    ticker: NetworksTicker['arbitrum-one'],
+  [NetworkType['arbitrum-mainnet']]: {
+    chainId: ChainId['arbitrum-mainnet'],
+    ticker: NetworksTicker['arbitrum-mainnet'],
     rpcPrefs: {
-      blockExplorerUrl: BlockExplorerUrl['arbitrum-one'],
+      blockExplorerUrl: BlockExplorerUrl['arbitrum-mainnet'],
     },
   },
   [NetworkType['bsc-mainnet']]: {
