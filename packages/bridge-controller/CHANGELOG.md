@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: bitcoin fee calc for display and error handling ([#6932](https://github.com/MetaMask/core/pull/6932))
-
 ### Changed
 
 - Clean up SSE stream reader after use ([#6965](https://github.com/MetaMask/core/pull/6965))
