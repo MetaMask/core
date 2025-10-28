@@ -180,7 +180,7 @@
     "jsdoc/match-description": 4
   },
   "packages/eth-json-rpc-middleware/src/methods/wallet-request-execution-permissions.ts": {
-    "jsdoc/require-jsdoc": 1
+    "jsdoc/require-jsdoc": 2
   },
   "packages/eth-json-rpc-middleware/src/methods/wallet-revoke-execution-permission.ts": {
     "jsdoc/require-jsdoc": 1
