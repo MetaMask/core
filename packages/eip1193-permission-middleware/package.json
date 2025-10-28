@@ -47,7 +47,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/chain-agnostic-permission": "^1.2.1",
+    "@metamask/chain-agnostic-permission": "^1.2.2",
     "@metamask/controller-utils": "^11.14.1",
     "@metamask/json-rpc-engine": "^10.1.1",
     "@metamask/permission-controller": "^12.0.0",
