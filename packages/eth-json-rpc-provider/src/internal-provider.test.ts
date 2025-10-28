@@ -2,6 +2,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import EthQuery from '@metamask/eth-query';
 import EthJsQuery from '@metamask/ethjs-query';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2, JsonRpcServer } from '@metamask/json-rpc-engine/v2';
 import { providerErrors } from '@metamask/rpc-errors';
 import { type JsonRpcRequest, type Json } from '@metamask/utils';
 import { BrowserProvider } from 'ethers';
@@ -16,29 +17,44 @@ import {
 
 jest.mock('uuid');
 
-/**
- * Creates a mock JSON-RPC engine that returns a predefined response for a specific method.
- *
- * @param method - The RPC method to mock.
- * @param response - The response to return for the mocked method.
- * @returns A JSON-RPC engine instance with the mocked method.
- */
-function createMockEngine(method: string, response: Json) {
+type ResultParam = Json | ((req?: JsonRpcRequest) => Json);
+
+const createMockEngine = (method: string, result: ResultParam) => {
   const engine = new JsonRpcEngine();
   engine.push((req, res, next, end) => {
     if (req.method === method) {
-      res.result = response;
+      res.result = typeof result === 'function' ? result(req) : result;
       return end();
     }
     return next();
   });
   return engine;
-}
+};
 
-describe('InternalProvider', () => {
+const createMockServer = (method: string, result: ResultParam) => {
+  const engine = JsonRpcEngineV2.create({
+    middleware: [
+      ({ request, next }) => {
+        if (request.method === method) {
+          return typeof result === 'function'
+            ? result(request as JsonRpcRequest)
+            : result;
+        }
+        return next();
+      },
+    ],
+  });
+  const server = new JsonRpcServer({ engine });
+  return server;
+};
+
+describe.each([
+  { createRpcHandler: createMockEngine, name: 'JsonRpcEngine' },
+  { createRpcHandler: createMockServer, name: 'JsonRpcServer' },
+])('InternalProvider with $name', ({ createRpcHandler }) => {
   it('returns the correct block number with @metamask/eth-query', async () => {
     const provider = new InternalProvider({
-      engine: createMockEngine('eth_blockNumber', 42),
+      rpcHandler: createRpcHandler('eth_blockNumber', 42),
     });
     const ethQuery = new EthQuery(provider);
 
@@ -49,7 +65,7 @@ describe('InternalProvider', () => {
 
   it('returns the correct block number with @metamask/ethjs-query', async () => {
     const provider = new InternalProvider({
-      engine: createMockEngine('eth_blockNumber', 42),
+      rpcHandler: createRpcHandler('eth_blockNumber', 42),
     });
     const ethJsQuery = new EthJsQuery(provider);
 
@@ -60,7 +76,7 @@ describe('InternalProvider', () => {
 
   it('returns the correct block number with Web3Provider', async () => {
     const provider = new InternalProvider({
-      engine: createMockEngine('eth_blockNumber', 42),
+      rpcHandler: createRpcHandler('eth_blockNumber', 42),
     });
     const web3Provider = new Web3Provider(provider);
 
@@ -71,26 +87,26 @@ describe('InternalProvider', () => {
 
   it('returns the correct block number with BrowserProvider', async () => {
     const provider = new InternalProvider({
-      engine: createMockEngine('eth_blockNumber', 42),
+      rpcHandler: createRpcHandler('eth_blockNumber', 42),
     });
     const browserProvider = new BrowserProvider(provider);
 
     const response = await browserProvider.send('eth_blockNumber', []);
 
     expect(response).toBe(42);
+
+    browserProvider.destroy();
   });
 
   describe('request', () => {
     it('handles a successful JSON-RPC object request', async () => {
-      const engine = new JsonRpcEngine();
       let req: JsonRpcRequest | undefined;
-      engine.push((_req, res, _next, end) => {
-        req = _req;
-        res.result = 42;
-        end();
+      const rpcHandler = createRpcHandler('test', (request) => {
+        req = request;
+        return 42;
       });
-      const provider = new InternalProvider({ engine });
-      const exampleRequest = {
+      const provider = new InternalProvider({ rpcHandler });
+      const request = {
         id: 1,
         jsonrpc: '2.0' as const,
         method: 'test',
@@ -100,10 +116,10 @@ describe('InternalProvider', () => {
         },
       };
 
-      const result = await provider.request(exampleRequest);
+      const result = await provider.request(request);
 
       expect(req).toStrictEqual({
-        id: 1,
+        id: expect.anything(),
         jsonrpc: '2.0' as const,
         method: 'test',
         params: {
@@ -115,15 +131,13 @@ describe('InternalProvider', () => {
     });
 
     it('handles a successful EIP-1193 object request', async () => {
-      const engine = new JsonRpcEngine();
       let req: JsonRpcRequest | undefined;
-      engine.push((_req, res, _next, end) => {
-        req = _req;
-        res.result = 42;
-        end();
+      const rpcHandler = createRpcHandler('test', (request) => {
+        req = request;
+        return 42;
       });
-      const provider = new InternalProvider({ engine });
-      const exampleRequest = {
+      const provider = new InternalProvider({ rpcHandler });
+      const request = {
         method: 'test',
         params: {
           param1: 'value1',
@@ -132,10 +146,10 @@ describe('InternalProvider', () => {
       };
       jest.spyOn(uuid, 'v4').mockReturnValueOnce('mock-id');
 
-      const result = await provider.request(exampleRequest);
+      const result = await provider.request(request);
 
       expect(req).toStrictEqual({
-        id: 'mock-id',
+        id: expect.anything(),
         jsonrpc: '2.0' as const,
         method: 'test',
         params: {
@@ -147,28 +161,21 @@ describe('InternalProvider', () => {
     });
 
     it('handles a failure with a non-JSON-RPC error', async () => {
-      const engine = new JsonRpcEngine();
-      engine.push((_req, _res, _next, end) => {
-        end(
-          providerErrors.custom({
-            code: 1001,
-            message: 'Test error',
-            data: {
-              cause: 'Test cause',
-            },
-          }),
-        );
+      const rpcHandler = createRpcHandler('test', () => {
+        throw providerErrors.custom({
+          code: 1001,
+          message: 'Test error',
+          data: { cause: 'Test cause' },
+        });
       });
-      const provider = new InternalProvider({ engine });
-      const exampleRequest = {
+      const provider = new InternalProvider({ rpcHandler });
+      const request = {
         id: 1,
         jsonrpc: '2.0' as const,
         method: 'test',
       };
 
-      await expect(async () =>
-        provider.request(exampleRequest),
-      ).rejects.toThrow(
+      await expect(async () => provider.request(request)).rejects.toThrow(
         expect.objectContaining({
           code: 1001,
           message: 'Test error',
@@ -179,20 +186,17 @@ describe('InternalProvider', () => {
     });
 
     it('handles a failure with a JSON-RPC error', async () => {
-      const engine = new JsonRpcEngine();
-      engine.push(() => {
+      const rpcHandler = createRpcHandler('test', () => {
         throw new Error('Test error');
       });
-      const provider = new InternalProvider({ engine });
-      const exampleRequest = {
+      const provider = new InternalProvider({ rpcHandler });
+      const request = {
         id: 1,
         jsonrpc: '2.0' as const,
         method: 'test',
       };
 
-      await expect(async () =>
-        provider.request(exampleRequest),
-      ).rejects.toThrow(
+      await expect(async () => provider.request(request)).rejects.toThrow(
         expect.objectContaining({
           code: -32603,
           message: 'Test error',
@@ -209,16 +213,14 @@ describe('InternalProvider', () => {
 
   describe('sendAsync', () => {
     it('handles a successful JSON-RPC object request', async () => {
-      const engine = new JsonRpcEngine();
       let req: JsonRpcRequest | undefined;
-      engine.push((_req, res, _next, end) => {
-        req = _req;
-        res.result = 42;
-        end();
+      const rpcHandler = createRpcHandler('test', (request) => {
+        req = request;
+        return 42;
       });
-      const provider = new InternalProvider({ engine });
+      const provider = new InternalProvider({ rpcHandler });
       const promisifiedSendAsync = promisify(provider.sendAsync);
-      const exampleRequest = {
+      const request = {
         id: 1,
         jsonrpc: '2.0' as const,
         method: 'test',
@@ -228,10 +230,10 @@ describe('InternalProvider', () => {
         },
       };
 
-      const response = await promisifiedSendAsync(exampleRequest);
+      const response = await promisifiedSendAsync(request);
 
       expect(req).toStrictEqual({
-        id: 1,
+        id: expect.anything(),
         jsonrpc: '2.0' as const,
         method: 'test',
         params: {
@@ -243,16 +245,14 @@ describe('InternalProvider', () => {
     });
 
     it('handles a successful EIP-1193 object request', async () => {
-      const engine = new JsonRpcEngine();
       let req: JsonRpcRequest | undefined;
-      engine.push((_req, res, _next, end) => {
-        req = _req;
-        res.result = 42;
-        end();
+      const rpcHandler = createRpcHandler('test', (request) => {
+        req = request;
+        return 42;
       });
-      const provider = new InternalProvider({ engine });
+      const provider = new InternalProvider({ rpcHandler });
       const promisifiedSendAsync = promisify(provider.sendAsync);
-      const exampleRequest = {
+      const request = {
         method: 'test',
         params: {
           param1: 'value1',
@@ -261,10 +261,10 @@ describe('InternalProvider', () => {
       };
       jest.spyOn(uuid, 'v4').mockReturnValueOnce('mock-id');
 
-      const response = await promisifiedSendAsync(exampleRequest);
+      const response = await promisifiedSendAsync(request);
 
       expect(req).toStrictEqual({
-        id: 'mock-id',
+        id: expect.anything(),
         jsonrpc: '2.0' as const,
         method: 'test',
         params: {
@@ -276,50 +276,66 @@ describe('InternalProvider', () => {
     });
 
     it('handles a failed request', async () => {
-      const engine = new JsonRpcEngine();
-      engine.push((_req, _res, _next, _end) => {
+      const rpcHandler = createRpcHandler('test', () => {
         throw new Error('Test error');
       });
-      const provider = new InternalProvider({ engine });
+      const provider = new InternalProvider({ rpcHandler });
       const promisifiedSendAsync = promisify(provider.sendAsync);
-      const exampleRequest = {
+      const request = {
         id: 1,
         jsonrpc: '2.0' as const,
         method: 'test',
       };
 
-      await expect(async () =>
-        promisifiedSendAsync(exampleRequest),
-      ).rejects.toThrow('Test error');
+      await expect(async () => promisifiedSendAsync(request)).rejects.toThrow(
+        'Test error',
+      );
+    });
+
+    it('handles an error thrown by the JSON-RPC handler', async () => {
+      const rpcHandler = createRpcHandler('test', () => null);
+      jest
+        .spyOn(rpcHandler, 'handle')
+        .mockRejectedValue(new Error('Test error'));
+      const provider = new InternalProvider({ rpcHandler });
+      const promisifiedSendAsync = promisify(provider.sendAsync);
+      const request = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'test',
+      };
+
+      await expect(async () => promisifiedSendAsync(request)).rejects.toThrow(
+        'Test error',
+      );
     });
   });
 
   describe('send', () => {
     it('throws if a callback is not provided', () => {
-      const engine = new JsonRpcEngine();
-      const provider = new InternalProvider({ engine });
-      const exampleRequest = {
+      const rpcHandler = createRpcHandler('test', 42);
+      const provider = new InternalProvider({ rpcHandler });
+      const request = {
         id: 1,
         jsonrpc: '2.0' as const,
         method: 'test',
       };
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(() => (provider.send as any)(exampleRequest)).toThrow('');
+      // @ts-expect-error - Destructive testing.
+      expect(() => provider.send(request)).toThrow(
+        'Must provide callback to "send" method.',
+      );
     });
 
     it('handles a successful JSON-RPC object request', async () => {
-      const engine = new JsonRpcEngine();
       let req: JsonRpcRequest | undefined;
-      engine.push((_req, res, _next, end) => {
-        req = _req;
-        res.result = 42;
-        end();
+      const rpcHandler = createRpcHandler('test', (request) => {
+        req = request;
+        return 42;
       });
-      const provider = new InternalProvider({ engine });
+      const provider = new InternalProvider({ rpcHandler });
       const promisifiedSend = promisify(provider.send);
-      const exampleRequest = {
+      const request = {
         id: 1,
         jsonrpc: '2.0' as const,
         method: 'test',
@@ -329,10 +345,10 @@ describe('InternalProvider', () => {
         },
       };
 
-      const response = await promisifiedSend(exampleRequest);
+      const response = await promisifiedSend(request);
 
       expect(req).toStrictEqual({
-        id: 1,
+        id: expect.anything(),
         jsonrpc: '2.0' as const,
         method: 'test',
         params: {
@@ -344,16 +360,14 @@ describe('InternalProvider', () => {
     });
 
     it('handles a successful EIP-1193 object request', async () => {
-      const engine = new JsonRpcEngine();
       let req: JsonRpcRequest | undefined;
-      engine.push((_req, res, _next, end) => {
-        req = _req;
-        res.result = 42;
-        end();
+      const rpcHandler = createRpcHandler('test', (request) => {
+        req = request;
+        return 42;
       });
-      const provider = new InternalProvider({ engine });
+      const provider = new InternalProvider({ rpcHandler });
       const promisifiedSend = promisify(provider.send);
-      const exampleRequest = {
+      const request = {
         method: 'test',
         params: {
           param1: 'value1',
@@ -362,10 +376,10 @@ describe('InternalProvider', () => {
       };
       jest.spyOn(uuid, 'v4').mockReturnValueOnce('mock-id');
 
-      const response = await promisifiedSend(exampleRequest);
+      const response = await promisifiedSend(request);
 
       expect(req).toStrictEqual({
-        id: 'mock-id',
+        id: expect.anything(),
         jsonrpc: '2.0' as const,
         method: 'test',
         params: {
@@ -377,19 +391,18 @@ describe('InternalProvider', () => {
     });
 
     it('handles a failed request', async () => {
-      const engine = new JsonRpcEngine();
-      engine.push((_req, _res, _next, _end) => {
+      const rpcHandler = createRpcHandler('test', () => {
         throw new Error('Test error');
       });
-      const provider = new InternalProvider({ engine });
+      const provider = new InternalProvider({ rpcHandler });
       const promisifiedSend = promisify(provider.send);
-      const exampleRequest = {
+      const request = {
         id: 1,
         jsonrpc: '2.0' as const,
         method: 'test',
       };
 
-      await expect(async () => promisifiedSend(exampleRequest)).rejects.toThrow(
+      await expect(async () => promisifiedSend(request)).rejects.toThrow(
         'Test error',
       );
     });
@@ -409,23 +422,6 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
 
     expect(jsonRpcRequest).toStrictEqual({
       id: 'mock-id',
-      jsonrpc: '2.0',
-      method: 'test',
-      params: { param1: 'value1', param2: 'value2' },
-    });
-  });
-
-  it('uses the provided id if id is provided', () => {
-    const eip1193Request = {
-      id: '123',
-      method: 'test',
-      params: { param1: 'value1', param2: 'value2' },
-    };
-    const jsonRpcRequest =
-      convertEip1193RequestToJsonRpcRequest(eip1193Request);
-
-    expect(jsonRpcRequest).toStrictEqual({
-      id: '123',
       jsonrpc: '2.0',
       method: 'test',
       params: { param1: 'value1', param2: 'value2' },
