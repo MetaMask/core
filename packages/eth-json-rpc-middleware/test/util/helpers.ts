@@ -103,6 +103,30 @@ export function createProviderAndBlockTracker() {
 }
 
 /**
+ * Creates a JSON-RPC engine with the middleware under test and any
+ * additional middleware. If no other middleware is provided, a final middleware
+ * that returns a default result is added.
+ *
+ * @param middlewareUnderTest - The middleware under test.
+ * @param otherMiddleware - Any additional middleware.
+ * @returns The created engine.
+ */
+export function createEngine(
+  middlewareUnderTest: JsonRpcMiddleware<any, any>,
+  ...otherMiddleware: JsonRpcMiddleware<any, any>[]
+): JsonRpcEngine {
+  const engine = new JsonRpcEngine();
+  engine.push(middlewareUnderTest);
+  if (otherMiddleware.length === 0) {
+    otherMiddleware.push(createFinalMiddlewareWithDefaultResult());
+  }
+  for (const middleware of otherMiddleware) {
+    engine.push(middleware);
+  }
+  return engine;
+}
+
+/**
  * Creates a middleware function that just ends the request, but is also a Jest
  * mock function so that you can make assertions on it.
  *

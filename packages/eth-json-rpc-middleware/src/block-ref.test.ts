@@ -1,6 +1,3 @@
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-
 import { createBlockRefMiddleware } from '.';
 import {
   createMockParamsWithBlockParamAt,
@@ -11,22 +8,8 @@ import {
   createMockParamsWithoutBlockParamAt,
   expectProviderRequestNotToHaveBeenMade,
   createProviderAndBlockTracker,
+  createEngine,
 } from '../test/util/helpers';
-
-const createEngine = (
-  middlewareUnderTest: JsonRpcMiddleware<any, any>,
-  ...otherMiddleware: JsonRpcMiddleware<any, any>[]
-) => {
-  const engine = new JsonRpcEngine();
-  engine.push(middlewareUnderTest);
-  if (otherMiddleware.length === 0) {
-    otherMiddleware.push(createFinalMiddlewareWithDefaultResult());
-  }
-  for (const middleware of otherMiddleware) {
-    engine.push(middleware);
-  }
-  return engine;
-};
 
 describe('createBlockRefMiddleware', () => {
   let provider: ReturnType<typeof createProviderAndBlockTracker>['provider'];

@@ -202,12 +202,10 @@
     "jsdoc/require-jsdoc": 1
   },
   "packages/eth-json-rpc-middleware/src/retryOnEmpty.test.ts": {
-    "@typescript-eslint/no-explicit-any": 4,
-    "jest/expect-expect": 5,
-    "jsdoc/match-description": 4
+    "jsdoc/match-description": 3
   },
   "packages/eth-json-rpc-middleware/src/retryOnEmpty.ts": {
-    "jsdoc/require-jsdoc": 2
+    "jsdoc/match-description": 2
   },
   "packages/eth-json-rpc-middleware/src/utils/cache.ts": {
     "jsdoc/match-description": 6
@@ -238,8 +236,8 @@
     "jsdoc/match-description": 2
   },
   "packages/eth-json-rpc-middleware/test/util/helpers.ts": {
-    "@typescript-eslint/no-explicit-any": 1,
-    "jsdoc/match-description": 10
+    "@typescript-eslint/no-explicit-any": 5,
+    "jsdoc/match-description": 11
   },
   "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.test.ts": {
     "import-x/namespace": 1
