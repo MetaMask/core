@@ -1,9 +1,9 @@
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { JsonRpcMiddleware as LegacyJsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { JsonRpcServer } from '@metamask/json-rpc-engine/v2';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
-import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
+import type { Json, JsonRpcParams } from '@metamask/utils';
 
+import type { InternalProviderMiddleware } from './internal-provider';
 import { InternalProvider } from './internal-provider';
 import { providerFromEngine } from './provider-from-engine';
 
@@ -31,7 +31,7 @@ export function providerFromMiddleware<
  * @returns An Ethereum provider.
  */
 export function providerFromMiddlewareV2<
-  Middleware extends JsonRpcMiddleware<JsonRpcRequest, Json>,
+  Middleware extends InternalProviderMiddleware,
 >(middleware: Middleware): InternalProvider {
   return new InternalProvider({
     rpcHandler: new JsonRpcServer({ middleware: [middleware] }),

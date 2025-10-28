@@ -1893,6 +1893,8 @@ export class NetworkController extends BaseController<
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
         (error: unknown, block?: unknown) => {
           if (error) {
+            // We have no good reason to do this except long precedent.
+            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(error);
           } else {
             // TODO: Validate this type
@@ -2423,6 +2425,8 @@ export class NetworkController extends BaseController<
    *
    * In-progress requests will not be aborted.
    */
+  // We're intentionally changing the signature of an extended method.
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   async destroy() {
     await this.#blockTrackerProxy?.destroy();
   }

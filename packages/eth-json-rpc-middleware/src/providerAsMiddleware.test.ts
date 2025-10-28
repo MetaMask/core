@@ -1,4 +1,4 @@
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import type { Json } from '@metamask/utils';
@@ -10,10 +10,10 @@ import {
 } from './providerAsMiddleware';
 import { createRequest } from '../test/util/helpers';
 
-const createMockProvider = (result: Json): SafeEventEmitterProvider =>
+const createMockProvider = (result: Json): InternalProvider =>
   ({
     request: jest.fn().mockResolvedValue(result),
-  }) as unknown as SafeEventEmitterProvider;
+  }) as unknown as InternalProvider;
 
 describe('providerAsMiddleware', () => {
   it('forwards requests to the provider and returns the result', async () => {
