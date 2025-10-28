@@ -1,4 +1,4 @@
-import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
 import { createRetryOnEmptyMiddleware } from '.';
@@ -6,7 +6,6 @@ import type { ProviderRequestStub } from '../test/util/helpers';
 import {
   createMockParamsWithBlockParamAt,
   createMockParamsWithoutBlockParamAt,
-  createSimpleFinalMiddleware,
   createStubForBlockNumberRequest,
   expectProviderRequestNotToHaveBeenMade,
   requestMatches,
@@ -14,6 +13,7 @@ import {
   createProviderAndBlockTracker,
   createEngine,
   createRequest,
+  createFinalMiddlewareWithDefaultResult,
 } from '../test/util/helpers';
 
 const originalSetTimeout = globalThis.setTimeout;
@@ -100,18 +100,14 @@ describe('createRetryOnEmptyMiddleware', () => {
             }),
           ]);
 
-          const responsePromise = engine.handle(request);
+          const resultPromise = engine.handle(request);
           await waitForRequestToBeRetried({
             requestSpy,
             request,
             numberOfTimes: 10,
           });
 
-          expect(await responsePromise).toStrictEqual({
-            id: 1,
-            jsonrpc: '2.0',
-            result: 'something',
-          });
+          expect(await resultPromise).toBe('something');
         });
 
         it('returns an error if the request is still unsuccessful after 10 retries', async () => {
@@ -141,26 +137,20 @@ describe('createRetryOnEmptyMiddleware', () => {
             }),
           ]);
 
-          const responsePromise = engine.handle(request);
+          const resultPromise = engine.handle(request);
           await waitForRequestToBeRetried({
             requestSpy,
             request,
             numberOfTimes: 10,
           });
 
-          expect(await responsePromise).toMatchObject({
-            error: expect.objectContaining({
-              data: expect.objectContaining({
-                cause: expect.objectContaining({
-                  message: 'RetryOnEmptyMiddleware - retries exhausted',
-                }),
-              }),
-            }),
-          });
+          await expect(resultPromise).rejects.toThrow(
+            new Error('RetryOnEmptyMiddleware - retries exhausted'),
+          );
         });
 
         it('does not proceed to the next middleware after making a request through the provider', async () => {
-          const finalMiddleware = createSimpleFinalMiddleware();
+          const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
           const engine = createEngine(
             createRetryOnEmptyMiddleware({
@@ -219,7 +209,7 @@ describe('createRetryOnEmptyMiddleware', () => {
           });
 
           it('proceeds to the next middleware', async () => {
-            const finalMiddleware = createSimpleFinalMiddleware();
+            const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
             const engine = createEngine(
               createRetryOnEmptyMiddleware({
@@ -276,7 +266,7 @@ describe('createRetryOnEmptyMiddleware', () => {
             });
 
             it('proceeds to the next middleware', async () => {
-              const finalMiddleware = createSimpleFinalMiddleware();
+              const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
               const engine = createEngine(
                 createRetryOnEmptyMiddleware({
@@ -334,7 +324,7 @@ describe('createRetryOnEmptyMiddleware', () => {
             });
 
             it('proceeds to the next middleware', async () => {
-              const finalMiddleware = createSimpleFinalMiddleware();
+              const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
               const engine = createEngine(
                 createRetryOnEmptyMiddleware({
@@ -389,7 +379,7 @@ describe('createRetryOnEmptyMiddleware', () => {
           });
 
           it('proceeds to the next middleware', async () => {
-            const finalMiddleware = createSimpleFinalMiddleware();
+            const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
             const engine = createEngine(
               createRetryOnEmptyMiddleware({
@@ -437,7 +427,7 @@ describe('createRetryOnEmptyMiddleware', () => {
     });
 
     it('proceeds to the next middleware', async () => {
-      const finalMiddleware = createSimpleFinalMiddleware();
+      const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
       const engine = createEngine(
         createRetryOnEmptyMiddleware({
@@ -478,13 +468,11 @@ describe('createRetryOnEmptyMiddleware', () => {
           },
         },
       ]);
-      const responsePromise = engine.handle(request);
-      expect(await responsePromise).toMatchObject({
-        error: expect.objectContaining({
-          code: errorCodes.rpc.invalidInput,
-          message: 'execution reverted',
-        }),
-      });
+
+      const resultPromise = engine.handle(request);
+      await expect(resultPromise).rejects.toThrow(
+        rpcErrors.invalidInput('execution reverted'),
+      );
     });
   });
 });
