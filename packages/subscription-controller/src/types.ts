@@ -352,5 +352,6 @@ export type BillingPortalResponse = {
 export type CachedLastSelectedPaymentMethod = {
   type: PaymentType;
   paymentTokenAddress?: Hex;
+  paymentTokenSymbol?: string;
   plan: RecurringInterval;
 };

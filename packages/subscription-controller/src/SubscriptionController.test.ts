@@ -1429,6 +1429,13 @@ describe('SubscriptionController', () => {
   });
 
   describe('cacheLastSelectedPaymentMethod', () => {
+    const MOCK_CACHED_PAYMENT_METHOD: CachedLastSelectedPaymentMethod = {
+      type: PAYMENT_TYPES.byCrypto,
+      paymentTokenAddress: '0x123',
+      paymentTokenSymbol: 'USDT',
+      plan: RECURRING_INTERVALS.month,
+    };
+
     it('should cache last selected payment method successfully', async () => {
       await withController(async ({ controller }) => {
         controller.cacheLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD, {
@@ -1465,18 +1472,13 @@ describe('SubscriptionController', () => {
             },
           });
 
-          controller.cacheLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD, {
-            type: PAYMENT_TYPES.byCrypto,
-            paymentTokenAddress: '0x123',
-            plan: RECURRING_INTERVALS.month,
-          });
+          controller.cacheLastSelectedPaymentMethod(
+            PRODUCT_TYPES.SHIELD,
+            MOCK_CACHED_PAYMENT_METHOD,
+          );
 
           expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({
-            [PRODUCT_TYPES.SHIELD]: {
-              type: PAYMENT_TYPES.byCrypto,
-              paymentTokenAddress: '0x123',
-              plan: RECURRING_INTERVALS.month,
-            },
+            [PRODUCT_TYPES.SHIELD]: MOCK_CACHED_PAYMENT_METHOD,
           });
         },
       );
@@ -1490,7 +1492,7 @@ describe('SubscriptionController', () => {
             plan: RECURRING_INTERVALS.month,
           } as CachedLastSelectedPaymentMethod),
         ).toThrow(
-          SubscriptionControllerErrorMessage.PaymentTokenAddressRequiredForCrypto,
+          SubscriptionControllerErrorMessage.PaymentTokenAddressAndSymbolRequiredForCrypto,
         );
       });
     });
@@ -1510,6 +1512,7 @@ describe('SubscriptionController', () => {
       [PRODUCT_TYPES.SHIELD]: {
         type: PAYMENT_TYPES.byCrypto,
         paymentTokenAddress: '0xtoken',
+        paymentTokenSymbol: 'USDT',
         plan: RECURRING_INTERVALS.month,
       },
     };
@@ -1519,7 +1522,6 @@ describe('SubscriptionController', () => {
         {
           state: {
             lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
-            pricing: MOCK_PRICE_INFO_RESPONSE,
           },
         },
         async ({ controller, mockService }) => {
@@ -1587,22 +1589,13 @@ describe('SubscriptionController', () => {
     });
 
     it('should throw error when no cached payment method is found', async () => {
-      await withController(
-        {
-          state: {
-            pricing: MOCK_PRICE_INFO_RESPONSE,
-          },
-        },
-        async ({ controller }) => {
-          await expect(
-            controller.submitSponsorshipIntents(
-              MOCK_SUBMISSION_INTENTS_REQUEST,
-            ),
-          ).rejects.toThrow(
-            SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
-          );
-        },
-      );
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.submitSponsorshipIntents(MOCK_SUBMISSION_INTENTS_REQUEST),
+        ).rejects.toThrow(
+          SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
+        );
+      });
     });
 
     it('should throw error when payment method is not crypto', async () => {
@@ -1629,59 +1622,13 @@ describe('SubscriptionController', () => {
       );
     });
 
-    it('should throw error when crypto pricing is not found', async () => {
-      await withController(
-        {
-          state: {
-            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
-          },
-        },
-        async ({ controller }) => {
-          await expect(
-            controller.submitSponsorshipIntents(
-              MOCK_SUBMISSION_INTENTS_REQUEST,
-            ),
-          ).rejects.toThrow(
-            SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
-          );
-        },
-      );
-    });
-
-    it('should throw error when payment token address is not found', async () => {
-      await withController(
-        {
-          state: {
-            lastSelectedPaymentMethod: {
-              [PRODUCT_TYPES.SHIELD]: {
-                type: PAYMENT_TYPES.byCrypto,
-                paymentTokenAddress: '0xnotfound',
-                plan: RECURRING_INTERVALS.month,
-              },
-            },
-            pricing: MOCK_PRICE_INFO_RESPONSE,
-          },
-        },
-        async ({ controller }) => {
-          await expect(
-            controller.submitSponsorshipIntents(
-              MOCK_SUBMISSION_INTENTS_REQUEST,
-            ),
-          ).rejects.toThrow(
-            SubscriptionControllerErrorMessage.PaymentTokenAddressNotFound,
-          );
-        },
-      );
-    });
-
     it('should handle subscription service errors', async () => {
       await withController(
         {
           state: {
             lastSelectedPaymentMethod: {
               [PRODUCT_TYPES.SHIELD]: {
-                type: PAYMENT_TYPES.byCrypto,
-                paymentTokenAddress: '0xtoken',
+                ...MOCK_CACHED_PAYMENT_METHOD[PRODUCT_TYPES.SHIELD],
                 plan: RECURRING_INTERVALS.year,
               },
             },

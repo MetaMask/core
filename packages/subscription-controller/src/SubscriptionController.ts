@@ -6,7 +6,6 @@ import {
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import type { Hex } from '@metamask/utils';
 
 import {
   ACTIVE_SUBSCRIPTION_STATUSES,
@@ -534,10 +533,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   ) {
     if (
       paymentMethod.type === PAYMENT_TYPES.byCrypto &&
-      !paymentMethod.paymentTokenAddress
+      (!paymentMethod.paymentTokenAddress || !paymentMethod.paymentTokenSymbol)
     ) {
       throw new Error(
-        SubscriptionControllerErrorMessage.PaymentTokenAddressRequiredForCrypto,
+        SubscriptionControllerErrorMessage.PaymentTokenAddressAndSymbolRequiredForCrypto,
       );
     }
 
@@ -581,19 +580,14 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       this.state.lastSelectedPaymentMethod?.[request.products[0]];
     this.#assertIsPaymentMethodCrypto(selectedPaymentMethod);
 
-    const recurringInterval = selectedPaymentMethod.plan;
-    const billingCycles =
-      recurringInterval === RECURRING_INTERVALS.year ? 1 : 12;
-    const paymentTokenSymbol = this.#queryPaymentTokenSymbol(
-      request.chainId,
-      selectedPaymentMethod.paymentTokenAddress,
-    );
+    const { paymentTokenSymbol, plan } = selectedPaymentMethod;
+    const billingCycles = plan === RECURRING_INTERVALS.year ? 1 : 12;
 
     await this.#subscriptionService.submitSponsorshipIntents({
       ...request,
       paymentTokenSymbol,
       billingCycles,
-      recurringInterval,
+      recurringInterval: plan,
     });
   }
 
@@ -719,33 +713,6 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
       );
     }
-  }
-
-  /**
-   * Queries the payment token symbol from the pricing.
-   *
-   * @param chainId - The chain id.
-   * @param paymentTokenAddress - The payment token address.
-   * @returns The payment token symbol.
-   */
-  #queryPaymentTokenSymbol(chainId: Hex, paymentTokenAddress: Hex): string {
-    const cryptoPaymentMethod = this.state.pricing?.paymentMethods.find(
-      (t) => t.type === PAYMENT_TYPES.byCrypto,
-    );
-    if (!cryptoPaymentMethod) {
-      throw new Error(
-        SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
-      );
-    }
-    const tokenPaymentInfo = cryptoPaymentMethod.chains
-      ?.find((t) => t.chainId === chainId)
-      ?.tokens.find((t) => t.address === paymentTokenAddress);
-    if (!tokenPaymentInfo) {
-      throw new Error(
-        SubscriptionControllerErrorMessage.PaymentTokenAddressNotFound,
-      );
-    }
-    return tokenPaymentInfo.symbol;
   }
 
   /**
