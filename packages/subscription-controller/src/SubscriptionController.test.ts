@@ -32,7 +32,6 @@ import type {
   Product,
   SubscriptionEligibility,
   CachedLastSelectedPaymentMethod,
-  SubmitSponsorshipIntentsRequest,
   SubmitSponsorshipIntentsMethodParams,
   ProductType,
 } from './types';
