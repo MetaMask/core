@@ -9,7 +9,7 @@ export const InfuraNetworkType = {
   'linea-sepolia': 'linea-sepolia',
   'linea-mainnet': 'linea-mainnet',
   'base-mainnet': 'base-mainnet',
-  'arbitrum-one': 'arbitrum-one',
+  'arbitrum-mainnet': 'arbitrum-mainnet',
   'bsc-mainnet': 'bsc-mainnet',
   'optimism-mainnet': 'optimism-mainnet',
   'polygon-mainnet': 'polygon-mainnet',
@@ -85,7 +85,7 @@ export enum BuiltInNetworkName {
   MegaETHTestnet = 'megaeth-testnet',
   MonadTestnet = 'monad-testnet',
   BaseMainnet = 'base-mainnet',
-  ArbitrumOne = 'arbitrum-one',
+  ArbitrumOne = 'arbitrum-mainnet',
   BscMainnet = 'bsc-mainnet',
   OptimismMainnet = 'optimism-mainnet',
   PolygonMainnet = 'polygon-mainnet',
@@ -129,7 +129,7 @@ export enum NetworksTicker {
   'monad-testnet' = 'MON',
   // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'base-mainnet' = 'ETH',
-  'arbitrum-one' = 'ETH',
+  'arbitrum-mainnet' = 'ETH',
   'bsc-mainnet' = 'BNB',
   // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'optimism-mainnet' = 'ETH',

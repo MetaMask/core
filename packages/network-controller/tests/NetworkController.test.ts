@@ -1897,7 +1897,7 @@ describe('NetworkController', () => {
             mockCreateNetworkClient().mockReturnValue(buildFakeClient());
 
             expect(controller.getNetworkClientRegistry()).toStrictEqual({
-              'arbitrum-one': {
+              'arbitrum-mainnet': {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
@@ -1905,7 +1905,7 @@ describe('NetworkController', () => {
                   infuraProjectId,
                   chainId: '0xa4b1',
                   ticker: 'ETH',
-                  network: InfuraNetworkType['arbitrum-one'],
+                  network: InfuraNetworkType['arbitrum-mainnet'],
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
