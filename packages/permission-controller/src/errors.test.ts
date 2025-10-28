@@ -13,6 +13,12 @@ describe('error', () => {
         },
       );
     });
+
+    it('has the expected name', () => {
+      expect(new CaveatMergeTypeMismatchError('foo', 'bar').name).toBe(
+        'CaveatMergeTypeMismatchError',
+      );
+    });
   });
 
   describe('EndowmentPermissionDoesNotExistError', () => {
@@ -28,6 +34,12 @@ describe('error', () => {
       expect(
         new EndowmentPermissionDoesNotExistError('bar').data,
       ).toBeUndefined();
+    });
+
+    it('has the expected name', () => {
+      expect(new EndowmentPermissionDoesNotExistError('bar').name).toBe(
+        'EndowmentPermissionDoesNotExistError',
+      );
     });
   });
 });
