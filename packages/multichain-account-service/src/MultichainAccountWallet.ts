@@ -12,10 +12,12 @@ import {
   toDefaultAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
+import { TraceName } from './constants/traces';
 import type { Logger } from './logger';
 import {
   createModuleLogger,
@@ -61,6 +63,8 @@ export class MultichainAccountWallet<
 
   readonly #log: Logger;
 
+  readonly #trace: TraceCallback;
+
   // eslint-disable-next-line @typescript-eslint/prefer-readonly
   #initialized = false;
 
@@ -70,17 +74,19 @@ export class MultichainAccountWallet<
     providers,
     entropySource,
     messenger,
+    trace,
   }: {
     providers: NamedAccountProvider<Account>[];
     entropySource: EntropySourceId;
     messenger: MultichainAccountServiceMessenger;
+    trace?: TraceCallback;
   }) {
     this.#id = toMultichainAccountWalletId(entropySource);
     this.#providers = providers;
     this.#entropySource = entropySource;
     this.#messenger = messenger;
     this.#accountGroups = new Map();
-
+    this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
     this.#log = createModuleLogger(log, `[${this.#id}]`);
 
     // Initial synchronization (don't emit events during initialization).
@@ -338,12 +344,22 @@ export class MultichainAccountWallet<
       if (options?.waitForAllProvidersToFinishCreatingAccounts) {
         // Create account with all providers and await them.
         const results = await Promise.allSettled(
-          this.#providers.map((provider) =>
-            provider.createAccounts({
-              entropySource: this.#entropySource,
-              groupIndex,
-            }),
-          ),
+          this.#providers.map(async (provider) => {
+            return await this.#trace(
+              {
+                name: TraceName.SnapDiscoverAccounts,
+                data: {
+                  providerName: provider.getName(),
+                },
+              },
+              async () => {
+                return await provider.createAccounts({
+                  entropySource: this.#entropySource,
+                  groupIndex,
+                });
+              },
+            );
+          }),
         );
 
         // If any of the provider failed to create their accounts, then we consider the
@@ -388,18 +404,36 @@ export class MultichainAccountWallet<
         }
 
         // Create account with other providers in the background
-        otherProviders.forEach((provider) => {
-          provider
-            .createAccounts({
-              entropySource: this.#entropySource,
-              groupIndex,
-            })
-            .catch((error) => {
-              // Log errors from background providers but don't fail the operation
-              const errorMessage = `Could not to create account with provider "${provider.getName()}" for multichain account group index: ${groupIndex}`;
-              this.#log(`${WARNING_PREFIX} ${errorMessage}:`, error);
-            });
-        });
+        for (const provider of otherProviders) {
+          (async () => {
+            await this.#trace(
+              {
+                name: TraceName.SnapDiscoverAccounts,
+                data: {
+                  providerName: provider.getName(),
+                },
+              },
+              async () => {
+                await provider
+                  .createAccounts({
+                    entropySource: this.#entropySource,
+                    groupIndex,
+                  })
+                  .catch((error) => {
+                    // Log errors from background providers but don't fail the operation
+                    const errorMessage = `Could not create account with provider "${provider.getName()}" for multichain account group index: ${groupIndex}`;
+                    this.#log(`${WARNING_PREFIX} ${errorMessage}:`, error);
+                  });
+              },
+            );
+          })().catch((error) => {
+            // Handle any unexpected errors in the background operation
+            this.#log(
+              `${ERROR_PREFIX} Unexpected error in background account creation:`,
+              error,
+            );
+          });
+        }
       }
 
       // --------------------------------------------------------------------------------

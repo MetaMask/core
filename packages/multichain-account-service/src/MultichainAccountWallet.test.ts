@@ -14,6 +14,7 @@ import {
 } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import { TraceName } from './constants/traces';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { MockAccountProvider } from './tests';
 import {
@@ -339,6 +340,49 @@ describe('MultichainAccountWallet', () => {
         await wallet.createMultichainAccountGroup(groupIndex),
       ).toBeDefined();
       expect(mockSolProviderError).toHaveBeenCalled();
+    });
+
+    it('calls trace callback with correct TraceName during account creation', async () => {
+      const groupIndex = 1;
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const mockTrace = jest.fn().mockImplementation((_request, fn) => fn?.());
+
+      const { providers, messenger } = setup({
+        accounts: [[mockEvmAccount], []],
+      });
+
+      const wallet = new MultichainAccountWallet({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        providers,
+        messenger,
+        trace: mockTrace,
+      });
+
+      const [evmProvider, solProvider] = providers;
+      const mockNextEvmAccount = MockAccountBuilder.from(mockEvmAccount)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(groupIndex)
+        .get();
+
+      evmProvider.createAccounts.mockResolvedValueOnce([mockNextEvmAccount]);
+      solProvider.createAccounts.mockResolvedValueOnce([]);
+
+      await wallet.createMultichainAccountGroup(groupIndex);
+
+      // Verify trace was called with correct TraceName for non-EVM provider
+      expect(mockTrace).toHaveBeenCalledWith(
+        {
+          name: TraceName.SnapDiscoverAccounts,
+          data: {
+            providerName: expect.any(String),
+          },
+        },
+        expect.any(Function),
+      );
     });
 
     it('fails to create an account group if any of the provider fails to create its account and waitForAllProvidersToFinishCreatingAccounts is true', async () => {

@@ -7,6 +7,7 @@ import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 
 import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
+import { TraceName } from './constants/traces';
 import type { NamedAccountProvider } from './providers';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
 import {
@@ -224,6 +225,30 @@ describe('MultichainAccountService', () => {
         messenger,
         providerConfigs[SolAccountProvider.NAME],
       );
+    });
+
+    it('accepts trace callback in config', () => {
+      const mockTrace = jest.fn().mockImplementation((_request, fn) => fn?.());
+      const config = { trace: mockTrace };
+
+      // Test that the service can be constructed with a trace config
+      const rootMessenger = getRootMessenger();
+      const messenger = getMultichainAccountServiceMessenger(rootMessenger);
+
+      // Mock the required handlers for initialization
+      rootMessenger.registerActionHandler(
+        'KeyringController:getState',
+        jest.fn().mockReturnValue({ isUnlocked: true, keyrings: [] }),
+      );
+
+      const serviceWithTrace = new MultichainAccountService({
+        messenger,
+        config,
+      });
+
+      serviceWithTrace.init();
+
+      expect(serviceWithTrace).toBeDefined();
     });
 
     it('allows optional configs for some providers', () => {

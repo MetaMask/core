@@ -6,6 +6,7 @@ import type {
   MultichainAccountWalletId,
   Bip44Account,
 } from '@metamask/account-api';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
@@ -26,7 +27,10 @@ import {
 } from './providers/AccountProviderWrapper';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
-import type { MultichainAccountServiceMessenger } from './types';
+import type {
+  MultichainAccountServiceConfig,
+  MultichainAccountServiceMessenger,
+} from './types';
 
 export const serviceName = 'MultichainAccountService';
 
@@ -40,6 +44,7 @@ export type MultichainAccountServiceOptions = {
     [EvmAccountProvider.NAME]?: EvmAccountProviderConfig;
     [SolAccountProvider.NAME]?: SolAccountProviderConfig;
   };
+  config?: MultichainAccountServiceConfig;
 };
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
@@ -66,6 +71,8 @@ export class MultichainAccountService {
     AccountContext<Bip44Account<KeyringAccount>>
   >;
 
+  readonly #trace: TraceCallback;
+
   /**
    * The name of the service.
    */
@@ -79,16 +86,19 @@ export class MultichainAccountService {
    * MultichainAccountService.
    * @param options.providers - Optional list of account
    * @param options.providerConfigs - Optional provider configs
-   * providers.
+   * @param options.config - Optional config.
    */
   constructor({
     messenger,
     providers = [],
     providerConfigs,
+    config,
   }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
+    this.#trace =
+      config?.trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
@@ -181,6 +191,7 @@ export class MultichainAccountService {
           entropySource,
           providers: this.#providers,
           messenger: this.#messenger,
+          trace: this.#trace.bind(this),
         });
         this.#wallets.set(wallet.id, wallet);
 
@@ -220,6 +231,7 @@ export class MultichainAccountService {
         entropySource: account.options.entropy.id,
         providers: this.#providers,
         messenger: this.#messenger,
+        trace: this.#trace.bind(this),
       });
       this.#wallets.set(wallet.id, wallet);
 
@@ -377,6 +389,7 @@ export class MultichainAccountService {
       providers: this.#providers,
       entropySource: result.id,
       messenger: this.#messenger,
+      trace: this.#trace.bind(this),
     });
 
     this.#wallets.set(wallet.id, wallet);
