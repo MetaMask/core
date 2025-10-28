@@ -2,8 +2,8 @@ import {
   type StateMetadata,
   type ControllerStateChangeEvent,
   type ControllerGetStateAction,
-  type RestrictedMessenger,
 } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
@@ -121,12 +121,10 @@ export type AllowedEvents =
   AuthenticationController.AuthenticationControllerStateChangeEvent;
 
 // Messenger
-export type SubscriptionControllerMessenger = RestrictedMessenger<
+export type SubscriptionControllerMessenger = Messenger<
   typeof controllerName,
   SubscriptionControllerActions | AllowedActions,
-  SubscriptionControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  SubscriptionControllerEvents | AllowedEvents
 >;
 
 /**
@@ -177,25 +175,25 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
     subscriptions: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: true,
     },
     customerId: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: true,
     },
     trialedProducts: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: true,
+      includeInDebugSnapshot: true,
       usedInUi: true,
     },
     pricing: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: true,
+      includeInDebugSnapshot: true,
       usedInUi: true,
     },
     lastSelectedPaymentMethod: {
@@ -250,47 +248,47 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * actions.
    */
   #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:getSubscriptions',
       this.getSubscriptions.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:getSubscriptionByProduct',
       this.getSubscriptionByProduct.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:cancelSubscription',
       this.cancelSubscription.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:startShieldSubscriptionWithCard',
       this.startShieldSubscriptionWithCard.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:getPricing',
       this.getPricing.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:getCryptoApproveTransactionParams',
       this.getCryptoApproveTransactionParams.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:startSubscriptionWithCrypto',
       this.startSubscriptionWithCrypto.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:updatePaymentMethod',
       this.updatePaymentMethod.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:getBillingPortalUrl',
       this.getBillingPortalUrl.bind(this),
     );
@@ -624,7 +622,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     // We perform a sign out to clear the access token from the authentication
     // controller. Next time the access token is requested, a new access token
     // will be fetched.
-    this.messagingSystem.call('AuthenticationController:performSignOut');
+    this.messenger.call('AuthenticationController:performSignOut');
   }
 
   #assertIsUserSubscribed(request: { subscriptionId: string }) {
