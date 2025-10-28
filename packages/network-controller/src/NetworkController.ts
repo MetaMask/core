@@ -2446,6 +2446,8 @@ export class NetworkController extends BaseController<
    *
    * In-progress requests will not be aborted.
    */
+  // We're intentionally changing the signature of an extended method.
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   async destroy() {
     await this.#blockTrackerProxy?.destroy();
   }
