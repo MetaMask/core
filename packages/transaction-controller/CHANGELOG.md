@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `isIntentComplete` property to `TransactionMeta` to indicate transaction outcome was achieved via an alternate chain or mechanism ([#6950](https://github.com/MetaMask/core/pull/6950))
 
+### Changed
+
+- Identify OP stack chains using gas API ([#6899](https://github.com/MetaMask/core/pull/6899))
+
 ## [61.0.0]
 
 ### Changed
