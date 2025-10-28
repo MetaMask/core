@@ -336,20 +336,28 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     this.messenger.subscribe(
       'TransactionController:unapprovedTransactionAdded',
       async (transactionMeta: TransactionMeta) => {
-        await this.#refreshAddress(
-          [transactionMeta.networkClientId],
-          transactionMeta.txParams.from,
-        );
+        const addresses = [transactionMeta.txParams.from];
+        if (transactionMeta.txParams.to) {
+          addresses.push(transactionMeta.txParams.to);
+        }
+        await this.refreshAddresses({
+          networkClientIds: [transactionMeta.networkClientId],
+          addresses,
+        });
       },
     );
 
     this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       async (transactionMeta: TransactionMeta) => {
-        await this.#refreshAddress(
-          [transactionMeta.networkClientId],
-          transactionMeta.txParams.from,
-        );
+        const addresses = [transactionMeta.txParams.from];
+        if (transactionMeta.txParams.to) {
+          addresses.push(transactionMeta.txParams.to);
+        }
+        await this.refreshAddresses({
+          networkClientIds: [transactionMeta.networkClientId],
+          addresses,
+        });
       },
     );
 
@@ -557,13 +565,28 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     });
   }
 
-  async #refreshAddress(networkClientIds: NetworkClientId[], address: string) {
-    const checksumAddress = toChecksumHexAddress(address) as ChecksumAddress;
+  async refreshAddresses({
+    networkClientIds,
+    addresses,
+  }: {
+    networkClientIds: NetworkClientId[];
+    addresses: string[];
+  }) {
+    const checksummedAddresses = addresses.map((address) =>
+      toChecksumHexAddress(address),
+    );
+
+    const accounts = this.messenger
+      .call('AccountsController:listAccounts')
+      .filter((account) =>
+        checksummedAddresses.includes(toChecksumHexAddress(account.address)),
+      );
+
     await this.#refreshAccounts({
       networkClientIds,
-      queryAllAccounts: false,
-      selectedAccount: checksumAddress,
-      allAccounts: [],
+      queryAllAccounts: true,
+      selectedAccount: '0x0',
+      allAccounts: accounts,
     });
   }
 
