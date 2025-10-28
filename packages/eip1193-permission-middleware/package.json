@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eip1193-permission-middleware",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Implements the JSON-RPC methods for managing permissions as referenced in EIP-2255 and MIP-2 and inspired by MIP-5, but supporting chain-agnostic permission caveats in alignment with @metamask/multichain-api-middleware",
   "keywords": [
     "MetaMask",
@@ -50,7 +50,7 @@
     "@metamask/chain-agnostic-permission": "^1.2.1",
     "@metamask/controller-utils": "^11.14.1",
     "@metamask/json-rpc-engine": "^10.1.1",
-    "@metamask/permission-controller": "^11.1.1",
+    "@metamask/permission-controller": "^12.0.0",
     "@metamask/utils": "^11.8.1",
     "lodash": "^4.17.21"
   },

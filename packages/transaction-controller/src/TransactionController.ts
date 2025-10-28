@@ -11,7 +11,7 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
+  StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
@@ -27,6 +27,7 @@ import type {
   GasFeeState,
 } from '@metamask/gas-fee-controller';
 import type { KeyringControllerSignEip7702AuthorizationAction } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   BlockTracker,
   NetworkClientId,
@@ -177,35 +178,35 @@ import {
  * Metadata for the TransactionController state, describing how to "anonymize"
  * the state and which parts should be persisted.
  */
-const metadata = {
+const metadata: StateMetadata<TransactionControllerState> = {
   transactions: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   transactionBatches: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   methodData: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   lastFetchedBlockNumbers: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   submitHistory: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
 };
@@ -758,12 +759,10 @@ export type TransactionControllerEvents =
 /**
  * The messenger of the {@link TransactionController}.
  */
-export type TransactionControllerMessenger = RestrictedMessenger<
+export type TransactionControllerMessenger = Messenger<
   typeof controllerName,
   TransactionControllerActions | AllowedActions,
-  TransactionControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  TransactionControllerEvents | AllowedEvents
 >;
 
 /**
@@ -955,7 +954,7 @@ export class TransactionController extends BaseController<
       },
     });
 
-    this.messagingSystem = messenger;
+    this.messenger = messenger;
 
     this.#afterAdd = hooks?.afterAdd ?? (() => Promise.resolve({}));
     this.#afterSign = hooks?.afterSign ?? (() => true);
@@ -1003,7 +1002,7 @@ export class TransactionController extends BaseController<
     this.#transactionHistoryLimit = transactionHistoryLimit;
 
     const findNetworkClientIdByChainId = (chainId: Hex) => {
-      return this.messagingSystem.call(
+      return this.messenger.call(
         `NetworkController:findNetworkClientIdByChainId`,
         chainId,
       );
@@ -1012,7 +1011,7 @@ export class TransactionController extends BaseController<
     this.#multichainTrackingHelper = new MultichainTrackingHelper({
       findNetworkClientIdByChainId,
       getNetworkClientById: ((networkClientId: NetworkClientId) => {
-        return this.messagingSystem.call(
+        return this.messenger.call(
           `NetworkController:getNetworkClientById`,
           networkClientId,
         );
@@ -1024,10 +1023,7 @@ export class TransactionController extends BaseController<
       createPendingTransactionTracker:
         this.#createPendingTransactionTracker.bind(this),
       onNetworkStateChange: (listener) => {
-        this.messagingSystem.subscribe(
-          'NetworkController:stateChange',
-          listener,
-        );
+        this.messenger.subscribe('NetworkController:stateChange', listener);
       },
     });
 
@@ -1043,12 +1039,9 @@ export class TransactionController extends BaseController<
       getTransactions: () => this.state.transactions,
       getTransactionBatches: () => this.state.transactionBatches,
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
-      messenger: this.messagingSystem,
+      messenger: this.messenger,
       onStateChange: (listener) => {
-        this.messagingSystem.subscribe(
-          'TransactionController:stateChange',
-          listener,
-        );
+        this.messenger.subscribe('TransactionController:stateChange', listener);
       },
     });
 
@@ -1083,7 +1076,7 @@ export class TransactionController extends BaseController<
       includeTokenTransfers:
         this.#incomingTransactionOptions.includeTokenTransfers,
       isEnabled: this.#incomingTransactionOptions.isEnabled,
-      messenger: this.messagingSystem,
+      messenger: this.messenger,
       remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
       trimTransactions: this.#trimTransactionsForState.bind(this),
       updateTransactions: this.#incomingTransactionOptions.updateTransactions,
@@ -1095,7 +1088,7 @@ export class TransactionController extends BaseController<
 
     // when transactionsController state changes
     // check for pending transactions and start polling if there are any
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:stateChange',
       this.#checkForPendingTransactionAndStartPolling,
     );
@@ -1103,7 +1096,7 @@ export class TransactionController extends BaseController<
     new ResimulateHelper({
       simulateTransaction: this.#updateSimulationData.bind(this),
       onTransactionsUpdate: (listener) => {
-        this.messagingSystem.subscribe(
+        this.messenger.subscribe(
           'TransactionController:stateChange',
           listener,
           (controllerState) => controllerState.transactions,
@@ -1147,7 +1140,7 @@ export class TransactionController extends BaseController<
   async addTransactionBatch(
     request: TransactionBatchRequest,
   ): Promise<TransactionBatchResult> {
-    const { blockTracker } = this.messagingSystem.call(
+    const { blockTracker } = this.messenger.call(
       `NetworkController:getNetworkClientById`,
       request.networkClientId,
     );
@@ -1170,7 +1163,7 @@ export class TransactionController extends BaseController<
       getTransaction: (transactionId) =>
         this.#getTransactionOrThrow(transactionId),
       isSimulationEnabled: this.#isSimulationEnabled,
-      messenger: this.messagingSystem,
+      messenger: this.messenger,
       publishBatchHook: this.#publishBatchHook,
       publicKeyEIP7702: this.#publicKeyEIP7702,
       publishTransaction: (
@@ -1196,7 +1189,7 @@ export class TransactionController extends BaseController<
     return isAtomicBatchSupported({
       ...request,
       getEthQuery: (chainId) => this.#getEthQuery({ chainId }),
-      messenger: this.messagingSystem,
+      messenger: this.messenger,
       publicKeyEIP7702: this.#publicKeyEIP7702,
     });
   }
@@ -1384,7 +1377,7 @@ export class TransactionController extends BaseController<
         {
           isSwapsDisabled: this.#isSwapsDisabled,
           cancelTransaction: this.#rejectTransaction.bind(this),
-          messenger: this.messagingSystem,
+          messenger: this.messenger,
         },
       );
 
@@ -1416,7 +1409,7 @@ export class TransactionController extends BaseController<
         );
       }
 
-      this.messagingSystem.publish(
+      this.messenger.publish(
         `${controllerName}:unapprovedTransactionAdded`,
         addedTransactionMeta,
       );
@@ -1484,7 +1477,7 @@ export class TransactionController extends BaseController<
         txParams.value = '0x0';
       },
       afterSubmit: (newTransactionMeta) => {
-        this.messagingSystem.publish(
+        this.messenger.publish(
           `${controllerName}:transactionFinished`,
           newTransactionMeta,
         );
@@ -1523,7 +1516,7 @@ export class TransactionController extends BaseController<
       transactionId,
       transactionType: TransactionType.retry,
       afterSubmit: (newTransactionMeta) => {
-        this.messagingSystem.publish(
+        this.messenger.publish(
           `${controllerName}:speedupTransactionAdded`,
           newTransactionMeta,
         );
@@ -1639,12 +1632,12 @@ export class TransactionController extends BaseController<
     this.#addMetadata(newTransactionMeta);
 
     // speedUpTransaction has no approval request, so we assume the user has already approved the transaction
-    this.messagingSystem.publish(`${controllerName}:transactionApproved`, {
+    this.messenger.publish(`${controllerName}:transactionApproved`, {
       transactionMeta: newTransactionMeta,
       actionId,
     });
 
-    this.messagingSystem.publish(`${controllerName}:transactionSubmitted`, {
+    this.messenger.publish(`${controllerName}:transactionSubmitted`, {
       transactionMeta: newTransactionMeta,
       actionId,
     });
@@ -1680,7 +1673,7 @@ export class TransactionController extends BaseController<
       ignoreDelegationSignatures,
       isSimulationEnabled: this.#isSimulationEnabled(),
       getSimulationConfig: this.#getSimulationConfig,
-      messenger: this.messagingSystem,
+      messenger: this.messenger,
       txParams: transaction,
     });
 
@@ -1709,7 +1702,7 @@ export class TransactionController extends BaseController<
       ethQuery,
       isSimulationEnabled: this.#isSimulationEnabled(),
       getSimulationConfig: this.#getSimulationConfig,
-      messenger: this.messagingSystem,
+      messenger: this.messenger,
       txParams: transaction,
     });
 
@@ -1856,7 +1849,7 @@ export class TransactionController extends BaseController<
         throw error;
       });
 
-      this.messagingSystem.publish(
+      this.messenger.publish(
         `${controllerName}:transactionConfirmed`,
         updatedTransactionMeta,
       );
@@ -2200,7 +2193,7 @@ export class TransactionController extends BaseController<
 
     await updateTransactionLayer1GasFee({
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
-      messenger: this.messagingSystem,
+      messenger: this.messenger,
       provider,
       transactionMeta: updatedTransaction,
     });
@@ -2394,7 +2387,7 @@ export class TransactionController extends BaseController<
         status as TransactionStatus,
       )
     ) {
-      this.messagingSystem.publish(
+      this.messenger.publish(
         `${controllerName}:transactionFinished`,
         updatedTransactionMeta,
       );
@@ -2528,7 +2521,7 @@ export class TransactionController extends BaseController<
     const gasFeeFlow = getGasFeeFlow(
       transactionMeta,
       this.#gasFeeFlows,
-      this.messagingSystem,
+      this.messenger,
     ) as GasFeeFlow;
 
     const ethQuery = new EthQuery(provider);
@@ -2540,7 +2533,7 @@ export class TransactionController extends BaseController<
     return gasFeeFlow.getGasFees({
       ethQuery,
       gasFeeControllerData,
-      messenger: this.messagingSystem,
+      messenger: this.messenger,
       transactionMeta,
     });
   }
@@ -2570,7 +2563,7 @@ export class TransactionController extends BaseController<
 
     return await getTransactionLayer1GasFee({
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
-      messenger: this.messagingSystem,
+      messenger: this.messenger,
       provider,
       transactionMeta: {
         txParams: transactionParams,
@@ -2823,11 +2816,11 @@ export class TransactionController extends BaseController<
     }
 
     if (transactionMeta.type === TransactionType.swap) {
-      this.messagingSystem.publish('TransactionController:transactionNewSwap', {
+      this.messenger.publish('TransactionController:transactionNewSwap', {
         transactionMeta,
       });
     } else if (transactionMeta.type === TransactionType.swapApproval) {
-      this.messagingSystem.publish(
+      this.messenger.publish(
         'TransactionController:transactionNewSwapApproval',
         { transactionMeta },
       );
@@ -2844,7 +2837,7 @@ export class TransactionController extends BaseController<
       ...transactionMeta,
       txParams: {
         ...transactionMeta.txParams,
-        from: this.messagingSystem.call('AccountsController:getSelectedAccount')
+        from: this.messenger.call('AccountsController:getSelectedAccount')
           .address,
       },
     };
@@ -2864,10 +2857,9 @@ export class TransactionController extends BaseController<
       'Generated from user operation',
     );
 
-    this.messagingSystem.publish(
-      'TransactionController:transactionStatusUpdated',
-      { transactionMeta: updatedTransactionMeta },
-    );
+    this.messenger.publish('TransactionController:transactionStatusUpdated', {
+      transactionMeta: updatedTransactionMeta,
+    });
   }
 
   #addMetadata(transactionMeta: TransactionMeta) {
@@ -2908,7 +2900,7 @@ export class TransactionController extends BaseController<
           gasFeeFlows: this.#gasFeeFlows,
           getGasFeeEstimates: this.#getGasFeeEstimates,
           getSavedGasFees: this.#getSavedGasFees.bind(this),
-          messenger: this.messagingSystem,
+          messenger: this.messenger,
           txMeta: transactionMeta,
         }),
     );
@@ -2918,7 +2910,7 @@ export class TransactionController extends BaseController<
       async () =>
         await updateTransactionLayer1GasFee({
           layer1GasFeeFlows: this.#layer1GasFeeFlows,
-          messenger: this.messagingSystem,
+          messenger: this.messenger,
           provider,
           transactionMeta,
         }),
@@ -3025,13 +3017,10 @@ export class TransactionController extends BaseController<
           const updatedTransactionMeta = this.#getTransaction(
             transactionId,
           ) as TransactionMeta;
-          this.messagingSystem.publish(
-            `${controllerName}:transactionApproved`,
-            {
-              transactionMeta: updatedTransactionMeta,
-              actionId,
-            },
-          );
+          this.messenger.publish(`${controllerName}:transactionApproved`, {
+            transactionMeta: updatedTransactionMeta,
+            actionId,
+          });
         }
       } catch (rawError: unknown) {
         const error = rawError as Error & { code?: number; data?: Json };
@@ -3163,7 +3152,7 @@ export class TransactionController extends BaseController<
 
       if (!(await this.#beforePublish(transactionMeta))) {
         log('Skipping publishing transaction based on hook');
-        this.messagingSystem.publish(
+        this.messenger.publish(
           `${controllerName}:transactionPublishingSkipped`,
           transactionMeta,
         );
@@ -3233,11 +3222,11 @@ export class TransactionController extends BaseController<
         },
       );
 
-      this.messagingSystem.publish(`${controllerName}:transactionSubmitted`, {
+      this.messenger.publish(`${controllerName}:transactionSubmitted`, {
         transactionMeta,
       });
 
-      this.messagingSystem.publish(
+      this.messenger.publish(
         `${controllerName}:transactionFinished`,
         transactionMeta,
       );
@@ -3295,7 +3284,7 @@ export class TransactionController extends BaseController<
       error: normalizeTxError(error ?? providerErrors.userRejectedRequest()),
     };
 
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:transactionFinished`,
       updatedTransactionMeta,
     );
@@ -3305,7 +3294,7 @@ export class TransactionController extends BaseController<
       updatedTransactionMeta,
     );
 
-    this.messagingSystem.publish(`${controllerName}:transactionRejected`, {
+    this.messenger.publish(`${controllerName}:transactionRejected`, {
       transactionMeta: updatedTransactionMeta,
       actionId,
     });
@@ -3407,7 +3396,7 @@ export class TransactionController extends BaseController<
       parentContext: traceContext,
     });
 
-    return (await this.messagingSystem.call(
+    return (await this.messenger.call(
       'ApprovalController:addRequest',
       {
         id,
@@ -3543,7 +3532,7 @@ export class TransactionController extends BaseController<
       );
     });
 
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:incomingTransactionsReceived`,
       finalTransactions,
     );
@@ -3692,7 +3681,7 @@ export class TransactionController extends BaseController<
       ...transactionMeta,
       status: TransactionStatus.dropped as const,
     };
-    this.messagingSystem.publish(`${controllerName}:transactionDropped`, {
+    this.messenger.publish(`${controllerName}:transactionDropped`, {
       transactionMeta: updatedTransactionMeta,
     });
     this.updateTransaction(
@@ -3782,7 +3771,7 @@ export class TransactionController extends BaseController<
 
     const signedAuthorizationList = await signAuthorizationList({
       authorizationList,
-      messenger: this.messagingSystem,
+      messenger: this.messenger,
       transactionMeta,
     });
 
@@ -3874,7 +3863,7 @@ export class TransactionController extends BaseController<
   }
 
   #onTransactionStatusChange(transactionMeta: TransactionMeta) {
-    this.messagingSystem.publish(`${controllerName}:transactionStatusUpdated`, {
+    this.messenger.publish(`${controllerName}:transactionStatusUpdated`, {
       transactionMeta,
     });
   }
@@ -3897,7 +3886,7 @@ export class TransactionController extends BaseController<
 
     this.#markNonceDuplicatesDropped(transactionMeta.id);
 
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:transactionConfirmed`,
       transactionMeta,
     );
@@ -3928,7 +3917,7 @@ export class TransactionController extends BaseController<
           updateTransaction: this.updateTransaction.bind(this),
         });
 
-      this.messagingSystem.publish(
+      this.messenger.publish(
         `${controllerName}:postTransactionBalanceUpdated`,
         {
           transactionMeta: updatedTransactionMeta,
@@ -3992,7 +3981,7 @@ export class TransactionController extends BaseController<
         this.#multichainTrackingHelper.acquireNonceLockForChainIdKey({
           chainId,
         }),
-      messenger: this.messagingSystem,
+      messenger: this.messenger,
       publishTransaction: (_ethQuery, transactionMeta) =>
         this.#publishTransaction(_ethQuery, transactionMeta, {
           skipSubmitHistory: true,
@@ -4268,7 +4257,7 @@ export class TransactionController extends BaseController<
         chainId,
         getSimulationConfig: this.#getSimulationConfig,
         isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
-        messenger: this.messagingSystem,
+        messenger: this.messenger,
         publicKeyEIP7702: this.#publicKeyEIP7702,
         transactionMeta,
       });
@@ -4367,11 +4356,11 @@ export class TransactionController extends BaseController<
   }
 
   #getSelectedAccount() {
-    return this.messagingSystem.call('AccountsController:getSelectedAccount');
+    return this.messenger.call('AccountsController:getSelectedAccount');
   }
 
   #getInternalAccounts(): Hex[] {
-    const state = this.messagingSystem.call('AccountsController:getState');
+    const state = this.messenger.call('AccountsController:getState');
 
     return Object.values(state.internalAccounts?.accounts ?? {})
       .filter((account) => account.type === 'eip155:eoa')
@@ -4431,58 +4420,58 @@ export class TransactionController extends BaseController<
       isCustomNetwork,
       isSimulationEnabled: this.#isSimulationEnabled(),
       getSimulationConfig: this.#getSimulationConfig,
-      messenger: this.messagingSystem,
+      messenger: this.messenger,
       txMeta: transactionMeta,
     });
   }
 
   #registerActionHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:addTransaction`,
       this.addTransaction.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:addTransactionBatch`,
       this.addTransactionBatch.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:confirmExternalTransaction`,
       this.confirmExternalTransaction.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:estimateGas`,
       this.estimateGas.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:getNonceLock`,
       this.getNonceLock.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:getTransactions`,
       this.getTransactions.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:updateCustodialTransaction`,
       this.updateCustodialTransaction.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:updateTransaction`,
       this.updateTransaction.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:emulateNewTransaction`,
       this.emulateNewTransaction.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:emulateTransactionUpdate`,
       this.emulateTransactionUpdate.bind(this),
     );
@@ -4556,7 +4545,7 @@ export class TransactionController extends BaseController<
       };
     }
 
-    this.messagingSystem.publish(`${controllerName}:transactionFailed`, {
+    this.messenger.publish(`${controllerName}:transactionFailed`, {
       actionId,
       error: error.message,
       transactionMeta: newTransactionMeta,
@@ -4564,7 +4553,7 @@ export class TransactionController extends BaseController<
 
     this.#onTransactionStatusChange(newTransactionMeta);
 
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:transactionFinished`,
       newTransactionMeta,
     );

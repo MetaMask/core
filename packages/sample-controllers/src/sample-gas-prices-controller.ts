@@ -1,10 +1,10 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
@@ -65,9 +65,9 @@ export type SampleGasPricesControllerState = {
  */
 const gasPricesControllerMetadata = {
   gasPricesByChainId: {
+    includeInDebugSnapshot: false,
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
     usedInUi: true,
   },
 } satisfies StateMetadata<SampleGasPricesControllerState>;
@@ -137,12 +137,10 @@ type AllowedEvents = NetworkControllerStateChangeEvent;
  * The messenger restricted to actions and events accessed by
  * {@link SampleGasPricesController}.
  */
-export type SampleGasPricesControllerMessenger = RestrictedMessenger<
+export type SampleGasPricesControllerMessenger = Messenger<
   typeof controllerName,
   SampleGasPricesControllerActions | AllowedActions,
-  SampleGasPricesControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  SampleGasPricesControllerEvents | AllowedEvents
 >;
 
 // === CONTROLLER DEFINITION ===
@@ -153,7 +151,7 @@ export type SampleGasPricesControllerMessenger = RestrictedMessenger<
  * @example
  *
  * ``` ts
- * import { Messenger } from '@metamask/base-controller';
+ * import { Messenger } from '@metamask/messenger';
  * import type {
  *   NetworkControllerActions,
  *   NetworkControllerEvents,
@@ -170,18 +168,23 @@ export type SampleGasPricesControllerMessenger = RestrictedMessenger<
  *   selectGasPrices,
  * } from '@metamask/sample-controllers';
  *
- * const globalMessenger = new Messenger<
+ * const rootMessenger = new Messenger<
+ *  'Root',
  *  SampleGasPricesServiceActions
  *  | SampleGasPricesControllerActions
  *  | NetworkControllerActions,
  *  SampleGasPricesServiceEvents
  *  | SampleGasPricesControllerEvents
  *  | NetworkControllerEvents
- * >();
- * const gasPricesServiceMessenger = globalMessenger.getRestricted({
- *   name: 'SampleGasPricesService',
- *   allowedActions: [],
- *   allowedEvents: [],
+ * >({ namespace: 'Root' });
+ * const gasPricesServiceMessenger = new Messenger<
+ *   'SampleGasPricesService',
+ *   SampleGasPricesServiceActions,
+ *   SampleGasPricesServiceEvents,
+ *   typeof rootMessenger,
+ * >({
+ *   namespace: 'SampleGasPricesService',
+ *   parent: rootMessenger,
  * });
  * // Instantiate the service to register its actions on the messenger
  * new SampleGasPricesService({
@@ -189,10 +192,14 @@ export type SampleGasPricesControllerMessenger = RestrictedMessenger<
  *   // We assume you're using this in the browser.
  *   fetch,
  * });
- * const gasPricesControllerMessenger = globalMessenger.getRestricted({
- *   name: 'SampleGasPricesController',
- *   allowedActions: ['NetworkController:getNetworkClientById'],
- *   allowedEvents: ['NetworkController:stateChange'],
+ * const gasPricesControllerMessenger = new Messenger<
+ *   'SampleGasPricesController',
+ *   SampleGasPricesControllerActions | NetworkControllerGetNetworkClientByIdAction,
+ *   SampleGasPricesControllerEvents | NetworkControllerStateChangeEvent,
+ *   typeof rootMessenger,
+ * >({
+ *   namespace: 'SampleGasPricesController',
+ *   parent: rootMessenger,
  * });
  * // Instantiate the controller to register its actions on the messenger
  * new SampleGasPricesController({
@@ -200,11 +207,11 @@ export type SampleGasPricesControllerMessenger = RestrictedMessenger<
  * });
  *
  * // Later...
- * await globalMessenger.call(
+ * await rootMessenger.call(
  *   'SampleGasPricesController:updateGasPrices',
  *   { chainId: '0x42' },
  * );
- * const gasPricesControllerState = await globalMessenger.call(
+ * const gasPricesControllerState = await rootMessenger.call(
  *   'SampleGasPricesController:getState',
  * );
  * gasPricesControllerState.gasPricesByChainId
@@ -246,12 +253,12 @@ export class SampleGasPricesController extends BaseController<
       },
     });
 
-    this.messagingSystem.registerMethodActionHandlers(
+    this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'NetworkController:stateChange',
       this.#onSelectedNetworkClientIdChange.bind(this),
       (networkControllerState) =>
@@ -267,7 +274,7 @@ export class SampleGasPricesController extends BaseController<
    * @param args.chainId - The chain ID for which to fetch gas prices.
    */
   async updateGasPrices({ chainId }: { chainId: Hex }) {
-    const gasPricesResponse = await this.messagingSystem.call(
+    const gasPricesResponse = await this.messenger.call(
       'SampleGasPricesService:fetchGasPrices',
       chainId,
     );
@@ -291,7 +298,7 @@ export class SampleGasPricesController extends BaseController<
   ) {
     const {
       configuration: { chainId },
-    } = this.messagingSystem.call(
+    } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     );
