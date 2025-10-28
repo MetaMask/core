@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-controller` from `^24.3.1` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 - Bump `@metamask/permission-controller` from `^11.1.1` to `^12.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 
+### Fixed
+
+- Fix `wallet_revokeSession` error handling in case where different versions of `@metamask/permission-controller` are used ([#6985](https://github.com/MetaMask/core/pull/6985))
+
 ## [1.2.2]
 
 ### Changed
