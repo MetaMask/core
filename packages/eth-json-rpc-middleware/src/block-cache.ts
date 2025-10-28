@@ -11,7 +11,6 @@ import type {
   BlockCache,
   // eslint-disable-next-line @typescript-eslint/no-shadow
   Cache,
-  JsonRpcRequestToCache,
 } from './types';
 import {
   cacheIdentifierForRequest,
@@ -137,7 +136,7 @@ class BlockCacheStrategy {
 export function createBlockCacheMiddleware({
   blockTracker,
 }: BlockCacheMiddlewareOptions = {}): JsonRpcMiddleware<
-  JsonRpcRequestToCache<JsonRpcParams>,
+  JsonRpcRequest,
   Json,
   MiddlewareContext<{ skipCache?: boolean }>
 > {
