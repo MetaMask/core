@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Clean up SSE stream reader after use ([#6965](https://github.com/MetaMask/core/pull/6965))p
+
 ## [56.0.0]
 
 ### Added
