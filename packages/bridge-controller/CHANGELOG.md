@@ -9,17 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [56.0.1]
 
-### Uncategorized
-
-- feat: bitcoin fee calc for display and error handling ([#6932](https://github.com/MetaMask/core/pull/6932))
-
 ### Changed
 
 - Clean up SSE stream reader after use ([#6965](https://github.com/MetaMask/core/pull/6965))
 
 ### Fixed
 
-- Fix Bitcoin network fee computation by extracting `unsignedPsbtBase64` from Bitcoin trade objects and supporting `'priority'` fee type from Bitcoin snap ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Fix Bitcoin network fee computation by extracting `unsignedPsbtBase64` from Bitcoin trade objects and supporting `'priority'` fee type from Bitcoin snap ([#6932](https://github.com/MetaMask/core/pull/6932))
 
 ## [56.0.0]
 
