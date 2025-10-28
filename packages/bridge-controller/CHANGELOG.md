@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [56.0.1]
+
 ### Changed
 
-- Clean up SSE stream reader after use ([#6965](https://github.com/MetaMask/core/pull/6965))p
+- Clean up SSE stream reader after use ([#6965](https://github.com/MetaMask/core/pull/6965))
+
+### Fixed
+
+- Fix Bitcoin network fee computation by extracting `unsignedPsbtBase64` from Bitcoin trade objects and supporting `'priority'` fee type from Bitcoin snap ([#6932](https://github.com/MetaMask/core/pull/6932))
 
 ## [56.0.0]
 
@@ -788,7 +794,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.1...HEAD
+[56.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.0...@metamask/bridge-controller@56.0.1
 [56.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@55.0.0...@metamask/bridge-controller@56.0.0
 [55.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@54.0.0...@metamask/bridge-controller@55.0.0
 [54.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@53.1.0...@metamask/bridge-controller@54.0.0
