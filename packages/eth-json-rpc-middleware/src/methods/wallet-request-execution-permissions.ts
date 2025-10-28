@@ -1,3 +1,4 @@
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Infer } from '@metamask/superstruct';
 import {
@@ -16,7 +17,6 @@ import {
   type Hex,
   type Json,
   type JsonRpcRequest,
-  type PendingJsonRpcResponse,
   StrictHexStruct,
 } from '@metamask/utils';
 
@@ -66,24 +66,22 @@ export type ProcessRequestExecutionPermissionsHook = (
   req: JsonRpcRequest,
 ) => Promise<RequestExecutionPermissionsResult>;
 
-export async function walletRequestExecutionPermissions(
-  req: JsonRpcRequest,
-  res: PendingJsonRpcResponse,
-  {
-    processRequestExecutionPermissions,
-  }: {
-    processRequestExecutionPermissions?: ProcessRequestExecutionPermissionsHook;
-  },
-): Promise<void> {
-  if (!processRequestExecutionPermissions) {
-    throw rpcErrors.methodNotSupported(
-      'wallet_requestExecutionPermissions - no middleware configured',
-    );
-  }
+export function createWalletRequestExecutionPermissionsHandler({
+  processRequestExecutionPermissions,
+}: {
+  processRequestExecutionPermissions?: ProcessRequestExecutionPermissionsHook;
+}): JsonRpcMiddleware<JsonRpcRequest, Json> {
+  return async ({ request }) => {
+    if (!processRequestExecutionPermissions) {
+      throw rpcErrors.methodNotSupported(
+        'wallet_requestExecutionPermissions - no middleware configured',
+      );
+    }
 
-  const { params } = req;
+    const { params } = request;
 
-  validateParams(params, RequestExecutionPermissionsStruct);
+    validateParams(params, RequestExecutionPermissionsStruct);
 
-  res.result = await processRequestExecutionPermissions(params, req);
+    return await processRequestExecutionPermissions(params, request);
+  };
 }

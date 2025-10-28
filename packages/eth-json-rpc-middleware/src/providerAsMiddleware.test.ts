@@ -1,15 +1,19 @@
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
-import { assertIsJsonRpcSuccess, Json } from '@metamask/utils';
+import type { Json } from '@metamask/utils';
+import { assertIsJsonRpcSuccess } from '@metamask/utils';
 
-import { providerAsMiddleware, providerAsMiddlewareV2 } from './providerAsMiddleware';
+import {
+  providerAsMiddleware,
+  providerAsMiddlewareV2,
+} from './providerAsMiddleware';
 import { createRequest } from '../test/util/helpers';
 
 const createMockProvider = (result: Json): SafeEventEmitterProvider =>
   ({
     request: jest.fn().mockResolvedValue(result),
-  } as unknown as SafeEventEmitterProvider);
+  }) as unknown as SafeEventEmitterProvider;
 
 describe('providerAsMiddleware', () => {
   it('forwards requests to the provider and returns the result', async () => {
@@ -29,7 +33,7 @@ describe('providerAsMiddleware', () => {
         expect(error).toBeNull();
         expect(response).toBeDefined();
         assertIsJsonRpcSuccess(response);
-        expect(response.result).toEqual(mockResult);
+        expect(response.result).toStrictEqual(mockResult);
         expect(mockProvider.request).toHaveBeenCalledWith(request);
         resolve();
       });
@@ -53,7 +57,7 @@ describe('providerAsMiddlewareV2', () => {
 
     const result = await engine.handle(request);
 
-    expect(result).toEqual(mockResult);
+    expect(result).toStrictEqual(mockResult);
     expect(mockProvider.request).toHaveBeenCalledWith(request);
   });
 });

@@ -1,11 +1,12 @@
-import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
+import type { MiddlewareParams } from '@metamask/json-rpc-engine/v2';
+import type { JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona';
 
 import type {
   ProcessRevokeExecutionPermissionHook,
   RevokeExecutionPermissionRequestParams,
 } from './wallet-revoke-execution-permission';
-import { walletRevokeExecutionPermission } from './wallet-revoke-execution-permission';
+import { createWalletRevokeExecutionPermissionHandler } from './wallet-revoke-execution-permission';
 
 const HEX_MOCK = '0x123abc';
 
@@ -18,13 +19,13 @@ const REQUEST_MOCK = {
 describe('wallet_revokeExecutionPermission', () => {
   let request: JsonRpcRequest<RevokeExecutionPermissionRequestParams>;
   let params: RevokeExecutionPermissionRequestParams;
-  let response: PendingJsonRpcResponse;
   let processRevokeExecutionPermissionMock: jest.MockedFunction<ProcessRevokeExecutionPermissionHook>;
 
   const callMethod = async () => {
-    return walletRevokeExecutionPermission(request, response, {
+    const handler = createWalletRevokeExecutionPermissionHandler({
       processRevokeExecutionPermission: processRevokeExecutionPermissionMock,
     });
+    return handler({ request } as MiddlewareParams<JsonRpcRequest>);
   };
 
   beforeEach(() => {
@@ -32,7 +33,6 @@ describe('wallet_revokeExecutionPermission', () => {
 
     request = klona(REQUEST_MOCK);
     params = request.params as RevokeExecutionPermissionRequestParams;
-    response = {} as PendingJsonRpcResponse;
 
     processRevokeExecutionPermissionMock = jest.fn();
     processRevokeExecutionPermissionMock.mockResolvedValue({});
@@ -47,13 +47,15 @@ describe('wallet_revokeExecutionPermission', () => {
   });
 
   it('returns result from hook', async () => {
-    await callMethod();
-    expect(response.result).toStrictEqual({});
+    const result = await callMethod();
+    expect(result).toStrictEqual({});
   });
 
   it('throws if no hook', async () => {
     await expect(
-      walletRevokeExecutionPermission(request, response, {}),
+      createWalletRevokeExecutionPermissionHandler({})({
+        request,
+      } as MiddlewareParams<JsonRpcRequest>),
     ).rejects.toThrow(
       'wallet_revokeExecutionPermission - no middleware configured',
     );
