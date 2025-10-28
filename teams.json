@@ -1,6 +1,6 @@
 {
   "metamask/accounts-controller": "team-accounts-framework",
-  "metamask/multichain-transactions-controller": "team-accounts-framework,team-confirmations",
+  "metamask/multichain-transactions-controller": "team-confirmations",
   "metamask/multichain-account-service": "team-accounts-framework",
   "metamask/account-tree-controller": "team-accounts-framework",
   "metamask/profile-sync-controller": "team-accounts-framework",
