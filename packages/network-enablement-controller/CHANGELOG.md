@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Monad network into constant POPULAR_NETWORKS ([#6978](https://github.com/MetaMask/core/pull/6978))
+
 ## [3.0.0]
 
 ### Changed
