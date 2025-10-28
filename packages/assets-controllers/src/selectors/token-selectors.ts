@@ -20,19 +20,13 @@ import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
 
-type AssetsByAccountGroup = {
+export type AssetsByAccountGroup = {
   [accountGroupId: AccountGroupId]: AccountGroupAssets;
 };
 
 export type AccountGroupAssets = {
   [network: string]: Asset[];
 };
-
-// If this gets out of hand with other chains, we should probably have a permanent object that defines them
-const MULTICHAIN_NATIVE_ASSET_IDS = [
-  `bip122:000000000019d6689c085ae165831e93/slip44:0`,
-  `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501`,
-];
 
 type EvmAccountType = Extract<InternalAccount['type'], `eip155:${string}`>;
 type MultichainAccountType = Exclude<
@@ -394,7 +388,7 @@ const selectAllMultichainAssets = createAssetListSelector(
         groupChainAssets.push({
           accountType: type as MultichainAccountType,
           assetId,
-          isNative: MULTICHAIN_NATIVE_ASSET_IDS.includes(assetId),
+          isNative: caipAsset.assetNamespace === 'slip44',
           image: assetMetadata.iconUrl,
           name: assetMetadata.name ?? assetMetadata.symbol ?? asset,
           symbol: assetMetadata.symbol ?? asset,
