@@ -1,7 +1,7 @@
 import * as indexModule from '.';
 
 describe('index module', () => {
-  it('exports expected identifiers', () => {
+  it('has expected JavaScript exports', () => {
     expect(indexModule).toMatchInlineSnapshot(`
       Object {
         "createBlockCacheMiddleware": [Function],
