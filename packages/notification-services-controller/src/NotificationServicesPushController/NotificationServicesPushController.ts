@@ -1,10 +1,10 @@
 import type {
-  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
@@ -55,7 +55,7 @@ export type Actions =
   | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction
   | NotificationServicesPushControllerSubscribeToNotificationsAction;
 
-export type AllowedActions =
+type AllowedActions =
   AuthenticationController.AuthenticationControllerGetBearerToken;
 
 export type NotificationServicesPushControllerStateChangeEvent =
@@ -79,14 +79,10 @@ export type Events =
   | NotificationServicesPushControllerOnNewNotificationEvent
   | NotificationServicesPushControllerPushNotificationClickedEvent;
 
-export type AllowedEvents = never;
-
-export type NotificationServicesPushControllerMessenger = RestrictedMessenger<
+export type NotificationServicesPushControllerMessenger = Messenger<
   typeof controllerName,
   Actions | AllowedActions,
-  Events | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  Events
 >;
 
 export const defaultState: NotificationServicesPushControllerState = {
@@ -98,19 +94,19 @@ const metadata: StateMetadata<NotificationServicesPushControllerState> = {
   isPushEnabled: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   fcmToken: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   isUpdatingFCMToken: {
     includeInStateLogs: false,
     persist: false,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
 };
@@ -202,19 +198,19 @@ export default class NotificationServicesPushController extends BaseController<
   }
 
   #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'NotificationServicesPushController:enablePushNotifications',
       this.enablePushNotifications.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'NotificationServicesPushController:disablePushNotifications',
       this.disablePushNotifications.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'NotificationServicesPushController:updateTriggerPushNotifications',
       this.updateTriggerPushNotifications.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'NotificationServicesPushController:subscribeToPushNotifications',
       this.subscribeToPushNotifications.bind(this),
     );
@@ -227,7 +223,7 @@ export default class NotificationServicesPushController extends BaseController<
   }
 
   async #getAndAssertBearerToken() {
-    const bearerToken = await this.messagingSystem.call(
+    const bearerToken = await this.messenger.call(
       'AuthenticationController:getBearerToken',
     );
     if (!bearerToken) {

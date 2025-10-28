@@ -1,10 +1,8 @@
 /* eslint-disable jest/no-conditional-in-test */
 /* eslint-disable jest/no-restricted-matchers */
-import type { AccountsControllerActions } from '@metamask/accounts-controller';
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
-  BridgeControllerActions,
-  BridgeControllerEvents,
+  BridgeControllerMessenger,
   TxData,
 } from '@metamask/bridge-controller';
 import {
@@ -18,12 +16,17 @@ import {
 import { ChainId } from '@metamask/bridge-controller';
 import { ActionTypes, FeeType } from '@metamask/bridge-controller';
 import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
+import {
   TransactionType,
   TransactionStatus,
 } from '@metamask/transaction-controller';
 import type {
-  TransactionControllerActions,
-  TransactionControllerEvents,
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
@@ -36,11 +39,7 @@ import {
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   MAX_ATTEMPTS,
 } from './constants';
-import type {
-  BridgeStatusControllerActions,
-  BridgeStatusControllerEvents,
-  StatusResponse,
-} from './types';
+import type { StatusResponse } from './types';
 import {
   type BridgeId,
   type StartPollingForBridgeTxStatusArgsSerialized,
@@ -53,6 +52,22 @@ import * as bridgeStatusUtils from './utils/bridge-status';
 import * as transactionUtils from './utils/transaction';
 import { flushPromises } from '../../../tests/helpers';
 import { CHAIN_IDS } from '../../bridge-controller/src/constants/chains';
+
+type AllBridgeStatusControllerActions =
+  MessengerActions<BridgeStatusControllerMessenger>;
+
+type AllBridgeStatusControllerEvents =
+  MessengerEvents<BridgeStatusControllerMessenger>;
+
+type AllBridgeControllerActions = MessengerActions<BridgeControllerMessenger>;
+
+type AllBridgeControllerEvents = MessengerEvents<BridgeControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllBridgeStatusControllerActions | AllBridgeControllerActions,
+  AllBridgeStatusControllerEvents | AllBridgeControllerEvents
+>;
 
 jest.mock('uuid', () => ({
   v4: () => 'test-uuid-1234',
@@ -3452,19 +3467,16 @@ describe('BridgeStatusController', () => {
   });
 
   describe('subscription handlers', () => {
-    let mockBridgeStatusMessenger: jest.Mocked<BridgeStatusControllerMessenger>;
+    let mockMessenger: RootMessenger;
+    let mockBridgeStatusMessenger: Messenger<
+      'BridgeStatusController',
+      MessengerActions<BridgeStatusControllerMessenger>,
+      MessengerEvents<BridgeStatusControllerMessenger>,
+      RootMessenger
+    >;
     let mockTrackEventFn: jest.Mock;
     let bridgeStatusController: BridgeStatusController;
 
-    let mockMessenger: Messenger<
-      | BridgeStatusControllerActions
-      | TransactionControllerActions
-      | BridgeControllerActions
-      | AccountsControllerActions,
-      | BridgeStatusControllerEvents
-      | TransactionControllerEvents
-      | BridgeControllerEvents
-    >;
     let mockFetchFn: jest.Mock;
     const consoleFn = console.warn;
     let consoleFnSpy: jest.SpyInstance;
@@ -3474,37 +3486,38 @@ describe('BridgeStatusController', () => {
       jest.clearAllMocks();
       // eslint-disable-next-line no-empty-function
       consoleFnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-      mockMessenger = new Messenger<
-        | BridgeStatusControllerActions
-        | TransactionControllerActions
-        | BridgeControllerActions
-        | AccountsControllerActions,
-        | BridgeStatusControllerEvents
-        | TransactionControllerEvents
-        | BridgeControllerEvents
-      >();
-
-      jest.spyOn(mockMessenger, 'call').mockImplementation((..._args) => {
-        return Promise.resolve();
+      mockMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+      mockBridgeStatusMessenger = new Messenger({
+        namespace: BRIDGE_STATUS_CONTROLLER_NAME,
+        parent: mockMessenger,
       });
-
-      mockBridgeStatusMessenger = mockMessenger.getRestricted({
-        name: BRIDGE_STATUS_CONTROLLER_NAME,
-        allowedActions: [
+      mockMessenger.delegate({
+        messenger: mockBridgeStatusMessenger,
+        actions: [
           'TransactionController:getState',
           'BridgeController:trackUnifiedSwapBridgeEvent',
           'AccountsController:getAccountByAddress',
         ],
-        allowedEvents: [
+        events: [
           'TransactionController:transactionFailed',
           'TransactionController:transactionConfirmed',
         ],
-      }) as never;
+      });
 
-      const mockBridgeMessenger = mockMessenger.getRestricted({
-        name: 'BridgeController',
-        allowedActions: [],
-        allowedEvents: [],
+      jest
+        .spyOn(mockBridgeStatusMessenger, 'call')
+        .mockImplementation((..._args) => {
+          return Promise.resolve();
+        });
+
+      const mockBridgeMessenger = new Messenger<
+        'BridgeController',
+        MessengerActions<BridgeControllerMessenger>,
+        MessengerEvents<BridgeControllerMessenger>,
+        RootMessenger
+      >({
+        namespace: 'BridgeController',
+        parent: mockMessenger,
       });
       mockTrackEventFn = jest.fn();
       new BridgeController({
@@ -3937,7 +3950,7 @@ describe('BridgeStatusController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });

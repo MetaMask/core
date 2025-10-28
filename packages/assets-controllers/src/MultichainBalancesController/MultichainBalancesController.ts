@@ -6,9 +6,9 @@ import type {
 } from '@metamask/accounts-controller';
 import {
   BaseController,
+  type StateMetadata,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-  type RestrictedMessenger,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
@@ -19,6 +19,7 @@ import type {
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
+import type { Messenger } from '@metamask/messenger';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
@@ -108,12 +109,10 @@ type AllowedEvents =
 /**
  * Messenger type for the MultichainBalancesController.
  */
-export type MultichainBalancesControllerMessenger = RestrictedMessenger<
+export type MultichainBalancesControllerMessenger = Messenger<
   typeof controllerName,
   MultichainBalancesControllerActions | AllowedActions,
-  MultichainBalancesControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  MultichainBalancesControllerEvents | AllowedEvents
 >;
 
 /**
@@ -123,14 +122,15 @@ export type MultichainBalancesControllerMessenger = RestrictedMessenger<
  * using the `persist` flag; and if they can be sent to Sentry or not, using
  * the `anonymous` flag.
  */
-const balancesControllerMetadata = {
-  balances: {
-    includeInStateLogs: false,
-    persist: true,
-    anonymous: false,
-    usedInUi: true,
-  },
-};
+const balancesControllerMetadata: StateMetadata<MultichainBalancesControllerState> =
+  {
+    balances: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
+  };
 
 /**
  * The MultichainBalancesController is responsible for fetching and caching account
@@ -165,17 +165,17 @@ export class MultichainBalancesController extends BaseController<
       void this.updateBalance(account.id);
     }
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:accountRemoved',
       (account: string) => this.#handleOnAccountRemoved(account),
     );
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:accountBalancesUpdated',
       (balanceUpdate: AccountBalancesUpdatedEventPayload) =>
         this.#handleOnAccountBalancesUpdated(balanceUpdate),
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'MultichainAssetsController:accountAssetListUpdated',
       async ({ assets }) => {
         const newAccountAssets = Object.entries(assets).map(
@@ -200,9 +200,7 @@ export class MultichainBalancesController extends BaseController<
       assets: CaipAssetType[];
     }[],
   ): Promise<void> {
-    const { isUnlocked } = this.messagingSystem.call(
-      'KeyringController:getState',
-    );
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
 
     if (!isUnlocked) {
       return;
@@ -256,9 +254,7 @@ export class MultichainBalancesController extends BaseController<
     accountId: string,
     assets: CaipAssetType[],
   ): Promise<void> {
-    const { isUnlocked } = this.messagingSystem.call(
-      'KeyringController:getState',
-    );
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
 
     if (!isUnlocked) {
       return;
@@ -305,9 +301,7 @@ export class MultichainBalancesController extends BaseController<
    * @returns A list of multichain accounts.
    */
   #listMultichainAccounts(): InternalAccount[] {
-    return this.messagingSystem.call(
-      'AccountsController:listMultichainAccounts',
-    );
+    return this.messenger.call('AccountsController:listMultichainAccounts');
   }
 
   /**
@@ -328,7 +322,7 @@ export class MultichainBalancesController extends BaseController<
    */
   #listAccountAssets(accountId: string): CaipAssetType[] {
     // TODO: Add an action `MultichainAssetsController:getAccountAssets` maybe?
-    const assetsState = this.messagingSystem.call(
+    const assetsState = this.messenger.call(
       'MultichainAssetsController:getState',
     );
 
@@ -427,7 +421,7 @@ export class MultichainBalancesController extends BaseController<
   #getClient(snapId: string): KeyringClient {
     return new KeyringClient({
       send: async (request: JsonRpcRequest) =>
-        (await this.messagingSystem.call('SnapController:handleRequest', {
+        (await this.messenger.call('SnapController:handleRequest', {
           snapId: snapId as SnapId,
           origin: 'metamask',
           handler: HandlerType.OnKeyringRequest,

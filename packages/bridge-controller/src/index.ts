@@ -58,6 +58,8 @@ export {
   RequestStatus,
   BridgeUserAction,
   BridgeBackgroundAction,
+  type BridgeControllerGetStateAction,
+  type BridgeControllerStateChangeEvent,
 } from './types';
 
 export {

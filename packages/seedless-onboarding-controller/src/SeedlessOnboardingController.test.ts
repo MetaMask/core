@@ -1,8 +1,5 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
-import {
-  deriveStateFromMetadata,
-  type Messenger,
-} from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { EncryptionKey } from '@metamask/browser-passworder';
 import {
   encrypt,
@@ -54,9 +51,9 @@ import type {
   VaultEncryptor,
 } from './types';
 import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
+  MockKeyringControllerMessenger,
+  RootMessenger,
+} from '../tests/__fixtures__/mockMessenger';
 import { mockSeedlessOnboardingMessenger } from '../tests/__fixtures__/mockMessenger';
 import {
   handleMockSecretDataGet,
@@ -122,10 +119,8 @@ type WithControllerCallback<ReturnValue, EKey> = ({
   encryptor: VaultEncryptor<EKey>;
   initialState: SeedlessOnboardingControllerState;
   messenger: SeedlessOnboardingControllerMessenger;
-  baseMessenger: Messenger<
-    ExtractAvailableAction<SeedlessOnboardingControllerMessenger>,
-    ExtractAvailableEvent<SeedlessOnboardingControllerMessenger>
-  >;
+  baseMessenger: RootMessenger;
+  keyringControllerMessenger: MockKeyringControllerMessenger;
   toprfClient: ToprfSecureBackup;
   mockRefreshJWTToken: jest.Mock;
   mockRevokeRefreshToken: jest.Mock;
@@ -185,7 +180,8 @@ async function withController<ReturnValue>(
 ) {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const encryptor = new MockVaultEncryptor();
-  const { messenger, baseMessenger } = mockSeedlessOnboardingMessenger();
+  const { messenger, baseMessenger, keyringControllerMessenger } =
+    mockSeedlessOnboardingMessenger();
 
   const mockRefreshJWTToken = jest.fn().mockResolvedValue({
     idTokens: ['newIdToken'],
@@ -235,6 +231,7 @@ async function withController<ReturnValue>(
     initialState: controller.state,
     messenger,
     baseMessenger,
+    keyringControllerMessenger,
     toprfClient,
     mockRefreshJWTToken,
     mockRevokeRefreshToken,
@@ -5473,7 +5470,7 @@ describe('SeedlessOnboardingController', () => {
             deriveStateFromMetadata(
               controller.state,
               controller.metadata,
-              'anonymous',
+              'includeInDebugSnapshot',
             ),
           ).toMatchInlineSnapshot(`
             Object {

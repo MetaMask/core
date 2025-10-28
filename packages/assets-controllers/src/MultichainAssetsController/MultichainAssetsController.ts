@@ -8,7 +8,7 @@ import {
   BaseController,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-  type RestrictedMessenger,
+  type StateMetadata,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
@@ -18,6 +18,7 @@ import type {
 } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
+import type { Messenger } from '@metamask/messenger';
 import type {
   GetPermissions,
   PermissionConstraint,
@@ -141,12 +142,10 @@ type AllowedEvents =
 /**
  * Messenger type for the MultichainAssetsController.
  */
-export type MultichainAssetsControllerMessenger = RestrictedMessenger<
+export type MultichainAssetsControllerMessenger = Messenger<
   typeof controllerName,
   MultichainAssetsControllerActions | AllowedActions,
-  MultichainAssetsControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  MultichainAssetsControllerEvents | AllowedEvents
 >;
 
 /**
@@ -156,20 +155,21 @@ export type MultichainAssetsControllerMessenger = RestrictedMessenger<
  * using the `persist` flag; and if they can be sent to Sentry or not, using
  * the `anonymous` flag.
  */
-const assetsControllerMetadata = {
-  assetsMetadata: {
-    includeInStateLogs: false,
-    persist: true,
-    anonymous: false,
-    usedInUi: true,
-  },
-  accountsAssets: {
-    includeInStateLogs: false,
-    persist: true,
-    anonymous: false,
-    usedInUi: true,
-  },
-};
+const assetsControllerMetadata: StateMetadata<MultichainAssetsControllerState> =
+  {
+    assetsMetadata: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
+    accountsAssets: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
+  };
 
 // TODO: make this controller extends StaticIntervalPollingController and update all assetsMetadata once a day.
 
@@ -202,15 +202,15 @@ export class MultichainAssetsController extends BaseController<
 
     this.#snaps = {};
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:accountAdded',
       async (account) => await this.#handleOnAccountAddedEvent(account),
     );
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:accountRemoved',
       async (account) => await this.#handleOnAccountRemovedEvent(account),
     );
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:accountAssetListUpdated',
       async (event) => await this.#handleAccountAssetListUpdatedEvent(event),
     );
@@ -237,7 +237,7 @@ export class MultichainAssetsController extends BaseController<
    * actions.
    */
   #registerMessageHandlers() {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'MultichainAssetsController:getAssetMetadata',
       this.getAssetMetadata.bind(this),
     );
@@ -323,7 +323,7 @@ export class MultichainAssetsController extends BaseController<
     // Trigger fetching metadata for new assets
     await this.#refreshAssetsMetadata(Array.from(assetsForMetadataRefresh));
 
-    this.messagingSystem.publish(`${controllerName}:accountAssetListUpdated`, {
+    this.messenger.publish(`${controllerName}:accountAssetListUpdated`, {
       assets: accountsAndAssetsToUpdate,
     });
   }
@@ -364,17 +364,14 @@ export class MultichainAssetsController extends BaseController<
       this.update((state) => {
         state.accountsAssets[account.id] = assets;
       });
-      this.messagingSystem.publish(
-        `${controllerName}:accountAssetListUpdated`,
-        {
-          assets: {
-            [account.id]: {
-              added: assets,
-              removed: [],
-            },
+      this.messenger.publish(`${controllerName}:accountAssetListUpdated`, {
+        assets: {
+          [account.id]: {
+            added: assets,
+            removed: [],
           },
         },
-      );
+      });
     }
   }
 
@@ -510,7 +507,7 @@ export class MultichainAssetsController extends BaseController<
    */
   #getAllSnaps(): Snap[] {
     // TODO: Use dedicated SnapController's action once available for this:
-    return this.messagingSystem
+    return this.messenger
       .call('SnapController:getAll')
       .filter((snap) => snap.enabled && !snap.blocked);
   }
@@ -524,7 +521,7 @@ export class MultichainAssetsController extends BaseController<
   #getSnapsPermissions(
     origin: string,
   ): SubjectPermissions<PermissionConstraint> {
-    return this.messagingSystem.call(
+    return this.messenger.call(
       'PermissionController:getPermissions',
       origin,
     ) as SubjectPermissions<PermissionConstraint>;
@@ -542,7 +539,7 @@ export class MultichainAssetsController extends BaseController<
     snapId: string,
   ): Promise<AssetMetadataResponse | undefined> {
     try {
-      return (await this.messagingSystem.call('SnapController:handleRequest', {
+      return (await this.messenger.call('SnapController:handleRequest', {
         snapId: snapId as SnapId,
         origin: 'metamask',
         handler: HandlerType.OnAssetsLookup,
@@ -584,7 +581,7 @@ export class MultichainAssetsController extends BaseController<
   #getClient(snapId: string): KeyringClient {
     return new KeyringClient({
       send: async (request: JsonRpcRequest) =>
-        (await this.messagingSystem.call('SnapController:handleRequest', {
+        (await this.messenger.call('SnapController:handleRequest', {
           snapId: snapId as SnapId,
           origin: 'metamask',
           handler: HandlerType.OnKeyringRequest,

@@ -2,11 +2,8 @@
 import type { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import type {
-  ActionConstraint,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
+import type { Messenger, ActionConstraint } from '@metamask/messenger';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
@@ -74,8 +71,6 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID = {
     '0x6aa75276052d96696134252587894ef5ffa520af',
   [SupportedTokenDetectionNetworks.moonriver]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
-  [SupportedTokenDetectionNetworks.monad_mainnet]:
-    '0xC856736BFe4DcB217F6678Ff2C4D7A7939B29A88',
 } as const satisfies Record<Hex, string>;
 
 export const STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
@@ -207,12 +202,10 @@ export type AllowedEvents =
 /**
  * The messenger of the {@link AssetsContractController}.
  */
-export type AssetsContractControllerMessenger = RestrictedMessenger<
+export type AssetsContractControllerMessenger = Messenger<
   typeof name,
   AssetsContractControllerActions | AllowedActions,
-  AssetsContractControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  AssetsContractControllerEvents | AllowedEvents
 >;
 
 export type StakedBalance = string | undefined;
@@ -223,7 +216,7 @@ export type StakedBalance = string | undefined;
 export class AssetsContractController {
   readonly name: typeof name = name;
 
-  protected messagingSystem: AssetsContractControllerMessenger;
+  protected messenger: AssetsContractControllerMessenger;
 
   #provider: Provider | undefined;
 
@@ -245,7 +238,7 @@ export class AssetsContractController {
     messenger: AssetsContractControllerMessenger;
     chainId: Hex;
   }) {
-    this.messagingSystem = messenger;
+    this.messenger = messenger;
     this.#provider = undefined;
     this.#ipfsGateway = IPFS_DEFAULT_GATEWAY_URL;
     this.#chainId = initialChainId;
@@ -258,7 +251,7 @@ export class AssetsContractController {
   #registerActionHandlers() {
     const methodsExcludedFromMessenger = [
       'constructor',
-      'messagingSystem',
+      'messenger',
       'setProvider',
       'provider',
       'ipfsGateway',
@@ -272,7 +265,7 @@ export class AssetsContractController {
             !methodsExcludedFromMessenger.find((e) => e === key) &&
             typeof this[key] === 'function')(method)
         ) {
-          this.messagingSystem.registerActionHandler(
+          this.messenger.registerActionHandler(
             `${name}:${method}`,
             // TODO: Write a generic for-loop implementation that iterates over an input union type in tandem with the input array.
             // @ts-expect-error Both assigned argument and assignee parameter are using the entire union type for `method` instead of the type for the current element
@@ -284,14 +277,14 @@ export class AssetsContractController {
   }
 
   #registerEventSubscriptions() {
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       `PreferencesController:stateChange`,
       ({ ipfsGateway }) => {
         this.#ipfsGateway = ipfsGateway;
       },
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       `NetworkController:networkDidChange`,
       ({ selectedNetworkClientId }) => {
         const chainId = this.#getCorrectChainId(selectedNetworkClientId);
@@ -330,11 +323,11 @@ export class AssetsContractController {
    */
   #getCorrectProvider(networkClientId?: NetworkClientId): Web3Provider {
     const provider = networkClientId
-      ? this.messagingSystem.call(
+      ? this.messenger.call(
           `NetworkController:getNetworkClientById`,
           networkClientId,
         ).provider
-      : (this.messagingSystem.call('NetworkController:getSelectedNetworkClient')
+      : (this.messenger.call('NetworkController:getSelectedNetworkClient')
           ?.provider ?? this.#provider);
 
     if (provider === undefined) {
@@ -352,7 +345,7 @@ export class AssetsContractController {
    */
   #getCorrectChainId(networkClientId?: NetworkClientId): Hex {
     if (networkClientId) {
-      const networkClientConfiguration = this.messagingSystem.call(
+      const networkClientConfiguration = this.messenger.call(
         'NetworkController:getNetworkConfigurationByNetworkClientId',
         networkClientId,
       );
@@ -360,10 +353,10 @@ export class AssetsContractController {
         return networkClientConfiguration.chainId;
       }
     }
-    const { selectedNetworkClientId } = this.messagingSystem.call(
+    const { selectedNetworkClientId } = this.messenger.call(
       'NetworkController:getState',
     );
-    const networkClient = this.messagingSystem.call(
+    const networkClient = this.messenger.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     );
