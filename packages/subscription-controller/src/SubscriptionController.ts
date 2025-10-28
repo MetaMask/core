@@ -199,7 +199,7 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
     lastSelectedPaymentMethod: {
       includeInStateLogs: false,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: true,
     },
   };
