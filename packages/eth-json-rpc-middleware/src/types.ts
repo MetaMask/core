@@ -1,4 +1,3 @@
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type {
   Json,
   JsonRpcParams,

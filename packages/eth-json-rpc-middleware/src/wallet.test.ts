@@ -1,5 +1,4 @@
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import pify from 'pify';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 
 import type {
   MessageParams,
@@ -8,6 +7,7 @@ import type {
   TypedMessageV1Params,
 } from '.';
 import { createWalletMiddleware } from '.';
+import { createRequest } from '../test/util/helpers';
 
 const testAddresses = [
   '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',
@@ -22,53 +22,64 @@ const testMsgSig =
 describe('wallet', () => {
   describe('accounts', () => {
     it('returns null for coinbase when no accounts', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => [];
-      engine.push(createWalletMiddleware({ getAccounts }));
-      const coinbaseResult = await pify(engine.handle).call(engine, {
-        method: 'eth_coinbase',
+      const engine = JsonRpcEngineV2.create({
+        middleware: [createWalletMiddleware({ getAccounts })],
       });
-      expect(coinbaseResult.result).toBeNull();
+      const coinbaseResult = await engine.handle(
+        createRequest({
+          method: 'eth_coinbase',
+        }),
+      );
+      expect(coinbaseResult).toBeNull();
     });
 
     it('should return the correct value from getAccounts', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
-      engine.push(createWalletMiddleware({ getAccounts }));
-      const coinbaseResult = await pify(engine.handle).call(engine, {
-        method: 'eth_coinbase',
+      const engine = JsonRpcEngineV2.create({
+        middleware: [createWalletMiddleware({ getAccounts })],
       });
-      expect(coinbaseResult.result).toStrictEqual(testAddresses[0]);
+      const coinbaseResult = await engine.handle(
+        createRequest({
+          method: 'eth_coinbase',
+        }),
+      );
+      expect(coinbaseResult).toStrictEqual(testAddresses[0]);
     });
 
     it('should return the correct value from getAccounts with multiple accounts', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
-      engine.push(createWalletMiddleware({ getAccounts }));
-      const coinbaseResult = await pify(engine.handle).call(engine, {
-        method: 'eth_coinbase',
+      const engine = JsonRpcEngineV2.create({
+        middleware: [createWalletMiddleware({ getAccounts })],
       });
-      expect(coinbaseResult.result).toStrictEqual(testAddresses[0]);
+      const coinbaseResult = await engine.handle(
+        createRequest({
+          method: 'eth_coinbase',
+        }),
+      );
+      expect(coinbaseResult).toStrictEqual(testAddresses[0]);
     });
   });
 
   describe('transactions', () => {
     it('processes transaction with valid address', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processTransaction = async (_txParams: TransactionParams) => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
-      engine.push(createWalletMiddleware({ getAccounts, processTransaction }));
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTransaction }),
+        ],
+      });
       const txParams = {
         from: testAddresses[0],
       };
 
       const payload = { method: 'eth_sendTransaction', params: [txParams] };
-      const sendTxResponse = await pify(engine.handle).call(engine, payload);
-      const sendTxResult = sendTxResponse.result;
+      const sendTxResult = await engine.handle(createRequest(payload));
       expect(sendTxResult).toBeDefined();
       expect(sendTxResult).toStrictEqual(testTxHash);
       expect(witnessedTxParams).toHaveLength(1);
@@ -76,60 +87,78 @@ describe('wallet', () => {
     });
 
     it('throws when provided an invalid address', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processTransaction = async (_txParams: TransactionParams) => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
-      engine.push(createWalletMiddleware({ getAccounts, processTransaction }));
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTransaction }),
+        ],
+      });
       const txParams = {
         from: '0x3d',
       };
 
-      const payload = { method: 'eth_sendTransaction', params: [txParams] };
-      await expect(pify(engine.handle).call(engine, payload)).rejects.toThrow(
+      const payload = createRequest({
+        method: 'eth_sendTransaction',
+        params: [txParams],
+      });
+      await expect(engine.handle(payload)).rejects.toThrow(
         new Error('Invalid parameters: must provide an Ethereum address.'),
       );
     });
 
     it('throws unauthorized for unknown addresses', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processTransaction = async (_txParams: TransactionParams) => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
-      engine.push(createWalletMiddleware({ getAccounts, processTransaction }));
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTransaction }),
+        ],
+      });
       const txParams = {
         from: testUnkownAddress,
       };
 
-      const payload = { method: 'eth_sendTransaction', params: [txParams] };
-      const promise = pify(engine.handle).call(engine, payload);
+      const payload = createRequest({
+        method: 'eth_sendTransaction',
+        params: [txParams],
+      });
+      const promise = engine.handle(payload);
       await expect(promise).rejects.toThrow(
         'The requested account and/or method has not been authorized by the user.',
       );
     });
 
     it('should not override other request params', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processTransaction = async (_txParams: TransactionParams) => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
-      engine.push(createWalletMiddleware({ getAccounts, processTransaction }));
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTransaction }),
+        ],
+      });
       const txParams = {
         from: testAddresses[0],
         to: testAddresses[1],
       };
 
-      const payload = { method: 'eth_sendTransaction', params: [txParams] };
-      await pify(engine.handle).call(engine, payload);
+      const payload = createRequest({
+        method: 'eth_sendTransaction',
+        params: [txParams],
+      });
+      await engine.handle(payload);
       expect(witnessedTxParams).toHaveLength(1);
       expect(witnessedTxParams[0]).toStrictEqual(txParams);
     });
@@ -137,24 +166,23 @@ describe('wallet', () => {
 
   describe('signTransaction', () => {
     it('should process sign transaction when provided a valid address', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processSignTransaction = async (_txParams: TransactionParams) => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processSignTransaction }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processSignTransaction }),
+        ],
+      });
       const txParams = {
         from: testAddresses[0],
       };
 
       const payload = { method: 'eth_signTransaction', params: [txParams] };
-      const sendTxResponse = await pify(engine.handle).call(engine, payload);
-      const sendTxResult = sendTxResponse.result;
+      const sendTxResult = await engine.handle(createRequest(payload));
       expect(sendTxResult).toBeDefined();
       expect(sendTxResult).toStrictEqual(testTxHash);
       expect(witnessedTxParams).toHaveLength(1);
@@ -162,68 +190,68 @@ describe('wallet', () => {
     });
 
     it('should not override other request params', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processSignTransaction = async (_txParams: TransactionParams) => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processSignTransaction }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processSignTransaction }),
+        ],
+      });
       const txParams = {
         from: testAddresses[0],
         to: testAddresses[1],
       };
 
       const payload = { method: 'eth_signTransaction', params: [txParams] };
-      await pify(engine.handle).call(engine, payload);
+      await engine.handle(createRequest(payload));
       expect(witnessedTxParams).toHaveLength(1);
       expect(witnessedTxParams[0]).toStrictEqual(txParams);
     });
 
     it('should throw when provided invalid address', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processSignTransaction = async (_txParams: TransactionParams) => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processSignTransaction }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processSignTransaction }),
+        ],
+      });
       const txParams = {
         from: '0x3',
       };
 
       const payload = { method: 'eth_signTransaction', params: [txParams] };
-      await expect(pify(engine.handle).call(engine, payload)).rejects.toThrow(
+      await expect(engine.handle(createRequest(payload))).rejects.toThrow(
         new Error('Invalid parameters: must provide an Ethereum address.'),
       );
     });
 
     it('should throw when provided unknown address', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice(0, 2);
       const witnessedTxParams: TransactionParams[] = [];
       const processSignTransaction = async (_txParams: TransactionParams) => {
         witnessedTxParams.push(_txParams);
         return testTxHash;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processSignTransaction }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processSignTransaction }),
+        ],
+      });
       const txParams = {
         from: testUnkownAddress,
       };
 
       const payload = { method: 'eth_signTransaction', params: [txParams] };
-      const promise = pify(engine.handle).call(engine, payload);
+      const promise = engine.handle(createRequest(payload));
       await expect(promise).rejects.toThrow(
         'The requested account and/or method has not been authorized by the user.',
       );
@@ -232,15 +260,17 @@ describe('wallet', () => {
 
   describe('signTypedData', () => {
     it('should sign with a valid address', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageV1Params[] = [];
       const processTypedMessage = async (msgParams: TypedMessageV1Params) => {
         witnessedMsgParams.push(msgParams);
         return testMsgSig;
       };
-
-      engine.push(createWalletMiddleware({ getAccounts, processTypedMessage }));
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTypedMessage }),
+        ],
+      });
       const message = [
         {
           type: 'string',
@@ -253,8 +283,7 @@ describe('wallet', () => {
         method: 'eth_signTypedData',
         params: [message, testAddresses[0]],
       };
-      const signMsgResponse = await pify(engine.handle).call(engine, payload);
-      const signMsgResult = signMsgResponse.result;
+      const signMsgResult = await engine.handle(createRequest(payload));
 
       expect(signMsgResult).toBeDefined();
       expect(signMsgResult).toStrictEqual(testMsgSig);
@@ -268,15 +297,17 @@ describe('wallet', () => {
     });
 
     it('should throw with invalid address', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageV1Params[] = [];
       const processTypedMessage = async (msgParams: TypedMessageV1Params) => {
         witnessedMsgParams.push(msgParams);
         return testMsgSig;
       };
-
-      engine.push(createWalletMiddleware({ getAccounts, processTypedMessage }));
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTypedMessage }),
+        ],
+      });
       const message = [
         {
           type: 'string',
@@ -289,21 +320,23 @@ describe('wallet', () => {
         method: 'eth_signTypedData',
         params: [message, '0x3d'],
       };
-      await expect(pify(engine.handle).call(engine, payload)).rejects.toThrow(
+      await expect(engine.handle(createRequest(payload))).rejects.toThrow(
         new Error('Invalid parameters: must provide an Ethereum address.'),
       );
     });
 
     it('should throw with unknown address', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageV1Params[] = [];
       const processTypedMessage = async (msgParams: TypedMessageV1Params) => {
         witnessedMsgParams.push(msgParams);
         return testMsgSig;
       };
-
-      engine.push(createWalletMiddleware({ getAccounts, processTypedMessage }));
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTypedMessage }),
+        ],
+      });
       const message = [
         {
           type: 'string',
@@ -316,7 +349,7 @@ describe('wallet', () => {
         method: 'eth_signTypedData',
         params: [message, testUnkownAddress],
       };
-      const promise = pify(engine.handle).call(engine, payload);
+      const promise = engine.handle(createRequest(payload));
       await expect(promise).rejects.toThrow(
         'The requested account and/or method has not been authorized by the user.',
       );
@@ -325,7 +358,6 @@ describe('wallet', () => {
 
   describe('signTypedDataV3', () => {
     it('should sign data and normalizes verifyingContract', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV3 = async (msgParams: TypedMessageParams) => {
@@ -333,10 +365,11 @@ describe('wallet', () => {
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
+        ],
+      });
 
       const message = {
         types: {
@@ -367,11 +400,7 @@ describe('wallet', () => {
         params: [testAddresses[0], stringifiedMessage], // Assuming testAddresses[0] is a valid address from your setup
       };
 
-      const signTypedDataV3Response = await pify(engine.handle).call(
-        engine,
-        payload,
-      );
-      const signTypedDataV3Result = signTypedDataV3Response.result;
+      const signTypedDataV3Result = await engine.handle(createRequest(payload));
 
       expect(signTypedDataV3Result).toBeDefined();
       expect(signTypedDataV3Result).toStrictEqual(testMsgSig);
@@ -385,7 +414,6 @@ describe('wallet', () => {
     });
 
     it('should throw if verifyingContract is invalid hex value', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV3 = async (msgParams: TypedMessageParams) => {
@@ -393,10 +421,11 @@ describe('wallet', () => {
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
+        ],
+      });
 
       const message = {
         types: {
@@ -421,12 +450,11 @@ describe('wallet', () => {
         params: [testAddresses[0], stringifiedMessage], // Assuming testAddresses[0] is a valid address from your setup
       };
 
-      const promise = pify(engine.handle).call(engine, payload);
+      const promise = engine.handle(createRequest(payload));
       await expect(promise).rejects.toThrow('Invalid input.');
     });
 
     it('should not throw if verifyingContract is undefined', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV3 = async (msgParams: TypedMessageParams) => {
@@ -434,10 +462,11 @@ describe('wallet', () => {
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
+        ],
+      });
 
       const message = {
         types: {
@@ -459,14 +488,10 @@ describe('wallet', () => {
         params: [testAddresses[0], stringifiedMessage], // Assuming testAddresses[0] is a valid address from your setup
       };
 
-      const promise = pify(engine.handle).call(engine, payload);
-      const result = await promise;
-      expect(result).toStrictEqual({
-        id: undefined,
-        jsonrpc: undefined,
-        result:
-          '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
-      });
+      const result = await engine.handle(createRequest(payload));
+      expect(result).toBe(
+        '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
+      );
     });
   });
 
@@ -505,7 +530,6 @@ describe('wallet', () => {
     });
 
     it('should not throw if request is permit with valid hex value for verifyingContract address', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
@@ -513,28 +537,24 @@ describe('wallet', () => {
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+        ],
+      });
 
       const payload = {
         method: 'eth_signTypedData_v4',
         params: [testAddresses[0], JSON.stringify(getMsgParams())],
       };
 
-      const promise = pify(engine.handle).call(engine, payload);
-      const result = await promise;
-      expect(result).toStrictEqual({
-        id: undefined,
-        jsonrpc: undefined,
-        result:
-          '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
-      });
+      const result = await engine.handle(createRequest(payload));
+      expect(result).toBe(
+        '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
+      );
     });
 
     it('should throw if request is permit with invalid hex value for verifyingContract address', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
@@ -542,10 +562,11 @@ describe('wallet', () => {
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+        ],
+      });
 
       const payload = {
         method: 'eth_signTypedData_v4',
@@ -557,12 +578,11 @@ describe('wallet', () => {
         ],
       };
 
-      const promise = pify(engine.handle).call(engine, payload);
+      const promise = engine.handle(createRequest(payload));
       await expect(promise).rejects.toThrow('Invalid input.');
     });
 
     it('should not throw if request is permit with undefined value for verifyingContract address', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
@@ -570,28 +590,24 @@ describe('wallet', () => {
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+        ],
+      });
 
       const payload = {
         method: 'eth_signTypedData_v4',
         params: [testAddresses[0], JSON.stringify(getMsgParams())],
       };
 
-      const promise = pify(engine.handle).call(engine, payload);
-      const result = await promise;
-      expect(result).toStrictEqual({
-        id: undefined,
-        jsonrpc: undefined,
-        result:
-          '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
-      });
+      const result = await engine.handle(createRequest(payload));
+      expect(result).toBe(
+        '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
+      );
     });
 
     it('should not throw if request is permit with verifyingContract address equal to "cosmos"', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
@@ -599,28 +615,24 @@ describe('wallet', () => {
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+        ],
+      });
 
       const payload = {
         method: 'eth_signTypedData_v4',
         params: [testAddresses[0], JSON.stringify(getMsgParams('cosmos'))],
       };
 
-      const promise = pify(engine.handle).call(engine, payload);
-      const result = await promise;
-      expect(result).toStrictEqual({
-        id: undefined,
-        jsonrpc: undefined,
-        result:
-          '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
-      });
+      const result = await engine.handle(createRequest(payload));
+      expect(result).toBe(
+        '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
+      );
     });
 
     it('should throw if message does not have types defined', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
@@ -628,10 +640,11 @@ describe('wallet', () => {
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+        ],
+      });
 
       const messageParams = getMsgParams();
       const payload = {
@@ -642,12 +655,11 @@ describe('wallet', () => {
         ],
       };
 
-      const promise = pify(engine.handle).call(engine, payload);
+      const promise = engine.handle(createRequest(payload));
       await expect(promise).rejects.toThrow('Invalid input.');
     });
 
     it('should throw if type of primaryType is not defined', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: TypedMessageParams[] = [];
       const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
@@ -655,10 +667,11 @@ describe('wallet', () => {
         // Assume testMsgSig is the expected signature result
         return testMsgSig;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+        ],
+      });
 
       const messageParams = getMsgParams();
       const payload = {
@@ -672,32 +685,31 @@ describe('wallet', () => {
         ],
       };
 
-      const promise = pify(engine.handle).call(engine, payload);
+      const promise = engine.handle(createRequest(payload));
       await expect(promise).rejects.toThrow('Invalid input.');
     });
   });
 
   describe('sign', () => {
     it('should sign with a valid address', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: MessageParams[] = [];
       const processPersonalMessage = async (msgParams: MessageParams) => {
         witnessedMsgParams.push(msgParams);
         return testMsgSig;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processPersonalMessage }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processPersonalMessage }),
+        ],
+      });
 
       const message = 'haay wuurl';
       const payload = {
         method: 'personal_sign',
         params: [message, testAddresses[0]],
       };
-      const signMsgResponse = await pify(engine.handle).call(engine, payload);
-      const signMsgResult = signMsgResponse.result;
+      const signMsgResult = await engine.handle(createRequest(payload));
 
       expect(signMsgResult).toBeDefined();
       expect(signMsgResult).toStrictEqual(testMsgSig);
@@ -710,17 +722,17 @@ describe('wallet', () => {
     });
 
     it('should error when provided invalid address', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: MessageParams[] = [];
       const processPersonalMessage = async (msgParams: MessageParams) => {
         witnessedMsgParams.push(msgParams);
         return testMsgSig;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processPersonalMessage }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processPersonalMessage }),
+        ],
+      });
 
       const message = 'haay wuurl';
       const payload = {
@@ -728,23 +740,23 @@ describe('wallet', () => {
         params: [message, '0x3d'],
       };
 
-      await expect(pify(engine.handle).call(engine, payload)).rejects.toThrow(
+      await expect(engine.handle(createRequest(payload))).rejects.toThrow(
         new Error('Invalid parameters: must provide an Ethereum address.'),
       );
     });
 
     it('should error when provided unknown address', async () => {
-      const engine = new JsonRpcEngine();
       const getAccounts = async () => testAddresses.slice();
       const witnessedMsgParams: MessageParams[] = [];
       const processPersonalMessage = async (msgParams: MessageParams) => {
         witnessedMsgParams.push(msgParams);
         return testMsgSig;
       };
-
-      engine.push(
-        createWalletMiddleware({ getAccounts, processPersonalMessage }),
-      );
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processPersonalMessage }),
+        ],
+      });
 
       const message = 'haay wuurl';
       const payload = {
@@ -752,7 +764,7 @@ describe('wallet', () => {
         params: [message, testUnkownAddress],
       };
 
-      const promise = pify(engine.handle).call(engine, payload);
+      const promise = engine.handle(createRequest(payload));
       await expect(promise).rejects.toThrow(
         'The requested account and/or method has not been authorized by the user.',
       );
@@ -771,15 +783,15 @@ describe('wallet', () => {
         addressHex: '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',
       };
 
-      const engine = new JsonRpcEngine();
-      engine.push(createWalletMiddleware({ getAccounts }));
+      const engine = JsonRpcEngineV2.create({
+        middleware: [createWalletMiddleware({ getAccounts })],
+      });
 
       const payload = {
         method: 'personal_ecRecover',
         params: [signParams.message, signParams.signature],
       };
-      const ecrecoverResponse = await pify(engine.handle).call(engine, payload);
-      const ecrecoverResult = ecrecoverResponse.result;
+      const ecrecoverResult = await engine.handle(createRequest(payload));
       expect(ecrecoverResult).toBeDefined();
       expect(ecrecoverResult).toStrictEqual(signParams.addressHex);
     });
@@ -797,15 +809,15 @@ describe('wallet', () => {
         addressHex: '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',
       };
 
-      const engine = new JsonRpcEngine();
-      engine.push(createWalletMiddleware({ getAccounts }));
+      const engine = JsonRpcEngineV2.create({
+        middleware: [createWalletMiddleware({ getAccounts })],
+      });
 
       const payload = {
         method: 'personal_ecRecover',
         params: [signParams.message, signParams.signature],
       };
-      const ecrecoverResponse = await pify(engine.handle).call(engine, payload);
-      const ecrecoverResult = ecrecoverResponse.result;
+      const ecrecoverResult = await engine.handle(createRequest(payload));
       expect(ecrecoverResult).toBeDefined();
       expect(ecrecoverResult).toStrictEqual(signParams.addressHex);
     });
