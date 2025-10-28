@@ -3,7 +3,7 @@ import type {
   JsonRpcMiddleware,
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
-import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
 import type {

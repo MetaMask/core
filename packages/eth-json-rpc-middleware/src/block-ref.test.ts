@@ -1,4 +1,5 @@
 import { MiddlewareContext } from '@metamask/json-rpc-engine/v2';
+
 import { createBlockRefMiddleware } from '.';
 import {
   createMockParamsWithBlockParamAt,
