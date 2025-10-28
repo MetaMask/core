@@ -47,6 +47,7 @@ export type MultichainAssetsControllerState = {
     [asset: CaipAssetType]: FungibleAssetMetadata;
   };
   accountsAssets: { [account: string]: CaipAssetType[] };
+  allIgnoredAssets: { [account: string]: CaipAssetType[] };
 };
 
 // Represents the response of the asset snap's onAssetLookup handler
@@ -70,12 +71,17 @@ export type MultichainAssetsControllerAccountAssetListUpdatedEvent = {
  * @returns The default {@link MultichainAssetsController} state.
  */
 export function getDefaultMultichainAssetsControllerState(): MultichainAssetsControllerState {
-  return { accountsAssets: {}, assetsMetadata: {} };
+  return { accountsAssets: {}, assetsMetadata: {}, allIgnoredAssets: {} };
 }
 
 export type MultichainAssetsControllerGetAssetMetadataAction = {
   type: `${typeof controllerName}:getAssetMetadata`;
   handler: MultichainAssetsController['getAssetMetadata'];
+};
+
+export type MultichainAssetsControllerIgnoreAssetsAction = {
+  type: `${typeof controllerName}:ignoreAssets`;
+  handler: MultichainAssetsController['ignoreAssets'];
 };
 
 /**
@@ -100,7 +106,8 @@ export type MultichainAssetsControllerStateChangeEvent =
  */
 export type MultichainAssetsControllerActions =
   | MultichainAssetsControllerGetStateAction
-  | MultichainAssetsControllerGetAssetMetadataAction;
+  | MultichainAssetsControllerGetAssetMetadataAction
+  | MultichainAssetsControllerIgnoreAssetsAction;
 
 /**
  * Events emitted by {@link MultichainAssetsController}.
@@ -164,6 +171,12 @@ const assetsControllerMetadata = {
     usedInUi: true,
   },
   accountsAssets: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
+  allIgnoredAssets: {
     includeInStateLogs: false,
     persist: true,
     anonymous: false,
@@ -241,6 +254,11 @@ export class MultichainAssetsController extends BaseController<
       'MultichainAssetsController:getAssetMetadata',
       this.getAssetMetadata.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      'MultichainAssetsController:ignoreAssets',
+      this.ignoreAssets.bind(this),
+    );
   }
 
   /**
@@ -251,6 +269,42 @@ export class MultichainAssetsController extends BaseController<
    */
   getAssetMetadata(asset: CaipAssetType): FungibleAssetMetadata | undefined {
     return this.state.assetsMetadata[asset];
+  }
+
+  /**
+   * Ignores a batch of assets for a specific account.
+   *
+   * @param assetsToIgnore - Array of asset IDs to ignore.
+   * @param accountId - The account ID to ignore assets for.
+   */
+  ignoreAssets(assetsToIgnore: CaipAssetType[], accountId: string): void {
+    this.update((state) => {
+      if (state.accountsAssets[accountId]) {
+        state.accountsAssets[accountId] = state.accountsAssets[
+          accountId
+        ].filter((asset) => !assetsToIgnore.includes(asset));
+      }
+
+      if (!state.allIgnoredAssets[accountId]) {
+        state.allIgnoredAssets[accountId] = [];
+      }
+
+      const newIgnoredAssets = assetsToIgnore.filter(
+        (asset) => !state.allIgnoredAssets[accountId].includes(asset),
+      );
+      state.allIgnoredAssets[accountId].push(...newIgnoredAssets);
+    });
+  }
+
+  /**
+   * Checks if an asset is ignored for a specific account.
+   *
+   * @param asset - The asset ID to check.
+   * @param accountId - The account ID to check for.
+   * @returns True if the asset is ignored, false otherwise.
+   */
+  #isAssetIgnored(asset: CaipAssetType, accountId: string): boolean {
+    return this.state.allIgnoredAssets[accountId]?.includes(asset) ?? false;
   }
 
   /**
@@ -273,8 +327,12 @@ export class MultichainAssetsController extends BaseController<
         const existing = this.state.accountsAssets[accountId] || [];
 
         // In case accountsAndAssetsToUpdate event is fired with "added" assets that already exist, we don't want to add them again
+        // Also filter out ignored assets
         const filteredToBeAddedAssets = added.filter(
-          (asset) => !existing.includes(asset) && isCaipAssetType(asset),
+          (asset) =>
+            !existing.includes(asset) &&
+            isCaipAssetType(asset) &&
+            !this.#isAssetIgnored(asset, accountId),
         );
 
         // In case accountsAndAssetsToUpdate event is fired with "removed" assets that don't exist, we don't want to remove them
@@ -384,14 +442,16 @@ export class MultichainAssetsController extends BaseController<
    * @param accountId - The new account id being removed.
    */
   async #handleOnAccountRemovedEvent(accountId: string): Promise<void> {
-    // Check if accountId is in accountsAssets and if it is, remove it
-    if (this.state.accountsAssets[accountId]) {
-      this.update((state) => {
-        // TODO: We are not deleting the assetsMetadata because we will soon make this controller extends StaticIntervalPollingController
-        // and update all assetsMetadata once a day.
+    this.update((state) => {
+      if (state.accountsAssets[accountId]) {
         delete state.accountsAssets[accountId];
-      });
-    }
+      }
+      if (state.allIgnoredAssets[accountId]) {
+        delete state.allIgnoredAssets[accountId];
+      }
+      // TODO: We are not deleting the assetsMetadata because we will soon make this controller extends StaticIntervalPollingController
+      // and update all assetsMetadata once a day.
+    });
   }
 
   /**
