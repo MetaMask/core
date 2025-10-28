@@ -121,18 +121,6 @@ export function createEngine(
 }
 
 /**
- * Creates a middleware function that just ends the request, but is also a Jest
- * mock function so that you can make assertions on it.
- *
- * @returns The created middleware, as a mock function.
- */
-export function createSimpleFinalMiddleware() {
-  return jest.fn((_req, _res, _next, end) => {
-    end();
-  });
-}
-
-/**
  * Some JSON-RPC endpoints take a "block" param (example: `eth_blockNumber`)
  * which can optionally be left out. Additionally, the endpoint may support some
  * number of arguments, although the "block" param will always be last, even if
