@@ -1232,12 +1232,9 @@ export class NetworkController extends BaseController<
         this.state.networkConfigurationsByChainId,
       );
 
-    this.messenger.registerActionHandler(
-      `${this.name}:getEthQuery`,
-      () => {
-        return this.#ethQuery;
-      },
-    );
+    this.messenger.registerActionHandler(`${this.name}:getEthQuery`, () => {
+      return this.#ethQuery;
+    });
 
     this.messenger.registerActionHandler(
       `${this.name}:getNetworkClientById`,

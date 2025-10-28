@@ -989,7 +989,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@25.0.0...HEAD
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.1...@metamask/network-controller@25.0.0
+[24.3.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.0...@metamask/network-controller@24.3.1
 [24.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.2...@metamask/network-controller@24.3.0
 [24.2.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.1...@metamask/network-controller@24.2.2
 [24.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.0...@metamask/network-controller@24.2.1
