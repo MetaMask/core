@@ -6,11 +6,6 @@ import type {
   JsonRpcResponse,
 } from '@metamask/utils';
 
-export type JsonRpcRequestToCache<Params extends JsonRpcParams> =
-  JsonRpcRequest<Params> & {
-    skipCache?: boolean;
-  };
-
 export type BlockData = string | string[];
 
 export type Block = Record<string, BlockData>;
