@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Migrate to `JsonRpcEngineV2` ([#6976](https://github.com/MetaMask/core/pull/6976))
+  - Migrates all middleware from `JsonRpcEngine` to `JsonRpcEngineV2`.
+  - To continue using this package with the legacy `JsonRpcEngine`, use the `asLegacyMiddleware` backwards compatibility function.
 - **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
   - Wherever a `SafeEventEmitterProvider` was expected, an `InternalProvider` is now expected instead.
 - **BREAKING:** Stop retrying `undefined` results for methods that include a block tag parameter ([#7001](https://github.com/MetaMask/core/pull/7001))
