@@ -43,6 +43,8 @@ export enum SubscriptionControllerErrorMessage {
   UserNotSubscribed = `${controllerName} - User is not subscribed`,
   SubscriptionProductsEmpty = `${controllerName} - Subscription products array cannot be empty`,
   PaymentTokenAddressRequiredForCrypto = `${controllerName} - Payment token address is required for crypto payment`,
+  PaymentMethodNotCrypto = `${controllerName} - Payment method is not crypto`,
+  PaymentTokenAddressNotFound = `${controllerName} - Payment token address not found`,
 }
 
 export const DEFAULT_POLLING_INTERVAL = 5 * 60 * 1_000; // 5 minutes

@@ -6,6 +6,7 @@ import {
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { Hex } from '@metamask/utils';
 
 import {
   ACTIVE_SUBSCRIPTION_STATUSES,
@@ -24,11 +25,12 @@ import type {
   TokenPaymentInfo,
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodOpts,
-  CachedLastSelectedPaymentMethods,
-  SubmitSponsorshipIntentsRequest,
+  CachedLastSelectedPaymentMethod,
+  SubmitSponsorshipIntentsMethodParams,
 } from './types';
 import {
   PAYMENT_TYPES,
+  RECURRING_INTERVALS,
   type ISubscriptionService,
   type PricingResponse,
   type ProductType,
@@ -49,7 +51,7 @@ export type SubscriptionControllerState = {
    */
   lastSelectedPaymentMethod?: Record<
     ProductType,
-    CachedLastSelectedPaymentMethods
+    CachedLastSelectedPaymentMethod
   >;
 };
 
@@ -528,7 +530,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    */
   cacheLastSelectedPaymentMethod(
     product: ProductType,
-    paymentMethod: CachedLastSelectedPaymentMethods,
+    paymentMethod: CachedLastSelectedPaymentMethod,
   ) {
     if (
       paymentMethod.type === PAYMENT_TYPES.byCrypto &&
@@ -561,7 +563,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    *   billingCycles: 1,
    * }
    */
-  async submitSponsorshipIntents(request: SubmitSponsorshipIntentsRequest) {
+  async submitSponsorshipIntents(
+    request: SubmitSponsorshipIntentsMethodParams,
+  ) {
     this.#assertIsUserNotSubscribed({ products: request.products });
 
     // verify if the user has trailed the provided products before
@@ -569,9 +573,28 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       request.products.includes(product),
     );
     // if the user has not trailed the provided products before, submit the sponsorship intents
-    if (!hasTrailedBefore) {
-      await this.#subscriptionService.submitSponsorshipIntents(request);
+    if (hasTrailedBefore) {
+      return;
     }
+
+    const selectedPaymentMethod =
+      this.state.lastSelectedPaymentMethod?.[request.products[0]];
+    this.#assertIsPaymentMethodCrypto(selectedPaymentMethod);
+
+    const recurringInterval = selectedPaymentMethod.plan;
+    const billingCycles =
+      recurringInterval === RECURRING_INTERVALS.year ? 1 : 12;
+    const paymentTokenSymbol = this.#queryPaymentTokenSymbol(
+      request.chainId,
+      selectedPaymentMethod.paymentTokenAddress,
+    );
+
+    await this.#subscriptionService.submitSponsorshipIntents({
+      ...request,
+      paymentTokenSymbol,
+      billingCycles,
+      recurringInterval,
+    });
   }
 
   /**
@@ -676,6 +699,53 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     ) {
       throw new Error(SubscriptionControllerErrorMessage.UserNotSubscribed);
     }
+  }
+
+  /**
+   * Asserts that the value is a valid crypto payment method.
+   *
+   * @param value - The value to assert.
+   * @throws an error if the value is not a valid crypto payment method.
+   */
+  #assertIsPaymentMethodCrypto(
+    value: CachedLastSelectedPaymentMethod | undefined,
+  ): asserts value is Required<CachedLastSelectedPaymentMethod> {
+    if (
+      !value ||
+      value.type !== PAYMENT_TYPES.byCrypto ||
+      !value.paymentTokenAddress
+    ) {
+      throw new Error(
+        SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
+      );
+    }
+  }
+
+  /**
+   * Queries the payment token symbol from the pricing.
+   *
+   * @param chainId - The chain id.
+   * @param paymentTokenAddress - The payment token address.
+   * @returns The payment token symbol.
+   */
+  #queryPaymentTokenSymbol(chainId: Hex, paymentTokenAddress: Hex): string {
+    const cryptoPaymentMethod = this.state.pricing?.paymentMethods.find(
+      (t) => t.type === PAYMENT_TYPES.byCrypto,
+    );
+    if (!cryptoPaymentMethod) {
+      throw new Error(
+        SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
+      );
+    }
+    const tokenPaymentInfo = cryptoPaymentMethod.chains
+      ?.find((t) => t.chainId === chainId)
+      ?.tokens.find((t) => t.address === paymentTokenAddress);
+    if (!tokenPaymentInfo) {
+      throw new Error(
+        SubscriptionControllerErrorMessage.PaymentTokenAddressNotFound,
+      );
+    }
+    return tokenPaymentInfo.symbol;
   }
 
   /**

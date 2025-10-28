@@ -248,9 +248,15 @@ export type SubmitSponsorshipIntentsRequest = {
   chainId: Hex;
   address: Hex;
   products: ProductType[];
+  paymentTokenSymbol: string;
   recurringInterval: RecurringInterval;
   billingCycles: number;
 };
+
+export type SubmitSponsorshipIntentsMethodParams = Pick<
+  SubmitSponsorshipIntentsRequest,
+  'chainId' | 'address' | 'products'
+>;
 
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
@@ -343,7 +349,7 @@ export type BillingPortalResponse = {
  * The cached result of last selected payment methods for the user.
  * These details are being cached to be used internally to track the last selected payment method for the user. (e.g. for crypto subscriptions)
  */
-export type CachedLastSelectedPaymentMethods = {
+export type CachedLastSelectedPaymentMethod = {
   type: PaymentType;
   paymentTokenAddress?: Hex;
   plan: RecurringInterval;

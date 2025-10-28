@@ -487,6 +487,7 @@ describe('SubscriptionService', () => {
           products: [PRODUCT_TYPES.SHIELD],
           recurringInterval: RECURRING_INTERVALS.month,
           billingCycles: 12,
+          paymentTokenSymbol: 'USDT',
         });
 
         expect(handleFetchMock).toHaveBeenCalledWith(
@@ -500,6 +501,7 @@ describe('SubscriptionService', () => {
               products: [PRODUCT_TYPES.SHIELD],
               recurringInterval: RECURRING_INTERVALS.month,
               billingCycles: 12,
+              paymentTokenSymbol: 'USDT',
             }),
           },
         );

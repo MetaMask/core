@@ -31,8 +31,10 @@ import type {
   UpdatePaymentMethodOpts,
   Product,
   SubscriptionEligibility,
-  CachedLastSelectedPaymentMethods,
+  CachedLastSelectedPaymentMethod,
   SubmitSponsorshipIntentsRequest,
+  SubmitSponsorshipIntentsMethodParams,
+  ProductType,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -1487,7 +1489,7 @@ describe('SubscriptionController', () => {
           controller.cacheLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD, {
             type: PAYMENT_TYPES.byCrypto,
             plan: RECURRING_INTERVALS.month,
-          } as CachedLastSelectedPaymentMethods),
+          } as CachedLastSelectedPaymentMethod),
         ).toThrow(
           SubscriptionControllerErrorMessage.PaymentTokenAddressRequiredForCrypto,
         );
@@ -1496,27 +1498,47 @@ describe('SubscriptionController', () => {
   });
 
   describe('submitSponsorshipIntents', () => {
-    const MOCK_SUBMISSION_INTENTS_REQUEST: SubmitSponsorshipIntentsRequest = {
-      chainId: '0x1',
-      address: '0x1234567890123456789012345678901234567890',
-      products: [PRODUCT_TYPES.SHIELD],
-      recurringInterval: RECURRING_INTERVALS.month,
-      billingCycles: 12,
+    const MOCK_SUBMISSION_INTENTS_REQUEST: SubmitSponsorshipIntentsMethodParams =
+      {
+        chainId: '0x1',
+        address: '0x1234567890123456789012345678901234567890',
+        products: [PRODUCT_TYPES.SHIELD],
+      };
+    const MOCK_CACHED_PAYMENT_METHOD: Record<
+      ProductType,
+      CachedLastSelectedPaymentMethod
+    > = {
+      [PRODUCT_TYPES.SHIELD]: {
+        type: PAYMENT_TYPES.byCrypto,
+        paymentTokenAddress: '0xtoken',
+        plan: RECURRING_INTERVALS.month,
+      },
     };
 
     it('should submit sponsorship intents successfully', async () => {
-      await withController(async ({ controller, mockService }) => {
-        const submitSponsorshipIntentsSpy = jest
-          .spyOn(mockService, 'submitSponsorshipIntents')
-          .mockResolvedValue(undefined);
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ controller, mockService }) => {
+          const submitSponsorshipIntentsSpy = jest
+            .spyOn(mockService, 'submitSponsorshipIntents')
+            .mockResolvedValue(undefined);
 
-        await controller.submitSponsorshipIntents(
-          MOCK_SUBMISSION_INTENTS_REQUEST,
-        );
-        expect(submitSponsorshipIntentsSpy).toHaveBeenCalledWith(
-          MOCK_SUBMISSION_INTENTS_REQUEST,
-        );
-      });
+          await controller.submitSponsorshipIntents(
+            MOCK_SUBMISSION_INTENTS_REQUEST,
+          );
+          expect(submitSponsorshipIntentsSpy).toHaveBeenCalledWith({
+            ...MOCK_SUBMISSION_INTENTS_REQUEST,
+            paymentTokenSymbol: 'USDT',
+            billingCycles: 12,
+            recurringInterval: RECURRING_INTERVALS.month,
+          });
+        },
+      );
     });
 
     it('should throw error when user is already subscribed', async () => {
@@ -1565,17 +1587,128 @@ describe('SubscriptionController', () => {
       );
     });
 
-    it('should handle subscription service errors', async () => {
-      await withController(async ({ controller, mockService }) => {
-        const errorMessage = 'Failed to submit sponsorship intents';
-        mockService.submitSponsorshipIntents.mockRejectedValue(
-          new SubscriptionServiceError(errorMessage),
-        );
+    it('should throw error when no cached payment method is found', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.submitSponsorshipIntents(
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
+          );
+        },
+      );
+    });
 
-        await expect(
-          controller.submitSponsorshipIntents(MOCK_SUBMISSION_INTENTS_REQUEST),
-        ).rejects.toThrow(SubscriptionServiceError);
-      });
+    it('should throw error when payment method is not crypto', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCard,
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.submitSponsorshipIntents(
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
+          );
+        },
+      );
+    });
+
+    it('should throw error when crypto pricing is not found', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.submitSponsorshipIntents(
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
+          );
+        },
+      );
+    });
+
+    it('should throw error when payment token address is not found', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xnotfound',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.submitSponsorshipIntents(
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.PaymentTokenAddressNotFound,
+          );
+        },
+      );
+    });
+
+    it('should handle subscription service errors', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                plan: RECURRING_INTERVALS.year,
+              },
+            },
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.submitSponsorshipIntents.mockRejectedValue(
+            new SubscriptionServiceError(
+              'Failed to submit sponsorship intents',
+            ),
+          );
+
+          await expect(
+            controller.submitSponsorshipIntents(
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow(SubscriptionServiceError);
+          expect(mockService.submitSponsorshipIntents).toHaveBeenCalledWith({
+            ...MOCK_SUBMISSION_INTENTS_REQUEST,
+            paymentTokenSymbol: 'USDT',
+            billingCycles: 1,
+            recurringInterval: RECURRING_INTERVALS.year,
+          });
+        },
+      );
     });
   });
 });
