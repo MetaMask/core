@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `wallet_revokeSession` error handling ([#6987](https://github.com/MetaMask/core/pull/6987))
+  - This was broken in a different way in v1.2.3. Fixed in this version by a change in `@metamask/permission-controller`.
+
 ## [1.2.3]
 
 ### Changed
