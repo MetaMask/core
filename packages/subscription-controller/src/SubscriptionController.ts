@@ -2,7 +2,7 @@ import {
   type StateMetadata,
   type ControllerStateChangeEvent,
   type ControllerGetStateAction,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
@@ -24,6 +24,7 @@ import type {
   TokenPaymentInfo,
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodOpts,
+  CachedLastSelectedPaymentMethods,
   SubmitSponsorshipIntentsRequest,
 } from './types';
 import {
@@ -40,6 +41,16 @@ export type SubscriptionControllerState = {
   trialedProducts: ProductType[];
   subscriptions: Subscription[];
   pricing?: PricingResponse;
+
+  /**
+   * The last selected payment method for the user.
+   * This is used to display the last selected payment method in the UI.
+   * This state is also meant to be used internally to track the last selected payment method for the user. (e.g. for crypto subscriptions)
+   */
+  lastSelectedPaymentMethod?: Record<
+    ProductType,
+    CachedLastSelectedPaymentMethods
+  >;
 };
 
 // Messenger Actions
@@ -193,6 +204,12 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       includeInDebugSnapshot: true,
       usedInUi: true,
     },
+    lastSelectedPaymentMethod: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
   };
 
 export class SubscriptionController extends StaticIntervalPollingController()<
@@ -284,7 +301,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       this.getBillingPortalUrl.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:submitSponsorshipIntents`,
       this.submitSponsorshipIntents.bind(this),
     );
@@ -497,6 +514,37 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       return await this.getSubscriptions();
     }
     throw new Error('Invalid payment type');
+  }
+
+  /**
+   * Cache the last selected payment method for a specific product.
+   *
+   * @param product - The product to cache the payment method for.
+   * @param paymentMethod - The payment method to cache.
+   * @param paymentMethod.type - The type of the payment method.
+   * @param paymentMethod.paymentTokenAddress - The payment token address.
+   * @param paymentMethod.plan - The plan of the payment method.
+   * @param paymentMethod.product - The product of the payment method.
+   */
+  cacheLastSelectedPaymentMethod(
+    product: ProductType,
+    paymentMethod: CachedLastSelectedPaymentMethods,
+  ) {
+    if (
+      paymentMethod.type === PAYMENT_TYPES.byCrypto &&
+      !paymentMethod.paymentTokenAddress
+    ) {
+      throw new Error(
+        SubscriptionControllerErrorMessage.PaymentTokenAddressRequiredForCrypto,
+      );
+    }
+
+    this.update((state) => {
+      state.lastSelectedPaymentMethod = {
+        ...state.lastSelectedPaymentMethod,
+        [product]: paymentMethod,
+      };
+    });
   }
 
   /**

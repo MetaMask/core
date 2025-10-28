@@ -3,8 +3,8 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
-} from '@metamask/base-controller/next';
-import { BaseController } from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { Messenger } from '@metamask/messenger';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';

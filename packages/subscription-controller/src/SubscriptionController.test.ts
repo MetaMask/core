@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   Messenger,
   MOCK_ANY_NAMESPACE,
@@ -31,6 +31,7 @@ import type {
   UpdatePaymentMethodOpts,
   Product,
   SubscriptionEligibility,
+  CachedLastSelectedPaymentMethods,
   SubmitSponsorshipIntentsRequest,
 } from './types';
 import {
@@ -1422,6 +1423,74 @@ describe('SubscriptionController', () => {
             event: SubscriptionUserEvent.ShieldEntryModalViewed,
           }),
         ).rejects.toThrow(SubscriptionServiceError);
+      });
+    });
+  });
+
+  describe('cacheLastSelectedPaymentMethod', () => {
+    it('should cache last selected payment method successfully', async () => {
+      await withController(async ({ controller }) => {
+        controller.cacheLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD, {
+          type: PAYMENT_TYPES.byCard,
+          plan: RECURRING_INTERVALS.month,
+        });
+
+        expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({
+          [PRODUCT_TYPES.SHIELD]: {
+            type: PAYMENT_TYPES.byCard,
+            plan: RECURRING_INTERVALS.month,
+          },
+        });
+      });
+    });
+
+    it('should update the last selected payment method for the same product', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCard,
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({
+            [PRODUCT_TYPES.SHIELD]: {
+              type: PAYMENT_TYPES.byCard,
+              plan: RECURRING_INTERVALS.month,
+            },
+          });
+
+          controller.cacheLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD, {
+            type: PAYMENT_TYPES.byCrypto,
+            paymentTokenAddress: '0x123',
+            plan: RECURRING_INTERVALS.month,
+          });
+
+          expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({
+            [PRODUCT_TYPES.SHIELD]: {
+              type: PAYMENT_TYPES.byCrypto,
+              paymentTokenAddress: '0x123',
+              plan: RECURRING_INTERVALS.month,
+            },
+          });
+        },
+      );
+    });
+
+    it('should throw error when payment token address is not provided for crypto payment', async () => {
+      await withController(({ controller }) => {
+        expect(() =>
+          controller.cacheLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD, {
+            type: PAYMENT_TYPES.byCrypto,
+            plan: RECURRING_INTERVALS.month,
+          } as CachedLastSelectedPaymentMethods),
+        ).toThrow(
+          SubscriptionControllerErrorMessage.PaymentTokenAddressRequiredForCrypto,
+        );
       });
     });
   });
