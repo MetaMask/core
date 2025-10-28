@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [57.0.0]
 
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/bridge-controller` from `^56.0.0` to `^57.0.0` ([#6977](https://github.com/MetaMask/core/pull/6977))
+
 ## [56.0.0]
 
 ### Changed

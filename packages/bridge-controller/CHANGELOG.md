@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [57.0.0]
 
-### Uncategorized
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^84.0.0` to `^85.0.0` ([#6977](https://github.com/MetaMask/core/pull/6977))
 
 - feat: bitcoin fee calc for display and error handling ([#6932](https://github.com/MetaMask/core/pull/6932))
-
-### Changed
 
 - Clean up SSE stream reader after use ([#6965](https://github.com/MetaMask/core/pull/6965))
 
