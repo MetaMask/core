@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [57.0.0]
+
 ### Uncategorized
 
 - feat: bitcoin fee calc for display and error handling ([#6932](https://github.com/MetaMask/core/pull/6932))
@@ -796,7 +798,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@57.0.0...HEAD
+[57.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.0...@metamask/bridge-controller@57.0.0
 [56.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@55.0.0...@metamask/bridge-controller@56.0.0
 [55.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@54.0.0...@metamask/bridge-controller@55.0.0
 [54.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@53.1.0...@metamask/bridge-controller@54.0.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [85.0.0]
+
 ### Added
 
 - **BREAKING:** Added constructor argument `tokenPricesService` in `currencyRateController` ([#6863](https://github.com/MetaMask/core/pull/6863))
@@ -2200,7 +2202,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@84.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@85.0.0...HEAD
+[85.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@84.0.0...@metamask/assets-controllers@85.0.0
 [84.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@83.1.0...@metamask/assets-controllers@84.0.0
 [83.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@83.0.0...@metamask/assets-controllers@83.1.0
 [83.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@82.0.0...@metamask/assets-controllers@83.0.0
