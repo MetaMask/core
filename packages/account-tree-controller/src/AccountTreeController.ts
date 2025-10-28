@@ -898,6 +898,10 @@ export class AccountTreeController extends BaseController<
 
       // If it's in the context, then `group` should be defined.
       const group = this.state.accountTree.wallets[walletId]?.groups[groupId];
+      assert(
+        group,
+        'Account group associated with a context cannot be undefined',
+      );
 
       // We're only considering non-BIP-44 accounts for single account events.
       if (group.type !== AccountGroupType.MultichainAccount) {
