@@ -1542,6 +1542,19 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('should throw error when products array is empty', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.submitSponsorshipIntents({
+            ...MOCK_SUBMISSION_INTENTS_REQUEST,
+            products: [],
+          }),
+        ).rejects.toThrow(
+          SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+        );
+      });
+    });
+
     it('should throw error when user is already subscribed', async () => {
       await withController(
         {

@@ -565,6 +565,12 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   async submitSponsorshipIntents(
     request: SubmitSponsorshipIntentsMethodParams,
   ) {
+    if (request.products.length === 0) {
+      throw new Error(
+        SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+      );
+    }
+
     this.#assertIsUserNotSubscribed({ products: request.products });
 
     // verify if the user has trailed the provided products before
@@ -707,7 +713,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     if (
       !value ||
       value.type !== PAYMENT_TYPES.byCrypto ||
-      !value.paymentTokenAddress
+      !value.paymentTokenAddress ||
+      !value.paymentTokenSymbol
     ) {
       throw new Error(
         SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
