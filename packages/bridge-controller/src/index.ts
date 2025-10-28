@@ -40,6 +40,7 @@ export type {
   QuoteResponse,
   FeeData,
   TxData,
+  BitcoinTradeData,
   BridgeControllerState,
   BridgeControllerAction,
   BridgeControllerActions,

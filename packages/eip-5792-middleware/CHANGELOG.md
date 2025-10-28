@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Changed
 
 - **BREAKING:** Update `EIP5792Messenger` type to use new `Messenger` from `@metamask/messenger` ([#6958](https://github.com/MetaMask/core/pull/6958))
   - Previously the `Messenger` type from `@metamask/base-controller` was used, and `@metamask/base-controller` was mistakenly not listed as a dependency.
   - The package `@metamask/messenger` has been added as a dependency
+- Bump `@metamask/transaction-controller` from `^60.10.0` to `^61.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
 
 ## [1.2.4]
 
@@ -59,7 +62,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6458](https://github.com/MetaMask/core/pull/6458))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.4...@metamask/eip-5792-middleware@2.0.0
 [1.2.4]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.3...@metamask/eip-5792-middleware@1.2.4
 [1.2.3]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.2...@metamask/eip-5792-middleware@1.2.3
 [1.2.2]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.1...@metamask/eip-5792-middleware@1.2.2
