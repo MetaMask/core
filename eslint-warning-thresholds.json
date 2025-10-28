@@ -172,7 +172,6 @@
     "jsdoc/match-description": 1
   },
   "packages/eth-json-rpc-middleware/src/block-ref.test.ts": {
-    "@typescript-eslint/no-explicit-any": 4,
     "jest/expect-expect": 2
   },
   "packages/eth-json-rpc-middleware/src/block-ref.ts": {
