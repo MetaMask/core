@@ -126,7 +126,7 @@ describe('GasFeePoller', () => {
   const layer1GasFeeFlowsMock: jest.Mocked<Layer1GasFeeFlow[]> = [];
   const getGasFeeControllerEstimatesMock = jest.fn();
   const findNetworkClientIdByChainIdMock = jest.fn();
-  const messengerMock = jest.fn() as unknown as TransactionControllerMessenger;
+  let messengerMock: TransactionControllerMessenger;
 
   beforeEach(() => {
     jest.clearAllTimers();
@@ -145,6 +145,15 @@ describe('GasFeePoller', () => {
     ]);
 
     getTransactionLayer1GasFeeMock.mockResolvedValue(LAYER1_GAS_FEE_MOCK);
+
+    messengerMock = {
+      publish: jest.fn(),
+      subscribe: jest.fn(),
+      unsubscribe: jest.fn(),
+      call: jest.fn(),
+      registerActionHandler: jest.fn(),
+      unregisterActionHandler: jest.fn(),
+    } as unknown as TransactionControllerMessenger;
 
     constructorOptions = {
       findNetworkClientIdByChainId: findNetworkClientIdByChainIdMock,
@@ -193,7 +202,7 @@ describe('GasFeePoller', () => {
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledWith({
           ethQuery: expect.any(Object),
           gasFeeControllerData: {},
-          messenger: expect.any(Function),
+          messenger: messengerMock,
           transactionMeta: TRANSACTION_META_MOCK,
         });
       });
@@ -208,7 +217,7 @@ describe('GasFeePoller', () => {
         expect(getTransactionLayer1GasFeeMock).toHaveBeenCalledWith({
           provider: expect.any(Object),
           layer1GasFeeFlows: layer1GasFeeFlowsMock,
-          messenger: expect.any(Function),
+          messenger: messengerMock,
           transactionMeta: TRANSACTION_META_MOCK,
         });
       });
@@ -344,7 +353,7 @@ describe('GasFeePoller', () => {
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledWith({
           ethQuery: expect.any(EthQuery),
           gasFeeControllerData: expect.any(Object),
-          messenger: expect.any(Function),
+          messenger: messengerMock,
           transactionMeta: {
             id: '1',
             chainId: TRANSACTION_BATCH_META_MOCK.chainId,

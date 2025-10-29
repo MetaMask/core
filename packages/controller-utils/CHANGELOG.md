@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Arbitrum, BSC, Optimism, Polygon, and Sei networks to Infura networks ([#6972](https://github.com/MetaMask/core/pull/6972))
+  - Add `arbitrum-one`, `bsc-mainnet`, `optimism-mainnet`, `polygon-mainnet`, `sei-mainnet` to `BUILT_IN_NETWORKS`
+  - Add `arbitrum-one`, `bsc-mainnet`, `optimism-mainnet`, `polygon-mainnet`, `sei-mainnet` to `InfuraNetworkType`
+  - Add `ArbitrumOne`, `BscMainnet`, `OptimismMainnet`, `PolygonMainnet`, `SeiMainnet` to `BuiltInNetworkName` enum
+  - Add corresponding chain IDs to `ChainId` type (0xa4b1, 0x38, 0xa, 0x89, 0x531)
+  - Add `ETG`, `BNB`, `ETH`, `POL`, `SEI` tickers to `NetworksTicker` enum
+  - Add block explorer URLs to `BlockExplorerUrl` quasi-enum
+  - Add network nicknames to `NetworkNickname` quasi-enum
+
 ## [11.14.1]
 
 ### Changed

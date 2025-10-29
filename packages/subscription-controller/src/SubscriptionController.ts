@@ -6,8 +6,12 @@ import {
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
+import { type Hex } from '@metamask/utils';
 
 import {
+  ACTIVE_SUBSCRIPTION_STATUSES,
   controllerName,
   DEFAULT_POLLING_INTERVAL,
   SubscriptionControllerErrorMessage,
@@ -23,9 +27,13 @@ import type {
   TokenPaymentInfo,
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodOpts,
+  CachedLastSelectedPaymentMethod,
+  SubmitSponsorshipIntentsMethodParams,
+  RecurringInterval,
 } from './types';
 import {
   PAYMENT_TYPES,
+  PRODUCT_TYPES,
   type ISubscriptionService,
   type PricingResponse,
   type ProductType,
@@ -38,6 +46,16 @@ export type SubscriptionControllerState = {
   trialedProducts: ProductType[];
   subscriptions: Subscription[];
   pricing?: PricingResponse;
+
+  /**
+   * The last selected payment method for the user.
+   * This is used to display the last selected payment method in the UI.
+   * This state is also meant to be used internally to track the last selected payment method for the user. (e.g. for crypto subscriptions)
+   */
+  lastSelectedPaymentMethod?: Record<
+    ProductType,
+    CachedLastSelectedPaymentMethod
+  >;
 };
 
 // Messenger Actions
@@ -78,6 +96,17 @@ export type SubscriptionControllerGetBillingPortalUrlAction = {
   handler: SubscriptionController['getBillingPortalUrl'];
 };
 
+export type SubscriptionControllerSubmitSponsorshipIntentsAction = {
+  type: `${typeof controllerName}:submitSponsorshipIntents`;
+  handler: SubscriptionController['submitSponsorshipIntents'];
+};
+
+export type SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction =
+  {
+    type: `${typeof controllerName}:submitShieldSubscriptionCryptoApproval`;
+    handler: SubscriptionController['submitShieldSubscriptionCryptoApproval'];
+  };
+
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   SubscriptionControllerState
@@ -92,7 +121,9 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerGetCryptoApproveTransactionParamsAction
   | SubscriptionControllerStartSubscriptionWithCryptoAction
   | SubscriptionControllerUpdatePaymentMethodAction
-  | SubscriptionControllerGetBillingPortalUrlAction;
+  | SubscriptionControllerGetBillingPortalUrlAction
+  | SubscriptionControllerSubmitSponsorshipIntentsAction
+  | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -185,6 +216,12 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       includeInDebugSnapshot: true,
       usedInUi: true,
     },
+    lastSelectedPaymentMethod: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
   };
 
 export class SubscriptionController extends StaticIntervalPollingController()<
@@ -274,6 +311,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.messenger.registerActionHandler(
       'SubscriptionController:getBillingPortalUrl',
       this.getBillingPortalUrl.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:submitSponsorshipIntents`,
+      this.submitSponsorshipIntents.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:submitShieldSubscriptionCryptoApproval`,
+      this.submitShieldSubscriptionCryptoApproval.bind(this),
     );
   }
 
@@ -487,6 +534,91 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
+   * Cache the last selected payment method for a specific product.
+   *
+   * @param product - The product to cache the payment method for.
+   * @param paymentMethod - The payment method to cache.
+   * @param paymentMethod.type - The type of the payment method.
+   * @param paymentMethod.paymentTokenAddress - The payment token address.
+   * @param paymentMethod.plan - The plan of the payment method.
+   * @param paymentMethod.product - The product of the payment method.
+   */
+  cacheLastSelectedPaymentMethod(
+    product: ProductType,
+    paymentMethod: CachedLastSelectedPaymentMethod,
+  ) {
+    if (
+      paymentMethod.type === PAYMENT_TYPES.byCrypto &&
+      (!paymentMethod.paymentTokenAddress || !paymentMethod.paymentTokenSymbol)
+    ) {
+      throw new Error(
+        SubscriptionControllerErrorMessage.PaymentTokenAddressAndSymbolRequiredForCrypto,
+      );
+    }
+
+    this.update((state) => {
+      state.lastSelectedPaymentMethod = {
+        ...state.lastSelectedPaymentMethod,
+        [product]: paymentMethod,
+      };
+    });
+  }
+
+  /**
+   * Submit sponsorship intents to the Subscription Service backend.
+   *
+   * This is intended to be used together with the crypto subscription flow.
+   * When the user has enabled the smart transaction feature, we will sponsor the gas fees for the subscription approval transaction.
+   *
+   * @param request - Request object containing the address and products.
+   * @example {
+   *   address: '0x1234567890123456789012345678901234567890',
+   *   products: [ProductType.Shield],
+   *   recurringInterval: RecurringInterval.Month,
+   *   billingCycles: 1,
+   * }
+   */
+  async submitSponsorshipIntents(
+    request: SubmitSponsorshipIntentsMethodParams,
+  ) {
+    if (request.products.length === 0) {
+      throw new Error(
+        SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+      );
+    }
+
+    this.#assertIsUserNotSubscribed({ products: request.products });
+
+    // verify if the user has trailed the provided products before
+    const hasTrailedBefore = this.state.trialedProducts.some((product) =>
+      request.products.includes(product),
+    );
+    // if the user has not trialed the provided products before, submit the sponsorship intents
+    if (hasTrailedBefore) {
+      return;
+    }
+
+    const selectedPaymentMethod =
+      this.state.lastSelectedPaymentMethod?.[request.products[0]];
+    this.#assertIsPaymentMethodCrypto(selectedPaymentMethod);
+
+    const { paymentTokenSymbol, plan } = selectedPaymentMethod;
+    const productPrice = this.#getProductPriceByProductAndPlan(
+      // we only support one product at a time for now
+      request.products[0],
+      plan,
+    );
+    const billingCycles = productPrice.minBillingCycles;
+
+    await this.#subscriptionService.submitSponsorshipIntents({
+      ...request,
+      paymentTokenSymbol,
+      billingCycles,
+      recurringInterval: plan,
+    });
+  }
+
+  /**
    * Submit a user event from the UI. (e.g. shield modal viewed)
    *
    * @param request - Request object containing the event to submit.
@@ -557,16 +689,6 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     return tokenAmount.toString();
   }
 
-  #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {
-    if (
-      this.state.subscriptions.find((subscription) =>
-        subscription.products.some((p) => products.includes(p.name)),
-      )
-    ) {
-      throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
-    }
-  }
-
   /**
    * Triggers an access token refresh.
    */
@@ -577,6 +699,34 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.messenger.call('AuthenticationController:performSignOut');
   }
 
+  #getProductPriceByProductAndPlan(
+    product: ProductType,
+    plan: RecurringInterval,
+  ): ProductPrice {
+    const { pricing } = this.state;
+    const productPricing = pricing?.products.find((p) => p.name === product);
+    const productPrice = productPricing?.prices.find(
+      (p) => p.interval === plan,
+    );
+    if (!productPrice) {
+      throw new Error(SubscriptionControllerErrorMessage.ProductPriceNotFound);
+    }
+    return productPrice;
+  }
+
+  #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {
+    const subscription = this.state.subscriptions.find((sub) =>
+      sub.products.some((p) => products.includes(p.name)),
+    );
+
+    if (
+      subscription &&
+      ACTIVE_SUBSCRIPTION_STATUSES.includes(subscription.status)
+    ) {
+      throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
+    }
+  }
+
   #assertIsUserSubscribed(request: { subscriptionId: string }) {
     if (
       !this.state.subscriptions.find(
@@ -584,6 +734,27 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       )
     ) {
       throw new Error(SubscriptionControllerErrorMessage.UserNotSubscribed);
+    }
+  }
+
+  /**
+   * Asserts that the value is a valid crypto payment method.
+   *
+   * @param value - The value to assert.
+   * @throws an error if the value is not a valid crypto payment method.
+   */
+  #assertIsPaymentMethodCrypto(
+    value: CachedLastSelectedPaymentMethod | undefined,
+  ): asserts value is Required<CachedLastSelectedPaymentMethod> {
+    if (
+      !value ||
+      value.type !== PAYMENT_TYPES.byCrypto ||
+      !value.paymentTokenAddress ||
+      !value.paymentTokenSymbol
+    ) {
+      throw new Error(
+        SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
+      );
     }
   }
 
@@ -656,5 +827,59 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     };
 
     return JSON.stringify(subsWithSortedProducts);
+  }
+
+  /**
+   * Handles shield subscription crypto approval transactions.
+   *
+   * @param txMeta - The transaction metadata.
+   * @param isSponsored - Whether the transaction is sponsored.
+   * @returns void
+   */
+  async submitShieldSubscriptionCryptoApproval(
+    txMeta: TransactionMeta,
+    isSponsored?: boolean,
+  ) {
+    if (txMeta.type !== TransactionType.shieldSubscriptionApprove) {
+      return;
+    }
+
+    const { chainId, rawTx } = txMeta;
+    if (!chainId || !rawTx) {
+      throw new Error('Chain ID or raw transaction not found');
+    }
+
+    const { pricing, trialedProducts, lastSelectedPaymentMethod } = this.state;
+    if (!pricing) {
+      throw new Error('Subscription pricing not found');
+    }
+    if (!lastSelectedPaymentMethod) {
+      throw new Error('Last selected payment method not found');
+    }
+    const lastSelectedPaymentMethodShield =
+      lastSelectedPaymentMethod[PRODUCT_TYPES.SHIELD];
+    this.#assertIsPaymentMethodCrypto(lastSelectedPaymentMethodShield);
+
+    const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
+
+    const productPrice = this.#getProductPriceByProductAndPlan(
+      PRODUCT_TYPES.SHIELD,
+      lastSelectedPaymentMethodShield.plan,
+    );
+
+    const params = {
+      products: [PRODUCT_TYPES.SHIELD],
+      isTrialRequested: !isTrialed,
+      recurringInterval: productPrice.interval,
+      billingCycles: productPrice.minBillingCycles,
+      chainId,
+      payerAddress: txMeta.txParams.from as Hex,
+      tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
+      rawTransaction: rawTx as Hex,
+      isSponsored,
+    };
+    await this.startSubscriptionWithCrypto(params);
+    // update the subscriptions state after subscription created in server
+    await this.getSubscriptions();
   }
 }

@@ -490,6 +490,81 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x38": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x38",
+                "defaultRpcEndpointIndex": 0,
+                "name": "BSC Mainnet",
+                "nativeCurrency": "BNB",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "bsc-mainnet",
+                    "type": "infura",
+                    "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x531": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x531",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Sei Mainnet",
+                "nativeCurrency": "SEI",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "sei-mainnet",
+                    "type": "infura",
+                    "url": "https://sei-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x89": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x89",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Polygon Mainnet",
+                "nativeCurrency": "POL",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "polygon-mainnet",
+                    "type": "infura",
+                    "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Optimism Mainnet",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "optimism-mainnet",
+                    "type": "infura",
+                    "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa4b1": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa4b1",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Arbitrum One",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "arbitrum-mainnet",
+                    "type": "infura",
+                    "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0xaa36a7": Object {
                 "blockExplorerUrls": Array [],
                 "chainId": "0xaa36a7",
@@ -599,6 +674,81 @@ describe('NetworkController', () => {
                       "networkClientId": "base-mainnet",
                       "type": "infura",
                       "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x38": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0x38",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "BSC Mainnet",
+                  "nativeCurrency": "BNB",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "bsc-mainnet",
+                      "type": "infura",
+                      "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x531": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0x531",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Sei Mainnet",
+                  "nativeCurrency": "SEI",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "sei-mainnet",
+                      "type": "infura",
+                      "url": "https://sei-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x89": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0x89",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Polygon Mainnet",
+                  "nativeCurrency": "POL",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "polygon-mainnet",
+                      "type": "infura",
+                      "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xa": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0xa",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Optimism Mainnet",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "optimism-mainnet",
+                      "type": "infura",
+                      "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xa4b1": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0xa4b1",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Arbitrum One",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "arbitrum-mainnet",
+                      "type": "infura",
+                      "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
                     },
                   ],
                 },
@@ -1747,6 +1897,51 @@ describe('NetworkController', () => {
             mockCreateNetworkClient().mockReturnValue(buildFakeClient());
 
             expect(controller.getNetworkClientRegistry()).toStrictEqual({
+              'arbitrum-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0xa4b1',
+                  ticker: 'ETH',
+                  network: InfuraNetworkType['arbitrum-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
+              'base-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0x2105',
+                  ticker: 'ETH',
+                  network: InfuraNetworkType['base-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
+              'bsc-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0x38',
+                  ticker: 'BNB',
+                  network: InfuraNetworkType['bsc-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
               'linea-mainnet': {
                 blockTracker: expect.anything(),
                 configuration: {
@@ -1792,6 +1987,51 @@ describe('NetworkController', () => {
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
               },
+              'optimism-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0xa',
+                  ticker: 'ETH',
+                  network: InfuraNetworkType['optimism-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
+              'polygon-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0x89',
+                  ticker: 'POL',
+                  network: InfuraNetworkType['polygon-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
+              'sei-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0x531',
+                  ticker: 'SEI',
+                  network: InfuraNetworkType['sei-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
               sepolia: {
                 blockTracker: expect.anything(),
                 configuration: {
@@ -1801,21 +2041,6 @@ describe('NetworkController', () => {
                   chainId: '0xaa36a7',
                   ticker: 'SepoliaETH',
                   network: InfuraNetworkType.sepolia,
-                },
-                provider: expect.anything(),
-                destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
-              },
-              'base-mainnet': {
-                blockTracker: expect.anything(),
-                configuration: {
-                  type: NetworkClientType.Infura,
-                  failoverRpcUrls: [],
-                  infuraProjectId,
-                  chainId: '0x2105',
-                  ticker: 'ETH',
-                  network: InfuraNetworkType['base-mainnet'],
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
@@ -14554,6 +14779,81 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x38": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x38",
+                "defaultRpcEndpointIndex": 0,
+                "name": "BSC Mainnet",
+                "nativeCurrency": "BNB",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "bsc-mainnet",
+                    "type": "infura",
+                    "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x531": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x531",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Sei Mainnet",
+                "nativeCurrency": "SEI",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "sei-mainnet",
+                    "type": "infura",
+                    "url": "https://sei-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x89": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x89",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Polygon Mainnet",
+                "nativeCurrency": "POL",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "polygon-mainnet",
+                    "type": "infura",
+                    "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Optimism Mainnet",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "optimism-mainnet",
+                    "type": "infura",
+                    "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa4b1": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa4b1",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Arbitrum One",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "arbitrum-mainnet",
+                    "type": "infura",
+                    "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0xaa36a7": Object {
                 "blockExplorerUrls": Array [],
                 "chainId": "0xaa36a7",
@@ -14648,6 +14948,81 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x38": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x38",
+                "defaultRpcEndpointIndex": 0,
+                "name": "BSC Mainnet",
+                "nativeCurrency": "BNB",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "bsc-mainnet",
+                    "type": "infura",
+                    "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x531": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x531",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Sei Mainnet",
+                "nativeCurrency": "SEI",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "sei-mainnet",
+                    "type": "infura",
+                    "url": "https://sei-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x89": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x89",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Polygon Mainnet",
+                "nativeCurrency": "POL",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "polygon-mainnet",
+                    "type": "infura",
+                    "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Optimism Mainnet",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "optimism-mainnet",
+                    "type": "infura",
+                    "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa4b1": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa4b1",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Arbitrum One",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "arbitrum-mainnet",
+                    "type": "infura",
+                    "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0xaa36a7": Object {
                 "blockExplorerUrls": Array [],
                 "chainId": "0xaa36a7",
@@ -14739,6 +15114,81 @@ describe('NetworkController', () => {
                     "networkClientId": "base-mainnet",
                     "type": "infura",
                     "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x38": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x38",
+                "defaultRpcEndpointIndex": 0,
+                "name": "BSC Mainnet",
+                "nativeCurrency": "BNB",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "bsc-mainnet",
+                    "type": "infura",
+                    "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x531": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x531",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Sei Mainnet",
+                "nativeCurrency": "SEI",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "sei-mainnet",
+                    "type": "infura",
+                    "url": "https://sei-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x89": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x89",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Polygon Mainnet",
+                "nativeCurrency": "POL",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "polygon-mainnet",
+                    "type": "infura",
+                    "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Optimism Mainnet",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "optimism-mainnet",
+                    "type": "infura",
+                    "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa4b1": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa4b1",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Arbitrum One",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "arbitrum-mainnet",
+                    "type": "infura",
+                    "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
                   },
                 ],
               },

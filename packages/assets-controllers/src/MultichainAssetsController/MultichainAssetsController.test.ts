@@ -338,6 +338,7 @@ describe('MultichainAssetsController', () => {
     expect(controller.state).toStrictEqual({
       accountsAssets: {},
       assetsMetadata: {},
+      allIgnoredAssets: {},
     });
   });
 
@@ -354,6 +355,7 @@ describe('MultichainAssetsController', () => {
     expect(controller.state).toStrictEqual({
       accountsAssets: {},
       assetsMetadata: {},
+      allIgnoredAssets: {},
     });
   });
 
@@ -386,6 +388,7 @@ describe('MultichainAssetsController', () => {
         [mockSolanaAccount.id]: mockHandleRequestOnAssetsLookupReturnValue,
       },
       assetsMetadata: mockGetMetadataReturnValue.assets,
+      allIgnoredAssets: {},
     });
   });
 
@@ -454,6 +457,7 @@ describe('MultichainAssetsController', () => {
         ...mockGetMetadataResponse.assets,
         ...mockGetMetadataReturnValue.assets,
       },
+      allIgnoredAssets: {},
     });
   });
 
@@ -510,6 +514,7 @@ describe('MultichainAssetsController', () => {
       assetsMetadata: {
         ...mockGetMetadataReturnValue.assets,
       },
+      allIgnoredAssets: {},
     });
   });
 
@@ -544,6 +549,7 @@ describe('MultichainAssetsController', () => {
       },
 
       assetsMetadata: mockGetMetadataReturnValue.assets,
+      allIgnoredAssets: {},
     });
     // Remove an EVM account
     messenger.publish('AccountsController:accountRemoved', mockEthAccount.id);
@@ -556,6 +562,7 @@ describe('MultichainAssetsController', () => {
       },
 
       assetsMetadata: mockGetMetadataReturnValue.assets,
+      allIgnoredAssets: {},
     });
   });
 
@@ -590,6 +597,7 @@ describe('MultichainAssetsController', () => {
       },
 
       assetsMetadata: mockGetMetadataReturnValue.assets,
+      allIgnoredAssets: {},
     });
     // Remove the added solana account
     messenger.publish(
@@ -603,6 +611,7 @@ describe('MultichainAssetsController', () => {
       accountsAssets: {},
 
       assetsMetadata: mockGetMetadataReturnValue.assets,
+      allIgnoredAssets: {},
     });
   });
 
@@ -621,6 +630,7 @@ describe('MultichainAssetsController', () => {
             [mockSolanaAccountId1]: mockHandleRequestOnAssetsLookupReturnValue,
           },
           assetsMetadata: mockGetMetadataReturnValue.assets,
+          allIgnoredAssets: {},
         } as MultichainAssetsControllerState,
       });
 
@@ -710,6 +720,7 @@ describe('MultichainAssetsController', () => {
             [mockSolanaAccountId1]: mockHandleRequestOnAssetsLookupReturnValue,
           },
           assetsMetadata: mockGetMetadataReturnValue,
+          allIgnoredAssets: {},
         } as MultichainAssetsControllerState,
       });
 
@@ -756,6 +767,7 @@ describe('MultichainAssetsController', () => {
             ],
           },
           assetsMetadata: mockGetMetadataReturnValue,
+          allIgnoredAssets: {},
         } as MultichainAssetsControllerState,
       });
 
@@ -831,6 +843,229 @@ describe('MultichainAssetsController', () => {
     });
   });
 
+  describe('ignoreAssets', () => {
+    it('should ignore assets and remove them from active assets list', () => {
+      const { controller } = setupController({
+        state: {
+          accountsAssets: {
+            [mockSolanaAccount.id]: [
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+            ],
+          },
+          assetsMetadata: mockGetMetadataReturnValue.assets,
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      const assetToIgnore =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
+
+      controller.ignoreAssets([assetToIgnore], mockSolanaAccount.id);
+
+      expect(
+        controller.state.accountsAssets[mockSolanaAccount.id],
+      ).toStrictEqual([
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+      ]);
+      expect(
+        controller.state.allIgnoredAssets[mockSolanaAccount.id],
+      ).toStrictEqual([assetToIgnore]);
+    });
+
+    it('should not add duplicate assets to ignored list', () => {
+      const assetToIgnore =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
+      const { controller } = setupController({
+        state: {
+          accountsAssets: {
+            [mockSolanaAccount.id]: [assetToIgnore],
+          },
+          assetsMetadata: mockGetMetadataReturnValue.assets,
+          allIgnoredAssets: {
+            [mockSolanaAccount.id]: [assetToIgnore],
+          },
+        } as MultichainAssetsControllerState,
+      });
+
+      controller.ignoreAssets([assetToIgnore], mockSolanaAccount.id);
+
+      expect(
+        controller.state.allIgnoredAssets[mockSolanaAccount.id],
+      ).toStrictEqual([assetToIgnore]);
+    });
+
+    it('should handle ignoring assets for accounts with no existing ignored assets', () => {
+      const { controller } = setupController({
+        state: {
+          accountsAssets: {
+            [mockSolanaAccount.id]: [
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
+            ],
+          },
+          assetsMetadata: mockGetMetadataReturnValue.assets,
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      const assetToIgnore =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
+      controller.ignoreAssets([assetToIgnore], mockSolanaAccount.id);
+
+      expect(
+        controller.state.allIgnoredAssets[mockSolanaAccount.id],
+      ).toStrictEqual([assetToIgnore]);
+      expect(
+        controller.state.accountsAssets[mockSolanaAccount.id],
+      ).toStrictEqual([]);
+    });
+  });
+
+  describe('asset detection with ignored assets', () => {
+    it('should filter out ignored assets when account assets are updated', async () => {
+      const ignoredAsset = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
+      const activeAsset =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
+
+      const { controller, messenger } = setupController({
+        state: {
+          accountsAssets: {},
+          assetsMetadata: mockGetMetadataReturnValue.assets,
+          allIgnoredAssets: {
+            [mockSolanaAccount.id]: [ignoredAsset],
+          },
+        } as MultichainAssetsControllerState,
+      });
+
+      // Simulate asset list update that includes both ignored and new assets
+      messenger.publish('AccountsController:accountAssetListUpdated', {
+        assets: {
+          [mockSolanaAccount.id]: {
+            added: [ignoredAsset, activeAsset],
+            removed: [],
+          },
+        },
+      });
+
+      // Wait for async processing
+      await advanceTime({ clock: useFakeTimers(), duration: 0 });
+
+      // Only the non-ignored asset should be added
+      expect(
+        controller.state.accountsAssets[mockSolanaAccount.id],
+      ).toStrictEqual([activeAsset]);
+
+      // Ignored asset should remain in ignored list
+      expect(
+        controller.state.allIgnoredAssets[mockSolanaAccount.id],
+      ).toStrictEqual([ignoredAsset]);
+    });
+
+    it('should keep ignored assets filtered out during automatic detection', async () => {
+      const ignoredAsset = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
+
+      const { controller, messenger } = setupController({
+        state: {
+          accountsAssets: {},
+          assetsMetadata: mockGetMetadataReturnValue.assets,
+          allIgnoredAssets: {
+            [mockSolanaAccount.id]: [ignoredAsset],
+          },
+        } as MultichainAssetsControllerState,
+      });
+
+      // Simulate automatic asset detection trying to re-add ignored asset
+      messenger.publish('AccountsController:accountAssetListUpdated', {
+        assets: {
+          [mockSolanaAccount.id]: {
+            added: [ignoredAsset],
+            removed: [],
+          },
+        },
+      });
+
+      // Wait for async processing
+      await advanceTime({ clock: useFakeTimers(), duration: 0 });
+
+      // Ignored asset should remain filtered out and stay in ignored list
+      expect(
+        controller.state.accountsAssets[mockSolanaAccount.id],
+      ).toBeUndefined();
+      expect(
+        controller.state.allIgnoredAssets[mockSolanaAccount.id],
+      ).toStrictEqual([ignoredAsset]);
+    });
+
+    it('should add all assets when new account is added (no pre-existing ignored assets)', async () => {
+      const asset1 = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
+      const asset2 =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
+
+      const { controller, messenger } = setupController({
+        state: {
+          accountsAssets: {},
+          assetsMetadata: mockGetMetadataReturnValue.assets,
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+        mocks: {
+          handleRequestReturnValue: [asset1, asset2],
+        },
+      });
+
+      // Simulate account being added
+      messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
+
+      // Wait for async processing
+      await advanceTime({ clock: useFakeTimers(), duration: 0 });
+
+      // All assets should be added to active list (no ignored assets for new account)
+      expect(
+        controller.state.accountsAssets[mockSolanaAccount.id],
+      ).toStrictEqual([asset1, asset2]);
+
+      // No ignored assets for new account
+      expect(
+        controller.state.allIgnoredAssets[mockSolanaAccount.id],
+      ).toBeUndefined();
+    });
+  });
+
+  describe('account removal with ignored assets', () => {
+    it('should clean up ignored assets when account is removed', async () => {
+      const { controller, messenger } = setupController({
+        state: {
+          accountsAssets: {
+            [mockSolanaAccount.id]: [
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
+            ],
+          },
+          assetsMetadata: mockGetMetadataReturnValue.assets,
+          allIgnoredAssets: {
+            [mockSolanaAccount.id]: [
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+            ],
+          },
+        } as MultichainAssetsControllerState,
+      });
+
+      // Simulate account removal
+      messenger.publish(
+        'AccountsController:accountRemoved',
+        mockSolanaAccount.id,
+      );
+
+      // Wait for async processing
+      await advanceTime({ clock: useFakeTimers(), duration: 0 });
+
+      expect(
+        controller.state.accountsAssets[mockSolanaAccount.id],
+      ).toBeUndefined();
+      expect(
+        controller.state.allIgnoredAssets[mockSolanaAccount.id],
+      ).toBeUndefined();
+    });
+  });
+
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
       const { controller } = setupController();
@@ -868,6 +1103,7 @@ describe('MultichainAssetsController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "accountsAssets": Object {},
+          "allIgnoredAssets": Object {},
           "assetsMetadata": Object {},
         }
       `);
@@ -885,6 +1121,7 @@ describe('MultichainAssetsController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "accountsAssets": Object {},
+          "allIgnoredAssets": Object {},
           "assetsMetadata": Object {},
         }
       `);

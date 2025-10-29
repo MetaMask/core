@@ -6,7 +6,7 @@ import type { AbstractRpcServiceLike } from './types';
 
 describe('createFetchMiddleware', () => {
   it('calls the RPC service with the correct request headers and body when no `originHttpHeaderKey` option given', async () => {
-    const rpcService = buildRpcService();
+    const rpcService = createRpcService();
     const requestSpy = jest.spyOn(rpcService, 'request');
     const middleware = createFetchMiddleware({
       rpcService,
@@ -35,7 +35,7 @@ describe('createFetchMiddleware', () => {
   });
 
   it('includes the `origin` from the given request in the request headers under the given `originHttpHeaderKey`', async () => {
-    const rpcService = buildRpcService();
+    const rpcService = createRpcService();
     const requestSpy = jest.spyOn(rpcService, 'request');
     const middleware = createFetchMiddleware({
       rpcService,
@@ -73,7 +73,7 @@ describe('createFetchMiddleware', () => {
 
   describe('if the response from the service does not contain an `error` field', () => {
     it('returns a successful JSON-RPC response containing the value of the `result` field', async () => {
-      const rpcService = buildRpcService();
+      const rpcService = createRpcService();
       jest.spyOn(rpcService, 'request').mockResolvedValue({
         id: 1,
         jsonrpc: '2.0',
@@ -102,7 +102,7 @@ describe('createFetchMiddleware', () => {
 
   describe('if the response from the service contains an `error` field with a standard JSON-RPC error object', () => {
     it('returns an unsuccessful JSON-RPC response containing the error, wrapped in an "internal" error', async () => {
-      const rpcService = buildRpcService();
+      const rpcService = createRpcService();
       jest.spyOn(rpcService, 'request').mockResolvedValue({
         id: 1,
         jsonrpc: '2.0',
@@ -143,7 +143,7 @@ describe('createFetchMiddleware', () => {
 
   describe('if the response from the service contains an `error` field with a non-standard JSON-RPC error object', () => {
     it('returns an unsuccessful JSON-RPC response containing the error, wrapped in an "internal" error', async () => {
-      const rpcService = buildRpcService();
+      const rpcService = createRpcService();
       jest.spyOn(rpcService, 'request').mockResolvedValue({
         id: 1,
         jsonrpc: '2.0',
@@ -198,7 +198,7 @@ describe('createFetchMiddleware', () => {
 
   describe('if the request throws', () => {
     it('returns an unsuccessful JSON-RPC response containing the error', async () => {
-      const rpcService = buildRpcService();
+      const rpcService = createRpcService();
       jest.spyOn(rpcService, 'request').mockRejectedValue(new Error('oops'));
       const middleware = createFetchMiddleware({
         rpcService,
@@ -236,7 +236,7 @@ describe('createFetchMiddleware', () => {
  *
  * @returns The fake failover service.
  */
-function buildRpcService(): AbstractRpcServiceLike {
+function createRpcService(): AbstractRpcServiceLike {
   return {
     async request<Params extends JsonRpcParams, Result extends Json>(
       jsonRpcRequest: JsonRpcRequest<Params>,
