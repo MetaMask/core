@@ -7,6 +7,9 @@
   },
   "references": [
     {
+      "path": "../accounts-controller/tsconfig.build.json"
+    },
+    {
       "path": "../base-controller/tsconfig.build.json"
     },
     {
@@ -14,6 +17,9 @@
     },
     {
       "path": "../polling-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../transaction-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

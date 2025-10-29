@@ -1,3 +1,4 @@
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import {
   type StateMetadata,
   type ControllerStateChangeEvent,
@@ -6,6 +7,12 @@ import {
 } from '@metamask/base-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import {
+  TransactionType,
+  type TransactionControllerTransactionSubmittedEvent,
+} from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 
 import {
   controllerName,
@@ -26,6 +33,8 @@ import type {
 } from './types';
 import {
   PAYMENT_TYPES,
+  PRODUCT_TYPES,
+  RECURRING_INTERVALS,
   type ISubscriptionService,
   type PricingResponse,
   type ProductType,
@@ -96,7 +105,8 @@ export type SubscriptionControllerActions =
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
-  | AuthenticationController.AuthenticationControllerPerformSignOut;
+  | AuthenticationController.AuthenticationControllerPerformSignOut
+  | AccountsControllerGetSelectedAccountAction;
 
 // Events
 export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -107,7 +117,8 @@ export type SubscriptionControllerEvents =
   SubscriptionControllerStateChangeEvent;
 
 export type AllowedEvents =
-  AuthenticationController.AuthenticationControllerStateChangeEvent;
+  | AuthenticationController.AuthenticationControllerStateChangeEvent
+  | TransactionControllerTransactionSubmittedEvent;
 
 // Messenger
 export type SubscriptionControllerMessenger = RestrictedMessenger<
@@ -658,5 +669,135 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     };
 
     return JSON.stringify(subsWithSortedProducts);
+  }
+
+  /**
+   * Transaction submitted listener for shield subscription crypto approval transactions.
+   *
+   * @param txMeta - The transaction metadata.
+   * @returns void
+   */
+  async #handleSubscriptionCryptoApproval(txMeta: TransactionMeta) {
+    if (txMeta.type !== TransactionType.shieldSubscriptionApprove) {
+      return;
+    }
+
+    const { chainId, rawTx, txParams } = txMeta;
+    if (!chainId || !rawTx) {
+      throw new Error('Chain ID or raw transaction not found');
+    }
+
+    const { pricing, trialedProducts } = this.messagingSystem.call(
+      'SubscriptionController:getState',
+    );
+    if (!pricing) {
+      throw new Error('Subscription pricing not found');
+    }
+
+    const decodeResponse = await this.#decodeTransactionDataHandler({
+      transactionData: txParams.data as Hex,
+      contractAddress: txParams.to as Hex,
+      chainId,
+    });
+    if (!decodeResponse) {
+      throw new Error('Invalid transaction');
+    }
+    const decodedApprovalAmount = decodeResponse?.data?.[0]?.params?.find(
+      (param) => param.name === 'value' || param.name === 'amount',
+    )?.value as string;
+    if (!decodedApprovalAmount) {
+      throw new Error('Approval amount not found');
+    }
+
+    const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
+    const pricingPlans = pricing?.products.find(
+      (product) => product.name === PRODUCT_TYPES.SHIELD,
+    )?.prices;
+    const cryptoPaymentMethod = pricing?.paymentMethods.find(
+      (paymentMethod) => paymentMethod.type === PAYMENT_TYPES.byCrypto,
+    );
+    const selectedTokenPrice = cryptoPaymentMethod?.chains
+      ?.find(
+        (chain) =>
+          chain.chainId.toLowerCase() === txMeta?.chainId.toLowerCase(),
+      )
+      ?.tokens.find(
+        (token) =>
+          token.address.toLowerCase() === txMeta?.txParams?.to?.toLowerCase(),
+      );
+    if (!selectedTokenPrice) {
+      throw new Error('Selected token price not found');
+    }
+
+    const productPrice = this.#getProductPriceByApprovalAmount({
+      approvalAmount: decodedApprovalAmount,
+      chainId,
+      selectedTokenPrice,
+      pricingPlans: pricingPlans ?? [],
+    });
+    if (!productPrice) {
+      throw new Error('Product price not found');
+    }
+
+    const params = {
+      products: [PRODUCT_TYPES.SHIELD],
+      isTrialRequested: !isTrialed,
+      recurringInterval: productPrice.interval,
+      billingCycles: productPrice.minBillingCycles,
+      chainId,
+      payerAddress: this.#getSelectedAddress() as Hex,
+      tokenSymbol: selectedTokenPrice.symbol,
+      rawTransaction: rawTx as Hex,
+    };
+    await this.messagingSystem.call(
+      'SubscriptionController:startSubscriptionWithCrypto',
+      params,
+    );
+    await this.messagingSystem.call('SubscriptionController:getSubscriptions');
+  }
+
+  #getProductPriceByApprovalAmount({
+    approvalAmount,
+    chainId,
+    selectedTokenPrice,
+    pricingPlans,
+  }: {
+    approvalAmount: string;
+    pricingPlans: ProductPrice[];
+    chainId: Hex;
+    selectedTokenPrice: TokenPaymentInfo;
+  }) {
+    const getCryptoApproveTransactionParams = {
+      chainId,
+      paymentTokenAddress: selectedTokenPrice.address,
+      productType: PRODUCT_TYPES.SHIELD,
+    };
+    // Get all intervals from RECURRING_INTERVALS
+    const intervals = Object.values(RECURRING_INTERVALS);
+
+    // Fetch approval amounts for all intervals
+    const approvalAmounts = intervals.map((interval) =>
+      this.getCryptoApproveTransactionParams({
+        ...getCryptoApproveTransactionParams,
+        interval,
+      }),
+    );
+
+    // Find the matching plan by comparing approval amounts
+    for (let i = 0; i < approvalAmounts.length; i++) {
+      if (approvalAmounts[i]?.approveAmount === approvalAmount) {
+        return pricingPlans?.find((plan) => plan.interval === intervals[i]);
+      }
+    }
+
+    return undefined;
+  }
+
+  #getSelectedAddress(): Hex | undefined {
+    // If the address is not defined (or empty), we fallback to the currently selected account's address
+    const account = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
+    );
+    return account?.address as Hex | undefined;
   }
 }
