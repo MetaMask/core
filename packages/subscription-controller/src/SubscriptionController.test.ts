@@ -6,7 +6,6 @@ import {
   type MessengerEvents,
   type MockAnyNamespace,
 } from '@metamask/messenger';
-import type { TransactionMeta } from '@metamask/transaction-controller';
 import {
   TransactionStatus,
   TransactionType,
