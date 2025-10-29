@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Removes all selectedNetworkClientId usages by finding network clients via srcChainId ([#6996](https://github.com/MetaMask/core/pull/6996))
+
 ## [56.0.2]
 
 ### Fixed
