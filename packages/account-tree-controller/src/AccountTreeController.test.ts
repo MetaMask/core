@@ -1763,6 +1763,33 @@ describe('AccountTreeController', () => {
   });
 
   describe('on MultichainAccountService:multichainAccountGroupCreated', () => {
+    it('prevent event if controller is not init yet', () => {
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      // We omit `init` on purpose for this test.
+
+      expect(controller.state.accountTree.wallets).toStrictEqual({});
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      expect(mocks.MultichainAccountService.wallets).toHaveLength(1);
+      const wallet = mocks.MultichainAccountService.wallets[0];
+      expect(wallet.id).toBe(walletId);
+      const [group] = wallet.getMultichainAccountGroups();
+      expect(group).toBeDefined();
+      messenger.publish(
+        'MultichainAccountService:multichainAccountGroupCreated',
+        group,
+      );
+
+      // Since the controller has not been initialized yet, the event had been omitted!
+      expect(controller.state.accountTree.wallets).toStrictEqual({});
+    });
+
     it('adds a new wallet to the tree', () => {
       const { controller, messenger, mocks } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
