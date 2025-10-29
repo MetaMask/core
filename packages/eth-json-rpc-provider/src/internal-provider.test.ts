@@ -19,7 +19,7 @@ jest.mock('uuid');
 
 type ResultParam = Json | ((req?: JsonRpcRequest) => Json);
 
-const createMockEngine = (method: string, result: ResultParam) => {
+const createEngine = (method: string, result: ResultParam) => {
   const engine = new JsonRpcEngine();
   engine.push((req, res, next, end) => {
     if (req.method === method) {
@@ -31,7 +31,7 @@ const createMockEngine = (method: string, result: ResultParam) => {
   return engine;
 };
 
-const createMockServer = (method: string, result: ResultParam) => {
+const createServer = (method: string, result: ResultParam) => {
   const engine = JsonRpcEngineV2.create({
     middleware: [
       ({ request, next }) => {
@@ -48,9 +48,18 @@ const createMockServer = (method: string, result: ResultParam) => {
   return server;
 };
 
+describe('legacy constructor', () => {
+  it('can be constructed with an engine', () => {
+    const provider = new InternalProvider({
+      engine: createEngine('eth_blockNumber', 42),
+    });
+    expect(provider).toBeDefined();
+  });
+});
+
 describe.each([
-  { createRpcHandler: createMockEngine, name: 'JsonRpcEngine' },
-  { createRpcHandler: createMockServer, name: 'JsonRpcServer' },
+  { createRpcHandler: createEngine, name: 'JsonRpcEngine' },
+  { createRpcHandler: createServer, name: 'JsonRpcServer' },
 ])('InternalProvider with $name', ({ createRpcHandler }) => {
   it('returns the correct block number with @metamask/eth-query', async () => {
     const provider = new InternalProvider({
