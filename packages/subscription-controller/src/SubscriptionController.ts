@@ -6,6 +6,9 @@ import {
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
+import { type Hex } from '@metamask/utils';
 
 import {
   ACTIVE_SUBSCRIPTION_STATUSES,
@@ -30,6 +33,7 @@ import type {
 } from './types';
 import {
   PAYMENT_TYPES,
+  PRODUCT_TYPES,
   type ISubscriptionService,
   type PricingResponse,
   type ProductType,
@@ -97,6 +101,12 @@ export type SubscriptionControllerSubmitSponsorshipIntentsAction = {
   handler: SubscriptionController['submitSponsorshipIntents'];
 };
 
+export type SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction =
+  {
+    type: `${typeof controllerName}:submitShieldSubscriptionCryptoApproval`;
+    handler: SubscriptionController['submitShieldSubscriptionCryptoApproval'];
+  };
+
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   SubscriptionControllerState
@@ -112,7 +122,8 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerStartSubscriptionWithCryptoAction
   | SubscriptionControllerUpdatePaymentMethodAction
   | SubscriptionControllerGetBillingPortalUrlAction
-  | SubscriptionControllerSubmitSponsorshipIntentsAction;
+  | SubscriptionControllerSubmitSponsorshipIntentsAction
+  | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -305,6 +316,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.messenger.registerActionHandler(
       `${controllerName}:submitSponsorshipIntents`,
       this.submitSponsorshipIntents.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:submitShieldSubscriptionCryptoApproval`,
+      this.submitShieldSubscriptionCryptoApproval.bind(this),
     );
   }
 
@@ -811,5 +827,59 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     };
 
     return JSON.stringify(subsWithSortedProducts);
+  }
+
+  /**
+   * Handles shield subscription crypto approval transactions.
+   *
+   * @param txMeta - The transaction metadata.
+   * @param isSponsored - Whether the transaction is sponsored.
+   * @returns void
+   */
+  async submitShieldSubscriptionCryptoApproval(
+    txMeta: TransactionMeta,
+    isSponsored?: boolean,
+  ) {
+    if (txMeta.type !== TransactionType.shieldSubscriptionApprove) {
+      return;
+    }
+
+    const { chainId, rawTx } = txMeta;
+    if (!chainId || !rawTx) {
+      throw new Error('Chain ID or raw transaction not found');
+    }
+
+    const { pricing, trialedProducts, lastSelectedPaymentMethod } = this.state;
+    if (!pricing) {
+      throw new Error('Subscription pricing not found');
+    }
+    if (!lastSelectedPaymentMethod) {
+      throw new Error('Last selected payment method not found');
+    }
+    const lastSelectedPaymentMethodShield =
+      lastSelectedPaymentMethod[PRODUCT_TYPES.SHIELD];
+    this.#assertIsPaymentMethodCrypto(lastSelectedPaymentMethodShield);
+
+    const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
+
+    const productPrice = this.#getProductPriceByProductAndPlan(
+      PRODUCT_TYPES.SHIELD,
+      lastSelectedPaymentMethodShield.plan,
+    );
+
+    const params = {
+      products: [PRODUCT_TYPES.SHIELD],
+      isTrialRequested: !isTrialed,
+      recurringInterval: productPrice.interval,
+      billingCycles: productPrice.minBillingCycles,
+      chainId,
+      payerAddress: txMeta.txParams.from as Hex,
+      tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
+      rawTransaction: rawTx as Hex,
+      isSponsored,
+    };
+    await this.startSubscriptionWithCrypto(params);
+    // update the subscriptions state after subscription created in server
+    await this.getSubscriptions();
   }
 }

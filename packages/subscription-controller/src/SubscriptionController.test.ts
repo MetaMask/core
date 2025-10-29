@@ -6,6 +6,11 @@ import {
   type MessengerEvents,
   type MockAnyNamespace,
 } from '@metamask/messenger';
+import {
+  TransactionStatus,
+  TransactionType,
+} from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import * as sinon from 'sinon';
 
 import {
@@ -34,6 +39,7 @@ import type {
   CachedLastSelectedPaymentMethod,
   SubmitSponsorshipIntentsMethodParams,
   ProductType,
+  RecurringInterval,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -43,6 +49,7 @@ import {
   SubscriptionUserEvent,
 } from './types';
 import { advanceTime } from '../../../tests/helpers';
+import { generateMockTxMeta } from '../tests/utils';
 
 type AllActions = MessengerActions<SubscriptionControllerMessenger>;
 
@@ -1694,6 +1701,236 @@ describe('SubscriptionController', () => {
             billingCycles: 1,
             recurringInterval: RECURRING_INTERVALS.year,
           });
+        },
+      );
+    });
+  });
+
+  describe('submitShieldSubscriptionCryptoApproval', () => {
+    it('should handle subscription crypto approval when shield subscription transaction is submitted', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.startSubscriptionWithCrypto.mockResolvedValue({
+            subscriptionId: 'sub_123',
+            status: SUBSCRIPTION_STATUSES.trialing,
+          });
+
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          // Create a shield subscription approval transaction
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xtoken',
+            },
+            status: TransactionStatus.submitted,
+          };
+
+          await controller.submitShieldSubscriptionCryptoApproval(txMeta);
+
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledTimes(
+            1,
+          );
+        },
+      );
+    });
+
+    it('should not handle subscription crypto approval when pricing is not found', async () => {
+      await withController(
+        {
+          state: {
+            pricing: undefined,
+            trialedProducts: [],
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          // Create a non-shield subscription transaction
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            status: TransactionStatus.submitted,
+            hash: '0x123',
+            rawTx: '0x123',
+          };
+
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow('Subscription pricing not found');
+
+          // Verify that startSubscriptionWithCrypto was not called
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should not handle subscription crypto approval for non-shield subscription transactions', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          // Create a non-shield subscription transaction
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.contractInteraction,
+            status: TransactionStatus.submitted,
+            hash: '0x123',
+          };
+
+          await controller.submitShieldSubscriptionCryptoApproval(txMeta);
+
+          // Verify that decodeTransactionDataHandler was not called
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should throw error when chainId is missing', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          // Create a transaction without chainId
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: undefined as unknown as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0x789',
+            },
+            status: TransactionStatus.submitted,
+            hash: '0x123',
+          };
+
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow('Chain ID or raw transaction not found');
+
+          // Verify that decodeTransactionDataHandler was not called due to early error
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should throw error when last selected payment method is not found', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          // Create a shield subscription approval transaction with token address that doesn't exist
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xnonexistent',
+            },
+            status: TransactionStatus.submitted,
+            hash: '0x123',
+          };
+
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow('Last selected payment method not found');
+
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should throw error when product price is not found', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: 'invalidPlan' as RecurringInterval,
+              },
+            },
+          },
+        },
+        async ({ controller, mockService }) => {
+          // Create a shield subscription approval transaction
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xtoken',
+            },
+            status: TransactionStatus.submitted,
+            hash: '0x123',
+          };
+
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.ProductPriceNotFound,
+          );
+
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
         },
       );
     });
