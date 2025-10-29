@@ -81,7 +81,7 @@ await server.handle(notification);
 
 ### Legacy compatibility
 
-Use the `asLegacyMiddleware` function to use a `JsonRpcEngineV2` or V2 middleware as middleware in a legacy `JsonRpcEngine`.
+Use `asLegacyMiddleware()` to convert a `JsonRpcEngineV2` or one or more V2 middleware into a legacy middleware.
 
 #### Context propagation
 

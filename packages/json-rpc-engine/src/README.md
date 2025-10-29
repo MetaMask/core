@@ -23,8 +23,7 @@ engine.push(function (req, res, next, end) {
 
 ### V2 compatibility
 
-Use the `asV2Middleware` function to use a `JsonRpcEngine` or legacy middleware as middleware in a
-`JsonRpcEngineV2`:
+Use `asV2Middleware()` to convert a `JsonRpcEngine` or one or more legacy middleware into a V2 middleware.
 
 #### Context propagation
 

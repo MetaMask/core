@@ -8,9 +8,9 @@ import {
 } from '@metamask/utils';
 
 import type {
+  JsonRpcEngine,
   JsonRpcEngineEndCallback,
   JsonRpcEngineNextCallback,
-  JsonRpcEngine,
 } from './JsonRpcEngine';
 import { type JsonRpcMiddleware as LegacyMiddleware } from './JsonRpcEngine';
 import { mergeMiddleware } from './mergeMiddleware';
@@ -43,7 +43,7 @@ export function asV2Middleware<
 /**
  * Convert one or more legacy middleware into a {@link JsonRpcEngineV2} middleware.
  *
- * @param middleware - The legacy middleware(s) to convert.
+ * @param middleware - The legacy middleware to convert.
  * @returns The {@link JsonRpcEngineV2} middleware.
  */
 export function asV2Middleware<
@@ -54,10 +54,10 @@ export function asV2Middleware<
 ): JsonRpcMiddleware<Request>;
 
 /**
- * Implementation of asV2Middleware that handles all input types.
+ * The asV2Middleware implementation.
  *
- * @param engineOrMiddleware - A legacy engine, a single legacy middleware, or an array of legacy middleware.
- * @param rest - Additional legacy middleware when the first argument is a single middleware.
+ * @param engineOrMiddleware - A legacy engine or legacy middleware.
+ * @param rest - Any additional legacy middleware when the first argument is a middleware.
  * @returns The {@link JsonRpcEngineV2} middleware.
  */
 export function asV2Middleware<

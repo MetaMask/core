@@ -38,10 +38,10 @@ export function asLegacyMiddleware<
 ): LegacyMiddleware<Params, ResultConstraint<Request>>;
 
 /**
- * Implementation of asLegacyMiddleware that handles all input types.
+ * The asLegacyMiddleware implementation.
  *
- * @param engineOrMiddleware - A V2 engine, a single V2 middleware, or an array of V2 middleware.
- * @param rest - Additional V2 middleware when the first argument is a single middleware.
+ * @param engineOrMiddleware - A V2 engine or V2 middleware.
+ * @param rest - Any additional V2 middleware when the first argument is a middleware.
  * @returns The legacy middleware.
  */
 export function asLegacyMiddleware<
@@ -53,7 +53,7 @@ export function asLegacyMiddleware<
     | JsonRpcMiddleware<Request, ResultConstraint<Request>>,
   ...rest: JsonRpcMiddleware<Request, ResultConstraint<Request>>[]
 ): LegacyMiddleware<Params, ResultConstraint<Request>> {
-  const JsonRpcMiddleware =
+  const v2Middleware =
     typeof engineOrMiddleware === 'function'
       ? JsonRpcEngineV2.create({
           middleware: [engineOrMiddleware, ...rest],
@@ -65,11 +65,11 @@ export function asLegacyMiddleware<
     const context = makeContext(req);
     let modifiedRequest: Request | undefined;
 
-    const result = await JsonRpcMiddleware({
+    const result = await v2Middleware({
       request,
       context,
       next: (finalRequest) => {
-        modifiedRequest = finalRequest as Request | undefined;
+        modifiedRequest = finalRequest;
         return Promise.resolve(undefined);
       },
     });
