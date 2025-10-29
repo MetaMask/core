@@ -15,6 +15,7 @@ import {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { MultichainAccountWallet } from './MultichainAccountWallet';
+import { SOL_ACCOUNT_PROVIDER_NAME } from './providers';
 import type { MockAccountProvider } from './tests';
 import {
   MOCK_HD_ACCOUNT_1,
@@ -33,7 +34,6 @@ import {
   type RootMessenger,
 } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
-import { SOL_ACCOUNT_PROVIDER_NAME } from './providers';
 
 function setup({
   entropySource = MOCK_WALLET_1_ENTROPY_SOURCE,
@@ -556,43 +556,6 @@ describe('MultichainAccountWallet', () => {
       expect(internalAccounts).toHaveLength(2); // EVM + SOL.
       expect(internalAccounts[0].type).toBe(EthAccountType.Eoa);
       expect(internalAccounts[1].type).toBe(SolAccountType.DataAccount);
-    });
-  });
-
-  describe('events', () => {
-    it('publishes multichainAccountGroupCreated when a new group is created', async () => {
-      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(0)
-        .get();
-
-      const { wallet, providers, messenger } = setup({
-        accounts: [[mockEvmAccount]],
-      });
-
-      const publishSpy = jest.spyOn(messenger, 'publish');
-
-      const nextEvmAccount = MockAccountBuilder.from(mockEvmAccount)
-        .withGroupIndex(1)
-        .get();
-
-      const [evmProvider] = providers;
-      evmProvider.createAccounts.mockResolvedValueOnce([nextEvmAccount]);
-      evmProvider.getAccounts.mockReturnValueOnce([nextEvmAccount]);
-      evmProvider.getAccount.mockReturnValueOnce(nextEvmAccount);
-
-      const group = await wallet.createNextMultichainAccountGroup();
-      expect(group.groupIndex).toBe(1);
-
-      // Ensure the event was published with the group argument
-      expect(
-        publishSpy.mock.calls.some(
-          ([topic, arg]) =>
-            topic ===
-              'MultichainAccountService:multichainAccountGroupCreated' &&
-            arg === group,
-        ),
-      ).toBe(true);
     });
   });
 

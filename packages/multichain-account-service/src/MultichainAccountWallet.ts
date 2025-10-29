@@ -74,6 +74,7 @@ export class MultichainAccountWallet<
     }
     return queue;
   }
+
   readonly #lock = new Mutex();
 
   readonly #id: MultichainAccountWalletId;
@@ -252,11 +253,12 @@ export class MultichainAccountWallet<
    * When awaitAll is true, waits for all providers and throws if any failed.
    * When false, starts work in background and logs errors without throwing.
    *
-   * @param groupIndex - The group index to create accounts for.
-   * @param providers - The non‑EVM account providers.
-   * @param awaitAll - Whether to wait for all providers to finish.
+   * @param options - Method options.
+   * @param options.groupIndex - The group index to create accounts for.
+   * @param options.providers - The non‑EVM account providers.
+   * @param options.awaitAll - Whether to wait for all providers to finish.
    * @throws If awaitAll is true and any provider fails to create accounts.
-   * @return A promise that resolves when done (if awaitAll is true) or immediately (if false).
+   * @returns A promise that resolves when done (if awaitAll is true) or immediately (if false).
    */
   async #createNonEvmAccounts({
     groupIndex,
@@ -309,13 +311,15 @@ export class MultichainAccountWallet<
             groupIndex,
           });
         } catch (error) {
-          const errorMessage = `Could not to create account with provider \"${provider.getName()}\" for multichain account group index: ${groupIndex}`;
+          const errorMessage = `Could not to create account with provider "${provider.getName()}" for multichain account group index: ${groupIndex}`;
           this.#log(`${WARNING_PREFIX} ${errorMessage}:`, error);
         }
       };
       if (queue) {
+        // eslint-disable-next-line no-void
         void queue.runExclusive(operation);
       } else {
+        // eslint-disable-next-line no-void
         void operation();
       }
     });
@@ -464,6 +468,7 @@ export class MultichainAccountWallet<
           awaitAll: true,
         });
       } else {
+        // eslint-disable-next-line no-void
         void this.#createNonEvmAccounts({
           groupIndex,
           providers: otherProviders,
