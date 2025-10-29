@@ -1,4 +1,3 @@
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import {
   type StateMetadata,
   type ControllerStateChangeEvent,
@@ -118,8 +117,7 @@ export type SubscriptionControllerActions =
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
-  | AuthenticationController.AuthenticationControllerPerformSignOut
-  | AccountsControllerGetSelectedAccountAction;
+  | AuthenticationController.AuthenticationControllerPerformSignOut;
 
 // Events
 export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -787,20 +785,12 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       recurringInterval: productPrice.interval,
       billingCycles: productPrice.minBillingCycles,
       chainId,
-      payerAddress: this.#getSelectedAddress() as Hex,
+      payerAddress: txMeta.txParams.from as Hex,
       tokenSymbol: selectedTokenPrice.symbol,
       rawTransaction: rawTx as Hex,
     };
     await this.startSubscriptionWithCrypto(params);
     // update the subscriptions state after subscription created in server
     await this.getSubscriptions();
-  }
-
-  #getSelectedAddress(): Hex | undefined {
-    // If the address is not defined (or empty), we fallback to the currently selected account's address
-    const account = this.messenger.call(
-      'AccountsController:getSelectedAccount',
-    );
-    return account?.address as Hex | undefined;
   }
 }

@@ -5,9 +5,6 @@
   },
   "references": [
     {
-      "path": "../accounts-controller"
-    },
-    {
       "path": "../base-controller"
     },
     {

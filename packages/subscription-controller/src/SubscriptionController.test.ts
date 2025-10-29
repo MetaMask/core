@@ -150,7 +150,6 @@ function createCustomSubscriptionMessenger(props?: {
     actions: [
       'AuthenticationController:getBearerToken',
       'AuthenticationController:performSignOut',
-      'AccountsController:getSelectedAccount',
     ],
     events: props?.overrideEvents ?? [
       'AuthenticationController:stateChange',
@@ -1534,12 +1533,6 @@ describe('SubscriptionController', () => {
             startSubscriptionResolve();
             return [];
           });
-
-          rootMessenger.registerActionHandler(
-            'AccountsController:getSelectedAccount',
-            // @ts-expect-error - Mocking the return type
-            () => Promise.resolve({ address: '0xabc' }),
-          );
 
           // Create a shield subscription approval transaction
           const txMeta = {
