@@ -32,15 +32,17 @@ import type {
 } from './v2/JsonRpcEngineV2';
 
 /**
- * Convert a legacy {@link JsonRpcEngine} into a {@link JsonRpcEngineV2} middleware.
+ * Convert a legacy {@link JsonRpcEngine} or an array of legacy middlewares into a {@link JsonRpcEngineV2} middleware.
  *
- * @param engine - The legacy engine to convert.
+ * @param engineOrMiddlewares - The legacy engine or array of legacy middlewares to convert.
  * @returns The {@link JsonRpcEngineV2} middleware.
  */
 export function asV2Middleware<
   Params extends JsonRpcParams,
   Request extends JsonRpcRequest<Params>,
->(engine: JsonRpcEngine): JsonRpcMiddleware<Request>;
+>(
+  engineOrMiddlewares: JsonRpcEngine | LegacyMiddleware<JsonRpcParams, Json>[],
+): JsonRpcMiddleware<Request>;
 
 /**
  * Convert one or more legacy middlewares into a {@link JsonRpcEngineV2} middleware.
@@ -56,16 +58,12 @@ export function asV2Middleware<
 ): JsonRpcMiddleware<Request>;
 
 /**
- * Convert an array of legacy middlewares into a {@link JsonRpcEngineV2} middleware.
+ * Implementation of asV2Middleware that handles all input types.
  *
- * @param middlewares - The array of legacy middlewares to convert.
+ * @param engineOrMiddleware - A legacy engine, a single legacy middleware, or an array of legacy middlewares.
+ * @param rest - Additional legacy middlewares when the first argument is a single middleware.
  * @returns The {@link JsonRpcEngineV2} middleware.
  */
-export function asV2Middleware<
-  Params extends JsonRpcParams,
-  Request extends JsonRpcRequest<Params>,
->(middlewares: LegacyMiddleware<JsonRpcParams, Json>[]): JsonRpcMiddleware<Request>;
-
 export function asV2Middleware<
   Params extends JsonRpcParams,
   Request extends JsonRpcRequest<Params>,
