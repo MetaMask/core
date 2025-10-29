@@ -111,7 +111,6 @@ describe('createBlockTrackerInspectorMiddleware', () => {
 
       const request = createRequest({
         method: 'eth_chainId', // Not in futureBlockRefRequests
-        params: [],
       });
 
       await engine.handle(request);

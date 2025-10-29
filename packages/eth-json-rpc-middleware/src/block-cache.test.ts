@@ -88,7 +88,6 @@ describe('block cache middleware', () => {
       // eth_sendTransaction is a method that is not cacheable
       const request = createRequest({
         method: 'eth_sendTransaction',
-        params: [],
       });
 
       const result1 = (await engine.handle(request)) as JsonRpcSuccess;

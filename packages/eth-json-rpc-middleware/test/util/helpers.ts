@@ -12,8 +12,8 @@ import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
 
 export const createRequest = <
-  Input extends Partial<JsonRpcRequest>,
-  Output extends Input & JsonRpcRequest,
+  Input extends Partial<JsonRpcRequest<Json[]>>,
+  Output extends Input & JsonRpcRequest<Json[]>,
 >(
   request: Input,
 ): Output => {
