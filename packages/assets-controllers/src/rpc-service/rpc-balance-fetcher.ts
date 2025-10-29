@@ -128,10 +128,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
 
       // Ensure native token entries exist for all addresses
       allAddressesForNative.forEach((address) => {
-        const nativeBalance =
-          tokenBalances[ZERO_ADDRESS]?.[address.toLowerCase()] ||
-          tokenBalances[ZERO_ADDRESS]?.[toChecksumHexAddress(address)] ||
-          null;
+        const nativeBalance = tokenBalances[ZERO_ADDRESS]?.[address] || null;
         chainResults.push({
           success: true,
           value: nativeBalance ? (nativeBalance as BN) : new BN('0'),
