@@ -219,7 +219,7 @@ describe('JsonRpcServer', () => {
     });
   });
 
-  it('throws if passed a notification when only requests are supported', async () => {
+  it('errors if passed a notification when only requests are supported', async () => {
     const onError = jest.fn();
     const server = new JsonRpcServer<JsonRpcMiddleware<JsonRpcRequest>>({
       middleware: [() => null],
@@ -227,8 +227,9 @@ describe('JsonRpcServer', () => {
     });
 
     const notification = { jsonrpc, method: 'hello' };
-    await server.handle(notification);
+    const response = await server.handle(notification);
 
+    expect(response).toBeUndefined();
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenCalledWith(
       new JsonRpcEngineError(
@@ -237,7 +238,7 @@ describe('JsonRpcServer', () => {
     );
   });
 
-  it('throws if passed a request when only notifications are supported', async () => {
+  it('errors if passed a request when only notifications are supported', async () => {
     const onError = jest.fn();
     const server = new JsonRpcServer<JsonRpcMiddleware<JsonRpcNotification>>({
       middleware: [() => undefined],
@@ -245,8 +246,17 @@ describe('JsonRpcServer', () => {
     });
 
     const request = { jsonrpc, id: 1, method: 'hello' };
-    await server.handle(request);
+    const response = await server.handle(request);
 
+    expect(response).toStrictEqual({
+      jsonrpc,
+      id: 1,
+      error: {
+        code: -32603,
+        message: expect.stringMatching(/^Nothing ended request: /u),
+        data: { cause: expect.any(Object) },
+      },
+    });
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -291,7 +301,7 @@ describe('JsonRpcServer', () => {
     { jsonrpc },
     { id: 1 },
   ])(
-    'throws if the request is not minimally conformant',
+    'errors if the request is not minimally conformant',
     async (malformedRequest) => {
       const onError = jest.fn();
       const server = new JsonRpcServer({
