@@ -26,6 +26,7 @@ import type {
   UpdatePaymentMethodOpts,
   CachedLastSelectedPaymentMethod,
   SubmitSponsorshipIntentsMethodParams,
+  RecurringInterval,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -587,7 +588,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.#assertIsPaymentMethodCrypto(selectedPaymentMethod);
 
     const { paymentTokenSymbol, plan } = selectedPaymentMethod;
-    const billingCycles = plan === RECURRING_INTERVALS.year ? 1 : 12;
+    const productPrice = this.#getProductPriceByProductAndPlan(
+      request.products[0],
+      plan,
+    );
+    const billingCycles = productPrice.minBillingCycles;
 
     await this.#subscriptionService.submitSponsorshipIntents({
       ...request,
@@ -676,6 +681,21 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     // controller. Next time the access token is requested, a new access token
     // will be fetched.
     this.messenger.call('AuthenticationController:performSignOut');
+  }
+
+  #getProductPriceByProductAndPlan(
+    product: ProductType,
+    plan: RecurringInterval,
+  ): ProductPrice {
+    const { pricing } = this.state;
+    const productPricing = pricing?.products.find((p) => p.name === product);
+    const productPrice = productPricing?.prices.find(
+      (p) => p.interval === plan,
+    );
+    if (!productPrice) {
+      throw new Error(SubscriptionControllerErrorMessage.ProductPriceNotFound);
+    }
+    return productPrice;
   }
 
   #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {

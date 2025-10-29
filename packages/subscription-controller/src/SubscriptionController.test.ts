@@ -84,6 +84,14 @@ const MOCK_PRODUCT_PRICE: ProductPricing = {
       unitAmount: 900,
       unitDecimals: 2,
       trialPeriodDays: 0,
+      minBillingCycles: 12,
+    },
+    {
+      interval: 'year',
+      unitAmount: 8000,
+      unitDecimals: 2,
+      currency: 'usd',
+      trialPeriodDays: 14,
       minBillingCycles: 1,
     },
   ],
@@ -993,7 +1001,7 @@ describe('SubscriptionController', () => {
           });
 
           expect(result).toStrictEqual({
-            approveAmount: '9000000000000000000',
+            approveAmount: '108000000000000000000',
             paymentAddress: '0xspender',
             paymentTokenAddress: '0xtoken',
             chainId: '0x1',
@@ -1522,6 +1530,7 @@ describe('SubscriptionController', () => {
         {
           state: {
             lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+            pricing: MOCK_PRICE_INFO_RESPONSE,
           },
         },
         async ({ controller, mockService }) => {
@@ -1630,6 +1639,25 @@ describe('SubscriptionController', () => {
             ),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
+          );
+        },
+      );
+    });
+
+    it('should throw error when product price is not found', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.submitSponsorshipIntents(
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.ProductPriceNotFound,
           );
         },
       );
