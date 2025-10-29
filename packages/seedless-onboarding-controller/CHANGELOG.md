@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added new public method, `checkIsSeedlessOnboardingUserAuthenticated` to validate the controller authenticate tokens state. ([#6998](https://github.com/MetaMask/core/pull/6998))
+
+### Changed
+
+- Refactor `refreshAuthTokens` method, separately catch refreshJWTToken and authenticate errors. ([#6998](https://github.com/MetaMask/core/pull/6998))
+- Bump `@metamask/toprf-secure-backup` package to `0.9.0`. ([#6998](https://github.com/MetaMask/core/pull/6998))
+
+### Fixed
+
+- Fixed `Invalid Access Token` error during rehydration. ([#6998](https://github.com/MetaMask/core/pull/6998))
+
 ## [5.0.0]
 
 ### Changed
