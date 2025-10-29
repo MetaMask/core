@@ -276,13 +276,15 @@ function mockcreateLocalKey(toprfClient: ToprfSecureBackup, password: string) {
   const oprfKey = BigInt(0);
   const seed = stringToBytes(password);
 
-  jest.spyOn(toprfClient, 'createLocalKey').mockResolvedValueOnce({
-    encKey,
-    pwEncKey,
-    authKeyPair,
-    oprfKey,
-    seed,
-  });
+  const createLocalKeySpy = jest
+    .spyOn(toprfClient, 'createLocalKey')
+    .mockResolvedValueOnce({
+      encKey,
+      pwEncKey,
+      authKeyPair,
+      oprfKey,
+      seed,
+    });
 
   return {
     encKey,
@@ -290,6 +292,7 @@ function mockcreateLocalKey(toprfClient: ToprfSecureBackup, password: string) {
     authKeyPair,
     oprfKey,
     seed,
+    createLocalKeySpy,
   };
 }
 
@@ -1163,6 +1166,81 @@ describe('SeedlessOnboardingController', () => {
           expect(parsedVaultData.toprfEncryptionKey).toBeDefined();
           expect(parsedVaultData.toprfPwEncryptionKey).toBeDefined();
           expect(parsedVaultData.toprfAuthKeyPair).toBeDefined();
+        },
+      );
+    });
+
+    it('should refresh token and create new seed phrase backup in case of token errors', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, toprfClient, initialState, encryptor }) => {
+          const { encKey, pwEncKey, authKeyPair, createLocalKeySpy } =
+            mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
+
+          // persist the local enc key
+          const persistLocalKeySpy = jest
+            .spyOn(toprfClient, 'persistLocalKey')
+            .mockRejectedValueOnce(
+              new TOPRFError(
+                TOPRFErrorCode.InvalidAuthToken,
+                'Invalid auth token',
+              ),
+            ) // first call fails with invalid auth token error
+            .mockResolvedValueOnce();
+          // encrypt and store the secret data
+          const mockSecretDataAdd = handleMockSecretDataAdd();
+
+          const authenticateSpy = jest
+            .spyOn(toprfClient, 'authenticate')
+            .mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+          await controller.createToprfKeyAndBackupSeedPhrase(
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          expect(mockSecretDataAdd.isDone()).toBe(true);
+
+          // should call persistLocalKey twice and authenticate once
+          expect(persistLocalKeySpy).toHaveBeenCalledTimes(2); // should call persistLocalKey twice for the first fail attempt due to invalid auth token error and the second attempt succeeds
+          expect(authenticateSpy).toHaveBeenCalledTimes(1); // should call authenticate once for the token refresh
+          expect(createLocalKeySpy).toHaveBeenCalledTimes(1); // should call createLocalKey only once coz the local toprf key creation should not be affected by token errors
+
+          expect(controller.state.vault).toBeDefined();
+          expect(controller.state.vault).not.toBe(initialState.vault);
+          expect(controller.state.vault).not.toStrictEqual({});
+
+          // verify the vault data
+          const { encryptedMockVault } = await createMockVault(
+            encKey,
+            pwEncKey,
+            authKeyPair,
+            MOCK_PASSWORD,
+          );
+
+          const expectedVaultValue = await encryptor.decrypt(
+            MOCK_PASSWORD,
+            encryptedMockVault,
+          );
+          const resultedVaultValue = await encryptor.decrypt(
+            MOCK_PASSWORD,
+            controller.state.vault as string,
+          );
+
+          expect(expectedVaultValue).toStrictEqual(resultedVaultValue);
+
+          // should be able to get the hash of the seed phrase backup from the state
+          expect(
+            controller.getSecretDataBackupState(MOCK_SEED_PHRASE),
+          ).toBeDefined();
         },
       );
     });
