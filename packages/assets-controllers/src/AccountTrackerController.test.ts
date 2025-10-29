@@ -286,10 +286,7 @@ describe('AccountTrackerController', () => {
           stakedBalances: {},
         });
 
-        messenger.publish(
-          'NetworkController:networkAdded',
-          {} as NetworkConfiguration,
-        );
+        messenger.publish('KeyringController:unlock');
 
         await clock.tickAsync(1);
 
