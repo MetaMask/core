@@ -255,7 +255,7 @@ export class MultichainAssetsController extends BaseController<
       this.getAssetMetadata.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'MultichainAssetsController:ignoreAssets',
       this.ignoreAssets.bind(this),
     );
