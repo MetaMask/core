@@ -856,37 +856,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     if (!lastSelectedPaymentMethod) {
       throw new Error('Last selected payment method not found');
     }
-    this.#assertIsPaymentMethodCrypto(
-      lastSelectedPaymentMethod[PRODUCT_TYPES.SHIELD],
-    );
+    const lastSelectedPaymentMethodShield =
+      lastSelectedPaymentMethod[PRODUCT_TYPES.SHIELD];
+    this.#assertIsPaymentMethodCrypto(lastSelectedPaymentMethodShield);
 
     const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
-    const pricingPlans = pricing?.products.find(
-      (product) => product.name === PRODUCT_TYPES.SHIELD,
-    )?.prices;
-    const cryptoPaymentMethod = pricing?.paymentMethods.find(
-      (paymentMethod) => paymentMethod.type === PAYMENT_TYPES.byCrypto,
-    );
-    const selectedTokenPrice = cryptoPaymentMethod?.chains
-      ?.find(
-        (chain) =>
-          chain.chainId.toLowerCase() === txMeta?.chainId.toLowerCase(),
-      )
-      ?.tokens.find(
-        (token) =>
-          token.address.toLowerCase() === txMeta?.txParams?.to?.toLowerCase(),
-      );
-    if (!selectedTokenPrice) {
-      throw new Error('Selected token price not found');
-    }
 
-    const productPrice = pricingPlans?.find(
-      (plan) =>
-        plan.interval === lastSelectedPaymentMethod[PRODUCT_TYPES.SHIELD]?.plan,
+    const productPrice = this.#getProductPriceByProductAndPlan(
+      PRODUCT_TYPES.SHIELD,
+      lastSelectedPaymentMethodShield.plan,
     );
-    if (!productPrice) {
-      throw new Error('Product price not found');
-    }
 
     const params = {
       products: [PRODUCT_TYPES.SHIELD],
@@ -895,7 +874,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       billingCycles: productPrice.minBillingCycles,
       chainId,
       payerAddress: txMeta.txParams.from as Hex,
-      tokenSymbol: selectedTokenPrice.symbol,
+      tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
       rawTransaction: rawTx as Hex,
       isSponsored,
     };

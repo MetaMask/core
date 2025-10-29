@@ -1889,50 +1889,6 @@ describe('SubscriptionController', () => {
       );
     });
 
-    it('should throw error when selected token price is not found', async () => {
-      await withController(
-        {
-          state: {
-            pricing: MOCK_PRICE_INFO_RESPONSE,
-            trialedProducts: [],
-            subscriptions: [],
-            lastSelectedPaymentMethod: {
-              [PRODUCT_TYPES.SHIELD]: {
-                type: PAYMENT_TYPES.byCrypto,
-                paymentTokenAddress: '0x123',
-                paymentTokenSymbol: 'USDT',
-                plan: RECURRING_INTERVALS.month,
-              },
-            },
-          },
-        },
-        async ({ controller, mockService }) => {
-          // Create a shield subscription approval transaction with token address that doesn't exist
-          const txMeta = {
-            ...generateMockTxMeta(),
-            type: TransactionType.shieldSubscriptionApprove,
-            chainId: '0x1' as Hex,
-            rawTx: '0x123',
-            txParams: {
-              data: '0x456',
-              from: '0x1234567890123456789012345678901234567890',
-              to: '0xnonexistent',
-            },
-            status: TransactionStatus.submitted,
-            hash: '0x123',
-          };
-
-          await expect(
-            controller.submitShieldSubscriptionCryptoApproval(txMeta),
-          ).rejects.toThrow('Selected token price not found');
-
-          expect(
-            mockService.startSubscriptionWithCrypto,
-          ).not.toHaveBeenCalled();
-        },
-      );
-    });
-
     it('should throw error when product price is not found', async () => {
       await withController(
         {
@@ -1968,7 +1924,9 @@ describe('SubscriptionController', () => {
 
           await expect(
             controller.submitShieldSubscriptionCryptoApproval(txMeta),
-          ).rejects.toThrow('Product price not found');
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.ProductPriceNotFound,
+          );
 
           expect(
             mockService.startSubscriptionWithCrypto,
