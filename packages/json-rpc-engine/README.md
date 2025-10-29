@@ -81,8 +81,9 @@ await server.handle(notification);
 
 ### Legacy compatibility
 
-Use the `asLegacyMiddleware` function to use a `JsonRpcEngineV2` as a
-middleware in a legacy `JsonRpcEngine`:
+Use the `asLegacyMiddleware` function to use a `JsonRpcEngineV2` or V2 middleware as middleware in a legacy `JsonRpcEngine`:
+
+#### Converting a V2 engine
 
 ```ts
 import {
@@ -100,6 +101,34 @@ const v2Engine = JsonRpcEngineV2.create({
 });
 
 legacyEngine.push(asLegacyMiddleware(v2Engine));
+```
+
+#### Converting V2 middleware
+
+You can also directly convert one or more V2 middlewares without creating an engine:
+
+```ts
+import {
+  asLegacyMiddleware,
+  type JsonRpcMiddleware,
+} from '@metamask/json-rpc-engine/v2';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+
+// Convert a single V2 middleware
+const middleware1: JsonRpcMiddleware<JsonRpcRequest> = ({ request }) => {
+  /* ... */
+};
+
+const legacyEngine = new JsonRpcEngine();
+legacyEngine.push(asLegacyMiddleware(middleware1));
+
+// Convert multiple V2 middlewares at once
+const middleware2: JsonRpcMiddleware<JsonRpcRequest> = ({ context, next }) => {
+  /* ... */
+};
+
+const legacyEngine2 = new JsonRpcEngine();
+legacyEngine2.push(asLegacyMiddleware(middleware1, middleware2));
 ```
 
 In keeping with the conventions of the legacy engine, non-JSON-RPC string properties of the `context` will be
