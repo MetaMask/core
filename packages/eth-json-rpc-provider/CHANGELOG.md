@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Replace `SafeEventEmitterProvider` with `InternalProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
   - The new class is behaviorally equivalent to the previous version except it does not extend `SafeEventEmitter`.
   - `SafeEventEmitterProvider` is for now still exported as a deprecated alias of `InternalProvider` for backwards compatibility.
+- Support constructing `InternalProvider` with a `JsonRpcServer` instance ([#7001](https://github.com/MetaMask/core/pull/7001))
+  - The `rpcHandler` constructor option accepts either a `JsonRpcServer` or a legacy `JsonRpcEngine`. It is mutually exclusive with the `engine` option.
 
 ## [5.0.1]
 
