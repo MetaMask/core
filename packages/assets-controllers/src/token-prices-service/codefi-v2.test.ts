@@ -3,7 +3,6 @@ import { useFakeTimers } from 'sinon';
 
 import {
   CodefiTokenPricesServiceV2,
-  SUPPORTED_CHAIN_IDS,
   SUPPORTED_CURRENCIES,
   ZERO_ADDRESS,
   getNativeTokenAddress,
@@ -1286,25 +1285,6 @@ describe('CodefiTokenPricesServiceV2', () => {
       expect(supportedChainIds).toEqual(['0x1', '0x2']);
     });
   });
-
-  /*   describe('validateChainIdSupported', () => {
-    it.each(SUPPORTED_CHAIN_IDS)(
-      'returns true if the given chain ID is %s',
-      (chainId) => {
-        expect(
-          new CodefiTokenPricesServiceV2().validateChainIdSupported(chainId),
-        ).toBe(true);
-      },
-    );
-
-    it('returns false if the given chain ID is not one of the supported chain IDs', () => {
-      expect(
-        new CodefiTokenPricesServiceV2().validateChainIdSupported(
-          '0x999999999999999',
-        ),
-      ).toBe(false);
-    });
-  }); */
 
   describe('validateCurrencySupported', () => {
     it.each(SUPPORTED_CURRENCIES)(

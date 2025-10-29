@@ -58,7 +58,7 @@ export type Token = {
 
 const DEFAULT_INTERVAL = 180000;
 
-const DEFAULT_CACHE_REFRESH_THRESHOLD = 1000 * 60 * 60 * 24; // 24 hours
+export const DEFAULT_CACHE_REFRESH_THRESHOLD = 1000 * 60 * 60 * 24; // 24 hours
 
 export type ContractExchangeRates = {
   [address: string]: number | undefined;
@@ -523,6 +523,10 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   async #updateSupportedChainIdsCache(): Promise<void> {
     const supportedChainIds =
       await this.#tokenPricesService.fetchSupportedChainIds();
+    console.log(
+      '🚀 ~ TokenRatesController ~ supportedChainIds::::::::::: from service',
+      supportedChainIds,
+    );
     this.update((state) => {
       state.supportedChainIds = {
         timestamp: Date.now(),
@@ -542,9 +546,12 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       nativeCurrency: string;
     }[],
   ) {
+    console.log('staaart updateExchangeRates');
     if (!this.#isPriceApiSupportedChainIdsCacheValid()) {
+      console.log('updateExchangeRates: updating supported chain ids cache');
       await this.#updateSupportedChainIdsCache();
     }
+    console.log('updateExchangeRates: updating exchange rates');
     await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
   }
 
@@ -572,7 +579,15 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     // Create a promise for each chainId to fetch exchange rates.
     const updatePromises = chainIdAndNativeCurrency.map(
       async ({ chainId, nativeCurrency }) => {
+        console.log(
+          '🚀 ~ TokenRatesController ~ updateExchangeRatesByChainId ~ chainId:===============',
+          chainId,
+        );
         const tokenAddresses = this.#getTokenAddresses(chainId);
+        console.log(
+          '🚀 ~ TokenRatesController ~ updateExchangeRatesByChainId ~ tokenAddresses:==================',
+          tokenAddresses,
+        );
         // Build a unique key based on chainId, nativeCurrency, and the number of token addresses.
         const updateKey: `${Hex}:${string}` = `${chainId}:${nativeCurrency}:${tokenAddresses.length}`;
 
@@ -667,7 +682,18 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     chainId: Hex;
     nativeCurrency: string;
   }): Promise<ContractMarketData> {
-    if (!this.#tokenPricesService.validateChainIdSupported(chainId)) {
+    console.log('🚀 ~ TokenRatesController ~ chainId:', chainId);
+    const supportedChainIds = this.state.supportedChainIds.data;
+    console.log(
+      '🚀 ~ TokenRatesController ~ supportedChainIds:',
+      supportedChainIds,
+    );
+    if (!supportedChainIds.includes(chainId)) {
+      console.log(
+        'early return because chainId is not supported',
+        chainId,
+        supportedChainIds,
+      );
       return tokenAddresses.reduce((obj, tokenAddress) => {
         obj = {
           ...obj,
@@ -721,7 +747,8 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       return acc;
     }, []);
 
-    await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
+    //await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
+    await this.updateExchangeRates(chainIdAndNativeCurrency);
   }
 
   /**

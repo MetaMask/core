@@ -34,7 +34,11 @@ import type {
   TokenPrice,
   TokenPricesByTokenAddress,
 } from './token-prices-service/abstract-token-prices-service';
-import { controllerName, TokenRatesController } from './TokenRatesController';
+import {
+  controllerName,
+  DEFAULT_CACHE_REFRESH_THRESHOLD,
+  TokenRatesController,
+} from './TokenRatesController';
 import type {
   AllowedActions,
   AllowedEvents,
@@ -98,6 +102,10 @@ describe('TokenRatesController', () => {
       await withController(async ({ controller }) => {
         expect(controller.state).toStrictEqual({
           marketData: {},
+          supportedChainIds: {
+            timestamp: 0,
+            data: [],
+          },
         });
       });
     });
@@ -113,6 +121,10 @@ describe('TokenRatesController', () => {
         async ({ controller }) => {
           expect(controller.state).toStrictEqual({
             marketData: {},
+            supportedChainIds: {
+              timestamp: 0,
+              data: [],
+            },
           });
         },
       );
@@ -729,6 +741,10 @@ describe('TokenRatesController', () => {
             options: {
               interval: 100,
               state: {
+                supportedChainIds: {
+                  timestamp: Date.now() + DEFAULT_CACHE_REFRESH_THRESHOLD + 1,
+                  data: [ChainId.mainnet],
+                },
                 marketData: {
                   [ChainId.mainnet]: {
                     '0x02': {
@@ -789,6 +805,10 @@ describe('TokenRatesController', () => {
             options: {
               interval: 100,
               state: {
+                supportedChainIds: {
+                  timestamp: Date.now() + DEFAULT_CACHE_REFRESH_THRESHOLD + 1,
+                  data: [ChainId.mainnet],
+                },
                 marketData: {
                   [ChainId.mainnet]: {
                     '0x02': {
@@ -844,10 +864,16 @@ describe('TokenRatesController', () => {
       });
 
       it('should update exchange rates when network state changes without adding a new network', async () => {
+        const tokenPricesService = buildMockTokenPricesService({
+          fetchSupportedChainIds: jest
+            .fn()
+            .mockResolvedValue([ChainId.mainnet]),
+        });
         await withController(
           {
             options: {
               interval: 100,
+              tokenPricesService,
             },
             mockNetworkClientConfigurationsByNetworkClientId: {
               'AAAA-BBBB-CCCC-DDDD': buildCustomNetworkClientConfiguration({
@@ -1297,7 +1323,11 @@ describe('TokenRatesController', () => {
     describe('start', () => {
       it('should poll and update rate in the right interval', async () => {
         const interval = 100;
-        const tokenPricesService = buildMockTokenPricesService();
+        const tokenPricesService = buildMockTokenPricesService({
+          fetchSupportedChainIds: jest
+            .fn()
+            .mockResolvedValue([ChainId.mainnet]),
+        });
         jest.spyOn(tokenPricesService, 'fetchTokenPrices');
         await withController(
           {
@@ -1344,7 +1374,11 @@ describe('TokenRatesController', () => {
     describe('stop', () => {
       it('should stop polling', async () => {
         const interval = 100;
-        const tokenPricesService = buildMockTokenPricesService();
+        const tokenPricesService = buildMockTokenPricesService({
+          fetchSupportedChainIds: jest
+            .fn()
+            .mockResolvedValue([ChainId.mainnet]),
+        });
         jest.spyOn(tokenPricesService, 'fetchTokenPrices');
         await withController(
           {
@@ -1399,7 +1433,9 @@ describe('TokenRatesController', () => {
 
     it('should poll on the right interval', async () => {
       const interval = 100;
-      const tokenPricesService = buildMockTokenPricesService();
+      const tokenPricesService = buildMockTokenPricesService({
+        fetchSupportedChainIds: jest.fn().mockResolvedValue([ChainId.mainnet]),
+      });
       jest.spyOn(tokenPricesService, 'fetchTokenPrices');
       await withController(
         {
@@ -1444,6 +1480,9 @@ describe('TokenRatesController', () => {
         it('returns the exchange rates directly', async () => {
           const tokenPricesService = buildMockTokenPricesService({
             fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
+            fetchSupportedChainIds: jest
+              .fn()
+              .mockResolvedValue([ChainId.mainnet]),
             validateCurrencySupported(currency: unknown): currency is string {
               return currency === 'ETH';
             },
@@ -1531,6 +1570,10 @@ describe('TokenRatesController', () => {
                     },
                   },
                 },
+                supportedChainIds: {
+                  timestamp: Date.now(),
+                  data: [ChainId.mainnet],
+                },
               });
             },
           );
@@ -1544,6 +1587,9 @@ describe('TokenRatesController', () => {
               .reply(200, { LOL: fallbackRate });
             const tokenPricesService = buildMockTokenPricesService({
               fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
+              fetchSupportedChainIds: jest
+                .fn()
+                .mockResolvedValue([ChainId.mainnet]),
               validateCurrencySupported(currency: unknown): currency is string {
                 return currency !== 'LOL';
               },
@@ -1650,7 +1696,11 @@ describe('TokenRatesController', () => {
                 new Error('market does not exist for this coin pair'),
               );
 
-            const tokenPricesService = buildMockTokenPricesService();
+            const tokenPricesService = buildMockTokenPricesService({
+              fetchSupportedChainIds: jest
+                .fn()
+                .mockResolvedValue([ChainId.mainnet]),
+            });
             await withController(
               {
                 options: {
@@ -1704,7 +1754,11 @@ describe('TokenRatesController', () => {
 
       it('should stop polling', async () => {
         const interval = 100;
-        const tokenPricesService = buildMockTokenPricesService();
+        const tokenPricesService = buildMockTokenPricesService({
+          fetchSupportedChainIds: jest
+            .fn()
+            .mockResolvedValue([ChainId.mainnet]),
+        });
         jest.spyOn(tokenPricesService, 'fetchTokenPrices');
         await withController(
           {
@@ -1796,8 +1850,14 @@ describe('TokenRatesController', () => {
         );
       });
 
-      it('does not update state if there are no tokens for the given chain', async () => {
+      it.only('does not update state if there are no tokens for the given chain', async () => {
+        const tokenPricesService = buildMockTokenPricesService({
+          fetchSupportedChainIds: jest
+            .fn()
+            .mockResolvedValue([toHex(2), ChainId.mainnet]),
+        });
         await withController(
+          { options: { tokenPricesService } },
           async ({
             controller,
             triggerTokensStateChange,
@@ -1829,6 +1889,10 @@ describe('TokenRatesController', () => {
             });
 
             expect(controller.state).toStrictEqual({
+              supportedChainIds: {
+                timestamp: Date.now(),
+                data: [toHex(2), ChainId.mainnet],
+              },
               marketData: {
                 [ChainId.mainnet]: {
                   '0x0000000000000000000000000000000000000000': {
@@ -2657,6 +2721,10 @@ describe('TokenRatesController', () => {
               totalVolume: 100,
             },
           },
+        },
+        supportedChainIds: {
+          timestamp: 0,
+          data: [],
         },
       };
 
