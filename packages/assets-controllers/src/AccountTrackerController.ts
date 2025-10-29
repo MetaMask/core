@@ -326,11 +326,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     );
 
     this.messenger.subscribe('NetworkController:networkAdded', async () => {
-      await this.refresh(this.#getNetworkClientIds());
+      await this.refresh(this.#getNetworkClientIds(), true);
     });
 
     this.messenger.subscribe('KeyringController:unlock', async () => {
-      await this.refresh(this.#getNetworkClientIds());
+      await this.refresh(this.#getNetworkClientIds(), true);
     });
 
     this.messenger.subscribe(
@@ -554,6 +554,16 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     const { isMultiAccountBalancesEnabled } = this.messenger.call(
       'PreferencesController:getState',
     );
+
+    console.log('YYYYYY BEFORE REFRESH', {
+      queryAllAccounts,
+      isMultiAccountBalancesEnabled,
+      queryAllAccountsXXX: queryAllAccounts ?? isMultiAccountBalancesEnabled,
+      selectedAccount: toChecksumHexAddress(
+        selectedAccount.address,
+      ) as ChecksumAddress,
+      allAccounts,
+    });
 
     await this.#refreshAccounts({
       networkClientIds,

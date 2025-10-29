@@ -168,7 +168,7 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('123456', 16),
+              [ADDRESS_1]: new BN('123456', 16),
             },
           },
           stakedBalances: {},
@@ -209,7 +209,7 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('abcdef', 16),
+              [ADDRESS_1]: new BN('abcdef', 16),
             },
           },
           stakedBalances: {},
@@ -250,7 +250,7 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('abcdef', 16),
+              [ADDRESS_1]: new BN('abcdef', 16),
             },
           },
           stakedBalances: {},
@@ -280,7 +280,7 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('abcdef', 16),
+              [ADDRESS_1]: new BN('abcdef', 16),
             },
           },
           stakedBalances: {},
