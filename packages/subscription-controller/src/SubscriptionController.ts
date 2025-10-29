@@ -12,13 +12,14 @@ import {
   TransactionType,
   type TransactionControllerTransactionSubmittedEvent,
 } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import { type Hex } from '@metamask/utils';
 
 import {
   controllerName,
   DEFAULT_POLLING_INTERVAL,
   SubscriptionControllerErrorMessage,
 } from './constants';
+import { createModuleLogger, projectLogger } from './logger';
 import type {
   BillingPortalResponse,
   GetCryptoApproveTransactionRequest,
@@ -35,13 +36,14 @@ import type {
 import {
   PAYMENT_TYPES,
   PRODUCT_TYPES,
-  RECURRING_INTERVALS,
   type ISubscriptionService,
   type PricingResponse,
   type ProductType,
   type StartSubscriptionRequest,
   type Subscription,
 } from './types';
+
+const log = createModuleLogger(projectLogger, controllerName);
 
 export type SubscriptionControllerState = {
   customerId?: string;
@@ -252,6 +254,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.setIntervalLength(pollingInterval);
     this.#subscriptionService = subscriptionService;
     this.#registerMessageHandlers();
+
+    this.messenger.subscribe(
+      'TransactionController:transactionSubmitted',
+      ({ transactionMeta }) => {
+        // transaction meta only has rawTx available when the transaction status is submitted
+        this.#handleShieldSubscriptionCryptoApproval(transactionMeta).catch(
+          (error) => log('Error handling subscription crypto approval:', error),
+        );
+      },
+    );
   }
 
   /**
@@ -723,36 +735,22 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @param txMeta - The transaction metadata.
    * @returns void
    */
-  async #handleSubscriptionCryptoApproval(txMeta: TransactionMeta) {
+  async #handleShieldSubscriptionCryptoApproval(txMeta: TransactionMeta) {
     if (txMeta.type !== TransactionType.shieldSubscriptionApprove) {
       return;
     }
 
-    const { chainId, rawTx, txParams } = txMeta;
+    const { chainId, rawTx } = txMeta;
     if (!chainId || !rawTx) {
       throw new Error('Chain ID or raw transaction not found');
     }
 
-    const { pricing, trialedProducts } = this.messagingSystem.call(
-      'SubscriptionController:getState',
-    );
+    const { pricing, trialedProducts, lastSelectedPaymentMethod } = this.state;
     if (!pricing) {
       throw new Error('Subscription pricing not found');
     }
-
-    const decodeResponse = await this.#decodeTransactionDataHandler({
-      transactionData: txParams.data as Hex,
-      contractAddress: txParams.to as Hex,
-      chainId,
-    });
-    if (!decodeResponse) {
-      throw new Error('Invalid transaction');
-    }
-    const decodedApprovalAmount = decodeResponse?.data?.[0]?.params?.find(
-      (param) => param.name === 'value' || param.name === 'amount',
-    )?.value as string;
-    if (!decodedApprovalAmount) {
-      throw new Error('Approval amount not found');
+    if (!lastSelectedPaymentMethod) {
+      throw new Error('Last selected payment method not found');
     }
 
     const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
@@ -775,12 +773,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       throw new Error('Selected token price not found');
     }
 
-    const productPrice = this.#getProductPriceByApprovalAmount({
-      approvalAmount: decodedApprovalAmount,
-      chainId,
-      selectedTokenPrice,
-      pricingPlans: pricingPlans ?? [],
-    });
+    const productPrice = pricingPlans?.find(
+      (plan) =>
+        plan.interval === lastSelectedPaymentMethod[PRODUCT_TYPES.SHIELD].plan,
+    );
     if (!productPrice) {
       throw new Error('Product price not found');
     }
@@ -795,53 +791,14 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       tokenSymbol: selectedTokenPrice.symbol,
       rawTransaction: rawTx as Hex,
     };
-    await this.messagingSystem.call(
-      'SubscriptionController:startSubscriptionWithCrypto',
-      params,
-    );
-    await this.messagingSystem.call('SubscriptionController:getSubscriptions');
-  }
-
-  #getProductPriceByApprovalAmount({
-    approvalAmount,
-    chainId,
-    selectedTokenPrice,
-    pricingPlans,
-  }: {
-    approvalAmount: string;
-    pricingPlans: ProductPrice[];
-    chainId: Hex;
-    selectedTokenPrice: TokenPaymentInfo;
-  }) {
-    const getCryptoApproveTransactionParams = {
-      chainId,
-      paymentTokenAddress: selectedTokenPrice.address,
-      productType: PRODUCT_TYPES.SHIELD,
-    };
-    // Get all intervals from RECURRING_INTERVALS
-    const intervals = Object.values(RECURRING_INTERVALS);
-
-    // Fetch approval amounts for all intervals
-    const approvalAmounts = intervals.map((interval) =>
-      this.getCryptoApproveTransactionParams({
-        ...getCryptoApproveTransactionParams,
-        interval,
-      }),
-    );
-
-    // Find the matching plan by comparing approval amounts
-    for (let i = 0; i < approvalAmounts.length; i++) {
-      if (approvalAmounts[i]?.approveAmount === approvalAmount) {
-        return pricingPlans?.find((plan) => plan.interval === intervals[i]);
-      }
-    }
-
-    return undefined;
+    await this.startSubscriptionWithCrypto(params);
+    // update the subscriptions state after subscription created in server
+    await this.getSubscriptions();
   }
 
   #getSelectedAddress(): Hex | undefined {
     // If the address is not defined (or empty), we fallback to the currently selected account's address
-    const account = this.messagingSystem.call(
+    const account = this.messenger.call(
       'AccountsController:getSelectedAccount',
     );
     return account?.address as Hex | undefined;

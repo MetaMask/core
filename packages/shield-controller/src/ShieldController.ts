@@ -9,34 +9,18 @@ import {
   type SignatureRequest,
   type SignatureStateChange,
 } from '@metamask/signature-controller';
-import type {
-  SubscriptionControllerGetSubscriptionsAction,
-  SubscriptionControllerStartSubscriptionWithCryptoAction,
-  SubscriptionControllerGetStateAction,
-  SubscriptionControllerGetCryptoApproveTransactionParamsAction,
-  TokenPaymentInfo,
-  ProductPrice,
-} from '@metamask/subscription-controller';
-import {
-  PAYMENT_TYPES,
-  PRODUCT_TYPES,
-  RECURRING_INTERVALS,
-} from '@metamask/subscription-controller';
 import {
   TransactionStatus,
   type TransactionControllerStateChangeEvent,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
-import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionControllerTransactionSubmittedEvent } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
 import { cloneDeep, isEqual } from 'lodash';
 
 import { controllerName } from './constants';
 import { projectLogger, createModuleLogger } from './logger';
 import type {
   CoverageResult,
-  DecodeTransactionDataHandler,
   NormalizeSignatureRequestFn,
   ShieldBackend,
 } from './types';
@@ -162,11 +146,6 @@ export type ShieldControllerOptions = {
    * @returns The normalized signature request.
    */
   normalizeSignatureRequest?: NormalizeSignatureRequestFn;
-  /**
-   * Handler to decode transaction data.
-   * Depend on client provider, not being handled internally
-   */
-  decodeTransactionDataHandler: DecodeTransactionDataHandler;
 };
 
 export class ShieldController extends BaseController<
@@ -192,8 +171,6 @@ export class ShieldController extends BaseController<
     previousSignatureRequests: Record<string, SignatureRequest> | undefined,
   ) => void;
 
-  readonly #decodeTransactionDataHandler: DecodeTransactionDataHandler;
-
   #started: boolean;
 
   constructor(options: ShieldControllerOptions) {
@@ -204,7 +181,6 @@ export class ShieldController extends BaseController<
       transactionHistoryLimit = 100,
       coverageHistoryLimit = 10,
       normalizeSignatureRequest,
-      decodeTransactionDataHandler,
     } = options;
     super({
       name: controllerName,
@@ -225,7 +201,6 @@ export class ShieldController extends BaseController<
       this.#handleSignatureControllerStateChange.bind(this);
     this.#started = false;
     this.#normalizeSignatureRequest = normalizeSignatureRequest;
-    this.#decodeTransactionDataHandler = decodeTransactionDataHandler;
   }
 
   start() {
