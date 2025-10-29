@@ -775,7 +775,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
     const productPrice = pricingPlans?.find(
       (plan) =>
-        plan.interval === lastSelectedPaymentMethod[PRODUCT_TYPES.SHIELD].plan,
+        plan.interval === lastSelectedPaymentMethod[PRODUCT_TYPES.SHIELD]?.plan,
     );
     if (!productPrice) {
       throw new Error('Product price not found');
