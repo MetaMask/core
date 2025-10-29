@@ -57,7 +57,7 @@ export type {
   UpdatePaymentMethodCryptoRequest,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCardResponse,
-  CachedLastSelectedPaymentMethod as CachedLastSelectedPaymentMethods,
+  CachedLastSelectedPaymentMethod,
 } from './types';
 export {
   CRYPTO_PAYMENT_METHOD_ERRORS,
