@@ -335,6 +335,12 @@ export class AccountTreeController extends BaseController<
 
     // Insert all other kind of accounts (private keys, HW, other Snap accounts, etc.).
     for (const account of accounts) {
+      // BIP-44 accounts are owned byt the `MultichainAccountService`, so we have to skip them
+      // here, since we've already added wallets/groups for each of them.
+      if (isBip44Account(account)) {
+        continue;
+      }
+
       this.#insertAccount(wallets, account);
     }
 
@@ -1017,11 +1023,12 @@ export class AccountTreeController extends BaseController<
     wallets: AccountTreeControllerState['accountTree']['wallets'],
     account: InternalAccount,
   ) {
-    if (isBip44Account(account)) {
-      // We're skipping BIP-44 accounts since we rely on the `MultichainAccountService` to do
-      // the grouping of wallets/groups directly.
-      return;
-    }
+    // Those are owned by the `MultichainAccountService`, so they should be already handled
+    // by `#insertOrUpdateMultichainAccountWalletAndGroup` method.
+    assert(
+      !isBip44Account(account),
+      'BIP-44 accounts cannot be inserted explicitly',
+    );
 
     const result =
       this.#getSnapRule().match(account) ??
