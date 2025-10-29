@@ -559,7 +559,7 @@ describe('NetworkController', () => {
                 "rpcEndpoints": Array [
                   Object {
                     "failoverUrls": Array [],
-                    "networkClientId": "arbitrum-one",
+                    "networkClientId": "arbitrum-mainnet",
                     "type": "infura",
                     "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
                   },
@@ -746,7 +746,7 @@ describe('NetworkController', () => {
                   "rpcEndpoints": Array [
                     Object {
                       "failoverUrls": Array [],
-                      "networkClientId": "arbitrum-one",
+                      "networkClientId": "arbitrum-mainnet",
                       "type": "infura",
                       "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
                     },
@@ -14848,7 +14848,7 @@ describe('NetworkController', () => {
                 "rpcEndpoints": Array [
                   Object {
                     "failoverUrls": Array [],
-                    "networkClientId": "arbitrum-one",
+                    "networkClientId": "arbitrum-mainnet",
                     "type": "infura",
                     "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
                   },
@@ -15017,7 +15017,7 @@ describe('NetworkController', () => {
                 "rpcEndpoints": Array [
                   Object {
                     "failoverUrls": Array [],
-                    "networkClientId": "arbitrum-one",
+                    "networkClientId": "arbitrum-mainnet",
                     "type": "infura",
                     "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
                   },
@@ -15186,7 +15186,7 @@ describe('NetworkController', () => {
                 "rpcEndpoints": Array [
                   Object {
                     "failoverUrls": Array [],
-                    "networkClientId": "arbitrum-one",
+                    "networkClientId": "arbitrum-mainnet",
                     "type": "infura",
                     "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
                   },
