@@ -1,9 +1,11 @@
 import { toHex } from '@metamask/controller-utils';
+import type { CaipChainId } from '@metamask/utils';
 import nock from 'nock';
 
 import {
   fetchTokenListByChainId,
   fetchTokenMetadata,
+  searchTokens,
   TOKEN_END_POINT_API,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
 } from './token-service';
@@ -234,8 +236,54 @@ const sampleToken = {
   name: 'Chainlink',
 };
 
+const sampleSearchResults = [
+  {
+    address: '0xa0b86a33e6c166428cf041c73490a6b448b7f2c2',
+    symbol: 'USDC',
+    decimals: 6,
+    name: 'USD Coin',
+    occurrences: 12,
+    aggregators: [
+      'paraswap',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+      'uniswap',
+    ],
+  },
+  {
+    address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
+    symbol: 'USDT',
+    decimals: 6,
+    name: 'Tether USD',
+    occurrences: 11,
+    aggregators: [
+      'paraswap',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+  },
+];
+
 const sampleDecimalChainId = 1;
 const sampleChainId = toHex(sampleDecimalChainId);
+const sampleCaipChainId: CaipChainId = 'eip155:1';
+const polygonCaipChainId: CaipChainId = 'eip155:137';
 
 describe('Token service', () => {
   describe('fetchTokenListByChainId', () => {
@@ -435,6 +483,230 @@ describe('Token service', () => {
           signal,
         ),
       ).rejects.toThrow(TOKEN_METADATA_NO_SUPPORT_ERROR);
+    });
+  });
+
+  describe('searchTokens', () => {
+    it('should call the search api and return the list of matching tokens for single chain', async () => {
+      const searchQuery = 'USD';
+      const mockResponse = {
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+      
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(results).toStrictEqual({
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+      });
+    });
+
+    it('should call the search api with custom limit parameter', async () => {
+      const searchQuery = 'USDC';
+      const customLimit = 5;
+      const mockResponse = {
+        count: 1,
+        data: [sampleSearchResults[0]],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+      
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=${customLimit}`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery, {
+        limit: customLimit,
+      });
+
+      expect(results).toStrictEqual({
+        count: 1,
+        data: [sampleSearchResults[0]],
+      });
+    });
+
+    it('should properly encode search queries with special characters', async () => {
+      const searchQuery = 'USD Coin & Token';
+      const encodedQuery = 'USD%20Coin%20%26%20Token';
+      const mockResponse = {
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+      
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${encodedQuery}&limit=10`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(results).toStrictEqual({
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+      });
+    });
+
+    it('should search across multiple chains in a single request', async () => {
+      const searchQuery = 'USD';
+      const encodedChainIds = [sampleCaipChainId, polygonCaipChainId]
+        .map((id) => encodeURIComponent(id))
+        .join(',');
+      const mockResponse = {
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?chainIds=${encodedChainIds}&query=${searchQuery}&limit=10`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens(
+        [sampleCaipChainId, polygonCaipChainId],
+        searchQuery,
+      );
+
+      expect(results).toStrictEqual({
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+      });
+    });
+
+    it('should return empty array if the fetch fails with a network error', async () => {
+      const searchQuery = 'USD';
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10`,
+        )
+        .replyWithError('Example network error')
+        .persist();
+
+      const result = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(result).toStrictEqual({ count: 0, data: [] });
+    });
+
+    it('should return empty array if the fetch fails with 400 error', async () => {
+      const searchQuery = 'USD';
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10`,
+        )
+        .reply(400, { error: 'Bad Request' })
+        .persist();
+
+      const result = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(result).toStrictEqual({ count: 0, data: [] });
+    });
+
+    it('should return empty array if the fetch fails with 500 error', async () => {
+      const searchQuery = 'USD';
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10`,
+        )
+        .reply(500)
+        .persist();
+
+      const result = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(result).toStrictEqual({ count: 0, data: [] });
+    });
+
+    it('should handle empty search results', async () => {
+      const searchQuery = 'NONEXISTENT';
+      const mockResponse = {
+        count: 0,
+        data: [],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+      
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(results).toStrictEqual({ count: 0, data: [] });
+    });
+
+    it('should return empty array when no chainIds are provided', async () => {
+      const searchQuery = 'USD';
+      const results = await searchTokens([], searchQuery);
+
+      expect(results).toStrictEqual({ count: 0, data: [] });
+    });
+
+    it('should handle API error responses in JSON format', async () => {
+      const searchQuery = 'USD';
+      const errorResponse = { error: 'Invalid search query' };
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10`,
+        )
+        .reply(200, errorResponse)
+        .persist();
+
+      const result = await searchTokens([sampleCaipChainId], searchQuery);
+
+      // Non-array responses should be converted to empty object with count 0
+      expect(result).toStrictEqual({ count: 0, data: [] });
+    });
+
+    it('should handle supported CAIP format chain IDs', async () => {
+      const searchQuery = 'USD';
+      const solanaChainId: CaipChainId =
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+      const tronChainId: CaipChainId = 'tron:728126428';
+
+      const multiChainIds: CaipChainId[] = [
+        sampleCaipChainId,
+        solanaChainId,
+        tronChainId,
+      ];
+      const encodedChainIds = multiChainIds
+        .map((id) => encodeURIComponent(id))
+        .join(',');
+      const mockResponse = {
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?chainIds=${encodedChainIds}&query=${searchQuery}&limit=10`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const result = await searchTokens(multiChainIds, searchQuery);
+
+      expect(result).toStrictEqual({
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+      });
     });
   });
 });
