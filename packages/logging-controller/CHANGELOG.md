@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6463](https://github.com/MetaMask/core/pull/6463))
+  - Previously, `LoggingController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6463](https://github.com/MetaMask/core/pull/6463))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
 ## [6.1.1]
 
 ### Changed
@@ -175,7 +184,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial Release
   - Add logging controller ([#1089](https://github.com/MetaMask/core.git/pull/1089))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.1.1...@metamask/logging-controller@7.0.0
 [6.1.1]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.1.0...@metamask/logging-controller@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.0.4...@metamask/logging-controller@6.1.0
 [6.0.4]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.0.3...@metamask/logging-controller@6.0.4

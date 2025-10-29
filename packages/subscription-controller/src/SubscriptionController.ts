@@ -3,8 +3,8 @@ import {
   type StateMetadata,
   type ControllerStateChangeEvent,
   type ControllerGetStateAction,
-  type RestrictedMessenger,
 } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
@@ -30,6 +30,7 @@ import type {
   TokenPaymentInfo,
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodOpts,
+  CachedLastSelectedPaymentMethods,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -47,6 +48,16 @@ export type SubscriptionControllerState = {
   trialedProducts: ProductType[];
   subscriptions: Subscription[];
   pricing?: PricingResponse;
+
+  /**
+   * The last selected payment method for the user.
+   * This is used to display the last selected payment method in the UI.
+   * This state is also meant to be used internally to track the last selected payment method for the user. (e.g. for crypto subscriptions)
+   */
+  lastSelectedPaymentMethod?: Record<
+    ProductType,
+    CachedLastSelectedPaymentMethods
+  >;
 };
 
 // Messenger Actions
@@ -121,12 +132,10 @@ export type AllowedEvents =
   | TransactionControllerTransactionSubmittedEvent;
 
 // Messenger
-export type SubscriptionControllerMessenger = RestrictedMessenger<
+export type SubscriptionControllerMessenger = Messenger<
   typeof controllerName,
   SubscriptionControllerActions | AllowedActions,
-  SubscriptionControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  SubscriptionControllerEvents | AllowedEvents
 >;
 
 /**
@@ -177,25 +186,31 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
     subscriptions: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: true,
     },
     customerId: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: true,
     },
     trialedProducts: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: true,
+      includeInDebugSnapshot: true,
       usedInUi: true,
     },
     pricing: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: true,
+      includeInDebugSnapshot: true,
+      usedInUi: true,
+    },
+    lastSelectedPaymentMethod: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
       usedInUi: true,
     },
   };
@@ -244,47 +259,47 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * actions.
    */
   #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:getSubscriptions',
       this.getSubscriptions.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:getSubscriptionByProduct',
       this.getSubscriptionByProduct.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:cancelSubscription',
       this.cancelSubscription.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:startShieldSubscriptionWithCard',
       this.startShieldSubscriptionWithCard.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:getPricing',
       this.getPricing.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:getCryptoApproveTransactionParams',
       this.getCryptoApproveTransactionParams.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:startSubscriptionWithCrypto',
       this.startSubscriptionWithCrypto.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:updatePaymentMethod',
       this.updatePaymentMethod.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'SubscriptionController:getBillingPortalUrl',
       this.getBillingPortalUrl.bind(this),
     );
@@ -500,6 +515,37 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
+   * Cache the last selected payment method for a specific product.
+   *
+   * @param product - The product to cache the payment method for.
+   * @param paymentMethod - The payment method to cache.
+   * @param paymentMethod.type - The type of the payment method.
+   * @param paymentMethod.paymentTokenAddress - The payment token address.
+   * @param paymentMethod.plan - The plan of the payment method.
+   * @param paymentMethod.product - The product of the payment method.
+   */
+  cacheLastSelectedPaymentMethod(
+    product: ProductType,
+    paymentMethod: CachedLastSelectedPaymentMethods,
+  ) {
+    if (
+      paymentMethod.type === PAYMENT_TYPES.byCrypto &&
+      !paymentMethod.paymentTokenAddress
+    ) {
+      throw new Error(
+        SubscriptionControllerErrorMessage.PaymentTokenAddressRequiredForCrypto,
+      );
+    }
+
+    this.update((state) => {
+      state.lastSelectedPaymentMethod = {
+        ...state.lastSelectedPaymentMethod,
+        [product]: paymentMethod,
+      };
+    });
+  }
+
+  /**
    * Submit a user event from the UI. (e.g. shield modal viewed)
    *
    * @param request - Request object containing the event to submit.
@@ -587,7 +633,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     // We perform a sign out to clear the access token from the authentication
     // controller. Next time the access token is requested, a new access token
     // will be fetched.
-    this.messagingSystem.call('AuthenticationController:performSignOut');
+    this.messenger.call('AuthenticationController:performSignOut');
   }
 
   #assertIsUserSubscribed(request: { subscriptionId: string }) {

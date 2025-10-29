@@ -1,9 +1,9 @@
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
-import { BaseController } from '@metamask/base-controller';
-import type {
-  ControllerStateChangeEvent,
-  RestrictedMessenger,
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
 } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import {
   SignatureRequestStatus,
   type SignatureRequest,
@@ -76,6 +76,11 @@ export function getDefaultShieldControllerState(): ShieldControllerState {
   };
 }
 
+export type ShieldControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  ShieldControllerState
+>;
+
 export type ShieldControllerCheckCoverageAction = {
   type: `${typeof controllerName}:checkCoverage`;
   handler: ShieldController['checkCoverage'];
@@ -84,7 +89,9 @@ export type ShieldControllerCheckCoverageAction = {
 /**
  * The internal actions available to the ShieldController.
  */
-export type ShieldControllerActions = ShieldControllerCheckCoverageAction;
+export type ShieldControllerActions =
+  | ShieldControllerGetStateAction
+  | ShieldControllerCheckCoverageAction;
 
 export type ShieldControllerCoverageResultReceivedEvent = {
   type: `${typeof controllerName}:coverageResultReceived`;
@@ -104,16 +111,6 @@ export type ShieldControllerEvents =
   | ShieldControllerStateChangeEvent;
 
 /**
- * The external actions available to the ShieldController.
- */
-type AllowedActions =
-  | AccountsControllerGetSelectedAccountAction
-  | SubscriptionControllerStartSubscriptionWithCryptoAction
-  | SubscriptionControllerGetCryptoApproveTransactionParamsAction
-  | SubscriptionControllerGetStateAction
-  | SubscriptionControllerGetSubscriptionsAction;
-
-/**
  * The external events available to the ShieldController.
  */
 type AllowedEvents =
@@ -124,12 +121,10 @@ type AllowedEvents =
 /**
  * The messenger of the {@link ShieldController}.
  */
-export type ShieldControllerMessenger = RestrictedMessenger<
+export type ShieldControllerMessenger = Messenger<
   typeof controllerName,
-  ShieldControllerActions | AllowedActions,
-  ShieldControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  ShieldControllerActions,
+  ShieldControllerEvents | AllowedEvents
 >;
 
 /**
@@ -140,13 +135,13 @@ const metadata = {
   coverageResults: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   orderedTransactionHistory: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
 };
@@ -231,16 +226,6 @@ export class ShieldController extends BaseController<
     this.#started = false;
     this.#normalizeSignatureRequest = normalizeSignatureRequest;
     this.#decodeTransactionDataHandler = decodeTransactionDataHandler;
-
-    this.messagingSystem.subscribe(
-      'TransactionController:transactionSubmitted',
-      ({ transactionMeta }) => {
-        // transaction meta only has rawTx available when the transaction status is submitted
-        this.#handleSubscriptionCryptoApproval(transactionMeta).catch((error) =>
-          log('Error handling subscription crypto approval:', error),
-        );
-      },
-    );
   }
 
   start() {
@@ -249,13 +234,13 @@ export class ShieldController extends BaseController<
     }
     this.#started = true;
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
       (state) => state.transactions,
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'SignatureController:stateChange',
       this.#signatureControllerStateChangeHandler,
       (state) => state.signatureRequests,
@@ -268,12 +253,12 @@ export class ShieldController extends BaseController<
     }
     this.#started = false;
 
-    this.messagingSystem.unsubscribe(
+    this.messenger.unsubscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
     );
 
-    this.messagingSystem.unsubscribe(
+    this.messenger.unsubscribe(
       'SignatureController:stateChange',
       this.#signatureControllerStateChangeHandler,
     );
@@ -369,7 +354,7 @@ export class ShieldController extends BaseController<
     });
 
     // Publish coverage result
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:coverageResultReceived`,
       coverageResult,
     );
@@ -404,7 +389,7 @@ export class ShieldController extends BaseController<
     });
 
     // Publish coverage result
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:coverageResultReceived`,
       coverageResult,
     );
@@ -490,139 +475,6 @@ export class ShieldController extends BaseController<
       transactionHash,
       status,
     });
-  }
-
-  /**
-   * Transaction submitted listener for shield subscription crypto approval transactions.
-   *
-   * @param txMeta - The transaction metadata.
-   * @returns void
-   */
-  async #handleSubscriptionCryptoApproval(txMeta: TransactionMeta) {
-    if (txMeta.type !== TransactionType.shieldSubscriptionApprove) {
-      return;
-    }
-
-    const { chainId, rawTx, txParams } = txMeta;
-    if (!chainId || !rawTx) {
-      throw new Error('Chain ID or raw transaction not found');
-    }
-
-    const { pricing, trialedProducts } = this.messagingSystem.call(
-      'SubscriptionController:getState',
-    );
-    if (!pricing) {
-      throw new Error('Subscription pricing not found');
-    }
-
-    const decodeResponse = await this.#decodeTransactionDataHandler({
-      transactionData: txParams.data as Hex,
-      contractAddress: txParams.to as Hex,
-      chainId,
-    });
-    if (!decodeResponse) {
-      throw new Error('Invalid transaction');
-    }
-    const decodedApprovalAmount = decodeResponse?.data?.[0]?.params?.find(
-      (param) => param.name === 'value' || param.name === 'amount',
-    )?.value as string;
-    if (!decodedApprovalAmount) {
-      throw new Error('Approval amount not found');
-    }
-
-    const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
-    const pricingPlans = pricing?.products.find(
-      (product) => product.name === PRODUCT_TYPES.SHIELD,
-    )?.prices;
-    const cryptoPaymentMethod = pricing?.paymentMethods.find(
-      (paymentMethod) => paymentMethod.type === PAYMENT_TYPES.byCrypto,
-    );
-    const selectedTokenPrice = cryptoPaymentMethod?.chains
-      ?.find(
-        (chain) =>
-          chain.chainId.toLowerCase() === txMeta?.chainId.toLowerCase(),
-      )
-      ?.tokens.find(
-        (token) =>
-          token.address.toLowerCase() === txMeta?.txParams?.to?.toLowerCase(),
-      );
-    if (!selectedTokenPrice) {
-      throw new Error('Selected token price not found');
-    }
-
-    const productPrice = this.#getProductPriceByApprovalAmount({
-      approvalAmount: decodedApprovalAmount,
-      chainId,
-      selectedTokenPrice,
-      pricingPlans: pricingPlans ?? [],
-    });
-    if (!productPrice) {
-      throw new Error('Product price not found');
-    }
-
-    const params = {
-      products: [PRODUCT_TYPES.SHIELD],
-      isTrialRequested: !isTrialed,
-      recurringInterval: productPrice.interval,
-      billingCycles: productPrice.minBillingCycles,
-      chainId,
-      payerAddress: this.#getSelectedAddress() as Hex,
-      tokenSymbol: selectedTokenPrice.symbol,
-      rawTransaction: rawTx as Hex,
-    };
-    await this.messagingSystem.call(
-      'SubscriptionController:startSubscriptionWithCrypto',
-      params,
-    );
-    await this.messagingSystem.call('SubscriptionController:getSubscriptions');
-  }
-
-  #getProductPriceByApprovalAmount({
-    approvalAmount,
-    chainId,
-    selectedTokenPrice,
-    pricingPlans,
-  }: {
-    approvalAmount: string;
-    pricingPlans: ProductPrice[];
-    chainId: Hex;
-    selectedTokenPrice: TokenPaymentInfo;
-  }) {
-    const getCryptoApproveTransactionParams = {
-      chainId,
-      paymentTokenAddress: selectedTokenPrice.address,
-      productType: PRODUCT_TYPES.SHIELD,
-    };
-    // Get all intervals from RECURRING_INTERVALS
-    const intervals = Object.values(RECURRING_INTERVALS);
-
-    // Fetch approval amounts for all intervals
-    const approvalAmounts = intervals.map((interval) =>
-      this.messagingSystem.call(
-        'SubscriptionController:getCryptoApproveTransactionParams',
-        {
-          ...getCryptoApproveTransactionParams,
-          interval,
-        },
-      ),
-    );
-
-    // Find the matching plan by comparing approval amounts
-    for (let i = 0; i < approvalAmounts.length; i++) {
-      if (approvalAmounts[i]?.approveAmount === approvalAmount) {
-        return pricingPlans?.find((plan) => plan.interval === intervals[i]);
-      }
-    }
-
-    return undefined;
-  }
-
-  #getSelectedAddress(): Hex | undefined {
-    // If the address is not defined (or empty), we fallback to the currently selected account's address
-    const account = this.messagingSystem.call(
-      'AccountsController:getSelectedAccount',
-    );
-    return account?.address as Hex | undefined;
   }
 
   #getCoverageStatus(itemId: string) {

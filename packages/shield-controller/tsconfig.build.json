@@ -9,8 +9,8 @@
     { "path": "../accounts-controller/tsconfig.build.json" },
     { "path": "../base-controller/tsconfig.build.json" },
     { "path": "../signature-controller/tsconfig.build.json" },
-    { "path": "../subscription-controller/tsconfig.build.json" },
-    { "path": "../transaction-controller/tsconfig.build.json" }
+    { "path": "../transaction-controller/tsconfig.build.json" },
+    { "path": "../messenger/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]
 }

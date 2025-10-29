@@ -1,12 +1,12 @@
 import type { Signer } from '@metamask/7715-permission-types';
 import type {
-  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
+import type { Messenger } from '@metamask/messenger';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
@@ -92,32 +92,33 @@ export type GatorPermissionsControllerState = {
   gatorPermissionsProviderSnapId: SnapId;
 };
 
-const gatorPermissionsControllerMetadata = {
-  isGatorPermissionsEnabled: {
-    includeInStateLogs: true,
-    persist: true,
-    anonymous: false,
-    usedInUi: false,
-  },
-  gatorPermissionsMapSerialized: {
-    includeInStateLogs: true,
-    persist: true,
-    anonymous: false,
-    usedInUi: true,
-  },
-  isFetchingGatorPermissions: {
-    includeInStateLogs: true,
-    persist: false,
-    anonymous: false,
-    usedInUi: false,
-  },
-  gatorPermissionsProviderSnapId: {
-    includeInStateLogs: true,
-    persist: false,
-    anonymous: false,
-    usedInUi: false,
-  },
-} satisfies StateMetadata<GatorPermissionsControllerState>;
+const gatorPermissionsControllerMetadata: StateMetadata<GatorPermissionsControllerState> =
+  {
+    isGatorPermissionsEnabled: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: false,
+    },
+    gatorPermissionsMapSerialized: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
+    isFetchingGatorPermissions: {
+      includeInStateLogs: true,
+      persist: false,
+      includeInDebugSnapshot: false,
+      usedInUi: false,
+    },
+    gatorPermissionsProviderSnapId: {
+      includeInStateLogs: true,
+      persist: false,
+      includeInDebugSnapshot: false,
+      usedInUi: false,
+    },
+  } satisfies StateMetadata<GatorPermissionsControllerState>;
 
 /**
  * Constructs the default {@link GatorPermissionsController} state. This allows
@@ -222,12 +223,10 @@ type AllowedEvents = GatorPermissionsControllerStateChangeEvent;
 /**
  * Messenger type for the GatorPermissionsController.
  */
-export type GatorPermissionsControllerMessenger = RestrictedMessenger<
+export type GatorPermissionsControllerMessenger = Messenger<
   typeof controllerName,
   GatorPermissionsControllerActions | AllowedActions,
-  GatorPermissionsControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  GatorPermissionsControllerEvents | AllowedEvents
 >;
 
 /**
@@ -279,22 +278,22 @@ export default class GatorPermissionsController extends BaseController<
   }
 
   #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:fetchAndUpdateGatorPermissions`,
       this.fetchAndUpdateGatorPermissions.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:enableGatorPermissions`,
       this.enableGatorPermissions.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:disableGatorPermissions`,
       this.disableGatorPermissions.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:decodePermissionFromPermissionContextForOrigin`,
       this.decodePermissionFromPermissionContextForOrigin.bind(this),
     );
@@ -326,7 +325,7 @@ export default class GatorPermissionsController extends BaseController<
     StoredGatorPermission<Signer, PermissionTypesWithCustom>[] | null
   > {
     try {
-      const response = (await this.messagingSystem.call(
+      const response = (await this.messenger.call(
         'SnapController:handleRequest',
         {
           snapId,

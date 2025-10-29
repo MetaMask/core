@@ -13,6 +13,9 @@
       "path": "../base-controller/tsconfig.build.json"
     },
     {
+      "path": "../messenger/tsconfig.build.json"
+    },
+    {
       "path": "../profile-sync-controller/tsconfig.build.json"
     },
     {
