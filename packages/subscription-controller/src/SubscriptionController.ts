@@ -19,7 +19,6 @@ import {
   DEFAULT_POLLING_INTERVAL,
   SubscriptionControllerErrorMessage,
 } from './constants';
-import { createModuleLogger, projectLogger } from './logger';
 import type {
   BillingPortalResponse,
   GetCryptoApproveTransactionRequest,
@@ -44,8 +43,6 @@ import {
   type StartSubscriptionRequest,
   type Subscription,
 } from './types';
-
-const log = createModuleLogger(projectLogger, controllerName);
 
 export type SubscriptionControllerState = {
   customerId?: string;
@@ -107,6 +104,12 @@ export type SubscriptionControllerSubmitSponsorshipIntentsAction = {
   handler: SubscriptionController['submitSponsorshipIntents'];
 };
 
+export type SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction =
+  {
+    type: `${typeof controllerName}:submitShieldSubscriptionCryptoApproval`;
+    handler: SubscriptionController['submitShieldSubscriptionCryptoApproval'];
+  };
+
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   SubscriptionControllerState
@@ -122,7 +125,8 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerStartSubscriptionWithCryptoAction
   | SubscriptionControllerUpdatePaymentMethodAction
   | SubscriptionControllerGetBillingPortalUrlAction
-  | SubscriptionControllerSubmitSponsorshipIntentsAction;
+  | SubscriptionControllerSubmitSponsorshipIntentsAction
+  | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -261,16 +265,6 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.setIntervalLength(pollingInterval);
     this.#subscriptionService = subscriptionService;
     this.#registerMessageHandlers();
-
-    this.messenger.subscribe(
-      'TransactionController:transactionSubmitted',
-      ({ transactionMeta }) => {
-        // transaction meta only has rawTx available when the transaction status is submitted
-        this.#handleShieldSubscriptionCryptoApproval(transactionMeta).catch(
-          (error) => log('Error handling subscription crypto approval:', error),
-        );
-      },
-    );
   }
 
   /**
@@ -326,6 +320,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.messenger.registerActionHandler(
       `${controllerName}:submitSponsorshipIntents`,
       this.submitSponsorshipIntents.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:submitShieldSubscriptionCryptoApproval`,
+      this.submitShieldSubscriptionCryptoApproval.bind(this),
     );
   }
 
@@ -835,12 +834,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
-   * Transaction submitted listener for shield subscription crypto approval transactions.
+   * Handles shield subscription crypto approval transactions.
    *
    * @param txMeta - The transaction metadata.
+   * @param isSponsored - Whether the transaction is sponsored.
    * @returns void
    */
-  async #handleShieldSubscriptionCryptoApproval(txMeta: TransactionMeta) {
+  async submitShieldSubscriptionCryptoApproval(
+    txMeta: TransactionMeta,
+    isSponsored?: boolean,
+  ) {
     if (txMeta.type !== TransactionType.shieldSubscriptionApprove) {
       return;
     }
@@ -898,6 +901,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       payerAddress: txMeta.txParams.from as Hex,
       tokenSymbol: selectedTokenPrice.symbol,
       rawTransaction: rawTx as Hex,
+      isSponsored,
     };
     await this.startSubscriptionWithCrypto(params);
     // update the subscriptions state after subscription created in server

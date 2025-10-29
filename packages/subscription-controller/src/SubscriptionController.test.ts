@@ -11,6 +11,7 @@ import {
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import * as sinon from 'sinon';
 
 import {
@@ -162,10 +163,7 @@ function createCustomSubscriptionMessenger(props?: {
       'AuthenticationController:getBearerToken',
       'AuthenticationController:performSignOut',
     ],
-    events: props?.overrideEvents ?? [
-      'AuthenticationController:stateChange',
-      'TransactionController:transactionSubmitted',
-    ],
+    events: props?.overrideEvents ?? ['AuthenticationController:stateChange'],
   });
 
   return {
@@ -1709,7 +1707,7 @@ describe('SubscriptionController', () => {
     });
   });
 
-  describe('#handleSubscriptionCryptoApproval', () => {
+  describe('submitShieldSubscriptionCryptoApproval', () => {
     it('should handle subscription crypto approval when shield subscription transaction is submitted', async () => {
       await withController(
         {
@@ -1727,43 +1725,31 @@ describe('SubscriptionController', () => {
             },
           },
         },
-        async ({ rootMessenger, mockService }) => {
-          // Create a promise that resolves when startSubscriptionWithCrypto is called
-          let startSubscriptionResolve: () => void;
-          const startSubscriptionPromise = new Promise<void>((resolve) => {
-            startSubscriptionResolve = resolve;
-          });
-
+        async ({ controller, mockService }) => {
           mockService.startSubscriptionWithCrypto.mockResolvedValue({
             subscriptionId: 'sub_123',
             status: SUBSCRIPTION_STATUSES.trialing,
           });
 
-          mockService.getSubscriptions.mockImplementation(async () => {
-            startSubscriptionResolve();
-            return [];
-          });
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
 
           // Create a shield subscription approval transaction
           const txMeta = {
             ...generateMockTxMeta(),
             type: TransactionType.shieldSubscriptionApprove,
-            chainId: '0x1',
+            chainId: '0x1' as Hex,
             rawTx: '0x123',
             txParams: {
               data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
               to: '0xtoken',
             },
             status: TransactionStatus.submitted,
           };
 
-          // Publish the transaction submitted event to trigger the handler
-          rootMessenger.publish('TransactionController:transactionSubmitted', {
-            transactionMeta: txMeta as TransactionMeta,
-          });
-
-          // Wait for the subscription to be started
-          await startSubscriptionPromise;
+          await controller.submitShieldSubscriptionCryptoApproval(txMeta);
 
           expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledTimes(
             1,
@@ -1781,7 +1767,7 @@ describe('SubscriptionController', () => {
             subscriptions: [],
           },
         },
-        async ({ rootMessenger, mockService }) => {
+        async ({ controller, mockService }) => {
           // Create a non-shield subscription transaction
           const txMeta = {
             ...generateMockTxMeta(),
@@ -1791,13 +1777,9 @@ describe('SubscriptionController', () => {
             rawTx: '0x123',
           };
 
-          // Publish the transaction state change
-          rootMessenger.publish('TransactionController:transactionSubmitted', {
-            transactionMeta: txMeta as TransactionMeta,
-          });
-
-          // Wait for async operations
-          await new Promise((resolve) => setTimeout(resolve, 1));
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow('Subscription pricing not found');
 
           // Verify that startSubscriptionWithCrypto was not called
           expect(
@@ -1816,7 +1798,7 @@ describe('SubscriptionController', () => {
             subscriptions: [],
           },
         },
-        async ({ rootMessenger, mockService }) => {
+        async ({ controller, mockService }) => {
           // Create a non-shield subscription transaction
           const txMeta = {
             ...generateMockTxMeta(),
@@ -1825,13 +1807,7 @@ describe('SubscriptionController', () => {
             hash: '0x123',
           };
 
-          // Publish the transaction state change
-          rootMessenger.publish('TransactionController:transactionSubmitted', {
-            transactionMeta: txMeta as TransactionMeta,
-          });
-
-          // Wait for async operations
-          await new Promise((resolve) => setTimeout(resolve, 1));
+          await controller.submitShieldSubscriptionCryptoApproval(txMeta);
 
           // Verify that decodeTransactionDataHandler was not called
           expect(
@@ -1850,28 +1826,25 @@ describe('SubscriptionController', () => {
             subscriptions: [],
           },
         },
-        async ({ rootMessenger, mockService }) => {
+        async ({ controller, mockService }) => {
           // Create a transaction without chainId
           const txMeta = {
             ...generateMockTxMeta(),
             type: TransactionType.shieldSubscriptionApprove,
-            chainId: undefined,
+            chainId: undefined as unknown as Hex,
             rawTx: '0x123',
             txParams: {
               data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
               to: '0x789',
             },
             status: TransactionStatus.submitted,
             hash: '0x123',
           };
 
-          // Publish the transaction state change
-          rootMessenger.publish('TransactionController:transactionSubmitted', {
-            transactionMeta: txMeta as unknown as TransactionMeta,
-          });
-
-          // Wait for async operations
-          await new Promise((resolve) => setTimeout(resolve, 1));
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow('Chain ID or raw transaction not found');
 
           // Verify that decodeTransactionDataHandler was not called due to early error
           expect(
@@ -1890,28 +1863,25 @@ describe('SubscriptionController', () => {
             subscriptions: [],
           },
         },
-        async ({ rootMessenger, mockService }) => {
+        async ({ controller, mockService }) => {
           // Create a shield subscription approval transaction with token address that doesn't exist
           const txMeta = {
             ...generateMockTxMeta(),
             type: TransactionType.shieldSubscriptionApprove,
-            chainId: '0x1',
+            chainId: '0x1' as Hex,
             rawTx: '0x123',
             txParams: {
               data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
               to: '0xnonexistent',
             },
             status: TransactionStatus.submitted,
             hash: '0x123',
           };
 
-          // Publish the transaction submitted event to trigger the handler
-          rootMessenger.publish('TransactionController:transactionSubmitted', {
-            transactionMeta: txMeta as TransactionMeta,
-          });
-
-          // Wait for async operations
-          await new Promise((resolve) => setTimeout(resolve, 1));
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow('Last selected payment method not found');
 
           expect(
             mockService.startSubscriptionWithCrypto,
@@ -1937,28 +1907,25 @@ describe('SubscriptionController', () => {
             },
           },
         },
-        async ({ rootMessenger, mockService }) => {
+        async ({ controller, mockService }) => {
           // Create a shield subscription approval transaction with token address that doesn't exist
           const txMeta = {
             ...generateMockTxMeta(),
             type: TransactionType.shieldSubscriptionApprove,
-            chainId: '0x1',
+            chainId: '0x1' as Hex,
             rawTx: '0x123',
             txParams: {
               data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
               to: '0xnonexistent',
             },
             status: TransactionStatus.submitted,
             hash: '0x123',
           };
 
-          // Publish the transaction submitted event to trigger the handler
-          rootMessenger.publish('TransactionController:transactionSubmitted', {
-            transactionMeta: txMeta as TransactionMeta,
-          });
-
-          // Wait for async operations
-          await new Promise((resolve) => setTimeout(resolve, 1));
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow('Selected token price not found');
 
           expect(
             mockService.startSubscriptionWithCrypto,
@@ -1984,28 +1951,25 @@ describe('SubscriptionController', () => {
             },
           },
         },
-        async ({ rootMessenger, mockService }) => {
+        async ({ controller, mockService }) => {
           // Create a shield subscription approval transaction
           const txMeta = {
             ...generateMockTxMeta(),
             type: TransactionType.shieldSubscriptionApprove,
-            chainId: '0x1',
+            chainId: '0x1' as Hex,
             rawTx: '0x123',
             txParams: {
               data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
               to: '0xtoken',
             },
             status: TransactionStatus.submitted,
             hash: '0x123',
           };
 
-          // Publish the transaction submitted event to trigger the handler
-          rootMessenger.publish('TransactionController:transactionSubmitted', {
-            transactionMeta: txMeta as TransactionMeta,
-          });
-
-          // Wait for async operations
-          await new Promise((resolve) => setTimeout(resolve, 1));
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow('Product price not found');
 
           expect(
             mockService.startSubscriptionWithCrypto,
