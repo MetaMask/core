@@ -1,13 +1,18 @@
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { getDefaultKeyringState } from '@metamask/keyring-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { cloneDeep } from 'lodash';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
 import type {
-  AllowedEvents,
   EtherscanSupportedHexChainId,
-  PreferencesControllerActions,
-  PreferencesControllerEvents,
+  PreferencesControllerMessenger,
 } from './PreferencesController';
 import { PreferencesController } from './PreferencesController';
 
@@ -55,7 +60,7 @@ describe('PreferencesController', () => {
 
   describe('KeyringController:stateChange', () => {
     it('should update identities state to reflect new keyring accounts', () => {
-      const messenger = getMessenger();
+      const messenger = getRootMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -103,7 +108,7 @@ describe('PreferencesController', () => {
     });
 
     it('should update identities state to reflect removed keyring accounts', () => {
-      const messenger = getMessenger();
+      const messenger = getRootMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -142,7 +147,7 @@ describe('PreferencesController', () => {
     });
 
     it('should update selected address to first identity if the selected address was removed', () => {
-      const messenger = getMessenger();
+      const messenger = getRootMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -184,7 +189,7 @@ describe('PreferencesController', () => {
         '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
         '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
       };
-      const messenger = getMessenger();
+      const messenger = getRootMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -222,7 +227,7 @@ describe('PreferencesController', () => {
         '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
         '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
       };
-      const messenger = getMessenger();
+      const messenger = getRootMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -260,7 +265,7 @@ describe('PreferencesController', () => {
         '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
         '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
       };
-      const messenger = getMessenger();
+      const messenger = getRootMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -306,7 +311,7 @@ describe('PreferencesController', () => {
         '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
         '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
       };
-      const messenger = getMessenger();
+      const messenger = getRootMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -591,7 +596,7 @@ describe('PreferencesController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
         Object {
@@ -839,22 +844,27 @@ describe('PreferencesController', () => {
   });
 });
 
+type AllPreferencesControllerActions =
+  MessengerActions<PreferencesControllerMessenger>;
+
+type AllPreferencesControllerEvents =
+  MessengerEvents<PreferencesControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllPreferencesControllerActions,
+  AllPreferencesControllerEvents
+>;
+
 /**
- * Construct a messenger for use in PreferencesController tests.
+ * Creates and returns a root messenger for testing
  *
- * This is a utility function that saves us from manually entering the correct
- * type parameters for the Messenger each time we construct it.
- *
- * @returns A messenger
+ * @returns A messenger instance
  */
-function getMessenger(): Messenger<
-  PreferencesControllerActions,
-  PreferencesControllerEvents | AllowedEvents
-> {
-  return new Messenger<
-    PreferencesControllerActions,
-    PreferencesControllerEvents | AllowedEvents
-  >();
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 }
 
 /**
@@ -867,22 +877,24 @@ function getMessenger(): Messenger<
  */
 function setupPreferencesController({
   options = {},
-  messenger = getMessenger(),
+  messenger = getRootMessenger(),
 }: {
   options?: Partial<ConstructorParameters<typeof PreferencesController>[0]>;
-  messenger?: Messenger<
-    PreferencesControllerActions,
-    PreferencesControllerEvents | AllowedEvents
-  >;
+  messenger?: RootMessenger;
 } = {}) {
-  const preferencesControllerMessenger = messenger.getRestricted<
+  const preferencesControllerMessenger = new Messenger<
     'PreferencesController',
-    never,
-    AllowedEvents['type']
+    AllPreferencesControllerActions,
+    AllPreferencesControllerEvents,
+    RootMessenger
   >({
-    name: 'PreferencesController',
-    allowedActions: [],
-    allowedEvents: ['KeyringController:stateChange'],
+    namespace: 'PreferencesController',
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: preferencesControllerMessenger,
+    actions: [],
+    events: ['KeyringController:stateChange'],
   });
   return new PreferencesController({
     messenger: preferencesControllerMessenger,

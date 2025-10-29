@@ -475,4 +475,37 @@ describe('SubscriptionService', () => {
       });
     });
   });
+
+  describe('submitSponsorshipIntents', () => {
+    it('should submit sponsorship intents successfully', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        handleFetchMock.mockResolvedValue({});
+
+        await service.submitSponsorshipIntents({
+          chainId: '0x1',
+          address: '0x1234567890123456789012345678901234567890',
+          products: [PRODUCT_TYPES.SHIELD],
+          recurringInterval: RECURRING_INTERVALS.month,
+          billingCycles: 12,
+          paymentTokenSymbol: 'USDT',
+        });
+
+        expect(handleFetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(config.env, 'transaction-sponsorship/intents'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              chainId: '0x1',
+              address: '0x1234567890123456789012345678901234567890',
+              products: [PRODUCT_TYPES.SHIELD],
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 12,
+              paymentTokenSymbol: 'USDT',
+            }),
+          },
+        );
+      });
+    });
+  });
 });

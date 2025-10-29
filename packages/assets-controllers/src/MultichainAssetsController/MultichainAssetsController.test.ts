@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   AccountAssetListUpdatedEventPayload,
   CaipAssetTypeOrId,
@@ -11,6 +11,13 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type { PermissionConstraint } from '@metamask/permission-controller';
 import type { SubjectPermissions } from '@metamask/permission-controller';
 import type { Snap } from '@metamask/snaps-utils';
@@ -27,10 +34,6 @@ import type {
   MultichainAssetsControllerState,
 } from './MultichainAssetsController';
 import { advanceTime } from '../../../../tests/helpers';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../../base-controller/tests/helpers';
 
 const mockSolanaAccount: InternalAccount = {
   type: 'solana:data-account',
@@ -216,21 +219,26 @@ const mockGetMetadataReturnValue: AssetMetadataResponse | undefined = {
 /**
  * The union of actions that the root messenger allows.
  */
-type RootAction = ExtractAvailableAction<MultichainAssetsControllerMessenger>;
+type RootAction = MessengerActions<MultichainAssetsControllerMessenger>;
 
 /**
  * The union of events that the root messenger allows.
  */
-type RootEvent = ExtractAvailableEvent<MultichainAssetsControllerMessenger>;
+type RootEvent = MessengerEvents<MultichainAssetsControllerMessenger>;
 
 /**
- * Constructs the unrestricted messenger. This can be used to call actions and
+ * The root messenger type.
+ */
+type RootMessenger = Messenger<MockAnyNamespace, RootAction, RootEvent>;
+
+/**
+ * Constructs the root messenger. This can be used to call actions and
  * publish events within the tests for this controller.
  *
- * @returns The unrestricted messenger suited for MultichainAssetsController.
+ * @returns The root messenger suited for MultichainAssetsController.
  */
-function getRootMessenger(): Messenger<RootAction, RootEvent> {
-  return new Messenger<RootAction, RootEvent>();
+function getRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 const setupController = ({
@@ -248,20 +256,24 @@ const setupController = ({
   const messenger = getRootMessenger();
 
   const multichainAssetsControllerMessenger: MultichainAssetsControllerMessenger =
-    messenger.getRestricted({
-      name: 'MultichainAssetsController',
-      allowedActions: [
-        'AccountsController:listMultichainAccounts',
-        'SnapController:handleRequest',
-        'SnapController:getAll',
-        'PermissionController:getPermissions',
-      ],
-      allowedEvents: [
-        'AccountsController:accountAdded',
-        'AccountsController:accountRemoved',
-        'AccountsController:accountAssetListUpdated',
-      ],
+    new Messenger({
+      namespace: 'MultichainAssetsController',
+      parent: messenger,
     });
+  messenger.delegate({
+    messenger: multichainAssetsControllerMessenger,
+    actions: [
+      'AccountsController:listMultichainAccounts',
+      'SnapController:handleRequest',
+      'SnapController:getAll',
+      'PermissionController:getPermissions',
+    ],
+    events: [
+      'AccountsController:accountAdded',
+      'AccountsController:accountRemoved',
+      'AccountsController:accountAssetListUpdated',
+    ],
+  });
 
   const mockSnapHandleRequest = jest.fn();
   messenger.registerActionHandler(
@@ -1062,7 +1074,7 @@ describe('MultichainAssetsController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });

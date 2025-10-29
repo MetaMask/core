@@ -1,10 +1,10 @@
 import { Contract } from '@ethersproject/contracts';
-import type { ApprovalStateChange } from '@metamask/approval-controller';
+import type { ApprovalControllerMessenger } from '@metamask/approval-controller';
 import {
   ApprovalController,
   type ApprovalControllerState,
 } from '@metamask/approval-controller';
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
 import {
   ApprovalType,
@@ -14,6 +14,13 @@ import {
   InfuraNetworkType,
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MockAnyNamespace,
+  type MessengerActions,
+  type MessengerEvents,
+} from '@metamask/messenger';
 import type {
   NetworkClientConfiguration,
   NetworkClientId,
@@ -27,10 +34,6 @@ import { v1 as uuidV1 } from 'uuid';
 
 import { FakeProvider } from '../../../tests/fake-provider';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
@@ -41,8 +44,6 @@ import { TOKEN_END_POINT_API } from './token-service';
 import type { Token } from './TokenRatesController';
 import { TokensController } from './TokensController';
 import type {
-  AllowedActions,
-  AllowedEvents,
   TokensControllerMessenger,
   TokensControllerState,
 } from './TokensController';
@@ -55,10 +56,15 @@ jest.mock('uuid', () => ({
 jest.mock('./Standards/ERC20Standard');
 jest.mock('./Standards/NftStandards/ERC1155/ERC1155Standard');
 
-type UnrestrictedMessenger = Messenger<
-  ExtractAvailableAction<TokensControllerMessenger>,
-  ExtractAvailableEvent<TokensControllerMessenger> | ApprovalStateChange
->;
+type AllActions =
+  | MessengerActions<TokensControllerMessenger>
+  | MessengerActions<ApprovalControllerMessenger>;
+
+type AllEvents =
+  | MessengerEvents<TokensControllerMessenger>
+  | MessengerEvents<ApprovalControllerMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const ContractMock = jest.mocked(Contract);
 const uuidV1Mock = jest.mocked(uuidV1);
@@ -3477,7 +3483,7 @@ describe('TokensController', () => {
           deriveStateFromMetadata(
             controller.state,
             controller.metadata,
-            'anonymous',
+            'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`Object {}`);
       });
@@ -3545,7 +3551,7 @@ type WithControllerCallback<ReturnValue> = ({
   changeNetwork: (networkControllerState: {
     selectedNetworkClientId: NetworkClientId;
   }) => void;
-  messenger: UnrestrictedMessenger;
+  messenger: RootMessenger;
   approvalController: ApprovalController;
   triggerSelectedAccountChange: (internalAccount: InternalAccount) => void;
   triggerAccountRemoved: (accountAddress: string) => void;
@@ -3603,12 +3609,18 @@ async function withController<ReturnValue>(
     fn,
   ] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger = new Messenger<AllowedActions, AllowedEvents>();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
-  const approvalControllerMessenger = messenger.getRestricted({
-    name: 'ApprovalController',
-    allowedActions: [],
-    allowedEvents: [],
+  const approvalControllerMessenger = new Messenger<
+    'ApprovalController',
+    MessengerActions<ApprovalControllerMessenger>,
+    MessengerEvents<ApprovalControllerMessenger>,
+    RootMessenger
+  >({
+    namespace: 'ApprovalController',
+    parent: messenger,
   });
   const approvalController = new ApprovalController({
     messenger: approvalControllerMessenger,
@@ -3616,16 +3628,25 @@ async function withController<ReturnValue>(
     typesExcludedFromRateLimiting: [ApprovalType.WatchAsset],
   });
 
-  const restrictedMessenger = messenger.getRestricted({
-    name: 'TokensController',
-    allowedActions: [
+  const tokensControllerMessenger = new Messenger<
+    'TokensController',
+    MessengerActions<TokensControllerMessenger>,
+    MessengerEvents<TokensControllerMessenger>,
+    RootMessenger
+  >({
+    namespace: 'TokensController',
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: tokensControllerMessenger,
+    actions: [
       'ApprovalController:addRequest',
       'NetworkController:getNetworkClientById',
       'AccountsController:getAccount',
       'AccountsController:getSelectedAccount',
       'AccountsController:listAccounts',
     ],
-    allowedEvents: [
+    events: [
       'NetworkController:networkDidChange',
       'NetworkController:stateChange',
       'AccountsController:selectedEvmAccountChange',
@@ -3663,7 +3684,7 @@ async function withController<ReturnValue>(
     // where the provider can possibly be `undefined` if `networkClientId` is
     // not specified.
     provider: new FakeProvider(),
-    messenger: restrictedMessenger,
+    messenger: tokensControllerMessenger,
     ...options,
   });
 

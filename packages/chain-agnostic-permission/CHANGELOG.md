@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/permission-controller` from `^12.0.0` to `^12.1.0` ([#6988](https://github.com/MetaMask/core/pull/6988))
+
+## [1.2.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^24.3.1` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/permission-controller` from `^11.1.1` to `^12.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
 ## [1.2.1]
 
 ### Changed
@@ -148,7 +159,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.2.2...HEAD
+[1.2.2]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.2.1...@metamask/chain-agnostic-permission@1.2.2
 [1.2.1]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.2.0...@metamask/chain-agnostic-permission@1.2.1
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.1.1...@metamask/chain-agnostic-permission@1.2.0
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.1.0...@metamask/chain-agnostic-permission@1.1.1
