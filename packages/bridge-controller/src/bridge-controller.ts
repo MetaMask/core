@@ -779,6 +779,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return networkClient;
   }
 
+  #getNetworkClientByChainId(chainId: Hex) {
+    const networkClientId = this.messenger.call(
+      'NetworkController:findNetworkClientIdByChainId',
+      chainId,
+    );
+    if (!networkClientId) {
+      throw new Error(`No network client found for chainId: ${chainId}`);
+    }
+    const networkClient = this.messenger.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+    return networkClient;
+  }
+
   readonly #getRequestParams = (): Omit<
     RequestParams,
     'token_symbol_source' | 'token_symbol_destination'
@@ -975,7 +990,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     contractAddress: string,
     chainId: Hex,
   ): Promise<string> => {
-    const provider = this.#getSelectedNetworkClient()?.provider;
+    const networkClient = this.#getNetworkClientByChainId(chainId);
+    const provider = networkClient?.provider;
     if (!provider) {
       throw new Error('No provider found');
     }
