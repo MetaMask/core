@@ -3,7 +3,11 @@
 import type { Bip44Account } from '@metamask/account-api';
 import type { KeyringAccount } from '@metamask/keyring-api';
 
-import { AccountProviderWrapper, EvmAccountProvider } from '../providers';
+import {
+  AccountProviderWrapper,
+  BaseBip44AccountProvider,
+  EvmAccountProvider,
+} from '../providers';
 
 export type MockAccountProvider = {
   accounts: KeyringAccount[];
@@ -14,7 +18,8 @@ export type MockAccountProvider = {
   createAccounts: jest.Mock;
   discoverAccounts: jest.Mock;
   addAccounts: jest.Mock;
-  isAccountCompatible?: jest.Mock;
+  isAccountCompatible: jest.Mock;
+  removeAccountsFromList: jest.Mock;
   getName: jest.Mock;
   isEnabled: boolean;
   isDisabled: jest.Mock;
@@ -34,6 +39,7 @@ export function makeMockAccountProvider(
     discoverAccounts: jest.fn(),
     addAccounts: jest.fn(),
     isAccountCompatible: jest.fn(),
+    removeAccountsFromList: jest.fn(),
     getName: jest.fn(),
     isDisabled: jest.fn(),
     setEnabled: jest.fn(),
@@ -41,7 +47,7 @@ export function makeMockAccountProvider(
   };
 }
 
-export function setupNamedAccountProvider({
+export function setupBip44AccountProvider({
   name = 'Mocked Provider',
   accounts,
   mocks = makeMockAccountProvider(),
@@ -77,6 +83,9 @@ export function setupNamedAccountProvider({
   mocks.addAccounts.mockImplementation((ids: string[]) =>
     mocks.accountsList.push(...ids),
   );
+  mocks.removeAccountsFromList.mockImplementation((ids: string[]) => {
+    BaseBip44AccountProvider.prototype.removeAccountsFromList.call(mocks, ids);
+  });
 
   if (index === 0) {
     // Make the first provider to always be an `EvmAccountProvider`, since we
