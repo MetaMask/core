@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Remove global selected network reference in `getBridgeERC20Allowance` handler ([#6994](https://github.com/MetaMask/core/pull/6994))
+
 ## [56.0.1]
 
 ### Changed

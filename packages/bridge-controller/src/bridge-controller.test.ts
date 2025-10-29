@@ -1306,27 +1306,70 @@ describe('BridgeController', function () {
         allowance: jest.fn(() => '100000000000000000000'),
       }));
 
-      messengerMock.call.mockReturnValue({
-        address: '0x123',
-        provider: jest.fn(),
-      } as never);
+      messengerMock.call
+        .mockReturnValueOnce('networkClientId-for-chain-0xa')
+        .mockReturnValueOnce({
+          // getNetworkClientById
+          address: '0x123',
+          provider: jest.fn(),
+        } as never);
 
       const allowance = await bridgeController.getBridgeERC20Allowance(
         '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
         '0xa',
       );
       expect(allowance).toBe('100000000000000000000');
+      expect(messengerMock.call).toHaveBeenCalledTimes(2);
+      expect(messengerMock.call).toHaveBeenNthCalledWith(
+        1,
+        'NetworkController:findNetworkClientIdByChainId',
+        '0xa',
+      );
+      expect(messengerMock.call).toHaveBeenNthCalledWith(
+        2,
+        'NetworkController:getNetworkClientById',
+        'networkClientId-for-chain-0xa',
+      );
+    });
+
+    it('should throw an error when no network client is found for chainId', async () => {
+      // Setup
+      const mockMessenger = {
+        call: jest.fn().mockImplementation((methodName) => {
+          if (methodName === 'NetworkController:findNetworkClientIdByChainId') {
+            return undefined; // No network client found
+          }
+          return undefined;
+        }),
+        registerActionHandler: jest.fn(),
+        publish: jest.fn(),
+        registerInitialEventPayload: jest.fn(),
+      } as unknown as jest.Mocked<BridgeControllerMessenger>;
+
+      const controller = new BridgeController({
+        messenger: mockMessenger,
+        clientId: BridgeClientId.EXTENSION,
+        clientVersion: '1.0.0',
+        getLayer1GasFee: jest.fn(),
+        fetchFn: mockFetchFn,
+        trackMetaMetricsFn,
+      });
+
+      // Test
+      await expect(
+        controller.getBridgeERC20Allowance('0xContractAddress', '0x1'),
+      ).rejects.toThrow('No network client found for chainId: 0x1');
     });
 
     it('should throw an error when no provider is found', async () => {
       // Setup
       const mockMessenger = {
         call: jest.fn().mockImplementation((methodName) => {
+          if (methodName === 'NetworkController:findNetworkClientIdByChainId') {
+            return 'networkClientId-for-chain-0x1';
+          }
           if (methodName === 'NetworkController:getNetworkClientById') {
             return { provider: null };
-          }
-          if (methodName === 'NetworkController:getState') {
-            return { selectedNetworkClientId: 'testNetworkClientId' };
           }
           return undefined;
         }),
