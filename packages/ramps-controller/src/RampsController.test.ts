@@ -35,6 +35,61 @@ jest.mock('@consensys/on-ramp-sdk', () => ({
   OrdersService: jest.fn(),
 }));
 
+// Mock the NativeRampsSdk
+jest.mock('@consensys/native-ramps-sdk', () => {
+  const mockInstance = {
+    setAccessToken: jest.fn(),
+    getAccessToken: jest.fn().mockReturnValue(null),
+    clearAccessToken: jest.fn(),
+    getVersion: jest.fn().mockReturnValue('1.0.0'),
+    getContext: jest.fn().mockReturnValue('browser'),
+    sendUserOtp: jest.fn(),
+    verifyUserOtp: jest.fn(),
+    getUserDetails: jest.fn(),
+    getBuyQuote: jest.fn(),
+    getIdProofStatus: jest.fn(),
+    getKycRequirement: jest.fn(),
+    getAdditionalRequirements: jest.fn(),
+    patchUser: jest.fn(),
+    submitPurposeOfUsageForm: jest.fn(),
+    submitSsnDetails: jest.fn(),
+    cancelOrder: jest.fn(),
+    cancelAllActiveOrders: jest.fn(),
+    createOrder: jest.fn(),
+    confirmPayment: jest.fn(),
+    getOrder: jest.fn(),
+    getUserLimits: jest.fn(),
+    requestOtt: jest.fn(),
+    getGeolocation: jest.fn(),
+    generatePaymentWidgetUrl: jest.fn(),
+    getActiveOrders: jest.fn(),
+    getOrdersHistory: jest.fn(),
+    logout: jest.fn(),
+    getCountries: jest.fn(),
+    getCryptoCurrencies: jest.fn(),
+    getPaymentMethods: jest.fn(),
+    getTransalation: jest.fn(),
+  };
+  const NativeRampsSdk = jest.fn().mockImplementation(() => mockInstance);
+  const Context = {
+    Browser: 'browser',
+    Extension: 'extension',
+    MobileAndroid: 'mobile-android',
+    MobileIOS: 'mobile-ios',
+  } as const;
+  const SdkEnvironment = {
+    Development: 'dev',
+    Staging: 'stg',
+    Production: 'prod',
+  } as const;
+  return {
+    NativeRampsSdk,
+    Context,
+    SdkEnvironment,
+    __getMockInstance: () => mockInstance,
+  };
+});
+
 describe('RampsController', () => {
   let mockOnRampSdk: jest.Mocked<typeof OnRampSdk>;
   let mockRegionsService: jest.Mocked<RegionsService>;
@@ -623,6 +678,139 @@ describe('RampsController', () => {
         expect(mockRegionsService.getCountries).toHaveBeenCalledTimes(1);
         expect(mockRegionsService.getPaymentMethods).toHaveBeenCalledWith('US', undefined);
         expect(mockOrdersService.getOrder).toHaveBeenCalledWith('order-123', '0x123');
+      });
+    });
+  });
+
+  describe('NativeRampsSdk deposit wrappers', () => {
+    const getNative = () =>
+      (jest.requireMock('@consensys/native-ramps-sdk') as any).__getMockInstance();
+
+    it('calls deposit access token helpers', async () => {
+      await withController(async ({ controller }) => {
+        const native = getNative();
+        controller.depositSetAccessToken({ accessToken: 'tok', ttl: 1, created: new Date() } as any);
+        expect(native.setAccessToken).toHaveBeenCalled();
+        controller.depositSetAccessToken(null);
+        expect(native.clearAccessToken).toHaveBeenCalled();
+        controller.depositClearAccessToken();
+        expect(native.clearAccessToken).toHaveBeenCalledTimes(2);
+        controller.depositGetAccessToken();
+        expect(native.getAccessToken).toHaveBeenCalled();
+        controller.depositGetVersion();
+        expect(native.getVersion).toHaveBeenCalled();
+        controller.depositGetContext();
+        expect(native.getContext).toHaveBeenCalled();
+      });
+    });
+
+    it('calls deposit auth and user methods', async () => {
+      await withController(async ({ controller }) => {
+        const native = getNative();
+        native.sendUserOtp.mockResolvedValue({ isTncAccepted: false, stateToken: 'st', email: 'e', expiresIn: 1 });
+        await controller.depositSendUserOtp('a@b.com');
+        expect(native.sendUserOtp).toHaveBeenCalledWith('a@b.com');
+
+        native.verifyUserOtp.mockResolvedValue({ accessToken: 'x', ttl: 1, created: new Date() });
+        await controller.depositVerifyUserOtp('a@b.com', '123456', 'state');
+        expect(native.verifyUserOtp).toHaveBeenCalledWith('a@b.com', '123456', 'state');
+
+        native.getUserDetails.mockResolvedValue({ id: 'u' });
+        await controller.depositGetUserDetails();
+        expect(native.getUserDetails).toHaveBeenCalled();
+
+        native.patchUser.mockResolvedValue({ ok: true });
+        await controller.depositPatchUser({ personalDetails: { firstName: 'a' } });
+        expect(native.patchUser).toHaveBeenCalled();
+      });
+    });
+
+    it('calls deposit quote/order methods', async () => {
+      await withController(async ({ controller }) => {
+        const native = getNative();
+        native.getBuyQuote.mockResolvedValue({ quoteId: 'q' });
+        await controller.depositGetBuyQuote('USD', 'eth', '1', 'card', '10');
+        expect(native.getBuyQuote).toHaveBeenCalledWith('USD', 'eth', '1', 'card', '10');
+
+        native.createOrder.mockResolvedValue({ id: 'o' });
+        await controller.depositCreateOrder({ quoteId: 'q' } as any, '0xabc', 'card');
+        expect(native.createOrder).toHaveBeenCalled();
+
+        native.confirmPayment.mockResolvedValue({ success: true });
+        await controller.depositConfirmPayment('order', 'card');
+        expect(native.confirmPayment).toHaveBeenCalledWith('order', 'card');
+
+        native.getOrder.mockResolvedValue({ id: 'o' });
+        await controller.depositGetOrder('order', '0xabc');
+        expect(native.getOrder).toHaveBeenCalledWith('order', '0xabc', undefined, undefined);
+
+        await controller.depositCancelOrder('order');
+        expect(native.cancelOrder).toHaveBeenCalledWith('order');
+
+        await controller.depositCancelAllActiveOrders();
+        expect(native.cancelAllActiveOrders).toHaveBeenCalled();
+      });
+    });
+
+    it('calls deposit misc and regions methods', async () => {
+      await withController(async ({ controller }) => {
+        const native = getNative();
+        native.getUserLimits.mockResolvedValue({ limits: {} } as any);
+        await controller.depositGetUserLimits('USD', 'card', 'BASIC');
+        expect(native.getUserLimits).toHaveBeenCalledWith('USD', 'card', 'BASIC');
+
+        native.requestOtt.mockResolvedValue({ ott: 'ott' });
+        await controller.depositRequestOtt();
+        expect(native.requestOtt).toHaveBeenCalled();
+
+        native.getGeolocation.mockResolvedValue({ ipCountryCode: 'US' });
+        await controller.depositGetGeolocation();
+        expect(native.getGeolocation).toHaveBeenCalled();
+
+        native.generatePaymentWidgetUrl.mockReturnValue('https://widget');
+        controller.depositGeneratePaymentWidgetUrl('ott', { quoteId: 'q' } as any, '0xabc');
+        expect(native.generatePaymentWidgetUrl).toHaveBeenCalled();
+
+        native.getActiveOrders.mockResolvedValue([]);
+        await controller.depositGetActiveOrders();
+        expect(native.getActiveOrders).toHaveBeenCalled();
+
+        native.getOrdersHistory.mockResolvedValue([]);
+        await controller.depositGetOrdersHistory(10, 0);
+        expect(native.getOrdersHistory).toHaveBeenCalledWith(10, 0);
+
+        native.logout.mockResolvedValue('ok');
+        await controller.depositLogout();
+        expect(native.logout).toHaveBeenCalled();
+
+        native.getCountries.mockResolvedValue([]);
+        await controller.depositGetCountries();
+        expect(native.getCountries).toHaveBeenCalledWith(undefined);
+
+        native.getCryptoCurrencies.mockResolvedValue([]);
+        await controller.depositGetCryptoCurrencies('US');
+        expect(native.getCryptoCurrencies).toHaveBeenCalledWith('US', undefined);
+
+        native.getPaymentMethods.mockResolvedValue([]);
+        await controller.depositGetPaymentMethods('US', 'eth', 'usd');
+        expect(native.getPaymentMethods).toHaveBeenCalledWith('US', 'eth', 'usd', undefined);
+
+        native.getTransalation.mockResolvedValue({} as any);
+        await controller.depositGetTransalation({ regionId: 'US' } as any);
+        expect(native.getTransalation).toHaveBeenCalled();
+      });
+    });
+
+    it('registers and calls deposit methods via messenger', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const native = getNative();
+        native.getCountries.mockResolvedValue([]);
+        await rootMessenger.call('RampsController:depositGetCountries');
+        expect(native.getCountries).toHaveBeenCalled();
+
+        native.sendUserOtp.mockResolvedValue({ isTncAccepted: false, stateToken: 'x', email: 'a', expiresIn: 1 });
+        await rootMessenger.call('RampsController:depositSendUserOtp', 'a@b.com');
+        expect(native.sendUserOtp).toHaveBeenCalledWith('a@b.com');
       });
     });
   });
