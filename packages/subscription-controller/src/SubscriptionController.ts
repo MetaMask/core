@@ -7,10 +7,7 @@ import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import {
-  TransactionType,
-  type TransactionControllerTransactionSubmittedEvent,
-} from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 import { type Hex } from '@metamask/utils';
 
 import {
@@ -141,8 +138,7 @@ export type SubscriptionControllerEvents =
   SubscriptionControllerStateChangeEvent;
 
 export type AllowedEvents =
-  | AuthenticationController.AuthenticationControllerStateChangeEvent
-  | TransactionControllerTransactionSubmittedEvent;
+  AuthenticationController.AuthenticationControllerStateChangeEvent;
 
 // Messenger
 export type SubscriptionControllerMessenger = Messenger<
