@@ -1382,6 +1382,13 @@ export class AccountTreeController extends BaseController<
       Bip44Account<KeyringAccount>
     >,
   ): void {
+    // We wait for the first `init` to be called to actually build up the tree and
+    // mutate it. We expect the caller to first update the `AccountsController` state
+    // to force the migration of accounts, and then call `init`.
+    if (!this.#initialized) {
+      return;
+    }
+
     this.update((state) => {
       this.#insertOrUpdateMultichainAccountWalletAndGroup(
         state.accountTree.wallets,
