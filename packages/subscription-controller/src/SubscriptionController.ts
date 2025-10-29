@@ -857,6 +857,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     if (!lastSelectedPaymentMethod) {
       throw new Error('Last selected payment method not found');
     }
+    this.#assertIsPaymentMethodCrypto(
+      lastSelectedPaymentMethod[PRODUCT_TYPES.SHIELD],
+    );
 
     const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
     const pricingPlans = pricing?.products.find(

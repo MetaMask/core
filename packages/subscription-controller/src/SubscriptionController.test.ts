@@ -1721,6 +1721,7 @@ describe('SubscriptionController', () => {
               [PRODUCT_TYPES.SHIELD]: {
                 type: PAYMENT_TYPES.byCrypto,
                 paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
                 plan: RECURRING_INTERVALS.month,
               },
             },
@@ -1930,6 +1931,7 @@ describe('SubscriptionController', () => {
               [PRODUCT_TYPES.SHIELD]: {
                 type: PAYMENT_TYPES.byCrypto,
                 paymentTokenAddress: '0x123',
+                paymentTokenSymbol: 'USDT',
                 plan: RECURRING_INTERVALS.month,
               },
             },
@@ -1976,6 +1978,7 @@ describe('SubscriptionController', () => {
               [PRODUCT_TYPES.SHIELD]: {
                 type: PAYMENT_TYPES.byCrypto,
                 paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
                 plan: 'invalidPlan' as RecurringInterval,
               },
             },
