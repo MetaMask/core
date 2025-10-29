@@ -534,28 +534,28 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async fetchAllSecretData(password?: string): Promise<SecretMetadata[]> {
     return await this.#withControllerLock(async () => {
-      // assert that the user is authenticated before fetching the secret data
-      this.#assertIsAuthenticatedUser(this.state);
+      return await this.#executeWithTokenRefresh(async () => {
+        // assert that the user is authenticated before fetching the secret data
+        this.#assertIsAuthenticatedUser(this.state);
 
-      let encKey: Uint8Array;
-      let pwEncKey: Uint8Array;
-      let authKeyPair: KeyPair;
+        let encKey: Uint8Array;
+        let pwEncKey: Uint8Array;
+        let authKeyPair: KeyPair;
 
-      if (password) {
-        const recoverEncKeyResult = await this.#recoverEncKey(password);
-        encKey = recoverEncKeyResult.encKey;
-        pwEncKey = recoverEncKeyResult.pwEncKey;
-        authKeyPair = recoverEncKeyResult.authKeyPair;
-      } else {
-        this.#assertIsUnlocked();
-        // verify the password and unlock the vault
-        const keysFromVault = await this.#unlockVaultAndGetVaultData();
-        encKey = keysFromVault.toprfEncryptionKey;
-        pwEncKey = keysFromVault.toprfPwEncryptionKey;
-        authKeyPair = keysFromVault.toprfAuthKeyPair;
-      }
+        if (password) {
+          const recoverEncKeyResult = await this.#recoverEncKey(password);
+          encKey = recoverEncKeyResult.encKey;
+          pwEncKey = recoverEncKeyResult.pwEncKey;
+          authKeyPair = recoverEncKeyResult.authKeyPair;
+        } else {
+          this.#assertIsUnlocked();
+          // verify the password and unlock the vault
+          const keysFromVault = await this.#unlockVaultAndGetVaultData();
+          encKey = keysFromVault.toprfEncryptionKey;
+          pwEncKey = keysFromVault.toprfPwEncryptionKey;
+          authKeyPair = keysFromVault.toprfAuthKeyPair;
+        }
 
-      const performFetch = async (): Promise<SecretMetadata[]> => {
         const secrets = await this.#fetchAllSecretDataFromMetadataStore(
           encKey,
           authKeyPair,
@@ -572,12 +572,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         }
 
         return secrets;
-      };
-
-      return await this.#executeWithTokenRefresh(
-        performFetch,
-        'fetchAllSecretData',
-      );
+      }, 'fetchAllSecretData');
     });
   }
 
@@ -857,7 +852,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       });
       this.#setUnlocked();
     } catch (error) {
-      if (this.#isTokenExpiredError(error)) {
+      if (this.#isAuthTokenError(error)) {
         throw error;
       }
       if (this.#isMaxKeyChainLengthError(error)) {
@@ -1014,7 +1009,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         authPubKey,
       });
     } catch (error) {
-      if (this.#isTokenExpiredError(error)) {
+      if (this.#isAuthTokenError(error)) {
         throw error;
       }
       log('Error persisting local encryption key', error);
@@ -1150,7 +1145,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       return recoverEncKeyResult;
     } catch (error) {
       // throw token expired error for token refresh handler
-      if (this.#isTokenExpiredError(error)) {
+      if (this.#isAuthTokenError(error)) {
         throw error;
       }
 
@@ -1171,7 +1166,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       });
     } catch (error) {
       log('Error fetching secret data', error);
-      if (this.#isTokenExpiredError(error)) {
+      if (this.#isAuthTokenError(error)) {
         throw error;
       }
       throw new Error(
@@ -1304,7 +1299,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         };
       });
     } catch (error) {
-      if (this.#isTokenExpiredError(error)) {
+      if (this.#isAuthTokenError(error)) {
         throw error;
       }
       log('Error encrypting and storing secret data backup', error);
@@ -1938,17 +1933,21 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
-   * Check if the provided error is a token expiration error.
+   * Check if the provided error is an auth token error.
    *
-   * This method checks if the error is a TOPRF error with AuthTokenExpired code.
+   * This method checks if the error is a TOPRF error with AuthTokenExpired code or InvalidAuthToken code.
    *
    * @param error - The error to check.
-   * @returns True if the error indicates token expiration, false otherwise.
+   * @returns True if the error indicates auth token error, false otherwise.
    */
-  #isTokenExpiredError(error: unknown): boolean {
+  #isAuthTokenError(error: unknown): boolean {
     if (error instanceof TOPRFError) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-      return error.code === TOPRFErrorCode.AuthTokenExpired;
+      return (
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+        error.code === TOPRFErrorCode.AuthTokenExpired ||
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+        error.code === TOPRFErrorCode.InvalidAuthToken
+      );
     }
 
     return false;
@@ -2017,7 +2016,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       return await operation();
     } catch (error) {
       // Check if this is a token expiration error
-      if (this.#isTokenExpiredError(error)) {
+      if (this.#isAuthTokenError(error)) {
         log(
           `Token expired during ${operationName}, attempting to refresh tokens`,
           error,
