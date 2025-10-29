@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added shield crypto approval transaction handler ([#6945](https://github.com/MetaMask/core/pull/6945))
+- Added new public method `submitShieldSubscriptionCryptoApproval`, to submit shield crypto approval transaction ([#6945](https://github.com/MetaMask/core/pull/6945))
 - Added the new controller state, `lastSelectedPaymentMethod`. ([#6946](https://github.com/MetaMask/core/pull/6946))
   - We will use this in the UI state persistence between navigation.
   - We will use this to query user subscription plan details in subscribe methods internally.
