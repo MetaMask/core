@@ -1,4 +1,4 @@
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
@@ -201,7 +201,7 @@ export function expectProviderRequestNotToHaveBeenMade(
  * you can make assertions on the method later, if you like).
  */
 export function stubProviderRequests(
-  provider: SafeEventEmitterProvider,
+  provider: InternalProvider,
   stubs: ProviderRequestStub<any, Json>[],
 ) {
   const remainingStubs = klona(stubs);

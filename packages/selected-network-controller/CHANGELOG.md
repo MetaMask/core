@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Make compatible with `InternalProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
+- **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
+  - The controller expects a network client with an `InternalProvider` instead of a `SafeEventEmitterProvider`.
 
 ## [25.0.0]
 

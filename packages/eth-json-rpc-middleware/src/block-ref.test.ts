@@ -1,6 +1,6 @@
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 
@@ -28,7 +28,7 @@ type Setup = {
    * provider - The provider that is used to make requests against
    * (which the middleware being tested will react to).
    */
-  provider: SafeEventEmitterProvider;
+  provider: InternalProvider;
   /**
    * The block tracker which is used inside of the
    * middleware being tested.
