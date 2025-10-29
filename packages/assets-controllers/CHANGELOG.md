@@ -10,8 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Arbitrum, BSC, Optimism, Polygon, and Sei networks for token detection support in `TokenDetectionController` ([#6972](https://github.com/MetaMask/core/pull/6972))
+
   - Added support for tracking tokens on Arbitrum (0xa4b1), BSC (0x38), Optimism (0xa), Polygon (0x89), and Sei (0x531) networks
+
   - Network type definitions and constants were added in `@metamask/controller-utils`
+
+- **BREAKING:** Added constructor argument `tokenPricesService` in `currencyRateController` ([#6863](https://github.com/MetaMask/core/pull/6863))
+
+- Added `fetchExchangeRates` function to fetch exchange rates from price-api ([#6863](https://github.com/MetaMask/core/pull/6863))
+
+### Changed
+
+- `CurrencyRateController` now fetches exchange rates from price-api and fallback to cryptoCompare ([#6863](https://github.com/MetaMask/core/pull/6863))
 
 ## [84.0.0]
 

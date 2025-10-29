@@ -23,6 +23,7 @@ import type {
   TokenPaymentInfo,
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodOpts,
+  CachedLastSelectedPaymentMethods,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -38,6 +39,16 @@ export type SubscriptionControllerState = {
   trialedProducts: ProductType[];
   subscriptions: Subscription[];
   pricing?: PricingResponse;
+
+  /**
+   * The last selected payment method for the user.
+   * This is used to display the last selected payment method in the UI.
+   * This state is also meant to be used internally to track the last selected payment method for the user. (e.g. for crypto subscriptions)
+   */
+  lastSelectedPaymentMethod?: Record<
+    ProductType,
+    CachedLastSelectedPaymentMethods
+  >;
 };
 
 // Messenger Actions
@@ -183,6 +194,12 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       includeInStateLogs: true,
       persist: true,
       includeInDebugSnapshot: true,
+      usedInUi: true,
+    },
+    lastSelectedPaymentMethod: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
       usedInUi: true,
     },
   };
@@ -484,6 +501,37 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       return await this.getSubscriptions();
     }
     throw new Error('Invalid payment type');
+  }
+
+  /**
+   * Cache the last selected payment method for a specific product.
+   *
+   * @param product - The product to cache the payment method for.
+   * @param paymentMethod - The payment method to cache.
+   * @param paymentMethod.type - The type of the payment method.
+   * @param paymentMethod.paymentTokenAddress - The payment token address.
+   * @param paymentMethod.plan - The plan of the payment method.
+   * @param paymentMethod.product - The product of the payment method.
+   */
+  cacheLastSelectedPaymentMethod(
+    product: ProductType,
+    paymentMethod: CachedLastSelectedPaymentMethods,
+  ) {
+    if (
+      paymentMethod.type === PAYMENT_TYPES.byCrypto &&
+      !paymentMethod.paymentTokenAddress
+    ) {
+      throw new Error(
+        SubscriptionControllerErrorMessage.PaymentTokenAddressRequiredForCrypto,
+      );
+    }
+
+    this.update((state) => {
+      state.lastSelectedPaymentMethod = {
+        ...state.lastSelectedPaymentMethod,
+        [product]: paymentMethod,
+      };
+    });
   }
 
   /**
