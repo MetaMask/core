@@ -1,6 +1,5 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
-import type { Messenger } from '@metamask/base-controller';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
@@ -37,14 +36,9 @@ import {
   getRootMessenger,
   makeMockAccountProvider,
   setupBip44AccountProvider,
+  type RootMessenger,
 } from './tests';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  MultichainAccountServiceActions,
-  MultichainAccountServiceEvents,
-  MultichainAccountServiceMessenger,
-} from './types';
+import type { MultichainAccountServiceMessenger } from './types';
 
 // Mock providers.
 jest.mock('./providers/EvmAccountProvider', () => {
@@ -109,25 +103,19 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
 }
 
 function setup({
-  messenger = getRootMessenger(),
+  rootMessenger = getRootMessenger(),
   keyrings = [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
   accounts,
   providerConfigs,
 }: {
-  messenger?: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  rootMessenger?: RootMessenger;
   keyrings?: KeyringObject[];
   accounts?: KeyringAccount[];
   providerConfigs?: MultichainAccountServiceOptions['providerConfigs'];
 } = {}): {
   service: MultichainAccountService;
-  serviceMessenger: MultichainAccountServiceMessenger;
-  messenger: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  rootMessenger: RootMessenger;
+  messenger: MultichainAccountServiceMessenger;
   mocks: Mocks;
 } {
   const mocks: Mocks = {
@@ -155,17 +143,17 @@ function setup({
     keyrings: mocks.KeyringController.keyrings,
   }));
 
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'KeyringController:getState',
     mocks.KeyringController.getState,
   );
 
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'KeyringController:getKeyringsByType',
     mocks.KeyringController.getKeyringsByType,
   );
 
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'KeyringController:addNewKeyring',
     mocks.KeyringController.addNewKeyring,
   );
@@ -185,7 +173,7 @@ function setup({
       () => accounts,
     );
 
-    messenger.registerActionHandler(
+    rootMessenger.registerActionHandler(
       'AccountsController:listMultichainAccounts',
       mocks.AccountsController.listMultichainAccounts,
     );
@@ -209,14 +197,21 @@ function setup({
     );
   }
 
-  const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
+  const messenger = getMultichainAccountServiceMessenger(rootMessenger);
+
   const service = new MultichainAccountService({
-    messenger: serviceMessenger,
+    messenger,
     providerConfigs,
   });
+
   service.init();
 
-  return { service, serviceMessenger, messenger, mocks };
+  return {
+    service,
+    rootMessenger,
+    messenger,
+    mocks,
+  };
 }
 
 describe('MultichainAccountService', () => {
@@ -245,17 +240,17 @@ describe('MultichainAccountService', () => {
           },
         };
 
-      const { mocks, serviceMessenger } = setup({
+      const { mocks, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
         providerConfigs,
       });
 
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
-        serviceMessenger,
+        messenger,
         providerConfigs[EvmAccountProvider.NAME],
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
-        serviceMessenger,
+        messenger,
         providerConfigs[SolAccountProvider.NAME],
       );
     });
@@ -278,17 +273,17 @@ describe('MultichainAccountService', () => {
           // No `EVM_ACCOUNT_PROVIDER_NAME`, cause it's optional in this test.
         };
 
-      const { mocks, serviceMessenger } = setup({
+      const { mocks, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
         providerConfigs,
       });
 
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
-        serviceMessenger,
+        messenger,
         undefined,
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
-        serviceMessenger,
+        messenger,
         providerConfigs[SolAccountProvider.NAME],
       );
     });
@@ -454,7 +449,9 @@ describe('MultichainAccountService', () => {
         .withGroupIndex(0)
         .get();
 
-      const { service, messenger } = setup({ accounts: [mockEvmAccount] });
+      const { service, messenger } = setup({
+        accounts: [mockEvmAccount],
+      });
       const publishSpy = jest.spyOn(messenger, 'publish');
 
       const nextGroup = await service.createNextMultichainAccountGroup({
@@ -508,7 +505,9 @@ describe('MultichainAccountService', () => {
         .withGroupIndex(0)
         .get();
 
-      const { service, messenger } = setup({ accounts: [mockEvmAccount] });
+      const { service, messenger } = setup({
+        accounts: [mockEvmAccount],
+      });
       const publishSpy = jest.spyOn(messenger, 'publish');
 
       const group = await service.createMultichainAccountGroup({
@@ -699,7 +698,9 @@ describe('MultichainAccountService', () => {
     });
 
     it('sets basic functionality with MultichainAccountService:setBasicFunctionality', async () => {
-      const { messenger } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
+      const { messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
 
       // This tests the action handler registration
       expect(
@@ -761,11 +762,13 @@ describe('MultichainAccountService', () => {
     let solProvider: SolAccountProvider;
 
     beforeEach(() => {
-      const { messenger } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
+      const { rootMessenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
 
       // Create actual SolAccountProvider instance for wrapping
       solProvider = new SolAccountProvider(
-        getMultichainAccountServiceMessenger(messenger),
+        getMultichainAccountServiceMessenger(rootMessenger),
       );
 
       // Spy on the provider methods
@@ -776,7 +779,7 @@ describe('MultichainAccountService', () => {
       jest.spyOn(solProvider, 'isAccountCompatible');
 
       wrapper = new AccountProviderWrapper(
-        getMultichainAccountServiceMessenger(messenger),
+        getMultichainAccountServiceMessenger(rootMessenger),
         solProvider,
       );
     });

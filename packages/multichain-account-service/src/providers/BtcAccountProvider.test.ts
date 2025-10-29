@@ -1,5 +1,4 @@
 import { isBip44Account } from '@metamask/account-api';
-import type { Messenger } from '@metamask/base-controller';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import { BtcAccountType } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
@@ -19,13 +18,8 @@ import {
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_KEYRING_1,
   MockAccountBuilder,
+  type RootMessenger,
 } from '../tests';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  MultichainAccountServiceActions,
-  MultichainAccountServiceEvents,
-} from '../types';
 
 class MockBtcKeyring {
   readonly type = 'MockBtcKeyring';
@@ -111,17 +105,11 @@ function setup({
   messenger = getRootMessenger(),
   accounts = [],
 }: {
-  messenger?: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  messenger?: RootMessenger;
   accounts?: InternalAccount[];
 } = {}): {
   provider: AccountProviderWrapper;
-  messenger: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  messenger: RootMessenger;
   keyring: MockBtcKeyring;
   mocks: {
     handleRequest: jest.Mock;

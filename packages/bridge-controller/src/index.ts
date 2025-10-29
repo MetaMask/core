@@ -40,6 +40,7 @@ export type {
   QuoteResponse,
   FeeData,
   TxData,
+  BitcoinTradeData,
   BridgeControllerState,
   BridgeControllerAction,
   BridgeControllerActions,
@@ -57,6 +58,8 @@ export {
   RequestStatus,
   BridgeUserAction,
   BridgeBackgroundAction,
+  type BridgeControllerGetStateAction,
+  type BridgeControllerStateChangeEvent,
 } from './types';
 
 export {

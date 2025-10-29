@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [56.0.3]
+
+### Fixed
+
+- Removes all selectedNetworkClientId usages by finding network clients via srcChainId ([#6996](https://github.com/MetaMask/core/pull/6996))
+
+## [56.0.2]
+
+### Fixed
+
+- Remove global selected network reference in `getBridgeERC20Allowance` handler ([#6994](https://github.com/MetaMask/core/pull/6994))
+
+## [56.0.1]
+
+### Changed
+
+- Clean up SSE stream reader after use ([#6965](https://github.com/MetaMask/core/pull/6965))
+
+### Fixed
+
+- Fix Bitcoin network fee computation by extracting `unsignedPsbtBase64` from Bitcoin trade objects and supporting `'priority'` fee type from Bitcoin snap ([#6932](https://github.com/MetaMask/core/pull/6932))
+
+## [56.0.0]
+
+### Added
+
+- Add `BridgeControllerGetStateAction` and `BridgeControllerStateChangeEvent` types ([#6444](https://github.com/MetaMask/core/pull/6444))
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6444](https://github.com/MetaMask/core/pull/6444))
+  - Previously, `BridgeController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6444](https://github.com/MetaMask/core/pull/6444))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^33.0.0` to `^34.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/assets-controller` from `^83.0.0` to `^84.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/remote-feature-flag-controller` from `^1.6.0` to `^2.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^60.0.0` to `^61.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/gas-fee-controller` from `^24.1.0` to `^25.0.0` ([#6940](https://github.com/MetaMask/core/pull/6940), [#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/multichain-network-controller` from `^1.0.1` to `^2.0.0` ([#6940](https://github.com/MetaMask/core/pull/6940), [#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/polling-controller` from `^14.0.1` to `^15.0.0` ([#6940](https://github.com/MetaMask/core/pull/6940), [#6962](https://github.com/MetaMask/core/pull/6962))
+
 ## [55.0.0]
 
 ### Changed
@@ -763,7 +806,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@55.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.3...HEAD
+[56.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.2...@metamask/bridge-controller@56.0.3
+[56.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.1...@metamask/bridge-controller@56.0.2
+[56.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.0...@metamask/bridge-controller@56.0.1
+[56.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@55.0.0...@metamask/bridge-controller@56.0.0
 [55.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@54.0.0...@metamask/bridge-controller@55.0.0
 [54.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@53.1.0...@metamask/bridge-controller@54.0.0
 [53.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@53.0.0...@metamask/bridge-controller@53.1.0

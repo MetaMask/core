@@ -1,6 +1,6 @@
 {
   "name": "@metamask/composable-controller",
-  "version": "11.1.0",
+  "version": "12.0.0",
   "description": "Consolidates the state from multiple controllers into one",
   "keywords": [
     "MetaMask",
@@ -47,7 +47,8 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.4.2"
+    "@metamask/base-controller": "^9.0.0",
+    "@metamask/messenger": "^0.3.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",

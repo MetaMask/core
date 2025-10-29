@@ -23,13 +23,14 @@ export const fetchServerEvents = async (
     fetchFn: typeof fetch;
   },
 ) => {
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   try {
     const response = await fetchFn(url, requestOptions);
     if (!response.ok || !response.body) {
       throw new Error(`${response.status}`);
     }
 
-    const reader = response.body.getReader();
+    reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
 
@@ -72,5 +73,11 @@ export const fetchServerEvents = async (
     onClose?.();
   } catch (error) {
     onError?.(error);
+  } finally {
+    try {
+      await reader?.cancel();
+    } catch (error) {
+      console.error('Error cleaning up stream reader', error);
+    }
   }
 };

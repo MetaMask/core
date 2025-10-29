@@ -28,17 +28,37 @@ const GAS_PRICE_ORACLE_ABI = [
   },
 ];
 
+// Default OP Stack gas price oracle address used across supported networks
+const DEFAULT_GAS_PRICE_ORACLE_ADDRESS =
+  '0x420000000000000000000000000000000000000F' as Hex;
+
 /**
  * Layer 1 gas fee flow that obtains gas fee estimate using an oracle smart contract.
  */
 export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
-  readonly #oracleAddress: Hex;
+  /**
+   * Resolves the oracle address for the given chain. Subclasses can override
+   * this method to provide chain-specific oracle addresses. By default, this
+   * returns the standard OP Stack gas price oracle address.
+   *
+   * @param _chainId - The chain ID to resolve the oracle address for.
+   * @returns The oracle address for the given chain.
+   */
+  protected getOracleAddressForChain(_chainId: Hex): Hex {
+    return DEFAULT_GAS_PRICE_ORACLE_ADDRESS;
+  }
 
-  readonly #signTransaction: boolean;
-
-  constructor(oracleAddress: Hex, signTransaction?: boolean) {
-    this.#oracleAddress = oracleAddress;
-    this.#signTransaction = signTransaction ?? false;
+  /**
+   * Whether to sign the transaction with a dummy key prior to calling the
+   * oracle contract. Some oracle contracts require a signed payload even for
+   * read-only methods.
+   *
+   * Subclasses can override to enable signing when needed. Defaults to false.
+   *
+   * @returns Whether the transaction should be signed prior to the oracle call.
+   */
+  protected shouldSignTransaction(): boolean {
+    return false;
   }
 
   abstract matchesTransaction({
@@ -47,7 +67,7 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
   }: {
     transactionMeta: TransactionMeta;
     messenger: TransactionControllerMessenger;
-  }): boolean;
+  }): Promise<boolean>;
 
   async getLayer1Fee(
     request: Layer1GasFeeFlowRequest,
@@ -66,7 +86,7 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
     const { provider, transactionMeta } = request;
 
     const contract = new Contract(
-      this.#oracleAddress,
+      this.getOracleAddressForChain(transactionMeta.chainId),
       GAS_PRICE_ORACLE_ABI,
       // Network controller provider type is incompatible with ethers provider
       new Web3Provider(provider as unknown as ExternalProvider),
@@ -74,7 +94,7 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
 
     const serializedTransaction = this.#buildUnserializedTransaction(
       transactionMeta,
-      this.#signTransaction,
+      this.shouldSignTransaction(),
     ).serialize();
 
     const result = await contract.getL1Fee(serializedTransaction);
@@ -99,7 +119,8 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
 
     if (sign) {
       const keyBuffer = Buffer.from(DUMMY_KEY, 'hex');
-      unserializedTransaction = unserializedTransaction.sign(keyBuffer);
+      const keyBytes = Uint8Array.from(keyBuffer);
+      unserializedTransaction = unserializedTransaction.sign(keyBytes);
     }
 
     return unserializedTransaction;

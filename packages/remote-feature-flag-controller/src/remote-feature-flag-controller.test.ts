@@ -1,19 +1,25 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import {
   RemoteFeatureFlagController,
-  controllerName,
   DEFAULT_CACHE_DURATION,
   getDefaultRemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
 import type {
-  RemoteFeatureFlagControllerActions,
   RemoteFeatureFlagControllerMessenger,
   RemoteFeatureFlagControllerState,
-  RemoteFeatureFlagControllerStateChangeEvent,
 } from './remote-feature-flag-controller';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
+
+const controllerName = 'RemoteFeatureFlagController';
 
 const MOCK_FLAGS: FeatureFlags = {
   feature1: true,
@@ -350,7 +356,7 @@ describe('RemoteFeatureFlagController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
         Object {
@@ -412,31 +418,44 @@ describe('RemoteFeatureFlagController', () => {
   });
 });
 
-type RootAction = RemoteFeatureFlagControllerActions;
-type RootEvent = RemoteFeatureFlagControllerStateChangeEvent;
+type AllRemoteFeatureFlagControllerActions =
+  MessengerActions<RemoteFeatureFlagControllerMessenger>;
+
+type AllRemoteFeatureFlagControllerEvents =
+  MessengerEvents<RemoteFeatureFlagControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllRemoteFeatureFlagControllerActions,
+  AllRemoteFeatureFlagControllerEvents
+>;
 
 /**
  * Creates and returns a root messenger for testing
  *
  * @returns A messenger instance
  */
-function getRootMessenger(): Messenger<RootAction, RootEvent> {
-  return new Messenger<RootAction, RootEvent>();
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 }
 
 /**
- * Creates a restricted messenger for testing
+ * Creates a messenger for the RemoteFeatureFlagController
  *
- * @param rootMessenger - The root messenger to restrict
- * @returns A restricted messenger instance
+ * @returns A messenger instance
  */
-function getMessenger(
-  rootMessenger = getRootMessenger(),
-): RemoteFeatureFlagControllerMessenger {
-  return rootMessenger.getRestricted({
-    name: controllerName,
-    allowedActions: [],
-    allowedEvents: [],
+function getMessenger(): RemoteFeatureFlagControllerMessenger {
+  const rootMessenger = getRootMessenger();
+  return new Messenger<
+    typeof controllerName,
+    AllRemoteFeatureFlagControllerActions,
+    AllRemoteFeatureFlagControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
   });
 }
 
