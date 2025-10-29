@@ -186,7 +186,7 @@ async function withController<ReturnValue>(
   const mockRefreshJWTToken = jest.fn().mockResolvedValue({
     idTokens: ['newIdToken'],
     metadataAccessToken: 'mock-metadata-access-token',
-    accessToken: 'mock-access-token',
+    accessToken,
   });
   const mockRevokeRefreshToken = jest.fn().mockResolvedValue(undefined);
   const mockRenewRefreshToken = jest.fn().mockResolvedValue({
@@ -324,12 +324,17 @@ function mockFetchAuthPubKey(
  * @param toprfClient - The ToprfSecureBackup instance.
  * @param password - The mock password.
  *
+ * @param options - Mock options
+ * @param options.mockRejectOnceWithTokenError - Whether to mock the recoverEncKey method to reject with a token error.
  * @returns The mock recoverEncKey result.
  */
 function mockRecoverEncKey(
   toprfClient: ToprfSecureBackup,
   password: string,
-): RecoverEncryptionKeyResult {
+  options?: {
+    mockRejectOnceWithTokenError?: unknown;
+  },
+): RecoverEncryptionKeyResult & { recoverEncKeySpy: jest.SpyInstance } {
   const mockToprfEncryptor = createMockToprfEncryptor();
 
   const encKey = mockToprfEncryptor.deriveEncKey(password);
@@ -337,13 +342,32 @@ function mockRecoverEncKey(
   const authKeyPair = mockToprfEncryptor.deriveAuthKeyPair(password);
   const rateLimitResetResult = Promise.resolve();
 
-  jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
-    encKey,
-    pwEncKey,
-    authKeyPair,
-    rateLimitResetResult,
-    keyShareIndex: 1,
-  });
+  let recoverEncKeySpy: jest.SpyInstance;
+
+  if (options?.mockRejectOnceWithTokenError) {
+    recoverEncKeySpy = jest
+      .spyOn(toprfClient, 'recoverEncKey')
+      .mockRejectedValueOnce(
+        new TOPRFError(TOPRFErrorCode.AuthTokenExpired, 'Auth token expired'),
+      )
+      .mockResolvedValueOnce({
+        encKey,
+        pwEncKey,
+        authKeyPair,
+        rateLimitResetResult,
+        keyShareIndex: 1,
+      });
+  } else {
+    recoverEncKeySpy = jest
+      .spyOn(toprfClient, 'recoverEncKey')
+      .mockResolvedValueOnce({
+        encKey,
+        pwEncKey,
+        authKeyPair,
+        rateLimitResetResult,
+        keyShareIndex: 1,
+      });
+  }
 
   return {
     encKey,
@@ -351,6 +375,7 @@ function mockRecoverEncKey(
     authKeyPair,
     rateLimitResetResult,
     keyShareIndex: 1,
+    recoverEncKeySpy,
   };
 }
 
@@ -762,7 +787,7 @@ describe('SeedlessOnboardingController', () => {
       await withController(async ({ controller, toprfClient }) => {
         jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
           nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
-          isNewUser: false,
+          isNewUser: true,
         });
 
         const authResult = await controller.authenticate({
@@ -779,7 +804,7 @@ describe('SeedlessOnboardingController', () => {
 
         expect(authResult).toBeDefined();
         expect(authResult.nodeAuthTokens).toBeDefined();
-        expect(authResult.isNewUser).toBe(false);
+        expect(authResult.isNewUser).toBe(true);
 
         expect(controller.state.nodeAuthTokens).toBeDefined();
         expect(controller.state.nodeAuthTokens).toStrictEqual(
@@ -799,7 +824,7 @@ describe('SeedlessOnboardingController', () => {
       await withController(async ({ controller, toprfClient }) => {
         jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
           nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
-          isNewUser: true,
+          isNewUser: false,
         });
 
         const authResult = await controller.authenticate({
@@ -815,7 +840,7 @@ describe('SeedlessOnboardingController', () => {
 
         expect(authResult).toBeDefined();
         expect(authResult.nodeAuthTokens).toBeDefined();
-        expect(authResult.isNewUser).toBe(true);
+        expect(authResult.isNewUser).toBe(false);
 
         expect(controller.state.nodeAuthTokens).toBeDefined();
         expect(controller.state.nodeAuthTokens).toStrictEqual(
@@ -1854,6 +1879,73 @@ describe('SeedlessOnboardingController', () => {
 
           expect(mockSecretDataGet.isDone()).toBe(true);
           expect(secretData).toBeDefined();
+          expect(secretData[0].type).toStrictEqual(SecretType.Mnemonic);
+          expect(secretData[0].data).toStrictEqual(MOCK_SEED_PHRASE);
+
+          expect(controller.state.vault).toBeDefined();
+          expect(controller.state.vault).not.toBe(initialState.vault);
+          expect(controller.state.vault).not.toStrictEqual({});
+
+          // verify the vault data
+          const { encryptedMockVault } = await createMockVault(
+            encKey,
+            pwEncKey,
+            authKeyPair,
+            MOCK_PASSWORD,
+          );
+
+          const expectedVaultValue = await encryptor.decrypt(
+            MOCK_PASSWORD,
+            encryptedMockVault,
+          );
+          const resultedVaultValue = await encryptor.decrypt(
+            MOCK_PASSWORD,
+            controller.state.vault as string,
+          );
+
+          expect(expectedVaultValue).toStrictEqual(resultedVaultValue);
+        },
+      );
+    });
+
+    it('should be able to retry fetchAllSecretData on auth token errors', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            accessToken,
+          }),
+        },
+        async ({ controller, toprfClient, initialState, encryptor }) => {
+          // fetch and decrypt the secret data
+          const { encKey, pwEncKey, authKeyPair, recoverEncKeySpy } =
+            mockRecoverEncKey(toprfClient, MOCK_PASSWORD, {
+              mockRejectOnceWithTokenError: true,
+            });
+
+          const mockSecretDataGet = handleMockSecretDataGet({
+            status: 200,
+            body: createMockSecretDataGetResponse(
+              [MOCK_SEED_PHRASE],
+              MOCK_PASSWORD,
+            ),
+          });
+
+          const authenticateSpy = jest
+            .spyOn(toprfClient, 'authenticate')
+            .mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+          const secretData = await controller.fetchAllSecretData(MOCK_PASSWORD);
+
+          expect(mockSecretDataGet.isDone()).toBe(true);
+          expect(secretData).toBeDefined();
+          // should call recoverEncKey twice and authenticate once
+          expect(recoverEncKeySpy).toHaveBeenCalledTimes(2); // should call recoverEncKey twice for the first fail attempt due to token expired error and the second success attempt
+          expect(authenticateSpy).toHaveBeenCalledTimes(1); // should call authenticate once for the token refresh
+
           expect(secretData[0].type).toStrictEqual(SecretType.Mnemonic);
           expect(secretData[0].data).toStrictEqual(MOCK_SEED_PHRASE);
 
