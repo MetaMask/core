@@ -1,6 +1,5 @@
 import type { SignatureRequest } from '@metamask/signature-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
 
 export type CoverageResult = {
   coverageId: string;

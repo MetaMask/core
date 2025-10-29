@@ -14,7 +14,6 @@ import {
   type TransactionControllerStateChangeEvent,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { TransactionControllerTransactionSubmittedEvent } from '@metamask/transaction-controller';
 import { cloneDeep, isEqual } from 'lodash';
 
 import { controllerName } from './constants';
@@ -99,8 +98,7 @@ export type ShieldControllerEvents =
  */
 type AllowedEvents =
   | SignatureStateChange
-  | TransactionControllerStateChangeEvent
-  | TransactionControllerTransactionSubmittedEvent;
+  | TransactionControllerStateChangeEvent;
 
 /**
  * The messenger of the {@link ShieldController}.

@@ -54,7 +54,6 @@ export function createMockMessenger(): {
     events: [
       'SignatureController:stateChange',
       'TransactionController:stateChange',
-      'TransactionController:transactionSubmitted',
     ],
   });
 

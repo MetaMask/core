@@ -4,7 +4,6 @@
     "baseUrl": "./"
   },
   "references": [
-    { "path": "../accounts-controller" },
     { "path": "../base-controller" },
     { "path": "../signature-controller" },
     { "path": "../transaction-controller" },
