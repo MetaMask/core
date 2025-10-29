@@ -318,7 +318,6 @@ describe('BridgeController', function () {
     messengerMock.call.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
-      selectedNetworkClientId: 'selectedNetworkClientId',
       currencyRates: {},
       marketData: {},
       conversionRates: {},
@@ -363,7 +362,6 @@ describe('BridgeController', function () {
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
     expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).toHaveBeenCalledWith({
-      networkClientId: 'selectedNetworkClientId',
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: false,
@@ -398,7 +396,6 @@ describe('BridgeController', function () {
     messengerMock.call.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
-      selectedNetworkClientId: 'selectedNetworkClientId',
       currencyRates: {},
       marketData: {},
       conversionRates: {},
@@ -485,7 +482,6 @@ describe('BridgeController', function () {
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
     expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).toHaveBeenCalledWith({
-      networkClientId: 'selectedNetworkClientId',
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: false,
@@ -720,7 +716,6 @@ describe('BridgeController', function () {
           }
           return {
             provider: jest.fn() as never,
-            selectedNetworkClientId: 'selectedNetworkClientId',
           } as never;
         },
       );
@@ -932,7 +927,6 @@ describe('BridgeController', function () {
     messengerMock.call.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
-      selectedNetworkClientId: 'selectedNetworkClientId',
       currentCurrency: 'usd',
       currencyRates: {},
       marketData: {},
@@ -990,7 +984,6 @@ describe('BridgeController', function () {
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
     expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).toHaveBeenCalledWith({
-      networkClientId: 'selectedNetworkClientId',
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: true,
@@ -1137,7 +1130,6 @@ describe('BridgeController', function () {
         }
         return {
           provider: jest.fn() as never,
-          selectedNetworkClientId: 'selectedNetworkClientId',
         } as never;
       },
     );
@@ -1190,7 +1182,6 @@ describe('BridgeController', function () {
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
     expect(hasSufficientBalanceSpy).not.toHaveBeenCalled();
     expect(startPollingSpy).toHaveBeenCalledWith({
-      networkClientId: 'selectedNetworkClientId',
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: true,
@@ -1448,7 +1439,6 @@ describe('BridgeController', function () {
       messengerMock.call.mockReturnValue({
         address: '0x123',
         provider: jest.fn(),
-        selectedNetworkClientId: 'selectedNetworkClientId',
       } as never);
 
       for (const [index, quote] of quoteResponse.entries()) {
@@ -1506,7 +1496,6 @@ describe('BridgeController', function () {
       expect(startPollingSpy).toHaveBeenCalledTimes(1);
       expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
       expect(startPollingSpy).toHaveBeenCalledWith({
-        networkClientId: 'selectedNetworkClientId',
         updatedQuoteRequest: {
           ...quoteRequest,
           insufficientBal: true,
@@ -1717,7 +1706,6 @@ describe('BridgeController', function () {
     messengerMock.call.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
-      selectedNetworkClientId: 'selectedNetworkClientId',
       currencyRates: {},
       marketData: {},
       conversionRates: {},
@@ -1905,7 +1893,6 @@ describe('BridgeController', function () {
           }
           return {
             provider: jest.fn() as never,
-            selectedNetworkClientId: 'selectedNetworkClientId',
           } as never;
         },
       );
@@ -2067,7 +2054,6 @@ describe('BridgeController', function () {
 
         return {
           provider: jest.fn() as never,
-          selectedNetworkClientId: 'selectedNetworkClientId',
         } as never;
       },
     );
@@ -2137,7 +2123,6 @@ describe('BridgeController', function () {
         (): ReturnType<BridgeControllerMessenger['call']> => {
           return {
             provider: jest.fn() as never,
-            selectedNetworkClientId: 'selectedNetworkClientId',
             rpcUrl: 'https://mainnet.infura.io/v3/123',
             configuration: {
               chainId: 'eip155:1',
@@ -2149,7 +2134,6 @@ describe('BridgeController', function () {
         (): ReturnType<BridgeControllerMessenger['call']> => {
           return {
             provider: jest.fn() as never,
-            selectedNetworkClientId: 'selectedNetworkClientId',
             rpcUrl: 'https://mainnet.infura.io/v3/123',
             configuration: {
               chainId: 'eip155:1',
@@ -2326,7 +2310,6 @@ describe('BridgeController', function () {
       messengerMock.call.mockImplementation(() => {
         return {
           provider: jest.fn() as never,
-          selectedNetworkClientId: 'selectedNetworkClientId',
           rpcUrl: 'https://mainnet.infura.io/v3/123',
           configuration: {
             chainId: 'eip155:1',
@@ -2445,7 +2428,7 @@ describe('BridgeController', function () {
           security_warnings: [],
         },
       );
-      expect(messengerMock.call).toHaveBeenCalledTimes(2);
+      expect(messengerMock.call).toHaveBeenCalledTimes(0);
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
 
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
@@ -2559,7 +2542,6 @@ describe('BridgeController', function () {
           }
           return {
             provider: jest.fn() as never,
-            selectedNetworkClientId: 'selectedNetworkClientId',
             rpcUrl: 'https://mainnet.infura.io/v3/123',
             configuration: {
               chainId: 'eip155:1',
