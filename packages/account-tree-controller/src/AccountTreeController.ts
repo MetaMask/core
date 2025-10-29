@@ -1049,7 +1049,7 @@ export class AccountTreeController extends BaseController<
     const groupId = result.group.id;
     assert(
       result.group.type === AccountGroupType.SingleAccount,
-      `Single account insertion should always result in a '${AccountGroupType.SingleAccount}' group type`,
+      `Account insertion should always result in a "${AccountGroupType.SingleAccount}" group type`,
     );
     assert(
       !wallet.groups[groupId],
