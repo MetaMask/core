@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [57.0.0]
 
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` from `^84.0.0` to `^85.0.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
+
 ## [56.0.3]
 
 ### Fixed
