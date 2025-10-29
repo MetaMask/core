@@ -839,6 +839,7 @@ describe('SeedlessOnboardingController', () => {
           refreshToken,
           accessToken,
           metadataAccessToken,
+          revokeToken,
         });
 
         expect(authResult).toBeDefined();
@@ -1070,6 +1071,69 @@ describe('SeedlessOnboardingController', () => {
           );
         },
       );
+    });
+  });
+
+  describe('checkIsSeedlessOnboardingUserAuthenticated', () => {
+    it('should return true if the user is authenticated', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller }) => {
+          expect(
+            await controller.checkIsSeedlessOnboardingUserAuthenticated(),
+          ).toBe(true);
+        },
+      );
+    });
+
+    it('should return false if the user is not authenticated (accessToken is missing)', async () => {
+      await withController(
+        {
+          state: {
+            userId,
+            authConnectionId,
+            groupedAuthConnectionId,
+            metadataAccessToken,
+            revokeToken,
+          },
+        },
+        async ({ controller }) => {
+          expect(
+            await controller.checkIsSeedlessOnboardingUserAuthenticated(),
+          ).toBe(false);
+        },
+      );
+    });
+
+    it('should return false if the user is not authenticated (revokeToken is missing)', async () => {
+      await withController(
+        {
+          state: {
+            userId,
+            authConnectionId,
+            groupedAuthConnectionId,
+            metadataAccessToken,
+            accessToken,
+          },
+        },
+        async ({ controller }) => {
+          expect(
+            await controller.checkIsSeedlessOnboardingUserAuthenticated(),
+          ).toBe(false);
+        },
+      );
+    });
+
+    it('should return false if the user is not authenticated (social login details are missing)', async () => {
+      await withController(async ({ controller }) => {
+        expect(
+          await controller.checkIsSeedlessOnboardingUserAuthenticated(),
+        ).toBe(false);
+      });
     });
   });
 
@@ -4554,7 +4618,7 @@ describe('SeedlessOnboardingController', () => {
                 globalPassword: GLOBAL_PASSWORD,
               }),
             ).rejects.toThrow(
-              SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+              SeedlessOnboardingControllerErrorMessage.FailedToRefreshJWTTokens,
             );
 
             // Verify that getNewRefreshToken was called
@@ -5017,7 +5081,7 @@ describe('SeedlessOnboardingController', () => {
 
             // Call refreshAuthTokens and expect it to throw
             await expect(controller.refreshAuthTokens()).rejects.toThrow(
-              SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+              SeedlessOnboardingControllerErrorMessage.FailedToRefreshJWTTokens,
             );
 
             expect(mockRefreshJWTToken).toHaveBeenCalledTimes(1);

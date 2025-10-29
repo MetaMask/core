@@ -363,8 +363,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     userId: string;
     groupedAuthConnectionId?: string;
     socialLoginEmail?: string;
-    refreshToken?: string;
-    revokeToken?: string;
+    refreshToken: string;
+    revokeToken: string;
     skipLock?: boolean;
   }) {
     const doAuthenticateWithNodes = async () => {
@@ -397,14 +397,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           state.authConnection = authConnection;
           state.socialLoginEmail = socialLoginEmail;
           state.metadataAccessToken = metadataAccessToken;
+          state.refreshToken = refreshToken;
+          // Temporarily store revoke token & access token in state for later vault creation
+          state.revokeToken = revokeToken;
           state.accessToken = accessToken;
-          if (refreshToken) {
-            state.refreshToken = refreshToken;
-          }
-          if (revokeToken) {
-            // Temporarily store revoke token in state for later vault creation
-            state.revokeToken = revokeToken;
-          }
 
           // we will check if the controller state is properly set with the authenticated user info
           // before setting the isSeedlessOnboardingUserAuthenticated to true
@@ -942,6 +938,21 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           : await this.#withControllerLock(doCheckIsPasswordExpired),
       'checkIsPasswordOutdated',
     );
+  }
+
+  /**
+   * Check if the user is authenticated with the seedless onboarding flow by checking the token values in the state.
+   *
+   * @returns True if the user is authenticated, false otherwise.
+   */
+  async checkIsSeedlessOnboardingUserAuthenticated(): Promise<boolean> {
+    try {
+      assertIsSeedlessOnboardingUserAuthenticated(this.state);
+      // if accessToken is missing, the user needs to authenticate again
+      return Boolean(this.state.accessToken) && Boolean(this.state.revokeToken);
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -1779,13 +1790,19 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   async refreshAuthTokens(): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
-    const { refreshToken } = this.state;
+    const { refreshToken, revokeToken } = this.state;
+
+    const res = await this.#refreshJWTToken({
+      connection: this.state.authConnection,
+      refreshToken,
+    }).catch((error) => {
+      log('Error refreshing JWT tokens', error);
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.FailedToRefreshJWTTokens,
+      );
+    });
 
     try {
-      const res = await this.#refreshJWTToken({
-        connection: this.state.authConnection,
-        refreshToken,
-      });
       const { idTokens, accessToken, metadataAccessToken } = res;
       // re-authenticate with the new id tokens to set new node auth tokens
       await this.authenticate({
@@ -1796,6 +1813,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         authConnectionId: this.state.authConnectionId,
         groupedAuthConnectionId: this.state.groupedAuthConnectionId,
         userId: this.state.userId,
+        refreshToken,
+        revokeToken,
         skipLock: true,
       });
     } catch (error) {
