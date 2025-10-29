@@ -11,7 +11,6 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
-  NetworkControllerGetStateAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
