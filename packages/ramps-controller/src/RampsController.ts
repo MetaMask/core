@@ -19,6 +19,31 @@ import {
   AllSellQuotesResponse,
   Order,
 } from '@consensys/on-ramp-sdk';
+import {
+  NativeRampsSdk,
+  Context as NativeContext,
+  SdkEnvironment as NativeSdkEnvironment,
+  type DepositRegion,
+  type DepositCryptoCurrency,
+  type DepositPaymentMethod,
+  type NativeTransakAccessToken,
+  type NativeTransakUserDetails,
+  type BuyQuote,
+  type IdProofStatus,
+  type KycRequirement,
+  type AdditionalRequirementsResponse,
+  type PatchUserRequestBody,
+  type Reservation,
+  type DepositOrder,
+  type OrderPaymentMethod,
+  type UserLimits,
+  type OttResponse,
+  type GeolocationResponse,
+  type NativeRampsSdkConfig,
+  type TransakOrder,
+  NativeQuoteTranslation,
+  TranslationRequest,
+} from '@consensys/native-ramps-sdk';
 
 const controllerName = 'RampsController';
 
@@ -211,6 +236,132 @@ export type RampsControllerAddRedirectionListenerAction = {
   handler: RampsController['addRedirectionListener'];
 };
 
+// Deposit (NativeRampsSdk) action types
+export type RampsControllerDepositSetAccessTokenAction = {
+  type: `${typeof controllerName}:depositSetAccessToken`;
+  handler: RampsController['depositSetAccessToken'];
+};
+export type RampsControllerDepositGetAccessTokenAction = {
+  type: `${typeof controllerName}:depositGetAccessToken`;
+  handler: RampsController['depositGetAccessToken'];
+};
+export type RampsControllerDepositClearAccessTokenAction = {
+  type: `${typeof controllerName}:depositClearAccessToken`;
+  handler: RampsController['depositClearAccessToken'];
+};
+export type RampsControllerDepositGetVersionAction = {
+  type: `${typeof controllerName}:depositGetVersion`;
+  handler: RampsController['depositGetVersion'];
+};
+export type RampsControllerDepositGetContextAction = {
+  type: `${typeof controllerName}:depositGetContext`;
+  handler: RampsController['depositGetContext'];
+};
+export type RampsControllerDepositSendUserOtpAction = {
+  type: `${typeof controllerName}:depositSendUserOtp`;
+  handler: RampsController['depositSendUserOtp'];
+};
+export type RampsControllerDepositVerifyUserOtpAction = {
+  type: `${typeof controllerName}:depositVerifyUserOtp`;
+  handler: RampsController['depositVerifyUserOtp'];
+};
+export type RampsControllerDepositGetUserDetailsAction = {
+  type: `${typeof controllerName}:depositGetUserDetails`;
+  handler: RampsController['depositGetUserDetails'];
+};
+export type RampsControllerDepositGetBuyQuoteAction = {
+  type: `${typeof controllerName}:depositGetBuyQuote`;
+  handler: RampsController['depositGetBuyQuote'];
+};
+export type RampsControllerDepositGetIdProofStatusAction = {
+  type: `${typeof controllerName}:depositGetIdProofStatus`;
+  handler: RampsController['depositGetIdProofStatus'];
+};
+export type RampsControllerDepositGetKycRequirementAction = {
+  type: `${typeof controllerName}:depositGetKycRequirement`;
+  handler: RampsController['depositGetKycRequirement'];
+};
+export type RampsControllerDepositGetAdditionalRequirementsAction = {
+  type: `${typeof controllerName}:depositGetAdditionalRequirements`;
+  handler: RampsController['depositGetAdditionalRequirements'];
+};
+export type RampsControllerDepositPatchUserAction = {
+  type: `${typeof controllerName}:depositPatchUser`;
+  handler: RampsController['depositPatchUser'];
+};
+export type RampsControllerDepositSubmitPurposeOfUsageFormAction = {
+  type: `${typeof controllerName}:depositSubmitPurposeOfUsageForm`;
+  handler: RampsController['depositSubmitPurposeOfUsageForm'];
+};
+export type RampsControllerDepositSubmitSsnDetailsAction = {
+  type: `${typeof controllerName}:depositSubmitSsnDetails`;
+  handler: RampsController['depositSubmitSsnDetails'];
+};
+export type RampsControllerDepositCancelOrderAction = {
+  type: `${typeof controllerName}:depositCancelOrder`;
+  handler: RampsController['depositCancelOrder'];
+};
+export type RampsControllerDepositCancelAllActiveOrdersAction = {
+  type: `${typeof controllerName}:depositCancelAllActiveOrders`;
+  handler: RampsController['depositCancelAllActiveOrders'];
+};
+export type RampsControllerDepositCreateOrderAction = {
+  type: `${typeof controllerName}:depositCreateOrder`;
+  handler: RampsController['depositCreateOrder'];
+};
+export type RampsControllerDepositConfirmPaymentAction = {
+  type: `${typeof controllerName}:depositConfirmPayment`;
+  handler: RampsController['depositConfirmPayment'];
+};
+export type RampsControllerDepositGetOrderAction = {
+  type: `${typeof controllerName}:depositGetOrder`;
+  handler: RampsController['depositGetOrder'];
+};
+export type RampsControllerDepositGetUserLimitsAction = {
+  type: `${typeof controllerName}:depositGetUserLimits`;
+  handler: RampsController['depositGetUserLimits'];
+};
+export type RampsControllerDepositRequestOttAction = {
+  type: `${typeof controllerName}:depositRequestOtt`;
+  handler: RampsController['depositRequestOtt'];
+};
+export type RampsControllerDepositGetGeolocationAction = {
+  type: `${typeof controllerName}:depositGetGeolocation`;
+  handler: RampsController['depositGetGeolocation'];
+};
+export type RampsControllerDepositGeneratePaymentWidgetUrlAction = {
+  type: `${typeof controllerName}:depositGeneratePaymentWidgetUrl`;
+  handler: RampsController['depositGeneratePaymentWidgetUrl'];
+};
+export type RampsControllerDepositGetActiveOrdersAction = {
+  type: `${typeof controllerName}:depositGetActiveOrders`;
+  handler: RampsController['depositGetActiveOrders'];
+};
+export type RampsControllerDepositGetOrdersHistoryAction = {
+  type: `${typeof controllerName}:depositGetOrdersHistory`;
+  handler: RampsController['depositGetOrdersHistory'];
+};
+export type RampsControllerDepositLogoutAction = {
+  type: `${typeof controllerName}:depositLogout`;
+  handler: RampsController['depositLogout'];
+};
+export type RampsControllerDepositGetCountriesAction = {
+  type: `${typeof controllerName}:depositGetCountries`;
+  handler: RampsController['depositGetCountries'];
+};
+export type RampsControllerDepositGetCryptoCurrenciesAction = {
+  type: `${typeof controllerName}:depositGetCryptoCurrencies`;
+  handler: RampsController['depositGetCryptoCurrencies'];
+};
+export type RampsControllerDepositGetPaymentMethodsAction = {
+  type: `${typeof controllerName}:depositGetPaymentMethods`;
+  handler: RampsController['depositGetPaymentMethods'];
+};
+export type RampsControllerDepositGetTransalationAction = {
+  type: `${typeof controllerName}:depositGetTransalation`;
+  handler: RampsController['depositGetTransalation'];
+};
+
 export type RampsControllerActions =
   | RampsControllerGetStateAction
   | RampsControllerGetCountriesAction
@@ -240,7 +391,39 @@ export type RampsControllerActions =
   | RampsControllerSubmitApplePayOrderAction
   | RampsControllerGetProviderAction
   | RampsControllerGetRecurringOrdersAction
-  | RampsControllerAddRedirectionListenerAction;
+  | RampsControllerAddRedirectionListenerAction
+  // Deposit actions
+  | RampsControllerDepositSetAccessTokenAction
+  | RampsControllerDepositGetAccessTokenAction
+  | RampsControllerDepositClearAccessTokenAction
+  | RampsControllerDepositGetVersionAction
+  | RampsControllerDepositGetContextAction
+  | RampsControllerDepositSendUserOtpAction
+  | RampsControllerDepositVerifyUserOtpAction
+  | RampsControllerDepositGetUserDetailsAction
+  | RampsControllerDepositGetBuyQuoteAction
+  | RampsControllerDepositGetIdProofStatusAction
+  | RampsControllerDepositGetKycRequirementAction
+  | RampsControllerDepositGetAdditionalRequirementsAction
+  | RampsControllerDepositPatchUserAction
+  | RampsControllerDepositSubmitPurposeOfUsageFormAction
+  | RampsControllerDepositSubmitSsnDetailsAction
+  | RampsControllerDepositCancelOrderAction
+  | RampsControllerDepositCancelAllActiveOrdersAction
+  | RampsControllerDepositCreateOrderAction
+  | RampsControllerDepositConfirmPaymentAction
+  | RampsControllerDepositGetOrderAction
+  | RampsControllerDepositGetUserLimitsAction
+  | RampsControllerDepositRequestOttAction
+  | RampsControllerDepositGetGeolocationAction
+  | RampsControllerDepositGeneratePaymentWidgetUrlAction
+  | RampsControllerDepositGetActiveOrdersAction
+  | RampsControllerDepositGetOrdersHistoryAction
+  | RampsControllerDepositLogoutAction
+  | RampsControllerDepositGetCountriesAction
+  | RampsControllerDepositGetCryptoCurrenciesAction
+  | RampsControllerDepositGetPaymentMethodsAction
+  | RampsControllerDepositGetTransalationAction;
 
 export type RampsControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -293,6 +476,22 @@ export function getSdkEnvironment(metamaskEnvironment: string) {
   }
 }
 
+function getNativeSdkEnvironment(metamaskEnvironment: string) {
+  switch (metamaskEnvironment) {
+    case 'production':
+    case 'beta':
+    case 'rc':
+      return NativeSdkEnvironment.Production;
+
+    case 'dev':
+    case 'exp':
+    case 'test':
+    case 'e2e':
+    default:
+      return NativeSdkEnvironment.Staging;
+  }
+}
+
 /**
  * Controller that manages on-ramp and off-ramp operations.
  * The ramps controller is responsible for handling cryptocurrency purchase and sale operations.
@@ -304,6 +503,7 @@ export class RampsController extends BaseController<
   RampsControllerMessenger
 > {
   readonly #sdk: OnRampSdk;
+  readonly #nativeSdk: NativeRampsSdk;
 
   /**
    * Constructor for RampsController.
@@ -331,6 +531,15 @@ export class RampsController extends BaseController<
     const context = state?.context ?? Context.Browser;
     this.#sdk = OnRampSdk.create(getSdkEnvironment(environment), context as Context);
 
+    // Initialize the Native Ramps SDK
+    const nativeEnv = getNativeSdkEnvironment(environment);
+    // Map the shared context string into the native SDK enum
+    const nativeContext = (context as unknown as string) as keyof typeof NativeContext;
+    const nativeConfig: NativeRampsSdkConfig = {
+      context: NativeContext[nativeContext] ?? NativeContext.Browser,
+    };
+    this.#nativeSdk = new NativeRampsSdk(nativeConfig, nativeEnv);
+
     this.#registerMessageHandlers();
   }
 
@@ -339,6 +548,186 @@ export class RampsController extends BaseController<
    */
   async #getRegionsService(): Promise<RegionsService> {
     return this.#sdk.regions();
+  }
+
+  // Native Ramps SDK wrappers (prefixed with "deposit")
+
+  depositSetAccessToken(accessToken: NativeTransakAccessToken | null): void {
+    if (accessToken) {
+      this.#nativeSdk.setAccessToken(accessToken);
+    } else {
+      this.#nativeSdk.clearAccessToken();
+    }
+  }
+
+  depositGetAccessToken(): NativeTransakAccessToken | null {
+    return this.#nativeSdk.getAccessToken();
+  }
+
+  depositClearAccessToken(): void {
+    this.#nativeSdk.clearAccessToken();
+  }
+
+  depositGetVersion(): string {
+    return this.#nativeSdk.getVersion();
+  }
+
+  depositGetContext(): NativeContext {
+    return this.#nativeSdk.getContext();
+  }
+
+  async depositSendUserOtp(email: string): Promise<{ isTncAccepted: boolean; stateToken: string; email: string; expiresIn: number }>{
+    return this.#nativeSdk.sendUserOtp(email);
+  }
+
+  async depositVerifyUserOtp(
+    email: string,
+    verificationCode: string,
+    stateToken: string,
+  ): Promise<NativeTransakAccessToken> {
+    return this.#nativeSdk.verifyUserOtp(email, verificationCode, stateToken);
+  }
+
+  async depositGetUserDetails(): Promise<NativeTransakUserDetails> {
+    return this.#nativeSdk.getUserDetails();
+  }
+
+  async depositGetBuyQuote(
+    genericFiatCurrency: string,
+    genericCryptoCurrency: string,
+    genericNetwork: string,
+    genericPaymentMethod: string,
+    fiatAmount: string,
+  ): Promise<BuyQuote> {
+    return this.#nativeSdk.getBuyQuote(
+      genericFiatCurrency,
+      genericCryptoCurrency,
+      genericNetwork,
+      genericPaymentMethod,
+      fiatAmount,
+    );
+  }
+
+  async depositGetIdProofStatus(workFlowRunId: string): Promise<IdProofStatus> {
+    return this.#nativeSdk.getIdProofStatus(workFlowRunId);
+  }
+
+  async depositGetKycRequirement(quoteId: string): Promise<KycRequirement> {
+    return this.#nativeSdk.getKycRequirement(quoteId);
+  }
+
+  async depositGetAdditionalRequirements(quoteId: string): Promise<AdditionalRequirementsResponse> {
+    return this.#nativeSdk.getAdditionalRequirements(quoteId);
+  }
+
+  async depositPatchUser(data: PatchUserRequestBody): Promise<any> {
+    return this.#nativeSdk.patchUser(data);
+  }
+
+  async depositSubmitPurposeOfUsageForm(purpose: string[]): Promise<void> {
+    return this.#nativeSdk.submitPurposeOfUsageForm(purpose);
+  }
+
+  async depositSubmitSsnDetails(params: { ssn: string; quoteId: string }): Promise<any> {
+    return this.#nativeSdk.submitSsnDetails(params);
+  }
+
+  async depositCancelOrder(depositOrderId: string): Promise<void> {
+    return this.#nativeSdk.cancelOrder(depositOrderId);
+  }
+
+  async depositCancelAllActiveOrders(): Promise<void> {
+    return this.#nativeSdk.cancelAllActiveOrders();
+  }
+
+  async depositCreateOrder(
+    quote: BuyQuote,
+    walletAddress: string,
+    paymentMethodId: string,
+  ): Promise<DepositOrder> {
+    return this.#nativeSdk.createOrder(quote, walletAddress, paymentMethodId);
+  }
+
+  async depositConfirmPayment(orderId: string, paymentMethodId: string): Promise<{ success: boolean }>{
+    return this.#nativeSdk.confirmPayment(orderId, paymentMethodId);
+  }
+
+  async depositGetOrder(
+    orderId: string,
+    wallet: string,
+    paymentDetails?: OrderPaymentMethod[],
+    abortController?: AbortController,
+  ): Promise<DepositOrder> {
+    return this.#nativeSdk.getOrder(orderId, wallet, paymentDetails, abortController);
+  }
+
+  async depositGetUserLimits(
+    fiatCurrency: string,
+    paymentMethod: string,
+    kycType: string,
+  ): Promise<UserLimits> {
+    return this.#nativeSdk.getUserLimits(fiatCurrency, paymentMethod, kycType);
+  }
+
+  async depositRequestOtt(): Promise<OttResponse> {
+    return this.#nativeSdk.requestOtt();
+  }
+
+  async depositGetGeolocation(): Promise<GeolocationResponse> {
+    return this.#nativeSdk.getGeolocation();
+  }
+
+  depositGeneratePaymentWidgetUrl(
+    ottToken: string,
+    quote: BuyQuote,
+    walletAddress: string,
+    extraParams?: Record<string, string>,
+  ): string {
+    return this.#nativeSdk.generatePaymentWidgetUrl(ottToken, quote, walletAddress, extraParams);
+  }
+
+  async depositGetActiveOrders(): Promise<TransakOrder[]> {
+    return this.#nativeSdk.getActiveOrders();
+  }
+
+  async depositGetOrdersHistory(limit?: number, skip?: number): Promise<TransakOrder[]> {
+    return this.#nativeSdk.getOrdersHistory(limit, skip);
+  }
+
+  async depositLogout(): Promise<string> {
+    return this.#nativeSdk.logout();
+  }
+
+  async depositGetCountries(abortController?: AbortController): Promise<DepositRegion[]> {
+    return this.#nativeSdk.getCountries(abortController);
+  }
+
+  async depositGetCryptoCurrencies(
+    regionId: string,
+    abortController?: AbortController,
+  ): Promise<DepositCryptoCurrency[]> {
+    return this.#nativeSdk.getCryptoCurrencies(regionId, abortController);
+  }
+
+  async depositGetPaymentMethods(
+    regionId: string,
+    cryptoCurrencyId: string,
+    fiatCurrencyId: string,
+    abortController?: AbortController,
+  ): Promise<DepositPaymentMethod[]> {
+    return this.#nativeSdk.getPaymentMethods(
+      regionId,
+      cryptoCurrencyId,
+      fiatCurrencyId,
+      abortController,
+    );
+  }
+
+  async depositGetTransalation(
+    translationRequest: TranslationRequest,
+    abortController?: AbortController,
+  ): Promise<NativeQuoteTranslation> {
+    return this.#nativeSdk.getTransalation(translationRequest, abortController);
   }
 
   /**
@@ -977,6 +1366,132 @@ export class RampsController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:addRedirectionListener`,
       this.addRedirectionListener.bind(this),
+    );
+
+    // NativeRampsSdk (Deposit) methods
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositSetAccessToken`,
+      this.depositSetAccessToken.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetAccessToken`,
+      this.depositGetAccessToken.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositClearAccessToken`,
+      this.depositClearAccessToken.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetVersion`,
+      this.depositGetVersion.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetContext`,
+      this.depositGetContext.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositSendUserOtp`,
+      this.depositSendUserOtp.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositVerifyUserOtp`,
+      this.depositVerifyUserOtp.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetUserDetails`,
+      this.depositGetUserDetails.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetBuyQuote`,
+      this.depositGetBuyQuote.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetIdProofStatus`,
+      this.depositGetIdProofStatus.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetKycRequirement`,
+      this.depositGetKycRequirement.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetAdditionalRequirements`,
+      this.depositGetAdditionalRequirements.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositPatchUser`,
+      this.depositPatchUser.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositSubmitPurposeOfUsageForm`,
+      this.depositSubmitPurposeOfUsageForm.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositSubmitSsnDetails`,
+      this.depositSubmitSsnDetails.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositCancelOrder`,
+      this.depositCancelOrder.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositCancelAllActiveOrders`,
+      this.depositCancelAllActiveOrders.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositCreateOrder`,
+      this.depositCreateOrder.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositConfirmPayment`,
+      this.depositConfirmPayment.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetOrder`,
+      this.depositGetOrder.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetUserLimits`,
+      this.depositGetUserLimits.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositRequestOtt`,
+      this.depositRequestOtt.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetGeolocation`,
+      this.depositGetGeolocation.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGeneratePaymentWidgetUrl`,
+      this.depositGeneratePaymentWidgetUrl.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetActiveOrders`,
+      this.depositGetActiveOrders.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetOrdersHistory`,
+      this.depositGetOrdersHistory.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositLogout`,
+      this.depositLogout.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetCountries`,
+      this.depositGetCountries.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetCryptoCurrencies`,
+      this.depositGetCryptoCurrencies.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetPaymentMethods`,
+      this.depositGetPaymentMethods.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:depositGetTransalation`,
+      this.depositGetTransalation.bind(this),
     );
   }
 }
