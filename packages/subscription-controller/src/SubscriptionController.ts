@@ -30,7 +30,6 @@ import type {
 } from './types';
 import {
   PAYMENT_TYPES,
-  RECURRING_INTERVALS,
   type ISubscriptionService,
   type PricingResponse,
   type ProductType,
@@ -578,7 +577,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     const hasTrailedBefore = this.state.trialedProducts.some((product) =>
       request.products.includes(product),
     );
-    // if the user has not trailed the provided products before, submit the sponsorship intents
+    // if the user has not trialed the provided products before, submit the sponsorship intents
     if (hasTrailedBefore) {
       return;
     }
@@ -589,6 +588,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
     const { paymentTokenSymbol, plan } = selectedPaymentMethod;
     const productPrice = this.#getProductPriceByProductAndPlan(
+      // we only support one product at a time for now
       request.products[0],
       plan,
     );
