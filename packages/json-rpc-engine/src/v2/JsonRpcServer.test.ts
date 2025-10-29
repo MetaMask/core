@@ -3,7 +3,8 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import { JsonRpcServer } from './JsonRpcServer';
-import { isRequest } from './utils';
+import type { JsonRpcNotification, JsonRpcRequest } from './utils';
+import { isRequest, JsonRpcEngineError, stringify } from './utils';
 
 const jsonrpc = '2.0' as const;
 
@@ -216,6 +217,43 @@ describe('JsonRpcServer', () => {
       id: 1,
       result: null,
     });
+  });
+
+  it('throws if passed a notification when only requests are supported', async () => {
+    const onError = jest.fn();
+    const server = new JsonRpcServer<JsonRpcMiddleware<JsonRpcRequest>>({
+      middleware: [() => null],
+      onError,
+    });
+
+    const notification = { jsonrpc, method: 'hello' };
+    await server.handle(notification);
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      new JsonRpcEngineError(
+        `Result returned for notification: ${stringify(notification)}`,
+      ),
+    );
+  });
+
+  it('throws if passed a request when only notifications are supported', async () => {
+    const onError = jest.fn();
+    const server = new JsonRpcServer<JsonRpcMiddleware<JsonRpcNotification>>({
+      middleware: [() => undefined],
+      onError,
+    });
+
+    const request = { jsonrpc, id: 1, method: 'hello' };
+    await server.handle(request);
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // Using a regex match because id in the error message is not predictable.
+        message: expect.stringMatching(/^Nothing ended request: /u),
+      }),
+    );
   });
 
   it.each([undefined, Symbol('test'), null, true, false, {}, []])(
