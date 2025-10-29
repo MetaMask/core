@@ -1158,7 +1158,9 @@ export class AccountTreeController extends BaseController<
       // We clear existing contexts for previous accounts of that group because:
       // - Accounts might have been removed
       // - Accounts context mapping will get updated below
-      group.accounts.forEach(accountId => this.#accountIdToContext.delete(accountId));
+      group.accounts.forEach((accountId) =>
+        this.#accountIdToContext.delete(accountId),
+      );
 
       group.accounts = accountIds;
     }
