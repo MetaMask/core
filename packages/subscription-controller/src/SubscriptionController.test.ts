@@ -36,7 +36,10 @@ import type {
   UpdatePaymentMethodOpts,
   Product,
   SubscriptionEligibility,
-  CachedLastSelectedPaymentMethods,
+  CachedLastSelectedPaymentMethod,
+  SubmitSponsorshipIntentsMethodParams,
+  ProductType,
+  RecurringInterval,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -88,6 +91,14 @@ const MOCK_PRODUCT_PRICE: ProductPricing = {
       unitAmount: 900,
       unitDecimals: 2,
       trialPeriodDays: 0,
+      minBillingCycles: 12,
+    },
+    {
+      interval: 'year',
+      unitAmount: 8000,
+      unitDecimals: 2,
+      currency: 'usd',
+      trialPeriodDays: 14,
       minBillingCycles: 1,
     },
   ],
@@ -208,6 +219,7 @@ function createMockSubscriptionService() {
   const mockGetBillingPortalUrl = jest.fn();
   const mockGetSubscriptionsEligibilities = jest.fn();
   const mockSubmitUserEvent = jest.fn();
+  const mockSubmitSponsorshipIntents = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
@@ -221,6 +233,7 @@ function createMockSubscriptionService() {
     getBillingPortalUrl: mockGetBillingPortalUrl,
     getSubscriptionsEligibilities: mockGetSubscriptionsEligibilities,
     submitUserEvent: mockSubmitUserEvent,
+    submitSponsorshipIntents: mockSubmitSponsorshipIntents,
   };
 
   return {
@@ -233,6 +246,7 @@ function createMockSubscriptionService() {
     mockStartSubscriptionWithCrypto,
     mockUpdatePaymentMethodCard,
     mockUpdatePaymentMethodCrypto,
+    mockSubmitSponsorshipIntents,
   };
 }
 
@@ -997,7 +1011,7 @@ describe('SubscriptionController', () => {
           });
 
           expect(result).toStrictEqual({
-            approveAmount: '9000000000000000000',
+            approveAmount: '108000000000000000000',
             paymentAddress: '0xspender',
             paymentTokenAddress: '0xtoken',
             chainId: '0x1',
@@ -1433,6 +1447,13 @@ describe('SubscriptionController', () => {
   });
 
   describe('cacheLastSelectedPaymentMethod', () => {
+    const MOCK_CACHED_PAYMENT_METHOD: CachedLastSelectedPaymentMethod = {
+      type: PAYMENT_TYPES.byCrypto,
+      paymentTokenAddress: '0x123',
+      paymentTokenSymbol: 'USDT',
+      plan: RECURRING_INTERVALS.month,
+    };
+
     it('should cache last selected payment method successfully', async () => {
       await withController(async ({ controller }) => {
         controller.cacheLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD, {
@@ -1469,18 +1490,13 @@ describe('SubscriptionController', () => {
             },
           });
 
-          controller.cacheLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD, {
-            type: PAYMENT_TYPES.byCrypto,
-            paymentTokenAddress: '0x123',
-            plan: RECURRING_INTERVALS.month,
-          });
+          controller.cacheLastSelectedPaymentMethod(
+            PRODUCT_TYPES.SHIELD,
+            MOCK_CACHED_PAYMENT_METHOD,
+          );
 
           expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({
-            [PRODUCT_TYPES.SHIELD]: {
-              type: PAYMENT_TYPES.byCrypto,
-              paymentTokenAddress: '0x123',
-              plan: RECURRING_INTERVALS.month,
-            },
+            [PRODUCT_TYPES.SHIELD]: MOCK_CACHED_PAYMENT_METHOD,
           });
         },
       );
@@ -1492,11 +1508,204 @@ describe('SubscriptionController', () => {
           controller.cacheLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD, {
             type: PAYMENT_TYPES.byCrypto,
             plan: RECURRING_INTERVALS.month,
-          } as CachedLastSelectedPaymentMethods),
+          } as CachedLastSelectedPaymentMethod),
         ).toThrow(
-          SubscriptionControllerErrorMessage.PaymentTokenAddressRequiredForCrypto,
+          SubscriptionControllerErrorMessage.PaymentTokenAddressAndSymbolRequiredForCrypto,
         );
       });
+    });
+  });
+
+  describe('submitSponsorshipIntents', () => {
+    const MOCK_SUBMISSION_INTENTS_REQUEST: SubmitSponsorshipIntentsMethodParams =
+      {
+        chainId: '0x1',
+        address: '0x1234567890123456789012345678901234567890',
+        products: [PRODUCT_TYPES.SHIELD],
+      };
+    const MOCK_CACHED_PAYMENT_METHOD: Record<
+      ProductType,
+      CachedLastSelectedPaymentMethod
+    > = {
+      [PRODUCT_TYPES.SHIELD]: {
+        type: PAYMENT_TYPES.byCrypto,
+        paymentTokenAddress: '0xtoken',
+        paymentTokenSymbol: 'USDT',
+        plan: RECURRING_INTERVALS.month,
+      },
+    };
+
+    it('should submit sponsorship intents successfully', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ controller, mockService }) => {
+          const submitSponsorshipIntentsSpy = jest
+            .spyOn(mockService, 'submitSponsorshipIntents')
+            .mockResolvedValue(undefined);
+
+          await controller.submitSponsorshipIntents(
+            MOCK_SUBMISSION_INTENTS_REQUEST,
+          );
+          expect(submitSponsorshipIntentsSpy).toHaveBeenCalledWith({
+            ...MOCK_SUBMISSION_INTENTS_REQUEST,
+            paymentTokenSymbol: 'USDT',
+            billingCycles: 12,
+            recurringInterval: RECURRING_INTERVALS.month,
+          });
+        },
+      );
+    });
+
+    it('should throw error when products array is empty', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.submitSponsorshipIntents({
+            ...MOCK_SUBMISSION_INTENTS_REQUEST,
+            products: [],
+          }),
+        ).rejects.toThrow(
+          SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+        );
+      });
+    });
+
+    it('should throw error when user is already subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller, mockService }) => {
+          await expect(
+            controller.submitSponsorshipIntents(
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.UserAlreadySubscribed,
+          );
+
+          // Verify the subscription service was not called
+          expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should not submit sponsorship intents if the user has trailed the products before', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [
+              {
+                ...MOCK_SUBSCRIPTION,
+                status: SUBSCRIPTION_STATUSES.canceled,
+              },
+            ],
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.submitSponsorshipIntents.mockResolvedValue(undefined);
+
+          await controller.submitSponsorshipIntents(
+            MOCK_SUBMISSION_INTENTS_REQUEST,
+          );
+          expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should throw error when no cached payment method is found', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.submitSponsorshipIntents(MOCK_SUBMISSION_INTENTS_REQUEST),
+        ).rejects.toThrow(
+          SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
+        );
+      });
+    });
+
+    it('should throw error when payment method is not crypto', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCard,
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.submitSponsorshipIntents(
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
+          );
+        },
+      );
+    });
+
+    it('should throw error when product price is not found', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.submitSponsorshipIntents(
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.ProductPriceNotFound,
+          );
+        },
+      );
+    });
+
+    it('should handle subscription service errors', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                ...MOCK_CACHED_PAYMENT_METHOD[PRODUCT_TYPES.SHIELD],
+                plan: RECURRING_INTERVALS.year,
+              },
+            },
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.submitSponsorshipIntents.mockRejectedValue(
+            new SubscriptionServiceError(
+              'Failed to submit sponsorship intents',
+            ),
+          );
+
+          await expect(
+            controller.submitSponsorshipIntents(
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow(SubscriptionServiceError);
+          expect(mockService.submitSponsorshipIntents).toHaveBeenCalledWith({
+            ...MOCK_SUBMISSION_INTENTS_REQUEST,
+            paymentTokenSymbol: 'USDT',
+            billingCycles: 1,
+            recurringInterval: RECURRING_INTERVALS.year,
+          });
+        },
+      );
     });
   });
 
@@ -1767,7 +1976,7 @@ describe('SubscriptionController', () => {
               [PRODUCT_TYPES.SHIELD]: {
                 type: PAYMENT_TYPES.byCrypto,
                 paymentTokenAddress: '0xtoken',
-                plan: RECURRING_INTERVALS.year,
+                plan: 'invalidPlan' as RecurringInterval,
               },
             },
           },

@@ -36,6 +36,7 @@ export type {
   SubscriptionCryptoPaymentMethod,
   SubscriptionPaymentMethod,
   SubmitUserEventRequest,
+  SubmitSponsorshipIntentsRequest,
   SubscriptionEligibility,
   SubscriptionUserEventType,
   RecurringInterval,
@@ -56,7 +57,7 @@ export type {
   UpdatePaymentMethodCryptoRequest,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCardResponse,
-  CachedLastSelectedPaymentMethods,
+  CachedLastSelectedPaymentMethod,
 } from './types';
 export {
   CRYPTO_PAYMENT_METHOD_ERRORS,
