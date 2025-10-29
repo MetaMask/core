@@ -23,6 +23,17 @@ type Eip1193Request<Params extends JsonRpcParams> = {
   params?: Params;
 };
 
+type Options =
+  | {
+      /**
+       * @deprecated Use `rpcHandler` instead.
+       */
+      engine: JsonRpcEngine;
+    }
+  | {
+      rpcHandler: JsonRpcEngine | JsonRpcServer;
+    };
+
 /**
  * An Ethereum provider.
  *
@@ -36,10 +47,12 @@ export class InternalProvider {
    * Construct a InternalProvider from a JSON-RPC server or legacy engine.
    *
    * @param options - Options.
-   * @param options.rpcHandler - The JSON-RPC server or legacy engine used to process requests.
+   * @param options.rpcHandler - The JSON-RPC server or engine used to process requests. Mutually exclusive with `engine`.
+   * @param options.engine - The JSON-RPC engine used to process requests. Mutually exclusive with `rpcHandler`.
    */
-  constructor({ rpcHandler }: { rpcHandler: JsonRpcEngine | JsonRpcServer }) {
-    this.#rpcHandler = rpcHandler;
+  constructor(options: Options) {
+    this.#rpcHandler =
+      'rpcHandler' in options ? options.rpcHandler : options.engine;
   }
 
   /**

@@ -10,5 +10,5 @@ import { InternalProvider } from './internal-provider';
  * @deprecated Just use {@link InternalProvider} directly instead.
  */
 export function providerFromEngine(engine: JsonRpcEngine): InternalProvider {
-  return new InternalProvider({ rpcHandler: engine });
+  return new InternalProvider({ engine });
 }
