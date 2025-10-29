@@ -555,16 +555,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       'PreferencesController:getState',
     );
 
-    console.log('YYYYYY BEFORE REFRESH', {
-      queryAllAccounts,
-      isMultiAccountBalancesEnabled,
-      queryAllAccountsXXX: queryAllAccounts ?? isMultiAccountBalancesEnabled,
-      selectedAccount: toChecksumHexAddress(
-        selectedAccount.address,
-      ) as ChecksumAddress,
-      allAccounts,
-    });
-
     await this.#refreshAccounts({
       networkClientIds,
       queryAllAccounts: queryAllAccounts ?? isMultiAccountBalancesEnabled,
