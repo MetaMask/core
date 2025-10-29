@@ -13,7 +13,6 @@ import {
   MultichainAccountGroup,
 } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { BaseBip44AccountProvider } from './providers';
 import type { MockAccountProvider } from './tests';
 import {
   MOCK_SNAP_ACCOUNT_2,

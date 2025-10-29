@@ -19,7 +19,6 @@ import {
   type WalletState,
   MultichainAccountWallet,
 } from './MultichainAccountWallet';
-import type { BaseBip44AccountProvider } from './providers';
 import type { MockAccountProvider } from './tests';
 import {
   MOCK_HD_ACCOUNT_1,

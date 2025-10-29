@@ -158,12 +158,12 @@ function setup({
     mocks.KeyringController.addNewKeyring,
   );
 
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'KeyringController:createNewVaultAndKeychain',
     mocks.KeyringController.createNewVaultAndKeychain,
   );
 
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'KeyringController:createNewVaultAndRestore',
     mocks.KeyringController.createNewVaultAndRestore,
   );
@@ -928,7 +928,7 @@ describe('MultichainAccountService', () => {
 
     describe('createWalletByNewVault', () => {
       it('creates a new multichain account wallet by the new vault flow', async () => {
-        const { service, mocks, messenger } = setup({
+        const { service, mocks, rootMessenger } = setup({
           accounts: [],
           keyrings: [],
         });
@@ -941,7 +941,7 @@ describe('MultichainAccountService', () => {
           },
         );
 
-        messenger.registerActionHandler(
+        rootMessenger.registerActionHandler(
           'KeyringController:withKeyring',
           async (_, operation) => {
             const newKeyring = mocks.KeyringController.keyrings.find(
@@ -966,7 +966,7 @@ describe('MultichainAccountService', () => {
 
     describe('createWalletByRestore', () => {
       it('creates a new multichain account wallet by the restore flow', async () => {
-        const { service, mocks, messenger } = setup({
+        const { service, mocks, rootMessenger } = setup({
           accounts: [],
           keyrings: [],
         });
@@ -980,7 +980,7 @@ describe('MultichainAccountService', () => {
           },
         );
 
-        messenger.registerActionHandler(
+        rootMessenger.registerActionHandler(
           'KeyringController:withKeyring',
           async (_, operation) => {
             const newKeyring = mocks.KeyringController.keyrings.find(

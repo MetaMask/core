@@ -19,7 +19,7 @@ export type MockAccountProvider = {
   discoverAccounts: jest.Mock;
   addAccounts: jest.Mock;
   isAccountCompatible: jest.Mock;
-  removeAccountsFromList: jest.Mock;
+  clearAccountsList: jest.Mock;
   getName: jest.Mock;
   isEnabled: boolean;
   isDisabled: jest.Mock;
@@ -39,7 +39,7 @@ export function makeMockAccountProvider(
     discoverAccounts: jest.fn(),
     addAccounts: jest.fn(),
     isAccountCompatible: jest.fn(),
-    removeAccountsFromList: jest.fn(),
+    clearAccountsList: jest.fn(),
     getName: jest.fn(),
     isDisabled: jest.fn(),
     setEnabled: jest.fn(),
@@ -83,8 +83,8 @@ export function setupBip44AccountProvider({
   mocks.addAccounts.mockImplementation((ids: string[]) =>
     mocks.accountsList.push(...ids),
   );
-  mocks.removeAccountsFromList.mockImplementation((ids: string[]) => {
-    BaseBip44AccountProvider.prototype.removeAccountsFromList.call(mocks, ids);
+  mocks.clearAccountsList.mockImplementation(() => {
+    BaseBip44AccountProvider.prototype.clearAccountsList.call(mocks);
   });
 
   if (index === 0) {

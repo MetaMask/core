@@ -257,7 +257,6 @@ export class MultichainAccountGroup<
       this.#accountToProvider.delete(account);
     });
     this.#providerToAccounts.delete(provider);
-    provider.removeAccountsFromList(accounts);
   }
 
   /**

@@ -42,7 +42,7 @@ export type Bip44AccountProvider<
 > = AccountProvider<Account> & {
   getName(): string;
   addAccounts(accounts: Bip44Account<KeyringAccount>['id'][]): void;
-  removeAccountsFromList(accounts: Bip44Account<KeyringAccount>['id'][]): void;
+  clearAccountsList(): void;
   isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
 };
 
@@ -76,10 +76,8 @@ export abstract class BaseBip44AccountProvider<
     return this.accounts;
   }
 
-  removeAccountsFromList(accounts: Account['id'][]): void {
-    this.accounts = this.accounts.filter(
-      (account) => !accounts.includes(account),
-    );
+  clearAccountsList(): void {
+    this.accounts = [];
   }
 
   /**
