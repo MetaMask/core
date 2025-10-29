@@ -29,7 +29,6 @@ import {
   type BridgeControllerMessenger,
   type FetchFunction,
   RequestStatus,
-  ChainId,
 } from './types';
 import { getAssetIdsForToken, toExchangeRates } from './utils/assets';
 import { hasSufficientBalance } from './utils/balance';
@@ -70,7 +69,6 @@ import {
 import type {
   QuoteFetchData,
   RequestMetadata,
-  RequestParams,
   RequiredEventContextFromClient,
 } from './utils/metrics/types';
 import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
@@ -778,16 +776,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return networkClient;
   }
 
-  readonly #getRequestParams = (): Omit<
-    RequestParams,
-    'token_symbol_source' | 'token_symbol_destination'
-  > => {
-    const srcChainIdCaip = formatChainIdToCaip(
-      this.state.quoteRequest.srcChainId ?? ChainId.ETH,
-    );
-    return getRequestParams(this.state.quoteRequest, srcChainIdCaip);
-  };
-
   readonly #getRequestMetadata = (): Omit<
     RequestMetadata,
     | 'stx_enabled'
@@ -830,18 +818,18 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case UnifiedSwapBridgeEventName.ButtonClicked:
       case UnifiedSwapBridgeEventName.PageViewed:
         return {
-          ...this.#getRequestParams(),
+          ...getRequestParams(this.state.quoteRequest),
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.QuotesValidationFailed:
         return {
-          ...this.#getRequestParams(),
+          ...getRequestParams(this.state.quoteRequest),
           refresh_count: this.state.quotesRefreshCount,
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.QuotesReceived:
         return {
-          ...this.#getRequestParams(),
+          ...getRequestParams(this.state.quoteRequest),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
           is_hardware_wallet: isHardwareWallet(
@@ -852,7 +840,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         };
       case UnifiedSwapBridgeEventName.QuotesRequested:
         return {
-          ...this.#getRequestParams(),
+          ...getRequestParams(this.state.quoteRequest),
           ...this.#getRequestMetadata(),
           is_hardware_wallet: isHardwareWallet(
             this.#getMultichainSelectedAccount(),
@@ -862,7 +850,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         };
       case UnifiedSwapBridgeEventName.QuotesError:
         return {
-          ...this.#getRequestParams(),
+          ...getRequestParams(this.state.quoteRequest),
           ...this.#getRequestMetadata(),
           is_hardware_wallet: isHardwareWallet(
             this.#getMultichainSelectedAccount(),
@@ -875,7 +863,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case UnifiedSwapBridgeEventName.AllQuotesSorted:
       case UnifiedSwapBridgeEventName.QuoteSelected:
         return {
-          ...this.#getRequestParams(),
+          ...getRequestParams(this.state.quoteRequest),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
           is_hardware_wallet: isHardwareWallet(
@@ -887,7 +875,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         // Populate the properties that the error occurred before the tx was submitted
         return {
           ...baseProperties,
-          ...this.#getRequestParams(),
+          ...getRequestParams(this.state.quoteRequest),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
           ...propertiesFromClient,
