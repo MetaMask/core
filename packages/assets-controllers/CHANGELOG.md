@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: add infura supported networks ([#6972](https://github.com/MetaMask/core/pull/6972))
-- Release/646.0.0 ([#6988](https://github.com/MetaMask/core/pull/6988))
-
 ### Added
 
 - **BREAKING:** Added constructor argument `tokenPricesService` in `currencyRateController` ([#6863](https://github.com/MetaMask/core/pull/6863))

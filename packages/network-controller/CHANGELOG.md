@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: add infura supported networks ([#6972](https://github.com/MetaMask/core/pull/6972))
-
 ## [25.0.0]
 
 ### Changed
