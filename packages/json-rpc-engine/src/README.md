@@ -26,6 +26,12 @@ engine.push(function (req, res, next, end) {
 Use the `asV2Middleware` function to use a `JsonRpcEngine` or legacy middleware as middleware in a
 `JsonRpcEngineV2`:
 
+#### Context propagation
+
+Non-JSON-RPC string properties on the request object will be copied over to the V2 engine's `context` object
+once the legacy engine is done with the request, _unless_ they already exist on the `context`, in which case
+they will be ignored.
+
 #### Converting a legacy engine
 
 ```ts
@@ -66,12 +72,6 @@ const v2Engine2 = JsonRpcEngineV2.create({
   middleware: [asV2Middleware(middleware1, middleware2)],
 });
 ```
-
-#### Context propagation
-
-Non-JSON-RPC string properties on the request object will be copied over to the V2 engine's `context` object
-once the legacy engine is done with the request, _unless_ they already exist on the `context`, in which case
-they will be ignored.
 
 ### Middleware
 

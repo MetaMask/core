@@ -6,12 +6,8 @@ import {
   makeContext,
   propagateToRequest,
 } from './compatibility-utils';
-import type {
-  JsonRpcEngineV2,
-  JsonRpcMiddleware as V2Middleware,
-  ResultConstraint,
-} from './JsonRpcEngineV2';
-import { JsonRpcEngineV2 as EngineV2 } from './JsonRpcEngineV2';
+import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
+import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import { createAsyncMiddleware } from '..';
 import type { JsonRpcMiddleware as LegacyMiddleware } from '..';
 
@@ -38,7 +34,7 @@ export function asLegacyMiddleware<
   Params extends JsonRpcParams,
   Request extends JsonRpcRequest<Params>,
 >(
-  ...middleware: V2Middleware<Request, ResultConstraint<Request>>[]
+  ...middleware: JsonRpcMiddleware<Request, ResultConstraint<Request>>[]
 ): LegacyMiddleware<Params, ResultConstraint<Request>>;
 
 /**
@@ -54,23 +50,22 @@ export function asLegacyMiddleware<
 >(
   engineOrMiddleware:
     | JsonRpcEngineV2<Request>
-    | V2Middleware<Request, ResultConstraint<Request>>,
-  ...rest: V2Middleware<Request, ResultConstraint<Request>>[]
+    | JsonRpcMiddleware<Request, ResultConstraint<Request>>,
+  ...rest: JsonRpcMiddleware<Request, ResultConstraint<Request>>[]
 ): LegacyMiddleware<Params, ResultConstraint<Request>> {
-  // Determine the V2 middleware function from input(s)
-  const middleware =
+  const JsonRpcMiddleware =
     typeof engineOrMiddleware === 'function'
-      ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        EngineV2.create<any>({
+      ? JsonRpcEngineV2.create({
           middleware: [engineOrMiddleware, ...rest],
         }).asMiddleware()
       : engineOrMiddleware.asMiddleware();
+
   return createAsyncMiddleware(async (req, res, next) => {
     const request = fromLegacyRequest(req as Request);
     const context = makeContext(req);
     let modifiedRequest: Request | undefined;
 
-    const result = await middleware({
+    const result = await JsonRpcMiddleware({
       request,
       context,
       next: (finalRequest) => {

@@ -22,7 +22,7 @@ import {
   unserializeError,
 } from './v2/compatibility-utils';
 import type {
-  // JsonRpcEngineV2 is used in docs.
+  // Used in docs.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   JsonRpcEngineV2,
   JsonRpcMiddleware,
@@ -67,8 +67,7 @@ export function asV2Middleware<
   engineOrMiddleware: JsonRpcEngine | LegacyMiddleware<JsonRpcParams, Json>,
   ...rest: LegacyMiddleware<JsonRpcParams, Json>[]
 ): JsonRpcMiddleware<Request> {
-  // Determine the legacy middleware function from input(s)
-  const middleware =
+  const legacyMiddleware =
     typeof engineOrMiddleware === 'function'
       ? mergeMiddleware([engineOrMiddleware, ...rest])
       : engineOrMiddleware.asMiddleware();
@@ -98,7 +97,7 @@ export function asV2Middleware<
       const legacyNext = ((cb: JsonRpcEngineEndCallback) =>
         cb(end)) as JsonRpcEngineNextCallback;
 
-      middleware(req, res, legacyNext, end);
+      legacyMiddleware(req, res, legacyNext, end);
     });
     propagateToContext(req, context);
 
