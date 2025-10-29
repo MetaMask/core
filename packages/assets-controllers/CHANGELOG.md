@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Added constructor argument `tokenPricesService` in `currencyRateController` ([#6863](https://github.com/MetaMask/core/pull/6863))
 
 - Added `fetchExchangeRates` function to fetch exchange rates from price-api ([#6863](https://github.com/MetaMask/core/pull/6863))
+- Added `ignoreAssets` to allow ignoring assets for non-EVM chains ([#6981](https://github.com/MetaMask/core/pull/6981))
 
 ### Changed
 
