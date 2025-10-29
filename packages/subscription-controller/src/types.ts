@@ -135,6 +135,8 @@ export type StartCryptoSubscriptionRequest = {
    */
   tokenSymbol: string;
   rawTransaction: Hex;
+  isSponsored?: boolean;
+  smartTransactionId?: string;
 };
 
 export type StartCryptoSubscriptionResponse = {
@@ -239,6 +241,23 @@ export type SubmitUserEventRequest = {
   event: SubscriptionUserEventType;
 };
 
+/**
+ * Request object for submitting sponsorship intents.
+ */
+export type SubmitSponsorshipIntentsRequest = {
+  chainId: Hex;
+  address: Hex;
+  products: ProductType[];
+  paymentTokenSymbol: string;
+  recurringInterval: RecurringInterval;
+  billingCycles: number;
+};
+
+export type SubmitSponsorshipIntentsMethodParams = Pick<
+  SubmitSponsorshipIntentsRequest,
+  'chainId' | 'address' | 'products'
+>;
+
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
   cancelSubscription(request: {
@@ -263,6 +282,24 @@ export type ISubscriptionService = {
   ): Promise<void>;
   getSubscriptionsEligibilities(): Promise<SubscriptionEligibility[]>;
   submitUserEvent(request: SubmitUserEventRequest): Promise<void>;
+
+  /**
+   * Submit sponsorship intents to the Subscription Service backend.
+   *
+   * This is intended to be used together with the crypto subscription flow.
+   * When the user has enabled the smart transaction feature, we will sponsor the gas fees for the subscription approval transaction.
+   *
+   * @param request - Request object containing the address and products.
+   * @example {
+   *   address: '0x1234567890123456789012345678901234567890',
+   *   products: [ProductType.Shield],
+   *   recurringInterval: RecurringInterval.Month,
+   *   billingCycles: 1,
+   * }
+   */
+  submitSponsorshipIntents(
+    request: SubmitSponsorshipIntentsRequest,
+  ): Promise<void>;
 };
 
 export type UpdatePaymentMethodOpts =
@@ -312,8 +349,9 @@ export type BillingPortalResponse = {
  * The cached result of last selected payment methods for the user.
  * These details are being cached to be used internally to track the last selected payment method for the user. (e.g. for crypto subscriptions)
  */
-export type CachedLastSelectedPaymentMethods = {
+export type CachedLastSelectedPaymentMethod = {
   type: PaymentType;
   paymentTokenAddress?: Hex;
+  paymentTokenSymbol?: string;
   plan: RecurringInterval;
 };
