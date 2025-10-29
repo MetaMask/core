@@ -326,11 +326,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     );
 
     this.messenger.subscribe('NetworkController:networkAdded', async () => {
-      await this.refresh(this.#getNetworkClientIds(), true);
+      await this.refresh(this.#getNetworkClientIds());
     });
 
     this.messenger.subscribe('KeyringController:unlock', async () => {
-      await this.refresh(this.#getNetworkClientIds(), true);
+      await this.refresh(this.#getNetworkClientIds());
     });
 
     this.messenger.subscribe(
