@@ -147,6 +147,9 @@ function buildMockTokenPricesService(
   overrides: Partial<AbstractTokenPricesService> = {},
 ): AbstractTokenPricesService {
   return {
+    async fetchExchangeRates() {
+      return {};
+    },
     async fetchTokenPrices() {
       return {};
     },

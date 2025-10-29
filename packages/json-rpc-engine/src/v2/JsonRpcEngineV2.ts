@@ -39,8 +39,8 @@ export type Next<Request extends JsonRpcCall> = (
 ) => Promise<Readonly<ResultConstraint<Request>> | undefined>;
 
 export type MiddlewareParams<
-  Request extends JsonRpcCall,
-  Context extends MiddlewareContext,
+  Request extends JsonRpcCall = JsonRpcCall,
+  Context extends MiddlewareContext = MiddlewareContext,
 > = {
   request: Readonly<Request>;
   context: Context;

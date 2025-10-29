@@ -1,5 +1,6 @@
 export { asLegacyMiddleware } from './asLegacyMiddleware';
 export { getUniqueId } from '../getUniqueId';
+export { createScaffoldMiddleware } from './createScaffoldMiddleware';
 export * from './JsonRpcEngineV2';
 export { JsonRpcServer } from './JsonRpcServer';
 export { MiddlewareContext } from './MiddlewareContext';

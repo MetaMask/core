@@ -605,6 +605,41 @@ describe('PendingTransactionTracker', () => {
             }),
           );
         });
+
+        it('if isIntentComplete is true', async () => {
+          const transaction = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+            isIntentComplete: true,
+          };
+
+          const getTransactions = jest
+            .fn()
+            .mockReturnValue(freeze([transaction], true));
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions,
+          });
+
+          const listener = jest.fn();
+          pendingTransactionTracker.hub.addListener(
+            'transaction-confirmed',
+            listener,
+          );
+
+          await onPoll();
+
+          expect(listener).toHaveBeenCalledTimes(1);
+          expect(listener).toHaveBeenCalledWith(
+            expect.objectContaining({
+              ...TRANSACTION_SUBMITTED_MOCK,
+              txParams: expect.objectContaining(
+                TRANSACTION_SUBMITTED_MOCK.txParams,
+              ),
+              status: TransactionStatus.confirmed,
+            }),
+          );
+        });
       });
 
       describe('fires updated event', () => {
