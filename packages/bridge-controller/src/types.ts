@@ -371,7 +371,6 @@ export type AllowedActions =
   | MultichainAssetsRatesControllerGetStateAction
   | HandleSnapRequest
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | RemoteFeatureFlagControllerGetStateAction;
 export type AllowedEvents = never;

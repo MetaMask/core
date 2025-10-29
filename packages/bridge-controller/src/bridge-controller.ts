@@ -5,7 +5,6 @@ import type { StateMetadata } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import type { NetworkClientId } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
@@ -30,6 +29,7 @@ import {
   type BridgeControllerMessenger,
   type FetchFunction,
   RequestStatus,
+  ChainId,
 } from './types';
 import { getAssetIdsForToken, toExchangeRates } from './utils/assets';
 import { hasSufficientBalance } from './utils/balance';
@@ -293,10 +293,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     if (isValidQuoteRequest(updatedQuoteRequest)) {
       this.#quotesFirstFetched = Date.now();
-      const providerConfig = this.#getSelectedNetworkClient()?.configuration;
+      const isSrcChainNonEVM = isNonEvmChainId(updatedQuoteRequest.srcChainId);
+      const providerConfig = isSrcChainNonEVM
+        ? undefined
+        : this.#getNetworkClientByChainId(
+            formatChainIdToHex(updatedQuoteRequest.srcChainId),
+          )?.configuration;
 
       let insufficientBal: boolean | undefined;
-      if (isNonEvmChainId(updatedQuoteRequest.srcChainId)) {
+      if (isSrcChainNonEVM) {
         // If the source chain is not an EVM network, use value from params
         insufficientBal = paramsToUpdate.insufficientBal;
       } else if (providerConfig?.rpcUrl?.includes('tenderly')) {
@@ -469,7 +474,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     quoteRequest: GenericQuoteRequest,
   ) => {
     const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
-    const provider = this.#getSelectedNetworkClient()?.provider;
+    const provider = this.#getNetworkClientByChainId(srcChainIdInHex)?.provider;
     const normalizedSrcTokenAddress = formatAddressToCaipReference(
       quoteRequest.srcTokenAddress,
     );
@@ -758,22 +763,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return selectedAccount;
   }
 
-  #getSelectedNetworkClientId() {
-    const { selectedNetworkClientId } = this.messenger.call(
-      'NetworkController:getState',
-    );
-    return selectedNetworkClientId;
-  }
-
-  #getSelectedNetworkClient() {
-    const selectedNetworkClientId = this.#getSelectedNetworkClientId();
-    const networkClient = this.messenger.call(
-      'NetworkController:getNetworkClientById',
-      selectedNetworkClientId,
-    );
-    return networkClient;
-  }
-
   #getNetworkClientByChainId(chainId: Hex) {
     const networkClientId = this.messenger.call(
       'NetworkController:findNetworkClientIdByChainId',
@@ -794,8 +783,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     'token_symbol_source' | 'token_symbol_destination'
   > => {
     const srcChainIdCaip = formatChainIdToCaip(
-      this.state.quoteRequest.srcChainId ||
-        this.#getSelectedNetworkClient().configuration.chainId,
+      this.state.quoteRequest.srcChainId ?? ChainId.ETH,
     );
     return getRequestParams(this.state.quoteRequest, srcChainIdCaip);
   };
