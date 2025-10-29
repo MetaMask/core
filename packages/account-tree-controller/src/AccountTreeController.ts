@@ -42,8 +42,10 @@ import {
   MAX_SORT_ORDER,
 } from './group';
 import { projectLogger as log } from './logger';
-import type { Rule } from './rule';
-import { EntropyRule } from './rules/entropy';
+import {
+  getEntropyDefaultAccountGroupPrefix,
+  getEntropyDefaultAccountWalletName,
+} from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
 import { SnapRule } from './rules/snap';
 import type {
@@ -143,7 +145,7 @@ export class AccountTreeController extends BaseController<
    */
   readonly #backupAndSyncService: BackupAndSyncService;
 
-  readonly #rules: [EntropyRule, SnapRule, KeyringRule];
+  readonly #rules: [SnapRule, KeyringRule];
 
   readonly #trace: TraceCallback;
 
@@ -198,7 +200,7 @@ export class AccountTreeController extends BaseController<
     // Rules to apply to construct the wallets tree.
     this.#rules = [
       // 1. We group by entropy-source
-      new EntropyRule(this.messenger),
+      // NOTE: This is now done by consuming the `MultichainAccountService` wallets and groups.
       // 2. We group by Snap ID
       new SnapRule(this.messenger),
       // 3. We group by wallet type (this rule cannot fail and will group all non-matching accounts)
@@ -418,21 +420,12 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Rule for entropy-base wallets.
-   *
-   * @returns The rule for entropy-based wallets.
-   */
-  #getEntropyRule(): EntropyRule {
-    return this.#rules[0];
-  }
-
-  /**
    * Rule for Snap-base wallets.
    *
    * @returns The rule for snap-based wallets.
    */
   #getSnapRule(): SnapRule {
-    return this.#rules[1];
+    return this.#rules[0];
   }
 
   /**
@@ -445,7 +438,26 @@ export class AccountTreeController extends BaseController<
    * any other rules.
    */
   #getKeyringRule(): KeyringRule {
-    return this.#rules[2];
+    return this.#rules[1];
+  }
+
+  /**
+   * Gets the default name for a wallet.
+   *
+   * @param wallet - The wallet object to get the name for.
+   * @returns The name for this wallet.
+   */
+  #getDefaultAccountWalletName<WalletType extends AccountWalletType>(
+    wallet: AccountWalletObjectOf<WalletType>,
+  ): string {
+    switch (wallet.type) {
+      case AccountWalletType.Entropy:
+        return getEntropyDefaultAccountWalletName(this.messenger, wallet);
+      case AccountWalletType.Snap:
+        return this.#getSnapRule().getDefaultAccountWalletName(wallet);
+      default:
+        return this.#getKeyringRule().getDefaultAccountWalletName(wallet);
+    }
   }
 
   /**
@@ -468,45 +480,8 @@ export class AccountTreeController extends BaseController<
       wallet.metadata.name = persistedMetadata.name.value;
     } else if (!wallet.metadata.name) {
       // Generate default name if none exists
-      if (wallet.type === AccountWalletType.Entropy) {
-        wallet.metadata.name =
-          this.#getEntropyRule().getDefaultAccountWalletName(wallet);
-      } else if (wallet.type === AccountWalletType.Snap) {
-        wallet.metadata.name =
-          this.#getSnapRule().getDefaultAccountWalletName(wallet);
-      } else {
-        wallet.metadata.name =
-          this.#getKeyringRule().getDefaultAccountWalletName(wallet);
-      }
+      wallet.metadata.name = this.#getDefaultAccountWalletName(wallet);
       log(`[${wallet.id}] Set default name to: "${wallet.metadata.name}"`);
-    }
-  }
-
-  /**
-   * Gets the appropriate rule instance for a given wallet type.
-   *
-   * @param wallet - The wallet object to get the rule for.
-   * @returns The rule instance that handles the wallet's type.
-   */
-  #getRuleForWallet<WalletType extends AccountWalletType>(
-    wallet: AccountWalletObjectOf<WalletType>,
-  ): Rule<WalletType, AccountGroupType> {
-    switch (wallet.type) {
-      case AccountWalletType.Entropy:
-        return this.#getEntropyRule() as unknown as Rule<
-          WalletType,
-          AccountGroupType
-        >;
-      case AccountWalletType.Snap:
-        return this.#getSnapRule() as unknown as Rule<
-          WalletType,
-          AccountGroupType
-        >;
-      default:
-        return this.#getKeyringRule() as unknown as Rule<
-          WalletType,
-          AccountGroupType
-        >;
     }
   }
 
@@ -554,6 +529,25 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Gets the default account group prefix for a wallet.
+   *
+   * @param wallet - The wallet object to get the prefix for.
+   * @returns The prefix for this wallet.
+   */
+  #getDefaultAccountGroupPrefix<WalletType extends AccountWalletType>(
+    wallet: AccountWalletObjectOf<WalletType>,
+  ): string {
+    switch (wallet.type) {
+      case AccountWalletType.Entropy:
+        return getEntropyDefaultAccountGroupPrefix();
+      case AccountWalletType.Snap:
+        return this.#getSnapRule().getDefaultAccountGroupPrefix(wallet);
+      default:
+        return this.#getKeyringRule().getDefaultAccountGroupPrefix(wallet);
+    }
+  }
+
+  /**
    * Gets the default name of a group.
    *
    * @param state Controller state to update for persistence.
@@ -568,11 +562,8 @@ export class AccountTreeController extends BaseController<
     group: AccountGroupObject,
     nextNaturalNameIndex?: number,
   ): string {
-    // Get the appropriate rule for this wallet type
-    const rule = this.#getRuleForWallet(wallet);
-
     // Get the prefix for groups of this wallet
-    const namePrefix = rule.getDefaultAccountGroupPrefix(wallet);
+    const namePrefix = this.#getDefaultAccountGroupPrefix(wallet);
 
     // Parse the highest account index being used (similar to accounts-controller)
     let highestNameIndex = 0;
