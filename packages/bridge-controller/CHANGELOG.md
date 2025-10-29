@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Remove global selected network reference in `getBridgeERC20Allowance` handler ([#6994](https://github.com/MetaMask/core/pull/6994))
+
 ## [56.0.1]
 
 ### Changed
@@ -37,10 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/gas-fee-controller` from `^24.1.0` to `^25.0.0` ([#6940](https://github.com/MetaMask/core/pull/6940), [#6962](https://github.com/MetaMask/core/pull/6962))
 - Bump `@metamask/multichain-network-controller` from `^1.0.1` to `^2.0.0` ([#6940](https://github.com/MetaMask/core/pull/6940), [#6962](https://github.com/MetaMask/core/pull/6962))
 - Bump `@metamask/polling-controller` from `^14.0.1` to `^15.0.0` ([#6940](https://github.com/MetaMask/core/pull/6940), [#6962](https://github.com/MetaMask/core/pull/6962))
-
-### Fixed
-
-- Remove global selected network reference in `getBridgeERC20Allowance` handler ([#6994](https://github.com/MetaMask/core/pull/6994))
 
 ## [55.0.0]
 
