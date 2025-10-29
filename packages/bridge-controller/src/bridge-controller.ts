@@ -139,13 +139,11 @@ const metadata: StateMetadata<BridgeControllerState> = {
 /**
  * The input to start polling for the {@link BridgeController}
  *
- * @param networkClientId - The network client ID of the selected network
  * @param updatedQuoteRequest - The updated quote request
  * @param context - The context contains properties that can't be populated by the
  * controller and need to be provided by the client for analytics
  */
 type BridgePollingInput = {
-  networkClientId: NetworkClientId;
   updatedQuoteRequest: GenericQuoteRequest;
   context: Pick<
     RequiredEventContextFromClient,
@@ -317,11 +315,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         }
       }
 
-      const networkClientId = this.#getSelectedNetworkClientId();
       // Set refresh rate based on the source chain before starting polling
       this.setChainIntervalLength();
       this.startPolling({
-        networkClientId,
         updatedQuoteRequest: {
           ...updatedQuoteRequest,
           insufficientBal,
@@ -536,7 +532,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   readonly #fetchBridgeQuotes = async ({
-    networkClientId: _networkClientId,
     updatedQuoteRequest,
     context,
   }: BridgePollingInput) => {
