@@ -8,8 +8,8 @@ import type {
 } from '@metamask/account-api';
 import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';
-import type { StateMetadata } from '@metamask/base-controller/next';
-import { BaseController } from '@metamask/base-controller/next';
+import type { StateMetadata } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';

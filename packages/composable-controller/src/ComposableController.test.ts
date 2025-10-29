@@ -4,7 +4,7 @@ import {
   type ControllerGetStateAction,
   type StateConstraint,
   deriveStateFromMetadata,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import {
   MOCK_ANY_NAMESPACE,

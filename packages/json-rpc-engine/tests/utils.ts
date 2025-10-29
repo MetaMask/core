@@ -4,22 +4,28 @@ import type { JsonRpcMiddleware } from 'src/v2/JsonRpcEngineV2';
 import { requestProps } from '../src/v2/compatibility-utils';
 import type { JsonRpcNotification } from '../src/v2/utils';
 
-export const makeRequest = <Request extends Partial<JsonRpcRequest>>(
-  params: Request = {} as Request,
+const jsonrpc = '2.0' as const;
+
+export const makeRequest = <
+  Input extends Partial<JsonRpcRequest>,
+  Output extends Input & JsonRpcRequest,
+>(
+  request: Input = {} as Input,
 ) =>
   ({
-    jsonrpc: '2.0',
-    id: '1',
-    method: 'test_request',
-    params: [],
-    ...params,
-  }) as const satisfies JsonRpcRequest;
+    jsonrpc,
+    id: request.id ?? '1',
+    method: request.method ?? 'test_request',
+
+    params: request.params === undefined ? [] : request.params,
+    ...request,
+  }) as Output;
 
 export const makeNotification = <Request extends Partial<JsonRpcRequest>>(
   params: Request = {} as Request,
 ) =>
   ({
-    jsonrpc: '2.0',
+    jsonrpc,
     method: 'test_request',
     params: [],
     ...params,

@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { ChainId } from '@metamask/controller-utils';
 import {
   MOCK_ANY_NAMESPACE,
@@ -147,6 +147,9 @@ function buildMockTokenPricesService(
   overrides: Partial<AbstractTokenPricesService> = {},
 ): AbstractTokenPricesService {
   return {
+    async fetchExchangeRates() {
+      return {};
+    },
     async fetchTokenPrices() {
       return {};
     },

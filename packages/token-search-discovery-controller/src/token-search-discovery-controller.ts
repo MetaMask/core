@@ -3,7 +3,7 @@ import {
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
   type StateMetadata,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
 import type { AbstractTokenDiscoveryApiService } from './token-discovery-api-service/abstract-token-discovery-api-service';

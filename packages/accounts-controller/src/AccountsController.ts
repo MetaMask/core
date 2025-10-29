@@ -2,7 +2,7 @@ import {
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
   BaseController,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import {
   type SnapKeyringAccountAssetListUpdatedEvent,
   type SnapKeyringAccountBalancesUpdatedEvent,

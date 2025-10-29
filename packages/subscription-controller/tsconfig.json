@@ -15,6 +15,9 @@
     },
     {
       "path": "../polling-controller"
+    },
+    {
+      "path": "../transaction-controller"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

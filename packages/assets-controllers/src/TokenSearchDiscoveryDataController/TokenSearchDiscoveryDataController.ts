@@ -3,7 +3,7 @@ import {
   type StateMetadata,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
