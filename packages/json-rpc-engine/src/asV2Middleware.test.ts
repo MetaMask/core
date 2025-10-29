@@ -156,28 +156,6 @@ describe('asV2Middleware', () => {
       expect(middleware2).toHaveBeenCalledTimes(1);
     });
 
-    it('accepts an array of legacy middlewares', async () => {
-      const middleware1 = jest.fn((req, _res, next) => {
-        req.visited1 = true;
-        next();
-      });
-
-      const middleware2 = jest.fn((req, res, _next, end) => {
-        expect(req.visited1).toBe(true);
-        res.result = 'array-result';
-        end();
-      });
-
-      const v2Engine = JsonRpcEngineV2.create({
-        middleware: [asV2Middleware([middleware1, middleware2])],
-      });
-
-      const result = await v2Engine.handle(makeRequest());
-      expect(result).toBe('array-result');
-      expect(middleware1).toHaveBeenCalledTimes(1);
-      expect(middleware2).toHaveBeenCalledTimes(1);
-    });
-
     it('forwards errors from legacy middleware', async () => {
       const legacyMiddleware = jest.fn((_req, res, _next, end) => {
         res.error = rpcErrors.internal('legacy-error');

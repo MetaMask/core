@@ -65,12 +65,9 @@ const middleware2 = (req, res, next, end) => {
 const v2Engine2 = JsonRpcEngineV2.create({
   middleware: [asV2Middleware(middleware1, middleware2)],
 });
-
-// Or pass an array of legacy middlewares
-const v2Engine3 = JsonRpcEngineV2.create({
-  middleware: [asV2Middleware([middleware1, middleware2])],
-});
 ```
+
+#### Context propagation
 
 Non-JSON-RPC string properties on the request object will be copied over to the V2 engine's `context` object
 once the legacy engine is done with the request, _unless_ they already exist on the `context`, in which case

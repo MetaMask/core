@@ -10,11 +10,9 @@ import {
 import type {
   JsonRpcEngineEndCallback,
   JsonRpcEngineNextCallback,
-} from './JsonRpcEngine';
-import {
   JsonRpcEngine,
-  type JsonRpcMiddleware as LegacyMiddleware,
 } from './JsonRpcEngine';
+import { type JsonRpcMiddleware as LegacyMiddleware } from './JsonRpcEngine';
 import { mergeMiddleware } from './mergeMiddleware';
 import {
   deepClone,
@@ -32,57 +30,49 @@ import type {
 } from './v2/JsonRpcEngineV2';
 
 /**
- * Convert a legacy {@link JsonRpcEngine} or an array of legacy middlewares into a {@link JsonRpcEngineV2} middleware.
+ * Convert a legacy {@link JsonRpcEngine} into a {@link JsonRpcEngineV2} middleware.
  *
- * @param engineOrMiddlewares - The legacy engine or array of legacy middlewares to convert.
+ * @param engine - The legacy engine to convert.
  * @returns The {@link JsonRpcEngineV2} middleware.
  */
 export function asV2Middleware<
   Params extends JsonRpcParams,
   Request extends JsonRpcRequest<Params>,
->(
-  engineOrMiddlewares: JsonRpcEngine | LegacyMiddleware<JsonRpcParams, Json>[],
-): JsonRpcMiddleware<Request>;
+>(engine: JsonRpcEngine): JsonRpcMiddleware<Request>;
 
 /**
- * Convert one or more legacy middlewares into a {@link JsonRpcEngineV2} middleware.
+ * Convert one or more legacy middleware into a {@link JsonRpcEngineV2} middleware.
  *
- * @param middlewares - The legacy middleware(s) to convert.
+ * @param middleware - The legacy middleware(s) to convert.
  * @returns The {@link JsonRpcEngineV2} middleware.
  */
 export function asV2Middleware<
   Params extends JsonRpcParams,
   Request extends JsonRpcRequest<Params>,
 >(
-  ...middlewares: LegacyMiddleware<JsonRpcParams, Json>[]
+  ...middleware: LegacyMiddleware<JsonRpcParams, Json>[]
 ): JsonRpcMiddleware<Request>;
 
 /**
  * Implementation of asV2Middleware that handles all input types.
  *
- * @param engineOrMiddleware - A legacy engine, a single legacy middleware, or an array of legacy middlewares.
- * @param rest - Additional legacy middlewares when the first argument is a single middleware.
+ * @param engineOrMiddleware - A legacy engine, a single legacy middleware, or an array of legacy middleware.
+ * @param rest - Additional legacy middleware when the first argument is a single middleware.
  * @returns The {@link JsonRpcEngineV2} middleware.
  */
 export function asV2Middleware<
   Params extends JsonRpcParams,
   Request extends JsonRpcRequest<Params>,
 >(
-  engineOrMiddleware:
-    | JsonRpcEngine
-    | LegacyMiddleware<JsonRpcParams, Json>
-    | LegacyMiddleware<JsonRpcParams, Json>[],
+  engineOrMiddleware: JsonRpcEngine | LegacyMiddleware<JsonRpcParams, Json>,
   ...rest: LegacyMiddleware<JsonRpcParams, Json>[]
 ): JsonRpcMiddleware<Request> {
   // Determine the legacy middleware function from input(s)
   const middleware =
-    engineOrMiddleware instanceof JsonRpcEngine
-      ? engineOrMiddleware.asMiddleware()
-      : mergeMiddleware(
-          Array.isArray(engineOrMiddleware)
-            ? engineOrMiddleware
-            : [engineOrMiddleware, ...rest],
-        );
+    typeof engineOrMiddleware === 'function'
+      ? mergeMiddleware([engineOrMiddleware, ...rest])
+      : engineOrMiddleware.asMiddleware();
+
   return async ({ request, context, next }) => {
     const req = deepClone(request) as JsonRpcRequest<Params>;
     propagateToRequest(req, context);
