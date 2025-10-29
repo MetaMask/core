@@ -131,6 +131,7 @@ export class InternalProvider {
       .catch((error) => {
         callback(error);
       });
+    /* eslint-enable promise/always-return,promise/no-callback-in-promise */
   };
 }
 
