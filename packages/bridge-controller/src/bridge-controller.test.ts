@@ -1336,9 +1336,7 @@ describe('BridgeController', function () {
       // Setup
       const mockMessenger = {
         call: jest.fn().mockImplementation((methodName) => {
-          if (
-            methodName === 'NetworkController:findNetworkClientIdByChainId'
-          ) {
+          if (methodName === 'NetworkController:findNetworkClientIdByChainId') {
             return undefined; // No network client found
           }
           return undefined;
@@ -1367,9 +1365,7 @@ describe('BridgeController', function () {
       // Setup
       const mockMessenger = {
         call: jest.fn().mockImplementation((methodName) => {
-          if (
-            methodName === 'NetworkController:findNetworkClientIdByChainId'
-          ) {
+          if (methodName === 'NetworkController:findNetworkClientIdByChainId') {
             return 'networkClientId-for-chain-0x1';
           }
           if (methodName === 'NetworkController:getNetworkClientById') {
