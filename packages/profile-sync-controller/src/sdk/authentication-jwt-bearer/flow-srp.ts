@@ -17,7 +17,7 @@ import type {
   UserProfileLineage,
 } from './types';
 import type { MetaMetricsAuth } from '../../shared/types/services';
-import { ValidationError } from '../errors';
+import { ValidationError, RateLimitedError } from '../errors';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
 import {
   MESSAGE_SIGNING_SNAP,
@@ -26,6 +26,7 @@ import {
   isSnapConnected,
 } from '../utils/messaging-signing-snap-requests';
 import { validateLoginResponse } from '../utils/validate-login-response';
+import * as timeUtils from './utils/time';
 
 type JwtBearerAuth_SRP_Options = {
   storage: AuthStorageOptions;
@@ -70,6 +71,12 @@ export class SRPJwtBearerAuth implements IBaseAuth {
 
   // Map to store ongoing login promises by entropySourceId
   readonly #ongoingLogins = new Map<string, Promise<LoginResponse>>();
+
+  // Per-entropySourceId throttling/cooldown schedule state
+  readonly #loginScheduleByKey = new Map<string, number>(); // Maps loginKey -> nextAllowedAtTimestamp
+  readonly #minIntervalMs = 1000; // minimum spacing between attempts per entropy source
+  readonly #cooldownDefaultMs = 10000; // default cooldown when 429 has no Retry-After
+  readonly #maxRetries = 1; // total retries for rate-limit (429) errors
 
   #customProvider?: Eip1193Provider;
 
@@ -225,7 +232,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     }
 
     // Create a new login promise
-    const loginPromise = this.#performLogin(entropySourceId);
+    const loginPromise = this.#loginWithRetry(loginKey, entropySourceId);
 
     // Store the promise in the map
     this.#ongoingLogins.set(loginKey, loginPromise);
@@ -237,6 +244,50 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     } finally {
       // Always clean up the ongoing login promise when done
       this.#ongoingLogins.delete(loginKey);
+    }
+  }
+
+  async #loginWithRetry(
+    loginKey: string,
+    entropySourceId?: string,
+  ): Promise<LoginResponse> {
+    for (let attempt = 0; ; attempt++) {
+      // Wait if we need to throttle
+      const nextAllowedAt = this.#loginScheduleByKey.get(loginKey) ?? 0;
+      const now = Date.now();
+      const waitMs = Math.max(0, nextAllowedAt - now);
+      if (waitMs > 0) {
+        await timeUtils.delay(waitMs);
+      }
+
+      // Update next allowed time
+      this.#loginScheduleByKey.set(loginKey, Date.now() + this.#minIntervalMs);
+
+      try {
+        return await this.#performLogin(entropySourceId);
+      } catch (e) {
+        // Only retry on rate-limit (429) errors
+        if (!RateLimitedError.isRateLimitError(e)) {
+          throw e;
+        }
+
+        // If we've exhausted attempts, rethrow
+        if (attempt >= this.#maxRetries) {
+          throw e;
+        }
+
+        // Add cooldown based on Retry-After header or default
+        const additionalBackoffMs =
+          (e as RateLimitedError).retryAfterMs ?? this.#cooldownDefaultMs;
+
+        // Add backoff to the already-set next allowed time
+        const currentNextAllowed = this.#loginScheduleByKey.get(loginKey) ?? 0;
+        this.#loginScheduleByKey.set(
+          loginKey,
+          currentNextAllowed + additionalBackoffMs,
+        );
+        // Loop will continue to retry
+      }
     }
   }
 

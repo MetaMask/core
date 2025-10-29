@@ -46,3 +46,24 @@ export class NotFoundError extends Error {
     this.name = 'NotFoundError';
   }
 }
+
+export class RateLimitedError extends Error {
+  readonly status = 429;
+  readonly retryAfterMs?: number;
+
+  constructor(message: string, retryAfterMs?: number) {
+    super(message);
+    this.name = 'RateLimitedError';
+    this.retryAfterMs = retryAfterMs;
+  }
+
+  /**
+   * Check if an unknown error is a rate limit error (429 status)
+   */
+  static isRateLimitError(e: unknown): e is RateLimitedError {
+    return (
+      e instanceof RateLimitedError ||
+      (typeof e === 'object' && e !== null && (e as any)?.status === 429)
+    );
+  }
+}

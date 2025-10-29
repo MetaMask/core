@@ -13,7 +13,60 @@ import {
   PairError,
   SignInError,
   ValidationError,
+  RateLimitedError,
 } from '../errors';
+
+/**
+ * Parse Retry-After header into milliseconds if possible.
+ * Supports seconds or HTTP-date formats.
+ */
+function parseRetryAfter(retryAfterHeader: string | null): number | null {
+  if (!retryAfterHeader) {
+    return null;
+  }
+  const seconds = Number(retryAfterHeader);
+  if (!Number.isNaN(seconds)) {
+    return seconds * 1000;
+  }
+  const date = Date.parse(retryAfterHeader);
+  if (!Number.isNaN(date)) {
+    const diff = date - Date.now();
+    return diff > 0 ? diff : 0;
+  }
+  return null;
+}
+
+/**
+ * Handle HTTP error responses with rate limiting support
+ */
+async function handleErrorResponse(
+  response: Response,
+  errorPrefix?: string,
+): Promise<never> {
+  const status = response.status;
+  const retryAfterHeader = response.headers.get('Retry-After');
+  const retryAfterMs = parseRetryAfter(retryAfterHeader);
+
+  const responseBody = (await response.json()) as
+    | ErrorMessage
+    | { error_description: string; error: string };
+
+  const message =
+    'message' in responseBody
+      ? responseBody.message
+      : responseBody.error_description;
+  const error = responseBody.error;
+
+  if (status === 429) {
+    throw new RateLimitedError(
+      `HTTP 429: ${message} (error: ${error})`,
+      retryAfterMs ?? undefined,
+    );
+  }
+
+  const prefix = errorPrefix ? `${errorPrefix} ` : '';
+  throw new Error(`${prefix}HTTP ${status} error: ${message}, error: ${error}`);
+}
 
 export const NONCE_URL = (env: Env) =>
   `${getEnvUrls(env).authApiUrl}/api/v2/nonce`;
@@ -91,10 +144,7 @@ export async function pairIdentifiers(
     });
 
     if (!response.ok) {
-      const responseBody = (await response.json()) as ErrorMessage;
-      throw new Error(
-        `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
-      );
+      await handleErrorResponse(response);
     }
   } catch (e) {
     /* istanbul ignore next */
@@ -118,10 +168,7 @@ export async function getNonce(id: string, env: Env): Promise<NonceResponse> {
   try {
     const nonceResponse = await fetch(nonceUrl.toString());
     if (!nonceResponse.ok) {
-      const responseBody = (await nonceResponse.json()) as ErrorMessage;
-      throw new Error(
-        `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
-      );
+      await handleErrorResponse(nonceResponse);
     }
 
     const nonceJson = await nonceResponse.json();
@@ -169,13 +216,7 @@ export async function authorizeOIDC(
     });
 
     if (!response.ok) {
-      const responseBody = (await response.json()) as {
-        error_description: string;
-        error: string;
-      };
-      throw new Error(
-        `HTTP error: ${responseBody.error_description}, error code: ${responseBody.error}`,
-      );
+      await handleErrorResponse(response);
     }
 
     const accessTokenResponse = await response.json();
@@ -237,10 +278,7 @@ export async function authenticate(
     });
 
     if (!response.ok) {
-      const responseBody = (await response.json()) as ErrorMessage;
-      throw new Error(
-        `${authType} login HTTP error: ${responseBody.message}, error code: ${responseBody.error}`,
-      );
+      await handleErrorResponse(response, `${authType} login`);
     }
 
     const loginResponse = await response.json();
