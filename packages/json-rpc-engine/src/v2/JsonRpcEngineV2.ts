@@ -73,7 +73,7 @@ type ConstructorOptions<
   >;
 };
 
-type RequestOf<Middleware> =
+export type RequestOf<Middleware> =
   Middleware extends JsonRpcMiddleware<
     infer Request,
     ResultConstraint<infer Request>,
@@ -91,7 +91,7 @@ type ContextOf<Middleware> =
     ? C
     : never;
 
-type MergedContextOf<
+export type MergedContextOf<
   // Non-polluting `any` constraint.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Middleware extends JsonRpcMiddleware<any, any, any>,
