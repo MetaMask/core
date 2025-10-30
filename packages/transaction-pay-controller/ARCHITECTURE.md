@@ -49,7 +49,7 @@ The resulting transaction deposits the necessary funds (on the source network), 
 The high level interaction with the `TransactionPayController` is as follows:
 
 1. Client assigns the `TransactionPayPublishHook` as a publish hook in the `TransactionController` during initialisation.
-2. Controller subscribes to `TranasctionController` state changes during initialisation.
+2. Controller subscribes to `TransactionController` state changes during initialisation.
 3. An unapproved transaction is created in a MetaMask client, either internally or via a dApp.
 4. Controller identifies any required tokens and adds them to its state.
 5. If a client confirmation is using `MetaMask Pay`, the user selects a payment token (or it is done automatically) which invokes the `updatePaymentToken` action.
