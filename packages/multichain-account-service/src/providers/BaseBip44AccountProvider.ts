@@ -37,53 +37,73 @@ export function assertAreBip44Accounts(
   accounts.forEach(assertIsBip44Account);
 }
 
-export type NamedAccountProvider<
+export type Bip44AccountProvider<
   Account extends Bip44Account<KeyringAccount> = Bip44Account<KeyringAccount>,
 > = AccountProvider<Account> & {
   getName(): string;
+  addAccounts(accounts: Bip44Account<KeyringAccount>['id'][]): void;
+  clearAccountsList(): void;
+  isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
 };
 
-export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
+export abstract class BaseBip44AccountProvider<
+  Account extends Bip44Account<KeyringAccount> = Bip44Account<KeyringAccount>,
+> implements Bip44AccountProvider
+{
   protected readonly messenger: MultichainAccountServiceMessenger;
+
+  accounts: Bip44Account<KeyringAccount>['id'][] = [];
 
   constructor(messenger: MultichainAccountServiceMessenger) {
     this.messenger = messenger;
   }
 
-  abstract getName(): string;
-
-  #getAccounts(
-    filter: (account: KeyringAccount) => boolean = () => true,
-  ): Bip44Account<KeyringAccount>[] {
-    const accounts: Bip44Account<KeyringAccount>[] = [];
-
-    for (const account of this.messenger.call(
-      // NOTE: Even though the name is misleading, this only fetches all internal
-      // accounts, including EVM and non-EVM. We might wanna change this action
-      // name once we fully support multichain accounts.
-      'AccountsController:listMultichainAccounts',
-    )) {
-      if (
-        isBip44Account(account) &&
-        this.isAccountCompatible(account) &&
-        filter(account)
-      ) {
-        accounts.push(account);
-      }
-    }
-
-    return accounts;
+  /**
+   * Add accounts to the provider.
+   *
+   * @param accounts - The accounts to add.
+   */
+  addAccounts(accounts: Account['id'][]): void {
+    this.accounts.push(...accounts);
   }
 
-  getAccounts(): Bip44Account<KeyringAccount>[] {
-    return this.#getAccounts();
+  /**
+   * Get the accounts list for the provider.
+   *
+   * @returns The accounts list.
+   */
+  #getAccountIds(): Account['id'][] {
+    return this.accounts;
   }
 
-  getAccount(
-    id: Bip44Account<KeyringAccount>['id'],
-  ): Bip44Account<KeyringAccount> {
-    // TODO: Maybe just use a proper find for faster lookup?
-    const [found] = this.#getAccounts((account) => account.id === id);
+  clearAccountsList(): void {
+    this.accounts = [];
+  }
+
+  /**
+   * Get the accounts list for the provider from the AccountsController.
+   *
+   * @returns The accounts list.
+   */
+  getAccounts(): Account[] {
+    const accountsIds = this.#getAccountIds();
+    const internalAccounts = this.messenger.call(
+      'AccountsController:getAccounts',
+      accountsIds,
+    );
+    // we cast here because we know that the accounts are BIP-44 compatible
+    return internalAccounts as unknown as Account[];
+  }
+
+  /**
+   * Get the account for the provider.
+   *
+   * @param id - The account ID.
+   * @returns The account.
+   * @throws If the account is not found.
+   */
+  getAccount(id: Account['id']): Account {
+    const found = this.getAccounts().find((account) => account.id === id);
 
     if (!found) {
       throw new Error(`Unable to find account: ${id}`);
@@ -115,7 +135,9 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
     return result as CallbackResult;
   }
 
-  abstract isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
+  abstract getName(): string;
+
+  abstract isAccountCompatible(account: Account): boolean;
 
   abstract createAccounts({
     entropySource,
@@ -123,7 +145,7 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]>;
+  }): Promise<Account[]>;
 
   abstract discoverAccounts({
     entropySource,
@@ -131,5 +153,5 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]>;
+  }): Promise<Account[]>;
 }

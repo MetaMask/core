@@ -104,7 +104,7 @@ function setup({
   const keyring = new MockTronKeyring(accounts);
 
   messenger.registerActionHandler(
-    'AccountsController:listMultichainAccounts',
+    'AccountsController:getAccounts',
     () => accounts,
   );
 
@@ -182,6 +182,22 @@ describe('TrxAccountProvider', () => {
     expect(() => provider.getAccount(unknownAccount.id)).toThrow(
       `Unable to find account: ${unknownAccount.id}`,
     );
+  });
+
+  it('returns true if an account is compatible', () => {
+    const account = MOCK_TRX_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(true);
+  });
+
+  it('returns false if an account is not compatible', () => {
+    const account = MOCK_HD_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(false);
   });
 
   it('creates accounts', async () => {

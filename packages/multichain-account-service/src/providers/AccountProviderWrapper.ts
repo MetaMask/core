@@ -32,6 +32,13 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
    */
   setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
+    if (!enabled) {
+      this.provider.clearAccountsList();
+    }
+  }
+
+  isDisabled(): boolean {
+    return !this.isEnabled;
   }
 
   /**
