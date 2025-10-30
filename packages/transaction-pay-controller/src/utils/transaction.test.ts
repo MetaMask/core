@@ -157,6 +157,32 @@ describe('Transaction Utils', () => {
         );
       },
     );
+
+    it('removes state if transaction is deleted', () => {
+      const removeTransactionDataMock = jest.fn();
+
+      pollTransactionChanges(messenger, noop, removeTransactionDataMock);
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [TRANSACTION_META_MOCK],
+        } as TransactionControllerState,
+        [],
+      );
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [] as TransactionMeta[],
+        } as TransactionControllerState,
+        [],
+      );
+
+      expect(removeTransactionDataMock).toHaveBeenCalledWith(
+        TRANSACTION_ID_MOCK,
+      );
+    });
   });
 
   describe('updateTransaction', () => {

@@ -85,7 +85,11 @@ export function pollTransactionChanges(
         );
       });
 
-      finalizedTransactions.forEach((tx) =>
+      const deletedTransactions = (previousTransactions ?? []).filter(
+        (prevTx) => !transactions.find((tx) => tx.id === prevTx.id),
+      );
+
+      [...finalizedTransactions, ...deletedTransactions].forEach((tx) =>
         onTransactionFinalized(tx, removeTransactionData),
       );
 
