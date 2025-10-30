@@ -37,21 +37,26 @@ export async function getRelayQuotes(
 
   log('Fetching quotes', requests);
 
-  const result = requests
-    // Ignore gas fee token requests
-    .filter((r) => r.targetAmountMinimum !== '0')
-    .map((r) => normalizeRequest(r));
+  try {
+    const result = requests
+      // Ignore gas fee token requests
+      .filter((r) => r.targetAmountMinimum !== '0')
+      .map((r) => normalizeRequest(r));
 
-  const normalizedRequests = result.map((r) => r.request);
-  const isSkipTransaction = result.some((r) => r.isSkipTransaction);
+    const normalizedRequests = result.map((r) => r.request);
+    const isSkipTransaction = result.some((r) => r.isSkipTransaction);
 
-  log('Normalized requests', { normalizedRequests, isSkipTransaction });
+    log('Normalized requests', { normalizedRequests, isSkipTransaction });
 
-  return await Promise.all(
-    normalizedRequests.map((r) =>
-      getSingleQuote(r, isSkipTransaction, request),
-    ),
-  );
+    return await Promise.all(
+      normalizedRequests.map((r) =>
+        getSingleQuote(r, isSkipTransaction, request),
+      ),
+    );
+  } catch (error) {
+    log('Error fetching quotes', { error });
+    throw new Error(`Failed to fetch Relay quotes: ${String(error)}`);
+  }
 }
 
 /**

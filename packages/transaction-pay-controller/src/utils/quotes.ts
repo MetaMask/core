@@ -12,6 +12,7 @@ import type {
   TransactionData,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
+  TransactionPayRequiredToken,
   TransactionPayTotals,
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
@@ -52,22 +53,22 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
     return;
   }
 
-  const requests: QuoteRequest[] = (sourceAmounts ?? []).map(
-    (sourceAmount, i) => {
-      const token = tokens[i];
+  const requests: QuoteRequest[] = (sourceAmounts ?? []).map((sourceAmount) => {
+    const token = tokens.find(
+      (t) => t.address === sourceAmount.targetTokenAddress,
+    ) as TransactionPayRequiredToken;
 
-      return {
-        from: transaction.txParams.from as Hex,
-        sourceBalanceRaw: paymentToken.balanceRaw,
-        sourceTokenAmount: sourceAmount.sourceAmountRaw,
-        sourceChainId: paymentToken.chainId,
-        sourceTokenAddress: paymentToken.address,
-        targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
-        targetChainId: token.chainId,
-        targetTokenAddress: token.address,
-      };
-    },
-  );
+    return {
+      from: transaction.txParams.from as Hex,
+      sourceBalanceRaw: paymentToken.balanceRaw,
+      sourceTokenAmount: sourceAmount.sourceAmountRaw,
+      sourceChainId: paymentToken.chainId,
+      sourceTokenAddress: paymentToken.address,
+      targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
+      targetChainId: token.chainId,
+      targetTokenAddress: token.address,
+    };
+  });
 
   if (!requests?.length) {
     log('No quote requests', { transactionId });

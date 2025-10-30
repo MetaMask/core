@@ -59,17 +59,22 @@ export async function getBridgeQuotes(
 
   const { requests, messenger, transaction } = request;
 
-  const finalRequests = getFinalRequests(requests, messenger);
+  try {
+    const finalRequests = getFinalRequests(requests, messenger);
 
-  const quotes = await Promise.all(
-    finalRequests.map((r, index) =>
-      getSufficientSingleBridgeQuote(r, index, request),
-    ),
-  );
+    const quotes = await Promise.all(
+      finalRequests.map((r, index) =>
+        getSufficientSingleBridgeQuote(r, index, request),
+      ),
+    );
 
-  return quotes.map((quote, index) =>
-    normalizeQuote(quote, finalRequests[index], messenger, transaction),
-  );
+    return quotes.map((quote, index) =>
+      normalizeQuote(quote, finalRequests[index], messenger, transaction),
+    );
+  } catch (error) {
+    log('Error fetching quotes', { error });
+    throw new Error(`Failed to fetch bridge quotes: ${String(error)}`);
+  }
 }
 
 /**
@@ -470,7 +475,7 @@ function normalizeQuote(
 
   const sourceFiatRate = getTokenFiatRate(
     messenger,
-    quote.quote.srcAsset.address as Hex,
+    request.sourceTokenAddress,
     toHex(quote.quote.srcChainId),
   );
 
