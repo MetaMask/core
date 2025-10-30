@@ -494,7 +494,7 @@ describe('Token service', () => {
         data: sampleSearchResults,
         pageInfo: { hasNextPage: false, endCursor: null },
       };
-      
+
       nock(TOKEN_END_POINT_API)
         .get(
           `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10`,
@@ -518,7 +518,7 @@ describe('Token service', () => {
         data: [sampleSearchResults[0]],
         pageInfo: { hasNextPage: false, endCursor: null },
       };
-      
+
       nock(TOKEN_END_POINT_API)
         .get(
           `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=${customLimit}`,
@@ -544,7 +544,7 @@ describe('Token service', () => {
         data: sampleSearchResults,
         pageInfo: { hasNextPage: false, endCursor: null },
       };
-      
+
       nock(TOKEN_END_POINT_API)
         .get(
           `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${encodedQuery}&limit=10`,
@@ -638,7 +638,7 @@ describe('Token service', () => {
         data: [],
         pageInfo: { hasNextPage: false, endCursor: null },
       };
-      
+
       nock(TOKEN_END_POINT_API)
         .get(
           `/tokens/search?chainIds=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10`,
