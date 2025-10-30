@@ -1,20 +1,20 @@
 import type { AccessList, AuthorizationList } from '@ethereumjs/common';
+import type { Hex, Json } from '@metamask/utils';
 import {
   add0x,
   getKnownPropertyNames,
   isStrictHexString,
 } from '@metamask/utils';
-import type { Json } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { TransactionEnvelopeType, TransactionStatus } from '../types';
 import type {
-  TransactionParams,
-  TransactionMeta,
-  TransactionError,
-  GasPriceValue,
   FeeMarketEIP1559Values,
+  GasPriceValue,
+  TransactionError,
+  TransactionMeta,
+  TransactionParams,
 } from '../types';
+import { TransactionEnvelopeType, TransactionStatus } from '../types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
@@ -187,6 +187,66 @@ export function padHexToEvenLength(hex: string) {
   const evenData = data.length % 2 === 0 ? data : `0${data}`;
 
   return prefix + evenData;
+}
+
+/**
+ * Create a BN from a hex string, accepting an optional 0x prefix.
+ *
+ * @param hex - Hex string with or without 0x prefix.
+ * @returns BN parsed as base-16.
+ */
+export function bnFromHex(hex: string | Hex): BN {
+  const str = typeof hex === 'string' ? hex : (hex as string);
+  const withoutPrefix =
+    str.startsWith('0x') || str.startsWith('0X') ? str.slice(2) : str;
+  if (withoutPrefix.length === 0) {
+    return new BN(0);
+  }
+  return new BN(withoutPrefix, 16);
+}
+
+/**
+ * Convert various numeric-like values to a BN instance.
+ * Accepts BN, ethers BigNumber, hex string, bigint, or number.
+ *
+ * @param value - The value to convert.
+ * @returns BN representation of the input value.
+ */
+export function toBN(value: unknown): BN {
+  if (value instanceof BN) {
+    return value as BN;
+  }
+  if (
+    typeof (BN as unknown as { isBN?: (v: unknown) => boolean }).isBN ===
+      'function' &&
+    (BN as unknown as { isBN: (v: unknown) => boolean }).isBN(value)
+  ) {
+    return value as BN;
+  }
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    typeof (value as { toHexString?: () => string }).toHexString === 'function'
+  ) {
+    return bnFromHex((value as { toHexString: () => string }).toHexString());
+  }
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    typeof (value as { _hex?: string })._hex === 'string'
+  ) {
+    return bnFromHex((value as { _hex: string })._hex);
+  }
+  if (typeof value === 'string') {
+    return bnFromHex(value);
+  }
+  if (typeof value === 'bigint') {
+    return new BN(value.toString());
+  }
+  if (typeof value === 'number') {
+    return new BN(value);
+  }
+  throw new Error('Unexpected value returned from oracle contract');
 }
 
 /**
