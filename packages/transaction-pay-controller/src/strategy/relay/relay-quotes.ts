@@ -294,9 +294,8 @@ function getFeatureFlags(messenger: TransactionPayControllerMessenger) {
     'RemoteFeatureFlagController:getState',
   );
 
-  const featureFlags = featureFlagState.remoteFeatureFlags?.confirmations_pay as
-    | Record<string, string>
-    | undefined;
+  const featureFlags = featureFlagState.remoteFeatureFlags
+    ?.confirmations_pay as Record<string, string> | undefined;
 
   const relayQuoteUrl = featureFlags?.relayQuoteUrl ?? RELAY_URL_QUOTE;
 
