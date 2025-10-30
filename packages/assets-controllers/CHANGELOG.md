@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added `fetchExchangeRates` function to fetch exchange rates from price-api ([#6863](https://github.com/MetaMask/core/pull/6863))
 
+- Added `searchTokens` function to search for tokens across multiple networks using CAIP format chain IDs ([#7004](https://github.com/MetaMask/core/pull/7004))
+
 ### Changed
 
 - `CurrencyRateController` now fetches exchange rates from price-api and fallback to cryptoCompare ([#6863](https://github.com/MetaMask/core/pull/6863))
