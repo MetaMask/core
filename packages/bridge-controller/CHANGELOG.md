@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [58.0.0]
 
-### Uncategorized
+### Changed
 
-- Release 651.0.0 ([#7007](https://github.com/MetaMask/core/pull/7007))
+- **BREAKING:** Bump `@metamask/assets-controller` from `^85.0.0` to `^86.0.0` ([#7011](https://github.com/MetaMask/core/pull/7011))
 
 ## [57.0.0]
 

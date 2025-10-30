@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [86.0.0]
 
-### Uncategorized
-
-- Release 651.0.0 ([#7007](https://github.com/MetaMask/core/pull/7007))
-
 ### Changed
 
 - **BREAKING:** Modify AccountTrackerController events and actions ([#6938](https://github.com/MetaMask/core/pull/6938))
