@@ -1,0 +1,36 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../assets-controllers"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../bridge-controller"
+    },
+    {
+      "path": "../bridge-status-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../gas-fee-controller"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../transaction-controller"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}
