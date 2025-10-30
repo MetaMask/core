@@ -1,7 +1,6 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
 import type { Draft } from 'immer';
 import { noop } from 'lodash';
 
