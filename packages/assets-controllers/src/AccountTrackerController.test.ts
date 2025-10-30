@@ -8,6 +8,7 @@ import {
   type MessengerEvents,
   type MockAnyNamespace,
 } from '@metamask/messenger';
+import type { NetworkConfiguration } from '@metamask/network-controller';
 import {
   type NetworkClientId,
   type NetworkClientConfiguration,
@@ -167,7 +168,7 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('123456', 16),
+              [ADDRESS_1]: new BN('123456', 16),
             },
           },
           stakedBalances: {},
@@ -208,7 +209,7 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('abcdef', 16),
+              [ADDRESS_1]: new BN('abcdef', 16),
             },
           },
           stakedBalances: {},
@@ -239,7 +240,88 @@ describe('AccountTrackerController', () => {
     );
   });
 
+  it('refreshes addresses when network is added', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+      },
+      async ({ controller, messenger }) => {
+        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+          tokenBalances: {
+            '0x0000000000000000000000000000000000000000': {
+              [CHECKSUM_ADDRESS_1]: new BN('abcdef', 16),
+            },
+          },
+          stakedBalances: {},
+        });
+
+        messenger.publish(
+          'NetworkController:networkAdded',
+          {} as NetworkConfiguration,
+        );
+
+        await clock.tickAsync(1);
+
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
+        ).toBe('0xabcdef');
+      },
+    );
+  });
+
+  it('refreshes addresses when keyring is unlocked', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+      },
+      async ({ controller, messenger }) => {
+        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+          tokenBalances: {
+            '0x0000000000000000000000000000000000000000': {
+              [CHECKSUM_ADDRESS_1]: new BN('abcdef', 16),
+            },
+          },
+          stakedBalances: {},
+        });
+
+        messenger.publish('KeyringController:unlock');
+
+        await clock.tickAsync(1);
+
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
+        ).toBe('0xabcdef');
+      },
+    );
+  });
+
   describe('refresh', () => {
+    it('does not refresh when fetching is disabled', async () => {
+      const expectedState = {
+        accountsByChainId: {
+          '0x1': {
+            [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
+            [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
+          },
+        },
+      };
+
+      await withController(
+        {
+          options: { fetchingEnabled: () => false },
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1, ACCOUNT_2],
+        },
+        async ({ controller, refresh }) => {
+          await refresh(clock, ['mainnet'], true);
+
+          expect(controller.state).toStrictEqual(expectedState);
+        },
+      );
+    });
+
     describe('without networkClientId', () => {
       it('should sync addresses', async () => {
         await withController(
@@ -1613,6 +1695,8 @@ async function withController<ReturnValue>(
       'AccountsController:selectedEvmAccountChange',
       'TransactionController:unapprovedTransactionAdded',
       'TransactionController:transactionConfirmed',
+      'NetworkController:networkAdded',
+      'KeyringController:unlock',
     ],
   });
 

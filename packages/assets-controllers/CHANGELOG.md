@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Modify AccountTrackerController events and actions ([#6938](https://github.com/MetaMask/core/pull/6938))
+  - `AccountsController:selectedAccountChange` is no longer part of the list of allowed events
+  - `NetworkController:getState` refetches balances
+  - `TransactionController:unapprovedTransactionAdded` refetches balances
+  - `TransactionController:unapprovedTransactionAdded'` refetches balances for the transaction from address and network
+  - `TransactionController:transactionConfirmed` refetches balances for the transaction from address and network
+- Add optional `fetchingEnabled` callback to `AccountTrackerController` constructor to stop it from fetching balances ([#6938](https://github.com/MetaMask/core/pull/6938))
+
 ## [85.0.0]
 
 ### Added
