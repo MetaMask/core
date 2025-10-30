@@ -22,6 +22,7 @@ import type {
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodCryptoRequest,
+  SubmitSponsorshipIntentsRequest,
 } from './types';
 
 export type SubscriptionServiceConfig = {
@@ -126,6 +127,22 @@ export class SubscriptionService implements ISubscriptionService {
    */
   async submitUserEvent(request: SubmitUserEventRequest): Promise<void> {
     const path = 'user-events';
+    await this.#makeRequest(path, 'POST', request);
+  }
+
+  /**
+   * Submit sponsorship intents to the Subscription Service backend.
+   *
+   * This is intended to be used together with the crypto subscription flow.
+   * When the user has enabled the smart transaction feature, we will sponsor the gas fees for the subscription approval transaction.
+   *
+   * @param request - Request object containing the address and products.
+   * @example { address: '0x1234567890123456789012345678901234567890', products: [ProductType.Shield] }
+   */
+  async submitSponsorshipIntents(
+    request: SubmitSponsorshipIntentsRequest,
+  ): Promise<void> {
+    const path = 'transaction-sponsorship/intents';
     await this.#makeRequest(path, 'POST', request);
   }
 

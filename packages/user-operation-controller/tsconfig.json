@@ -24,6 +24,9 @@
     },
     {
       "path": "../transaction-controller"
+    },
+    {
+      "path": "../messenger"
     }
   ],
   "include": ["../../types", "./src"]

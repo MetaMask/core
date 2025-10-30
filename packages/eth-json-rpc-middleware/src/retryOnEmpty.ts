@@ -27,15 +27,21 @@ const emptyValues: (string | null | undefined)[] = [
   '\u003cnil\u003e',
 ];
 
-type RetryOnEmptyMiddlewareOptions = {
-  provider?: SafeEventEmitterProvider;
-  blockTracker?: PollingBlockTracker;
-};
-
+/**
+ * Creates a middleware that retries requests with empty responses.
+ *
+ * @param options - The options for the middleware.
+ * @param options.provider - The provider to use.
+ * @param options.blockTracker - The block tracker to use.
+ * @returns The middleware.
+ */
 export function createRetryOnEmptyMiddleware({
   provider,
   blockTracker,
-}: RetryOnEmptyMiddlewareOptions = {}): JsonRpcMiddleware<JsonRpcParams, Json> {
+}: {
+  provider?: SafeEventEmitterProvider;
+  blockTracker?: PollingBlockTracker;
+} = {}): JsonRpcMiddleware<JsonRpcParams, Json> {
   if (!provider) {
     throw Error(
       'RetryOnEmptyMiddleware - mandatory "provider" option is missing.',
@@ -122,6 +128,13 @@ export function createRetryOnEmptyMiddleware({
   });
 }
 
+/**
+ * Retries an asynchronous function up to a maximum number of times.
+ *
+ * @param maxRetries - The maximum number of retries.
+ * @param asyncFn - The asynchronous function to retry.
+ * @returns The result of the asynchronous function.
+ */
 async function retry<Result>(
   maxRetries: number,
   asyncFn: () => Promise<Result>,

@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   AccountTransactionsUpdatedEventPayload,
   CaipAssetType,
@@ -15,6 +15,13 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type { CaipChainId } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -22,8 +29,6 @@ import { MultichainNetwork } from './constants';
 import {
   MultichainTransactionsController,
   getDefaultMultichainTransactionsControllerState,
-  type AllowedActions,
-  type AllowedEvents,
   type MultichainTransactionsControllerState,
   type MultichainTransactionsControllerMessenger,
 } from './MultichainTransactionsController';
@@ -127,6 +132,31 @@ const mockTransactionResult = {
   next: null,
 };
 
+const controllerName = 'MultichainTransactionsController';
+
+type AllMultichainTransactionsControllerActions =
+  MessengerActions<MultichainTransactionsControllerMessenger>;
+
+type AllMultichainTransactionsControllerEvents =
+  MessengerEvents<MultichainTransactionsControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllMultichainTransactionsControllerActions,
+  AllMultichainTransactionsControllerEvents
+>;
+
+/**
+ * Creates and returns a root messenger for testing
+ *
+ * @returns A messenger instance
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+}
+
 const setupController = ({
   state = getDefaultMultichainTransactionsControllerState(),
   mocks,
@@ -136,26 +166,41 @@ const setupController = ({
     listMultichainAccounts?: InternalAccount[];
     handleRequestReturnValue?: TransactionsPage;
   };
-} = {}) => {
-  const messenger = new Messenger<AllowedActions, AllowedEvents>();
+} = {}): {
+  controller: MultichainTransactionsController;
+  rootMessenger: RootMessenger;
+  messenger: MultichainTransactionsControllerMessenger;
+  mockSnapHandleRequest: jest.Mock;
+  mockListMultichainAccounts: jest.Mock;
+  mockGetKeyringState: jest.Mock;
+} => {
+  const rootMessenger = getRootMessenger();
 
-  const multichainTransactionsControllerMessenger: MultichainTransactionsControllerMessenger =
-    messenger.getRestricted({
-      name: 'MultichainTransactionsController',
-      allowedActions: [
-        'SnapController:handleRequest',
-        'AccountsController:listMultichainAccounts',
-        'KeyringController:getState',
-      ],
-      allowedEvents: [
-        'AccountsController:accountAdded',
-        'AccountsController:accountRemoved',
-        'AccountsController:accountTransactionsUpdated',
-      ],
-    });
+  const multichainTransactionsControllerMessenger = new Messenger<
+    typeof controllerName,
+    AllMultichainTransactionsControllerActions,
+    AllMultichainTransactionsControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger: multichainTransactionsControllerMessenger,
+    actions: [
+      'SnapController:handleRequest',
+      'AccountsController:listMultichainAccounts',
+      'KeyringController:getState',
+    ],
+    events: [
+      'AccountsController:accountAdded',
+      'AccountsController:accountRemoved',
+      'AccountsController:accountTransactionsUpdated',
+    ],
+  });
 
   const mockSnapHandleRequest = jest.fn();
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'SnapController:handleRequest',
     mockSnapHandleRequest.mockReturnValue(
       mocks?.handleRequestReturnValue ?? mockTransactionResult,
@@ -163,7 +208,7 @@ const setupController = ({
   );
 
   const mockListMultichainAccounts = jest.fn();
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
     mockListMultichainAccounts.mockReturnValue(
       mocks?.listMultichainAccounts ?? [mockBtcAccount, mockEthAccount],
@@ -173,7 +218,7 @@ const setupController = ({
   const mockGetKeyringState = jest.fn().mockReturnValue({
     isUnlocked: true,
   });
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'KeyringController:getState',
     mockGetKeyringState,
   );
@@ -185,7 +230,8 @@ const setupController = ({
 
   return {
     controller,
-    messenger,
+    rootMessenger,
+    messenger: multichainTransactionsControllerMessenger,
     mockSnapHandleRequest,
     mockListMultichainAccounts,
     mockGetKeyringState,
@@ -216,7 +262,7 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('updates transactions when "AccountsController:accountAdded" is fired', async () => {
-    const { controller, messenger, mockListMultichainAccounts } =
+    const { controller, rootMessenger, mockListMultichainAccounts } =
       setupController({
         mocks: {
           listMultichainAccounts: [],
@@ -224,7 +270,7 @@ describe('MultichainTransactionsController', () => {
       });
 
     mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
-    messenger.publish('AccountsController:accountAdded', mockBtcAccount);
+    rootMessenger.publish('AccountsController:accountAdded', mockBtcAccount);
 
     await waitForAllPromises();
 
@@ -239,7 +285,7 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('updates transactions when "AccountsController:accountRemoved" is fired', async () => {
-    const { controller, messenger, mockListMultichainAccounts } =
+    const { controller, rootMessenger, mockListMultichainAccounts } =
       setupController();
 
     await controller.updateTransactionsForAccount(mockBtcAccount.id);
@@ -253,14 +299,17 @@ describe('MultichainTransactionsController', () => {
       lastUpdated: expect.any(Number),
     });
 
-    messenger.publish('AccountsController:accountRemoved', mockBtcAccount.id);
+    rootMessenger.publish(
+      'AccountsController:accountRemoved',
+      mockBtcAccount.id,
+    );
     mockListMultichainAccounts.mockReturnValue([]);
 
     expect(controller.state.nonEvmTransactions).toStrictEqual({});
   });
 
   it('does not track balances for EVM accounts', async () => {
-    const { controller, messenger, mockListMultichainAccounts } =
+    const { controller, rootMessenger, mockListMultichainAccounts } =
       setupController({
         mocks: {
           listMultichainAccounts: [],
@@ -268,7 +317,7 @@ describe('MultichainTransactionsController', () => {
       });
 
     mockListMultichainAccounts.mockReturnValue([mockEthAccount]);
-    messenger.publish('AccountsController:accountAdded', mockEthAccount);
+    rootMessenger.publish('AccountsController:accountAdded', mockEthAccount);
 
     expect(controller.state).toStrictEqual({
       nonEvmTransactions: {},
@@ -503,7 +552,7 @@ describe('MultichainTransactionsController', () => {
       chain,
     };
 
-    const { controller, messenger } = setupController({
+    const { controller, rootMessenger } = setupController({
       state: {
         nonEvmTransactions: {
           [mockSolAccountWithId.id]: {
@@ -517,7 +566,7 @@ describe('MultichainTransactionsController', () => {
       },
     });
 
-    messenger.publish('AccountsController:accountTransactionsUpdated', {
+    rootMessenger.publish('AccountsController:accountTransactionsUpdated', {
       transactions: {
         [mockSolAccountWithId.id]: [updatedExistingTransaction, newTransaction],
       },
@@ -536,7 +585,7 @@ describe('MultichainTransactionsController', () => {
 
   it('handles empty transaction updates gracefully', async () => {
     const { chain } = mockTransactionResult.data[0];
-    const { controller, messenger } = setupController({
+    const { controller, rootMessenger } = setupController({
       state: {
         nonEvmTransactions: {
           [TEST_ACCOUNT_ID]: {
@@ -550,7 +599,7 @@ describe('MultichainTransactionsController', () => {
       },
     });
 
-    messenger.publish('AccountsController:accountTransactionsUpdated', {
+    rootMessenger.publish('AccountsController:accountTransactionsUpdated', {
       transactions: {},
     });
 
@@ -568,13 +617,13 @@ describe('MultichainTransactionsController', () => {
   it('initializes new accounts with empty transactions array when receiving updates', async () => {
     const { chain } = mockTransactionResult.data[0];
 
-    const { controller, messenger } = setupController({
+    const { controller, rootMessenger } = setupController({
       state: {
         nonEvmTransactions: {},
       },
     });
 
-    messenger.publish('AccountsController:accountTransactionsUpdated', {
+    rootMessenger.publish('AccountsController:accountTransactionsUpdated', {
       transactions: {
         [NEW_ACCOUNT_ID]: mockTransactionResult.data,
       },
@@ -592,7 +641,7 @@ describe('MultichainTransactionsController', () => {
 
   it('handles undefined transactions in update payload', async () => {
     const { chain } = mockTransactionResult.data[0];
-    const { controller, messenger } = setupController({
+    const { controller, rootMessenger } = setupController({
       state: {
         nonEvmTransactions: {
           [TEST_ACCOUNT_ID]: {
@@ -622,7 +671,7 @@ describe('MultichainTransactionsController', () => {
       },
     };
 
-    messenger.publish('AccountsController:accountTransactionsUpdated', {
+    rootMessenger.publish('AccountsController:accountTransactionsUpdated', {
       transactions: undefined,
     } as unknown as AccountTransactionsUpdatedEventPayload);
 
@@ -646,7 +695,7 @@ describe('MultichainTransactionsController', () => {
       timestamp: 2000,
     };
 
-    const { controller, messenger } = setupController({
+    const { controller, rootMessenger } = setupController({
       state: {
         nonEvmTransactions: {
           [TEST_ACCOUNT_ID]: {
@@ -660,7 +709,7 @@ describe('MultichainTransactionsController', () => {
       },
     });
 
-    messenger.publish('AccountsController:accountTransactionsUpdated', {
+    rootMessenger.publish('AccountsController:accountTransactionsUpdated', {
       transactions: {
         [TEST_ACCOUNT_ID]: [newerTransaction],
       },
@@ -694,7 +743,7 @@ describe('MultichainTransactionsController', () => {
       timestamp: 1000,
     };
 
-    const { controller, messenger } = setupController({
+    const { controller, rootMessenger } = setupController({
       state: {
         nonEvmTransactions: {
           [TEST_ACCOUNT_ID]: {
@@ -708,7 +757,7 @@ describe('MultichainTransactionsController', () => {
       },
     });
 
-    messenger.publish('AccountsController:accountTransactionsUpdated', {
+    rootMessenger.publish('AccountsController:accountTransactionsUpdated', {
       transactions: {
         [TEST_ACCOUNT_ID]: [withTimestampTx, nullTimestampTx2],
       },
@@ -783,7 +832,7 @@ describe('MultichainTransactionsController', () => {
       chain: MultichainNetwork.SolanaDevnet,
     };
 
-    const { controller, messenger } = setupController({
+    const { controller, rootMessenger } = setupController({
       state: {
         nonEvmTransactions: {
           [mockSolAccountWithId.id]: {
@@ -797,7 +846,7 @@ describe('MultichainTransactionsController', () => {
       },
     });
 
-    messenger.publish('AccountsController:accountTransactionsUpdated', {
+    rootMessenger.publish('AccountsController:accountTransactionsUpdated', {
       transactions: {
         [mockSolAccountWithId.id]: [mainnetTransaction, devnetTransaction],
       },
@@ -833,7 +882,7 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('publishes transactionConfirmed event when transaction is confirmed', async () => {
-    const { messenger } = setupController();
+    const { rootMessenger, messenger } = setupController();
 
     const confirmedTransaction = {
       ...mockTransactionResult.data[0],
@@ -843,7 +892,7 @@ describe('MultichainTransactionsController', () => {
 
     const publishSpy = jest.spyOn(messenger, 'publish');
 
-    messenger.publish('AccountsController:accountTransactionsUpdated', {
+    rootMessenger.publish('AccountsController:accountTransactionsUpdated', {
       transactions: {
         [mockBtcAccount.id]: [confirmedTransaction],
       },
@@ -858,7 +907,7 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('publishes transactionSubmitted event when transaction is submitted', async () => {
-    const { messenger } = setupController();
+    const { rootMessenger, messenger } = setupController();
 
     const submittedTransaction = {
       ...mockTransactionResult.data[0],
@@ -868,7 +917,7 @@ describe('MultichainTransactionsController', () => {
 
     const publishSpy = jest.spyOn(messenger, 'publish');
 
-    messenger.publish('AccountsController:accountTransactionsUpdated', {
+    rootMessenger.publish('AccountsController:accountTransactionsUpdated', {
       transactions: {
         [mockBtcAccount.id]: [submittedTransaction],
       },
@@ -883,7 +932,7 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('does not publish events for other transaction statuses', async () => {
-    const { messenger } = setupController();
+    const { rootMessenger } = setupController();
 
     const pendingTransaction = {
       ...mockTransactionResult.data[0],
@@ -891,9 +940,9 @@ describe('MultichainTransactionsController', () => {
       status: 'unconfirmed' as const,
     };
 
-    const publishSpy = jest.spyOn(messenger, 'publish');
+    const publishSpy = jest.spyOn(rootMessenger, 'publish');
 
-    messenger.publish('AccountsController:accountTransactionsUpdated', {
+    rootMessenger.publish('AccountsController:accountTransactionsUpdated', {
       transactions: {
         [mockBtcAccount.id]: [pendingTransaction],
       },
@@ -912,7 +961,7 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('publishes correct events for multiple transactions with different statuses', async () => {
-    const { messenger } = setupController();
+    const { rootMessenger, messenger } = setupController();
 
     const transactions = [
       {
@@ -934,7 +983,7 @@ describe('MultichainTransactionsController', () => {
 
     const publishSpy = jest.spyOn(messenger, 'publish');
 
-    messenger.publish('AccountsController:accountTransactionsUpdated', {
+    rootMessenger.publish('AccountsController:accountTransactionsUpdated', {
       transactions: {
         [mockBtcAccount.id]: transactions,
       },
@@ -960,7 +1009,7 @@ describe('MultichainTransactionsController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
