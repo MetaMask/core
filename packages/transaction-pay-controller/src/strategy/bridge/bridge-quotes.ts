@@ -440,7 +440,7 @@ function getFinalRequests(
  */
 function getFeatureFlags(messenger: TransactionPayControllerMessenger) {
   const featureFlags = messenger.call('RemoteFeatureFlagController:getState')
-    .remoteFeatureFlags.confirmation_pay as Record<string, number> | undefined;
+    .remoteFeatureFlags.confirmations_pay as Record<string, number> | undefined;
 
   return {
     attemptsMax: featureFlags?.attemptsMax ?? ATTEMPTS_MAX_DEFAULT,
