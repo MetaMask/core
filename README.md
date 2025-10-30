@@ -78,6 +78,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/subscription-controller`](packages/subscription-controller)
 - [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
+- [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
 
 <!-- end package list -->
@@ -146,6 +147,7 @@ linkStyle default opacity:0.5
   subscription_controller(["@metamask/subscription-controller"]);
   token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
+  transaction_pay_controller(["@metamask/transaction-pay-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
   account_tree_controller --> base_controller;
   account_tree_controller --> messenger;
@@ -346,6 +348,7 @@ linkStyle default opacity:0.5
   selected_network_controller --> network_controller;
   selected_network_controller --> permission_controller;
   shield_controller --> base_controller;
+  shield_controller --> controller_utils;
   shield_controller --> messenger;
   shield_controller --> signature_controller;
   shield_controller --> transaction_controller;
@@ -362,6 +365,7 @@ linkStyle default opacity:0.5
   subscription_controller --> controller_utils;
   subscription_controller --> messenger;
   subscription_controller --> polling_controller;
+  subscription_controller --> transaction_controller;
   subscription_controller --> profile_sync_controller;
   token_search_discovery_controller --> base_controller;
   token_search_discovery_controller --> messenger;
@@ -375,6 +379,15 @@ linkStyle default opacity:0.5
   transaction_controller --> gas_fee_controller;
   transaction_controller --> network_controller;
   transaction_controller --> remote_feature_flag_controller;
+  transaction_pay_controller --> controller_utils;
+  transaction_pay_controller --> messenger;
+  transaction_pay_controller --> assets_controllers;
+  transaction_pay_controller --> bridge_controller;
+  transaction_pay_controller --> bridge_status_controller;
+  transaction_pay_controller --> gas_fee_controller;
+  transaction_pay_controller --> network_controller;
+  transaction_pay_controller --> transaction_controller;
+  transaction_pay_controller --> remote_feature_flag_controller;
   user_operation_controller --> base_controller;
   user_operation_controller --> controller_utils;
   user_operation_controller --> messenger;
