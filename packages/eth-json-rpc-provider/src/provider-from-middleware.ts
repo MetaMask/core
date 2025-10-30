@@ -37,7 +37,6 @@ export function providerFromMiddlewareV2<
   middleware: JsonRpcMiddleware<JsonRpcRequest<Params>, Result>,
 ): InternalProvider {
   return new InternalProvider({
-    // @ts-expect-error - TODO:next
     rpcHandler: new JsonRpcServer({ middleware: [middleware] }),
   });
 }
