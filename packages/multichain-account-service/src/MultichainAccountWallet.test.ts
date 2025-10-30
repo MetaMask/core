@@ -98,6 +98,50 @@ describe('MultichainAccountWallet', () => {
       expect(wallet.entropySource).toStrictEqual(entropySource);
       expect(wallet.getMultichainAccountGroups()).toHaveLength(1); // All internal accounts are using index 0, so it means only 1 multichain account.
     });
+
+    it('constructs a multichain account wallet with default trace callback', () => {
+      const entropySource = MOCK_WALLET_1_ENTROPY_SOURCE;
+      const providers = [
+        setupNamedAccountProvider({ accounts: [MOCK_WALLET_1_EVM_ACCOUNT] }),
+      ];
+      const messenger =
+        getMultichainAccountServiceMessenger(getRootMessenger());
+
+      const wallet = new MultichainAccountWallet({
+        entropySource,
+        providers,
+        messenger,
+      });
+
+      const expectedWalletId = toMultichainAccountWalletId(entropySource);
+      expect(wallet.id).toStrictEqual(expectedWalletId);
+      expect(wallet.status).toBe('ready');
+      expect(wallet.type).toBe(AccountWalletType.Entropy);
+      expect(wallet.entropySource).toStrictEqual(entropySource);
+    });
+
+    it('constructs a multichain account wallet with custom trace callback', () => {
+      const entropySource = MOCK_WALLET_1_ENTROPY_SOURCE;
+      const providers = [
+        setupNamedAccountProvider({ accounts: [MOCK_WALLET_1_EVM_ACCOUNT] }),
+      ];
+      const messenger =
+        getMultichainAccountServiceMessenger(getRootMessenger());
+      const mockTrace = jest.fn().mockImplementation((_request, fn) => fn?.());
+
+      const wallet = new MultichainAccountWallet({
+        entropySource,
+        providers,
+        messenger,
+        trace: mockTrace,
+      });
+
+      const expectedWalletId = toMultichainAccountWalletId(entropySource);
+      expect(wallet.id).toStrictEqual(expectedWalletId);
+      expect(wallet.status).toBe('ready');
+      expect(wallet.type).toBe(AccountWalletType.Entropy);
+      expect(wallet.entropySource).toStrictEqual(entropySource);
+    });
   });
 
   describe('getMultichainAccountGroup', () => {
@@ -385,6 +429,47 @@ describe('MultichainAccountWallet', () => {
       );
     });
 
+    it('handles unexpected errors in background account creation', async () => {
+      const groupIndex = 1;
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { providers, messenger } = setup({
+        accounts: [[mockEvmAccount], []],
+      });
+
+      const mockTrace = jest.fn().mockImplementation(() => {
+        throw new Error('Unexpected trace error');
+      });
+
+      const wallet = new MultichainAccountWallet({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        providers,
+        messenger,
+        trace: mockTrace,
+      });
+
+      const [evmProvider, solProvider] = providers;
+      const mockNextEvmAccount = MockAccountBuilder.from(mockEvmAccount)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(groupIndex)
+        .get();
+
+      evmProvider.createAccounts.mockResolvedValueOnce([mockNextEvmAccount]);
+      solProvider.createAccounts.mockResolvedValueOnce([]);
+
+      await wallet.createMultichainAccountGroup(groupIndex);
+
+      // Wait for background operations to complete
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // The test passes if no unhandled promise rejection occurs
+      // The error handling is internal and covered by the catch block
+      expect(wallet.status).toBe('ready');
+    });
+
     it('fails to create an account group if any of the provider fails to create its account and waitForAllProvidersToFinishCreatingAccounts is true', async () => {
       const groupIndex = 1;
 
@@ -407,6 +492,52 @@ describe('MultichainAccountWallet', () => {
       ).rejects.toThrow(
         'Unable to create multichain account group for index: 1',
       );
+    });
+  });
+
+  describe('getNextGroupIndex', () => {
+    it('returns 0 when no groups exist', () => {
+      const { wallet } = setup({
+        accounts: [[], []], // No accounts
+      });
+
+      expect(wallet.getNextGroupIndex()).toBe(0);
+    });
+
+    it('returns the next sequential index', () => {
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockEvmAccount2 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(2)
+        .get();
+
+      const { wallet } = setup({
+        accounts: [[mockEvmAccount1, mockEvmAccount2], []],
+      });
+
+      // Should return 3 (max index 2 + 1), not filling gaps
+      expect(wallet.getNextGroupIndex()).toBe(3);
+    });
+
+    it('handles non-sequential group indices correctly', () => {
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(5)
+        .get();
+      const mockEvmAccount2 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(10)
+        .get();
+
+      const { wallet } = setup({
+        accounts: [[mockEvmAccount1, mockEvmAccount2], []],
+      });
+
+      // Should return 11 (max index 10 + 1)
+      expect(wallet.getNextGroupIndex()).toBe(11);
     });
   });
 
@@ -507,6 +638,55 @@ describe('MultichainAccountWallet', () => {
         entropySource: wallet.entropySource,
         groupIndex: 1,
       });
+    });
+  });
+
+  describe('#withLock', () => {
+    it('properly manages wallet status during locked operations', async () => {
+      const { wallet, messenger } = setup({
+        accounts: [[MOCK_HD_ACCOUNT_1], []],
+      });
+
+      const statusChanges: string[] = [];
+      messenger.subscribe(
+        'MultichainAccountService:walletStatusChange',
+        (_walletId, status) => {
+          statusChanges.push(status);
+        },
+      );
+
+      await wallet.alignAccounts();
+
+      expect(statusChanges).toStrictEqual(['in-progress:alignment', 'ready']);
+    });
+
+    it('properly handles errors in locked operations and restores status', async () => {
+      const { wallet, providers, messenger } = setup({
+        accounts: [[MOCK_HD_ACCOUNT_1], []],
+      });
+
+      const statusChanges: string[] = [];
+      messenger.subscribe(
+        'MultichainAccountService:walletStatusChange',
+        (_walletId, status) => {
+          statusChanges.push(status);
+        },
+      );
+
+      const [evmProvider] = providers;
+      evmProvider.createAccounts.mockRejectedValueOnce(
+        new Error('Provider error'),
+      );
+
+      await expect(wallet.createNextMultichainAccountGroup()).rejects.toThrow(
+        'Unable to create multichain account group for index: 1',
+      );
+
+      expect(statusChanges).toStrictEqual([
+        'in-progress:create-accounts',
+        'ready',
+      ]);
+      expect(wallet.status).toBe('ready');
     });
   });
 
