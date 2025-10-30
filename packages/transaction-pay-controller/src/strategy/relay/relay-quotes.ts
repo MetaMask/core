@@ -165,7 +165,6 @@ function normalizeQuote(
   const { messenger, transaction } = fullRequest;
   const { details } = quote;
   const { currencyIn, currencyOut } = details;
-  const params = quote.steps[0].items[0].data;
 
   const { usdToFiatRate } = getFiatRates(messenger, request);
 
@@ -179,12 +178,7 @@ function normalizeQuote(
     usdToFiatRate,
   );
 
-  const sourceNetwork = calculateGasCost({
-    ...params,
-    maxFeePerGas: undefined,
-    maxPriorityFeePerGas: undefined,
-    messenger,
-  });
+  const sourceNetwork = calculateSourceNetworkCost(quote, messenger);
 
   const targetNetwork = quote.skipTransaction
     ? {
@@ -301,5 +295,41 @@ function getFeatureFlags(messenger: TransactionPayControllerMessenger) {
 
   return {
     relayQuoteUrl,
+  };
+}
+
+/**
+ * Calculates source network cost from a Relay quote.
+ *
+ * @param quote - Relay quote.
+ * @param messenger - Controller messenger.
+ * @returns Total source network cost in USD and fiat.
+ */
+function calculateSourceNetworkCost(
+  quote: RelayQuote,
+  messenger: TransactionPayControllerMessenger,
+) {
+  const allParams = quote.steps.flatMap((s) => s.items.map((i) => i.data));
+
+  const result = allParams.reduce(
+    (total, params) => {
+      const gasCost = calculateGasCost({
+        ...params,
+        maxFeePerGas: undefined,
+        maxPriorityFeePerGas: undefined,
+        messenger,
+      });
+
+      return {
+        usd: new BigNumber(total.usd).plus(gasCost.usd),
+        fiat: new BigNumber(total.fiat).plus(gasCost.fiat),
+      };
+    },
+    { usd: new BigNumber(0), fiat: new BigNumber(0) },
+  );
+
+  return {
+    usd: result.usd.toString(10),
+    fiat: result.fiat.toString(10),
   };
 }

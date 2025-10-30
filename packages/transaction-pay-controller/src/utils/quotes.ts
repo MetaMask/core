@@ -117,7 +117,6 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
     data.quotes = quotes as never;
     data.quotesLastUpdated = Date.now();
     data.totals = totals;
-    data.isLoading = false;
   });
 }
 

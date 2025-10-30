@@ -123,7 +123,13 @@ export class TransactionPayController extends BaseController<
         transactionData: this.state.transactionData[transactionId],
         transactionId,
         updateTransactionData: this.#updateTransactionData.bind(this),
-      }).catch(noop);
+      })
+        .finally(() => {
+          this.#updateTransactionData(transactionId, (data) => {
+            data.isLoading = false;
+          });
+        })
+        .catch(noop);
     }
   }
 
