@@ -9,16 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [61.1.0]
 
-### Uncategorized
-
-- Release/650.0.0 ([#7003](https://github.com/MetaMask/core/pull/7003))
-
 ### Added
 
 - Add optional `isIntentComplete` property to `TransactionMeta` to indicate transaction outcome was achieved via an alternate chain or mechanism ([#6950](https://github.com/MetaMask/core/pull/6950))
 
 ### Changed
 
+- Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
 - Identify OP stack chains using gas API ([#6899](https://github.com/MetaMask/core/pull/6899))
 
 ## [61.0.0]
