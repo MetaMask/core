@@ -125,14 +125,6 @@ export async function searchTokens(
       };
     }
 
-    // Fallback: if result is directly an array (for backwards compatibility)
-    if (Array.isArray(result)) {
-      return {
-        count: result.length,
-        data: result,
-      };
-    }
-
     // Handle non-expected responses
     return { count: 0, data: [] };
   } catch (error) {
