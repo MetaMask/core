@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-pay-controller",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Manages alternate payment strategies to provide required funds for transactions in MetaMask",
   "keywords": [
     "MetaMask",
@@ -68,7 +68,7 @@
     "@metamask/gas-fee-controller": "^25.0.0",
     "@metamask/network-controller": "^25.0.0",
     "@metamask/remote-feature-flag-controller": "^2.0.0",
-    "@metamask/transaction-controller": "^61.0.0",
+    "@metamask/transaction-controller": "^61.1.0",
     "@ts-bridge/cli": "^0.6.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",

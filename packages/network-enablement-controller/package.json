@@ -50,7 +50,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/multichain-network-controller": "^2.0.0",
     "@metamask/network-controller": "^25.0.0",
-    "@metamask/transaction-controller": "^61.0.0",
+    "@metamask/transaction-controller": "^61.1.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
