@@ -120,15 +120,6 @@ export type AbstractTokenPricesService<
   }): Promise<ExchangeRatesByCurrency<Currency>>;
 
   /**
-   * Type guard for whether the API can return token prices for the given chain
-   * ID.
-   *
-   * @param chainId - The chain ID to check.
-   * @returns True if the API supports the chain ID, false otherwise.
-   */
-  // validateChainIdSupported(chainId: unknown): chainId is ChainId;
-
-  /**
    * Type guard for whether the API can return token prices in the given
    * currency.
    *
