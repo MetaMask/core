@@ -26,7 +26,6 @@ import type {
   NetworkControllerNetworkAddedEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 import type {
   TransactionControllerTransactionConfirmedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
@@ -175,7 +174,10 @@ export type AccountTrackerControllerActions =
  */
 export type AllowedActions =
   | AccountsControllerListAccountsAction
-  | PreferencesControllerGetStateAction
+  | {
+      type: 'PreferencesController:getState';
+      handler: () => { isMultiAccountBalancesEnabled: boolean };
+    }
   | AccountsControllerGetSelectedAccountAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction;
