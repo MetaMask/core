@@ -218,7 +218,7 @@ const tokenRatesControllerMetadata: StateMetadata<TokenRatesControllerState> = {
   supportedChainIds: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };

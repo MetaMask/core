@@ -11,6 +11,7 @@ import * as assetsUtil from './assetsUtil';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type { Nft, NftMetadata } from './NftController';
 import type { AbstractTokenPricesService } from './token-prices-service';
+import type { TokenRatesControllerState } from './TokenRatesController';
 
 const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
 const ALTERNATIVE_IPFS_URL_FORMAT = 'ipfs://ipfs/';
@@ -586,16 +587,20 @@ describe('assetsUtil', () => {
     it('should return empty object when chainId not supported', async () => {
       const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
       const mockPriceService = createMockPriceService();
-
-      jest
-        .spyOn(mockPriceService, 'validateChainIdSupported')
-        .mockReturnValue(false);
+      const testTokenRatesState: TokenRatesControllerState = {
+        marketData: {},
+        supportedChainIds: {
+          timestamp: Date.now(),
+          data: ['0x1'],
+        },
+      };
 
       const result = await assetsUtil.fetchTokenContractExchangeRates({
         tokenPricesService: mockPriceService,
         nativeCurrency: 'ETH',
         tokenAddresses: [testTokenAddress],
         chainId: '0x0',
+        tokenRatesState: testTokenRatesState,
       });
 
       expect(result).toStrictEqual({});
@@ -607,12 +612,20 @@ describe('assetsUtil', () => {
       jest
         .spyOn(mockPriceService, 'validateCurrencySupported')
         .mockReturnValue(false);
+      const testTokenRatesState: TokenRatesControllerState = {
+        marketData: {},
+        supportedChainIds: {
+          timestamp: Date.now(),
+          data: ['0x1'],
+        },
+      };
 
       const result = await assetsUtil.fetchTokenContractExchangeRates({
         tokenPricesService: mockPriceService,
         nativeCurrency: 'X',
         tokenAddresses: [testTokenAddress],
         chainId: '0x1',
+        tokenRatesState: testTokenRatesState,
       });
 
       expect(result).toStrictEqual({});
@@ -648,12 +661,20 @@ describe('assetsUtil', () => {
           pricePercentChange1d: 100,
         },
       });
+      const testTokenRatesState: TokenRatesControllerState = {
+        marketData: {},
+        supportedChainIds: {
+          timestamp: Date.now(),
+          data: [testChainId],
+        },
+      };
 
       const result = await assetsUtil.fetchTokenContractExchangeRates({
         tokenPricesService: mockPriceService,
         nativeCurrency: testNativeCurrency,
         tokenAddresses: [testTokenAddress],
         chainId: testChainId,
+        tokenRatesState: testTokenRatesState,
       });
 
       expect(result).toMatchObject({
@@ -674,12 +695,20 @@ describe('assetsUtil', () => {
         mockPriceService,
         'fetchTokenPrices',
       );
+      const testTokenRatesState: TokenRatesControllerState = {
+        marketData: {},
+        supportedChainIds: {
+          timestamp: Date.now(),
+          data: [testChainId],
+        },
+      };
 
       await assetsUtil.fetchTokenContractExchangeRates({
         tokenPricesService: mockPriceService,
         nativeCurrency: testNativeCurrency,
         tokenAddresses: tokenAddresses as Hex[],
         chainId: testChainId,
+        tokenRatesState: testTokenRatesState,
       });
 
       const numBatches = Math.ceil(
@@ -716,11 +745,19 @@ describe('assetsUtil', () => {
         'fetchTokenPrices',
       );
 
+      const testTokenRatesState: TokenRatesControllerState = {
+        marketData: {},
+        supportedChainIds: {
+          timestamp: Date.now(),
+          data: [testChainId],
+        },
+      };
       await assetsUtil.fetchTokenContractExchangeRates({
         tokenPricesService: mockPriceService,
         nativeCurrency: testNativeCurrency,
         tokenAddresses: tokenAddresses as Hex[],
         chainId: testChainId,
+        tokenRatesState: testTokenRatesState,
       });
 
       // Expect batches in ascending order
