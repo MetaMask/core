@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Adds an optional trace argument to MultichainAccountService and MultichainAccountWallet ([#7006](https://github.com/MetaMask/core/pull/7006))
+
 ## [2.0.0]
 
 ### Changed
