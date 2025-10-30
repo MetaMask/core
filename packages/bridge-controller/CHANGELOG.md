@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [58.0.0]
+
 ### Changed
 
+- **BREAKING:** Bump `@metamask/assets-controller` from `^85.0.0` to `^86.0.0` ([#7011](https://github.com/MetaMask/core/pull/7011))
 - **BREAKING:** `noFee` flag was replaced with `fee` flag in bridge api requests ([#6964](https://github.com/MetaMask/core/pull/6964))
 
 ## [57.0.0]
@@ -816,7 +819,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@57.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@58.0.0...HEAD
+[58.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@57.0.0...@metamask/bridge-controller@58.0.0
 [57.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.3...@metamask/bridge-controller@57.0.0
 [56.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.2...@metamask/bridge-controller@56.0.3
 [56.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.1...@metamask/bridge-controller@56.0.2
