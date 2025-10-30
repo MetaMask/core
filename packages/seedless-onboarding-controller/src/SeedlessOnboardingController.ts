@@ -946,13 +946,17 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @returns True if the user is authenticated, false otherwise.
    */
   async checkIsSeedlessOnboardingUserAuthenticated(): Promise<boolean> {
+    let isAuthenticated = false;
     try {
       assertIsSeedlessOnboardingUserAuthenticated(this.state);
-      // if accessToken is missing, the user needs to authenticate again
-      return Boolean(this.state.accessToken) && Boolean(this.state.revokeToken);
+      isAuthenticated = true;
     } catch {
-      return false;
+      isAuthenticated = false;
     }
+    this.update((state) => {
+      state.isSeedlessOnboardingUserAuthenticated = isAuthenticated;
+    });
+    return isAuthenticated;
   }
 
   #setUnlocked(): void {
