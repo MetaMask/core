@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump `@metamask/assets-controller` from `^85.0.0` to `^86.0.0` ([#7011](https://github.com/MetaMask/core/pull/7011))
+- **BREAKING:** `noFee` flag was replaced with `fee` flag in bridge api requests ([#6964](https://github.com/MetaMask/core/pull/6964))
 
 ## [57.0.0]
 
