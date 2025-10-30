@@ -18,7 +18,6 @@ import type {
   UpdateTransactionDataCallback,
 } from '../types';
 
-const QUOTES_CHECK_INTERVAL = 1 * 1000; // 1 Second
 const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 
 const log = createModuleLogger(projectLogger, 'quotes');
@@ -123,25 +122,6 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
 }
 
 /**
- * Poll quotes at regular intervals.
- *
- * @param messenger - Messenger instance.
- * @param updateTransactionData - Callback to update transaction data.
- */
-export function queueRefreshQuotes(
-  messenger: TransactionPayControllerMessenger,
-  updateTransactionData: UpdateTransactionDataCallback,
-) {
-  setTimeout(() => {
-    refreshQuotes(messenger, updateTransactionData)
-      .finally(() => queueRefreshQuotes(messenger, updateTransactionData))
-      .catch((error) => {
-        log('Error polling quotes', { messenger, error });
-      });
-  }, QUOTES_CHECK_INTERVAL);
-}
-
-/**
  * Sync batch transactions to the transaction meta.
  *
  * @param request - Request object.
@@ -191,7 +171,7 @@ function syncTransaction({
  * @param messenger - Messenger instance.
  * @param updateTransactionData - Callback to update transaction data.
  */
-async function refreshQuotes(
+export async function refreshQuotes(
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
 ) {
