@@ -7,7 +7,6 @@ import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 
 import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
-import { TraceName } from './constants/traces';
 import type { NamedAccountProvider } from './providers';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
 import {
