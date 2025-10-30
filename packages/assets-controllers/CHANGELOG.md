@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Removed exported `SUPPORTED_CHAIN_IDS` from `codefi-v2.ts` ([#7005](https://github.com/MetaMask/core/pull/7005))
+- Removed `validateChainIdSupported` from `codefi-v2.ts` ([#7005](https://github.com/MetaMask/core/pull/7005))
+- Added `fetchSupportedChainIds` in `codefi-v2.ts` ([#7005](https://github.com/MetaMask/core/pull/7005))
+
 ## [85.0.0]
 
 ### Added
