@@ -27,6 +27,7 @@
 /packages/name-controller                   @MetaMask/confirmations
 /packages/signature-controller              @MetaMask/confirmations
 /packages/transaction-controller            @MetaMask/confirmations
+/packages/transaction-pay-controller        @MetaMask/confirmations
 /packages/user-operation-controller         @MetaMask/confirmations
 
 ## Delegation Team
@@ -150,6 +151,8 @@
 /packages/signature-controller/CHANGELOG.md       @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-controller/package.json     @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-controller/CHANGELOG.md     @MetaMask/confirmations @MetaMask/core-platform
+/packages/transaction-pay-controller/package.json @MetaMask/confirmations @MetaMask/core-platform
+/packages/transaction-pay-controller/CHANGELOG.md @MetaMask/confirmations @MetaMask/core-platform
 /packages/user-operation-controller/package.json  @MetaMask/confirmations @MetaMask/core-platform
 /packages/user-operation-controller/CHANGELOG.md  @MetaMask/confirmations @MetaMask/core-platform
 /packages/multichain-transactions-controller/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
