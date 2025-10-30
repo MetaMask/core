@@ -53,6 +53,7 @@ export const DEFAULT_FEATURE_FLAG_CONFIG: FeatureFlagsPlatformConfig = {
   maxRefreshCount: DEFAULT_MAX_REFRESH_COUNT,
   support: false,
   chains: {},
+  chainRanking: [],
 };
 
 export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
