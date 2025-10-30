@@ -77,16 +77,6 @@ export type AuthenticatedUserDetails = {
    * The refresh token used to refresh expired nodeAuthTokens.
    */
   refreshToken: string;
-
-  /**
-   * The revoke token used to revoke refresh token and get new refresh token and new revoke token.
-   */
-  revokeToken: string;
-
-  /**
-   * The access token used for pairing with profile sync auth service and to access other services.
-   */
-  accessToken: string;
 };
 
 export type SRPBackedUpUserDetails = {
