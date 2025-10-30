@@ -1,34 +1,49 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { query, toChecksumHexAddress } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import {
   type NetworkClientId,
   type NetworkClientConfiguration,
   getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
+import {
+  TransactionStatus,
+  type TransactionMeta,
+} from '@metamask/transaction-controller';
 import BN from 'bn.js';
 import { useFakeTimers, type SinonFakeTimers } from 'sinon';
 
-import type {
-  AccountTrackerControllerMessenger,
-  AllowedActions,
-  AllowedEvents,
-} from './AccountTrackerController';
+import type { AccountTrackerControllerMessenger } from './AccountTrackerController';
 import { AccountTrackerController } from './AccountTrackerController';
 import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
 import { getTokenBalancesForMultipleAddresses } from './multicall';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
+
+type AllAccountTrackerControllerActions =
+  MessengerActions<AccountTrackerControllerMessenger>;
+
+type AllAccountTrackerControllerEvents =
+  MessengerEvents<AccountTrackerControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllAccountTrackerControllerActions,
+  AllAccountTrackerControllerEvents
+>;
 
 jest.mock('@metamask/controller-utils', () => {
   return {
@@ -138,6 +153,88 @@ describe('AccountTrackerController', () => {
         triggerSelectedAccountChange(ACCOUNT_1);
 
         expect(refreshSpy).toHaveBeenCalled();
+      },
+    );
+  });
+
+  it('refreshes address when unapproved transaction is added', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+      },
+      async ({ controller, messenger }) => {
+        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+          tokenBalances: {
+            '0x0000000000000000000000000000000000000000': {
+              [CHECKSUM_ADDRESS_1]: new BN('123456', 16),
+            },
+          },
+          stakedBalances: {},
+        });
+
+        const transactionMeta: TransactionMeta = {
+          networkClientId: 'mainnet',
+          chainId: '0x1' as const,
+          id: 'test-tx-1',
+          status: TransactionStatus.unapproved,
+          time: Date.now(),
+          txParams: {
+            from: ADDRESS_1,
+          },
+        };
+
+        messenger.publish(
+          'TransactionController:unapprovedTransactionAdded',
+          transactionMeta,
+        );
+
+        await clock.tickAsync(1);
+
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
+        ).toBe('0x123456');
+      },
+    );
+  });
+
+  it('refreshes address when transaction is confirmed', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+      },
+      async ({ controller, messenger }) => {
+        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+          tokenBalances: {
+            '0x0000000000000000000000000000000000000000': {
+              [CHECKSUM_ADDRESS_1]: new BN('abcdef', 16),
+            },
+          },
+          stakedBalances: {},
+        });
+
+        const transactionMeta: TransactionMeta = {
+          networkClientId: 'mainnet',
+          chainId: '0x1' as const,
+          id: 'test-tx-2',
+          status: TransactionStatus.confirmed,
+          time: Date.now(),
+          txParams: {
+            from: ADDRESS_1,
+          },
+        };
+
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          transactionMeta,
+        );
+
+        await clock.tickAsync(1);
+
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
+        ).toBe('0xabcdef');
       },
     );
   });
@@ -1282,7 +1379,7 @@ describe('AccountTrackerController', () => {
           deriveStateFromMetadata(
             controller.state,
             controller.metadata,
-            'anonymous',
+            'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`Object {}`);
       });
@@ -1342,6 +1439,7 @@ type WithControllerCallback<ReturnValue> = ({
   controller,
 }: {
   controller: AccountTrackerController;
+  messenger: RootMessenger;
   triggerSelectedAccountChange: (account: InternalAccount) => void;
   refresh: (
     clock: SinonFakeTimers,
@@ -1385,10 +1483,9 @@ async function withController<ReturnValue>(
     testFunction,
   ] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger = new Messenger<
-    ExtractAvailableAction<AccountTrackerControllerMessenger> | AllowedActions,
-    ExtractAvailableEvent<AccountTrackerControllerMessenger> | AllowedEvents
-  >();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
   messenger.registerActionHandler(
@@ -1494,16 +1591,29 @@ async function withController<ReturnValue>(
     mockNetworkState,
   );
 
-  const accountTrackerMessenger = messenger.getRestricted({
-    name: 'AccountTrackerController',
-    allowedActions: [
+  const accountTrackerMessenger = new Messenger<
+    'AccountTrackerController',
+    AllAccountTrackerControllerActions,
+    AllAccountTrackerControllerEvents,
+    RootMessenger
+  >({
+    namespace: 'AccountTrackerController',
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: accountTrackerMessenger,
+    actions: [
       'NetworkController:getNetworkClientById',
       'NetworkController:getState',
       'PreferencesController:getState',
       'AccountsController:getSelectedAccount',
       'AccountsController:listAccounts',
     ],
-    allowedEvents: ['AccountsController:selectedEvmAccountChange'],
+    events: [
+      'AccountsController:selectedEvmAccountChange',
+      'TransactionController:unapprovedTransactionAdded',
+      'TransactionController:transactionConfirmed',
+    ],
   });
 
   const triggerSelectedAccountChange = (account: InternalAccount) => {
@@ -1528,6 +1638,7 @@ async function withController<ReturnValue>(
 
   return await testFunction({
     controller,
+    messenger,
     triggerSelectedAccountChange,
     refresh,
   });

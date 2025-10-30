@@ -7,8 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.0]
+
+### Added
+
+- Export types `EnsControllerActions` and `EnsControllerEvents` ([#6460](https://github.com/MetaMask/core/pull/6460))
+
 ### Changed
 
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6460](https://github.com/MetaMask/core/pull/6460))
+  - Previously, `EnsController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6460](https://github.com/MetaMask/core/pull/6460))
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [17.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 - Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 
 ## [17.1.0]
@@ -315,7 +332,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@17.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@18.0.0...HEAD
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@17.1.1...@metamask/ens-controller@18.0.0
+[17.1.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@17.1.0...@metamask/ens-controller@17.1.1
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@17.0.1...@metamask/ens-controller@17.1.0
 [17.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@17.0.0...@metamask/ens-controller@17.0.1
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@16.0.0...@metamask/ens-controller@17.0.0

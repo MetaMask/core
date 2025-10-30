@@ -1,4 +1,10 @@
-import { Messenger } from '@metamask/base-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 
 import {
   BackendWebSocketService,
@@ -6,10 +12,6 @@ import {
   WebSocketState,
   type BackendWebSocketServiceOptions,
   type BackendWebSocketServiceMessenger,
-  type BackendWebSocketServiceActions,
-  type BackendWebSocketServiceAllowedActions,
-  type BackendWebSocketServiceEvents,
-  type BackendWebSocketServiceAllowedEvents,
 } from './BackendWebSocketService';
 import { flushPromises } from '../../../tests/helpers';
 
@@ -19,6 +21,18 @@ import { flushPromises } from '../../../tests/helpers';
 
 // Type for global object with WebSocket mock
 type GlobalWithWebSocket = typeof global & { lastWebSocket: MockWebSocket };
+
+type AllBackendWebSocketServiceActions =
+  MessengerActions<BackendWebSocketServiceMessenger>;
+
+type AllBackendWebSocketServiceEvents =
+  MessengerEvents<BackendWebSocketServiceMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllBackendWebSocketServiceActions,
+  AllBackendWebSocketServiceEvents
+>;
 
 // =====================================================
 // MOCK WEBSOCKET CLASS
@@ -164,6 +178,17 @@ class MockWebSocket extends EventTarget {
 // =====================================================
 
 /**
+ * Creates and returns a root messenger for testing
+ *
+ * @returns A messenger instance
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+}
+
+/**
  * Creates a real messenger with registered mock actions for testing
  * Each call creates a completely independent messenger to ensure test isolation
  *
@@ -171,19 +196,25 @@ class MockWebSocket extends EventTarget {
  */
 const getMessenger = () => {
   // Create a unique root messenger for each test
-  const rootMessenger = new Messenger<
-    BackendWebSocketServiceActions | BackendWebSocketServiceAllowedActions,
-    BackendWebSocketServiceEvents | BackendWebSocketServiceAllowedEvents
-  >();
-  const messenger = rootMessenger.getRestricted({
-    name: 'BackendWebSocketService',
-    allowedActions: ['AuthenticationController:getBearerToken'],
-    allowedEvents: [
+  const rootMessenger = getRootMessenger();
+  const messenger = new Messenger<
+    'BackendWebSocketService',
+    AllBackendWebSocketServiceActions,
+    AllBackendWebSocketServiceEvents,
+    RootMessenger
+  >({
+    namespace: 'BackendWebSocketService',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    actions: ['AuthenticationController:getBearerToken'],
+    events: [
       'AuthenticationController:stateChange',
       'KeyringController:lock',
       'KeyringController:unlock',
     ],
-  }) as unknown as BackendWebSocketServiceMessenger;
+    messenger,
+  });
 
   // Create mock action handlers
   const mockGetBearerToken = jest.fn().mockResolvedValue('valid-default-token');
@@ -252,10 +283,7 @@ type TestSetupOptions = {
 type TestSetup = {
   service: BackendWebSocketService;
   messenger: BackendWebSocketServiceMessenger;
-  rootMessenger: Messenger<
-    BackendWebSocketServiceActions | BackendWebSocketServiceAllowedActions,
-    BackendWebSocketServiceEvents | BackendWebSocketServiceAllowedEvents
-  >;
+  rootMessenger: RootMessenger;
   mocks: {
     getBearerToken: jest.Mock;
   };
@@ -270,10 +298,7 @@ type TestSetup = {
 type WithServiceCallback<ReturnValue> = (payload: {
   service: BackendWebSocketService;
   messenger: BackendWebSocketServiceMessenger;
-  rootMessenger: Messenger<
-    BackendWebSocketServiceActions | BackendWebSocketServiceAllowedActions,
-    BackendWebSocketServiceEvents | BackendWebSocketServiceAllowedEvents
-  >;
+  rootMessenger: RootMessenger;
   mocks: {
     getBearerToken: jest.Mock;
   };
@@ -349,7 +374,7 @@ const setupBackendWebSocketService = ({
     cleanup: () => {
       service?.destroy();
       jest.useRealTimers();
-      jest.clearAllMocks();
+      jest.restoreAllMocks();
     },
   };
 };
@@ -609,26 +634,6 @@ describe('BackendWebSocketService', () => {
       );
     });
 
-    it('should handle connection timeout by rejecting with timeout error and setting state to ERROR', async () => {
-      await withService(
-        {
-          options: { timeout: TEST_CONSTANTS.TIMEOUT_MS },
-          mockWebSocketOptions: { autoConnect: false },
-        },
-        async ({ service, completeAsyncOperations }) => {
-          const connectPromise = service.connect().catch((error) => error);
-
-          await completeAsyncOperations(TEST_CONSTANTS.TIMEOUT_MS + 50);
-
-          const error = await connectPromise;
-          expect(error.message).toBe(
-            `Failed to connect to WebSocket: Connection timeout after ${TEST_CONSTANTS.TIMEOUT_MS}ms`,
-          );
-          expect(service.getConnectionInfo().state).toBe(WebSocketState.ERROR);
-        },
-      );
-    });
-
     it('should reject sendMessage and sendRequest operations when WebSocket is disconnected', async () => {
       await withService(
         { mockWebSocketOptions: { autoConnect: false } },
@@ -685,6 +690,9 @@ describe('BackendWebSocketService', () => {
     it('should handle abnormal WebSocket close by triggering reconnection', async () => {
       await withService(
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          // Mock Math.random to make Cockatiel's jitter deterministic
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+
           await service.connect();
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.CONNECTED,
@@ -709,7 +717,8 @@ describe('BackendWebSocketService', () => {
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.CONNECTED,
           );
-          expect(service.getConnectionInfo().reconnectAttempts).toBe(0); // Reset on successful connection
+          // reconnectAttempts will be 1 until stable connection timer (10s) resets it
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
         },
       );
     });
@@ -730,32 +739,13 @@ describe('BackendWebSocketService', () => {
           },
         );
 
-        await service.disconnect();
+        service.disconnect();
 
         const connectionInfo = service.getConnectionInfo();
         expect(connectionInfo.state).toBe(WebSocketState.DISCONNECTED);
         expect(connectionInfo.url).toBe('ws://localhost:8080'); // URL persists after disconnect
         expect(connectionInfo.reconnectAttempts).toBe(0);
       });
-    });
-
-    it('should handle WebSocket error events during connection establishment by setting state to ERROR', async () => {
-      await withService(
-        { mockWebSocketOptions: { autoConnect: false } },
-        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          const connectPromise = service.connect();
-          await completeAsyncOperations(10);
-
-          // Trigger error event during connection phase
-          const mockWs = getMockWebSocket();
-          mockWs.simulateError();
-
-          await expect(connectPromise).rejects.toThrow(
-            'WebSocket connection error',
-          );
-          expect(service.getConnectionInfo().state).toBe(WebSocketState.ERROR);
-        },
-      );
     });
 
     it('should remain in CONNECTED state when trying to connect again', async () => {
@@ -802,28 +792,11 @@ describe('BackendWebSocketService', () => {
         );
 
         // Disconnect when already disconnected
-        await service.disconnect();
+        service.disconnect();
         expect(service.getConnectionInfo().state).toBe(
           WebSocketState.DISCONNECTED,
         );
       });
-    });
-
-    it('should handle WebSocket close during connection phase', async () => {
-      await withService(
-        { mockWebSocketOptions: { autoConnect: false } },
-        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          const connectPromise = service.connect();
-          await completeAsyncOperations(10);
-
-          const mockWs = getMockWebSocket();
-          mockWs.simulateClose(1006, 'Connection failed');
-
-          await expect(connectPromise).rejects.toThrow(
-            'WebSocket connection closed during connection',
-          );
-        },
-      );
     });
 
     it('should handle unexpected disconnect with empty reason by using default close reason', async () => {
@@ -861,6 +834,255 @@ describe('BackendWebSocketService', () => {
           // Verify state changed to disconnected (trace was called)
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.DISCONNECTED,
+          );
+        },
+      );
+    });
+
+    it('should skip connect when reconnect timer is already scheduled', async () => {
+      await withService(
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          // Mock Math.random to make Cockatiel's jitter deterministic
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+
+          // Connect successfully first
+          await service.connect();
+
+          const mockWs = getMockWebSocket();
+
+          // Simulate unexpected close to trigger scheduleReconnect
+          mockWs.simulateClose(1006, 'Abnormal closure');
+          await completeAsyncOperations(0);
+
+          // Verify reconnect timer is scheduled
+          const attemptsBefore = service.getConnectionInfo().reconnectAttempts;
+          expect(attemptsBefore).toBeGreaterThan(0);
+
+          // Now try to connect again while reconnect timer is scheduled
+          // This should return early without doing anything
+          await service.connect();
+
+          // Attempts should be unchanged since connect returned early
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(
+            attemptsBefore,
+          );
+        },
+      );
+    });
+
+    it('should handle connection timeout', async () => {
+      await withService(
+        {
+          options: { timeout: 100 },
+          mockWebSocketOptions: { autoConnect: false },
+        },
+        async ({ service, completeAsyncOperations }) => {
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          service.connect();
+
+          // Advance time past the timeout
+          await completeAsyncOperations(150);
+
+          // Should have transitioned to ERROR state after timeout
+          expect(service.getConnectionInfo().state).toBe(WebSocketState.ERROR);
+        },
+      );
+    });
+
+    it('should reset reconnect attempts after stable connection', async () => {
+      await withService(
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          // Mock Math.random to make Cockatiel's jitter deterministic
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+
+          // Connect successfully
+          await service.connect();
+
+          // Close connection to trigger reconnect
+          const mockWs = getMockWebSocket();
+          mockWs.simulateClose(1006, 'Test close');
+          await completeAsyncOperations(10);
+
+          // Reconnect (this increments attempts to 1)
+          // With Math.random() = 0, Cockatiel's jitter will give consistent delays
+          await completeAsyncOperations(700);
+
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
+
+          // Wait for stable connection timer (10 seconds + buffer)
+          await completeAsyncOperations(10050);
+
+          // Attempts should now be reset to 0
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
+        },
+      );
+    });
+
+    it('should handle WebSocket onclose during connection phase', async () => {
+      await withService(
+        { mockWebSocketOptions: { autoConnect: false } },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          // Mock Math.random to make Cockatiel's jitter deterministic
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          service.connect();
+          await completeAsyncOperations(10);
+
+          // Verify we're in CONNECTING state
+          const mockWs = getMockWebSocket();
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.CONNECTING,
+          );
+
+          // Close during connection phase
+          mockWs.simulateClose(1006, 'Connection failed');
+          await completeAsyncOperations(0);
+
+          // Should schedule reconnect and be in ERROR state
+          expect(service.getConnectionInfo().state).toBe(WebSocketState.ERROR);
+        },
+      );
+    });
+
+    it('should clear connection timeout in handleClose when timeout occurs then close fires', async () => {
+      await withService(
+        {
+          options: { timeout: 100 },
+          mockWebSocketOptions: { autoConnect: false },
+        },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          // Mock Math.random to make Cockatiel's jitter deterministic
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+
+          // Start connection (this sets connectionTimeout)
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          service.connect();
+          await completeAsyncOperations(10);
+
+          const mockWs = getMockWebSocket();
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.CONNECTING,
+          );
+
+          // Let timeout fire (closes WebSocket and sets state to ERROR)
+          await completeAsyncOperations(150);
+
+          // State should be ERROR or DISCONNECTED after timeout
+          const stateAfterTimeout = service.getConnectionInfo().state;
+          expect([WebSocketState.ERROR, WebSocketState.DISCONNECTED]).toContain(
+            stateAfterTimeout,
+          );
+
+          // Now manually trigger close event
+          // Since state is ERROR (not CONNECTING), onclose will call handleClose
+          // which will clear connectionTimeout
+          mockWs.simulateClose(1006, 'Close after timeout');
+          await completeAsyncOperations(0);
+
+          // State should still be ERROR or DISCONNECTED
+          expect([WebSocketState.ERROR, WebSocketState.DISCONNECTED]).toContain(
+            service.getConnectionInfo().state,
+          );
+        },
+      );
+    });
+
+    it('should not schedule multiple reconnects when scheduleReconnect called multiple times', async () => {
+      await withService(
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          // Mock Math.random to make Cockatiel's jitter deterministic
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+
+          await service.connect();
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.CONNECTED,
+          );
+
+          const mockWs = getMockWebSocket();
+
+          // First close to trigger scheduleReconnect
+          mockWs.simulateClose(1006, 'Connection lost');
+          await completeAsyncOperations(0);
+
+          const attemptsBefore = service.getConnectionInfo().reconnectAttempts;
+          expect(attemptsBefore).toBeGreaterThan(0);
+
+          // Second close should trigger scheduleReconnect again,
+          // but it should return early since timer already exists
+          mockWs.simulateClose(1006, 'Connection lost again');
+          await completeAsyncOperations(0);
+
+          // Attempts should not have increased again due to idempotency
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(
+            attemptsBefore,
+          );
+        },
+      );
+    });
+  });
+
+  // =====================================================
+  // FORCE RECONNECTION TESTS
+  // =====================================================
+  describe('forceReconnection', () => {
+    it('should force reconnection and schedule connect', async () => {
+      await withService(
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          // Mock Math.random to make Cockatiel's jitter deterministic
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+
+          await service.connect();
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.CONNECTED,
+          );
+
+          const mockWs = getMockWebSocket();
+          mockWs.close.mockImplementation(
+            (code = 1000, reason = 'Normal closure') => {
+              mockWs.simulateClose(code, reason);
+            },
+          );
+
+          // Force reconnection
+          await service.forceReconnection();
+          await completeAsyncOperations(0);
+
+          // Should be disconnected after forceReconnection
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+
+          // Should have scheduled a reconnect (attempts incremented)
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
+        },
+      );
+    });
+
+    it('should skip forceReconnection when reconnect timer is already scheduled', async () => {
+      await withService(
+        { mockWebSocketOptions: { autoConnect: false } },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          // Mock Math.random to make Cockatiel's jitter deterministic
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+
+          // Trigger a connection failure to schedule a reconnect
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          service.connect();
+          await completeAsyncOperations(10);
+
+          const mockWs = getMockWebSocket();
+          mockWs.simulateError();
+          await completeAsyncOperations(0);
+
+          const attemptsBefore = service.getConnectionInfo().reconnectAttempts;
+
+          // Try to force reconnection while timer is already scheduled
+          await service.forceReconnection();
+
+          // Should have returned early, attempts unchanged
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(
+            attemptsBefore,
           );
         },
       );
@@ -1213,7 +1435,7 @@ describe('BackendWebSocketService', () => {
           data: { test: true },
         });
 
-        await service.disconnect();
+        service.disconnect();
 
         await expect(requestPromise).rejects.toThrow('WebSocket disconnected');
       });
@@ -1463,28 +1685,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should handle authentication required but user not signed in by rejecting connection with error', async () => {
-      await withService(
-        {
-          options: {},
-          mockWebSocketOptions: { autoConnect: false },
-        },
-        async ({ service, mocks }) => {
-          mocks.getBearerToken.mockResolvedValueOnce(null);
-
-          await expect(service.connect()).rejects.toThrow(
-            'Authentication required: user not signed in',
-          );
-
-          expect(service.getConnectionInfo().state).toBe(
-            WebSocketState.DISCONNECTED,
-          );
-          expect(mocks.getBearerToken).toHaveBeenCalled();
-        },
-      );
-    });
-
-    it('should handle getBearerToken error during connection by rejecting with authentication error', async () => {
+    it('should handle getBearerToken error during connection by scheduling reconnect', async () => {
       await withService(
         {
           options: {},
@@ -1494,12 +1695,46 @@ describe('BackendWebSocketService', () => {
           const authError = new Error('Auth error');
           mocks.getBearerToken.mockRejectedValueOnce(authError);
 
-          await expect(service.connect()).rejects.toThrow('Auth error');
+          // connect() will catch the error and schedule reconnect (not throw)
+          await service.connect();
 
+          // Initial state should be DISCONNECTED since connection failed
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.DISCONNECTED,
           );
           expect(mocks.getBearerToken).toHaveBeenCalled();
+
+          // Verify reconnect was scheduled (attempts should be incremented)
+          expect(service.getConnectionInfo().reconnectAttempts).toBeGreaterThan(
+            0,
+          );
+        },
+      );
+    });
+
+    it('should handle null bearer token by scheduling reconnect', async () => {
+      await withService(
+        {
+          options: {},
+          mockWebSocketOptions: { autoConnect: false },
+        },
+        async ({ service, mocks }) => {
+          // Return null to simulate user not signed in
+          mocks.getBearerToken.mockResolvedValueOnce(null);
+
+          // connect() will catch the authentication error and schedule reconnect
+          await service.connect();
+
+          // Should be in DISCONNECTED state
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+          expect(mocks.getBearerToken).toHaveBeenCalled();
+
+          // Verify reconnect was scheduled
+          expect(service.getConnectionInfo().reconnectAttempts).toBeGreaterThan(
+            0,
+          );
         },
       );
     });
@@ -1546,6 +1781,9 @@ describe('BackendWebSocketService', () => {
           },
         },
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          // Mock Math.random to make Cockatiel's jitter deterministic
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+
           await service.connect();
           const mockWs = getMockWebSocket();
 
@@ -1561,7 +1799,7 @@ describe('BackendWebSocketService', () => {
           mockEnabledCallback.mockReturnValue(false);
 
           // Advance time to trigger reconnection check
-          await completeAsyncOperations(50);
+          await completeAsyncOperations(70);
 
           // Should have checked isEnabled and stopped reconnection
           expect(mockEnabledCallback).toHaveBeenCalled();
@@ -1569,34 +1807,6 @@ describe('BackendWebSocketService', () => {
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.DISCONNECTED,
           );
-        },
-      );
-    });
-
-    it('should continue reconnection attempts when reconnect fails', async () => {
-      await withService(
-        {
-          options: {
-            reconnectDelay: 50,
-          },
-        },
-        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          await service.connect();
-          const mockWs = getMockWebSocket();
-
-          // Simulate connection loss
-          mockWs.simulateClose(1006, 'Connection lost');
-          await completeAsyncOperations(0);
-
-          const connectSpy = jest
-            .spyOn(service, 'connect')
-            .mockRejectedValue(new Error('Reconnect failed'));
-
-          // Advance time to trigger first reconnection attempt
-          await completeAsyncOperations(50);
-
-          // Should have attempted to reconnect
-          expect(connectSpy).toHaveBeenCalled();
         },
       );
     });

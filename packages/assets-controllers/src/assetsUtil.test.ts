@@ -774,8 +774,8 @@ function buildAddress(number: number) {
  */
 function createMockPriceService(): AbstractTokenPricesService {
   return {
-    validateChainIdSupported(_chainId: unknown): _chainId is Hex {
-      return true;
+    async fetchSupportedChainIds() {
+      return [];
     },
     validateCurrencySupported(_currency: unknown): _currency is string {
       return true;
@@ -783,8 +783,8 @@ function createMockPriceService(): AbstractTokenPricesService {
     async fetchTokenPrices() {
       return {};
     },
-    async fetchSupportedChainIds() {
-      return [];
+    async fetchExchangeRates() {
+      return {};
     },
   };
 }

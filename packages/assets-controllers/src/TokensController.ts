@@ -8,9 +8,9 @@ import type {
 } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
-  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import contractsMap from '@metamask/contract-metadata';
@@ -27,6 +27,7 @@ import {
 } from '@metamask/controller-utils';
 import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { Messenger } from '@metamask/messenger';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkClientId,
@@ -88,23 +89,23 @@ export type TokensControllerState = {
   allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
 };
 
-const metadata = {
+const metadata: StateMetadata<TokensControllerState> = {
   allTokens: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   allIgnoredTokens: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   allDetectedTokens: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -158,12 +159,10 @@ export type AllowedEvents =
 /**
  * The messenger of the {@link TokensController}.
  */
-export type TokensControllerMessenger = RestrictedMessenger<
+export type TokensControllerMessenger = Messenger<
   typeof controllerName,
   TokensControllerActions | AllowedActions,
-  TokensControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  TokensControllerEvents | AllowedEvents
 >;
 
 export const getDefaultTokensState = (): TokensControllerState => {
@@ -224,32 +223,32 @@ export class TokensController extends BaseController<
 
     this.#abortController = new AbortController();
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:addDetectedTokens` as const,
       this.addDetectedTokens.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:addTokens` as const,
       this.addTokens.bind(this),
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:selectedEvmAccountChange',
       this.#onSelectedAccountChange.bind(this),
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'NetworkController:stateChange',
       this.#onNetworkStateChange.bind(this),
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'KeyringController:accountRemoved',
       (accountAddress: string) => this.#handleOnAccountRemoved(accountAddress),
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TokenListController:stateChange',
       ({ tokensChainsCache }) => {
         const { allTokens } = this.state;
@@ -419,7 +418,7 @@ export class TokensController extends BaseController<
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
 
-    const chainIdToUse = this.messagingSystem.call(
+    const chainIdToUse = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     ).configuration.chainId;
@@ -505,7 +504,7 @@ export class TokensController extends BaseController<
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
 
-    const interactingChainId = this.messagingSystem.call(
+    const interactingChainId = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     ).configuration.chainId;
@@ -581,7 +580,7 @@ export class TokensController extends BaseController<
     tokenAddressesToIgnore: string[],
     networkClientId: NetworkClientId,
   ) {
-    const interactingChainId = this.messagingSystem.call(
+    const interactingChainId = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     ).configuration.chainId;
@@ -739,7 +738,7 @@ export class TokensController extends BaseController<
     tokenAddress: string,
     networkClientId: NetworkClientId,
   ) {
-    const chainIdToUse = this.messagingSystem.call(
+    const chainIdToUse = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     ).configuration.chainId;
@@ -798,7 +797,7 @@ export class TokensController extends BaseController<
   #getProvider(networkClientId?: NetworkClientId): Web3Provider {
     return new Web3Provider(
       networkClientId
-        ? this.messagingSystem.call(
+        ? this.messenger.call(
             'NetworkController:getNetworkClientById',
             networkClientId,
           ).provider
@@ -1082,7 +1081,7 @@ export class TokensController extends BaseController<
   }
 
   async #requestApproval(suggestedAssetMeta: SuggestedAssetMeta) {
-    return this.messagingSystem.call(
+    return this.messenger.call(
       'ApprovalController:addRequest',
       {
         id: suggestedAssetMeta.id,
@@ -1104,12 +1103,12 @@ export class TokensController extends BaseController<
   }
 
   #getSelectedAccount() {
-    return this.messagingSystem.call('AccountsController:getSelectedAccount');
+    return this.messenger.call('AccountsController:getSelectedAccount');
   }
 
   #getSelectedAddress() {
     // If the address is not defined (or empty), we fallback to the currently selected account's address
-    const account = this.messagingSystem.call(
+    const account = this.messenger.call(
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );

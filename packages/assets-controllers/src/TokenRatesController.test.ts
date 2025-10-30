@@ -1,5 +1,4 @@
-import type { AddApprovalRequest } from '@metamask/approval-controller';
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   ChainId,
   InfuraNetworkType,
@@ -8,6 +7,13 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type {
   NetworkClientConfiguration,
   NetworkClientId,
@@ -21,13 +27,6 @@ import type { Patch } from 'immer';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
-import { advanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildMockGetNetworkClientById,
-  buildNetworkConfiguration,
-} from '../../network-controller/tests/helpers';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type {
   AbstractTokenPricesService,
@@ -40,14 +39,19 @@ import {
   TokenRatesController,
 } from './TokenRatesController';
 import type {
-  AllowedActions,
-  AllowedEvents,
   Token,
   TokenRatesControllerMessenger,
   TokenRatesControllerState,
 } from './TokenRatesController';
 import { getDefaultTokensState } from './TokensController';
 import type { TokensControllerState } from './TokensController';
+import { advanceTime } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+  buildNetworkConfiguration,
+} from '../../network-controller/tests/helpers';
 
 const defaultSelectedAddress = '0x0000000000000000000000000000000000000001';
 const defaultSelectedAccount = createMockInternalAccount({
@@ -55,35 +59,52 @@ const defaultSelectedAccount = createMockInternalAccount({
 });
 const mockTokenAddress = '0x0000000000000000000000000000000000000010';
 
-type MainMessenger = Messenger<
-  AllowedActions | AddApprovalRequest,
-  AllowedEvents
+type AllTokenRatesControllerActions =
+  MessengerActions<TokenRatesControllerMessenger>;
+
+type AllTokenRatesControllerEvents =
+  MessengerEvents<TokenRatesControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllTokenRatesControllerActions,
+  AllTokenRatesControllerEvents
 >;
 
 /**
  * Builds a messenger that `TokenRatesController` can use to communicate with other controllers.
  *
- * @param messenger - The main messenger.
- * @returns The restricted messenger.
+ * @param messenger - The root messenger.
+ * @returns The controller messenger.
  */
 function buildTokenRatesControllerMessenger(
-  messenger: MainMessenger = new Messenger(),
+  messenger: RootMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE }),
 ): TokenRatesControllerMessenger {
-  return messenger.getRestricted({
-    name: controllerName,
-    allowedActions: [
+  const tokenRatesControllerMessenger = new Messenger<
+    'TokenRatesController',
+    AllTokenRatesControllerActions,
+    AllTokenRatesControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: tokenRatesControllerMessenger,
+    actions: [
       'TokensController:getState',
       'NetworkController:getNetworkClientById',
       'NetworkController:getState',
       'AccountsController:getAccount',
       'AccountsController:getSelectedAccount',
     ],
-    allowedEvents: [
+    events: [
       'TokensController:stateChange',
       'NetworkController:stateChange',
       'AccountsController:selectedEvmAccountChange',
     ],
   });
+  return tokenRatesControllerMessenger;
 }
 
 describe('TokenRatesController', () => {
@@ -2856,7 +2877,7 @@ describe('TokenRatesController', () => {
           deriveStateFromMetadata(
             controller.state,
             controller.metadata,
-            'anonymous',
+            'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`Object {}`);
       });
@@ -2968,7 +2989,9 @@ async function withController<ReturnValue>(
     mockTokensControllerState,
     mockNetworkState,
   } = rest;
-  const messenger = new Messenger<AllowedActions, AllowedEvents>();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   const mockTokensState = jest.fn<TokensControllerState, []>();
   messenger.registerActionHandler(
@@ -3146,6 +3169,9 @@ function buildMockTokenPricesService(
 ): AbstractTokenPricesService {
   return {
     async fetchTokenPrices() {
+      return {};
+    },
+    async fetchExchangeRates() {
       return {};
     },
     async fetchSupportedChainIds() {

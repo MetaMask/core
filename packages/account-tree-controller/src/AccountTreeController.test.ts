@@ -8,7 +8,8 @@ import {
   toMultichainAccountWalletId,
   type AccountGroupId,
 } from '@metamask/account-api';
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import type { AccountId } from '@metamask/accounts-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   BtcAccountType,
   EthAccountType,
@@ -35,14 +36,11 @@ import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analy
 import { BackupAndSyncService } from './backup-and-sync/service';
 import { isAccountGroupNameUnique } from './group';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
+import { type AccountTreeControllerState } from './types';
 import {
-  type AccountTreeControllerMessenger,
-  type AccountTreeControllerActions,
-  type AccountTreeControllerEvents,
-  type AccountTreeControllerState,
-  type AllowedActions,
-  type AllowedEvents,
-} from './types';
+  getAccountTreeControllerMessenger,
+  getRootMessenger,
+} from '../tests/mockMessenger';
 
 // Local mock of EMPTY_ACCOUNT to avoid circular dependency
 const EMPTY_ACCOUNT_MOCK: InternalAccount = {
@@ -232,53 +230,7 @@ const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
   },
 };
 
-/**
- * Creates a new root messenger instance for testing.
- *
- * @returns A new Messenger instance.
- */
-function getRootMessenger() {
-  return new Messenger<
-    AccountTreeControllerActions | AllowedActions,
-    AccountTreeControllerEvents | AllowedEvents
-  >();
-}
-
-/**
- * Retrieves a restricted messenger for the AccountTreeController.
- *
- * @param messenger - The root messenger instance. Defaults to a new Messenger created by getRootMessenger().
- * @returns The restricted messenger for the AccountTreeController.
- */
-function getAccountTreeControllerMessenger(
-  messenger = getRootMessenger(),
-): AccountTreeControllerMessenger {
-  return messenger.getRestricted({
-    name: 'AccountTreeController',
-    allowedEvents: [
-      'AccountsController:accountAdded',
-      'AccountsController:accountRemoved',
-      'AccountsController:selectedAccountChange',
-      'UserStorageController:stateChange',
-      'MultichainAccountService:walletStatusChange',
-    ],
-    allowedActions: [
-      'AccountsController:listMultichainAccounts',
-      'AccountsController:getAccount',
-      'AccountsController:getSelectedMultichainAccount',
-      'AccountsController:setSelectedAccount',
-      'UserStorageController:getState',
-      'UserStorageController:performGetStorage',
-      'UserStorageController:performGetStorageAllFeatureEntries',
-      'UserStorageController:performSetStorage',
-      'UserStorageController:performBatchSetStorage',
-      'AuthenticationController:getSessionProfile',
-      'MultichainAccountService:createMultichainAccountGroup',
-      'KeyringController:getState',
-      'SnapController:get',
-    ],
-  });
-}
+const mockGetSelectedMultichainAccountActionHandler = jest.fn();
 
 /**
  * Sets up the AccountTreeController for testing.
@@ -293,6 +245,9 @@ function getAccountTreeControllerMessenger(
  * @param options.config.backupAndSync.onBackupAndSyncEvent - Event handler for backup and sync events.
  * @param options.config.backupAndSync.isAccountSyncingEnabled - Flag to enable account syncing.
  * @param options.config.backupAndSync.isBackupAndSyncEnabled - Flag to enable backup and sync.
+ * @param options.config.accountOrderCallbacks - Callbacks to migrate hidden and pinned account information from the account order controller.
+ * @param options.config.accountOrderCallbacks.isHiddenAccount - Callback to check if an account is hidden.
+ * @param options.config.accountOrderCallbacks.isPinnedAccount - Callback to check if an account is pinned.
  * @returns An object containing the controller instance and the messenger.
  */
 function setup({
@@ -306,13 +261,14 @@ function setup({
       isBackupAndSyncEnabled: true,
       onBackupAndSyncEvent: jest.fn(),
     },
+    accountOrderCallbacks: {
+      isHiddenAccount: jest.fn().mockReturnValue(false),
+      isPinnedAccount: jest.fn().mockReturnValue(false),
+    },
   },
 }: {
   state?: Partial<AccountTreeControllerState>;
-  messenger?: Messenger<
-    AccountTreeControllerActions | AllowedActions,
-    AccountTreeControllerEvents | AllowedEvents
-  >;
+  messenger?: ReturnType<typeof getRootMessenger>;
   accounts?: InternalAccount[];
   keyrings?: KeyringObject[];
   config?: {
@@ -323,12 +279,16 @@ function setup({
         event: BackupAndSyncAnalyticsEventPayload,
       ) => void;
     };
+    accountOrderCallbacks?: {
+      isHiddenAccount?: (accountId: AccountId) => boolean;
+      isPinnedAccount?: (accountId: AccountId) => boolean;
+    };
   };
 } = {}): {
   controller: AccountTreeController;
-  messenger: Messenger<
-    AccountTreeControllerActions | AllowedActions,
-    AccountTreeControllerEvents | AllowedEvents
+  messenger: ReturnType<typeof getRootMessenger>;
+  accountTreeControllerMessenger: ReturnType<
+    typeof getAccountTreeControllerMessenger
   >;
   spies: {
     consoleWarn: jest.SpyInstance;
@@ -389,6 +349,7 @@ function setup({
     mocks.AccountsController.listMultichainAccounts.mockImplementation(
       () => mocks.AccountsController.accounts,
     );
+
     messenger.registerActionHandler(
       'AccountsController:listMultichainAccounts',
       mocks.AccountsController.listMultichainAccounts,
@@ -462,8 +423,10 @@ function setup({
     );
   }
 
+  const accountTreeControllerMessenger =
+    getAccountTreeControllerMessenger(messenger);
   const controller = new AccountTreeController({
-    messenger: getAccountTreeControllerMessenger(messenger),
+    messenger: accountTreeControllerMessenger,
     state,
     ...(config && { config }),
   });
@@ -475,6 +438,7 @@ function setup({
   return {
     controller,
     messenger,
+    accountTreeControllerMessenger,
     spies: { consoleWarn: consoleWarnSpy },
     mocks,
   };
@@ -673,11 +637,27 @@ describe('AccountTreeController', () => {
               value: 'Account 1',
               lastUpdatedAt: expect.any(Number),
             },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
           },
           [expectedWalletId2Group1]: {
             name: {
               value: 'Account 1',
               lastUpdatedAt: expect.any(Number),
+            },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
             },
           },
           [expectedWalletId2Group2]: {
@@ -685,17 +665,41 @@ describe('AccountTreeController', () => {
               value: 'Account 2', // Updated: per-wallet sequential numbering
               lastUpdatedAt: expect.any(Number),
             },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
           },
           [expectedKeyringWalletIdGroup]: {
             name: {
               value: 'Ledger Account 1', // Updated: per-wallet numbering (different wallet)
               lastUpdatedAt: expect.any(Number),
             },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
           },
           [expectedSnapWalletIdGroup]: {
             name: {
               value: 'Snap Account 1', // Updated: per-wallet numbering (different wallet)
               lastUpdatedAt: expect.any(Number),
+            },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
             },
           },
         },
@@ -1153,6 +1157,14 @@ describe('AccountTreeController', () => {
               value: 'Account 1',
               lastUpdatedAt: expect.any(Number),
             },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
           },
         },
         accountWalletsMetadata: {},
@@ -1231,6 +1243,14 @@ describe('AccountTreeController', () => {
             name: {
               value: 'Account 2', // This is the second account in the wallet
               lastUpdatedAt: expect.any(Number),
+            },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
             },
           },
         },
@@ -1452,6 +1472,14 @@ describe('AccountTreeController', () => {
               value: 'Account 1',
               lastUpdatedAt: expect.any(Number),
             },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
           },
         },
         accountWalletsMetadata: {},
@@ -1577,11 +1605,27 @@ describe('AccountTreeController', () => {
               value: 'Account 1',
               lastUpdatedAt: expect.any(Number),
             },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
           },
           [walletId2Group]: {
             name: {
               value: 'Account 1', // Per-wallet naming (different wallet)
               lastUpdatedAt: expect.any(Number),
+            },
+            pinned: {
+              value: false,
+              lastUpdatedAt: 0,
+            },
+            hidden: {
+              value: false,
+              lastUpdatedAt: 0,
             },
           },
         },
@@ -1710,12 +1754,15 @@ describe('AccountTreeController', () => {
     });
 
     it('updates AccountsController selected account (with EVM account) when selectedAccountGroup changes', () => {
-      const { controller, messenger } = setup({
+      const { controller, accountTreeControllerMessenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      const setSelectedAccountSpy = jest.spyOn(messenger, 'call');
+      const setSelectedAccountSpy = jest.spyOn(
+        accountTreeControllerMessenger,
+        'call',
+      );
 
       controller.init();
 
@@ -1747,7 +1794,7 @@ describe('AccountTreeController', () => {
           },
         },
       } as const;
-      const { controller, messenger } = setup({
+      const { controller, accountTreeControllerMessenger } = setup({
         accounts: [
           MOCK_HD_ACCOUNT_1,
           nonEvmAccount2, // Wallet 2 > Account 1.
@@ -1755,7 +1802,10 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      const setSelectedAccountSpy = jest.spyOn(messenger, 'call');
+      const setSelectedAccountSpy = jest.spyOn(
+        accountTreeControllerMessenger,
+        'call',
+      );
 
       controller.init();
 
@@ -1877,18 +1927,14 @@ describe('AccountTreeController', () => {
     });
 
     it('falls back to first wallet first group when AccountsController returns EMPTY_ACCOUNT', () => {
-      const { controller, messenger } = setup({
+      const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      // Unregister existing handler and register new one BEFORE init
-      messenger.unregisterActionHandler(
-        'AccountsController:getSelectedMultichainAccount',
-      );
-      messenger.registerActionHandler(
-        'AccountsController:getSelectedMultichainAccount',
-        () => EMPTY_ACCOUNT_MOCK,
+      // Mock action handler BEFORE init
+      mockGetSelectedMultichainAccountActionHandler.mockReturnValue(
+        EMPTY_ACCOUNT_MOCK,
       );
 
       controller.init();
@@ -1906,7 +1952,7 @@ describe('AccountTreeController', () => {
     });
 
     it('falls back to first wallet first group when selected account is not in tree', () => {
-      const { controller, messenger } = setup({
+      const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
@@ -1917,12 +1963,8 @@ describe('AccountTreeController', () => {
         id: 'unknown-account-id',
       };
 
-      messenger.unregisterActionHandler(
-        'AccountsController:getSelectedMultichainAccount',
-      );
-      messenger.registerActionHandler(
-        'AccountsController:getSelectedMultichainAccount',
-        () => unknownAccount,
+      mockGetSelectedMultichainAccountActionHandler.mockReturnValue(
+        unknownAccount,
       );
 
       controller.init();
@@ -1940,18 +1982,14 @@ describe('AccountTreeController', () => {
     });
 
     it('returns empty string when no wallets exist and getSelectedMultichainAccount returns EMPTY_ACCOUNT', () => {
-      const { controller, messenger } = setup({
+      const { controller } = setup({
         accounts: [],
         keyrings: [],
       });
 
-      // Mock getSelectedMultichainAccount to return EMPTY_ACCOUNT_MOCK (id is '') BEFORE init
-      messenger.unregisterActionHandler(
-        'AccountsController:getSelectedMultichainAccount',
-      );
-      messenger.registerActionHandler(
-        'AccountsController:getSelectedMultichainAccount',
-        () => EMPTY_ACCOUNT_MOCK,
+      // Mock getSelectedAccount to return EMPTY_ACCOUNT_MOCK (id is '') BEFORE init
+      mockGetSelectedMultichainAccountActionHandler.mockReturnValue(
+        EMPTY_ACCOUNT_MOCK,
       );
 
       controller.init();
@@ -2123,6 +2161,14 @@ describe('AccountTreeController', () => {
           value: customName,
           lastUpdatedAt: expect.any(Number),
         },
+        pinned: {
+          value: false,
+          lastUpdatedAt: 0,
+        },
+        hidden: {
+          value: false,
+          lastUpdatedAt: 0,
+        },
       });
     });
 
@@ -2272,6 +2318,10 @@ describe('AccountTreeController', () => {
           value: true,
           lastUpdatedAt: expect.any(Number),
         },
+        hidden: {
+          value: false,
+          lastUpdatedAt: 0,
+        },
       });
     });
 
@@ -2304,6 +2354,10 @@ describe('AccountTreeController', () => {
         name: {
           value: 'Account 1', // Name now generated during init
           lastUpdatedAt: expect.any(Number),
+        },
+        pinned: {
+          value: false,
+          lastUpdatedAt: 0,
         },
         hidden: {
           value: true,
@@ -4220,7 +4274,7 @@ describe('AccountTreeController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
@@ -4782,6 +4836,256 @@ describe('AccountTreeController', () => {
       const mockGroup4 = getAccountGroupFromAccount(controller, mockAccount4);
       expect(mockGroup4).toBeDefined();
       expect(mockGroup4.metadata.name).toBe('Ledger Account 4');
+    });
+  });
+
+  describe('migrating account order callbacks', () => {
+    const mockAccount1 = {
+      ...MOCK_HD_ACCOUNT_1,
+      id: 'test-account-1' as AccountId,
+      address: '0x123',
+    };
+
+    describe('basic functionality', () => {
+      it('initializes without callbacks and use default metadata values', () => {
+        const { controller } = setup({
+          accounts: [mockAccount1],
+          config: {
+            backupAndSync: {
+              isAccountSyncingEnabled: true,
+              isBackupAndSyncEnabled: true,
+              onBackupAndSyncEvent: jest.fn(),
+            },
+            // No accountOrderCallbacks provided
+          },
+        });
+
+        controller.init();
+
+        const wallets = Object.values(controller.state.accountTree.wallets);
+        expect(wallets).toHaveLength(1);
+
+        const groups = Object.values(wallets[0].groups);
+        expect(groups).toHaveLength(1);
+        expect(groups[0].accounts).toContain(mockAccount1.id);
+        expect(groups[0].metadata.pinned).toBe(false);
+        expect(groups[0].metadata.hidden).toBe(false);
+
+        // Verify that metadata was persisted with default values
+        const groupId = groups[0].id;
+        expect(controller.state.accountGroupsMetadata[groupId]).toStrictEqual({
+          name: {
+            value: expect.any(String),
+            lastUpdatedAt: expect.any(Number),
+          },
+          pinned: {
+            value: false,
+            lastUpdatedAt: 0,
+          },
+          hidden: {
+            value: false,
+            lastUpdatedAt: 0,
+          },
+        });
+      });
+
+      it('handles only pinned callback provided', () => {
+        const mockCallbacks = {
+          isPinnedAccount: jest.fn().mockReturnValue(true),
+        };
+
+        const { controller } = setup({
+          accounts: [mockAccount1],
+          config: {
+            backupAndSync: {
+              isAccountSyncingEnabled: true,
+              isBackupAndSyncEnabled: true,
+              onBackupAndSyncEvent: jest.fn(),
+            },
+            accountOrderCallbacks: mockCallbacks,
+          },
+        });
+
+        controller.init();
+
+        const wallets = Object.values(controller.state.accountTree.wallets);
+        expect(wallets).toHaveLength(1);
+
+        const groups = Object.values(wallets[0].groups);
+        expect(groups).toHaveLength(1);
+        expect(groups[0].accounts).toContain(mockAccount1.id);
+        expect(groups[0].metadata.pinned).toBe(true);
+        expect(groups[0].metadata.hidden).toBe(false);
+        expect(mockCallbacks.isPinnedAccount).toHaveBeenCalledWith(
+          mockAccount1.id,
+        );
+
+        // Verify that metadata was persisted correctly
+        const groupId = groups[0].id;
+        expect(controller.state.accountGroupsMetadata[groupId]).toStrictEqual({
+          name: {
+            value: expect.any(String),
+            lastUpdatedAt: expect.any(Number),
+          },
+          pinned: {
+            value: true,
+            lastUpdatedAt: 0,
+          },
+          hidden: {
+            value: false,
+            lastUpdatedAt: 0,
+          },
+        });
+      });
+
+      it('handles only hidden callback provided', () => {
+        const mockCallbacks = {
+          isHiddenAccount: jest.fn().mockReturnValue(true),
+        };
+
+        const { controller } = setup({
+          accounts: [mockAccount1],
+          config: {
+            backupAndSync: {
+              isAccountSyncingEnabled: true,
+              isBackupAndSyncEnabled: true,
+              onBackupAndSyncEvent: jest.fn(),
+            },
+            accountOrderCallbacks: mockCallbacks,
+          },
+        });
+
+        controller.init();
+
+        const wallets = Object.values(controller.state.accountTree.wallets);
+        expect(wallets).toHaveLength(1);
+
+        const groups = Object.values(wallets[0].groups);
+        expect(groups).toHaveLength(1);
+        expect(groups[0].accounts).toContain(mockAccount1.id);
+        expect(groups[0].metadata.pinned).toBe(false);
+        expect(groups[0].metadata.hidden).toBe(true);
+        expect(mockCallbacks.isHiddenAccount).toHaveBeenCalledWith(
+          mockAccount1.id,
+        );
+
+        // Verify that metadata was persisted correctly
+        const groupId = groups[0].id;
+        expect(controller.state.accountGroupsMetadata[groupId]).toStrictEqual({
+          name: {
+            value: expect.any(String),
+            lastUpdatedAt: expect.any(Number),
+          },
+          pinned: {
+            value: false,
+            lastUpdatedAt: 0,
+          },
+          hidden: {
+            value: true,
+            lastUpdatedAt: 0,
+          },
+        });
+      });
+
+      it('prefers persisted metadata over callbacks', () => {
+        const mockIsHiddenAccount = jest.fn().mockReturnValue(true);
+        const mockIsPinnedAccount = jest.fn().mockReturnValue(true);
+
+        const walletId = toMultichainAccountWalletId(
+          mockAccount1.options.entropy.id,
+        );
+        const groupId = toMultichainAccountGroupId(
+          walletId,
+          mockAccount1.options.entropy.groupIndex,
+        );
+
+        const { controller } = setup({
+          accounts: [mockAccount1],
+          keyrings: [MOCK_HD_KEYRING_1],
+          state: {
+            accountGroupsMetadata: {
+              [groupId]: {
+                pinned: {
+                  value: false,
+                  lastUpdatedAt: Date.now(),
+                },
+                hidden: {
+                  value: false,
+                  lastUpdatedAt: Date.now(),
+                },
+              },
+            },
+          },
+          config: {
+            backupAndSync: {
+              isAccountSyncingEnabled: true,
+              isBackupAndSyncEnabled: true,
+              onBackupAndSyncEvent: jest.fn(),
+            },
+            accountOrderCallbacks: {
+              isHiddenAccount: mockIsHiddenAccount,
+              isPinnedAccount: mockIsPinnedAccount,
+            },
+          },
+        });
+
+        controller.init();
+
+        // Verify callbacks were NOT called because persisted metadata takes precedence
+        expect(mockIsHiddenAccount).not.toHaveBeenCalled();
+        expect(mockIsPinnedAccount).not.toHaveBeenCalled();
+
+        const wallets = Object.values(controller.state.accountTree.wallets);
+        const groups = Object.values(wallets[0].groups);
+        expect(groups[0].accounts).toContain(mockAccount1.id);
+        expect(groups[0].metadata.pinned).toBe(false); // Persisted value used
+        expect(groups[0].metadata.hidden).toBe(false); // Persisted value used
+      });
+
+      it('uses persisted metadata when no callbacks are provided', () => {
+        const walletId = toMultichainAccountWalletId(
+          mockAccount1.options.entropy.id,
+        );
+        const groupId = toMultichainAccountGroupId(
+          walletId,
+          mockAccount1.options.entropy.groupIndex,
+        );
+
+        const { controller } = setup({
+          accounts: [mockAccount1],
+          keyrings: [MOCK_HD_KEYRING_1],
+          state: {
+            accountGroupsMetadata: {
+              [groupId]: {
+                pinned: {
+                  value: true, // Persisted as pinned
+                  lastUpdatedAt: Date.now(),
+                },
+                hidden: {
+                  value: true, // Persisted as hidden
+                  lastUpdatedAt: Date.now(),
+                },
+              },
+            },
+          },
+          config: {
+            backupAndSync: {
+              isAccountSyncingEnabled: true,
+              isBackupAndSyncEnabled: true,
+              onBackupAndSyncEvent: jest.fn(),
+            },
+            // No accountOrderCallbacks provided
+          },
+        });
+
+        controller.init();
+
+        const wallets = Object.values(controller.state.accountTree.wallets);
+        const groups = Object.values(wallets[0].groups);
+        expect(groups[0].accounts).toContain(mockAccount1.id);
+        expect(groups[0].metadata.pinned).toBe(true);
+        expect(groups[0].metadata.hidden).toBe(true);
+      });
     });
   });
 });
