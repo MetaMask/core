@@ -274,6 +274,7 @@ const mockMultichainAssetsControllerState: MultichainAssetsControllerState = {
         ],
       },
   },
+  allIgnoredAssets: {},
 };
 
 const mockAccountTreeControllerState = {

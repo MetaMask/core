@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [57.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` from `^84.0.0` to `^85.0.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
+
+## [56.0.3]
+
+### Fixed
+
+- Removes all selectedNetworkClientId usages by finding network clients via srcChainId ([#6996](https://github.com/MetaMask/core/pull/6996))
+
+## [56.0.2]
+
+### Fixed
+
+- Remove global selected network reference in `getBridgeERC20Allowance` handler ([#6994](https://github.com/MetaMask/core/pull/6994))
+
 ## [56.0.1]
 
 ### Changed
@@ -794,7 +812,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@57.0.0...HEAD
+[57.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.3...@metamask/bridge-controller@57.0.0
+[56.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.2...@metamask/bridge-controller@56.0.3
+[56.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.1...@metamask/bridge-controller@56.0.2
 [56.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@56.0.0...@metamask/bridge-controller@56.0.1
 [56.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@55.0.0...@metamask/bridge-controller@56.0.0
 [55.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@54.0.0...@metamask/bridge-controller@55.0.0

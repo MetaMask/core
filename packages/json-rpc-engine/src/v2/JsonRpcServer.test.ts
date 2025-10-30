@@ -3,7 +3,8 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import { JsonRpcServer } from './JsonRpcServer';
-import { isRequest } from './utils';
+import type { JsonRpcNotification, JsonRpcRequest } from './utils';
+import { isRequest, JsonRpcEngineError, stringify } from './utils';
 
 const jsonrpc = '2.0' as const;
 
@@ -218,6 +219,53 @@ describe('JsonRpcServer', () => {
     });
   });
 
+  it('errors if passed a notification when only requests are supported', async () => {
+    const onError = jest.fn();
+    const server = new JsonRpcServer<JsonRpcMiddleware<JsonRpcRequest>>({
+      middleware: [() => null],
+      onError,
+    });
+
+    const notification = { jsonrpc, method: 'hello' };
+    const response = await server.handle(notification);
+
+    expect(response).toBeUndefined();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      new JsonRpcEngineError(
+        `Result returned for notification: ${stringify(notification)}`,
+      ),
+    );
+  });
+
+  it('errors if passed a request when only notifications are supported', async () => {
+    const onError = jest.fn();
+    const server = new JsonRpcServer<JsonRpcMiddleware<JsonRpcNotification>>({
+      middleware: [() => undefined],
+      onError,
+    });
+
+    const request = { jsonrpc, id: 1, method: 'hello' };
+    const response = await server.handle(request);
+
+    expect(response).toStrictEqual({
+      jsonrpc,
+      id: 1,
+      error: {
+        code: -32603,
+        message: expect.stringMatching(/^Nothing ended request: /u),
+        data: { cause: expect.any(Object) },
+      },
+    });
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // Using a regex match because id in the error message is not predictable.
+        message: expect.stringMatching(/^Nothing ended request: /u),
+      }),
+    );
+  });
+
   it.each([undefined, Symbol('test'), null, true, false, {}, []])(
     'accepts requests with malformed ids',
     async (id) => {
@@ -253,7 +301,7 @@ describe('JsonRpcServer', () => {
     { jsonrpc },
     { id: 1 },
   ])(
-    'throws if the request is not minimally conformant',
+    'errors if the request is not minimally conformant',
     async (malformedRequest) => {
       const onError = jest.fn();
       const server = new JsonRpcServer({
