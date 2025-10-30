@@ -36,7 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `BridgeControllerGetStateAction` and `BridgeControllerStateChangeEvent` types ([#6444](https://github.com/MetaMask/core/pull/6444))
 
 ### Changed
-- **BREAKING:** `noFee` flag was replaced with `fee` flag in bridge api requests ([#6964](https://github.com/MetaMask/core/pull/6964)) 
+
+- **BREAKING:** `noFee` flag was replaced with `fee` flag in bridge api requests ([#6964](https://github.com/MetaMask/core/pull/6964))
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6444](https://github.com/MetaMask/core/pull/6444))
   - Previously, `BridgeController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 - **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6444](https://github.com/MetaMask/core/pull/6444))
