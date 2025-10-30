@@ -1282,7 +1282,7 @@ describe('CodefiTokenPricesServiceV2', () => {
       const supportedChainIds =
         await new CodefiTokenPricesServiceV2().fetchSupportedChainIds();
 
-      expect(supportedChainIds).toEqual(['0x1', '0x2']);
+      expect(supportedChainIds).toStrictEqual(['0x1', '0x2']);
     });
   });
 

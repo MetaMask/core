@@ -122,11 +122,11 @@ export type AllowedEvents =
 export const controllerName = 'TokenRatesController';
 
 /**
- * @type TokenRatesState
+ * TokenRatesState
  *
  * Token rates controller state
- * @property marketData - Market data for tokens, keyed by chain ID and then token contract address.
- * @property supportedChainIds - Supported chain ids.
+ * marketData - Market data for tokens, keyed by chain ID and then token contract address.
+ * supportedChainIds - Supported chain ids.
  */
 export type TokenRatesControllerState = {
   marketData: Record<Hex, Record<Hex, MarketDataDetails>>;

@@ -57,7 +57,7 @@
   },
   "packages/assets-controllers/src/TokenRatesController.ts": {
     "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 11
+    "jsdoc/check-tag-names": 9
   },
   "packages/assets-controllers/src/TokensController.test.ts": {
     "import-x/namespace": 1,
@@ -80,7 +80,7 @@
     "@typescript-eslint/prefer-promise-reject-errors": 2
   },
   "packages/assets-controllers/src/token-prices-service/codefi-v2.ts": {
-    "jsdoc/tag-lines": 2
+    "jsdoc/tag-lines": 1
   },
   "packages/base-controller/src/BaseController.test.ts": {
     "import-x/namespace": 13
