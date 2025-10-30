@@ -364,6 +364,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
           return acc;
         }, []);
 
+        console.log('call from subscribeToTokensStateChange');
         await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
       },
       ({ allTokens, allDetectedTokens }) => {
@@ -523,10 +524,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   async #updateSupportedChainIdsCache(): Promise<void> {
     const supportedChainIds =
       await this.#tokenPricesService.fetchSupportedChainIds();
-    console.log(
-      '🚀 ~ TokenRatesController ~ supportedChainIds::::::::::: from service',
-      supportedChainIds,
-    );
+
     this.update((state) => {
       state.supportedChainIds = {
         timestamp: Date.now(),
@@ -546,12 +544,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       nativeCurrency: string;
     }[],
   ) {
-    console.log('staaart updateExchangeRates');
-    if (!this.#isPriceApiSupportedChainIdsCacheValid()) {
-      console.log('updateExchangeRates: updating supported chain ids cache');
-      await this.#updateSupportedChainIdsCache();
-    }
-    console.log('updateExchangeRates: updating exchange rates');
     await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
   }
 
@@ -575,19 +567,17 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     if (this.#disabled) {
       return;
     }
+    console.log('isCache valid', this.#isPriceApiSupportedChainIdsCacheValid());
+
+    if (!this.#isPriceApiSupportedChainIdsCacheValid()) {
+      await this.#updateSupportedChainIdsCache();
+    }
 
     // Create a promise for each chainId to fetch exchange rates.
     const updatePromises = chainIdAndNativeCurrency.map(
       async ({ chainId, nativeCurrency }) => {
-        console.log(
-          '🚀 ~ TokenRatesController ~ updateExchangeRatesByChainId ~ chainId:===============',
-          chainId,
-        );
         const tokenAddresses = this.#getTokenAddresses(chainId);
-        console.log(
-          '🚀 ~ TokenRatesController ~ updateExchangeRatesByChainId ~ tokenAddresses:==================',
-          tokenAddresses,
-        );
+
         // Build a unique key based on chainId, nativeCurrency, and the number of token addresses.
         const updateKey: `${Hex}:${string}` = `${chainId}:${nativeCurrency}:${tokenAddresses.length}`;
 
@@ -682,18 +672,9 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     chainId: Hex;
     nativeCurrency: string;
   }): Promise<ContractMarketData> {
-    console.log('🚀 ~ TokenRatesController ~ chainId:', chainId);
     const supportedChainIds = this.state.supportedChainIds.data;
-    console.log(
-      '🚀 ~ TokenRatesController ~ supportedChainIds:',
-      supportedChainIds,
-    );
+
     if (!supportedChainIds.includes(chainId)) {
-      console.log(
-        'early return because chainId is not supported',
-        chainId,
-        supportedChainIds,
-      );
       return tokenAddresses.reduce((obj, tokenAddress) => {
         obj = {
           ...obj,
@@ -746,9 +727,8 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       });
       return acc;
     }, []);
-
-    //await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
-    await this.updateExchangeRates(chainIdAndNativeCurrency);
+    console.log('call from _executePoll');
+    await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
   }
 
   /**
@@ -773,6 +753,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     nativeCurrency: string;
   }): Promise<ContractMarketData> {
     let contractNativeInformations;
+    console.log('fetchAndMapExchangeRatesForSupportedNativeCurrency: starting');
     const tokenPricesByTokenAddress = await reduceInBatchesSerially<
       Hex,
       Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>

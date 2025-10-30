@@ -1850,7 +1850,7 @@ describe('TokenRatesController', () => {
         );
       });
 
-      it.only('does not update state if there are no tokens for the given chain', async () => {
+      it('does not update state if there are no tokens for the given chain', async () => {
         const tokenPricesService = buildMockTokenPricesService({
           fetchSupportedChainIds: jest
             .fn()
@@ -1907,6 +1907,9 @@ describe('TokenRatesController', () => {
 
       it('does not update state if the price update fails', async () => {
         const tokenPricesService = buildMockTokenPricesService({
+          fetchSupportedChainIds: jest
+            .fn()
+            .mockResolvedValue([ChainId.mainnet]),
           fetchTokenPrices: jest
             .fn()
             .mockRejectedValue(new Error('Failed to fetch')),
@@ -1956,6 +1959,9 @@ describe('TokenRatesController', () => {
           .sort();
         const tokenPricesService = buildMockTokenPricesService({
           fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
+          fetchSupportedChainIds: jest
+            .fn()
+            .mockResolvedValue([ChainId.mainnet, 0x3e7]),
         });
         const fetchTokenPricesSpy = jest.spyOn(
           tokenPricesService,
@@ -2019,6 +2025,9 @@ describe('TokenRatesController', () => {
           '0x0000000000000000000000000000000000000003',
         ];
         const tokenPricesService = buildMockTokenPricesService({
+          fetchSupportedChainIds: jest
+            .fn()
+            .mockResolvedValue([ChainId.mainnet]),
           fetchTokenPrices: jest.fn().mockResolvedValue({
             [tokenAddresses[0]]: {
               currency: 'ETH',
@@ -2081,29 +2090,31 @@ describe('TokenRatesController', () => {
               selectedNetworkClientId: InfuraNetworkType.mainnet,
             });
 
-            expect(controller.state).toMatchInlineSnapshot(`
-                        Object {
-                          "marketData": Object {
-                            "0x1": Object {
-                              "0x0000000000000000000000000000000000000001": Object {
-                                "currency": "ETH",
-                                "tokenAddress": "0x0000000000000000000000000000000000000001",
-                                "value": 0.001,
-                              },
-                              "0x0000000000000000000000000000000000000002": Object {
-                                "currency": "ETH",
-                                "tokenAddress": "0x0000000000000000000000000000000000000002",
-                                "value": 0.002,
-                              },
-                              "0x0000000000000000000000000000000000000003": Object {
-                                "currency": "ETH",
-                                "tokenAddress": "0x0000000000000000000000000000000000000003",
-                                "value": 0.003,
-                              },
-                            },
-                          },
-                        }
-                    `);
+            expect(controller.state).toStrictEqual({
+              supportedChainIds: {
+                timestamp: Date.now(),
+                data: ['0x1'],
+              },
+              marketData: {
+                '0x1': {
+                  '0x0000000000000000000000000000000000000001': {
+                    currency: 'ETH',
+                    tokenAddress: '0x0000000000000000000000000000000000000001',
+                    value: 0.001,
+                  },
+                  '0x0000000000000000000000000000000000000002': {
+                    currency: 'ETH',
+                    tokenAddress: '0x0000000000000000000000000000000000000002',
+                    value: 0.002,
+                  },
+                  '0x0000000000000000000000000000000000000003': {
+                    currency: 'ETH',
+                    tokenAddress: '0x0000000000000000000000000000000000000003',
+                    value: 0.003,
+                  },
+                },
+              },
+            });
           },
         );
       });
@@ -2115,6 +2126,7 @@ describe('TokenRatesController', () => {
             '0x0000000000000000000000000000000000000002',
           ];
           const tokenPricesService = buildMockTokenPricesService({
+            fetchSupportedChainIds: jest.fn().mockResolvedValue([toHex(2)]),
             fetchTokenPrices: jest.fn().mockResolvedValue({
               [tokenAddresses[0]]: {
                 currency: 'ETH',
@@ -2163,24 +2175,28 @@ describe('TokenRatesController', () => {
                 setChainAsCurrent: false,
               });
 
-              expect(controller.state).toMatchInlineSnapshot(`
-                            Object {
-                              "marketData": Object {
-                                "0x2": Object {
-                                  "0x0000000000000000000000000000000000000001": Object {
-                                    "currency": "ETH",
-                                    "tokenAddress": "0x0000000000000000000000000000000000000001",
-                                    "value": 0.001,
-                                  },
-                                  "0x0000000000000000000000000000000000000002": Object {
-                                    "currency": "ETH",
-                                    "tokenAddress": "0x0000000000000000000000000000000000000002",
-                                    "value": 0.002,
-                                  },
-                                },
-                              },
-                            }
-                        `);
+              expect(controller.state).toStrictEqual({
+                supportedChainIds: {
+                  timestamp: Date.now(),
+                  data: ['0x2'],
+                },
+                marketData: {
+                  '0x2': {
+                    '0x0000000000000000000000000000000000000001': {
+                      currency: 'ETH',
+                      tokenAddress:
+                        '0x0000000000000000000000000000000000000001',
+                      value: 0.001,
+                    },
+                    '0x0000000000000000000000000000000000000002': {
+                      currency: 'ETH',
+                      tokenAddress:
+                        '0x0000000000000000000000000000000000000002',
+                      value: 0.002,
+                    },
+                  },
+                },
+              });
             },
           );
         });
@@ -2198,6 +2214,7 @@ describe('TokenRatesController', () => {
           '0x0000000000000000000000000000000000000002',
         ];
         const tokenPricesService = buildMockTokenPricesService({
+          fetchSupportedChainIds: jest.fn().mockResolvedValue([toHex(137)]),
           fetchTokenPrices: jest.fn().mockResolvedValue({
             [tokenAddresses[0]]: {
               currency: 'ETH',
@@ -2263,38 +2280,40 @@ describe('TokenRatesController', () => {
             });
 
             // token value in terms of matic should be (token value in eth) * (eth value in matic)
-            expect(controller.state).toMatchInlineSnapshot(`
-                        Object {
-                          "marketData": Object {
-                            "0x89": Object {
-                              "0x0000000000000000000000000000000000000001": Object {
-                                "allTimeHigh": undefined,
-                                "allTimeLow": undefined,
-                                "currency": "UNSUPPORTED",
-                                "dilutedMarketCap": undefined,
-                                "high1d": undefined,
-                                "low1d": undefined,
-                                "marketCap": undefined,
-                                "price": 0.0005,
-                                "tokenAddress": "0x0000000000000000000000000000000000000001",
-                                "totalVolume": undefined,
-                              },
-                              "0x0000000000000000000000000000000000000002": Object {
-                                "allTimeHigh": undefined,
-                                "allTimeLow": undefined,
-                                "currency": "UNSUPPORTED",
-                                "dilutedMarketCap": undefined,
-                                "high1d": undefined,
-                                "low1d": undefined,
-                                "marketCap": undefined,
-                                "price": 0.001,
-                                "tokenAddress": "0x0000000000000000000000000000000000000002",
-                                "totalVolume": undefined,
-                              },
-                            },
-                          },
-                        }
-                    `);
+            expect(controller.state).toStrictEqual({
+              supportedChainIds: {
+                timestamp: Date.now(),
+                data: ['0x89'],
+              },
+              marketData: {
+                '0x89': {
+                  '0x0000000000000000000000000000000000000001': {
+                    allTimeHigh: undefined,
+                    allTimeLow: undefined,
+                    currency: 'UNSUPPORTED',
+                    dilutedMarketCap: undefined,
+                    high1d: undefined,
+                    low1d: undefined,
+                    marketCap: undefined,
+                    price: 0.0005,
+                    tokenAddress: '0x0000000000000000000000000000000000000001',
+                    totalVolume: undefined,
+                  },
+                  '0x0000000000000000000000000000000000000002': {
+                    allTimeHigh: undefined,
+                    allTimeLow: undefined,
+                    currency: 'UNSUPPORTED',
+                    dilutedMarketCap: undefined,
+                    high1d: undefined,
+                    low1d: undefined,
+                    marketCap: undefined,
+                    price: 0.001,
+                    tokenAddress: '0x0000000000000000000000000000000000000002',
+                    totalVolume: undefined,
+                  },
+                },
+              },
+            });
           },
         );
       });
@@ -2310,6 +2329,7 @@ describe('TokenRatesController', () => {
           .map(buildAddress)
           .sort();
         const tokenPricesService = buildMockTokenPricesService({
+          fetchSupportedChainIds: jest.fn().mockResolvedValue([toHex(999)]),
           fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
           validateCurrencySupported: (
             currency: unknown,
@@ -2404,6 +2424,9 @@ describe('TokenRatesController', () => {
           '0x0000000000000000000000000000000000000002',
         ];
         const tokenPricesService = buildMockTokenPricesService({
+          fetchSupportedChainIds: jest
+            .fn()
+            .mockResolvedValue([ChainId.mainnet]),
           fetchTokenPrices: jest.fn().mockResolvedValue({
             [tokenAddresses[0]]: {
               currency: 'ETH',
@@ -2457,22 +2480,25 @@ describe('TokenRatesController', () => {
               selectedNetworkClientId,
             });
 
-            expect(controller.state).toMatchInlineSnapshot(`
-                        Object {
-                          "marketData": Object {
-                            "0x3e7": Object {
-                              "0x0000000000000000000000000000000000000001": undefined,
-                              "0x0000000000000000000000000000000000000002": undefined,
-                            },
-                          },
-                        }
-                      `);
+            expect(controller.state).toStrictEqual({
+              supportedChainIds: {
+                timestamp: Date.now(),
+                data: ['0x1'],
+              },
+              marketData: {
+                '0x3e7': {
+                  '0x0000000000000000000000000000000000000001': undefined,
+                  '0x0000000000000000000000000000000000000002': undefined,
+                },
+              },
+            });
           },
         );
       });
 
       it('correctly calls the Price API with unqiue native token addresses (e.g. MATIC)', async () => {
         const tokenPricesService = buildMockTokenPricesService({
+          fetchSupportedChainIds: jest.fn().mockResolvedValue(['0x89']),
           fetchTokenPrices: jest.fn().mockResolvedValue({
             '0x0000000000000000000000000000000000001010': {
               currency: 'MATIC',
@@ -2539,6 +2565,7 @@ describe('TokenRatesController', () => {
         });
         const tokenPricesService = buildMockTokenPricesService({
           fetchTokenPrices: fetchTokenPricesMock,
+          fetchSupportedChainIds: jest.fn().mockResolvedValue([toHex(1)]),
         });
         await withController(
           { options: { tokenPricesService } },
@@ -2580,24 +2607,26 @@ describe('TokenRatesController', () => {
 
             expect(fetchTokenPricesMock).toHaveBeenCalledTimes(1);
 
-            expect(controller.state).toMatchInlineSnapshot(`
-                        Object {
-                          "marketData": Object {
-                            "0x1": Object {
-                              "0x0000000000000000000000000000000000000001": Object {
-                                "currency": "ETH",
-                                "tokenAddress": "0x0000000000000000000000000000000000000001",
-                                "value": 0.001,
-                              },
-                              "0x0000000000000000000000000000000000000002": Object {
-                                "currency": "ETH",
-                                "tokenAddress": "0x0000000000000000000000000000000000000002",
-                                "value": 0.002,
-                              },
-                            },
-                          },
-                        }
-                    `);
+            expect(controller.state).toStrictEqual({
+              supportedChainIds: {
+                timestamp: Date.now(),
+                data: ['0x1'],
+              },
+              marketData: {
+                '0x1': {
+                  '0x0000000000000000000000000000000000000001': {
+                    currency: 'ETH',
+                    tokenAddress: '0x0000000000000000000000000000000000000001',
+                    value: 0.001,
+                  },
+                  '0x0000000000000000000000000000000000000002': {
+                    currency: 'ETH',
+                    tokenAddress: '0x0000000000000000000000000000000000000002',
+                    value: 0.002,
+                  },
+                },
+              },
+            });
           },
         );
       });
@@ -2623,7 +2652,17 @@ describe('TokenRatesController', () => {
           fetchTokenPrices: fetchTokenPricesMock,
         });
         await withController(
-          { options: { tokenPricesService } },
+          {
+            options: {
+              tokenPricesService,
+              state: {
+                supportedChainIds: {
+                  timestamp: Date.now() + DEFAULT_CACHE_REFRESH_THRESHOLD,
+                  data: ['0x1'],
+                },
+              },
+            },
+          },
           async ({
             controller,
             triggerTokensStateChange,
@@ -2690,6 +2729,65 @@ describe('TokenRatesController', () => {
           },
         );
       });
+
+      it('will not call fetchSupportedChainIds if the cache is valid', async () => {
+        const tokenAddresses = [
+          '0x0000000000000000000000000000000000000001',
+          '0x0000000000000000000000000000000000000002',
+        ];
+        const fetchTokenPricesMock = jest.fn().mockResolvedValue({
+          [tokenAddresses[0]]: {
+            currency: 'ETH',
+            tokenAddress: tokenAddresses[0],
+            value: 0.001,
+          },
+          [tokenAddresses[1]]: {
+            currency: 'ETH',
+            tokenAddress: tokenAddresses[1],
+            value: 0.002,
+          },
+        });
+        const fetchSupportedChainIdsMock = jest.fn().mockResolvedValue(['0x1']);
+        const tokenPricesService = buildMockTokenPricesService({
+          fetchTokenPrices: fetchTokenPricesMock,
+          fetchSupportedChainIds: fetchSupportedChainIdsMock,
+        });
+        await withController(
+          {
+            options: {
+              tokenPricesService,
+            },
+            mockTokensControllerState: {
+              allTokens: {
+                '0x1': {
+                  [defaultSelectedAddress]: [
+                    {
+                      address: mockTokenAddress,
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            // First call should call fetchSupportedChainIds
+            await controller.updateExchangeRates([
+              { chainId: ChainId.mainnet, nativeCurrency: 'ETH' },
+            ]);
+
+            // Second call should not call fetchSupportedChainIds
+            await controller.updateExchangeRates([
+              { chainId: ChainId.mainnet, nativeCurrency: 'ETH' },
+            ]);
+
+            expect(fetchSupportedChainIdsMock).toHaveBeenCalledTimes(1);
+            expect(fetchTokenPricesMock).toHaveBeenCalledTimes(2);
+          },
+        );
+      });
     });
   });
 
@@ -2741,6 +2839,10 @@ describe('TokenRatesController', () => {
 
           expect(controller.state).toStrictEqual({
             marketData: {},
+            supportedChainIds: {
+              timestamp: 0,
+              data: [],
+            },
           });
         },
       );
@@ -2783,6 +2885,10 @@ describe('TokenRatesController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "marketData": Object {},
+            "supportedChainIds": Object {
+              "data": Array [],
+              "timestamp": 0,
+            },
           }
         `);
       });
@@ -2799,6 +2905,10 @@ describe('TokenRatesController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "marketData": Object {},
+            "supportedChainIds": Object {
+              "data": Array [],
+              "timestamp": 0,
+            },
           }
         `);
       });
