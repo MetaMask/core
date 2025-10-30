@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.1.0]
+
+### Added
+
+- feat(STX-271): add sentinel URL for Polygon ([#546](https://github.com/MetaMask/smart-transactions-controller/pull/546))
+
 ## [20.0.0]
 
 ### Changed
@@ -658,7 +664,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v20.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v20.1.0...HEAD
+[20.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v20.0.0...v20.1.0
 [20.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v19.2.1...v20.0.0
 [19.2.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v19.2.0...v19.2.1
 [19.2.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v19.1.0...v19.2.0
