@@ -11,7 +11,6 @@ import {
   type MessengerEvents,
   type MockAnyNamespace,
 } from '@metamask/messenger';
-import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
