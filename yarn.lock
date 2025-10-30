@@ -2968,7 +2968,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-status-controller@npm:^56.0.0, @metamask/bridge-status-controller@workspace:packages/bridge-status-controller":
+"@metamask/bridge-status-controller@npm:^57.0.0, @metamask/bridge-status-controller@workspace:packages/bridge-status-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-status-controller@workspace:packages/bridge-status-controller"
   dependencies:
@@ -5148,12 +5148,12 @@ __metadata:
   dependencies:
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
-    "@metamask/assets-controllers": "npm:^84.0.0"
+    "@metamask/assets-controllers": "npm:^85.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
-    "@metamask/bridge-controller": "npm:^56.0.3"
-    "@metamask/bridge-status-controller": "npm:^56.0.0"
-    "@metamask/controller-utils": "npm:^11.14.1"
+    "@metamask/bridge-controller": "npm:^57.0.0"
+    "@metamask/bridge-status-controller": "npm:^57.0.0"
+    "@metamask/controller-utils": "npm:^11.15.0"
     "@metamask/gas-fee-controller": "npm:^25.0.0"
     "@metamask/messenger": "npm:^0.3.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
@@ -5174,9 +5174,9 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
   peerDependencies:
-    "@metamask/assets-controllers": ^84.0.0
-    "@metamask/bridge-controller": ^56.0.0
-    "@metamask/bridge-status-controller": ^56.0.0
+    "@metamask/assets-controllers": ^85.0.0
+    "@metamask/bridge-controller": ^57.0.0
+    "@metamask/bridge-status-controller": ^57.0.0
     "@metamask/gas-fee-controller": ^25.0.0
     "@metamask/network-controller": ^25.0.0
     "@metamask/remote-feature-flag-controller": ^2.0.0
