@@ -15,6 +15,7 @@
   "metamask/name-controller": "team-confirmations",
   "metamask/signature-controller": "team-confirmations",
   "metamask/transaction-controller": "team-confirmations",
+  "metamask/transaction-pay-controller": "team-confirmations",
   "metamask/user-operation-controller": "team-confirmations",
   "metamask/gator-permissions-controller": "team-delegation",
   "metamask/eip-7702-internal-rpc-middleware": "team-delegation",

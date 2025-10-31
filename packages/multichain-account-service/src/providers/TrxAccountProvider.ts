@@ -1,7 +1,6 @@
 import { assertIsBip44Account, type Bip44Account } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { TrxAccountType, TrxScope } from '@metamask/keyring-api';
-import { KeyringAccountEntropyTypeOption } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
@@ -73,48 +72,27 @@ export class TrxAccountProvider extends SnapAccountProvider {
     );
   }
 
-  async #createAccount({
-    entropySource,
-    groupIndex,
-    derivationPath,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-    derivationPath: string;
-  }): Promise<Bip44Account<KeyringAccount>> {
-    const createAccount = await this.getRestrictedSnapAccountCreator();
-    const account = await withTimeout(
-      createAccount({ entropySource, derivationPath }),
-      this.config.createAccounts.timeoutMs,
-    );
-
-    // Ensure entropy is present before type assertion validation
-    account.options.entropy = {
-      type: KeyringAccountEntropyTypeOption.Mnemonic,
-      id: entropySource,
-      groupIndex,
-      derivationPath,
-    };
-
-    assertIsBip44Account(account);
-    return account;
-  }
-
   async createAccounts({
     entropySource,
-    groupIndex,
+    groupIndex: index,
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
     return this.withMaxConcurrency(async () => {
-      const derivationPath = `m/44'/195'/0'/${groupIndex}'`;
-      const account = await this.#createAccount({
-        entropySource,
-        groupIndex,
-        derivationPath,
-      });
+      const createAccount = await this.getRestrictedSnapAccountCreator();
 
+      const account = await withTimeout(
+        createAccount({
+          entropySource,
+          index,
+          addressType: TrxAccountType.Eoa,
+          scope: TrxScope.Mainnet,
+        }),
+        this.config.createAccounts.timeoutMs,
+      );
+
+      assertIsBip44Account(account);
       return [account];
     });
   }
@@ -146,15 +124,10 @@ export class TrxAccountProvider extends SnapAccountProvider {
       return [];
     }
 
-    const createdAccounts = await Promise.all(
-      discoveredAccounts.map((d) =>
-        this.#createAccount({
-          entropySource,
-          groupIndex,
-          derivationPath: d.derivationPath,
-        }),
-      ),
-    );
+    const createdAccounts = await this.createAccounts({
+      entropySource,
+      groupIndex,
+    });
 
     return createdAccounts;
   }

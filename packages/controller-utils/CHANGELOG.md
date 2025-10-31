@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.15.0]
+
 ### Added
 
 - Arbitrum, BSC, Optimism, Polygon, and Sei networks to Infura networks ([#6972](https://github.com/MetaMask/core/pull/6972))
@@ -594,7 +596,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.14.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.15.0...HEAD
+[11.15.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.14.1...@metamask/controller-utils@11.15.0
 [11.14.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.14.0...@metamask/controller-utils@11.14.1
 [11.14.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.13.0...@metamask/controller-utils@11.14.0
 [11.13.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.12.0...@metamask/controller-utils@11.13.0

@@ -21,11 +21,11 @@ describe('wallet_revokeExecutionPermission', () => {
   let response: PendingJsonRpcResponse;
   let processRevokeExecutionPermissionMock: jest.MockedFunction<ProcessRevokeExecutionPermissionHook>;
 
-  async function callMethod() {
+  const callMethod = async () => {
     return walletRevokeExecutionPermission(request, response, {
       processRevokeExecutionPermission: processRevokeExecutionPermissionMock,
     });
-  }
+  };
 
   beforeEach(() => {
     jest.resetAllMocks();
