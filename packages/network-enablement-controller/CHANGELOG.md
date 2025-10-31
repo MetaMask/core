@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- include additional popular networks now enabled by default ([#7014](https://github.com/MetaMask/core/pull/7014))
+
 ## [3.1.0]
 
 ### Added
