@@ -1,3 +1,5 @@
+import { timeoutWithRetry } from '../utils/timeout-with-retry';
+
 export type DefiPositionResponse = AdapterResponse<{
   tokens: ProtocolToken[];
 }>;
@@ -58,6 +60,9 @@ export type Balance = {
 // TODO: Update with prod API URL when available
 export const DEFI_POSITIONS_API_URL = 'https://defiadapters.api.cx.metamask.io';
 
+const EIGHT_SECONDS_IN_MS = 8_000;
+const MAX_RETRIES = 1;
+
 /**
  * Builds a function that fetches DeFi positions for a given account address
  *
@@ -65,8 +70,10 @@ export const DEFI_POSITIONS_API_URL = 'https://defiadapters.api.cx.metamask.io';
  */
 export function buildPositionFetcher() {
   return async (accountAddress: string): Promise<DefiPositionResponse[]> => {
-    const defiPositionsResponse = await fetch(
-      `${DEFI_POSITIONS_API_URL}/positions/${accountAddress}`,
+    const defiPositionsResponse = await timeoutWithRetry(
+      () => fetch(`${DEFI_POSITIONS_API_URL}/positions/${accountAddress}`),
+      EIGHT_SECONDS_IN_MS,
+      MAX_RETRIES,
     );
 
     if (defiPositionsResponse.status !== 200) {
