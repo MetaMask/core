@@ -2,6 +2,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import EthQuery from '@metamask/eth-query';
 import EthJsQuery from '@metamask/ethjs-query';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import { JsonRpcEngineV2, JsonRpcServer } from '@metamask/json-rpc-engine/v2';
 import { providerErrors } from '@metamask/rpc-errors';
 import { type JsonRpcRequest, type Json } from '@metamask/utils';
@@ -32,7 +33,7 @@ const createEngine = (method: string, result: ResultParam) => {
 };
 
 const createServer = (method: string, result: ResultParam) => {
-  const engine = JsonRpcEngineV2.create({
+  const engine = JsonRpcEngineV2.create<JsonRpcMiddleware<JsonRpcRequest>>({
     middleware: [
       ({ request, next }) => {
         if (request.method === method) {
@@ -44,8 +45,7 @@ const createServer = (method: string, result: ResultParam) => {
       },
     ],
   });
-  const server = new JsonRpcServer({ engine });
-  return server;
+  return new JsonRpcServer<JsonRpcMiddleware<JsonRpcRequest>>({ engine });
 };
 
 describe('legacy constructor', () => {
