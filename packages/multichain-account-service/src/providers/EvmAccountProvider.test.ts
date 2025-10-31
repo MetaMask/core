@@ -418,7 +418,7 @@ describe('EvmAccountProvider', () => {
       return await fn();
     });
 
-    const { messenger, keyring, mocks } = setup({
+    const { messenger } = setup({
       accounts: [],
     });
 
@@ -471,7 +471,6 @@ describe('EvmAccountProvider', () => {
 
     mockNextDiscoveryAddressOnce(account.address);
 
-    // Provider without trace callback should use fallback
     const result = await provider.discoverAccounts({
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
@@ -502,7 +501,6 @@ describe('EvmAccountProvider', () => {
 
     mockNextDiscoveryAddressOnce(account.address);
 
-    // Create provider with custom trace callback
     const providerWithTrace = new EvmAccountProvider(
       getMultichainAccountServiceMessenger(messenger),
       {

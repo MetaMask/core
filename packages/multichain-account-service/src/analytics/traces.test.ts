@@ -1,7 +1,7 @@
 import type { TraceRequest } from '@metamask/controller-utils';
-import { TraceName } from '../constants/traces';
 
 import { traceFallback } from './traces';
+import { TraceName } from '../constants/traces';
 
 describe('MultichainAccountService - Traces', () => {
   describe('TraceName', () => {

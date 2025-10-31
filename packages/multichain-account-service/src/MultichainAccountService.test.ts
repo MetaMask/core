@@ -1129,7 +1129,6 @@ describe('MultichainAccountService', () => {
         groupIndex: 0,
       };
 
-      // Create wrapper with custom trace callback
       const wrapperWithTrace = new AccountProviderWrapper(
         getMultichainAccountServiceMessenger(
           setup({ accounts: [MOCK_HD_ACCOUNT_1] }).rootMessenger,
