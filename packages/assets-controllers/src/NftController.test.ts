@@ -6,7 +6,7 @@ import type {
 } from '@metamask/accounts-controller';
 import type { ApprovalControllerMessenger } from '@metamask/approval-controller';
 import { ApprovalController } from '@metamask/approval-controller';
-import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   IPFS_DEFAULT_GATEWAY_URL,
   ERC1155,

@@ -15,11 +15,7 @@
     "no-shadow": 2
   },
   "packages/assets-controllers/src/CurrencyRateController.test.ts": {
-    "import-x/order": 1,
     "jest/no-conditional-in-test": 1
-  },
-  "packages/assets-controllers/src/CurrencyRateController.ts": {
-    "jsdoc/check-tag-names": 6
   },
   "packages/assets-controllers/src/NftController.test.ts": {
     "import-x/namespace": 9,
@@ -59,9 +55,6 @@
     "import-x/order": 2,
     "jest/no-conditional-in-test": 2
   },
-  "packages/assets-controllers/src/TokenRatesController.test.ts": {
-    "import-x/order": 3
-  },
   "packages/assets-controllers/src/TokenRatesController.ts": {
     "@typescript-eslint/prefer-readonly": 1,
     "jsdoc/check-tag-names": 11
@@ -86,16 +79,10 @@
   "packages/assets-controllers/src/multicall.test.ts": {
     "@typescript-eslint/prefer-promise-reject-errors": 2
   },
-  "packages/assets-controllers/src/token-prices-service/codefi-v2.test.ts": {
-    "jsdoc/require-returns": 1
-  },
   "packages/assets-controllers/src/token-prices-service/codefi-v2.ts": {
     "jsdoc/tag-lines": 2
   },
   "packages/base-controller/src/BaseController.test.ts": {
-    "import-x/namespace": 15
-  },
-  "packages/base-controller/src/next/BaseController.test.ts": {
     "import-x/namespace": 13
   },
   "packages/build-utils/src/transforms/remove-fenced-code.test.ts": {
@@ -166,29 +153,23 @@
   "packages/eth-block-tracker/tests/withBlockTracker.ts": {
     "@typescript-eslint/no-explicit-any": 1
   },
-  "packages/eth-json-rpc-middleware/src/block-cache.test.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
   "packages/eth-json-rpc-middleware/src/block-cache.ts": {
     "@typescript-eslint/no-explicit-any": 1,
     "jsdoc/require-jsdoc": 1,
     "no-restricted-syntax": 1
   },
   "packages/eth-json-rpc-middleware/src/block-ref-rewrite.ts": {
-    "jsdoc/require-jsdoc": 1
+    "jsdoc/match-description": 1
   },
   "packages/eth-json-rpc-middleware/src/block-ref.test.ts": {
-    "@typescript-eslint/no-explicit-any": 4,
-    "jest/expect-expect": 2,
-    "jsdoc/match-description": 1
+    "jest/expect-expect": 2
   },
   "packages/eth-json-rpc-middleware/src/block-ref.ts": {
     "jsdoc/require-jsdoc": 1
   },
   "packages/eth-json-rpc-middleware/src/block-tracker-inspector.ts": {
-    "@typescript-eslint/no-explicit-any": 1,
     "jsdoc/match-description": 1,
-    "jsdoc/require-jsdoc": 2
+    "jsdoc/require-jsdoc": 1
   },
   "packages/eth-json-rpc-middleware/src/fetch.test.ts": {
     "jsdoc/match-description": 1
@@ -196,20 +177,11 @@
   "packages/eth-json-rpc-middleware/src/fetch.ts": {
     "jsdoc/match-description": 1
   },
-  "packages/eth-json-rpc-middleware/src/inflight-cache.test.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
   "packages/eth-json-rpc-middleware/src/inflight-cache.ts": {
     "@typescript-eslint/no-explicit-any": 1,
     "jsdoc/require-jsdoc": 4
   },
-  "packages/eth-json-rpc-middleware/src/methods/wallet-request-execution-permissions.test.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
   "packages/eth-json-rpc-middleware/src/methods/wallet-request-execution-permissions.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/methods/wallet-revoke-execution-permission.test.ts": {
     "jsdoc/require-jsdoc": 1
   },
   "packages/eth-json-rpc-middleware/src/methods/wallet-revoke-execution-permission.ts": {
@@ -219,12 +191,10 @@
     "jsdoc/require-jsdoc": 1
   },
   "packages/eth-json-rpc-middleware/src/retryOnEmpty.test.ts": {
-    "@typescript-eslint/no-explicit-any": 4,
-    "jest/expect-expect": 5,
-    "jsdoc/match-description": 4
+    "jsdoc/match-description": 3
   },
   "packages/eth-json-rpc-middleware/src/retryOnEmpty.ts": {
-    "jsdoc/require-jsdoc": 2
+    "jsdoc/match-description": 2
   },
   "packages/eth-json-rpc-middleware/src/utils/cache.ts": {
     "jsdoc/match-description": 6
@@ -233,9 +203,6 @@
     "jsdoc/match-description": 1
   },
   "packages/eth-json-rpc-middleware/src/utils/error.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/utils/normalize.test.ts": {
     "jsdoc/require-jsdoc": 1
   },
   "packages/eth-json-rpc-middleware/src/utils/normalize.ts": {
@@ -247,9 +214,6 @@
   "packages/eth-json-rpc-middleware/src/utils/validation.ts": {
     "jsdoc/require-jsdoc": 4
   },
-  "packages/eth-json-rpc-middleware/src/wallet.test.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
   "packages/eth-json-rpc-middleware/src/wallet.ts": {
     "@typescript-eslint/no-explicit-any": 2,
     "@typescript-eslint/prefer-nullish-coalescing": 5,
@@ -260,12 +224,9 @@
     "@typescript-eslint/no-explicit-any": 3,
     "jsdoc/match-description": 2
   },
-  "packages/eth-json-rpc-middleware/test/util/createHitTrackerMiddleware.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
   "packages/eth-json-rpc-middleware/test/util/helpers.ts": {
-    "@typescript-eslint/no-explicit-any": 1,
-    "jsdoc/match-description": 9
+    "@typescript-eslint/no-explicit-any": 5,
+    "jsdoc/match-description": 11
   },
   "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.test.ts": {
     "import-x/namespace": 1

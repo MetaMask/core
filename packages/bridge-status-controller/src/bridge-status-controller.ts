@@ -1,5 +1,5 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
-import type { StateMetadata } from '@metamask/base-controller/next';
+import type { StateMetadata } from '@metamask/base-controller';
 import type {
   QuoteMetadata,
   RequiredEventContextFromClient,

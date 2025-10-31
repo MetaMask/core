@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import * as ControllerUtils from '@metamask/controller-utils';
 import {
   KeyringTypes,

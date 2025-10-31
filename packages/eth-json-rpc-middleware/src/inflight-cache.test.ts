@@ -3,17 +3,9 @@ import pify from 'pify';
 
 import { createInflightCacheMiddleware } from '.';
 
-function createTestSetup() {
-  // raw data source
-  // create block tracker
-  // create higher level
-  const engine = new JsonRpcEngine();
-  return { engine };
-}
-
 describe('inflight cache', () => {
   it('should cache an inflight request and only hit provider once', async () => {
-    const { engine } = createTestSetup();
+    const engine = new JsonRpcEngine();
     let hitCount = 0;
 
     // add inflight cache

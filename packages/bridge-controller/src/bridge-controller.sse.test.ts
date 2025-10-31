@@ -92,7 +92,6 @@ describe('BridgeController SSE', function () {
     messengerMock.call.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
-      selectedNetworkClientId: 'selectedNetworkClientId',
       currencyRates: {},
       marketData: {},
       conversionRates: {},
@@ -151,7 +150,6 @@ describe('BridgeController SSE', function () {
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
     expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).toHaveBeenCalledWith({
-      networkClientId: 'selectedNetworkClientId',
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: false,
@@ -714,7 +712,6 @@ describe('BridgeController SSE', function () {
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
     expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).toHaveBeenCalledWith({
-      networkClientId: 'selectedNetworkClientId',
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: false,

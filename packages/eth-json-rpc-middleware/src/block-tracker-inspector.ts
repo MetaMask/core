@@ -1,6 +1,7 @@
 import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
+import { hasProperty } from '@metamask/utils';
 import type {
   Json,
   JsonRpcParams,
@@ -10,32 +11,52 @@ import type {
 import { projectLogger, createModuleLogger } from './logging-utils';
 
 const log = createModuleLogger(projectLogger, 'block-tracker-inspector');
-const futureBlockRefRequests: string[] = [
+const futureBlockRefRequests: readonly string[] = [
   'eth_getTransactionByHash',
   'eth_getTransactionReceipt',
 ];
 
-type BlockTrackerInspectorMiddlewareOptions = {
-  blockTracker: PollingBlockTracker;
-};
-
 /**
- * Any type that can be used as the name of an object property.
- */
-type ValidPropertyType = string | number | symbol;
-
-/**
- * Determines whether the given object has the given property.
+ * Creates a middleware that checks whether response block references are higher than the current block.
+ * If the block reference is higher, the middleware will make the block tracker check for a new block.
  *
- * @param objectToCheck - The object to check.
- * @param property - The property to look for.
- * @returns Whether the object has the property.
+ * @param options - The options for the middleware.
+ * @param options.blockTracker - The block tracker to use.
+ * @returns The middleware.
  */
-function hasProperty<ObjectToCheck, Property extends ValidPropertyType>(
-  objectToCheck: ObjectToCheck,
-  property: Property,
-): objectToCheck is ObjectToCheck & Record<Property, unknown> {
-  return Object.hasOwnProperty.call(objectToCheck, property);
+export function createBlockTrackerInspectorMiddleware({
+  blockTracker,
+}: {
+  blockTracker: PollingBlockTracker;
+}): JsonRpcMiddleware<JsonRpcParams, Json> {
+  return createAsyncMiddleware(async (req, res, next) => {
+    if (!futureBlockRefRequests.includes(req.method)) {
+      return next();
+    }
+    await next();
+
+    const responseBlockNumber = getResultBlockNumber(res);
+    if (!responseBlockNumber) {
+      return undefined;
+    }
+
+    log('res.result.blockNumber exists, proceeding. res = %o', res);
+
+    // If number is higher, suggest block-tracker check for a new block
+    const blockNumber: number = Number.parseInt(responseBlockNumber, 16);
+    const currentBlockNumber: number = Number.parseInt(
+      // Typecast: If getCurrentBlock returns null, currentBlockNumber will be NaN, which is fine.
+      blockTracker.getCurrentBlock() as string,
+      16,
+    );
+    if (blockNumber > currentBlockNumber) {
+      log(
+        'blockNumber from response is greater than current block number, refreshing current block number',
+      );
+      await blockTracker.checkForLatestBlock();
+    }
+    return undefined;
+  });
 }
 
 function getResultBlockNumber(
@@ -54,42 +75,4 @@ function getResultBlockNumber(
     return result.blockNumber;
   }
   return undefined;
-}
-
-// inspect if response contains a block ref higher than our latest block
-export function createBlockTrackerInspectorMiddleware({
-  blockTracker,
-}: BlockTrackerInspectorMiddlewareOptions): JsonRpcMiddleware<
-  JsonRpcParams,
-  Json
-> {
-  return createAsyncMiddleware(async (req, res, next) => {
-    if (!futureBlockRefRequests.includes(req.method)) {
-      return next();
-    }
-    await next();
-
-    // abort if no result or no block number
-    const responseBlockNumber = getResultBlockNumber(res);
-    if (!responseBlockNumber) {
-      return undefined;
-    }
-
-    log('res.result.blockNumber exists, proceeding. res = %o', res);
-
-    // if number is higher, suggest block-tracker check for a new block
-    const blockNumber: number = Number.parseInt(responseBlockNumber, 16);
-    // Typecast: If getCurrentBlock returns null, currentBlockNumber will be NaN, which is fine.
-    const currentBlockNumber: number = Number.parseInt(
-      blockTracker.getCurrentBlock() as any,
-      16,
-    );
-    if (blockNumber > currentBlockNumber) {
-      log(
-        'blockNumber from response is greater than current block number, refreshing current block number',
-      );
-      await blockTracker.checkForLatestBlock();
-    }
-    return undefined;
-  });
 }

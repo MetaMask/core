@@ -3,19 +3,19 @@ import type {
   AccountsControllerSelectedEvmAccountChangeEvent,
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerListAccountsAction,
-  AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerStateChangeEvent,
   ControllerGetStateAction,
   StateMetadata,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import {
   query,
   safelyExecuteWithTimeout,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import type { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -23,9 +23,9 @@ import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
+  NetworkControllerNetworkAddedEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 import type {
   TransactionControllerTransactionConfirmedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
@@ -174,7 +174,10 @@ export type AccountTrackerControllerActions =
  */
 export type AllowedActions =
   | AccountsControllerListAccountsAction
-  | PreferencesControllerGetStateAction
+  | {
+      type: 'PreferencesController:getState';
+      handler: () => { isMultiAccountBalancesEnabled: boolean };
+    }
   | AccountsControllerGetSelectedAccountAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction;
@@ -199,9 +202,10 @@ export type AccountTrackerControllerEvents =
  */
 export type AllowedEvents =
   | AccountsControllerSelectedEvmAccountChangeEvent
-  | AccountsControllerSelectedAccountChangeEvent
   | TransactionControllerUnapprovedTransactionAddedEvent
-  | TransactionControllerTransactionConfirmedEvent;
+  | TransactionControllerTransactionConfirmedEvent
+  | NetworkControllerNetworkAddedEvent
+  | KeyringControllerUnlockEvent;
 
 /**
  * The messenger of the {@link AccountTrackerController}.
@@ -236,6 +240,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
   readonly #balanceFetchers: BalanceFetcher[];
 
+  readonly #fetchingEnabled: () => boolean;
+
   /**
    * Creates an AccountTracker instance.
    *
@@ -247,6 +253,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param options.includeStakedAssets - Whether to include staked assets in the account balances.
    * @param options.accountsApiChainIds - Function that returns array of chainIds that should use Accounts-API strategy (if supported by API).
    * @param options.allowExternalServices - Disable external HTTP calls (privacy / offline mode).
+   * @param options.fetchingEnabled - Function that returns whether the controller is fetching enabled.
    */
   constructor({
     interval = 10000,
@@ -256,6 +263,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     includeStakedAssets = false,
     accountsApiChainIds = () => [],
     allowExternalServices = () => true,
+    fetchingEnabled = () => true,
   }: {
     interval?: number;
     state?: Partial<AccountTrackerControllerState>;
@@ -264,6 +272,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     includeStakedAssets?: boolean;
     accountsApiChainIds?: () => ChainIdHex[];
     allowExternalServices?: () => boolean;
+    fetchingEnabled?: () => boolean;
   }) {
     const { selectedNetworkClientId } = messenger.call(
       'NetworkController:getState',
@@ -302,6 +311,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       ),
     ];
 
+    this.#fetchingEnabled = fetchingEnabled;
+
     this.setIntervalLength(interval);
 
     this.messenger.subscribe(
@@ -316,23 +327,39 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       (event): string => event.address,
     );
 
+    this.messenger.subscribe('NetworkController:networkAdded', async () => {
+      await this.refresh(this.#getNetworkClientIds());
+    });
+
+    this.messenger.subscribe('KeyringController:unlock', async () => {
+      await this.refresh(this.#getNetworkClientIds());
+    });
+
     this.messenger.subscribe(
       'TransactionController:unapprovedTransactionAdded',
       async (transactionMeta: TransactionMeta) => {
-        await this.#refreshAddress(
-          [transactionMeta.networkClientId],
-          transactionMeta.txParams.from,
-        );
+        const addresses = [transactionMeta.txParams.from];
+        if (transactionMeta.txParams.to) {
+          addresses.push(transactionMeta.txParams.to);
+        }
+        await this.refreshAddresses({
+          networkClientIds: [transactionMeta.networkClientId],
+          addresses,
+        });
       },
     );
 
     this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       async (transactionMeta: TransactionMeta) => {
-        await this.#refreshAddress(
-          [transactionMeta.networkClientId],
-          transactionMeta.txParams.from,
-        );
+        const addresses = [transactionMeta.txParams.from];
+        if (transactionMeta.txParams.to) {
+          addresses.push(transactionMeta.txParams.to);
+        }
+        await this.refreshAddresses({
+          networkClientIds: [transactionMeta.networkClientId],
+          addresses,
+        });
       },
     );
 
@@ -540,13 +567,28 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     });
   }
 
-  async #refreshAddress(networkClientIds: NetworkClientId[], address: string) {
-    const checksumAddress = toChecksumHexAddress(address) as ChecksumAddress;
+  async refreshAddresses({
+    networkClientIds,
+    addresses,
+  }: {
+    networkClientIds: NetworkClientId[];
+    addresses: string[];
+  }) {
+    const checksummedAddresses = addresses.map((address) =>
+      toChecksumHexAddress(address),
+    );
+
+    const accounts = this.messenger
+      .call('AccountsController:listAccounts')
+      .filter((account) =>
+        checksummedAddresses.includes(toChecksumHexAddress(account.address)),
+      );
+
     await this.#refreshAccounts({
       networkClientIds,
-      queryAllAccounts: false,
-      selectedAccount: checksumAddress,
-      allAccounts: [],
+      queryAllAccounts: true,
+      selectedAccount: '0x0',
+      allAccounts: accounts,
     });
   }
 
@@ -569,6 +611,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       });
 
       this.syncAccounts(chainIds);
+
+      if (!this.#fetchingEnabled()) {
+        return;
+      }
 
       // Use balance fetchers with fallback strategy
       const aggregated: ProcessedBalance[] = [];

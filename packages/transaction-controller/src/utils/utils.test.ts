@@ -1,4 +1,4 @@
-import { BN } from 'bn.js';
+import BN from 'bn.js';
 
 import * as util from './utils';
 import type {
@@ -272,6 +272,87 @@ describe('utils', () => {
 
     it('supports negative new value', () => {
       expect(util.getPercentageChange(new BN(2), new BN(-1))).toBe(150);
+    });
+  });
+
+  describe('bnFromHex', () => {
+    it('parses hex with 0x prefix', () => {
+      const result = util.bnFromHex('0x1a');
+      expect(result.eq(new BN(26))).toBe(true);
+    });
+
+    it('parses hex without prefix', () => {
+      const result = util.bnFromHex('1a');
+      expect(result.eq(new BN(26))).toBe(true);
+    });
+
+    it('parses uppercase 0X prefix', () => {
+      const result = util.bnFromHex('0XFF');
+      expect(result.eq(new BN(255))).toBe(true);
+    });
+
+    it('returns zero for empty data with 0x', () => {
+      const result = util.bnFromHex('0x');
+      expect(result.isZero()).toBe(true);
+    });
+
+    it('returns zero for empty string', () => {
+      const result = util.bnFromHex('');
+      expect(result.isZero()).toBe(true);
+    });
+
+    it('throws for invalid hex', () => {
+      expect(() => util.bnFromHex('0xzz')).toThrow(Error);
+    });
+  });
+
+  describe('toBN', () => {
+    it('returns the same BN instance', () => {
+      const input = new BN(123);
+      const result = util.toBN(input);
+      expect(result).toBe(input);
+    });
+
+    it('converts ethers-like BigNumber with toHexString', () => {
+      const bigNumberLike = { toHexString: () => '0x2a' };
+      const result = util.toBN(bigNumberLike);
+      expect(result.eq(new BN(42))).toBe(true);
+    });
+
+    it('converts object with _hex property', () => {
+      const hexLike = { _hex: '0x2a' };
+      const result = util.toBN(hexLike);
+      expect(result.eq(new BN(42))).toBe(true);
+    });
+
+    it('converts hex string values', () => {
+      expect(util.toBN('0x10').eq(new BN(16))).toBe(true);
+      expect(util.toBN('10').eq(new BN(16))).toBe(true);
+    });
+
+    it('converts bigint values', () => {
+      const result = util.toBN(123n);
+      expect(result.eq(new BN(123))).toBe(true);
+    });
+
+    it('converts number values', () => {
+      const result = util.toBN(456);
+      expect(result.eq(new BN(456))).toBe(true);
+    });
+
+    it('throws for unsupported types', () => {
+      expect(() => util.toBN(true as unknown)).toThrow(
+        'Unexpected value returned from oracle contract',
+      );
+      expect(() => util.toBN(null as unknown)).toThrow(
+        'Unexpected value returned from oracle contract',
+      );
+      expect(() => util.toBN(undefined as unknown)).toThrow(
+        'Unexpected value returned from oracle contract',
+      );
+      expect(() => util.toBN({} as unknown)).toThrow(
+        'Unexpected value returned from oracle contract',
+      );
     });
   });
 });

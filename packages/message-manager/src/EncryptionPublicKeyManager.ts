@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 

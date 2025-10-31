@@ -1,8 +1,8 @@
-import { BaseController } from '@metamask/base-controller/next';
+import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-} from '@metamask/base-controller/next';
+} from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import type { Messenger } from '@metamask/messenger';
@@ -112,6 +112,11 @@ const getDefaultNetworkEnablementControllerState =
         [ChainId[BuiltInNetworkName.Mainnet]]: true,
         [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
         [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
+        [ChainId[BuiltInNetworkName.ArbitrumOne]]: true,
+        [ChainId[BuiltInNetworkName.BscMainnet]]: true,
+        [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
+        [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
+        [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
       },
       [KnownCaipNamespace.Solana]: {
         [SolScope.Mainnet]: true,

@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   ChainId,
   InfuraNetworkType,
@@ -27,13 +27,6 @@ import type { Patch } from 'immer';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
-import { advanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildMockGetNetworkClientById,
-  buildNetworkConfiguration,
-} from '../../network-controller/tests/helpers';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type {
   AbstractTokenPricesService,
@@ -48,6 +41,13 @@ import type {
 } from './TokenRatesController';
 import { getDefaultTokensState } from './TokensController';
 import type { TokensControllerState } from './TokensController';
+import { advanceTime } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+  buildNetworkConfiguration,
+} from '../../network-controller/tests/helpers';
 
 const defaultSelectedAddress = '0x0000000000000000000000000000000000000001';
 const defaultSelectedAccount = createMockInternalAccount({
@@ -2994,6 +2994,9 @@ function buildMockTokenPricesService(
 ): AbstractTokenPricesService {
   return {
     async fetchTokenPrices() {
+      return {};
+    },
+    async fetchExchangeRates() {
       return {};
     },
     validateChainIdSupported(_chainId: unknown): _chainId is Hex {
