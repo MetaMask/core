@@ -1,9 +1,9 @@
 import type { InfuraNetworkType, ChainId } from '@metamask/controller-utils';
 import type { BlockTracker as BaseBlockTracker } from '@metamask/eth-block-tracker';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import type { Hex } from '@metamask/utils';
 
-export type Provider = SafeEventEmitterProvider;
+export type Provider = InternalProvider;
 
 export type BlockTracker = BaseBlockTracker & {
   checkForLatestBlock(): Promise<string>;
