@@ -364,6 +364,51 @@ describe('MultichainAccountWallet', () => {
         'Unable to create multichain account group for index: 1',
       );
     });
+
+    it('aggregates non-EVM failures when waiting for all providers', async () => {
+      const startingIndex = 0;
+
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(startingIndex)
+        .get();
+
+      const { wallet, providers } = setup({
+        providers: [
+          setupNamedAccountProvider({ accounts: [mockEvmAccount], index: 0 }),
+          setupNamedAccountProvider({
+            name: 'Non-EVM Provider',
+            accounts: [],
+            index: 1,
+          }),
+        ],
+      });
+
+      const nextIndex = 1;
+      const nextEvmAccount = MockAccountBuilder.from(mockEvmAccount)
+        .withGroupIndex(nextIndex)
+        .get();
+
+      const [evmProvider, solProvider] = providers;
+      evmProvider.createAccounts.mockResolvedValueOnce([nextEvmAccount]);
+      evmProvider.getAccounts.mockReturnValueOnce([nextEvmAccount]);
+      evmProvider.getAccount.mockReturnValueOnce(nextEvmAccount);
+
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      solProvider.createAccounts.mockRejectedValueOnce(
+        new Error('SOL create failed'),
+      );
+
+      await expect(
+        wallet.createMultichainAccountGroup(nextIndex, {
+          waitForAllProvidersToFinishCreatingAccounts: true,
+        }),
+      ).rejects.toThrow(
+        `Unable to create multichain account group for index: ${nextIndex}`,
+      );
+
+      expect(warnSpy).toHaveBeenCalled();
+    });
   });
 
   describe('createNextMultichainAccountGroup', () => {

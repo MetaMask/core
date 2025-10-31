@@ -10,7 +10,6 @@ import type {
 } from '@metamask/keyring-internal-api';
 import type { Provider } from '@metamask/network-controller';
 import { add0x, assert, bytesToHex, type Hex } from '@metamask/utils';
-import type { MultichainAccountServiceMessenger } from 'src/types';
 
 import {
   assertAreBip44Accounts,
@@ -18,6 +17,7 @@ import {
   BaseBip44AccountProvider,
 } from './BaseBip44AccountProvider';
 import { withRetry, withTimeout } from './utils';
+import type { MultichainAccountServiceMessenger } from '../types';
 
 const ETH_MAINNET_CHAIN_ID = '0x1';
 
