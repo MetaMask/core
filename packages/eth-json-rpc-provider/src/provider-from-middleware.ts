@@ -31,11 +31,8 @@ export function providerFromMiddleware<
  * @returns An Ethereum provider.
  */
 export function providerFromMiddlewareV2<
-  Params extends JsonRpcParams,
-  Result extends Json,
->(
-  middleware: JsonRpcMiddleware<JsonRpcRequest<Params>, Result>,
-): InternalProvider {
+  Middleware extends JsonRpcMiddleware<JsonRpcRequest, Json>,
+>(middleware: Middleware): InternalProvider {
   return new InternalProvider({
     rpcHandler: new JsonRpcServer({ middleware: [middleware] }),
   });

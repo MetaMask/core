@@ -1,5 +1,8 @@
 import type { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { JsonRpcServer } from '@metamask/json-rpc-engine/v2';
+import type {
+  JsonRpcMiddleware,
+  JsonRpcServer,
+} from '@metamask/json-rpc-engine/v2';
 import { JsonRpcError } from '@metamask/rpc-errors';
 import type { JsonRpcFailure } from '@metamask/utils';
 import {
@@ -31,7 +34,9 @@ type Options =
       engine: JsonRpcEngine;
     }
   | {
-      rpcHandler: JsonRpcEngine | JsonRpcServer;
+      rpcHandler:
+        | JsonRpcEngine
+        | JsonRpcServer<JsonRpcMiddleware<JsonRpcRequest>>;
     };
 
 /**
@@ -41,7 +46,9 @@ type Options =
  * It is not compliant with any Ethereum provider standard.
  */
 export class InternalProvider {
-  readonly #rpcHandler: JsonRpcEngine | JsonRpcServer;
+  readonly #rpcHandler:
+    | JsonRpcEngine
+    | JsonRpcServer<JsonRpcMiddleware<JsonRpcRequest>>;
 
   /**
    * Construct a InternalProvider from a JSON-RPC server or legacy engine.
