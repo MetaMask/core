@@ -2625,7 +2625,7 @@ describe('BridgeController', function () {
             [FeatureId.PERPS]: {
               aggIds: ['debridge', 'socket'],
               bridgeIds: ['bridge1', 'bridge2'],
-              noFee: true,
+              fee: 0,
             },
           },
         });
@@ -2634,7 +2634,7 @@ describe('BridgeController', function () {
       }));
     });
 
-    it('should override aggIds and noFee in perps request', async () => {
+    it('should override aggIds and fee in perps request', async () => {
       const fetchBridgeQuotesSpy = jest
         .spyOn(fetchUtils, 'fetchBridgeQuotes')
         .mockResolvedValueOnce({
@@ -2656,7 +2656,7 @@ describe('BridgeController', function () {
           bridgeIds: ['other', 'debridge'],
           gasIncluded: false,
           gasIncluded7702: false,
-          noFee: false,
+          fee: 0,
         },
         null,
         FeatureId.PERPS,
@@ -2677,9 +2677,9 @@ describe('BridgeController', function () {
               ],
               "destChainId": "1",
               "destTokenAddress": "0x1234",
+              "fee": 0,
               "gasIncluded": false,
               "gasIncluded7702": false,
-              "noFee": true,
               "slippage": 0.5,
               "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
               "srcTokenAddress": "NATIVE",
@@ -2722,7 +2722,6 @@ describe('BridgeController', function () {
             bridgeIds: ['other', 'debridge'],
             gasIncluded: false,
             gasIncluded7702: false,
-            noFee: false,
           } as never,
           null,
           FeatureId.PERPS,
@@ -2733,7 +2732,7 @@ describe('BridgeController', function () {
       expect(bridgeController.state).toStrictEqual(expectedControllerState);
     });
 
-    it('should add aggIds and noFee to perps request', async () => {
+    it('should add aggIds and fee to perps request', async () => {
       const fetchBridgeQuotesSpy = jest
         .spyOn(fetchUtils, 'fetchBridgeQuotes')
         .mockResolvedValueOnce({
@@ -2773,9 +2772,9 @@ describe('BridgeController', function () {
               ],
               "destChainId": "1",
               "destTokenAddress": "0x1234",
+              "fee": 0,
               "gasIncluded": false,
               "gasIncluded7702": false,
-              "noFee": true,
               "slippage": 0.5,
               "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
               "srcTokenAddress": "NATIVE",
@@ -2795,7 +2794,7 @@ describe('BridgeController', function () {
       expect(bridgeController.state).toStrictEqual(expectedControllerState);
     });
 
-    it('should not add aggIds and noFee if featureId is not specified', async () => {
+    it('should not add aggIds and fee if featureId is not specified', async () => {
       const fetchBridgeQuotesSpy = jest
         .spyOn(fetchUtils, 'fetchBridgeQuotes')
         .mockResolvedValueOnce({

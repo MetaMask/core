@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [86.0.0]
+
 ### Changed
 
 - **BREAKING:** Modify AccountTrackerController events and actions ([#6938](https://github.com/MetaMask/core/pull/6938))
@@ -24,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Added constructor argument `tokenPricesService` in `currencyRateController` ([#6863](https://github.com/MetaMask/core/pull/6863))
 - Added `fetchExchangeRates` function to fetch exchange rates from price-api ([#6863](https://github.com/MetaMask/core/pull/6863))
 - Added `ignoreAssets` to allow ignoring assets for non-EVM chains ([#6981](https://github.com/MetaMask/core/pull/6981))
+
+- Added `searchTokens` function to search for tokens across multiple networks using CAIP format chain IDs ([#7004](https://github.com/MetaMask/core/pull/7004))
 
 ### Changed
 
@@ -2213,7 +2217,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@85.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@86.0.0...HEAD
+[86.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@85.0.0...@metamask/assets-controllers@86.0.0
 [85.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@84.0.0...@metamask/assets-controllers@85.0.0
 [84.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@83.1.0...@metamask/assets-controllers@84.0.0
 [83.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@83.0.0...@metamask/assets-controllers@83.1.0

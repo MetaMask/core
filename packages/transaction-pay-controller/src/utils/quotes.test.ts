@@ -4,11 +4,10 @@ import type { Hex, Json } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import type { UpdateQuotesRequest } from './quotes';
-import { queueRefreshQuotes, updateQuotes } from './quotes';
+import { refreshQuotes, updateQuotes } from './quotes';
 import { getStrategy, getStrategyByName } from './strategy';
 import { calculateTotals } from './totals';
 import { getTransaction, updateTransaction } from './transaction';
-import { flushPromises } from '../../../../tests/helpers';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type {
   TransactionPaySourceAmount,
@@ -134,7 +133,9 @@ describe('Quotes Utils', () => {
 
       const transactionDataMock = {};
 
-      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
 
       expect(transactionDataMock).toMatchObject({
         quotes: [QUOTE_MOCK],
@@ -153,7 +154,9 @@ describe('Quotes Utils', () => {
         quotes: [QUOTE_MOCK],
       };
 
-      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
 
       expect(transactionDataMock).toMatchObject({
         quotes: [],
@@ -175,7 +178,9 @@ describe('Quotes Utils', () => {
         quotes: [QUOTE_MOCK],
       };
 
-      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
 
       expect(transactionDataMock).toMatchObject({
         quotes: [],
@@ -244,7 +249,9 @@ describe('Quotes Utils', () => {
 
       const transactionDataMock = {};
 
-      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
 
       expect(transactionDataMock).toStrictEqual(
         expect.objectContaining({ totals: TOTALS_MOCK }),
@@ -283,7 +290,7 @@ describe('Quotes Utils', () => {
     });
   });
 
-  describe('queueRefreshQuotes', () => {
+  describe('refreshQuotes', () => {
     it('updates quotes after refresh interval', async () => {
       getControllerStateMock.mockReturnValue({
         transactionData: {
@@ -296,16 +303,14 @@ describe('Quotes Utils', () => {
         },
       });
 
-      queueRefreshQuotes(messenger, updateTransactionDataMock);
+      await refreshQuotes(messenger, updateTransactionDataMock);
 
-      jest.runAllTimers();
-      await flushPromises();
-
-      expect(updateTransactionDataMock).toHaveBeenCalledTimes(2);
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(3);
 
       const transactionDataMock = {};
-      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
-      updateTransactionDataMock.mock.calls[1][1](transactionDataMock);
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
 
       expect(transactionDataMock).toMatchObject({
         quotes: [],
@@ -323,16 +328,14 @@ describe('Quotes Utils', () => {
         },
       });
 
-      queueRefreshQuotes(messenger, updateTransactionDataMock);
+      await refreshQuotes(messenger, updateTransactionDataMock);
 
-      jest.runAllTimers();
-      await flushPromises();
-
-      expect(updateTransactionDataMock).toHaveBeenCalledTimes(2);
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(3);
 
       const transactionDataMock = {};
-      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
-      updateTransactionDataMock.mock.calls[1][1](transactionDataMock);
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
 
       expect(transactionDataMock).toMatchObject({
         quotes: [],
@@ -351,10 +354,7 @@ describe('Quotes Utils', () => {
         },
       });
 
-      queueRefreshQuotes(messenger, updateTransactionDataMock);
-
-      jest.advanceTimersByTime(1000);
-      await flushPromises();
+      await refreshQuotes(messenger, updateTransactionDataMock);
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
     });
@@ -371,21 +371,7 @@ describe('Quotes Utils', () => {
         },
       });
 
-      queueRefreshQuotes(messenger, updateTransactionDataMock);
-
-      jest.advanceTimersByTime(1000);
-      await flushPromises();
-
-      expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
-    });
-
-    it('does not throw if refresh fails', async () => {
-      getControllerStateMock.mockReturnValue(undefined as never);
-
-      queueRefreshQuotes(messenger, updateTransactionDataMock);
-
-      jest.advanceTimersByTime(1000);
-      await flushPromises();
+      await refreshQuotes(messenger, updateTransactionDataMock);
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
     });

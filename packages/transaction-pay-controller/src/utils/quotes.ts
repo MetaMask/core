@@ -12,12 +12,12 @@ import type {
   TransactionData,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
+  TransactionPayRequiredToken,
   TransactionPayTotals,
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from '../types';
 
-const QUOTES_CHECK_INTERVAL = 1 * 1000; // 1 Second
 const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 
 const log = createModuleLogger(projectLogger, 'quotes');
@@ -52,22 +52,22 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
     return;
   }
 
-  const requests: QuoteRequest[] = (sourceAmounts ?? []).map(
-    (sourceAmount, i) => {
-      const token = tokens[i];
+  const requests: QuoteRequest[] = (sourceAmounts ?? []).map((sourceAmount) => {
+    const token = tokens.find(
+      (t) => t.address === sourceAmount.targetTokenAddress,
+    ) as TransactionPayRequiredToken;
 
-      return {
-        from: transaction.txParams.from as Hex,
-        sourceBalanceRaw: paymentToken.balanceRaw,
-        sourceTokenAmount: sourceAmount.sourceAmountRaw,
-        sourceChainId: paymentToken.chainId,
-        sourceTokenAddress: paymentToken.address,
-        targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
-        targetChainId: token.chainId,
-        targetTokenAddress: token.address,
-      };
-    },
-  );
+    return {
+      from: transaction.txParams.from as Hex,
+      sourceBalanceRaw: paymentToken.balanceRaw,
+      sourceTokenAmount: sourceAmount.sourceAmountRaw,
+      sourceChainId: paymentToken.chainId,
+      sourceTokenAddress: paymentToken.address,
+      targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
+      targetChainId: token.chainId,
+      targetTokenAddress: token.address,
+    };
+  });
 
   if (!requests?.length) {
     log('No quote requests', { transactionId });
@@ -75,69 +75,59 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
 
   let quotes: TransactionPayQuote<Json>[] | undefined = [];
 
-  const strategy = await getStrategy(messenger as never, transaction);
+  updateTransactionData(transactionId, (data) => {
+    data.isLoading = true;
+  });
 
   try {
-    quotes = requests?.length
-      ? ((await strategy.getQuotes({
-          messenger,
-          requests,
-          transaction,
-        })) as TransactionPayQuote<Json>[])
-      : [];
-  } catch (error) {
-    log('Error fetching quotes', { error, transactionId });
+    const strategy = await getStrategy(messenger as never, transaction);
+
+    try {
+      quotes = requests?.length
+        ? ((await strategy.getQuotes({
+            messenger,
+            requests,
+            transaction,
+          })) as TransactionPayQuote<Json>[])
+        : [];
+    } catch (error) {
+      log('Error fetching quotes', { error, transactionId });
+    }
+
+    log('Updated', { transactionId, quotes });
+
+    const batchTransactions =
+      quotes?.length && strategy.getBatchTransactions
+        ? await strategy.getBatchTransactions({
+            messenger,
+            quotes,
+          })
+        : [];
+
+    log('Batch transactions', { transactionId, batchTransactions });
+
+    const totals = calculateTotals(quotes as never, tokens, messenger);
+
+    log('Calculated totals', { transactionId, totals });
+
+    syncTransaction({
+      batchTransactions,
+      messenger: messenger as never,
+      paymentToken,
+      totals,
+      transactionId,
+    });
+
+    updateTransactionData(transactionId, (data) => {
+      data.quotes = quotes as never;
+      data.quotesLastUpdated = Date.now();
+      data.totals = totals;
+    });
+  } finally {
+    updateTransactionData(transactionId, (data) => {
+      data.isLoading = false;
+    });
   }
-
-  log('Updated', { transactionId, quotes });
-
-  const batchTransactions =
-    quotes?.length && strategy.getBatchTransactions
-      ? await strategy.getBatchTransactions({
-          messenger,
-          quotes,
-        })
-      : [];
-
-  log('Batch transactions', { transactionId, batchTransactions });
-
-  const totals = calculateTotals(quotes as never, tokens, messenger);
-
-  log('Calculated totals', { transactionId, totals });
-
-  syncTransaction({
-    batchTransactions,
-    messenger: messenger as never,
-    paymentToken,
-    totals,
-    transactionId,
-  });
-
-  updateTransactionData(transactionId, (data) => {
-    data.quotes = quotes as never;
-    data.quotesLastUpdated = Date.now();
-    data.totals = totals;
-    data.isLoading = false;
-  });
-}
-
-/**
- * Poll quotes at regular intervals.
- *
- * @param messenger - Messenger instance.
- * @param updateTransactionData - Callback to update transaction data.
- */
-export function queueRefreshQuotes(
-  messenger: TransactionPayControllerMessenger,
-  updateTransactionData: UpdateTransactionDataCallback,
-) {
-  setTimeout(() => {
-    refreshQuotes(messenger, updateTransactionData)
-      .finally(() => queueRefreshQuotes(messenger, updateTransactionData))
-      .catch((error) => {
-        log('Error polling quotes', { messenger, error });
-      });
-  }, QUOTES_CHECK_INTERVAL);
 }
 
 /**
@@ -190,7 +180,7 @@ function syncTransaction({
  * @param messenger - Messenger instance.
  * @param updateTransactionData - Callback to update transaction data.
  */
-async function refreshQuotes(
+export async function refreshQuotes(
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
 ) {
@@ -224,10 +214,6 @@ async function refreshQuotes(
       transactionId,
       strategy: strategyName,
       refreshInterval,
-    });
-
-    updateTransactionData(transactionId, (data) => {
-      data.isLoading = true;
     });
 
     await updateQuotes({
