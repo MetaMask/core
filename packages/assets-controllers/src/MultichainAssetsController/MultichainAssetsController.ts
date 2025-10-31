@@ -85,6 +85,11 @@ export type MultichainAssetsControllerIgnoreAssetsAction = {
   handler: MultichainAssetsController['ignoreAssets'];
 };
 
+export type MultichainAssetsControllerAddAssetAction = {
+  type: `${typeof controllerName}:addAsset`;
+  handler: MultichainAssetsController['addAsset'];
+};
+
 /**
  * Returns the state of the {@link MultichainAssetsController}.
  */
@@ -108,7 +113,8 @@ export type MultichainAssetsControllerStateChangeEvent =
 export type MultichainAssetsControllerActions =
   | MultichainAssetsControllerGetStateAction
   | MultichainAssetsControllerGetAssetMetadataAction
-  | MultichainAssetsControllerIgnoreAssetsAction;
+  | MultichainAssetsControllerIgnoreAssetsAction
+  | MultichainAssetsControllerAddAssetAction;
 
 /**
  * Events emitted by {@link MultichainAssetsController}.
@@ -259,6 +265,11 @@ export class MultichainAssetsController extends BaseController<
       'MultichainAssetsController:ignoreAssets',
       this.ignoreAssets.bind(this),
     );
+
+    this.messenger.registerActionHandler(
+      'MultichainAssetsController:addAsset',
+      this.addAsset.bind(this),
+    );
   }
 
   /**
@@ -293,6 +304,59 @@ export class MultichainAssetsController extends BaseController<
         (asset) => !state.allIgnoredAssets[accountId].includes(asset),
       );
       state.allIgnoredAssets[accountId].push(...newIgnoredAssets);
+    });
+  }
+
+  /**
+   * Adds a single asset to the stored asset list for a specific account.
+   *
+   * @param assetId - The CAIP asset ID to add.
+   * @param accountId - The account ID to add the asset to.
+   * @returns The updated asset list for the account.
+   */
+  async addAsset(
+    assetId: CaipAssetType,
+    accountId: string,
+  ): Promise<CaipAssetType[]> {
+    return this.#withControllerLock(async () => {
+      // Refresh metadata for the asset
+      await this.#refreshAssetsMetadata([assetId]);
+
+      this.update((state) => {
+        // Initialize account assets if it doesn't exist
+        if (!state.accountsAssets[accountId]) {
+          state.accountsAssets[accountId] = [];
+        }
+
+        // Add asset if it doesn't already exist
+        if (!state.accountsAssets[accountId].includes(assetId)) {
+          state.accountsAssets[accountId].push(assetId);
+        }
+
+        // Remove from ignored list if it exists there (inline logic like EVM)
+        if (state.allIgnoredAssets[accountId]) {
+          state.allIgnoredAssets[accountId] = state.allIgnoredAssets[
+            accountId
+          ].filter((asset) => asset !== assetId);
+
+          // Clean up empty arrays
+          if (state.allIgnoredAssets[accountId].length === 0) {
+            delete state.allIgnoredAssets[accountId];
+          }
+        }
+      });
+
+      // Publish event to notify other controllers (balances, rates) about the new asset
+      this.messenger.publish(`${controllerName}:accountAssetListUpdated`, {
+        assets: {
+          [accountId]: {
+            added: [assetId],
+            removed: [],
+          },
+        },
+      });
+
+      return this.state.accountsAssets[accountId] || [];
     });
   }
 
