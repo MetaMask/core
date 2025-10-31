@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: update the changelog to reflect PR #7010 ([#7018](https://github.com/MetaMask/core/pull/7018))
+
 ### Fixed
 
 - Use `groupIndex` for account creations on `TrxAccountProvider` instead of the outdated `derivationPath` ([#7010](https://github.com/MetaMask/core/pull/7010))
