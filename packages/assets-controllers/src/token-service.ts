@@ -1,9 +1,10 @@
 import {
   ChainId,
   convertHexToDecimal,
+  handleFetch,
   timeoutFetch,
 } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 
 import { isTokenListSupportedForNetwork } from './assetsUtil';
 
@@ -41,6 +42,22 @@ function getTokenMetadataURL(chainId: Hex, tokenAddress: string) {
   )}?address=${tokenAddress}`;
 }
 
+/**
+ * Get the token search URL for the given networks and search query.
+ *
+ * @param chainIds - Array of CAIP format chain IDs (e.g., 'eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp').
+ * @param query - The search query (token name, symbol, or address).
+ * @param limit - Optional limit for the number of results (defaults to 10).
+ * @returns The token search URL.
+ */
+function getTokenSearchURL(chainIds: CaipChainId[], query: string, limit = 10) {
+  const encodedQuery = encodeURIComponent(query);
+  const encodedChainIds = chainIds
+    .map((id) => encodeURIComponent(id))
+    .join(',');
+  return `${TOKEN_END_POINT_API}/tokens/search?chainIds=${encodedChainIds}&query=${encodedQuery}&limit=${limit}`;
+}
+
 const tenSecondsInMilliseconds = 10_000;
 
 // Token list averages 1.6 MB in size
@@ -75,6 +92,46 @@ export async function fetchTokenListByChainId(
     return result;
   }
   return undefined;
+}
+
+/**
+ * Search for tokens across one or more networks by query string using CAIP format chain IDs.
+ *
+ * @param chainIds - Array of CAIP format chain IDs (e.g., ['eip155:1', 'eip155:137', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp']).
+ * @param query - The search query (token name, symbol, or address).
+ * @param options - Additional fetch options.
+ * @param options.limit - The maximum number of results to return.
+ * @returns Object containing count and data array. Returns { count: 0, data: [] } if request fails.
+ */
+export async function searchTokens(
+  chainIds: CaipChainId[],
+  query: string,
+  { limit = 10 } = {},
+): Promise<{ count: number; data: unknown[] }> {
+  if (chainIds.length === 0) {
+    return { count: 0, data: [] };
+  }
+
+  const tokenSearchURL = getTokenSearchURL(chainIds, query, limit);
+
+  try {
+    const result = await handleFetch(tokenSearchURL);
+
+    // The API returns an object with structure: { count: number, data: array, pageInfo: object }
+    if (result && typeof result === 'object' && Array.isArray(result.data)) {
+      return {
+        count: result.count || result.data.length,
+        data: result.data,
+      };
+    }
+
+    // Handle non-expected responses
+    return { count: 0, data: [] };
+  } catch (error) {
+    // Handle 400 errors and other failures by returning count 0 and empty array
+    console.log('Search request failed:', error);
+    return { count: 0, data: [] };
+  }
 }
 
 /**

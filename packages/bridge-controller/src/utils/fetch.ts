@@ -82,8 +82,8 @@ const formatQueryParams = (request: GenericQuoteRequest): URLSearchParams => {
   if (request.slippage !== undefined) {
     normalizedRequest.slippage = request.slippage;
   }
-  if (request.noFee !== undefined) {
-    normalizedRequest.noFee = request.noFee;
+  if (request.fee !== undefined) {
+    normalizedRequest.fee = request.fee;
   }
   if (request.aggIds && request.aggIds.length > 0) {
     normalizedRequest.aggIds = request.aggIds;
