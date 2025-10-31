@@ -14,7 +14,7 @@ import {
 } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { assert } from '@metamask/utils';
-import { Mutex, Semaphore } from 'async-mutex';
+import { Mutex } from 'async-mutex';
 
 import type { Logger } from './logger';
 import {
@@ -24,12 +24,9 @@ import {
   WARNING_PREFIX,
 } from './logger';
 import { MultichainAccountGroup } from './MultichainAccountGroup';
-import {
-  EvmAccountProvider,
-  SOL_ACCOUNT_PROVIDER_NAME,
-  type NamedAccountProvider,
-} from './providers';
+import { EvmAccountProvider, type NamedAccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
+import { toRejectedErrorMessage } from './utils';
 
 /**
  * The context for a provider discovery.
@@ -51,30 +48,6 @@ export class MultichainAccountWallet<
   Account extends Bip44Account<KeyringAccount>,
 > implements MultichainAccountWalletDefinition<Account>
 {
-  /**
-   * Per-provider semaphores to throttle background account creation for non-EVM providers.
-   * Only providers listed in PROVIDER_CONCURRENCY_MAP are throttled, others run unthrottled by default.
-   */
-  private static readonly PROVIDER_CONCURRENCY_MAP: Record<string, number> = {
-    [SOL_ACCOUNT_PROVIDER_NAME]: 3, // Limit Solana to 3 concurrent account creations.
-  };
-
-  private static readonly providerQueues: Map<string, Semaphore> = new Map();
-
-  private static getProviderQueue(providerName: string): Semaphore | undefined {
-    const configured = this.PROVIDER_CONCURRENCY_MAP[providerName];
-    if (!configured || configured <= 0) {
-      // No throttling configured for this provider.
-      return undefined;
-    }
-    let queue = this.providerQueues.get(providerName);
-    if (!queue) {
-      queue = new Semaphore(configured);
-      this.providerQueues.set(providerName, queue);
-    }
-    return queue;
-  }
-
   readonly #lock = new Mutex();
 
   readonly #id: MultichainAccountWalletId;
@@ -249,7 +222,7 @@ export class MultichainAccountWallet<
   }
 
   /**
-   * Create accounts with non‑EVM providers, optionally throttled per provider.
+   * Create accounts with non‑EVM providers. Optional throttling is managed by each provider internally.
    * When awaitAll is true, waits for all providers and throws if any failed.
    * When false, starts work in background and logs errors without throwing.
    *
@@ -270,58 +243,40 @@ export class MultichainAccountWallet<
     awaitAll: boolean;
   }): Promise<void> {
     if (awaitAll) {
-      const queuedTasks = providers.map((provider) => {
-        const queue = MultichainAccountWallet.getProviderQueue(
-          provider.getName(),
-        );
-        const operation = async () =>
-          provider.createAccounts({
-            entropySource: this.#entropySource,
-            groupIndex,
-          });
-        return queue ? queue.runExclusive(operation) : operation();
-      });
+      const tasks = providers.map((provider) =>
+        provider.createAccounts({
+          entropySource: this.#entropySource,
+          groupIndex,
+        }),
+      );
 
-      const results = await Promise.allSettled(queuedTasks);
+      const results = await Promise.allSettled(tasks);
       if (results.some((r) => r.status === 'rejected')) {
-        const error = `Unable to create multichain account group for index: ${groupIndex}`;
+        const errorMessage = toRejectedErrorMessage(
+          `Unable to create multichain account group for index: ${groupIndex}`,
+          results,
+        );
 
-        let message = `${error}:`;
-        for (const r of results) {
-          if (r.status === 'rejected') {
-            message += `\n- ${r.reason}`;
-          }
-        }
-        this.#log(`${WARNING_PREFIX} ${message}`);
-        console.warn(message);
-        throw new Error(error);
+        this.#log(`${WARNING_PREFIX} ${errorMessage}`);
+        console.warn(errorMessage);
+        throw new Error(errorMessage);
       }
       return;
     }
 
-    // Background mode: start tasks, throttle if configured, and log errors.
+    // Background mode: start tasks and log errors.
+    // Optional throttling is handled internally by each provider based on its config.
     providers.forEach((provider) => {
-      const queue = MultichainAccountWallet.getProviderQueue(
-        provider.getName(),
-      );
-      const operation = async () => {
-        try {
-          await provider.createAccounts({
-            entropySource: this.#entropySource,
-            groupIndex,
-          });
-        } catch (error) {
-          const errorMessage = `Could not to create account with provider "${provider.getName()}" for multichain account group index: ${groupIndex}`;
+      // eslint-disable-next-line no-void
+      void provider
+        .createAccounts({
+          entropySource: this.#entropySource,
+          groupIndex,
+        })
+        .catch((error) => {
+          const errorMessage = `Unable to create multichain account group for index: ${groupIndex} (background mode with provider "${provider.getName()}")`;
           this.#log(`${WARNING_PREFIX} ${errorMessage}:`, error);
-        }
-      };
-      if (queue) {
-        // eslint-disable-next-line no-void
-        void queue.runExclusive(operation);
-      } else {
-        // eslint-disable-next-line no-void
-        void operation();
-      }
+        });
     });
   }
 

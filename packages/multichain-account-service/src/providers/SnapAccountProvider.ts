@@ -4,21 +4,65 @@ import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Json, SnapId } from '@metamask/snaps-sdk';
-import type { MultichainAccountServiceMessenger } from 'src/types';
+import { Semaphore } from 'async-mutex';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
+import type { MultichainAccountServiceMessenger } from '../types';
 
 export type RestrictedSnapKeyringCreateAccount = (
   options: Record<string, Json>,
 ) => Promise<KeyringAccount>;
 
+export type SnapAccountProviderConfig = {
+  discovery: {
+    maxAttempts: number;
+    timeoutMs: number;
+    backOffMs: number;
+  };
+  createAccounts: {
+    timeoutMs: number;
+    maxConcurrency: number;
+  };
+};
+
 export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   readonly snapId: SnapId;
 
-  constructor(snapId: SnapId, messenger: MultichainAccountServiceMessenger) {
+  protected readonly config: SnapAccountProviderConfig;
+
+  readonly #queue?: Semaphore;
+
+  constructor(
+    snapId: SnapId,
+    messenger: MultichainAccountServiceMessenger,
+    config: SnapAccountProviderConfig,
+  ) {
     super(messenger);
 
     this.snapId = snapId;
+    this.config = config;
+
+    // Create semaphore only if concurrency is limited
+    if (isFinite(config.createAccounts.maxConcurrency)) {
+      this.#queue = new Semaphore(config.createAccounts.maxConcurrency);
+    }
+  }
+
+  /**
+   * Wraps an async operation with concurrency limiting based on createAccounts.maxConcurrency config.
+   * If maxConcurrency is Infinity, the operation runs immediately.
+   * Otherwise, it's queued through the semaphore to respect the concurrency limit.
+   *
+   * @param operation - The async operation to execute.
+   * @returns The result of the operation.
+   */
+  protected async withMaxConcurrency<T>(
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    if (this.#queue) {
+      return this.#queue.runExclusive(operation);
+    }
+    return operation();
   }
 
   protected async getRestrictedSnapAccountCreator(): Promise<RestrictedSnapKeyringCreateAccount> {

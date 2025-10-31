@@ -18,14 +18,16 @@ import { MultichainAccountWallet } from './MultichainAccountWallet';
 import type {
   EvmAccountProviderConfig,
   NamedAccountProvider,
-  SolAccountProviderConfig,
+  SnapAccountProviderConfig,
 } from './providers';
 import {
   AccountProviderWrapper,
   isAccountProviderWrapper,
 } from './providers/AccountProviderWrapper';
+import type { BtcAccountProvider } from './providers/BtcAccountProvider';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
+import type { TrxAccountProvider } from './providers/TrxAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
 
 export const serviceName = 'MultichainAccountService';
@@ -38,7 +40,9 @@ export type MultichainAccountServiceOptions = {
   providers?: NamedAccountProvider[];
   providerConfigs?: {
     [EvmAccountProvider.NAME]?: EvmAccountProviderConfig;
-    [SolAccountProvider.NAME]?: SolAccountProviderConfig;
+    [SolAccountProvider.NAME]?: SnapAccountProviderConfig;
+    [BtcAccountProvider.NAME]?: SnapAccountProviderConfig;
+    [TrxAccountProvider.NAME]?: SnapAccountProviderConfig;
   };
 };
 

@@ -207,6 +207,7 @@ describe('MultichainAccountService', () => {
             },
             createAccounts: {
               timeoutMs: 3000,
+              maxConcurrency: 3,
             },
           },
         };
@@ -218,11 +219,11 @@ describe('MultichainAccountService', () => {
 
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs[EvmAccountProvider.NAME],
+        providerConfigs?.[EvmAccountProvider.NAME],
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs[SolAccountProvider.NAME],
+        providerConfigs?.[SolAccountProvider.NAME],
       );
     });
 
@@ -239,6 +240,7 @@ describe('MultichainAccountService', () => {
             },
             createAccounts: {
               timeoutMs: 3000,
+              maxConcurrency: 3,
             },
           },
           // No `EVM_ACCOUNT_PROVIDER_NAME`, cause it's optional in this test.
@@ -255,7 +257,7 @@ describe('MultichainAccountService', () => {
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs[SolAccountProvider.NAME],
+        providerConfigs?.[SolAccountProvider.NAME],
       );
     });
   });

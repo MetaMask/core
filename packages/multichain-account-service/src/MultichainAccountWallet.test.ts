@@ -15,7 +15,6 @@ import {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { MultichainAccountWallet } from './MultichainAccountWallet';
-import { SOL_ACCOUNT_PROVIDER_NAME } from './providers';
 import type { MockAccountProvider } from './tests';
 import {
   MOCK_HD_ACCOUNT_1,
@@ -366,55 +365,6 @@ describe('MultichainAccountWallet', () => {
       );
     });
 
-    it('throttles SOL provider via per-provider queue when awaiting all', async () => {
-      const startingIndex = 0;
-
-      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(startingIndex)
-        .get();
-
-      const { wallet, providers } = setup({
-        // Two providers: first is EVM (index 0), second will be SOL by name
-        providers: [
-          setupNamedAccountProvider({ accounts: [mockEvmAccount], index: 0 }),
-          setupNamedAccountProvider({
-            name: SOL_ACCOUNT_PROVIDER_NAME,
-            accounts: [],
-            index: 1,
-          }),
-        ],
-      });
-
-      const nextIndex = 1;
-      const nextEvmAccount = MockAccountBuilder.from(mockEvmAccount)
-        .withGroupIndex(nextIndex)
-        .get();
-      const nextSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(nextIndex)
-        .withUuid()
-        .get();
-
-      // Wire provider mocks
-      const [evmProvider, solProvider] = providers;
-      evmProvider.createAccounts.mockResolvedValueOnce([nextEvmAccount]);
-      evmProvider.getAccounts.mockReturnValueOnce([nextEvmAccount]);
-      evmProvider.getAccount.mockReturnValueOnce(nextEvmAccount);
-
-      solProvider.createAccounts.mockResolvedValueOnce([nextSolAccount]);
-      solProvider.getAccounts.mockReturnValueOnce([nextSolAccount]);
-      solProvider.getAccount.mockReturnValueOnce(nextSolAccount);
-
-      const group = await wallet.createMultichainAccountGroup(nextIndex, {
-        waitForAllProvidersToFinishCreatingAccounts: true,
-      });
-
-      expect(group.groupIndex).toBe(nextIndex);
-      expect(evmProvider.createAccounts).toHaveBeenCalledTimes(1);
-      expect(solProvider.createAccounts).toHaveBeenCalledTimes(1);
-    });
-
     it('aggregates non-EVM failures when waiting for all providers', async () => {
       const startingIndex = 0;
 
@@ -427,7 +377,7 @@ describe('MultichainAccountWallet', () => {
         providers: [
           setupNamedAccountProvider({ accounts: [mockEvmAccount], index: 0 }),
           setupNamedAccountProvider({
-            name: SOL_ACCOUNT_PROVIDER_NAME,
+            name: 'Non-EVM Provider',
             accounts: [],
             index: 1,
           }),
@@ -458,53 +408,6 @@ describe('MultichainAccountWallet', () => {
       );
 
       expect(warnSpy).toHaveBeenCalled();
-    });
-
-    it('throttles SOL provider via per-provider queue in background mode', async () => {
-      const startingIndex = 0;
-
-      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(startingIndex)
-        .get();
-
-      const { wallet, providers } = setup({
-        providers: [
-          setupNamedAccountProvider({ accounts: [mockEvmAccount], index: 0 }),
-          setupNamedAccountProvider({
-            name: SOL_ACCOUNT_PROVIDER_NAME,
-            accounts: [],
-            index: 1,
-          }),
-        ],
-      });
-
-      const nextIndex = 1;
-      const nextEvmAccount = MockAccountBuilder.from(mockEvmAccount)
-        .withGroupIndex(nextIndex)
-        .get();
-      const nextSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(nextIndex)
-        .withUuid()
-        .get();
-
-      const [evmProvider, solProvider] = providers;
-      evmProvider.createAccounts.mockResolvedValueOnce([nextEvmAccount]);
-      evmProvider.getAccounts.mockReturnValueOnce([nextEvmAccount]);
-      evmProvider.getAccount.mockReturnValueOnce(nextEvmAccount);
-
-      solProvider.createAccounts.mockResolvedValueOnce([nextSolAccount]);
-      solProvider.getAccounts.mockReturnValueOnce([nextSolAccount]);
-      solProvider.getAccount.mockReturnValueOnce(nextSolAccount);
-
-      // Don't wait for all providers (background mode) - this is the default
-      const group = await wallet.createMultichainAccountGroup(nextIndex);
-
-      expect(group.groupIndex).toBe(nextIndex);
-      expect(evmProvider.createAccounts).toHaveBeenCalledTimes(1);
-      // SOL provider runs in background via throttled queue
-      expect(solProvider.createAccounts).toHaveBeenCalledTimes(1);
     });
   });
 
