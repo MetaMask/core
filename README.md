@@ -23,6 +23,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/account-tree-controller`](packages/account-tree-controller)
 - [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
+- [`@metamask/analytics-controller`](packages/analytics-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
 - [`@metamask/app-metadata-controller`](packages/app-metadata-controller)
 - [`@metamask/approval-controller`](packages/approval-controller)
@@ -92,6 +93,7 @@ linkStyle default opacity:0.5
   account_tree_controller(["@metamask/account-tree-controller"]);
   accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
+  analytics_controller(["@metamask/analytics-controller"]);
   announcement_controller(["@metamask/announcement-controller"]);
   app_metadata_controller(["@metamask/app-metadata-controller"]);
   approval_controller(["@metamask/approval-controller"]);
