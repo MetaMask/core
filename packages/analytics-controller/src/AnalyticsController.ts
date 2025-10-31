@@ -7,6 +7,7 @@ import type {
   AnalyticsControllerState,
   AnalyticsEventProperties,
 } from './types';
+import { projectLogger } from './logger';
 
 /**
  * The options that AnalyticsController takes.
@@ -77,6 +78,11 @@ export class AnalyticsController extends BaseController<
 
     // Register action handlers
     this.#registerActionHandlers();
+
+    projectLogger('AnalyticsController initialized and ready', {
+      enabled,
+      optedIn,
+    });
   }
 
   /**
