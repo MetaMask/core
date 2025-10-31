@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix use of native Polygon as payment token in Bridge strategy ([#7008](https://github.com/MetaMask/core/pull/7008))
+  - Ignore required tokens with no quotes when calculating totals.
+  - Use correct feature flag key.
+
 ## [2.0.0]
 
 ### Changed
