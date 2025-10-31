@@ -15,7 +15,6 @@ import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController';
 import type { AbstractTokenPricesService } from './token-prices-service';
-import type { TokenRatesControllerState } from './TokenRatesController';
 import { type ContractExchangeRates } from './TokenRatesController';
 
 /**
@@ -392,7 +391,7 @@ export async function reduceInBatchesSerially<Value, Result>({
  * @param args.nativeCurrency - The native currency to request price in.
  * @param args.tokenAddresses - The list of contract addresses.
  * @param args.chainId - The chainId of the tokens.
- * @param args.tokenRatesState - The state of the token rates controller.
+ * @param args.supportedChainIds - The supported chain ids.
  * @returns The prices for the requested tokens.
  */
 export async function fetchTokenContractExchangeRates({
@@ -400,16 +399,15 @@ export async function fetchTokenContractExchangeRates({
   nativeCurrency,
   tokenAddresses,
   chainId,
-  tokenRatesState,
+  supportedChainIds,
 }: {
   tokenPricesService: AbstractTokenPricesService;
   nativeCurrency: string;
   tokenAddresses: Hex[];
   chainId: Hex;
-  tokenRatesState: TokenRatesControllerState;
+  supportedChainIds: Hex[];
 }): Promise<ContractExchangeRates> {
-  const isChainIdSupported =
-    tokenRatesState.supportedChainIds.data.includes(chainId);
+  const isChainIdSupported = supportedChainIds.includes(chainId);
   const isCurrencySupported =
     tokenPricesService.validateCurrencySupported(nativeCurrency);
 
