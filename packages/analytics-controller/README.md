@@ -1,6 +1,12 @@
 # `@metamask/analytics-controller`
 
-Common Analytics controller for event tracking
+Common Analytics controller for event tracking.
+
+- Provides a unified interface for:
+  - tracking analytics events
+  - identifying users
+  - managing analytics preferences.
+- Delegates platform-specific implementation to a PlatformAdapter.
 
 ## Installation
 

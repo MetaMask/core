@@ -15,7 +15,6 @@ import {
 
 describe('AnalyticsController', () => {
   const createMockAdapter = (): PlatformAdapter => ({
-    platform: 'MOBILE',
     trackEvent: jest.fn(),
     identify: jest.fn(),
     trackPage: jest.fn(),
@@ -30,9 +29,7 @@ describe('AnalyticsController', () => {
 
       expect(state.enabled).toBe(true);
       expect(state.optedIn).toBe(false);
-      expect(state.platform).toBe('MOBILE');
       expect(state.analyticsId).toBe(null);
-      expect(state.eventsTracked).toBe(0);
     });
 
     it('initializes with provided state', () => {
@@ -70,9 +67,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.trackEvent).toHaveBeenCalledWith(
         'test_event',
         { prop: 'value' },
-        {},
       );
-      expect(controller.state.eventsTracked).toBe(1);
     });
 
     it('does not track event when disabled', () => {
@@ -82,36 +77,8 @@ describe('AnalyticsController', () => {
       controller.trackEvent('test_event', { prop: 'value' });
 
       expect(mockAdapter.trackEvent).not.toHaveBeenCalled();
-      expect(controller.state.eventsTracked).toBe(0);
     });
 
-    it('does not track opt-in events when user has not opted in', () => {
-      const mockAdapter = createMockAdapter();
-      const { controller } = withController({ optedIn: false, platformAdapter: mockAdapter });
-
-      controller.trackEvent('test_event', { prop: 'value' }, { isOptIn: true });
-
-      expect(mockAdapter.trackEvent).not.toHaveBeenCalled();
-    });
-
-    it('tracks opt-in events when user has opted in', () => {
-      const mockAdapter = createMockAdapter();
-      const { controller } = withController({ optedIn: true, platformAdapter: mockAdapter });
-
-      controller.trackEvent('test_event', { prop: 'value' }, { isOptIn: true });
-
-      expect(mockAdapter.trackEvent).toHaveBeenCalled();
-      expect(controller.state.eventsTracked).toBe(1);
-    });
-
-    it('does not track when excludeFromMetrics is true', () => {
-      const mockAdapter = createMockAdapter();
-      const { controller } = withController({ platformAdapter: mockAdapter });
-
-      controller.trackEvent('test_event', { prop: 'value' }, { excludeFromMetrics: true });
-
-      expect(mockAdapter.trackEvent).not.toHaveBeenCalled();
-    });
   });
 
   describe('identify', () => {
@@ -157,20 +124,16 @@ describe('AnalyticsController', () => {
     });
   });
 
-  describe('enable/disable', () => {
-    it('enables analytics', () => {
+  describe('setEnabled', () => {
+    it('sets enabled state', () => {
       const { controller } = withController({ enabled: false });
 
-      controller.enable();
+      expect(controller.state.enabled).toBe(false);
 
+      controller.setEnabled(true);
       expect(controller.state.enabled).toBe(true);
-    });
 
-    it('disables analytics', () => {
-      const { controller } = withController();
-
-      controller.disable();
-
+      controller.setEnabled(false);
       expect(controller.state.enabled).toBe(false);
     });
   });
@@ -197,7 +160,6 @@ describe('AnalyticsController', () => {
       messenger.call('AnalyticsController:trackEvent', 'test_event', { prop: 'value' });
 
       expect(mockAdapter.trackEvent).toHaveBeenCalled();
-      expect(controller.state.eventsTracked).toBe(1);
     });
 
     it('handles identify action', () => {
@@ -219,18 +181,14 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.trackPage).toHaveBeenCalled();
     });
 
-    it('handles enable action', () => {
+    it('handles setEnabled action', () => {
       const { controller, messenger } = withController({ enabled: false });
 
-      messenger.call('AnalyticsController:enable');
+      messenger.call('AnalyticsController:setEnabled', true);
 
       expect(controller.state.enabled).toBe(true);
-    });
 
-    it('handles disable action', () => {
-      const { controller, messenger } = withController();
-
-      messenger.call('AnalyticsController:disable');
+      messenger.call('AnalyticsController:setEnabled', false);
 
       expect(controller.state.enabled).toBe(false);
     });
@@ -275,7 +233,6 @@ function withController(options: WithControllerOptions = {}): WithControllerRetu
   const adapter =
     platformAdapter ??
     ({
-      platform: 'MOBILE',
       trackEvent: jest.fn(),
       identify: jest.fn(),
       trackPage: jest.fn(),

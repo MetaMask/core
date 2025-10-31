@@ -3,7 +3,6 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type {
-  AnalyticsEventOptions,
   AnalyticsEventProperties,
   AnalyticsControllerState,
 } from './types';
@@ -27,8 +26,7 @@ export type AnalyticsControllerTrackEventAction = {
   handler: (
     eventName: string,
     properties: AnalyticsEventProperties,
-    options?: AnalyticsEventOptions,
-  ) => void | Promise<void>;
+  ) => void;
 };
 
 /**
@@ -36,7 +34,7 @@ export type AnalyticsControllerTrackEventAction = {
  */
 export type AnalyticsControllerIdentifyAction = {
   type: `${typeof controllerName}:identify`;
-  handler: (userId: string, traits?: AnalyticsEventProperties) => void | Promise<void>;
+  handler: (userId: string, traits?: AnalyticsEventProperties) => void;
 };
 
 /**
@@ -44,23 +42,15 @@ export type AnalyticsControllerIdentifyAction = {
  */
 export type AnalyticsControllerTrackPageAction = {
   type: `${typeof controllerName}:trackPage`;
-  handler: (pageName: string, properties?: AnalyticsEventProperties) => void | Promise<void>;
+  handler: (pageName: string, properties?: AnalyticsEventProperties) => void;
 };
 
 /**
- * Action to enable analytics
+ * Action to set enabled state
  */
-export type AnalyticsControllerEnableAction = {
-  type: `${typeof controllerName}:enable`;
-  handler: () => void;
-};
-
-/**
- * Action to disable analytics
- */
-export type AnalyticsControllerDisableAction = {
-  type: `${typeof controllerName}:disable`;
-  handler: () => void;
+export type AnalyticsControllerSetEnabledAction = {
+  type: `${typeof controllerName}:setEnabled`;
+  handler: (enabled?: boolean) => void;
 };
 
 /**
@@ -68,7 +58,7 @@ export type AnalyticsControllerDisableAction = {
  */
 export type AnalyticsControllerSetOptedInAction = {
   type: `${typeof controllerName}:setOptedIn`;
-  handler: (optedIn: boolean) => void;
+  handler: (optedIn?: boolean) => void;
 };
 
 /**
@@ -79,8 +69,7 @@ export type AnalyticsControllerActions =
   | AnalyticsControllerTrackEventAction
   | AnalyticsControllerIdentifyAction
   | AnalyticsControllerTrackPageAction
-  | AnalyticsControllerEnableAction
-  | AnalyticsControllerDisableAction
+  | AnalyticsControllerSetEnabledAction
   | AnalyticsControllerSetOptedInAction;
 
 /**
@@ -95,16 +84,6 @@ export type AnalyticsControllerStateChangeEvent = ControllerStateChangeEvent<
  * Events that can be emitted by the {@link AnalyticsController}
  */
 export type AnalyticsControllerEvents = AnalyticsControllerStateChangeEvent;
-
-/**
- * Actions that this controller is allowed to call.
- */
-type AllowedActions = never;
-
-/**
- * Events that this controller is allowed to subscribe to.
- */
-type AllowedEvents = never;
 
 export { controllerName };
 

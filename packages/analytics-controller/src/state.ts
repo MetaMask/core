@@ -10,8 +10,6 @@ export const getDefaultAnalyticsControllerState = (): AnalyticsControllerState =
   enabled: false,
   optedIn: false,
   analyticsId: null,
-  platform: null,
-  eventsTracked: 0,
 });
 
 /**
@@ -37,18 +35,6 @@ export const controllerMetadata = {
     includeInStateLogs: false,
     persist: true,
     includeInDebugSnapshot: false,
-    usedInUi: false,
-  },
-  platform: {
-    includeInStateLogs: true,
-    persist: false,
-    includeInDebugSnapshot: true,
-    usedInUi: false,
-  },
-  eventsTracked: {
-    includeInStateLogs: true,
-    persist: false,
-    includeInDebugSnapshot: true,
     usedInUi: false,
   },
 } satisfies StateMetadata<AnalyticsControllerState>;

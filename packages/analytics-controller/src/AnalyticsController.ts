@@ -6,7 +6,6 @@ import type {
   PlatformAdapter,
   AnalyticsControllerState,
   AnalyticsEventProperties,
-  AnalyticsEventOptions,
 } from './types';
 
 /**
@@ -39,7 +38,7 @@ export type AnalyticsControllerOptions = {
  * messenger system to allow other controllers and components to track analytics events.
  */
 export class AnalyticsController extends BaseController<
-  typeof controllerName,
+  'AnalyticsController',
   AnalyticsControllerState,
   AnalyticsControllerMessenger
 > {
@@ -69,7 +68,6 @@ export class AnalyticsController extends BaseController<
         ...getDefaultAnalyticsControllerState(),
         enabled,
         optedIn,
-        platform: platformAdapter.platform,
         ...state,
       },
       messenger,
@@ -105,13 +103,8 @@ export class AnalyticsController extends BaseController<
     }
 
     this.messenger.registerActionHandler(
-      `${controllerName}:enable`,
-      this.enable.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:disable`,
-      this.disable.bind(this),
+      `${controllerName}:setEnabled`,
+      this.setEnabled.bind(this),
     );
 
     this.messenger.registerActionHandler(
@@ -123,45 +116,22 @@ export class AnalyticsController extends BaseController<
   /**
    * Track an analytics event.
    *
-   * Events are only tracked if analytics is enabled and either:
-   * - The user has opted in, OR
-   * - The event is not opt-in required (isOptIn: false or undefined)
+   * Events are only tracked if analytics is enabled.
    *
    * @param eventName - The name of the event
    * @param properties - Event properties
-   * @param options - Event options
    */
   trackEvent(
     eventName: string,
     properties: AnalyticsEventProperties = {},
-    options: AnalyticsEventOptions = {},
-  ): void | Promise<void> {
-    const { isOptIn = false, excludeFromMetrics = false } = options;
-
+  ): void {
     // Don't track if analytics is disabled
     if (!this.state.enabled) {
       return;
     }
 
-    // Don't track if user hasn't opted in and this is an opt-in event
-    if (!this.state.optedIn && isOptIn) {
-      return;
-    }
-
-    // Don't track if explicitly excluded
-    if (excludeFromMetrics) {
-      return;
-    }
-
     // Delegate to platform adapter
-    const result = this.#platformAdapter.trackEvent(eventName, properties, options);
-
-    // Update state
-    this.update((state) => {
-      state.eventsTracked += 1;
-    });
-
-    return result;
+    this.#platformAdapter.trackEvent(eventName, properties);
   }
 
   /**
@@ -170,7 +140,7 @@ export class AnalyticsController extends BaseController<
    * @param userId - The user identifier (e.g., metametrics ID)
    * @param traits - User traits/properties
    */
-  identify(userId: string, traits?: AnalyticsEventProperties): void | Promise<void> {
+  identify(userId: string, traits?: AnalyticsEventProperties): void {
     if (!this.state.enabled) {
       return;
     }
@@ -182,7 +152,7 @@ export class AnalyticsController extends BaseController<
 
     // Delegate to platform adapter if supported
     if (this.#platformAdapter.identify) {
-      return this.#platformAdapter.identify(userId, traits);
+      this.#platformAdapter.identify(userId, traits);
     }
   }
 
@@ -195,41 +165,34 @@ export class AnalyticsController extends BaseController<
   trackPage(
     pageName: string,
     properties?: AnalyticsEventProperties,
-  ): void | Promise<void> {
+  ): void {
     if (!this.state.enabled) {
       return;
     }
 
     // Delegate to platform adapter if supported
     if (this.#platformAdapter.trackPage) {
-      return this.#platformAdapter.trackPage(pageName, properties);
+      this.#platformAdapter.trackPage(pageName, properties);
     }
   }
 
   /**
-   * Enable analytics tracking.
+   * Set the enabled state.
+   *
+   * @param enabled - Whether analytics tracking is enabled (default: true)
    */
-  enable(): void {
+  setEnabled(enabled: boolean = true): void {
     this.update((state) => {
-      state.enabled = true;
-    });
-  }
-
-  /**
-   * Disable analytics tracking.
-   */
-  disable(): void {
-    this.update((state) => {
-      state.enabled = false;
+      state.enabled = enabled;
     });
   }
 
   /**
    * Set the opted-in state.
    *
-   * @param optedIn - Whether the user has opted in to analytics
+   * @param optedIn - Whether the user has opted in to analytics (default: true)
    */
-  setOptedIn(optedIn: boolean): void {
+  setOptedIn(optedIn: boolean = true): void {
     this.update((state) => {
       state.optedIn = optedIn;
     });
