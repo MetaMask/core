@@ -2577,7 +2577,7 @@ __metadata:
     "@metamask/keyring-api": "npm:^21.0.0"
     "@metamask/keyring-controller": "npm:^24.0.0"
     "@metamask/messenger": "npm:^0.3.0"
-    "@metamask/multichain-account-service": "npm:^2.0.0"
+    "@metamask/multichain-account-service": "npm:^2.0.1"
     "@metamask/profile-sync-controller": "npm:^26.0.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/snaps-controllers": "npm:^14.0.1"
@@ -2784,7 +2784,7 @@ __metadata:
     "@metamask/keyring-snap-client": "npm:^8.0.0"
     "@metamask/messenger": "npm:^0.3.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
-    "@metamask/multichain-account-service": "npm:^2.0.0"
+    "@metamask/multichain-account-service": "npm:^2.0.1"
     "@metamask/network-controller": "npm:^25.0.0"
     "@metamask/permission-controller": "npm:^12.1.0"
     "@metamask/phishing-controller": "npm:^15.0.0"
@@ -3583,7 +3583,6 @@ __metadata:
     "@metamask/ethjs-query": "npm:^0.5.3"
     "@metamask/json-rpc-engine": "npm:^10.1.1"
     "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/safe-event-emitter": "npm:^3.0.0"
     "@metamask/utils": "npm:^11.8.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -4135,7 +4134,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/multichain-account-service@npm:^2.0.0, @metamask/multichain-account-service@workspace:packages/multichain-account-service":
+"@metamask/multichain-account-service@npm:^2.0.1, @metamask/multichain-account-service@workspace:packages/multichain-account-service":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-account-service@workspace:packages/multichain-account-service"
   dependencies:

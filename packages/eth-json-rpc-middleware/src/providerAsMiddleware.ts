@@ -1,4 +1,4 @@
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import {
   createAsyncMiddleware,
   type JsonRpcMiddleware,
@@ -6,7 +6,7 @@ import {
 import type { Json, JsonRpcParams } from '@metamask/utils';
 
 export function providerAsMiddleware(
-  provider: SafeEventEmitterProvider,
+  provider: InternalProvider,
 ): JsonRpcMiddleware<JsonRpcParams, Json> {
   return createAsyncMiddleware(async (req, res) => {
     res.result = await provider.request(req);

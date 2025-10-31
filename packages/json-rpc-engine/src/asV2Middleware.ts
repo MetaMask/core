@@ -2,6 +2,7 @@ import { serializeError } from '@metamask/rpc-errors';
 import type { JsonRpcFailure, JsonRpcResponse } from '@metamask/utils';
 import {
   hasProperty,
+  type Json,
   type JsonRpcParams,
   type JsonRpcRequest,
 } from '@metamask/utils';
@@ -11,6 +12,8 @@ import type {
   JsonRpcEngineEndCallback,
   JsonRpcEngineNextCallback,
 } from './JsonRpcEngine';
+import { type JsonRpcMiddleware as LegacyMiddleware } from './JsonRpcEngine';
+import { mergeMiddleware } from './mergeMiddleware';
 import {
   deepClone,
   fromLegacyRequest,
@@ -19,7 +22,7 @@ import {
   unserializeError,
 } from './v2/compatibility-utils';
 import type {
-  // JsonRpcEngineV2 is used in docs.
+  // Used in docs.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   JsonRpcEngineV2,
   JsonRpcMiddleware,
@@ -35,8 +38,40 @@ import type {
 export function asV2Middleware<
   Params extends JsonRpcParams,
   Request extends JsonRpcRequest<Params>,
->(engine: JsonRpcEngine): JsonRpcMiddleware<Request> {
-  const middleware = engine.asMiddleware();
+>(engine: JsonRpcEngine): JsonRpcMiddleware<Request>;
+
+/**
+ * Convert one or more legacy middleware into a {@link JsonRpcEngineV2} middleware.
+ *
+ * @param middleware - The legacy middleware to convert.
+ * @returns The {@link JsonRpcEngineV2} middleware.
+ */
+export function asV2Middleware<
+  Params extends JsonRpcParams,
+  Request extends JsonRpcRequest<Params>,
+>(
+  ...middleware: LegacyMiddleware<JsonRpcParams, Json>[]
+): JsonRpcMiddleware<Request>;
+
+/**
+ * The asV2Middleware implementation.
+ *
+ * @param engineOrMiddleware - A legacy engine or legacy middleware.
+ * @param rest - Any additional legacy middleware when the first argument is a middleware.
+ * @returns The {@link JsonRpcEngineV2} middleware.
+ */
+export function asV2Middleware<
+  Params extends JsonRpcParams,
+  Request extends JsonRpcRequest<Params>,
+>(
+  engineOrMiddleware: JsonRpcEngine | LegacyMiddleware<JsonRpcParams, Json>,
+  ...rest: LegacyMiddleware<JsonRpcParams, Json>[]
+): JsonRpcMiddleware<Request> {
+  const legacyMiddleware =
+    typeof engineOrMiddleware === 'function'
+      ? mergeMiddleware([engineOrMiddleware, ...rest])
+      : engineOrMiddleware.asMiddleware();
+
   return async ({ request, context, next }) => {
     const req = deepClone(request) as JsonRpcRequest<Params>;
     propagateToRequest(req, context);
@@ -62,7 +97,7 @@ export function asV2Middleware<
       const legacyNext = ((cb: JsonRpcEngineEndCallback) =>
         cb(end)) as JsonRpcEngineNextCallback;
 
-      middleware(req, res, legacyNext, end);
+      legacyMiddleware(req, res, legacyNext, end);
     });
     propagateToContext(req, context);
 
