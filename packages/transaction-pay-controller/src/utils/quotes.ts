@@ -12,12 +12,12 @@ import type {
   TransactionData,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
+  TransactionPayRequiredToken,
   TransactionPayTotals,
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from '../types';
 
-const QUOTES_CHECK_INTERVAL = 1 * 1000; // 1 Second
 const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 
 const log = createModuleLogger(projectLogger, 'quotes');
@@ -52,22 +52,22 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
     return;
   }
 
-  const requests: QuoteRequest[] = (sourceAmounts ?? []).map(
-    (sourceAmount, i) => {
-      const token = tokens[i];
+  const requests: QuoteRequest[] = (sourceAmounts ?? []).map((sourceAmount) => {
+    const token = tokens.find(
+      (t) => t.address === sourceAmount.targetTokenAddress,
+    ) as TransactionPayRequiredToken;
 
-      return {
-        from: transaction.txParams.from as Hex,
-        sourceBalanceRaw: paymentToken.balanceRaw,
-        sourceTokenAmount: sourceAmount.sourceAmountRaw,
-        sourceChainId: paymentToken.chainId,
-        sourceTokenAddress: paymentToken.address,
-        targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
-        targetChainId: token.chainId,
-        targetTokenAddress: token.address,
-      };
-    },
-  );
+    return {
+      from: transaction.txParams.from as Hex,
+      sourceBalanceRaw: paymentToken.balanceRaw,
+      sourceTokenAmount: sourceAmount.sourceAmountRaw,
+      sourceChainId: paymentToken.chainId,
+      sourceTokenAddress: paymentToken.address,
+      targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
+      targetChainId: token.chainId,
+      targetTokenAddress: token.address,
+    };
+  });
 
   if (!requests?.length) {
     log('No quote requests', { transactionId });
@@ -117,27 +117,7 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
     data.quotes = quotes as never;
     data.quotesLastUpdated = Date.now();
     data.totals = totals;
-    data.isLoading = false;
   });
-}
-
-/**
- * Poll quotes at regular intervals.
- *
- * @param messenger - Messenger instance.
- * @param updateTransactionData - Callback to update transaction data.
- */
-export function queueRefreshQuotes(
-  messenger: TransactionPayControllerMessenger,
-  updateTransactionData: UpdateTransactionDataCallback,
-) {
-  setTimeout(() => {
-    refreshQuotes(messenger, updateTransactionData)
-      .finally(() => queueRefreshQuotes(messenger, updateTransactionData))
-      .catch((error) => {
-        log('Error polling quotes', { messenger, error });
-      });
-  }, QUOTES_CHECK_INTERVAL);
 }
 
 /**
@@ -190,7 +170,7 @@ function syncTransaction({
  * @param messenger - Messenger instance.
  * @param updateTransactionData - Callback to update transaction data.
  */
-async function refreshQuotes(
+export async function refreshQuotes(
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
 ) {
