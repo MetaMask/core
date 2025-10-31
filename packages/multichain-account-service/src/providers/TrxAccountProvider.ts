@@ -27,6 +27,7 @@ export class TrxAccountProvider extends SnapAccountProvider {
   constructor(
     messenger: MultichainAccountServiceMessenger,
     config: SnapAccountProviderConfig = {
+      maxConcurrency: Infinity,
       discovery: {
         timeoutMs: 2000,
         maxAttempts: 3,
@@ -34,7 +35,6 @@ export class TrxAccountProvider extends SnapAccountProvider {
       },
       createAccounts: {
         timeoutMs: 3000,
-        maxConcurrency: Infinity,
       },
     },
   ) {

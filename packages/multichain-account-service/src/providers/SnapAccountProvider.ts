@@ -14,6 +14,7 @@ export type RestrictedSnapKeyringCreateAccount = (
 ) => Promise<KeyringAccount>;
 
 export type SnapAccountProviderConfig = {
+  maxConcurrency: number;
   discovery: {
     maxAttempts: number;
     timeoutMs: number;
@@ -21,7 +22,6 @@ export type SnapAccountProviderConfig = {
   };
   createAccounts: {
     timeoutMs: number;
-    maxConcurrency: number;
   };
 };
 
@@ -43,8 +43,8 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     this.config = config;
 
     // Create semaphore only if concurrency is limited
-    if (isFinite(config.createAccounts.maxConcurrency)) {
-      this.#queue = new Semaphore(config.createAccounts.maxConcurrency);
+    if (isFinite(config.maxConcurrency)) {
+      this.#queue = new Semaphore(config.maxConcurrency);
     }
   }
 

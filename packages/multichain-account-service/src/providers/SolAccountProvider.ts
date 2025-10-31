@@ -31,6 +31,7 @@ export class SolAccountProvider extends SnapAccountProvider {
   constructor(
     messenger: MultichainAccountServiceMessenger,
     config: SnapAccountProviderConfig = {
+      maxConcurrency: 3,
       discovery: {
         timeoutMs: 2000,
         maxAttempts: 3,
@@ -38,7 +39,6 @@ export class SolAccountProvider extends SnapAccountProvider {
       },
       createAccounts: {
         timeoutMs: 3000,
-        maxConcurrency: 3,
       },
     },
   ) {

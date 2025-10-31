@@ -200,6 +200,7 @@ describe('MultichainAccountService', () => {
             },
           },
           [SOL_ACCOUNT_PROVIDER_NAME]: {
+            maxConcurrency: 3,
             discovery: {
               timeoutMs: 5000,
               maxAttempts: 4,
@@ -207,7 +208,6 @@ describe('MultichainAccountService', () => {
             },
             createAccounts: {
               timeoutMs: 3000,
-              maxConcurrency: 3,
             },
           },
         };
@@ -233,6 +233,7 @@ describe('MultichainAccountService', () => {
           // NOTE: We use constants here, since `*AccountProvider` are mocked, thus, their `.NAME` will
           // be `undefined`.
           [SOL_ACCOUNT_PROVIDER_NAME]: {
+            maxConcurrency: 3,
             discovery: {
               timeoutMs: 5000,
               maxAttempts: 4,
@@ -240,7 +241,6 @@ describe('MultichainAccountService', () => {
             },
             createAccounts: {
               timeoutMs: 3000,
-              maxConcurrency: 3,
             },
           },
           // No `EVM_ACCOUNT_PROVIDER_NAME`, cause it's optional in this test.

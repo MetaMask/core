@@ -67,9 +67,9 @@ const createTrackedProvider = (maxConcurrency: number) => {
 
   const messenger = getMultichainAccountServiceMessenger(getRootMessenger());
   const config = {
+    maxConcurrency,
     createAccounts: {
       timeoutMs: 5000,
-      maxConcurrency,
     },
     discovery: {
       timeoutMs: 2000,
