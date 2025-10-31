@@ -5,7 +5,6 @@ describe('token-prices-service', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
       Array [
         "CodefiTokenPricesServiceV2",
-        "SUPPORTED_CHAIN_IDS",
         "getNativeTokenAddress",
       ]
     `);

@@ -11,7 +11,6 @@ import {
   type MessengerEvents,
   type MockAnyNamespace,
 } from '@metamask/messenger';
-import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
@@ -49,8 +48,8 @@ function buildMockTokenPricesService(
     async fetchExchangeRates() {
       return {};
     },
-    validateChainIdSupported(_chainId: unknown): _chainId is Hex {
-      return true;
+    async fetchSupportedChainIds() {
+      return [];
     },
     validateCurrencySupported(_currency: unknown): _currency is string {
       return true;

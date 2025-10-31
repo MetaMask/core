@@ -94,6 +94,13 @@ export type AbstractTokenPricesService<
   }): Promise<Partial<TokenPricesByTokenAddress<TokenAddress, Currency>>>;
 
   /**
+   * Fetches the supported chain ids from the price api.
+   *
+   * @returns The supported chain ids in hexadecimal format.
+   */
+  fetchSupportedChainIds(): Promise<Hex[]>;
+
+  /**
    * Retrieves exchange rates in the given currency.
    *
    * @param args - The arguments to this function.
@@ -111,15 +118,6 @@ export type AbstractTokenPricesService<
     includeUsdRate: boolean;
     cryptocurrencies: string[];
   }): Promise<ExchangeRatesByCurrency<Currency>>;
-
-  /**
-   * Type guard for whether the API can return token prices for the given chain
-   * ID.
-   *
-   * @param chainId - The chain ID to check.
-   * @returns True if the API supports the chain ID, false otherwise.
-   */
-  validateChainIdSupported(chainId: unknown): chainId is ChainId;
 
   /**
    * Type guard for whether the API can return token prices in the given

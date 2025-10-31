@@ -295,6 +295,10 @@ describe('Token Utils', () => {
         marketData: {
           [CHAIN_ID_MOCK]: {},
         },
+        supportedChainIds: {
+          timestamp: 0,
+          data: [],
+        },
       });
 
       const result = getTokenFiatRate(
@@ -354,6 +358,10 @@ describe('Token Utils', () => {
 
       getTokenRatesControllerStateMock.mockReturnValue({
         marketData: {},
+        supportedChainIds: {
+          timestamp: 0,
+          data: [],
+        },
       });
 
       const result = getTokenFiatRate(
