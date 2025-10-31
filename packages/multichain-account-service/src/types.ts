@@ -11,6 +11,7 @@ import type {
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import type {
   KeyringControllerAddNewKeyringAction,
@@ -155,3 +156,7 @@ export type MultichainAccountServiceMessenger = Messenger<
   MultichainAccountServiceActions | AllowedActions,
   MultichainAccountServiceEvents | AllowedEvents
 >;
+
+export type MultichainAccountServiceConfig = {
+  trace?: TraceCallback;
+};

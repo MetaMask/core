@@ -6,12 +6,14 @@ import type {
   MultichainAccountWalletId,
   Bip44Account,
 } from '@metamask/account-api';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { areUint8ArraysEqual } from '@metamask/utils';
 
+import { traceFallback } from './analytics';
 import { projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
@@ -26,7 +28,10 @@ import {
 } from './providers/AccountProviderWrapper';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
-import type { MultichainAccountServiceMessenger } from './types';
+import type {
+  MultichainAccountServiceConfig,
+  MultichainAccountServiceMessenger,
+} from './types';
 
 export const serviceName = 'MultichainAccountService';
 
@@ -40,6 +45,7 @@ export type MultichainAccountServiceOptions = {
     [EvmAccountProvider.NAME]?: EvmAccountProviderConfig;
     [SolAccountProvider.NAME]?: SolAccountProviderConfig;
   };
+  config?: MultichainAccountServiceConfig;
 };
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
@@ -66,6 +72,8 @@ export class MultichainAccountService {
     AccountContext<Bip44Account<KeyringAccount>>
   >;
 
+  readonly #trace: TraceCallback;
+
   /**
    * The name of the service.
    */
@@ -79,16 +87,18 @@ export class MultichainAccountService {
    * MultichainAccountService.
    * @param options.providers - Optional list of account
    * @param options.providerConfigs - Optional provider configs
-   * providers.
+   * @param options.config - Optional config.
    */
   constructor({
     messenger,
     providers = [],
     providerConfigs,
+    config,
   }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
+    this.#trace = config?.trace ?? traceFallback;
 
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
@@ -102,6 +112,7 @@ export class MultichainAccountService {
           this.#messenger,
           providerConfigs?.[SolAccountProvider.NAME],
         ),
+        this.#trace,
       ),
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,

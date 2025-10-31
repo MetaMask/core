@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add optional tracing configuration ([#7006](https://github.com/MetaMask/core/pull/7006))
+  - For now, only the account discovery is being traced.
+
 ### Fixed
 
 - Use `groupIndex` for account creations on `TrxAccountProvider` instead of the outdated `derivationPath` ([#7010](https://github.com/MetaMask/core/pull/7010))
