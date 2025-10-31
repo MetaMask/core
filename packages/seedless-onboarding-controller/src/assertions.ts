@@ -2,14 +2,17 @@ import { SeedlessOnboardingControllerErrorMessage } from './constants';
 import type { AuthenticatedUserDetails, VaultData } from './types';
 
 /**
- * Check if the provided value is a valid authenticated user.
+ * Check if the provided value is a valid user info.
  *
  * @param value - The value to check.
- * @throws If the value is not a valid authenticated user.
+ * @throws If the value is not a valid user info.
  */
-export function assertIsSeedlessOnboardingUserAuthenticated(
+export function assertIsAuthUserInfoValid(
   value: unknown,
-): asserts value is AuthenticatedUserDetails {
+): asserts value is Pick<
+  AuthenticatedUserDetails,
+  'authConnectionId' | 'userId' | 'nodeAuthTokens'
+> {
   if (
     !value ||
     typeof value !== 'object' ||
@@ -33,6 +36,18 @@ export function assertIsSeedlessOnboardingUserAuthenticated(
       SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
     );
   }
+}
+
+/**
+ * Check if the provided value is a valid authenticated user.
+ *
+ * @param value - The value to check.
+ * @throws If the value is not a valid authenticated user.
+ */
+export function assertIsSeedlessOnboardingUserAuthenticated(
+  value: unknown,
+): asserts value is AuthenticatedUserDetails {
+  assertIsAuthUserInfoValid(value);
 
   if (!('refreshToken' in value) || typeof value.refreshToken !== 'string') {
     throw new Error(
@@ -45,6 +60,18 @@ export function assertIsSeedlessOnboardingUserAuthenticated(
   ) {
     throw new Error(
       SeedlessOnboardingControllerErrorMessage.InvalidMetadataAccessToken,
+    );
+  }
+
+  if (!('revokeToken' in value) || typeof value.revokeToken !== 'string') {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
+    );
+  }
+
+  if (!('accessToken' in value) || typeof value.accessToken !== 'string') {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
     );
   }
 }

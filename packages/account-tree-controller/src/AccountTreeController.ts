@@ -49,31 +49,31 @@ const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
     accountTree: {
       includeInStateLogs: true,
       persist: false, // We do re-recompute this state everytime.
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: true,
     },
     isAccountTreeSyncingInProgress: {
       includeInStateLogs: false,
       persist: false,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: true,
     },
     hasAccountTreeSyncingSyncedAtLeastOnce: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: true,
     },
     accountGroupsMetadata: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: true,
     },
     accountWalletsMetadata: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: true,
     },
   };
@@ -185,11 +185,11 @@ export class AccountTreeController extends BaseController<
     // Rules to apply to construct the wallets tree.
     this.#rules = [
       // 1. We group by entropy-source
-      new EntropyRule(this.messagingSystem),
+      new EntropyRule(this.messenger),
       // 2. We group by Snap ID
-      new SnapRule(this.messagingSystem),
+      new SnapRule(this.messenger),
       // 3. We group by wallet type (this rule cannot fail and will group all non-matching accounts)
-      new KeyringRule(this.messagingSystem),
+      new KeyringRule(this.messenger),
     ];
 
     // Initialize trace function
@@ -213,28 +213,25 @@ export class AccountTreeController extends BaseController<
       this.#createBackupAndSyncContext(),
     );
 
-    this.messagingSystem.subscribe(
-      'AccountsController:accountAdded',
-      (account) => {
-        this.#handleAccountAdded(account);
-      },
-    );
+    this.messenger.subscribe('AccountsController:accountAdded', (account) => {
+      this.#handleAccountAdded(account);
+    });
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:accountRemoved',
       (accountId) => {
         this.#handleAccountRemoved(accountId);
       },
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:selectedAccountChange',
       (account) => {
         this.#handleSelectedAccountChange(account);
       },
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'UserStorageController:stateChange',
       (userStorageControllerState) => {
         this.#backupAndSyncService.handleUserStorageStateChange(
@@ -243,7 +240,7 @@ export class AccountTreeController extends BaseController<
       },
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'MultichainAccountService:walletStatusChange',
       (walletId, status) => {
         this.#handleMultichainAccountWalletStatusChange(walletId, status);
@@ -358,7 +355,7 @@ export class AccountTreeController extends BaseController<
       log(
         `Selected (initial) group is: [${this.state.accountTree.selectedAccountGroup}]`,
       );
-      this.messagingSystem.publish(
+      this.messenger.publish(
         `${controllerName}:selectedAccountGroupChange`,
         this.state.accountTree.selectedAccountGroup,
         previousSelectedAccountGroup,
@@ -488,10 +485,7 @@ export class AccountTreeController extends BaseController<
     let proposedName = ''; // Empty means there's no computed name for this group.
 
     for (const id of group.accounts) {
-      const account = this.messagingSystem.call(
-        'AccountsController:getAccount',
-        id,
-      );
+      const account = this.messenger.call('AccountsController:getAccount', id);
       if (!account || !account.metadata.name.length) {
         continue;
       }
@@ -770,10 +764,7 @@ export class AccountTreeController extends BaseController<
 
     const accounts: InternalAccount[] = [];
     for (const id of group.accounts) {
-      const account = this.messagingSystem.call(
-        'AccountsController:getAccount',
-        id,
-      );
+      const account = this.messenger.call('AccountsController:getAccount', id);
 
       // For now, we're filtering undefined account, but I believe
       // throwing would be more appropriate here.
@@ -834,7 +825,7 @@ export class AccountTreeController extends BaseController<
         }
       });
 
-      this.messagingSystem.publish(
+      this.messenger.publish(
         `${controllerName}:accountTreeChange`,
         this.state.accountTree,
       );
@@ -892,14 +883,14 @@ export class AccountTreeController extends BaseController<
           }
         }
       });
-      this.messagingSystem.publish(
+      this.messenger.publish(
         `${controllerName}:accountTreeChange`,
         this.state.accountTree,
       );
 
       // Emit selectedAccountGroupChange event if the selected group changed
       if (selectedAccountGroupChanged) {
-        this.messagingSystem.publish(
+        this.messenger.publish(
           `${controllerName}:selectedAccountGroupChange`,
           this.state.accountTree.selectedAccountGroup,
           previousSelectedAccountGroup,
@@ -1056,9 +1047,7 @@ export class AccountTreeController extends BaseController<
    * @returns The list of all internal accounts.
    */
   #listAccounts(): InternalAccount[] {
-    return this.messagingSystem.call(
-      'AccountsController:listMultichainAccounts',
-    );
+    return this.messenger.call('AccountsController:listMultichainAccounts');
   }
 
   /**
@@ -1138,7 +1127,7 @@ export class AccountTreeController extends BaseController<
       `Selected group is now: [${this.state.accountTree.selectedAccountGroup}]`,
     );
 
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:selectedAccountGroupChange`,
       groupId,
       previousSelectedAccountGroup,
@@ -1146,7 +1135,7 @@ export class AccountTreeController extends BaseController<
 
     // Update AccountsController - this will trigger selectedAccountChange event,
     // but our handler is idempotent so it won't cause infinite loop
-    this.messagingSystem.call(
+    this.messenger.call(
       'AccountsController:setSelectedAccount',
       accountToSelect,
     );
@@ -1161,7 +1150,7 @@ export class AccountTreeController extends BaseController<
   #getDefaultSelectedAccountGroup(wallets: {
     [walletId: AccountWalletId]: AccountWalletObject;
   }): AccountGroupId | '' {
-    const selectedAccount = this.messagingSystem.call(
+    const selectedAccount = this.messenger.call(
       'AccountsController:getSelectedMultichainAccount',
     );
     if (selectedAccount && selectedAccount.id) {
@@ -1203,7 +1192,7 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountTree.selectedAccountGroup = groupId;
     });
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:selectedAccountGroupChange`,
       groupId,
       previousSelectedAccountGroup,
@@ -1258,7 +1247,7 @@ export class AccountTreeController extends BaseController<
     if (group) {
       let candidate;
       for (const id of group.accounts) {
-        const account = this.messagingSystem.call(
+        const account = this.messenger.call(
           'AccountsController:getAccount',
           id,
         );
@@ -1301,7 +1290,7 @@ export class AccountTreeController extends BaseController<
         }
 
         for (const id of group.accounts) {
-          const account = this.messagingSystem.call(
+          const account = this.messenger.call(
             'AccountsController:getAccount',
             id,
           );
@@ -1544,37 +1533,37 @@ export class AccountTreeController extends BaseController<
    * Registers message handlers for the AccountTreeController.
    */
   #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:getSelectedAccountGroup`,
       this.getSelectedAccountGroup.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:setSelectedAccountGroup`,
       this.setSelectedAccountGroup.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:getAccountsFromSelectedAccountGroup`,
       this.getAccountsFromSelectedAccountGroup.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:setAccountWalletName`,
       this.setAccountWalletName.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:setAccountGroupName`,
       this.setAccountGroupName.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:setAccountGroupPinned`,
       this.setAccountGroupPinned.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:setAccountGroupHidden`,
       this.setAccountGroupHidden.bind(this),
     );
@@ -1621,7 +1610,7 @@ export class AccountTreeController extends BaseController<
     return {
       ...this.#backupAndSyncConfig,
       controller: this,
-      messenger: this.messagingSystem,
+      messenger: this.messenger,
       controllerStateUpdateFn: this.update.bind(this),
       traceFn: this.#trace.bind(this),
       groupIdToWalletId: this.#groupIdToWalletId,

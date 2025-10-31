@@ -89,20 +89,29 @@ export function getRandomCoverageResult() {
 /**
  * Setup a coverage result received handler.
  *
- * @param baseMessenger - The base messenger.
+ * @param messenger - The controller messenger.
  * @returns A promise that resolves when the coverage result is received.
  */
 export function setupCoverageResultReceived(
-  baseMessenger: ReturnType<typeof createMockMessenger>['baseMessenger'],
+  messenger: ReturnType<typeof createMockMessenger>['messenger'],
 ): Promise<void> {
   return new Promise<void>((resolve) => {
     const handler = (_coverageResult: unknown) => {
-      baseMessenger.unsubscribe(
-        'ShieldController:coverageResultReceived',
-        handler,
-      );
+      messenger.unsubscribe('ShieldController:coverageResultReceived', handler);
       resolve();
     };
-    baseMessenger.subscribe('ShieldController:coverageResultReceived', handler);
+    messenger.subscribe('ShieldController:coverageResultReceived', handler);
+  });
+}
+
+/**
+ * Delay for a specified amount of time.
+ *
+ * @param ms - The number of milliseconds to delay.
+ * @returns A promise that resolves after the specified amount of time.
+ */
+export function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
   });
 }

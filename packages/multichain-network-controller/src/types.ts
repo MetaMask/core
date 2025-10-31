@@ -2,7 +2,6 @@ import type { AccountsControllerListMultichainAccountsAction } from '@metamask/a
 import {
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-  type RestrictedMessenger,
 } from '@metamask/base-controller';
 import type {
   BtcScope,
@@ -12,6 +11,7 @@ import type {
   TrxScope,
 } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkStatus,
   NetworkControllerSetActiveNetworkAction,
@@ -178,7 +178,7 @@ export type MultichainNetworkControllerEvents =
 /**
  * Actions that this controller is allowed to call.
  */
-export type AllowedActions =
+type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerSetActiveNetworkAction
   | AccountsControllerListMultichainAccountsAction
@@ -195,23 +195,13 @@ export type AccountsControllerSelectedAccountChangeEvent = {
 /**
  * Events that this controller is allowed to subscribe.
  */
-export type AllowedEvents = AccountsControllerSelectedAccountChangeEvent;
-
-export type MultichainNetworkControllerAllowedActions =
-  | MultichainNetworkControllerActions
-  | AllowedActions;
-
-export type MultichainNetworkControllerAllowedEvents =
-  | MultichainNetworkControllerEvents
-  | AllowedEvents;
+type AllowedEvents = AccountsControllerSelectedAccountChangeEvent;
 
 /**
  * Messenger type for the MultichainNetworkController.
  */
-export type MultichainNetworkControllerMessenger = RestrictedMessenger<
+export type MultichainNetworkControllerMessenger = Messenger<
   typeof MULTICHAIN_NETWORK_CONTROLLER_NAME,
-  MultichainNetworkControllerAllowedActions,
-  MultichainNetworkControllerAllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  MultichainNetworkControllerActions | AllowedActions,
+  MultichainNetworkControllerEvents | AllowedEvents
 >;
