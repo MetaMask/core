@@ -246,7 +246,7 @@ export class MultichainBalancesController extends BaseController<
             }
           }
 
-          // If an asset is added and has 0 balance add it to the balances (triggered when addAsset action is called)
+          // Triggered when an asset is added to the accountAssets list manually
           for (const assetId of assetsWithoutBalance) {
             state.balances[accountId][assetId] = { amount: '0', unit: '' };
           }
