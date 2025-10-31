@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+
+### Added
+
+- Added new public method, `checkIsSeedlessOnboardingUserAuthenticated` to validate the controller authenticate tokens state. ([#6998](https://github.com/MetaMask/core/pull/6998))
+
+### Changed
+
+- **BREAKING** Update `refreshToken` and `revokeToken` params as required in `Authenticate` method. ([#6998](https://github.com/MetaMask/core/pull/6998))
+- Refactor `refreshAuthTokens` method, separately catch refreshJWTToken and authenticate errors. ([#6998](https://github.com/MetaMask/core/pull/6998))
+- Bump `@metamask/toprf-secure-backup` package to `0.10.0`. ([#6998](https://github.com/MetaMask/core/pull/6998))
+
+### Fixed
+
+- Fixed `Invalid Access Token` error during rehydration. ([#6998](https://github.com/MetaMask/core/pull/6998))
+
 ## [5.0.0]
 
 ### Changed
@@ -202,7 +218,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@5.0.0...@metamask/seedless-onboarding-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.1.1...@metamask/seedless-onboarding-controller@5.0.0
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.1.0...@metamask/seedless-onboarding-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.0.0...@metamask/seedless-onboarding-controller@4.1.0
