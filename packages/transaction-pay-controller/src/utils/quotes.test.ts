@@ -4,11 +4,10 @@ import type { Hex, Json } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import type { UpdateQuotesRequest } from './quotes';
-import { queueRefreshQuotes, updateQuotes } from './quotes';
+import { refreshQuotes, updateQuotes } from './quotes';
 import { getStrategy, getStrategyByName } from './strategy';
 import { calculateTotals } from './totals';
 import { getTransaction, updateTransaction } from './transaction';
-import { flushPromises } from '../../../../tests/helpers';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type {
   TransactionPaySourceAmount,
@@ -283,7 +282,7 @@ describe('Quotes Utils', () => {
     });
   });
 
-  describe('queueRefreshQuotes', () => {
+  describe('refreshQuotes', () => {
     it('updates quotes after refresh interval', async () => {
       getControllerStateMock.mockReturnValue({
         transactionData: {
@@ -296,10 +295,7 @@ describe('Quotes Utils', () => {
         },
       });
 
-      queueRefreshQuotes(messenger, updateTransactionDataMock);
-
-      jest.runAllTimers();
-      await flushPromises();
+      await refreshQuotes(messenger, updateTransactionDataMock);
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(2);
 
@@ -323,10 +319,7 @@ describe('Quotes Utils', () => {
         },
       });
 
-      queueRefreshQuotes(messenger, updateTransactionDataMock);
-
-      jest.runAllTimers();
-      await flushPromises();
+      await refreshQuotes(messenger, updateTransactionDataMock);
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(2);
 
@@ -351,10 +344,7 @@ describe('Quotes Utils', () => {
         },
       });
 
-      queueRefreshQuotes(messenger, updateTransactionDataMock);
-
-      jest.advanceTimersByTime(1000);
-      await flushPromises();
+      await refreshQuotes(messenger, updateTransactionDataMock);
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
     });
@@ -371,21 +361,7 @@ describe('Quotes Utils', () => {
         },
       });
 
-      queueRefreshQuotes(messenger, updateTransactionDataMock);
-
-      jest.advanceTimersByTime(1000);
-      await flushPromises();
-
-      expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
-    });
-
-    it('does not throw if refresh fails', async () => {
-      getControllerStateMock.mockReturnValue(undefined as never);
-
-      queueRefreshQuotes(messenger, updateTransactionDataMock);
-
-      jest.advanceTimersByTime(1000);
-      await flushPromises();
+      await refreshQuotes(messenger, updateTransactionDataMock);
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
     });

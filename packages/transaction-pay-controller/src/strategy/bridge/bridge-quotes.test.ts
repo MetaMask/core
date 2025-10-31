@@ -127,7 +127,7 @@ describe('Bridge Quotes Utils', () => {
     getRemoteFeatureFlagControllerStateMock.mockImplementation(() => ({
       cacheTimestamp: 0,
       remoteFeatureFlags: {
-        confirmation_pay: getFeatureFlagsMock(),
+        confirmations_pay: getFeatureFlagsMock(),
       },
     }));
 
