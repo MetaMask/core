@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Prevent infinite loading after quotes are refreshed ([#7020](https://github.com/MetaMask/core/pull/7020))
+
 ## [2.0.1]
 
 ### Fixed
