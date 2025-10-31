@@ -1385,27 +1385,13 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthenticatedUser: true,
             withMockAuthPubKey: true,
             withoutMockRevokeToken: true,
-            vault: 'MOCK_VAULT',
           }),
         },
-        async ({ controller, toprfClient, encryptor }) => {
+        async ({ controller, toprfClient }) => {
           mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
 
           // persist the local enc key
           jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
-
-          // since revoke token is not in the state, it should be retrieved from the vault
-          // mock the decryptWithDetail to return the mock vault data without revoke token
-          jest.spyOn(encryptor, 'decryptWithDetail').mockResolvedValue({
-            vault: JSON.stringify({
-              toprfEncryptionKey: '',
-              toprfPwEncryptionKey: '',
-              toprfAuthKeyPair: '',
-              accessToken,
-            }),
-            exportedKeyString: '',
-            salt: '',
-          });
 
           // encrypt and store the secret data
           handleMockSecretDataAdd();
@@ -5421,6 +5407,7 @@ describe('SeedlessOnboardingController', () => {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
             withoutMockAccessToken: true,
+            withoutMockRevokeToken: true,
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
             vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
@@ -5471,27 +5458,14 @@ describe('SeedlessOnboardingController', () => {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
             withoutMockAccessToken: true,
-            vault: 'MOCK_VAULT',
           }),
         },
-        async ({ controller, toprfClient, encryptor }) => {
+        async ({ controller, toprfClient }) => {
+          // assert that the vault is not available in the state
+          expect(controller.state.vault).toBeUndefined();
+
           // fetch and decrypt the secret data
           mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
-
-          // since access token is not in the state, it should be retrieved from the vault
-          // mock the decryptWithDetail to return the mock vault data without access token
-          const decryptWithDetailMock = jest
-            .spyOn(encryptor, 'decryptWithDetail')
-            .mockResolvedValue({
-              vault: JSON.stringify({
-                toprfEncryptionKey: '',
-                toprfPwEncryptionKey: '',
-                toprfAuthKeyPair: '',
-                revokeToken: 'MOCK_REVOKE_TOKEN',
-              }),
-              exportedKeyString: '',
-              salt: '',
-            });
 
           jest
             .spyOn(toprfClient, 'fetchAllSecretDataItems')
@@ -5510,10 +5484,6 @@ describe('SeedlessOnboardingController', () => {
             controller.fetchAllSecretData(MOCK_PASSWORD),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
-          );
-          expect(decryptWithDetailMock).toHaveBeenCalledWith(
-            MOCK_PASSWORD,
-            'MOCK_VAULT',
           );
         },
       );

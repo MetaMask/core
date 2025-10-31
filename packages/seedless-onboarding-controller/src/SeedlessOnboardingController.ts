@@ -1532,14 +1532,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     try {
       this.#assertIsAuthenticatedUser(this.state);
 
-      let { accessToken, revokeToken } = this.state;
-      if (!accessToken || !revokeToken) {
-        ({
-          vaultData: { accessToken, revokeToken },
-        } = await this.#decryptAndParseVaultData({
-          password,
-        }));
-      }
+      const { accessToken, revokeToken } =
+        await this.#getAccessTokenAndRevokeToken(password);
 
       const vaultData: DeserializedVaultData = {
         toprfAuthKeyPair: rawToprfAuthKeyPair,
@@ -1617,6 +1611,42 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         state.encryptedSeedlessEncryptionKey = bytesToBase64(encryptedKey);
       });
     });
+  }
+
+  /**
+   * Get the access token and revoke token from the state or the vault.
+   *
+   * @param password - The password to decrypt the vault.
+   * @returns The access token and revoke token.
+   */
+  async #getAccessTokenAndRevokeToken(
+    password: string,
+  ): Promise<{ accessToken: string; revokeToken: string }> {
+    let { accessToken, revokeToken } = this.state;
+    if (accessToken && revokeToken) {
+      return { accessToken, revokeToken };
+    }
+
+    if (this.state.vault) {
+      // if the access token or revoke token is not available in the state, decrypt the vault and get the access token and revoke token from the vault
+      const { vaultData } = await this.#decryptAndParseVaultData({ password });
+      accessToken = accessToken || vaultData.accessToken;
+      revokeToken = revokeToken || vaultData.revokeToken;
+    }
+
+    if (!accessToken) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
+      );
+    }
+
+    if (!revokeToken) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
+      );
+    }
+
+    return { accessToken, revokeToken };
   }
 
   /**
