@@ -961,35 +961,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     return isAuthenticated;
   }
 
-  /**
-   * Get the access token from the state or the vault.
-   * If the access token is not in the state, it will be retrieved from the vault by decrypting it with the password.
-   *
-   * If both the access token and the vault are not available, an error will be thrown.
-   *
-   * @param password - The optional password to unlock the vault. If not provided, the access token will be retrieved from the vault.
-   * @returns The access token.
-   */
-  async #getAccessToken(password: string): Promise<string> {
-    const { accessToken, vault } = this.state;
-    if (accessToken) {
-      // if the access token is in the state, return it
-      return accessToken;
-    }
-
-    // otherwise, check the vault availability and decrypt the access token from the vault
-    if (!vault) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
-      );
-    }
-
-    const { vaultData } = await this.#decryptAndParseVaultData({
-      password,
-    });
-    return vaultData.accessToken;
-  }
-
   #setUnlocked(): void {
     this.#isUnlocked = true;
   }
@@ -1558,36 +1529,46 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     rawToprfPwEncryptionKey: Uint8Array;
     rawToprfAuthKeyPair: KeyPair;
   }): Promise<void> {
-    this.#assertIsAuthenticatedUser(this.state);
+    try {
+      this.#assertIsAuthenticatedUser(this.state);
 
-    const { revokeToken } = this.state;
-    if (!revokeToken) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
+      let { accessToken, revokeToken } = this.state;
+      if (!accessToken || !revokeToken) {
+        ({
+          vaultData: { accessToken, revokeToken },
+        } = await this.#decryptAndParseVaultData({
+          password,
+        }));
+      }
+
+      const vaultData: DeserializedVaultData = {
+        toprfAuthKeyPair: rawToprfAuthKeyPair,
+        toprfEncryptionKey: rawToprfEncryptionKey,
+        toprfPwEncryptionKey: rawToprfPwEncryptionKey,
+        revokeToken,
+        accessToken,
+      };
+
+      await this.#updateVault({
+        password,
+        vaultData,
+        pwEncKey: rawToprfPwEncryptionKey,
+      });
+
+      // update the authPubKey in the state
+      this.#persistAuthPubKey({
+        authPubKey: rawToprfAuthKeyPair.pk,
+      });
+
+      this.#setUnlocked();
+    } catch (error) {
+      log(
+        'Error creating new vault with auth data',
+        error,
+        JSON.stringify(this.state),
       );
+      throw error;
     }
-    const accessToken = await this.#getAccessToken(password);
-
-    const vaultData: DeserializedVaultData = {
-      toprfAuthKeyPair: rawToprfAuthKeyPair,
-      toprfEncryptionKey: rawToprfEncryptionKey,
-      toprfPwEncryptionKey: rawToprfPwEncryptionKey,
-      revokeToken,
-      accessToken,
-    };
-
-    await this.#updateVault({
-      password,
-      vaultData,
-      pwEncKey: rawToprfPwEncryptionKey,
-    });
-
-    // update the authPubKey in the state
-    this.#persistAuthPubKey({
-      authPubKey: rawToprfAuthKeyPair.pk,
-    });
-
-    this.#setUnlocked();
   }
 
   /**
@@ -1860,11 +1841,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         password,
         encryptionKey: vaultEncryptionKey,
       });
-      if (!revokeToken) {
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
-        );
-      }
 
       const { newRevokeToken, newRefreshToken } = await this.#renewRefreshToken(
         {
