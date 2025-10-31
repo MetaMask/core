@@ -3,6 +3,7 @@ import type { TraceCallback } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
+import { EVM_ACCOUNT_PROVIDER_NAME } from './EvmAccountProvider';
 import { traceFallback } from '../analytics';
 import { TraceName } from '../constants/traces';
 import type { MultichainAccountServiceMessenger } from '../types';
@@ -26,6 +27,22 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
     super(messenger);
     this.provider = provider;
     this.#trace = trace ?? traceFallback;
+  }
+
+  /**
+   * Determines the appropriate trace name based on the wrapped provider type.
+   *
+   * @returns The appropriate TraceName for the wrapped provider.
+   */
+  private getTraceNameForProvider(): string {
+    const providerName = this.provider.getName();
+
+    if (providerName === EVM_ACCOUNT_PROVIDER_NAME) {
+      return TraceName.EvmDiscoverAccounts;
+    }
+
+    // All other providers (Solana, Bitcoin, Tron) are Snap-based
+    return TraceName.SnapDiscoverAccounts;
   }
 
   override getName(): string {
@@ -115,7 +132,7 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
     }
     return this.#trace(
       {
-        name: TraceName.SnapDiscoverAccounts,
+        name: this.getTraceNameForProvider(),
         data: {
           providerName: this.getName(),
         },

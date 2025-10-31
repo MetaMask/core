@@ -1164,6 +1164,102 @@ describe('MultichainAccountService', () => {
       expect(result).toStrictEqual([MOCK_HD_ACCOUNT_1]);
       expect(solProvider.discoverAccounts).toHaveBeenCalledWith(options);
     });
+
+    it('uses correct trace name for Snap-based providers', async () => {
+      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
+        expect(request.name).toBe('Snap Discover Accounts');
+        expect(request.data).toStrictEqual({
+          providerName: solProvider.getName(),
+        });
+        return await fn();
+      });
+
+      const options = {
+        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
+        groupIndex: 0,
+      };
+
+      const wrapperWithTrace = new AccountProviderWrapper(
+        getMultichainAccountServiceMessenger(
+          setup({ accounts: [MOCK_HD_ACCOUNT_1] }).rootMessenger,
+        ),
+        solProvider,
+        mockTrace,
+      );
+
+      (solProvider.discoverAccounts as jest.Mock).mockResolvedValue([
+        MOCK_HD_ACCOUNT_1,
+      ]);
+
+      const result = await wrapperWithTrace.discoverAccounts(options);
+
+      expect(result).toStrictEqual([MOCK_HD_ACCOUNT_1]);
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses correct trace name for EVM providers', async () => {
+      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
+        expect(request.name).toBe('EVM Discover Accounts');
+        expect(request.data).toStrictEqual({
+          providerName: 'EVM',
+        });
+        return await fn();
+      });
+
+      const { rootMessenger } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
+      const evmProvider = new EvmAccountProvider(
+        getMultichainAccountServiceMessenger(rootMessenger),
+      );
+
+      jest.spyOn(evmProvider, 'discoverAccounts');
+      jest.spyOn(evmProvider, 'getName').mockReturnValue('EVM');
+
+      const options = {
+        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
+        groupIndex: 0,
+      };
+
+      const evmWrapper = new AccountProviderWrapper(
+        getMultichainAccountServiceMessenger(rootMessenger),
+        evmProvider,
+        mockTrace,
+      );
+
+      (evmProvider.discoverAccounts as jest.Mock).mockResolvedValue([
+        MOCK_HD_ACCOUNT_1,
+      ]);
+
+      const result = await evmWrapper.discoverAccounts(options);
+
+      expect(result).toStrictEqual([MOCK_HD_ACCOUNT_1]);
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+      expect(evmProvider.discoverAccounts).toHaveBeenCalledWith(options);
+    });
+
+    it('returns empty array when disabled without calling trace', async () => {
+      const mockTrace = jest.fn();
+      const options = {
+        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
+        groupIndex: 0,
+      };
+
+      const wrapperWithTrace = new AccountProviderWrapper(
+        getMultichainAccountServiceMessenger(
+          setup({ accounts: [MOCK_HD_ACCOUNT_1] }).rootMessenger,
+        ),
+        solProvider,
+        mockTrace,
+      );
+
+      // Disable the wrapper
+      wrapperWithTrace.setEnabled(false);
+
+      const result = await wrapperWithTrace.discoverAccounts(options);
+
+      expect(result).toStrictEqual([]);
+      expect(mockTrace).not.toHaveBeenCalled();
+      expect(solProvider.discoverAccounts).not.toHaveBeenCalled();
+    });
   });
 
   describe('createMultichainAccountWallet', () => {
