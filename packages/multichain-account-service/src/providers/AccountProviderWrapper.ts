@@ -1,7 +1,10 @@
 import type { Bip44Account } from '@metamask/account-api';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
+import { traceFallback } from '../analytics';
+import { TraceName } from '../constants/traces';
 import type { MultichainAccountServiceMessenger } from '../types';
 
 /**
@@ -13,12 +16,16 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
 
   private readonly provider: BaseBip44AccountProvider;
 
+  readonly #trace: TraceCallback;
+
   constructor(
     messenger: MultichainAccountServiceMessenger,
     provider: BaseBip44AccountProvider,
+    trace?: TraceCallback,
   ) {
     super(messenger);
     this.provider = provider;
+    this.#trace = trace ?? traceFallback;
   }
 
   override getName(): string {
@@ -106,7 +113,15 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
     if (!this.isEnabled) {
       return [];
     }
-    return this.provider.discoverAccounts(options);
+    return this.#trace(
+      {
+        name: TraceName.SnapDiscoverAccounts,
+        data: {
+          providerName: this.getName(),
+        },
+      },
+      async () => this.provider.discoverAccounts(options),
+    );
   }
 }
 

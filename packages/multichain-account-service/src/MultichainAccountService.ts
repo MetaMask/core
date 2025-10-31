@@ -13,6 +13,7 @@ import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { areUint8ArraysEqual } from '@metamask/utils';
 
+import { traceFallback } from './analytics';
 import { projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
@@ -97,8 +98,7 @@ export class MultichainAccountService {
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
-    this.#trace =
-      config?.trace ?? (((_request, fn) => fn?.()) as TraceCallback);
+    this.#trace = config?.trace ?? traceFallback;
 
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
@@ -112,6 +112,7 @@ export class MultichainAccountService {
           this.#messenger,
           providerConfigs?.[SolAccountProvider.NAME],
         ),
+        this.#trace,
       ),
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,
@@ -191,7 +192,6 @@ export class MultichainAccountService {
           entropySource,
           providers: this.#providers,
           messenger: this.#messenger,
-          trace: this.#trace.bind(this),
         });
         this.#wallets.set(wallet.id, wallet);
 
@@ -231,7 +231,6 @@ export class MultichainAccountService {
         entropySource: account.options.entropy.id,
         providers: this.#providers,
         messenger: this.#messenger,
-        trace: this.#trace.bind(this),
       });
       this.#wallets.set(wallet.id, wallet);
 
@@ -389,7 +388,6 @@ export class MultichainAccountService {
       providers: this.#providers,
       entropySource: result.id,
       messenger: this.#messenger,
-      trace: this.#trace.bind(this),
     });
 
     this.#wallets.set(wallet.id, wallet);

@@ -408,4 +408,119 @@ describe('EvmAccountProvider', () => {
       }),
     ).toStrictEqual([MOCK_HD_ACCOUNT_1]);
   });
+
+  it('calls trace callback during account discovery', async () => {
+    const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
+      expect(request.name).toBe('EVM Discover Accounts');
+      expect(request.data).toStrictEqual({
+        providerName: 'EVM',
+      });
+      return await fn();
+    });
+
+    const { messenger, keyring, mocks } = setup({
+      accounts: [],
+    });
+
+    const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+      .withAddressSuffix('0')
+      .get();
+
+    const expectedAccount = {
+      ...account,
+      id: expect.any(String),
+    };
+
+    mockNextDiscoveryAddressOnce(account.address);
+
+    // Create provider with custom trace callback
+    const providerWithTrace = new EvmAccountProvider(
+      getMultichainAccountServiceMessenger(messenger),
+      {
+        discovery: {
+          maxAttempts: 3,
+          timeoutMs: 500,
+          backOffMs: 500,
+        },
+      },
+      mockTrace,
+    );
+
+    const result = await providerWithTrace.discoverAccounts({
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+    });
+
+    expect(result).toStrictEqual([expectedAccount]);
+    expect(mockTrace).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses fallback trace when no trace callback is provided', async () => {
+    const { provider } = setup({
+      accounts: [],
+    });
+
+    const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+      .withAddressSuffix('0')
+      .get();
+
+    const expectedAccount = {
+      ...account,
+      id: expect.any(String),
+    };
+
+    mockNextDiscoveryAddressOnce(account.address);
+
+    // Provider without trace callback should use fallback
+    const result = await provider.discoverAccounts({
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+    });
+
+    expect(result).toStrictEqual([expectedAccount]);
+  });
+
+  it('trace callback is called even when discovery returns empty results', async () => {
+    const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
+      expect(request.name).toBe('EVM Discover Accounts');
+      expect(request.data).toStrictEqual({
+        providerName: 'EVM',
+      });
+      return await fn();
+    });
+
+    const { messenger } = setup({
+      accounts: [],
+      discovery: {
+        transactionCount: '0x0', // No transactions, should return empty
+      },
+    });
+
+    const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+      .withAddressSuffix('0')
+      .get();
+
+    mockNextDiscoveryAddressOnce(account.address);
+
+    // Create provider with custom trace callback
+    const providerWithTrace = new EvmAccountProvider(
+      getMultichainAccountServiceMessenger(messenger),
+      {
+        discovery: {
+          maxAttempts: 3,
+          timeoutMs: 500,
+          backOffMs: 500,
+        },
+      },
+      mockTrace,
+    );
+
+    const result = await providerWithTrace.discoverAccounts({
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+    });
+
+    expect(result).toStrictEqual([]);
+    expect(mockTrace).toHaveBeenCalledTimes(1);
+  });
 });

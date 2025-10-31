@@ -1114,6 +1114,57 @@ describe('MultichainAccountService', () => {
       (solProvider.isAccountCompatible as jest.Mock).mockReturnValue(false);
       expect(wrapper.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(false);
     });
+
+    it('calls trace callback when discoverAccounts() is enabled', async () => {
+      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
+        expect(request.name).toBe('Snap Discover Accounts');
+        expect(request.data).toStrictEqual({
+          providerName: solProvider.getName(),
+        });
+        return await fn();
+      });
+
+      const options = {
+        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
+        groupIndex: 0,
+      };
+
+      // Create wrapper with custom trace callback
+      const wrapperWithTrace = new AccountProviderWrapper(
+        getMultichainAccountServiceMessenger(
+          setup({ accounts: [MOCK_HD_ACCOUNT_1] }).rootMessenger,
+        ),
+        solProvider,
+        mockTrace,
+      );
+
+      (solProvider.discoverAccounts as jest.Mock).mockResolvedValue([
+        MOCK_HD_ACCOUNT_1,
+      ]);
+
+      const result = await wrapperWithTrace.discoverAccounts(options);
+
+      expect(result).toStrictEqual([MOCK_HD_ACCOUNT_1]);
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+      expect(solProvider.discoverAccounts).toHaveBeenCalledWith(options);
+    });
+
+    it('uses fallback trace when no trace callback is provided', async () => {
+      const options = {
+        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
+        groupIndex: 0,
+      };
+
+      (solProvider.discoverAccounts as jest.Mock).mockResolvedValue([
+        MOCK_HD_ACCOUNT_1,
+      ]);
+
+      // Wrapper without trace callback should use fallback
+      const result = await wrapper.discoverAccounts(options);
+
+      expect(result).toStrictEqual([MOCK_HD_ACCOUNT_1]);
+      expect(solProvider.discoverAccounts).toHaveBeenCalledWith(options);
+    });
   });
 
   describe('createMultichainAccountWallet', () => {
