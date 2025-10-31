@@ -130,6 +130,8 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
     if (!this.isEnabled) {
       return [];
     }
+
+    // TODO: Try to move the tracing logic later in SnapAccountProvider to be more DRY
     return this.#trace(
       {
         name: this.getTraceNameForProvider(),
