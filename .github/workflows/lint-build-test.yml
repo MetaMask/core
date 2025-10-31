@@ -17,7 +17,8 @@ jobs:
         uses: MetaMask/action-checkout-and-setup@v2
         with:
           is-high-risk-environment: false
-          cache-node-modules: ${{ matrix.node-version == '22.x' }}
+          cache-node-modules: true
+          node-version: ${{ matrix.node-version }}
       - name: Fetch workspace package names
         id: workspace-package-names
         run: |
@@ -36,6 +37,7 @@ jobs:
         uses: MetaMask/action-checkout-and-setup@v2
         with:
           is-high-risk-environment: false
+          node-version: ${{ matrix.node-version }}
       - run: yarn lint
       - name: Require clean working directory
         shell: bash
@@ -58,6 +60,7 @@ jobs:
         uses: MetaMask/action-checkout-and-setup@v2
         with:
           is-high-risk-environment: false
+          node-version: ${{ matrix.node-version }}
       - run: yarn workspace ${{ matrix.package-name }} changelog:validate
       - name: Require clean working directory
         shell: bash
@@ -79,6 +82,7 @@ jobs:
         uses: MetaMask/action-checkout-and-setup@v2
         with:
           is-high-risk-environment: false
+          node-version: ${{ matrix.node-version }}
       - run: yarn build
       - name: Require clean working directory
         shell: bash
@@ -101,6 +105,7 @@ jobs:
         uses: MetaMask/action-checkout-and-setup@v2
         with:
           is-high-risk-environment: false
+          node-version: ${{ matrix.node-version }}
       - run: yarn test:scripts
       - run: yarn workspace ${{ matrix.package-name }} run test
       - name: Require clean working directory
