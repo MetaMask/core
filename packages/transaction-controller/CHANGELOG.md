@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Calculate operator fee for OP stack networks and include it in `layer1GasFee` ([#6979](https://github.com/MetaMask/core/pull/6979))
+
+## [61.1.0]
+
+### Added
+
+- Add optional `isIntentComplete` property to `TransactionMeta` to indicate transaction outcome was achieved via an alternate chain or mechanism ([#6950](https://github.com/MetaMask/core/pull/6950))
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
+- Identify OP stack chains using gas API ([#6899](https://github.com/MetaMask/core/pull/6899))
+
 ## [61.0.0]
 
 ### Changed
@@ -1905,7 +1920,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.1.0...HEAD
+[61.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.0.0...@metamask/transaction-controller@61.1.0
 [61.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.10.0...@metamask/transaction-controller@61.0.0
 [60.10.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.9.0...@metamask/transaction-controller@60.10.0
 [60.9.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.8.0...@metamask/transaction-controller@60.9.0

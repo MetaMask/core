@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.1.0]
+
+### Added
+
+- Add `name` property to permission errors ([#6987](https://github.com/MetaMask/core/pull/6987))
+
 ## [12.0.0]
 
 ### Changed
@@ -359,7 +365,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.1.0...HEAD
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.0.0...@metamask/permission-controller@12.1.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.1.1...@metamask/permission-controller@12.0.0
 [11.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.1.0...@metamask/permission-controller@11.1.1
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.6...@metamask/permission-controller@11.1.0
