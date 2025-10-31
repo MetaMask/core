@@ -1,8 +1,10 @@
 import type { FetchFunction } from './types';
 
 export interface IntentSubmissionParams {
-  quote: any;
+  chainId: string;
+  quoteId: string;
   signature: string;
+  order: any;
   userAddress: string;
 }
 
@@ -20,7 +22,7 @@ export class IntentApiImpl implements IntentApi {
   }
 
   async submitIntent(params: IntentSubmissionParams): Promise<any> {
-    const endpoint = `${this.baseUrl}/submitIntent`;
+    const endpoint = `${this.baseUrl}/submitOrder`;
     const response = (await this.fetchFn(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -28,6 +30,21 @@ export class IntentApiImpl implements IntentApi {
     })) as Response;
     if (!response.ok) {
       throw new Error(`Failed to submit intent: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async getOrderStatus(
+    orderUid: string,
+    providerName: string,
+    srcChainId: string,
+  ): Promise<any> {
+    const endpoint = `${this.baseUrl}/getOrderStatus?orderUid=${orderUid}&providerName=${encodeURIComponent(providerName)}&srcChainId=${srcChainId}`;
+    const response = (await this.fetchFn(endpoint, {
+      method: 'GET',
+    })) as Response;
+    if (!response.ok) {
+      throw new Error(`Failed to get order status: ${response.statusText}`);
     }
     return response.json();
   }
