@@ -1,3 +1,5 @@
+import { MiddlewareContext } from '@metamask/json-rpc-engine/v2';
+
 import { createBlockRefMiddleware } from '.';
 import {
   createMockParamsWithBlockParamAt,
@@ -9,6 +11,7 @@ import {
   expectProviderRequestNotToHaveBeenMade,
   createProviderAndBlockTracker,
   createEngine,
+  createRequest,
 } from '../test/util/helpers';
 
 describe('createBlockRefMiddleware', () => {
@@ -55,15 +58,14 @@ describe('createBlockRefMiddleware', () => {
               }),
             );
 
-            const request = {
-              id: 1,
-              jsonrpc: '2.0' as const,
+            const request = createRequest({
               method,
               params: createMockParamsWithBlockParamAt(
                 blockParamIndex,
                 'latest',
               ),
-            };
+            });
+
             stubProviderRequests(provider, [
               createStubForBlockNumberRequest('0x100'),
               createStubForGenericRequest({
@@ -78,13 +80,9 @@ describe('createBlockRefMiddleware', () => {
               }),
             ]);
 
-            const response = await engine.handle(request);
+            const result = await engine.handle(request);
 
-            expect(response).toStrictEqual({
-              id: 1,
-              jsonrpc: '2.0',
-              result: 'something',
-            });
+            expect(result).toBe('something');
           });
 
           it('does not proceed to the next middleware after making a request through the provider', async () => {
@@ -98,15 +96,14 @@ describe('createBlockRefMiddleware', () => {
               finalMiddleware,
             );
 
-            const request = {
-              id: 1,
-              jsonrpc: '2.0' as const,
+            const request = createRequest({
               method,
               params: createMockParamsWithBlockParamAt(
                 blockParamIndex,
                 'latest',
               ),
-            };
+            });
+
             stubProviderRequests(provider, [
               createStubForBlockNumberRequest('0x100'),
               createStubForGenericRequest({
@@ -136,12 +133,11 @@ describe('createBlockRefMiddleware', () => {
               }),
             );
 
-            const request = {
-              jsonrpc: '2.0' as const,
-              id: 1,
+            const request = createRequest({
               method,
               params: createMockParamsWithoutBlockParamAt(blockParamIndex),
-            };
+            });
+
             stubProviderRequests(provider, [
               createStubForBlockNumberRequest('0x100'),
               createStubForGenericRequest({
@@ -156,13 +152,9 @@ describe('createBlockRefMiddleware', () => {
               }),
             ]);
 
-            const response = await engine.handle(request);
+            const result = await engine.handle(request);
 
-            expect(response).toStrictEqual({
-              id: 1,
-              jsonrpc: '2.0',
-              result: 'something',
-            });
+            expect(result).toBe('something');
           });
 
           it('does not proceed to the next middleware after making a request through the provider', async () => {
@@ -176,12 +168,11 @@ describe('createBlockRefMiddleware', () => {
               finalMiddleware,
             );
 
-            const request = {
-              id: 1,
-              jsonrpc: '2.0' as const,
+            const request = createRequest({
               method,
               params: createMockParamsWithoutBlockParamAt(blockParamIndex),
-            };
+            });
+
             stubProviderRequests(provider, [
               createStubForBlockNumberRequest('0x100'),
               createStubForGenericRequest({
@@ -216,15 +207,14 @@ describe('createBlockRefMiddleware', () => {
                 finalMiddleware,
               );
 
-              const request = {
-                id: 1,
-                jsonrpc: '2.0' as const,
+              const request = createRequest({
                 method,
                 params: createMockParamsWithBlockParamAt(
                   blockParamIndex,
                   blockParam,
                 ),
-              };
+              });
+
               const requestSpy = stubProviderRequests(provider, [
                 createStubForBlockNumberRequest('0x100'),
               ]);
@@ -249,27 +239,26 @@ describe('createBlockRefMiddleware', () => {
                 createStubForBlockNumberRequest('0x100'),
               ]);
 
-              await engine.handle({
-                id: 1,
-                jsonrpc: '2.0' as const,
-                method,
-                params: createMockParamsWithBlockParamAt(
-                  blockParamIndex,
-                  blockParam,
-                ),
-              });
-
-              expect(finalMiddleware).toHaveBeenCalledWith(
-                expect.objectContaining({
+              await engine.handle(
+                createRequest({
+                  method,
                   params: createMockParamsWithBlockParamAt(
                     blockParamIndex,
                     blockParam,
                   ),
                 }),
-                expect.anything(),
-                expect.anything(),
-                expect.anything(),
               );
+
+              expect(finalMiddleware).toHaveBeenCalledWith({
+                request: expect.objectContaining({
+                  params: createMockParamsWithBlockParamAt(
+                    blockParamIndex,
+                    blockParam,
+                  ),
+                }),
+                context: expect.any(MiddlewareContext),
+                next: expect.any(Function),
+              });
             });
           },
         );
@@ -289,12 +278,11 @@ describe('createBlockRefMiddleware', () => {
         finalMiddleware,
       );
 
-      const request = {
-        id: 1,
-        jsonrpc: '2.0' as const,
+      const request = createRequest({
         method: 'a_non_block_param_method',
         params: ['some value', '0x200'],
-      };
+      });
+
       const requestSpy = stubProviderRequests(provider, [
         createStubForBlockNumberRequest('0x100'),
       ]);
@@ -319,21 +307,20 @@ describe('createBlockRefMiddleware', () => {
         createStubForBlockNumberRequest('0x100'),
       ]);
 
-      await engine.handle({
-        id: 1,
-        jsonrpc: '2.0' as const,
-        method: 'a_non_block_param_method',
-        params: ['some value', '0x200'],
-      });
-
-      expect(finalMiddleware).toHaveBeenCalledWith(
-        expect.objectContaining({
+      await engine.handle(
+        createRequest({
+          method: 'a_non_block_param_method',
           params: ['some value', '0x200'],
         }),
-        expect.anything(),
-        expect.anything(),
-        expect.anything(),
       );
+
+      expect(finalMiddleware).toHaveBeenCalledWith({
+        request: expect.objectContaining({
+          params: ['some value', '0x200'],
+        }),
+        context: expect.any(MiddlewareContext),
+        next: expect.any(Function),
+      });
     });
   });
 });

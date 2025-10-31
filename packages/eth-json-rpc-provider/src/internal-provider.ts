@@ -26,7 +26,20 @@ type Eip1193Request<Params extends JsonRpcParams> = {
   params?: Params;
 };
 
-type Options =
+/**
+ * The {@link JsonRpcMiddleware} constraint and default type for the {@link InternalProvider}.
+ * We care that the middleware can handle JSON-RPC requests, but do not care about the context,
+ * the validity of which is enforced by the {@link JsonRpcServer}.
+ */
+export type InternalProviderMiddleware = JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  // Non-polluting `any` constraint.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  any
+>;
+
+type Options<Middleware extends InternalProviderMiddleware> =
   | {
       /**
        * @deprecated Use `rpcHandler` instead.
@@ -34,9 +47,7 @@ type Options =
       engine: JsonRpcEngine;
     }
   | {
-      rpcHandler:
-        | JsonRpcEngine
-        | JsonRpcServer<JsonRpcMiddleware<JsonRpcRequest>>;
+      rpcHandler: JsonRpcEngine | JsonRpcServer<Middleware>;
     };
 
 /**
@@ -45,10 +56,10 @@ type Options =
  * This provider loosely follows conventions that pre-date EIP-1193.
  * It is not compliant with any Ethereum provider standard.
  */
-export class InternalProvider {
-  readonly #rpcHandler:
-    | JsonRpcEngine
-    | JsonRpcServer<JsonRpcMiddleware<JsonRpcRequest>>;
+export class InternalProvider<
+  Middleware extends InternalProviderMiddleware = InternalProviderMiddleware,
+> {
+  readonly #rpcHandler: JsonRpcEngine | JsonRpcServer<Middleware>;
 
   /**
    * Construct a InternalProvider from a JSON-RPC server or legacy engine.
@@ -57,7 +68,7 @@ export class InternalProvider {
    * @param options.rpcHandler - The JSON-RPC server or engine used to process requests. Mutually exclusive with `engine`.
    * @param options.engine - The JSON-RPC engine used to process requests. Mutually exclusive with `rpcHandler`.
    */
-  constructor(options: Options) {
+  constructor(options: Options<Middleware>) {
     this.#rpcHandler =
       'rpcHandler' in options ? options.rpcHandler : options.engine;
   }

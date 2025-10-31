@@ -3,10 +3,9 @@ import {
   providerFromEngine,
   type InternalProvider,
 } from '@metamask/eth-json-rpc-provider';
-import {
-  JsonRpcEngine,
-  type JsonRpcMiddleware,
-} from '@metamask/json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
@@ -69,22 +68,15 @@ export type ProviderRequestStub<
  * @template Result - The type that represents the result.
  * @returns The created middleware, as a mock function.
  */
-export function createFinalMiddlewareWithDefaultResult<
-  Params extends JsonRpcParams,
-  Result extends Json,
->(): JsonRpcMiddleware<Params, Result | 'default result'> {
-  return jest.fn((req, res, _next, end) => {
-    if (res.id === undefined) {
-      res.id = req.id;
+export function createFinalMiddlewareWithDefaultResult(): JsonRpcMiddleware<JsonRpcRequest> {
+  return jest.fn(async ({ next }) => {
+    // Not a Node.js callback
+    // eslint-disable-next-line n/callback-return
+    const result = await next();
+    if (result === undefined) {
+      return 'default result';
     }
-
-    res.jsonrpc ??= '2.0';
-
-    if (res.result === undefined) {
-      res.result = 'default result';
-    }
-
-    end();
+    return result;
   });
 }
 
@@ -117,27 +109,14 @@ export function createProviderAndBlockTracker() {
 export function createEngine(
   middlewareUnderTest: JsonRpcMiddleware<any, any>,
   ...otherMiddleware: JsonRpcMiddleware<any, any>[]
-): JsonRpcEngine {
-  const engine = new JsonRpcEngine();
-  engine.push(middlewareUnderTest);
-  if (otherMiddleware.length === 0) {
-    otherMiddleware.push(createFinalMiddlewareWithDefaultResult());
-  }
-  for (const middleware of otherMiddleware) {
-    engine.push(middleware);
-  }
-  return engine;
-}
-
-/**
- * Creates a middleware function that just ends the request, but is also a Jest
- * mock function so that you can make assertions on it.
- *
- * @returns The created middleware, as a mock function.
- */
-export function createSimpleFinalMiddleware() {
-  return jest.fn((_req, _res, _next, end) => {
-    end();
+): JsonRpcEngineV2 {
+  return JsonRpcEngineV2.create({
+    middleware: [
+      middlewareUnderTest,
+      ...(otherMiddleware.length === 0
+        ? [createFinalMiddlewareWithDefaultResult()]
+        : otherMiddleware),
+    ],
   });
 }
 
