@@ -1,7 +1,7 @@
 import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
 import type {
   // Eip1193Request,
-  SafeEventEmitterProvider,
+  InternalProvider,
 } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { Json } from '@metamask/utils';
@@ -16,7 +16,7 @@ type WithPollingBlockTrackerOptions = {
 };
 
 type WithPollingBlockTrackerCallback = (args: {
-  provider: SafeEventEmitterProvider;
+  provider: InternalProvider;
   blockTracker: PollingBlockTracker;
 }) => void | Promise<void>;
 
