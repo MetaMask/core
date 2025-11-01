@@ -37,6 +37,7 @@ import type {
   QuoteResponseSchema,
   QuoteSchema,
   StepSchema,
+  TronTradeDataSchema,
   TxDataSchema,
 } from './utils/validators';
 
@@ -252,11 +253,13 @@ export type Quote = Infer<typeof QuoteSchema>;
 export type TxData = Infer<typeof TxDataSchema>;
 
 export type BitcoinTradeData = Infer<typeof BitcoinTradeDataSchema>;
+
+export type TronTradeData = Infer<typeof TronTradeDataSchema>;
 /**
  * This is the type for the quote response from the bridge-api
  * TxDataType can be overriden to be a string when the quote is non-evm
  */
-export type QuoteResponse<TxDataType = TxData | string | BitcoinTradeData> =
+export type QuoteResponse<TxDataType = TxData | string | BitcoinTradeData | TronTradeData> =
   Infer<typeof QuoteResponseSchema> & {
     trade: TxDataType;
     approval?: TxData;
@@ -275,6 +278,7 @@ export enum ChainId {
   LINEA = 59144,
   SOLANA = 1151111081099710,
   BTC = 20000000000001,
+  TRON = 728126428
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
