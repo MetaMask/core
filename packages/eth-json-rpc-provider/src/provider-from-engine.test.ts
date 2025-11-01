@@ -4,7 +4,7 @@ import { providerErrors } from '@metamask/rpc-errors';
 import { providerFromEngine } from './provider-from-engine';
 
 describe('providerFromEngine', () => {
-  it('handle a successful request', async () => {
+  it('handles a successful request', async () => {
     const engine = new JsonRpcEngine();
     engine.push((_req, res, _next, end) => {
       res.result = 42;
@@ -22,7 +22,7 @@ describe('providerFromEngine', () => {
     expect(response).toBe(42);
   });
 
-  it('handle a failed request', async () => {
+  it('handles a failed request', async () => {
     const engine = new JsonRpcEngine();
     engine.push((_req, _res, _next, end) => {
       end(
