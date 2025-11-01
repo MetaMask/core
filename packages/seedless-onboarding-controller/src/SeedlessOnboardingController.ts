@@ -1102,8 +1102,12 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @returns The authentication public key.
    */
   #recoverAuthPubKey(): SEC1EncodedPublicKey {
-    this.#assertIsSRPBackedUpUser(this.state);
     const { authPubKey } = this.state;
+    if (!authPubKey) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.SRPNotBackedUpError,
+      );
+    }
 
     return base64ToBytes(authPubKey);
   }
@@ -1529,40 +1533,31 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     rawToprfPwEncryptionKey: Uint8Array;
     rawToprfAuthKeyPair: KeyPair;
   }): Promise<void> {
-    try {
-      this.#assertIsAuthenticatedUser(this.state);
+    this.#assertIsAuthenticatedUser(this.state);
 
-      const { accessToken, revokeToken } =
-        await this.#getAccessTokenAndRevokeToken(password);
+    const { accessToken, revokeToken } =
+      await this.#getAccessTokenAndRevokeToken(password);
 
-      const vaultData: DeserializedVaultData = {
-        toprfAuthKeyPair: rawToprfAuthKeyPair,
-        toprfEncryptionKey: rawToprfEncryptionKey,
-        toprfPwEncryptionKey: rawToprfPwEncryptionKey,
-        revokeToken,
-        accessToken,
-      };
+    const vaultData: DeserializedVaultData = {
+      toprfAuthKeyPair: rawToprfAuthKeyPair,
+      toprfEncryptionKey: rawToprfEncryptionKey,
+      toprfPwEncryptionKey: rawToprfPwEncryptionKey,
+      revokeToken,
+      accessToken,
+    };
 
-      await this.#updateVault({
-        password,
-        vaultData,
-        pwEncKey: rawToprfPwEncryptionKey,
-      });
+    await this.#updateVault({
+      password,
+      vaultData,
+      pwEncKey: rawToprfPwEncryptionKey,
+    });
 
-      // update the authPubKey in the state
-      this.#persistAuthPubKey({
-        authPubKey: rawToprfAuthKeyPair.pk,
-      });
+    // update the authPubKey in the state
+    this.#persistAuthPubKey({
+      authPubKey: rawToprfAuthKeyPair.pk,
+    });
 
-      this.#setUnlocked();
-    } catch (error) {
-      log(
-        'Error creating new vault with auth data',
-        error,
-        JSON.stringify(this.state),
-      );
-      throw error;
-    }
+    this.#setUnlocked();
   }
 
   /**
@@ -1738,16 +1733,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         state.isSeedlessOnboardingUserAuthenticated = false;
       });
       throw error;
-    }
-  }
-
-  #assertIsSRPBackedUpUser(
-    value: unknown,
-  ): asserts value is SRPBackedUpUserDetails {
-    if (!this.state.authPubKey) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.SRPNotBackedUpError,
-      );
     }
   }
 
