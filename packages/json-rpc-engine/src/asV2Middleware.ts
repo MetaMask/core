@@ -49,8 +49,9 @@ export function asV2Middleware<
 export function asV2Middleware<
   Params extends JsonRpcParams,
   Request extends JsonRpcRequest<Params>,
+  Result extends Json,
 >(
-  ...middleware: LegacyMiddleware<JsonRpcParams, Json>[]
+  ...middleware: LegacyMiddleware<Params, Result>[]
 ): JsonRpcMiddleware<Request>;
 
 /**
@@ -69,7 +70,9 @@ export function asV2Middleware<
 ): JsonRpcMiddleware<Request> {
   const legacyMiddleware =
     typeof engineOrMiddleware === 'function'
-      ? mergeMiddleware([engineOrMiddleware, ...rest])
+      ? // mergeMiddleware uses .asMiddleware() internally, which is necessary for our purposes.
+        // See comment on this below.
+        mergeMiddleware([engineOrMiddleware, ...rest])
       : engineOrMiddleware.asMiddleware();
 
   return async ({ request, context, next }) => {

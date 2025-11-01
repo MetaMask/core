@@ -1,8 +1,6 @@
-import type { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type {
-  JsonRpcMiddleware,
-  JsonRpcServer,
-} from '@metamask/json-rpc-engine/v2';
+import { asV2Middleware, type JsonRpcEngine } from '@metamask/json-rpc-engine';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
+import { JsonRpcServer } from '@metamask/json-rpc-engine/v2';
 import { JsonRpcError } from '@metamask/rpc-errors';
 import type { JsonRpcFailure } from '@metamask/utils';
 import {
@@ -26,17 +24,28 @@ type Eip1193Request<Params extends JsonRpcParams> = {
   params?: Params;
 };
 
-type Options =
+/**
+ * The {@link JsonRpcMiddleware} constraint and default type for the {@link InternalProvider}.
+ * We care that the middleware can handle JSON-RPC requests, but do not care about the context,
+ * the validity of which is enforced by the {@link JsonRpcServer}.
+ */
+export type InternalProviderMiddleware = JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  // Non-polluting `any` constraint.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  any
+>;
+
+type Options<Middleware extends InternalProviderMiddleware> =
   | {
       /**
-       * @deprecated Use `rpcHandler` instead.
+       * @deprecated Use `server` instead.
        */
       engine: JsonRpcEngine;
     }
   | {
-      rpcHandler:
-        | JsonRpcEngine
-        | JsonRpcServer<JsonRpcMiddleware<JsonRpcRequest>>;
+      server: JsonRpcServer<Middleware>;
     };
 
 /**
@@ -45,21 +54,27 @@ type Options =
  * This provider loosely follows conventions that pre-date EIP-1193.
  * It is not compliant with any Ethereum provider standard.
  */
-export class InternalProvider {
-  readonly #rpcHandler:
-    | JsonRpcEngine
-    | JsonRpcServer<JsonRpcMiddleware<JsonRpcRequest>>;
+export class InternalProvider<
+  Middleware extends InternalProviderMiddleware = InternalProviderMiddleware,
+> {
+  readonly #server: JsonRpcServer<Middleware>;
 
   /**
    * Construct a InternalProvider from a JSON-RPC server or legacy engine.
    *
    * @param options - Options.
-   * @param options.rpcHandler - The JSON-RPC server or engine used to process requests. Mutually exclusive with `engine`.
-   * @param options.engine - The JSON-RPC engine used to process requests. Mutually exclusive with `rpcHandler`.
+   * @param options.engine - **Deprecated:** The JSON-RPC engine used to process requests. Mutually exclusive with `server`.
+   * @param options.server - The JSON-RPC server used to process requests. Mutually exclusive with `engine`.
    */
-  constructor(options: Options) {
-    this.#rpcHandler =
-      'rpcHandler' in options ? options.rpcHandler : options.engine;
+  constructor(options: Options<Middleware>) {
+    const serverOrLegacyEngine =
+      'server' in options ? options.server : options.engine;
+    this.#server =
+      'push' in serverOrLegacyEngine
+        ? new JsonRpcServer({
+            middleware: [asV2Middleware(serverOrLegacyEngine)],
+          })
+        : serverOrLegacyEngine;
   }
 
   /**
@@ -132,7 +147,7 @@ export class InternalProvider {
   ): Promise<JsonRpcResponse<Result>> => {
     // @ts-expect-error - The signatures are incompatible between the legacy engine
     // and server, but this works at runtime.
-    return await this.#rpcHandler.handle(jsonRpcRequest);
+    return await this.#server.handle(jsonRpcRequest);
   };
 
   readonly #handleWithCallback = (
@@ -188,9 +203,5 @@ export function convertEip1193RequestToJsonRpcRequest<
  * @returns The deserialized error.
  */
 function deserializeError(error: JsonRpcFailure['error']): JsonRpcError<Json> {
-  const jsonRpcError = new JsonRpcError(error.code, error.message, error.data);
-  if ('stack' in error) {
-    jsonRpcError.stack = error.stack;
-  }
-  return jsonRpcError;
+  return new JsonRpcError(error.code, error.message, error.data);
 }
