@@ -91,11 +91,17 @@ type ContextOf<Middleware> =
     ? C
     : never;
 
-export type MergedContextOf<
-  // Non-polluting `any` constraint.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Middleware extends JsonRpcMiddleware<any, any, any>,
-> = MergeContexts<ContextOf<Middleware>>;
+// Non-polluting `any` constraint.
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export type MiddlewareConstraint = JsonRpcMiddleware<
+  any,
+  ResultConstraint<any>,
+  MiddlewareContext<any>
+>;
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+export type MergedContextOf<Middleware extends MiddlewareConstraint> =
+  MergeContexts<ContextOf<Middleware>>;
 
 const INVALID_ENGINE = Symbol('Invalid engine');
 
