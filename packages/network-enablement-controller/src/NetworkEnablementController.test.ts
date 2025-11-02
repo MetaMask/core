@@ -26,6 +26,49 @@ import { NetworkEnablementController } from './NetworkEnablementController';
 import type { NetworkEnablementControllerMessenger } from './NetworkEnablementController';
 import { advanceTime } from '../../../tests/helpers';
 
+// Mock the ChainService to prevent network calls during tests
+jest.mock('./ChainService', () => ({
+  getSlip44ByChainId: jest.fn().mockResolvedValue(null),
+}));
+
+// Helper function to create expected state with slip44 data
+const createExpectedState = (
+  enabledNetworkMap: Record<CaipNamespace, Record<CaipChainId | Hex, boolean>>,
+  additionalSlip44: {
+    eip155?: Record<string, string | undefined>;
+  } = {},
+) => ({
+  enabledNetworkMap,
+  slip44: {
+    [KnownCaipNamespace.Bip122]: {
+      [BtcScope.Mainnet]: '0',
+      [BtcScope.Testnet]: '0',
+      [BtcScope.Signet]: '0',
+    },
+    [KnownCaipNamespace.Eip155]: {
+      [ChainId[BuiltInNetworkName.Mainnet]]: '60',
+      [ChainId[BuiltInNetworkName.LineaMainnet]]: '69',
+      [ChainId[BuiltInNetworkName.BaseMainnet]]: '8453',
+      [ChainId[BuiltInNetworkName.ArbitrumOne]]: '42161',
+      [ChainId[BuiltInNetworkName.BscMainnet]]: '56',
+      [ChainId[BuiltInNetworkName.OptimismMainnet]]: '10',
+      [ChainId[BuiltInNetworkName.PolygonMainnet]]: '966',
+      [ChainId[BuiltInNetworkName.SeiMainnet]]: '19000118',
+      ...additionalSlip44.eip155,
+    },
+    [KnownCaipNamespace.Solana]: {
+      [SolScope.Mainnet]: '501',
+      [SolScope.Testnet]: '501',
+      [SolScope.Devnet]: '501',
+    },
+    [KnownCaipNamespace.Tron]: {
+      [TrxScope.Mainnet]: '195',
+      [TrxScope.Shasta]: '195',
+      [TrxScope.Nile]: '195',
+    },
+  },
+});
+
 const controllerName = 'NetworkEnablementController';
 
 type AllNetworkEnablementControllerActions =
@@ -133,8 +176,8 @@ describe('NetworkEnablementController', () => {
   it('initializes with default state', () => {
     const { controller } = setupController();
 
-    expect(controller.state).toStrictEqual({
-      enabledNetworkMap: {
+    expect(controller.state).toStrictEqual(
+      createExpectedState({
         [KnownCaipNamespace.Eip155]: {
           [ChainId[BuiltInNetworkName.Mainnet]]: true,
           [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
@@ -160,8 +203,8 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Nile]: false,
           [TrxScope.Shasta]: false,
         },
-      },
-    });
+      }),
+    );
   });
 
   it('subscribes to NetworkController:networkAdded', async () => {
@@ -187,36 +230,43 @@ describe('NetworkEnablementController', () => {
 
     await advanceTime({ clock, duration: 1 });
 
-    expect(controller.state).toStrictEqual({
-      enabledNetworkMap: {
-        [KnownCaipNamespace.Eip155]: {
-          [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet
-          [ChainId[BuiltInNetworkName.LineaMainnet]]: true, // Linea Mainnet
-          [ChainId[BuiltInNetworkName.BaseMainnet]]: true, // Base Mainnet
-          [ChainId[BuiltInNetworkName.ArbitrumOne]]: true,
-          [ChainId[BuiltInNetworkName.BscMainnet]]: true,
-          [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
-          [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
-          [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
-          '0xa86a': true, // Avalanche network added and enabled (keeps current selection)
+    expect(controller.state).toStrictEqual(
+      createExpectedState(
+        {
+          [KnownCaipNamespace.Eip155]: {
+            [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet
+            [ChainId[BuiltInNetworkName.LineaMainnet]]: true, // Linea Mainnet
+            [ChainId[BuiltInNetworkName.BaseMainnet]]: true, // Base Mainnet
+            [ChainId[BuiltInNetworkName.ArbitrumOne]]: true,
+            [ChainId[BuiltInNetworkName.BscMainnet]]: true,
+            [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
+            [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
+            [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+            '0xa86a': true, // Avalanche network added and enabled (keeps current selection)
+          },
+          [KnownCaipNamespace.Solana]: {
+            [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
+          },
+          [KnownCaipNamespace.Bip122]: {
+            [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
+          },
+          [KnownCaipNamespace.Tron]: {
+            [TrxScope.Mainnet]: true,
+            [TrxScope.Nile]: false,
+            [TrxScope.Shasta]: false,
+          },
         },
-        [KnownCaipNamespace.Solana]: {
-          [SolScope.Mainnet]: true,
-          [SolScope.Testnet]: false,
-          [SolScope.Devnet]: false,
+        {
+          eip155: {
+            '0xa86a': undefined, // Avalanche - slip44 not fetched due to mocked null return
+          },
         },
-        [KnownCaipNamespace.Bip122]: {
-          [BtcScope.Mainnet]: true,
-          [BtcScope.Testnet]: false,
-          [BtcScope.Signet]: false,
-        },
-        [KnownCaipNamespace.Tron]: {
-          [TrxScope.Mainnet]: true,
-          [TrxScope.Nile]: false,
-          [TrxScope.Shasta]: false,
-        },
-      },
-    });
+      ),
+    );
   });
 
   it('subscribes to NetworkController:networkRemoved', async () => {
@@ -240,8 +290,8 @@ describe('NetworkEnablementController', () => {
 
     await advanceTime({ clock, duration: 1 });
 
-    expect(controller.state).toStrictEqual({
-      enabledNetworkMap: {
+    expect(controller.state).toStrictEqual(
+      createExpectedState({
         [KnownCaipNamespace.Eip155]: {
           [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet
           [ChainId[BuiltInNetworkName.BaseMainnet]]: true, // Base Mainnet (Linea removed)
@@ -266,8 +316,8 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Nile]: false,
           [TrxScope.Shasta]: false,
         },
-      },
-    });
+      }),
+    );
   });
 
   it('handles TransactionController:transactionSubmitted with missing chainId gracefully', async () => {
@@ -372,8 +422,8 @@ describe('NetworkEnablementController', () => {
 
     await advanceTime({ clock, duration: 1 });
 
-    expect(controller.state).toStrictEqual({
-      enabledNetworkMap: {
+    expect(controller.state).toStrictEqual(
+      createExpectedState({
         [KnownCaipNamespace.Eip155]: {
           [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet (fallback enabled)
           [ChainId[BuiltInNetworkName.BaseMainnet]]: false, // Base Mainnet (still disabled)
@@ -398,12 +448,12 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Nile]: false,
           [TrxScope.Shasta]: false,
         },
-      },
-    });
+      }),
+    );
   });
 
   describe('init', () => {
-    it('initializes network enablement state from controller configurations', () => {
+    it('initializes network enablement state from controller configurations', async () => {
       const { controller, messenger } = setupController();
 
       jest
@@ -446,12 +496,12 @@ describe('NetworkEnablementController', () => {
         });
 
       // Initialize from configurations
-      controller.init();
+      await controller.init();
 
       // Should only enable popular networks that exist in NetworkController config
       // (0x1, 0xe708, 0x2105 exist in default NetworkController mock)
-      expect(controller.state).toStrictEqual({
-        enabledNetworkMap: {
+      expect(controller.state).toStrictEqual(
+        createExpectedState({
           [KnownCaipNamespace.Eip155]: {
             [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet (exists in default config)
             [ChainId[BuiltInNetworkName.LineaMainnet]]: true, // Linea Mainnet (exists in default config)
@@ -477,11 +527,11 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
-        },
-      });
+        }),
+      );
     });
 
-    it('only enables popular networks that exist in NetworkController configurations', () => {
+    it('only enables popular networks that exist in NetworkController configurations', async () => {
       // Create a separate controller setup for this test to avoid handler conflicts
       const { controller, messenger } = setupController({
         config: {
@@ -529,11 +579,11 @@ describe('NetworkEnablementController', () => {
       );
 
       // Initialize from configurations
-      controller.init();
+      await controller.init();
 
       // Should only enable networks that exist in configurations
-      expect(controller.state).toStrictEqual({
-        enabledNetworkMap: {
+      expect(controller.state).toStrictEqual(
+        createExpectedState({
           [KnownCaipNamespace.Eip155]: {
             '0x1': false, // Ethereum Mainnet (exists in config)
             '0xe708': false, // Linea Mainnet (exists in config)
@@ -542,11 +592,11 @@ describe('NetworkEnablementController', () => {
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: false, // Solana Mainnet (exists in config)
           },
-        },
-      });
+        }),
+      );
     });
 
-    it('handles missing MultichainNetworkController gracefully', () => {
+    it('handles missing MultichainNetworkController gracefully', async () => {
       const { controller, messenger } = setupController();
 
       jest
@@ -578,7 +628,7 @@ describe('NetworkEnablementController', () => {
         });
 
       // Should not throw
-      expect(() => controller.init()).not.toThrow();
+      expect(await controller.init()).toBeUndefined();
 
       // Should still enable popular networks from NetworkController
       expect(controller.isNetworkEnabled('0x1')).toBe(true);
@@ -586,7 +636,7 @@ describe('NetworkEnablementController', () => {
       expect(controller.isNetworkEnabled('0x2105')).toBe(true);
     });
 
-    it('creates namespace buckets for all configured networks', () => {
+    it('creates namespace buckets for all configured networks', async () => {
       const { controller, messenger } = setupController();
 
       jest
@@ -626,7 +676,7 @@ describe('NetworkEnablementController', () => {
           throw new Error(`Unexpected action type: ${actionType}`);
         });
 
-      controller.init();
+      await controller.init();
 
       // Should have created namespace buckets for all network types
       expect(controller.state.enabledNetworkMap).toHaveProperty(
@@ -640,7 +690,7 @@ describe('NetworkEnablementController', () => {
       );
     });
 
-    it('creates new namespace buckets for networks that do not exist', () => {
+    it('creates new namespace buckets for networks that do not exist', async () => {
       const { controller, messenger } = setupController();
 
       // Start with empty state to test namespace bucket creation
@@ -687,7 +737,7 @@ describe('NetworkEnablementController', () => {
           return responses[actionType as keyof typeof responses];
         });
 
-      controller.init();
+      await controller.init();
 
       // Should have created namespace buckets for both EIP-155 and Cosmos
       expect(controller.state.enabledNetworkMap).toHaveProperty(
@@ -696,7 +746,7 @@ describe('NetworkEnablementController', () => {
       expect(controller.state.enabledNetworkMap).toHaveProperty('cosmos');
     });
 
-    it('sets Bitcoin testnet to false when it exists in MultichainNetworkController configurations', () => {
+    it('sets Bitcoin testnet to false when it exists in MultichainNetworkController configurations', async () => {
       const { controller, messenger } = setupController();
 
       // Mock MultichainNetworkController to include Bitcoin testnet BEFORE calling init
@@ -736,7 +786,7 @@ describe('NetworkEnablementController', () => {
         });
 
       // Initialize the controller to trigger line 378 (init() method sets testnet to false)
-      controller.init();
+      await controller.init();
 
       // Verify Bitcoin testnet is set to false by init() - line 378
       expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
@@ -747,7 +797,7 @@ describe('NetworkEnablementController', () => {
       ).toBe(false);
     });
 
-    it('sets Bitcoin signet to false when it exists in MultichainNetworkController configurations', () => {
+    it('sets Bitcoin signet to false when it exists in MultichainNetworkController configurations', async () => {
       const { controller, messenger } = setupController();
 
       // Mock MultichainNetworkController to include Bitcoin signet BEFORE calling init
@@ -787,7 +837,7 @@ describe('NetworkEnablementController', () => {
         });
 
       // Initialize the controller to trigger line 391 (init() method sets signet to false)
-      controller.init();
+      await controller.init();
 
       // Verify Bitcoin signet is set to false by init() - line 391
       expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
@@ -796,6 +846,393 @@ describe('NetworkEnablementController', () => {
           BtcScope.Signet
         ],
       ).toBe(false);
+    });
+
+    it('only initializes once per controller instance', async () => {
+      const { controller, messenger } = setupController();
+
+      const mockCall = jest
+        .spyOn(messenger, 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+              },
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {},
+              selectedMultichainNetworkChainId: 'eip155:1',
+              isEvmSelected: true,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      // First initialization should work
+      await controller.init();
+
+      // Verify messenger was called during initialization
+      expect(mockCall).toHaveBeenCalledWith('NetworkController:getState');
+      expect(mockCall).toHaveBeenCalledWith(
+        'MultichainNetworkController:getState',
+      );
+
+      // Clear mock call history
+      mockCall.mockClear();
+
+      // Second initialization should return early and not call messenger again
+      await controller.init();
+
+      // Verify messenger was NOT called on second init
+      expect(mockCall).not.toHaveBeenCalled();
+    });
+
+    it('reinit forces fresh initialization', async () => {
+      const { controller, messenger } = setupController();
+
+      const mockCall = jest
+        .spyOn(messenger, 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+              },
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {},
+              selectedMultichainNetworkChainId: 'eip155:1',
+              isEvmSelected: true,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      // First initialization
+      await controller.init();
+      expect(mockCall).toHaveBeenCalledTimes(2); // Both controller calls
+
+      mockCall.mockClear();
+
+      // Regular init should not call messenger again
+      await controller.init();
+      expect(mockCall).not.toHaveBeenCalled();
+
+      // But reinit should force fresh initialization
+      await controller.reinit();
+      expect(mockCall).toHaveBeenCalledWith('NetworkController:getState');
+      expect(mockCall).toHaveBeenCalledWith(
+        'MultichainNetworkController:getState',
+      );
+      expect(mockCall).toHaveBeenCalledTimes(2);
+    });
+
+    it('fetches and stores slip44 values for EIP-155 networks during init', async () => {
+      // Use the mocked getSlip44ByChainId
+      const { getSlip44ByChainId } = jest.requireMock('./ChainService');
+
+      // Mock to return specific slip44 values based on chainId
+      getSlip44ByChainId.mockClear();
+      getSlip44ByChainId.mockImplementation(async (chainId: number) => {
+        // Map chainId to slip44 values
+        // parseInt('1', 16) = 1
+        // parseInt('a86a', 16) = 43114
+        const slip44Values: { [key: number]: string } = {
+          1: '60', // ETH
+          43114: '9000', // AVAX
+        };
+        // eslint-disable-next-line jest/no-conditional-in-test
+        return slip44Values[chainId] !== undefined
+          ? slip44Values[chainId]
+          : null;
+      });
+
+      const { controller, messenger } = setupController({
+        config: {
+          state: {
+            enabledNetworkMap: {
+              [KnownCaipNamespace.Eip155]: {},
+            },
+            slip44: {
+              [KnownCaipNamespace.Eip155]: {},
+            },
+          },
+        },
+      });
+
+      jest
+        .spyOn(messenger, 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+                '0xa86a': { chainId: '0xa86a', name: 'Avalanche' }, // parseInt('a86a', 16) = 43114
+              },
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {},
+              selectedMultichainNetworkChainId: 'eip155:1',
+              isEvmSelected: true,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      await controller.init();
+
+      // Verify slip44 fetch was called
+      expect(getSlip44ByChainId).toHaveBeenCalled();
+
+      // Verify at least one slip44 value was fetched and stored for chainId 0x1
+      expect(getSlip44ByChainId).toHaveBeenCalledWith(1);
+      expect(controller.state.slip44[KnownCaipNamespace.Eip155]['0x1']).toBe(
+        '60',
+      );
+
+      // Restore mock
+      getSlip44ByChainId.mockResolvedValue(null);
+    });
+
+    it('handles errors during slip44 fetch in init gracefully', async () => {
+      const { getSlip44ByChainId } = jest.requireMock('./ChainService');
+
+      // Mock to throw an error
+      getSlip44ByChainId.mockClear();
+      getSlip44ByChainId.mockRejectedValueOnce(new Error('Network error'));
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const { controller, messenger } = setupController({
+        config: {
+          state: {
+            enabledNetworkMap: {
+              [KnownCaipNamespace.Eip155]: {},
+            },
+            slip44: {
+              [KnownCaipNamespace.Eip155]: {},
+            },
+          },
+        },
+      });
+
+      jest
+        .spyOn(messenger, 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+              },
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {},
+              selectedMultichainNetworkChainId: 'eip155:1',
+              isEvmSelected: true,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      // Should not throw even if slip44 fetch fails
+      await controller.init();
+
+      // Verify error was logged
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to fetch slip44 for chainId'),
+        expect.any(Error),
+      );
+
+      consoleErrorSpy.mockRestore();
+      getSlip44ByChainId.mockResolvedValue(null);
+    });
+
+    it('handles batch slip44 fetch errors gracefully', async () => {
+      const { getSlip44ByChainId } = jest.requireMock('./ChainService');
+
+      // Mock to simulate error in batch processing
+      getSlip44ByChainId.mockClear();
+      getSlip44ByChainId.mockImplementation(async () => {
+        throw new Error('Batch processing error');
+      });
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const { controller, messenger } = setupController({
+        config: {
+          state: {
+            enabledNetworkMap: {
+              [KnownCaipNamespace.Eip155]: {},
+            },
+            slip44: {
+              [KnownCaipNamespace.Eip155]: {},
+            },
+          },
+        },
+      });
+
+      jest
+        .spyOn(messenger, 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+                '0x38': { chainId: '0x38', name: 'BSC' },
+              },
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {},
+              selectedMultichainNetworkChainId: 'eip155:1',
+              isEvmSelected: true,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      // Should complete successfully despite errors
+      await controller.init();
+
+      // Verify errors were logged for each failed fetch
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to fetch slip44'),
+        expect.any(Error),
+      );
+
+      consoleErrorSpy.mockRestore();
+      getSlip44ByChainId.mockResolvedValue(null);
+    });
+
+    // Note: Line 522 (`console.error('Error during slip44 batch fetch:', error);`) is
+    // defensive code that's extremely difficult to cover in tests. It's an outer catch block
+    // that wraps Promise.all and the results processing. Since all individual promise errors
+    // are already caught inside each promise (lines 499-503), this outer catch would only
+    // execute if something catastrophic happened in the Promise.all itself or the results
+    // processing that's outside the promise error handlers. This is practically impossible
+    // to trigger without breaking the entire test suite by mocking core JavaScript functions
+    // like Promise.all or Array.prototype.forEach.
+  });
+
+  describe('networkAdded subscription error handling', () => {
+    it('logs console error when networkAdded handler throws', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const { rootMessenger } = setupController();
+
+      // Publish network added event with invalid chainId format that will cause deriveKeys to throw
+      // Using a chainId with special characters that would break parsing
+      rootMessenger.publish('NetworkController:networkAdded', {
+        // @ts-expect-error - intentionally passing invalid chainId to trigger error
+        chainId: null,
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Invalid Network',
+        nativeCurrency: 'TEST',
+        rpcEndpoints: [
+          {
+            url: 'https://test-rpc.com',
+            networkClientId: 'test-network',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      // Wait for async handler to complete
+      await advanceTime({ clock, duration: 10 });
+
+      // Verify error was logged - line 227
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error adding network:',
+        expect.any(Error),
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('handles slip44 fetch failure in onAddNetwork gracefully', async () => {
+      const { getSlip44ByChainId } = jest.requireMock('./ChainService');
+
+      // Mock to fail for specific chainId
+      getSlip44ByChainId.mockClear();
+      getSlip44ByChainId.mockRejectedValueOnce(
+        new Error('Slip44 fetch failed'),
+      );
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const { controller, rootMessenger } = setupController();
+
+      // Publish network added event
+      rootMessenger.publish('NetworkController:networkAdded', {
+        chainId: '0xa4b1',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Arbitrum One',
+        nativeCurrency: 'ETH',
+        rpcEndpoints: [
+          {
+            url: 'https://arb1.arbitrum.io/rpc',
+            networkClientId: 'arbitrum-one',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      // Wait for async handler
+      await advanceTime({ clock, duration: 10 });
+
+      // Verify error was logged - line 700
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to fetch slip44 for chainId'),
+        expect.any(Error),
+      );
+
+      // Network should still be added despite slip44 failure
+      expect(controller.isNetworkEnabled('0xa4b1')).toBe(true);
+
+      consoleErrorSpy.mockRestore();
+      getSlip44ByChainId.mockResolvedValue(null);
     });
   });
 
@@ -850,8 +1287,8 @@ describe('NetworkEnablementController', () => {
       controller.disableNetwork('0xe708'); // Linea
       controller.disableNetwork('0x2105'); // Base
 
-      expect(controller.state).toStrictEqual({
-        enabledNetworkMap: {
+      expect(controller.state).toStrictEqual(
+        createExpectedState({
           [KnownCaipNamespace.Eip155]: {
             '0x1': true, // Ethereum Mainnet
             '0xe708': false, // Linea Mainnet (disabled)
@@ -877,14 +1314,14 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
-        },
-      });
+        }),
+      );
 
       // Enable all popular networks
       controller.enableAllPopularNetworks();
 
-      expect(controller.state).toStrictEqual({
-        enabledNetworkMap: {
+      expect(controller.state).toStrictEqual(
+        createExpectedState({
           [KnownCaipNamespace.Eip155]: {
             '0x1': true, // Ethereum Mainnet
             '0xe708': true, // Linea Mainnet
@@ -910,8 +1347,8 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
-        },
-      });
+        }),
+      );
     });
 
     it('enables all popular networks from constants', () => {
@@ -974,8 +1411,8 @@ describe('NetworkEnablementController', () => {
         {},
       );
 
-      expect(controller.state).toStrictEqual({
-        enabledNetworkMap: {
+      expect(controller.state).toStrictEqual(
+        createExpectedState({
           [KnownCaipNamespace.Eip155]: expectedEip155Networks,
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Solana Mainnet
@@ -992,8 +1429,8 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
-        },
-      });
+        }),
+      );
     });
 
     it('disables existing networks and enables only popular networks (exclusive behavior)', async () => {
@@ -1134,8 +1571,8 @@ describe('NetworkEnablementController', () => {
       // Disable a popular network (Ethereum Mainnet)
       controller.disableNetwork('0x1');
 
-      expect(controller.state).toStrictEqual({
-        enabledNetworkMap: {
+      expect(controller.state).toStrictEqual(
+        createExpectedState({
           [KnownCaipNamespace.Eip155]: {
             '0x1': false, // Ethereum Mainnet (disabled)
             '0xe708': true, // Linea Mainnet
@@ -1161,14 +1598,14 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
-        },
-      });
+        }),
+      );
 
       // Enable the network again - this should disable all others in all namespaces
       controller.enableNetwork('0x1');
 
-      expect(controller.state).toStrictEqual({
-        enabledNetworkMap: {
+      expect(controller.state).toStrictEqual(
+        createExpectedState({
           [KnownCaipNamespace.Eip155]: {
             [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet (re-enabled)
             [ChainId[BuiltInNetworkName.LineaMainnet]]: false, // Linea Mainnet (disabled)
@@ -1194,8 +1631,8 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
-        },
-      });
+        }),
+      );
     });
 
     it('enables any network and clears all others (exclusive behavior)', async () => {
@@ -1219,104 +1656,125 @@ describe('NetworkEnablementController', () => {
 
       await advanceTime({ clock, duration: 1 });
 
-      expect(controller.state).toStrictEqual({
-        enabledNetworkMap: {
-          [KnownCaipNamespace.Eip155]: {
-            '0x1': false,
-            '0xe708': false,
-            '0x2105': false,
-            '0x2': true,
-            [ChainId[BuiltInNetworkName.ArbitrumOne]]: false,
-            [ChainId[BuiltInNetworkName.BscMainnet]]: false,
-            [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
-            [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
-            [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+      expect(controller.state).toStrictEqual(
+        createExpectedState(
+          {
+            [KnownCaipNamespace.Eip155]: {
+              '0x1': false,
+              '0xe708': false,
+              '0x2105': false,
+              '0x2': true,
+              [ChainId[BuiltInNetworkName.ArbitrumOne]]: false,
+              [ChainId[BuiltInNetworkName.BscMainnet]]: false,
+              [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
+              [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
+              [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            },
+            [KnownCaipNamespace.Solana]: {
+              [SolScope.Mainnet]: false, // Disabled due to cross-namespace behavior
+              [SolScope.Testnet]: false,
+              [SolScope.Devnet]: false,
+            },
+            [KnownCaipNamespace.Bip122]: {
+              [BtcScope.Mainnet]: false, // Disabled due to cross-namespace behavior
+              [BtcScope.Testnet]: false,
+              [BtcScope.Signet]: false,
+            },
+            [KnownCaipNamespace.Tron]: {
+              [TrxScope.Mainnet]: false,
+              [TrxScope.Nile]: false,
+              [TrxScope.Shasta]: false,
+            },
           },
-          [KnownCaipNamespace.Solana]: {
-            [SolScope.Mainnet]: false, // Disabled due to cross-namespace behavior
-            [SolScope.Testnet]: false,
-            [SolScope.Devnet]: false,
+          {
+            eip155: {
+              '0x2': undefined, // Network '0x2' doesn't have slip44 data
+            },
           },
-          [KnownCaipNamespace.Bip122]: {
-            [BtcScope.Mainnet]: false, // Disabled due to cross-namespace behavior
-            [BtcScope.Testnet]: false,
-            [BtcScope.Signet]: false,
-          },
-          [KnownCaipNamespace.Tron]: {
-            [TrxScope.Mainnet]: false,
-            [TrxScope.Nile]: false,
-            [TrxScope.Shasta]: false,
-          },
-        },
-      });
+        ),
+      );
 
       // Enable one of the popular networks - only this one will be enabled
       controller.enableNetwork('0x2105');
 
-      expect(controller.state).toStrictEqual({
-        enabledNetworkMap: {
-          [KnownCaipNamespace.Eip155]: {
-            '0x1': false,
-            '0xe708': false,
-            '0x2105': true,
-            '0x2': false,
-            [ChainId[BuiltInNetworkName.ArbitrumOne]]: false,
-            [ChainId[BuiltInNetworkName.BscMainnet]]: false,
-            [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
-            [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
-            [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+      expect(controller.state).toStrictEqual(
+        createExpectedState(
+          {
+            [KnownCaipNamespace.Eip155]: {
+              '0x1': false,
+              '0xe708': false,
+              '0x2105': true,
+              '0x2': false,
+              [ChainId[BuiltInNetworkName.ArbitrumOne]]: false,
+              [ChainId[BuiltInNetworkName.BscMainnet]]: false,
+              [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
+              [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
+              [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            },
+            [KnownCaipNamespace.Solana]: {
+              [SolScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
+              [SolScope.Testnet]: false,
+              [SolScope.Devnet]: false,
+            },
+            [KnownCaipNamespace.Bip122]: {
+              [BtcScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
+              [BtcScope.Testnet]: false,
+              [BtcScope.Signet]: false,
+            },
+            [KnownCaipNamespace.Tron]: {
+              [TrxScope.Mainnet]: false,
+              [TrxScope.Nile]: false,
+              [TrxScope.Shasta]: false,
+            },
           },
-          [KnownCaipNamespace.Solana]: {
-            [SolScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
-            [SolScope.Testnet]: false,
-            [SolScope.Devnet]: false,
+          {
+            eip155: {
+              '0x2': undefined, // Network '0x2' doesn't have slip44 data
+            },
           },
-          [KnownCaipNamespace.Bip122]: {
-            [BtcScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
-            [BtcScope.Testnet]: false,
-            [BtcScope.Signet]: false,
-          },
-          [KnownCaipNamespace.Tron]: {
-            [TrxScope.Mainnet]: false,
-            [TrxScope.Nile]: false,
-            [TrxScope.Shasta]: false,
-          },
-        },
-      });
+        ),
+      );
 
       // Enable the non-popular network again - it will disable all others
       controller.enableNetwork('0x2');
 
-      expect(controller.state).toStrictEqual({
-        enabledNetworkMap: {
-          [KnownCaipNamespace.Eip155]: {
-            '0x1': false,
-            '0xe708': false,
-            '0x2105': false,
-            '0x2': true,
-            [ChainId[BuiltInNetworkName.ArbitrumOne]]: false,
-            [ChainId[BuiltInNetworkName.BscMainnet]]: false,
-            [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
-            [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
-            [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+      expect(controller.state).toStrictEqual(
+        createExpectedState(
+          {
+            [KnownCaipNamespace.Eip155]: {
+              '0x1': false,
+              '0xe708': false,
+              '0x2105': false,
+              '0x2': true,
+              [ChainId[BuiltInNetworkName.ArbitrumOne]]: false,
+              [ChainId[BuiltInNetworkName.BscMainnet]]: false,
+              [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
+              [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
+              [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            },
+            [KnownCaipNamespace.Solana]: {
+              [SolScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
+              [SolScope.Testnet]: false,
+              [SolScope.Devnet]: false,
+            },
+            [KnownCaipNamespace.Bip122]: {
+              [BtcScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
+              [BtcScope.Testnet]: false,
+              [BtcScope.Signet]: false,
+            },
+            [KnownCaipNamespace.Tron]: {
+              [TrxScope.Mainnet]: false,
+              [TrxScope.Nile]: false,
+              [TrxScope.Shasta]: false,
+            },
           },
-          [KnownCaipNamespace.Solana]: {
-            [SolScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
-            [SolScope.Testnet]: false,
-            [SolScope.Devnet]: false,
+          {
+            eip155: {
+              '0x2': undefined, // Network '0x2' doesn't have slip44 data
+            },
           },
-          [KnownCaipNamespace.Bip122]: {
-            [BtcScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
-            [BtcScope.Testnet]: false,
-            [BtcScope.Signet]: false,
-          },
-          [KnownCaipNamespace.Tron]: {
-            [TrxScope.Mainnet]: false,
-            [TrxScope.Nile]: false,
-            [TrxScope.Shasta]: false,
-          },
-        },
-      });
+        ),
+      );
     });
 
     it('handles invalid chain ID gracefully', () => {
@@ -1333,8 +1791,8 @@ describe('NetworkEnablementController', () => {
 
       controller.enableNetwork('bip122:000000000019d6689c085ae165831e93');
 
-      expect(controller.state).toStrictEqual({
-        enabledNetworkMap: {
+      expect(controller.state).toStrictEqual(
+        createExpectedState({
           [KnownCaipNamespace.Eip155]: {
             [ChainId[BuiltInNetworkName.Mainnet]]: false, // Disabled due to cross-namespace behavior
             [ChainId[BuiltInNetworkName.LineaMainnet]]: false, // Disabled due to cross-namespace behavior
@@ -1360,8 +1818,8 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
-        },
-      });
+        }),
+      );
     });
 
     it('handles enabling a network in non-existent namespace gracefully', () => {
@@ -1377,8 +1835,8 @@ describe('NetworkEnablementController', () => {
       controller.enableNetwork('bip122:000000000933ea01ad0ee984209779ba');
 
       // All existing networks should be disabled due to cross-namespace behavior, even though target network couldn't be enabled
-      expect(controller.state).toStrictEqual({
-        enabledNetworkMap: {
+      expect(controller.state).toStrictEqual(
+        createExpectedState({
           [KnownCaipNamespace.Eip155]: {
             [ChainId[BuiltInNetworkName.Mainnet]]: false,
             [ChainId[BuiltInNetworkName.LineaMainnet]]: false,
@@ -1399,8 +1857,8 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
-        },
-      });
+        }),
+      );
     });
 
     it('handle no namespace bucket', async () => {
@@ -1425,8 +1883,8 @@ describe('NetworkEnablementController', () => {
 
       await advanceTime({ clock, duration: 1 });
 
-      expect(controller.state).toStrictEqual({
-        enabledNetworkMap: {
+      expect(controller.state).toStrictEqual(
+        createExpectedState({
           [KnownCaipNamespace.Eip155]: {
             [ChainId[BuiltInNetworkName.Mainnet]]: false, // Disabled due to cross-namespace behavior
             [ChainId[BuiltInNetworkName.LineaMainnet]]: false, // Disabled due to cross-namespace behavior
@@ -1452,8 +1910,8 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
-        },
-      });
+        }),
+      );
     });
   });
 
@@ -1464,8 +1922,8 @@ describe('NetworkEnablementController', () => {
       // Disable a network (but not the last one)
       controller.disableNetwork('0xe708'); // Linea Mainnet
 
-      expect(controller.state).toStrictEqual({
-        enabledNetworkMap: {
+      expect(controller.state).toStrictEqual(
+        createExpectedState({
           [KnownCaipNamespace.Eip155]: {
             '0x1': true,
             '0xe708': false,
@@ -1491,8 +1949,8 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
-        },
-      });
+        }),
+      );
     });
 
     it('does disable a Solana network using CAIP chain ID as it is the only enabled network on the namespace', () => {
@@ -1511,8 +1969,8 @@ describe('NetworkEnablementController', () => {
       controller.disableNetwork('0xe708'); // Linea Mainnet
       controller.disableNetwork('0x2105'); // Base Mainnet
 
-      expect(controller.state).toStrictEqual({
-        enabledNetworkMap: {
+      expect(controller.state).toStrictEqual(
+        createExpectedState({
           [KnownCaipNamespace.Eip155]: {
             '0x1': true,
             '0xe708': false,
@@ -1538,8 +1996,8 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
-        },
-      });
+        }),
+      );
 
       // Try to disable the last active network
       expect(() => controller.disableNetwork('0x1')).not.toThrow();
@@ -2507,6 +2965,33 @@ describe('NetworkEnablementController', () => {
               "tron:728126428": true,
             },
           },
+          "slip44": Object {
+            "bip122": Object {
+              "bip122:000000000019d6689c085ae165831e93": "0",
+              "bip122:000000000933ea01ad0ee984209779ba": "0",
+              "bip122:00000008819873e925422c1ff0f99f7c": "0",
+            },
+            "eip155": Object {
+              "0x1": "60",
+              "0x2105": "8453",
+              "0x38": "56",
+              "0x531": "19000118",
+              "0x89": "966",
+              "0xa": "10",
+              "0xa4b1": "42161",
+              "0xe708": "69",
+            },
+            "solana": Object {
+              "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": "501",
+              "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": "501",
+              "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": "501",
+            },
+            "tron": Object {
+              "tron:2494104990": "195",
+              "tron:3448148188": "195",
+              "tron:728126428": "195",
+            },
+          },
         }
       `);
     });
@@ -2547,6 +3032,33 @@ describe('NetworkEnablementController', () => {
               "tron:2494104990": false,
               "tron:3448148188": false,
               "tron:728126428": true,
+            },
+          },
+          "slip44": Object {
+            "bip122": Object {
+              "bip122:000000000019d6689c085ae165831e93": "0",
+              "bip122:000000000933ea01ad0ee984209779ba": "0",
+              "bip122:00000008819873e925422c1ff0f99f7c": "0",
+            },
+            "eip155": Object {
+              "0x1": "60",
+              "0x2105": "8453",
+              "0x38": "56",
+              "0x531": "19000118",
+              "0x89": "966",
+              "0xa": "10",
+              "0xa4b1": "42161",
+              "0xe708": "69",
+            },
+            "solana": Object {
+              "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": "501",
+              "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": "501",
+              "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": "501",
+            },
+            "tron": Object {
+              "tron:2494104990": "195",
+              "tron:3448148188": "195",
+              "tron:728126428": "195",
             },
           },
         }
@@ -2591,6 +3103,33 @@ describe('NetworkEnablementController', () => {
               "tron:728126428": true,
             },
           },
+          "slip44": Object {
+            "bip122": Object {
+              "bip122:000000000019d6689c085ae165831e93": "0",
+              "bip122:000000000933ea01ad0ee984209779ba": "0",
+              "bip122:00000008819873e925422c1ff0f99f7c": "0",
+            },
+            "eip155": Object {
+              "0x1": "60",
+              "0x2105": "8453",
+              "0x38": "56",
+              "0x531": "19000118",
+              "0x89": "966",
+              "0xa": "10",
+              "0xa4b1": "42161",
+              "0xe708": "69",
+            },
+            "solana": Object {
+              "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": "501",
+              "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": "501",
+              "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": "501",
+            },
+            "tron": Object {
+              "tron:2494104990": "195",
+              "tron:3448148188": "195",
+              "tron:728126428": "195",
+            },
+          },
         }
       `);
     });
@@ -2631,6 +3170,33 @@ describe('NetworkEnablementController', () => {
               "tron:2494104990": false,
               "tron:3448148188": false,
               "tron:728126428": true,
+            },
+          },
+          "slip44": Object {
+            "bip122": Object {
+              "bip122:000000000019d6689c085ae165831e93": "0",
+              "bip122:000000000933ea01ad0ee984209779ba": "0",
+              "bip122:00000008819873e925422c1ff0f99f7c": "0",
+            },
+            "eip155": Object {
+              "0x1": "60",
+              "0x2105": "8453",
+              "0x38": "56",
+              "0x531": "19000118",
+              "0x89": "966",
+              "0xa": "10",
+              "0xa4b1": "42161",
+              "0xe708": "69",
+            },
+            "solana": Object {
+              "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": "501",
+              "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": "501",
+              "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": "501",
+            },
+            "tron": Object {
+              "tron:2494104990": "195",
+              "tron:3448148188": "195",
+              "tron:728126428": "195",
             },
           },
         }

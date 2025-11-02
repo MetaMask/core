@@ -17,3 +17,5 @@ export {
   selectEnabledEvmNetworks,
   selectEnabledSolanaNetworks,
 } from './selectors';
+
+export { getSlip44ByChainId } from './ChainService';

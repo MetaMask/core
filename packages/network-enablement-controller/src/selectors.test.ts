@@ -24,6 +24,17 @@ describe('NetworkEnablementController Selectors', () => {
         'solana:testnet': false,
       },
     },
+    slip44: {
+      [KnownCaipNamespace.Eip155]: {
+        '0x1': '60', // Ethereum
+        '0xa': '10', // Optimism
+        '0xa4b1': '42161', // Arbitrum One
+      },
+      [KnownCaipNamespace.Solana]: {
+        'solana:mainnet': '501',
+        'solana:testnet': '501',
+      },
+    },
   };
 
   describe('selectEnabledNetworkMap', () => {

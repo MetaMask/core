@@ -17,6 +17,7 @@ import type { TransactionControllerTransactionSubmittedEvent } from '@metamask/t
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
+import { getSlip44ByChainId } from './ChainService';
 import { POPULAR_NETWORKS } from './constants';
 import {
   deriveKeys,
@@ -46,6 +47,7 @@ type EnabledMap = Record<CaipNamespace, Record<CaipChainId | Hex, boolean>>;
 // State shape for NetworkEnablementController
 export type NetworkEnablementControllerState = {
   enabledNetworkMap: EnabledMap;
+  slip44: Record<CaipNamespace, Record<CaipChainId | Hex, string>>;
 };
 
 export type NetworkEnablementControllerGetStateAction =
@@ -134,11 +136,44 @@ const getDefaultNetworkEnablementControllerState =
         [TrxScope.Shasta]: false,
       },
     },
+    slip44: {
+      [KnownCaipNamespace.Eip155]: {
+        [ChainId[BuiltInNetworkName.Mainnet]]: '60', // ETH
+        [ChainId[BuiltInNetworkName.LineaMainnet]]: '69', // LINEA
+        [ChainId[BuiltInNetworkName.BaseMainnet]]: '8453', // BASE
+        [ChainId[BuiltInNetworkName.ArbitrumOne]]: '42161', // ARBITRUM
+        [ChainId[BuiltInNetworkName.BscMainnet]]: '56', // BSC
+        [ChainId[BuiltInNetworkName.OptimismMainnet]]: '10', // OPTIMISM
+        [ChainId[BuiltInNetworkName.PolygonMainnet]]: '966', // POLYGON
+        [ChainId[BuiltInNetworkName.SeiMainnet]]: '19000118', // SEI
+      },
+      [KnownCaipNamespace.Solana]: {
+        [SolScope.Mainnet]: '501', // SOL
+        [SolScope.Testnet]: '501', // SOL
+        [SolScope.Devnet]: '501', // SOL
+      },
+      [KnownCaipNamespace.Bip122]: {
+        [BtcScope.Mainnet]: '0', // BTC
+        [BtcScope.Testnet]: '0', // BTC
+        [BtcScope.Signet]: '0', // BTC
+      },
+      [KnownCaipNamespace.Tron]: {
+        [TrxScope.Mainnet]: '195', // TRX
+        [TrxScope.Nile]: '195', // TRX
+        [TrxScope.Shasta]: '195', // TRX
+      },
+    },
   });
 
 // Metadata for the controller state
 const metadata = {
   enabledNetworkMap: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  slip44: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
@@ -160,6 +195,8 @@ export class NetworkEnablementController extends BaseController<
   NetworkEnablementControllerState,
   NetworkEnablementControllerMessenger
 > {
+  #initialized = false;
+
   /**
    * Creates a NetworkEnablementController instance.
    *
@@ -185,7 +222,10 @@ export class NetworkEnablementController extends BaseController<
     });
 
     messenger.subscribe('NetworkController:networkAdded', ({ chainId }) => {
-      this.#onAddNetwork(chainId);
+      // Handle async network addition
+      this.#onAddNetwork(chainId).catch((error) => {
+        console.error('Error adding network:', error);
+      });
     });
 
     messenger.subscribe('NetworkController:networkRemoved', ({ chainId }) => {
@@ -261,8 +301,9 @@ export class NetworkEnablementController extends BaseController<
     }
 
     this.update((s) => {
-      // Ensure the namespace bucket exists
+      // Ensure the namespace buckets exist
       this.#ensureNamespaceBucket(s, namespace);
+      this.#ensureSlip44NamespaceBucket(s, namespace);
 
       // Disable all networks in the specified namespace first
       if (s.enabledNetworkMap[namespace]) {
@@ -311,8 +352,9 @@ export class NetworkEnablementController extends BaseController<
         if (
           networkControllerState.networkConfigurationsByChainId[chainId as Hex]
         ) {
-          // Ensure namespace bucket exists
+          // Ensure namespace buckets exist
           this.#ensureNamespaceBucket(s, namespace);
+          this.#ensureSlip44NamespaceBucket(s, namespace);
           // Enable the network
           s.enabledNetworkMap[namespace][storageKey] = true;
         }
@@ -325,8 +367,9 @@ export class NetworkEnablementController extends BaseController<
           SolScope.Mainnet
         ]
       ) {
-        // Ensure namespace bucket exists
+        // Ensure namespace buckets exist
         this.#ensureNamespaceBucket(s, solanaKeys.namespace);
+        this.#ensureSlip44NamespaceBucket(s, solanaKeys.namespace);
         // Enable Solana mainnet
         s.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] = true;
       }
@@ -338,8 +381,9 @@ export class NetworkEnablementController extends BaseController<
           BtcScope.Mainnet
         ]
       ) {
-        // Ensure namespace bucket exists
+        // Ensure namespace buckets exist
         this.#ensureNamespaceBucket(s, bitcoinKeys.namespace);
+        this.#ensureSlip44NamespaceBucket(s, bitcoinKeys.namespace);
         // Enable Bitcoin mainnet
         s.enabledNetworkMap[bitcoinKeys.namespace][bitcoinKeys.storageKey] =
           true;
@@ -352,8 +396,9 @@ export class NetworkEnablementController extends BaseController<
           TrxScope.Mainnet
         ]
       ) {
-        // Ensure namespace bucket exists
+        // Ensure namespace buckets exist
         this.#ensureNamespaceBucket(s, tronKeys.namespace);
+        this.#ensureSlip44NamespaceBucket(s, tronKeys.namespace);
         // Enable Tron mainnet
         s.enabledNetworkMap[tronKeys.namespace][tronKeys.storageKey] = true;
       }
@@ -367,28 +412,37 @@ export class NetworkEnablementController extends BaseController<
    * and MultichainNetworkController and syncs the enabled network map accordingly.
    * It ensures proper namespace buckets exist for all configured networks and only
    * adds missing networks with a default value of false, preserving existing user settings.
+   * Additionally, it fetches slip44 values for EIP-155 networks that don't have them.
+   *
+   * This method only runs once per controller instance to avoid unnecessary API calls.
+   * Subsequent calls will return immediately without performing any operations.
+   * Use `reinit()` if you need to force re-initialization.
    *
    * This method should be called after the NetworkController and MultichainNetworkController
    * have been initialized and their configurations are available.
    */
-  init(): void {
+  async init(): Promise<void> {
+    if (this.#initialized) {
+      return;
+    }
+
+    // Get network configurations
+    const networkControllerState = this.messenger.call(
+      'NetworkController:getState',
+    );
+    const multichainState = this.messenger.call(
+      'MultichainNetworkController:getState',
+    );
+
+    // First, initialize the state synchronously
     this.update((s) => {
-      // Get network configurations from NetworkController (EVM networks)
-      const networkControllerState = this.messenger.call(
-        'NetworkController:getState',
-      );
-
-      // Get network configurations from MultichainNetworkController (all networks)
-      const multichainState = this.messenger.call(
-        'MultichainNetworkController:getState',
-      );
-
       // Initialize namespace buckets for EVM networks from NetworkController
       Object.keys(
         networkControllerState.networkConfigurationsByChainId,
       ).forEach((chainId) => {
         const { namespace, storageKey } = deriveKeys(chainId as Hex);
         this.#ensureNamespaceBucket(s, namespace);
+        this.#ensureSlip44NamespaceBucket(s, namespace);
 
         // Only add network if it doesn't already exist in state (preserves user settings)
         if (s.enabledNetworkMap[namespace][storageKey] === undefined) {
@@ -402,6 +456,7 @@ export class NetworkEnablementController extends BaseController<
       ).forEach((chainId) => {
         const { namespace, storageKey } = deriveKeys(chainId as CaipChainId);
         this.#ensureNamespaceBucket(s, namespace);
+        this.#ensureSlip44NamespaceBucket(s, namespace);
 
         // Only add network if it doesn't already exist in state (preserves user settings)
         if (s.enabledNetworkMap[namespace][storageKey] === undefined) {
@@ -409,6 +464,74 @@ export class NetworkEnablementController extends BaseController<
         }
       });
     });
+
+    // Collect EIP-155 networks that need slip44 values
+    const networksToFetch: {
+      chainId: string;
+      storageKey: string;
+      numericChainId: number;
+    }[] = [];
+
+    Object.keys(networkControllerState.networkConfigurationsByChainId).forEach(
+      (chainId) => {
+        const { namespace, storageKey, reference } = deriveKeys(chainId as Hex);
+
+        if (namespace === 'eip155') {
+          // Check if slip44 value already exists in state
+          const existingSlip44 = this.state.slip44[namespace]?.[storageKey];
+          if (!existingSlip44) {
+            const numericChainId = parseInt(reference, 16);
+            networksToFetch.push({ chainId, storageKey, numericChainId });
+          }
+        }
+      },
+    );
+
+    // Fetch slip44 values for networks that don't have them
+    if (networksToFetch.length > 0) {
+      const slip44Promises = networksToFetch.map(
+        async ({ chainId, storageKey, numericChainId }) => {
+          try {
+            const slip44Value = await getSlip44ByChainId(numericChainId);
+            return { chainId, storageKey, slip44Value };
+          } catch (error) {
+            console.error(
+              `Failed to fetch slip44 for chainId ${chainId}:`,
+              error,
+            );
+            return { chainId, storageKey, slip44Value: null };
+          }
+        },
+      );
+
+      const results = await Promise.all(slip44Promises);
+
+      // Update state with fetched slip44 values
+      this.update((s) => {
+        results.forEach(({ storageKey, slip44Value }) => {
+          if (slip44Value !== null) {
+            // Ensure namespace exists (should already exist from above)
+            this.#ensureSlip44NamespaceBucket(s, 'eip155');
+            // @ts-expect-error - TypeScript doesn't recognize the dynamic namespace access
+            s.slip44.eip155[storageKey] = slip44Value;
+          }
+        });
+      });
+    }
+
+    this.#initialized = true;
+  }
+
+  /**
+   * Re-initializes the controller's state.
+   *
+   * This method forces a fresh initialization even if the controller has already been initialized.
+   * It will re-fetch slip44 values for all EIP-155 networks and re-sync the network state.
+   * Use this when you need to force a full re-initialization.
+   */
+  async reinit(): Promise<void> {
+    this.#initialized = false;
+    await this.init();
   }
 
   /**
@@ -464,6 +587,25 @@ export class NetworkEnablementController extends BaseController<
   ) {
     if (!state.enabledNetworkMap[ns]) {
       state.enabledNetworkMap[ns] = {};
+    }
+  }
+
+  /**
+   * Ensures that a namespace bucket exists in the slip44 state.
+   *
+   * This method creates the namespace entry in the slip44 map if it doesn't
+   * already exist. This is used to prepare the state structure before adding
+   * slip44 entries.
+   *
+   * @param state - The current controller state
+   * @param ns - The CAIP namespace to ensure exists
+   */
+  #ensureSlip44NamespaceBucket(
+    state: NetworkEnablementControllerState,
+    ns: CaipNamespace,
+  ) {
+    if (!state.slip44[ns]) {
+      state.slip44[ns] = {};
     }
   }
 
@@ -538,13 +680,32 @@ export class NetworkEnablementController extends BaseController<
    * - Keep current selection (add but don't enable the new network)
    * - Otherwise:
    * - Switch to the newly added network (disable all others, enable this one)
+   * - Fetches and stores slip44 value for EIP-155 networks
    */
-  #onAddNetwork(chainId: Hex | CaipChainId): void {
+  async #onAddNetwork(chainId: Hex | CaipChainId): Promise<void> {
     const { namespace, storageKey, reference } = deriveKeys(chainId);
 
+    // Fetch slip44 for EIP-155 networks
+    let slip44Value: string | null = null;
+    if (namespace === 'eip155') {
+      try {
+        // Convert hex chainId to decimal for the API call
+        const numericChainId = parseInt(reference, 16);
+        slip44Value = await getSlip44ByChainId(numericChainId);
+      } catch (error) {
+        console.error(`Failed to fetch slip44 for chainId ${chainId}:`, error);
+      }
+    }
+
     this.update((s) => {
-      // Ensure the namespace bucket exists
+      // Ensure the namespace buckets exist
       this.#ensureNamespaceBucket(s, namespace);
+      this.#ensureSlip44NamespaceBucket(s, namespace);
+
+      // Add slip44 value if fetched successfully
+      if (slip44Value !== null) {
+        s.slip44[namespace][storageKey] = slip44Value;
+      }
 
       // Check if popular networks mode is active (>2 popular networks enabled)
       const inPopularNetworksMode = this.#isInPopularNetworksMode();

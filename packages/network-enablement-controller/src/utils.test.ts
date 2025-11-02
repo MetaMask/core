@@ -70,11 +70,12 @@ describe('Utils', () => {
   });
 
   describe('isOnlyNetworkEnabledInNamespace', () => {
-    const createMockState = (
-      enabledNetworkMap: NetworkEnablementControllerState['enabledNetworkMap'],
-    ): NetworkEnablementControllerState => ({
-      enabledNetworkMap,
-    });
+  const createMockState = (
+    enabledNetworkMap: NetworkEnablementControllerState['enabledNetworkMap'],
+  ): NetworkEnablementControllerState => ({
+    enabledNetworkMap,
+    slip44: {},
+  });
 
     describe('EVM namespace scenarios', () => {
       it('returns true when network is the only enabled EVM network (hex chain ID)', () => {
