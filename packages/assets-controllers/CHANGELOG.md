@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Migrate TokenRatesController to use multichain v3 Price API endpoint with SLIP44 support for native tokens ([#7033](https://github.com/MetaMask/core/pull/7033))
+
 ## [86.0.0]
 
 ### Changed
