@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ChainService` module for SLIP-44 coin type resolution ([#7034](https://github.com/MetaMask/core/pull/7034))
+  - Add `getSlip44ByChainId()` function to resolve SLIP-44 coin types from EVM chain IDs
+  - Add `getNativeCaip19()` function to generate CAIP-19 asset identifiers for native currencies
+  - Add support for fetching chain metadata from chainid.network with caching
+  - Add `@metamask/slip44` dependency for symbol-to-coin-type mapping
+
 ### Fixed
 
 - include additional popular networks now enabled by default ([#7014](https://github.com/MetaMask/core/pull/7014))
