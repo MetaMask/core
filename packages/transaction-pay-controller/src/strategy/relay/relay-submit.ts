@@ -3,7 +3,10 @@ import {
   successfulFetch,
   toHex,
 } from '@metamask/controller-utils';
-import type { TransactionParams } from '@metamask/transaction-controller';
+import {
+  TransactionType,
+  type TransactionParams,
+} from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -251,13 +254,14 @@ async function submitTransactions(
       networkClientId,
       origin: ORIGIN_METAMASK,
       requireApproval: false,
-      transactions: normalizedParams.map((p) => ({
+      transactions: normalizedParams.map((p, i) => ({
         params: {
           data: p.data as Hex,
           gas: p.gas as Hex,
           to: p.to as Hex,
           value: p.value as Hex,
         },
+        type: i === 0 ? TransactionType.tokenMethodApprove : undefined,
       })),
     });
   }
