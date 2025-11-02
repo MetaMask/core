@@ -65,6 +65,7 @@
     "@metamask/controller-utils": "^11.15.0",
     "@metamask/keyring-api": "^21.0.0",
     "@metamask/messenger": "^0.3.0",
+    "@metamask/slip44": "^4.0.0",
     "@metamask/utils": "^11.8.1",
     "reselect": "^5.1.1"
   },

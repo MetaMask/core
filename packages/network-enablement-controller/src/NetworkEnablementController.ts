@@ -690,7 +690,7 @@ export class NetworkEnablementController extends BaseController<
     if (namespace === 'eip155') {
       try {
         // Convert hex chainId to decimal for the API call
-        const numericChainId = parseInt(reference, 16);
+        const numericChainId = parseInt(reference);
         slip44Value = await getSlip44ByChainId(numericChainId);
       } catch (error) {
         console.error(`Failed to fetch slip44 for chainId ${chainId}:`, error);

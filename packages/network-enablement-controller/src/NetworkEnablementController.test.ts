@@ -1234,6 +1234,49 @@ describe('NetworkEnablementController', () => {
       consoleErrorSpy.mockRestore();
       getSlip44ByChainId.mockResolvedValue(null);
     });
+
+    it('fetches and stores slip44 value when adding an EIP-155 network', async () => {
+      const { getSlip44ByChainId } = jest.requireMock('./ChainService');
+
+      // Mock to return slip44 value for Arbitrum One (chainId 42161)
+      getSlip44ByChainId.mockClear();
+      getSlip44ByChainId.mockResolvedValueOnce('42161');
+
+      const { controller, rootMessenger } = setupController();
+
+      // Publish network added event for Arbitrum One
+      rootMessenger.publish('NetworkController:networkAdded', {
+        chainId: '0xa4b1', // Arbitrum One
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Arbitrum One',
+        nativeCurrency: 'ETH',
+        rpcEndpoints: [
+          {
+            url: 'https://arb1.arbitrum.io/rpc',
+            networkClientId: 'arbitrum-one',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      // Wait for async handler to complete
+      await advanceTime({ clock, duration: 10 });
+
+      // Verify getSlip44ByChainId was called with correct chainId (42161 in decimal)
+      expect(getSlip44ByChainId).toHaveBeenCalledWith(42161);
+
+      // Verify slip44 value was stored in state
+      expect(controller.state.slip44[KnownCaipNamespace.Eip155]['0xa4b1']).toBe(
+        '42161',
+      );
+
+      // Network should also be enabled
+      expect(controller.isNetworkEnabled('0xa4b1')).toBe(true);
+
+      // Restore mock
+      getSlip44ByChainId.mockResolvedValue(null);
+    });
   });
 
   describe('enableAllPopularNetworks', () => {
