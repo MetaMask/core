@@ -30,8 +30,10 @@ import { useFakeTimers } from 'sinon';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type {
   AbstractTokenPricesService,
+  MultichainTokenRequest,
   TokenPrice,
   TokenPricesByTokenAddress,
+  TokenPricesByCaipAssetId,
 } from './token-prices-service/abstract-token-prices-service';
 import { controllerName, TokenRatesController } from './TokenRatesController';
 import type {
@@ -1319,7 +1321,7 @@ describe('TokenRatesController', () => {
       it('should poll and update rate in the right interval', async () => {
         const interval = 100;
         const tokenPricesService = buildMockTokenPricesService();
-        jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+        jest.spyOn(tokenPricesService, 'fetchMultichainTokenPrices');
         await withController(
           {
             options: {
@@ -1344,17 +1346,17 @@ describe('TokenRatesController', () => {
           async ({ controller }) => {
             await controller.start(ChainId.mainnet, 'ETH');
 
-            expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
+            expect(tokenPricesService.fetchMultichainTokenPrices).toHaveBeenCalledTimes(
               1,
             );
 
             await advanceTime({ clock, duration: interval });
-            expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
+            expect(tokenPricesService.fetchMultichainTokenPrices).toHaveBeenCalledTimes(
               2,
             );
 
             await advanceTime({ clock, duration: interval });
-            expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
+            expect(tokenPricesService.fetchMultichainTokenPrices).toHaveBeenCalledTimes(
               3,
             );
           },
@@ -1366,7 +1368,7 @@ describe('TokenRatesController', () => {
       it('should stop polling', async () => {
         const interval = 100;
         const tokenPricesService = buildMockTokenPricesService();
-        jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+        jest.spyOn(tokenPricesService, 'fetchMultichainTokenPrices');
         await withController(
           {
             options: {
@@ -1391,14 +1393,14 @@ describe('TokenRatesController', () => {
           async ({ controller }) => {
             await controller.start(ChainId.mainnet, 'ETH');
 
-            expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
+            expect(tokenPricesService.fetchMultichainTokenPrices).toHaveBeenCalledTimes(
               1,
             );
 
             controller.stop();
 
             await advanceTime({ clock, duration: interval });
-            expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
+            expect(tokenPricesService.fetchMultichainTokenPrices).toHaveBeenCalledTimes(
               1,
             );
           },
@@ -1421,7 +1423,7 @@ describe('TokenRatesController', () => {
     it('should poll on the right interval', async () => {
       const interval = 100;
       const tokenPricesService = buildMockTokenPricesService();
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+      jest.spyOn(tokenPricesService, 'fetchMultichainTokenPrices');
       await withController(
         {
           options: {
@@ -1449,13 +1451,13 @@ describe('TokenRatesController', () => {
           });
 
           await advanceTime({ clock, duration: 0 });
-          expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(1);
+          expect(tokenPricesService.fetchMultichainTokenPrices).toHaveBeenCalledTimes(1);
 
           await advanceTime({ clock, duration: interval });
-          expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(2);
+          expect(tokenPricesService.fetchMultichainTokenPrices).toHaveBeenCalledTimes(2);
 
           await advanceTime({ clock, duration: interval });
-          expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(3);
+          expect(tokenPricesService.fetchMultichainTokenPrices).toHaveBeenCalledTimes(3);
         },
       );
     });
@@ -1464,7 +1466,7 @@ describe('TokenRatesController', () => {
       describe('when the native currency is supported', () => {
         it('returns the exchange rates directly', async () => {
           const tokenPricesService = buildMockTokenPricesService({
-            fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
+            fetchMultichainTokenPrices: fetchMultichainTokenPricesWithIncreasingPriceForEachToken,
             validateCurrencySupported(currency: unknown): currency is string {
               return currency === 'ETH';
             },
@@ -1564,7 +1566,7 @@ describe('TokenRatesController', () => {
               .get('/data/price?fsym=ETH&tsyms=LOL')
               .reply(200, { LOL: fallbackRate });
             const tokenPricesService = buildMockTokenPricesService({
-              fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
+              fetchMultichainTokenPrices: fetchMultichainTokenPricesWithIncreasingPriceForEachToken,
               validateCurrencySupported(currency: unknown): currency is string {
                 return currency !== 'LOL';
               },
@@ -1726,7 +1728,7 @@ describe('TokenRatesController', () => {
       it('should stop polling', async () => {
         const interval = 100;
         const tokenPricesService = buildMockTokenPricesService();
-        jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+        jest.spyOn(tokenPricesService, 'fetchMultichainTokenPrices');
         await withController(
           {
             options: {
@@ -1752,14 +1754,14 @@ describe('TokenRatesController', () => {
               chainIds: [ChainId.mainnet],
             });
             await advanceTime({ clock, duration: 0 });
-            expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
+            expect(tokenPricesService.fetchMultichainTokenPrices).toHaveBeenCalledTimes(
               1,
             );
 
             controller.stopPollingByPollingToken(pollingToken);
 
             await advanceTime({ clock, duration: interval });
-            expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
+            expect(tokenPricesService.fetchMultichainTokenPrices).toHaveBeenCalledTimes(
               1,
             );
           },
@@ -1864,7 +1866,7 @@ describe('TokenRatesController', () => {
 
       it('does not update state if the price update fails', async () => {
         const tokenPricesService = buildMockTokenPricesService({
-          fetchTokenPrices: jest
+          fetchMultichainTokenPrices: jest
             .fn()
             .mockRejectedValue(new Error('Failed to fetch')),
         });
@@ -1912,11 +1914,11 @@ describe('TokenRatesController', () => {
           .map(buildAddress)
           .sort();
         const tokenPricesService = buildMockTokenPricesService({
-          fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
+          fetchMultichainTokenPrices: fetchMultichainTokenPricesWithIncreasingPriceForEachToken,
         });
-        const fetchTokenPricesSpy = jest.spyOn(
+        const fetchMultichainTokenPricesSpy = jest.spyOn(
           tokenPricesService,
-          'fetchTokenPrices',
+          'fetchMultichainTokenPrices',
         );
         const tokens = tokenAddresses.map((tokenAddress) => {
           return buildToken({ address: tokenAddress });
@@ -1953,10 +1955,10 @@ describe('TokenRatesController', () => {
             const numBatches = Math.ceil(
               tokenAddresses.length / TOKEN_PRICES_BATCH_SIZE,
             );
-            expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
+            expect(fetchMultichainTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
 
             for (let i = 1; i <= numBatches; i++) {
-              expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
+              expect(fetchMultichainTokenPricesSpy).toHaveBeenNthCalledWith(i, {
                 chainId,
                 tokenAddresses: tokenAddresses.slice(
                   (i - 1) * TOKEN_PRICES_BATCH_SIZE,
@@ -1976,7 +1978,7 @@ describe('TokenRatesController', () => {
           '0x0000000000000000000000000000000000000003',
         ];
         const tokenPricesService = buildMockTokenPricesService({
-          fetchTokenPrices: jest.fn().mockResolvedValue({
+          fetchMultichainTokenPrices: jest.fn().mockResolvedValue({
             [tokenAddresses[0]]: {
               currency: 'ETH',
               tokenAddress: tokenAddresses[0],
@@ -2072,7 +2074,7 @@ describe('TokenRatesController', () => {
             '0x0000000000000000000000000000000000000002',
           ];
           const tokenPricesService = buildMockTokenPricesService({
-            fetchTokenPrices: jest.fn().mockResolvedValue({
+            fetchMultichainTokenPrices: jest.fn().mockResolvedValue({
               [tokenAddresses[0]]: {
                 currency: 'ETH',
                 tokenAddress: tokenAddresses[0],
@@ -2155,7 +2157,7 @@ describe('TokenRatesController', () => {
           '0x0000000000000000000000000000000000000002',
         ];
         const tokenPricesService = buildMockTokenPricesService({
-          fetchTokenPrices: jest.fn().mockResolvedValue({
+          fetchMultichainTokenPrices: jest.fn().mockResolvedValue({
             [tokenAddresses[0]]: {
               currency: 'ETH',
               tokenAddress: tokenAddresses[0],
@@ -2267,16 +2269,16 @@ describe('TokenRatesController', () => {
           .map(buildAddress)
           .sort();
         const tokenPricesService = buildMockTokenPricesService({
-          fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
+          fetchMultichainTokenPrices: fetchMultichainTokenPricesWithIncreasingPriceForEachToken,
           validateCurrencySupported: (
             currency: unknown,
           ): currency is string => {
             return currency !== selectedNetworkClientConfiguration.ticker;
           },
         });
-        const fetchTokenPricesSpy = jest.spyOn(
+        const fetchMultichainTokenPricesSpy = jest.spyOn(
           tokenPricesService,
-          'fetchTokenPrices',
+          'fetchMultichainTokenPrices',
         );
         const tokens = tokenAddresses.map((tokenAddress) => {
           return buildToken({ address: tokenAddress });
@@ -2333,10 +2335,10 @@ describe('TokenRatesController', () => {
             const numBatches = Math.ceil(
               tokenAddresses.length / TOKEN_PRICES_BATCH_SIZE,
             );
-            expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
+            expect(fetchMultichainTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
 
             for (let i = 1; i <= numBatches; i++) {
-              expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
+              expect(fetchMultichainTokenPricesSpy).toHaveBeenNthCalledWith(i, {
                 chainId: selectedNetworkClientConfiguration.chainId,
                 tokenAddresses: tokenAddresses.slice(
                   (i - 1) * TOKEN_PRICES_BATCH_SIZE,
@@ -2361,7 +2363,7 @@ describe('TokenRatesController', () => {
           '0x0000000000000000000000000000000000000002',
         ];
         const tokenPricesService = buildMockTokenPricesService({
-          fetchTokenPrices: jest.fn().mockResolvedValue({
+          fetchMultichainTokenPrices: jest.fn().mockResolvedValue({
             [tokenAddresses[0]]: {
               currency: 'ETH',
               tokenAddress: tokenAddresses[0],
@@ -2433,7 +2435,7 @@ describe('TokenRatesController', () => {
 
       it('correctly calls the Price API with unqiue native token addresses (e.g. MATIC)', async () => {
         const tokenPricesService = buildMockTokenPricesService({
-          fetchTokenPrices: jest.fn().mockResolvedValue({
+          fetchMultichainTokenPrices: jest.fn().mockResolvedValue({
             '0x0000000000000000000000000000000000001010': {
               currency: 'MATIC',
               tokenAddress: '0x0000000000000000000000000000000000001010',
@@ -2485,7 +2487,7 @@ describe('TokenRatesController', () => {
           '0x0000000000000000000000000000000000000001',
           '0x0000000000000000000000000000000000000002',
         ];
-        const fetchTokenPricesMock = jest.fn().mockResolvedValue({
+        const fetchMultichainTokenPricesMock = jest.fn().mockResolvedValue({
           [tokenAddresses[0]]: {
             currency: 'ETH',
             tokenAddress: tokenAddresses[0],
@@ -2498,7 +2500,7 @@ describe('TokenRatesController', () => {
           },
         });
         const tokenPricesService = buildMockTokenPricesService({
-          fetchTokenPrices: fetchTokenPricesMock,
+          fetchMultichainTokenPrices: fetchMultichainTokenPricesMock,
         });
         await withController(
           { options: { tokenPricesService } },
@@ -2538,7 +2540,7 @@ describe('TokenRatesController', () => {
 
             await Promise.all([updateExchangeRates(), updateExchangeRates()]);
 
-            expect(fetchTokenPricesMock).toHaveBeenCalledTimes(1);
+            expect(fetchMultichainTokenPricesMock).toHaveBeenCalledTimes(1);
 
             expect(controller.state).toMatchInlineSnapshot(`
                         Object {
@@ -2567,7 +2569,7 @@ describe('TokenRatesController', () => {
           '0x0000000000000000000000000000000000000001',
           '0x0000000000000000000000000000000000000002',
         ];
-        const fetchTokenPricesMock = jest.fn().mockResolvedValue({
+        const fetchMultichainTokenPricesMock = jest.fn().mockResolvedValue({
           [tokenAddresses[0]]: {
             currency: 'ETH',
             tokenAddress: tokenAddresses[0],
@@ -2580,7 +2582,7 @@ describe('TokenRatesController', () => {
           },
         });
         const tokenPricesService = buildMockTokenPricesService({
-          fetchTokenPrices: fetchTokenPricesMock,
+          fetchMultichainTokenPrices: fetchMultichainTokenPricesMock,
         });
         await withController(
           { options: { tokenPricesService } },
@@ -2634,14 +2636,14 @@ describe('TokenRatesController', () => {
               updateExchangeRates(request2Payload),
             ]);
 
-            expect(fetchTokenPricesMock).toHaveBeenCalledTimes(2);
-            expect(fetchTokenPricesMock).toHaveBeenNthCalledWith(
+            expect(fetchMultichainTokenPricesMock).toHaveBeenCalledTimes(2);
+            expect(fetchMultichainTokenPricesMock).toHaveBeenNthCalledWith(
               1,
               expect.objectContaining({
                 tokenAddresses: [tokenAddresses[0]],
               }),
             );
-            expect(fetchTokenPricesMock).toHaveBeenNthCalledWith(
+            expect(fetchMultichainTokenPricesMock).toHaveBeenNthCalledWith(
               2,
               expect.objectContaining({
                 tokenAddresses: [tokenAddresses[0], tokenAddresses[1]],
@@ -2999,6 +3001,9 @@ function buildMockTokenPricesService(
     async fetchExchangeRates() {
       return {};
     },
+    async fetchMultichainTokenPrices() {
+      return {};
+    },
     validateChainIdSupported(_chainId: unknown): _chainId is Hex {
       return true;
     },
@@ -3010,54 +3015,67 @@ function buildMockTokenPricesService(
 }
 
 /**
- * A version of the token prices service `fetchTokenPrices` method where the
+ * A version of the token prices service `fetchMultichainTokenPrices` method where the
  * price of each given token is incremented by one.
  *
  * @param args - The arguments to this function.
- * @param args.tokenAddresses - The token addresses.
  * @param args.currency - The currency.
+ * @param args.tokenRequests - The token requests.
  * @returns The token prices.
  */
-async function fetchTokenPricesWithIncreasingPriceForEachToken<
-  TokenAddress extends Hex,
-  Currency extends string,
->({
-  tokenAddresses,
+async function fetchMultichainTokenPricesWithIncreasingPriceForEachToken({
+  tokenRequests,
   currency,
 }: {
-  tokenAddresses: TokenAddress[];
-  currency: Currency;
-}) {
-  return tokenAddresses.reduce<
-    Partial<TokenPricesByTokenAddress<TokenAddress, Currency>>
-  >((obj, tokenAddress, i) => {
-    const tokenPrice: TokenPrice<TokenAddress, Currency> = {
-      tokenAddress,
-      currency,
-      pricePercentChange1d: 0,
-      priceChange1d: 0,
-      allTimeHigh: 4000,
-      allTimeLow: 900,
-      circulatingSupply: 2000,
-      dilutedMarketCap: 100,
-      high1d: 200,
-      low1d: 100,
-      marketCap: 1000,
-      marketCapPercentChange1d: 100,
-      price: (i + 1) / 1000,
-      pricePercentChange14d: 100,
-      pricePercentChange1h: 1,
-      pricePercentChange1y: 200,
-      pricePercentChange200d: 300,
-      pricePercentChange30d: 200,
-      pricePercentChange7d: 100,
-      totalVolume: 100,
-    };
-    return {
-      ...obj,
-      [tokenAddress]: tokenPrice,
-    };
-  }, {}) as TokenPricesByTokenAddress<TokenAddress, Currency>;
+  tokenRequests: MultichainTokenRequest[];
+  currency: string;
+}): Promise<TokenPricesByCaipAssetId<string>> {
+  const result: TokenPricesByCaipAssetId<string> = {};
+  
+  for (const request of tokenRequests) {
+    const { chainId, tokenAddresses } = request;
+    const chainIdAsNumber = parseInt(chainId.slice(2), 16);
+    
+    tokenAddresses.forEach((tokenAddress, i) => {
+      // Mock CAIP asset ID creation similar to the real implementation
+      let caipAssetId: string;
+      const isNativeToken = tokenAddress.toLowerCase() === '0x0000000000000000000000000000000000000000';
+      
+      if (isNativeToken) {
+        // Use SLIP44 format for native tokens (mock Ethereum for simplicity)
+        const slip44CoinType = chainIdAsNumber === 1 ? 60 : 60; // Mock ETH for all chains
+        caipAssetId = `eip155:${chainIdAsNumber}/slip44:${slip44CoinType}`;
+      } else {
+        // Use token address for ERC20 tokens
+        caipAssetId = `eip155:${chainIdAsNumber}:${tokenAddress}`;
+      }
+      
+      result[caipAssetId] = {
+        tokenAddress,
+        currency,
+        price: (i + 1) / 1000,
+        pricePercentChange1d: 0,
+        priceChange1d: 0,
+        allTimeHigh: 4000,
+        allTimeLow: 900,
+        circulatingSupply: 2000,
+        dilutedMarketCap: 100,
+        high1d: 200,
+        low1d: 100,
+        marketCap: 1000,
+        marketCapPercentChange1d: 100,
+        pricePercentChange1h: 1,
+        pricePercentChange1y: 200,
+        pricePercentChange7d: 100,
+        pricePercentChange14d: 100,
+        pricePercentChange30d: 200,
+        pricePercentChange200d: 300,
+        totalVolume: 100,
+      };
+    });
+  }
+  
+  return result;
 }
 
 /**

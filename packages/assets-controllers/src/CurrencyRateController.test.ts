@@ -49,6 +49,9 @@ function buildMockTokenPricesService(
     async fetchExchangeRates() {
       return {};
     },
+    async fetchMultichainTokenPrices() {
+      return {};
+    },
     validateChainIdSupported(_chainId: unknown): _chainId is Hex {
       return true;
     },

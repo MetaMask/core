@@ -786,5 +786,8 @@ function createMockPriceService(): AbstractTokenPricesService {
     async fetchExchangeRates() {
       return {};
     },
+    async fetchMultichainTokenPrices() {
+      return {};
+    },
   };
 }

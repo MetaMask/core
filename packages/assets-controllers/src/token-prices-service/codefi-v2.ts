@@ -12,10 +12,21 @@ import { hexToNumber } from '@metamask/utils';
 
 import type {
   AbstractTokenPricesService,
+  CaipAssetId,
   ExchangeRatesByCurrency,
+  MultichainTokenRequest,
   TokenPrice,
+  TokenPricesByCaipAssetId,
   TokenPricesByTokenAddress,
 } from './abstract-token-prices-service';
+
+// SLIP44 coin type constants
+const SLIP44_COIN_TYPES = {
+  ETH: 60, // Ethereum
+  MATIC: 966, // Polygon
+  BNB: 714, // BNB Smart Chain
+  AVAX: 9000, // Avalanche
+};
 
 /**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to
@@ -167,6 +178,7 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
  * Returns the address that should be used to query the price api for the
  * chain's native token. On most chains, this is signified by the zero address.
  * But on some chains, the native token has a specific address.
+ *
  * @param chainId - The hexadecimal chain id.
  * @returns The address of the chain's native token.
  */
@@ -177,7 +189,7 @@ export const getNativeTokenAddress = (chainId: Hex): Hex =>
  * A currency that can be supplied as the `vsCurrency` parameter to
  * the `/spot-prices` endpoint. Covers both uppercase and lowercase versions.
  */
-type SupportedCurrency =
+export type SupportedCurrency =
   | (typeof SUPPORTED_CURRENCIES)[number]
   | Uppercase<(typeof SUPPORTED_CURRENCIES)[number]>;
 
@@ -185,6 +197,7 @@ type SupportedCurrency =
  * The list of chain IDs that can be supplied in the URL for the `/spot-prices`
  * endpoint, but in hexadecimal form (for consistency with how we represent
  * chain IDs in other places).
+ *
  * @see Used by {@link CodefiTokenPricesServiceV2} to validate that a given chain ID is supported by V2 of the Codefi Price API.
  */
 export const SUPPORTED_CHAIN_IDS = [
@@ -357,6 +370,63 @@ type MarketData = {
 };
 
 type MarketDataByTokenAddress = { [address: Hex]: MarketData };
+
+/**
+ * Creates a CAIP asset ID from chain ID and token address.
+ * For native tokens, uses SLIP44 coin type format: eip155:{chainId}/slip44:{coinType}
+ * For ERC20 tokens, uses address format: eip155:{chainId}:{tokenAddress}
+ *
+ * @param chainId - The EIP-155 chain ID (hex format).
+ * @param tokenAddress - The token contract address (or native token placeholder).
+ * @returns The CAIP asset ID string.
+ */
+function createCaipAssetId(chainId: Hex, tokenAddress: Hex): CaipAssetId {
+  const chainIdAsNumber = hexToNumber(chainId);
+  const nativeTokenAddress = getNativeTokenAddress(chainId);
+
+  // Check if this is a native token
+  if (tokenAddress.toLowerCase() === nativeTokenAddress.toLowerCase()) {
+    // Use SLIP44 coin type for native tokens
+    const slip44CoinType = getSlip44CoinType(chainId);
+    if (slip44CoinType !== null) {
+      return `eip155:${chainIdAsNumber}/slip44:${slip44CoinType}`;
+    }
+  }
+
+  // Use token address for ERC20 tokens
+  return `eip155:${chainIdAsNumber}:${tokenAddress}`;
+}
+
+/**
+ * Gets the SLIP44 coin type for a given chain ID.
+ *
+ * @param chainId - The EIP-155 chain ID (hex format).
+ * @returns The SLIP44 coin type number, or null if not found.
+ */
+function getSlip44CoinType(chainId: Hex): number | null {
+  const chainIdAsNumber = hexToNumber(chainId);
+
+  // Use SLIP44 constants where available, with fallbacks for EVM chains
+  switch (chainIdAsNumber) {
+    case 1: // Ethereum Mainnet
+      return SLIP44_COIN_TYPES.ETH;
+    case 137: // Polygon
+      return SLIP44_COIN_TYPES.MATIC;
+    case 56: // BSC
+      return SLIP44_COIN_TYPES.BNB;
+    case 43114: // Avalanche
+      return SLIP44_COIN_TYPES.AVAX;
+    // EVM chains that use ETH as native token
+    case 8453: // Base
+    case 42161: // Arbitrum One
+    case 10: // Optimism
+    case 59144: // Linea
+      return SLIP44_COIN_TYPES.ETH;
+    default:
+      return null;
+  }
+}
+
 /**
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
@@ -530,6 +600,77 @@ export class CodefiTokenPricesServiceV2
       },
       {},
     ) as Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>;
+  }
+
+  /**
+   * Retrieves prices for multiple tokens across multiple chains in a single request.
+   * Uses the v3 CAIP asset IDs endpoint for improved performance.
+   *
+   * @param args - The arguments to this function.
+   * @param args.tokenRequests - Array of chain IDs and their token addresses.
+   * @param args.currency - The desired currency of the token prices.
+   * @returns A map of CAIP asset IDs to their prices.
+   */
+  async fetchMultichainTokenPrices({
+    tokenRequests,
+    currency,
+  }: {
+    tokenRequests: MultichainTokenRequest[];
+    currency: SupportedCurrency;
+  }): Promise<TokenPricesByCaipAssetId<SupportedCurrency>> {
+    // Create CAIP asset IDs for all tokens across all chains
+    const caipAssetIds: CaipAssetId[] = [];
+    const assetIdToOriginal: Record<
+      CaipAssetId,
+      { chainId: Hex; tokenAddress: Hex }
+    > = {};
+
+    for (const request of tokenRequests) {
+      const { chainId, tokenAddresses } = request;
+
+      // Include native token
+      const nativeTokenAddress = getNativeTokenAddress(chainId);
+      const nativeCaipAssetId = createCaipAssetId(chainId, nativeTokenAddress);
+      caipAssetIds.push(nativeCaipAssetId);
+      assetIdToOriginal[nativeCaipAssetId] = {
+        chainId,
+        tokenAddress: nativeTokenAddress,
+      };
+
+      // Include all other tokens
+      for (const tokenAddress of tokenAddresses) {
+        const caipAssetId = createCaipAssetId(chainId, tokenAddress);
+        caipAssetIds.push(caipAssetId);
+        assetIdToOriginal[caipAssetId] = { chainId, tokenAddress };
+      }
+    }
+
+    // Build the v3 API URL
+    const url = new URL(`${BASE_URL}/spot-prices`);
+    url.searchParams.append('caipAssetIds', caipAssetIds.join(','));
+    url.searchParams.append('vsCurrency', currency);
+    url.searchParams.append('includeMarketData', 'true');
+
+    const response: Record<string, MarketData> = await this.#policy.execute(
+      () => handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
+    );
+
+    // Transform response back to expected format
+    const result: TokenPricesByCaipAssetId<SupportedCurrency> = {};
+
+    for (const [caipAssetId, marketData] of Object.entries(response)) {
+      const original = assetIdToOriginal[caipAssetId];
+      if (original && marketData) {
+        const token: TokenPrice<Hex, SupportedCurrency> = {
+          tokenAddress: original.tokenAddress,
+          currency,
+          ...marketData,
+        };
+        result[caipAssetId] = token;
+      }
+    }
+
+    return result;
   }
 
   /**

@@ -2,6 +2,26 @@ import type { ServicePolicy } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 /**
+ * Represents a CAIP asset ID for multichain token identification
+ */
+export type CaipAssetId = string;
+
+/**
+ * Represents token information for multichain requests
+ */
+export type MultichainTokenRequest = {
+  chainId: Hex;
+  tokenAddresses: Hex[];
+};
+
+/**
+ * A map of CAIP asset ID to its price for multichain responses
+ */
+export type TokenPricesByCaipAssetId<Currency extends string> = {
+  [caipAssetId: CaipAssetId]: TokenPrice<Hex, Currency>;
+};
+
+/**
  * Represents the price of a token in a currency.
  */
 export type TokenPrice<TokenAddress extends Hex, Currency extends string> = {
@@ -129,4 +149,21 @@ export type AbstractTokenPricesService<
    * @returns True if the API supports the currency, false otherwise.
    */
   validateCurrencySupported(currency: unknown): currency is Currency;
+
+  /**
+   * Retrieves prices for multiple tokens across multiple chains in a single request.
+   * This is more efficient than making multiple single-chain requests.
+   *
+   * @param args - The arguments to this function.
+   * @param args.tokenRequests - Array of chain IDs and their token addresses.
+   * @param args.currency - The desired currency of the token prices.
+   * @returns A map of CAIP asset IDs to their prices.
+   */
+  fetchMultichainTokenPrices({
+    tokenRequests,
+    currency,
+  }: {
+    tokenRequests: MultichainTokenRequest[];
+    currency: Currency;
+  }): Promise<TokenPricesByCaipAssetId<Currency>>;
 };

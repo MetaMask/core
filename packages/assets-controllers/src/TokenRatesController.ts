@@ -20,13 +20,14 @@ import type {
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import { createDeferredPromise, type Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare-service';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
+import type { SupportedCurrency } from './token-prices-service/codefi-v2';
 import type {
   TokensControllerGetStateAction,
   TokensControllerStateChangeEvent,
@@ -242,7 +243,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
   readonly #tokenPricesService: AbstractTokenPricesService;
 
-  #inProcessExchangeRateUpdates: Record<`${Hex}:${string}`, Promise<void>> = {};
 
   #disabled: boolean;
 
@@ -522,73 +522,137 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       return;
     }
 
-    // Create a promise for each chainId to fetch exchange rates.
-    const updatePromises = chainIdAndNativeCurrency.map(
-      async ({ chainId, nativeCurrency }) => {
-        const tokenAddresses = this.#getTokenAddresses(chainId);
-        // Build a unique key based on chainId, nativeCurrency, and the number of token addresses.
-        const updateKey: `${Hex}:${string}` = `${chainId}:${nativeCurrency}:${tokenAddresses.length}`;
-
-        if (updateKey in this.#inProcessExchangeRateUpdates) {
-          // Await any ongoing update to avoid redundant work.
-          await this.#inProcessExchangeRateUpdates[updateKey];
-          return null;
-        }
-
-        // Create a deferred promise to track this update.
-        const {
-          promise: inProgressUpdate,
-          resolve: updateSucceeded,
-          reject: updateFailed,
-        } = createDeferredPromise({ suppressUnhandledRejection: true });
-        this.#inProcessExchangeRateUpdates[updateKey] = inProgressUpdate;
-
-        try {
-          const contractInformations = await this.#fetchAndMapExchangeRates({
-            tokenAddresses,
-            chainId,
-            nativeCurrency,
-          });
-
-          // Each promise returns an object with the market data for the chain.
-          const marketData = {
-            [chainId]: {
-              ...(contractInformations ?? {}),
-            },
-          };
-
-          updateSucceeded();
-          return marketData;
-        } catch (error: unknown) {
-          updateFailed(error);
-          throw error;
-        } finally {
-          // Cleanup the tracking for this update.
-          delete this.#inProcessExchangeRateUpdates[updateKey];
-        }
-      },
+    // Use multichain approach only - no fallback
+    const chainAndTokenRequests = chainIdAndNativeCurrency.map(
+      ({ chainId, nativeCurrency }) => ({
+        chainId,
+        tokenAddresses: this.#getTokenAddresses(chainId),
+        nativeCurrency,
+      }),
     );
 
-    // Wait for all update promises to settle.
-    const results = await Promise.allSettled(updatePromises);
+    const multichainResults = await this.#fetchMultichainExchangeRates({
+      chainAndTokenRequests,
+    });
 
-    // Merge all successful market data updates into one object.
-    const combinedMarketData = results.reduce((acc, result) => {
-      if (result.status === 'fulfilled' && result.value) {
-        acc = { ...acc, ...result.value };
-      }
-      return acc;
-    }, {});
-
-    // Call this.update only once with the combined market data to reduce the number of state changes and re-renders
-    if (Object.keys(combinedMarketData).length > 0) {
+    // Update with multichain results
+    if (Object.keys(multichainResults).length > 0) {
       this.update((state) => {
-        state.marketData = {
-          ...state.marketData,
-          ...combinedMarketData,
-        };
+        for (const [chainId, contractExchangeRates] of Object.entries(
+          multichainResults,
+        )) {
+          const chainIdHex = chainId as Hex;
+          if (!state.marketData[chainIdHex]) {
+            state.marketData[chainIdHex] = {};
+          }
+          state.marketData[chainIdHex] = {
+            ...state.marketData[chainIdHex],
+            ...contractExchangeRates,
+          };
+        }
       });
     }
+  }
+
+  /**
+   * Uses the multichain token prices service to retrieve exchange rates for tokens
+   * across multiple chains in a single request. This is more efficient than making
+   * multiple single-chain requests.
+   *
+   * @param args - The arguments to this function.
+   * @param args.chainAndTokenRequests - Array of objects containing chainId, tokenAddresses, and nativeCurrency.
+   * @returns A map from chain ID to token addresses to their prices.
+   */
+  async #fetchMultichainExchangeRates({
+    chainAndTokenRequests,
+  }: {
+    chainAndTokenRequests: {
+      chainId: Hex;
+      tokenAddresses: Hex[];
+      nativeCurrency: string;
+    }[];
+  }): Promise<Record<Hex, ContractMarketData>> {
+    // fetchMultichainTokenPrices is now required, no need to check
+
+    // Helper function to parse CAIP asset IDs back to chain ID and token address
+    const parseCaipAssetId = (caipAssetId: string): { chainId: Hex; tokenAddress: Hex } | null => {
+      try {
+        // Handle SLIP44 format: eip155:1/slip44:60
+        if (caipAssetId.includes('/slip44:')) {
+          const [namespaceChain, slip44Part] = caipAssetId.split('/slip44:');
+          const [namespace, chainIdStr] = namespaceChain.split(':');
+          if (namespace === 'eip155' && chainIdStr) {
+            const chainId = `0x${parseInt(chainIdStr, 10).toString(16)}` as Hex;
+            const nativeTokenAddress = getNativeTokenAddress(chainId);
+            return { chainId, tokenAddress: nativeTokenAddress };
+          }
+        } else {
+          // Handle regular format: eip155:1:0x...
+          const [namespace, chainIdStr, tokenAddress] = caipAssetId.split(':');
+          if (namespace === 'eip155' && chainIdStr && tokenAddress) {
+            const chainId = `0x${parseInt(chainIdStr, 10).toString(16)}` as Hex;
+            return { chainId, tokenAddress: tokenAddress as Hex };
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to parse CAIP asset ID: ${caipAssetId}`, error);
+      }
+      return null;
+    };
+
+    // Group requests by currency to batch them efficiently
+    const requestsByCurrency: Record<
+      string,
+      { chainId: Hex; tokenAddresses: Hex[] }[]
+    > = {};
+    const chainToCurrency: Record<Hex, string> = {};
+
+    for (const request of chainAndTokenRequests) {
+      const { chainId, tokenAddresses, nativeCurrency } = request;
+      chainToCurrency[chainId] = nativeCurrency;
+
+      if (!requestsByCurrency[nativeCurrency]) {
+        requestsByCurrency[nativeCurrency] = [];
+      }
+      requestsByCurrency[nativeCurrency].push({ chainId, tokenAddresses });
+    }
+
+    const results: Record<Hex, ContractMarketData> = {};
+
+    // Process each currency group
+    for (const [currency, requests] of Object.entries(requestsByCurrency)) {
+      try {
+        const caipPrices = await this.#tokenPricesService.fetchMultichainTokenPrices({
+          tokenRequests: requests,
+          currency: currency as SupportedCurrency,
+        });
+
+        // Convert CAIP results back to chain-based structure
+        for (const request of requests) {
+          const { chainId } = request;
+          results[chainId] = {};
+        }
+
+        // Map CAIP asset IDs back to chain + token structure
+        for (const [caipAssetId, tokenPrice] of Object.entries(caipPrices)) {
+          const parsedAsset = parseCaipAssetId(caipAssetId);
+          if (parsedAsset) {
+            const { chainId, tokenAddress } = parsedAsset;
+            if (results[chainId]) {
+              results[chainId][tokenAddress] = tokenPrice;
+            }
+          }
+        }
+      } catch (error) {
+        console.error(
+          `Failed to fetch multichain prices for currency ${currency}:`,
+          error,
+        );
+        throw error;
+      }
+    }
+
+    return results;
   }
 
   /**
