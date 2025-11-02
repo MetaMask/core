@@ -1619,6 +1619,37 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('should not submit sponsorship intents if the chain does not support sponsorship', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+            pricing: {
+              ...MOCK_PRICE_INFO_RESPONSE,
+              paymentMethods: [
+                ...MOCK_PRICE_INFO_RESPONSE.paymentMethods.map(
+                  (paymentMethod) => ({
+                    ...paymentMethod,
+                    chains: paymentMethod.chains?.map((chain) => ({
+                      ...chain,
+                      isSponsorshipSupported: false, // <==== Sponsorship not supported
+                    })),
+                  }),
+                ),
+              ],
+            },
+          },
+        },
+        async ({ controller, mockService }) => {
+          const isSponsored = await controller.submitSponsorshipIntents(
+            MOCK_SUBMISSION_INTENTS_REQUEST,
+          );
+          expect(isSponsored).toBe(false);
+          expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('should throw error when no cached payment method is found', async () => {
       await withController(async ({ controller }) => {
         await expect(
