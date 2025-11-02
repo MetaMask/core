@@ -457,6 +457,60 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
+   * Handles shield subscription crypto approval transactions.
+   *
+   * @param txMeta - The transaction metadata.
+   * @param isSponsored - Whether the transaction is sponsored.
+   * @returns void
+   */
+  async submitShieldSubscriptionCryptoApproval(
+    txMeta: TransactionMeta,
+    isSponsored?: boolean,
+  ) {
+    if (txMeta.type !== TransactionType.shieldSubscriptionApprove) {
+      return;
+    }
+
+    const { chainId, rawTx } = txMeta;
+    if (!chainId || !rawTx) {
+      throw new Error('Chain ID or raw transaction not found');
+    }
+
+    const { pricing, trialedProducts, lastSelectedPaymentMethod } = this.state;
+    if (!pricing) {
+      throw new Error('Subscription pricing not found');
+    }
+    if (!lastSelectedPaymentMethod) {
+      throw new Error('Last selected payment method not found');
+    }
+    const lastSelectedPaymentMethodShield =
+      lastSelectedPaymentMethod[PRODUCT_TYPES.SHIELD];
+    this.#assertIsPaymentMethodCrypto(lastSelectedPaymentMethodShield);
+
+    const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
+
+    const productPrice = this.#getProductPriceByProductAndPlan(
+      PRODUCT_TYPES.SHIELD,
+      lastSelectedPaymentMethodShield.plan,
+    );
+
+    const params = {
+      products: [PRODUCT_TYPES.SHIELD],
+      isTrialRequested: !isTrialed,
+      recurringInterval: productPrice.interval,
+      billingCycles: productPrice.minBillingCycles,
+      chainId,
+      payerAddress: txMeta.txParams.from as Hex,
+      tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
+      rawTransaction: rawTx as Hex,
+      isSponsored,
+    };
+    await this.startSubscriptionWithCrypto(params);
+    // update the subscriptions state after subscription created in server
+    await this.getSubscriptions();
+  }
+
+  /**
    * Get transaction params to create crypto approve transaction for subscription payment
    *
    * @param request - The request object
@@ -531,6 +585,15 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       return await this.getSubscriptions();
     }
     throw new Error('Invalid payment type');
+  }
+
+  /**
+   * Gets the billing portal URL.
+   *
+   * @returns The billing portal URL
+   */
+  async getBillingPortalUrl(): Promise<BillingPortalResponse> {
+    return await this.#subscriptionService.getBillingPortalUrl();
   }
 
   /**
@@ -797,15 +860,6 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
-   * Gets the billing portal URL.
-   *
-   * @returns The billing portal URL
-   */
-  async getBillingPortalUrl(): Promise<BillingPortalResponse> {
-    return await this.#subscriptionService.getBillingPortalUrl();
-  }
-
-  /**
    * Determines whether two trialed products arrays are equal by comparing all products in the arrays.
    *
    * @param oldTrialedProducts - The first trialed products array to compare.
@@ -865,59 +919,5 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     };
 
     return JSON.stringify(subsWithSortedProducts);
-  }
-
-  /**
-   * Handles shield subscription crypto approval transactions.
-   *
-   * @param txMeta - The transaction metadata.
-   * @param isSponsored - Whether the transaction is sponsored.
-   * @returns void
-   */
-  async submitShieldSubscriptionCryptoApproval(
-    txMeta: TransactionMeta,
-    isSponsored?: boolean,
-  ) {
-    if (txMeta.type !== TransactionType.shieldSubscriptionApprove) {
-      return;
-    }
-
-    const { chainId, rawTx } = txMeta;
-    if (!chainId || !rawTx) {
-      throw new Error('Chain ID or raw transaction not found');
-    }
-
-    const { pricing, trialedProducts, lastSelectedPaymentMethod } = this.state;
-    if (!pricing) {
-      throw new Error('Subscription pricing not found');
-    }
-    if (!lastSelectedPaymentMethod) {
-      throw new Error('Last selected payment method not found');
-    }
-    const lastSelectedPaymentMethodShield =
-      lastSelectedPaymentMethod[PRODUCT_TYPES.SHIELD];
-    this.#assertIsPaymentMethodCrypto(lastSelectedPaymentMethodShield);
-
-    const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
-
-    const productPrice = this.#getProductPriceByProductAndPlan(
-      PRODUCT_TYPES.SHIELD,
-      lastSelectedPaymentMethodShield.plan,
-    );
-
-    const params = {
-      products: [PRODUCT_TYPES.SHIELD],
-      isTrialRequested: !isTrialed,
-      recurringInterval: productPrice.interval,
-      billingCycles: productPrice.minBillingCycles,
-      chainId,
-      payerAddress: txMeta.txParams.from as Hex,
-      tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
-      rawTransaction: rawTx as Hex,
-      isSponsored,
-    };
-    await this.startSubscriptionWithCrypto(params);
-    // update the subscriptions state after subscription created in server
-    await this.getSubscriptions();
   }
 }
