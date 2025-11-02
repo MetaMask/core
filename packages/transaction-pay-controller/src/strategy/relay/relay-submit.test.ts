@@ -17,7 +17,11 @@ import {
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
 
-jest.mock('../../utils/transaction');
+jest.mock('../../utils/transaction', () => ({
+  ...jest.requireActual('../../utils/transaction'),
+  updateTransaction: jest.fn(),
+  waitForTransactionConfirmed: jest.fn(),
+}));
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
