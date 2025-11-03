@@ -15,6 +15,7 @@ export type {
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerStateChangeEvent,
+  SubscriptionControllerSubmitSponsorshipIntentsAction,
   AllowedActions,
   AllowedEvents,
 } from './SubscriptionController';
