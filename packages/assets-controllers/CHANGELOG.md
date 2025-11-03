@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `AssetsByAccountGroup` to list of exported types ([#6983](https://github.com/MetaMask/core/pull/6983))
+- Added `addAssets` to allow adding multiple assets for non-EVM chains ([#7016](https://github.com/MetaMask/core/pull/7016))
 
 ### Changed
 
@@ -21,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `AccountsController:accountAdded` no longer updates DeFi positions
   - `AccountTreeController:selectedAccountGroupChange` updates DeFi positions for the selected address
   - `TransactionController:transactionConfirmed` only updates DeFi positions if the transaction is for the selected address
+
+### Fixed
+
+- Fixed token is not removed from ignored tokens list when added back due to case insensiteivity ([#7016](https://github.com/MetaMask/core/pull/7016))
 
 ## [86.0.0]
 
