@@ -36,11 +36,12 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/sample-controllers",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/sample-controllers",
-    "since-latest-release": "../../scripts/since-latest-release.sh",
     "publish:preview": "yarn npm publish --tag preview",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
@@ -53,8 +54,9 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/controller-utils": "^11.14.1",
+    "@metamask/controller-utils": "^11.15.0",
     "@metamask/network-controller": "^25.0.0",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -65,14 +67,14 @@
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2"
   },
+  "peerDependencies": {
+    "@metamask/network-controller": "^25.0.0"
+  },
   "engines": {
     "node": "^18.18 || >=20"
   },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  },
-  "peerDependencies": {
-    "@metamask/network-controller": "^25.0.0"
   }
 }

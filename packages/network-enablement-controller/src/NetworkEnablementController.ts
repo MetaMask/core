@@ -112,6 +112,11 @@ const getDefaultNetworkEnablementControllerState =
         [ChainId[BuiltInNetworkName.Mainnet]]: true,
         [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
         [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
+        [ChainId[BuiltInNetworkName.ArbitrumOne]]: true,
+        [ChainId[BuiltInNetworkName.BscMainnet]]: true,
+        [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
+        [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
+        [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
       },
       [KnownCaipNamespace.Solana]: {
         [SolScope.Mainnet]: true,

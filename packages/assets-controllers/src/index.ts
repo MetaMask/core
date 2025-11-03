@@ -142,6 +142,7 @@ export {
   SUPPORTED_CHAIN_IDS,
   getNativeTokenAddress,
 } from './token-prices-service';
+export { searchTokens } from './token-service';
 export { RatesController, Cryptocurrency } from './RatesController';
 export type {
   RatesControllerState,
@@ -223,6 +224,7 @@ export {
   calculateBalanceChangeForAccountGroup,
 } from './balances';
 export type {
+  AssetsByAccountGroup,
   AccountGroupAssets,
   Asset,
   AssetListState,

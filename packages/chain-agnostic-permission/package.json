@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/chain-agnostic-permission",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/chain-agnostic-permission",
@@ -48,7 +49,7 @@
   },
   "dependencies": {
     "@metamask/api-specs": "^0.14.0",
-    "@metamask/controller-utils": "^11.14.1",
+    "@metamask/controller-utils": "^11.15.0",
     "@metamask/network-controller": "^25.0.0",
     "@metamask/permission-controller": "^12.1.0",
     "@metamask/rpc-errors": "^7.0.2",
@@ -58,6 +59,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-internal-api": "^9.0.0",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
