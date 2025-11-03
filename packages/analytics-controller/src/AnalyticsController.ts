@@ -190,9 +190,11 @@ export class AnalyticsController extends BaseController<
     platformAdapter,
   }: AnalyticsControllerOptions) {
     const defaultState = getDefaultAnalyticsControllerState();
-    // Generate UUIDv4 analytics ID only if not provided in state
+    // Use analyticsId from state if provided, otherwise use the one from defaultState
     const analyticsId: string =
-      state.analyticsId !== undefined ? state.analyticsId : uuidv4();
+      state.analyticsId !== undefined
+        ? state.analyticsId
+        : defaultState.analyticsId;
     const mergedState: AnalyticsControllerState = {
       ...defaultState,
       ...state,
