@@ -516,7 +516,7 @@ export class TokensController extends BaseController<
       ...tokensToImport,
     ].reduce(
       (output, token) => {
-        output[token.address] = token;
+        output[toChecksumHexAddress(token.address)] = token;
         return output;
       },
       {} as { [address: string]: Token },
