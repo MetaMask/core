@@ -10,7 +10,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import type { Hex, Json } from '@metamask/utils';
+import type { Json } from '@metamask/utils';
 
 import type { DecodedPermission } from './decodePermission';
 import {
@@ -34,6 +34,7 @@ import {
   type StoredGatorPermission,
   type DelegationDetails,
   type RevocationParams,
+  type PendingRevocationParams,
 } from './types';
 import {
   deserializeGatorPermissionsMap,
@@ -737,14 +738,14 @@ export default class GatorPermissionsController extends BaseController<
    * and includes a timeout safety net to prevent memory leaks if the transaction never
    * reaches a terminal state.
    *
-   * @param txId - The transaction metadata ID to monitor.
-   * @param permissionContext - The permission context to revoke once the transaction is confirmed.
+   * @param params - The pending revocation parameters.
    * @returns A promise that resolves when the listener is set up.
    */
   public async addPendingRevocation(
-    txId: string,
-    permissionContext: Hex,
+    params: PendingRevocationParams,
   ): Promise<void> {
+    const { txId, permissionContext } = params;
+
     controllerLog('addPendingRevocation method called', {
       txId,
       permissionContext,

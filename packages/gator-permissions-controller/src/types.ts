@@ -242,3 +242,17 @@ export type RevocationParams = {
    */
   permissionContext: Hex;
 };
+
+/**
+ * Represents the parameters for adding a pending revocation.
+ */
+export type PendingRevocationParams = {
+  /**
+   * The transaction metadata ID to monitor.
+   */
+  txId: string;
+  /**
+   * The permission context as a hex string that identifies the permission to revoke.
+   */
+  permissionContext: Hex;
+};

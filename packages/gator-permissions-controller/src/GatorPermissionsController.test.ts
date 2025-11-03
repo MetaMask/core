@@ -832,7 +832,7 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation(txId, permissionContext);
+      await controller.addPendingRevocation({ txId, permissionContext });
 
       // Emit transaction confirmed event
       rootMessenger.publish('TransactionController:transactionConfirmed', {
@@ -873,7 +873,7 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation(txId, permissionContext);
+      await controller.addPendingRevocation({ txId, permissionContext });
 
       // Emit transaction failed event
       rootMessenger.publish('TransactionController:transactionFailed', {
@@ -907,7 +907,7 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation(txId, permissionContext);
+      await controller.addPendingRevocation({ txId, permissionContext });
 
       // Emit transaction dropped event
       rootMessenger.publish('TransactionController:transactionDropped', {
@@ -940,7 +940,7 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation(txId, permissionContext);
+      await controller.addPendingRevocation({ txId, permissionContext });
 
       // Fast-forward time by 2 hours
       jest.advanceTimersByTime(2 * 60 * 60 * 1000);
@@ -971,7 +971,7 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation(txId, permissionContext);
+      await controller.addPendingRevocation({ txId, permissionContext });
 
       // Emit transaction confirmed event for different transaction
       rootMessenger.publish('TransactionController:transactionConfirmed', {
@@ -1006,7 +1006,7 @@ describe('GatorPermissionsController', () => {
       const txId = 'test-tx-id';
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
-      await controller.addPendingRevocation(txId, permissionContext);
+      await controller.addPendingRevocation({ txId, permissionContext });
 
       // Emit transaction confirmed event
       rootMessenger.publish('TransactionController:transactionConfirmed', {
@@ -1033,7 +1033,7 @@ describe('GatorPermissionsController', () => {
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
       await expect(
-        controller.addPendingRevocation(txId, permissionContext),
+        controller.addPendingRevocation({ txId, permissionContext }),
       ).rejects.toThrow('Gator permissions are not enabled');
     });
   });
