@@ -103,6 +103,10 @@ const setupNetworkController = async ({
     namespace: 'NetworkController',
     parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    messenger: networkControllerMessenger,
+    actions: ['ErrorReportingService:captureException'],
+  });
 
   const infuraProjectId = '123';
 
