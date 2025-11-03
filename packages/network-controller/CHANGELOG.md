@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Use latest network nicknames as defined in extension and mobile ([#7045](https://github.com/MetaMask/core/pull/7045))
 - **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
   - Providers accessible either via network clients or global proxies no longer emit events (or inherit from EventEmitter, for that matter).
 - **BREAKING:** Make `Provider` type more specific ([#7061](https://github.com/MetaMask/core/pull/7061))
