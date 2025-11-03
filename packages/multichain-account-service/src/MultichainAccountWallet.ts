@@ -206,6 +206,7 @@ export class MultichainAccountWallet<
    * @param options.providers - The non‑EVM account providers.
    * @param options.awaitAll - Whether to wait for all providers to finish.
    * @param options.group - The group object pertaining to the group index to create accounts for.
+   * @param options.evmError - The error message if the EVM provider failed to create accounts.
    * @throws If awaitAll is true and any provider fails to create accounts.
    * @returns A promise that resolves when done (if awaitAll is true) or immediately (if false).
    */
@@ -214,11 +215,13 @@ export class MultichainAccountWallet<
     providers,
     awaitAll,
     group,
+    evmError,
   }: {
     groupIndex: number;
     providers: Bip44AccountProvider<Account>[];
     awaitAll: boolean;
     group: MultichainAccountGroup<Account>;
+    evmError?: string;
   }): Promise<void> {
     if (awaitAll) {
       const tasks = providers.map((provider) =>
@@ -229,25 +232,22 @@ export class MultichainAccountWallet<
       );
 
       const results = await Promise.allSettled(tasks);
-
-      let failureCount = 0;
+      let failures = 0;
 
       const providerFailures = results.reduce((acc, result, idx) => {
         if (result.status === 'rejected') {
-          failureCount += 1;
-          acc += `\n- ${this.#providers[idx].getName()}: ${result.reason.message}`;
+          failures += 1;
+          acc += `\n- ${providers[idx].getName()}: ${result.reason.message}`;
         }
         return acc;
       }, '');
 
-      const everyProviderFailed = failureCount === this.#providers.length;
-
-      if (everyProviderFailed) {
+      if (failures === providers.length && evmError?.length) {
         // We throw an error if there's a failure on every provider
         throw new Error(
-          `Unable to create multichain account group for index: ${groupIndex} due to provider failures:${providerFailures}`,
+          `Unable to create multichain account group for index: ${groupIndex} due to provider failures:${evmError}${providerFailures}`,
         );
-      } else if (providerFailures) {
+      } else if (providerFailures.length) {
         // We warn there's failures on some providers and thus misalignment, but we still create the group
         const message = `Unable to create some accounts for group index: ${groupIndex}. Providers threw the following errors:${providerFailures}`;
         console.warn(message);
@@ -257,7 +257,7 @@ export class MultichainAccountWallet<
       // No need to fetch the accounts list from the AccountsController since we already have the account IDs to be used in the controller
       const groupState = results.reduce<GroupState>((state, result, idx) => {
         if (result.status === 'fulfilled') {
-          state[this.#providers[idx].getName()] = result.value.map(
+          state[providers[idx].getName()] = result.value.map(
             (account) => account.id,
           );
         }
@@ -418,7 +418,9 @@ export class MultichainAccountWallet<
         messenger: this.#messenger,
       });
 
-      evmProvider
+      let evmError = '';
+
+      await evmProvider
         .createAccounts({
           entropySource: this.#entropySource,
           groupIndex,
@@ -431,7 +433,7 @@ export class MultichainAccountWallet<
           const errorMessage = `Unable to create some accounts for group index: ${groupIndex} with provider "${evmProvider.getName()}". Error: ${(error as Error).message}`;
           console.warn(errorMessage);
           this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
-          throw new Error(errorMessage);
+          evmError = `\n- ${evmProvider.getName()}: ${(error as Error).message}`;
         });
 
       // We then create accounts with other providers (some being throttled if configured).
@@ -442,6 +444,7 @@ export class MultichainAccountWallet<
           providers: otherProviders,
           awaitAll: true,
           group,
+          evmError,
         });
       } else {
         // eslint-disable-next-line no-void

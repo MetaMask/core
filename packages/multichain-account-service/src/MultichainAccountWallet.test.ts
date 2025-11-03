@@ -274,7 +274,7 @@ describe('MultichainAccountWallet', () => {
 
       // Should warn about partial failure but still create the group
       expect(consoleSpy).toHaveBeenCalledWith(
-        `Unable to create some accounts for group index: ${groupIndex}. Providers threw the following errors:\n- Mocked Provider 0: Unable to create accounts`,
+        `Unable to create some accounts for group index: ${groupIndex} with provider "Mocked Provider 0". Error: Unable to create accounts`,
       );
       expect(group.groupIndex).toBe(groupIndex);
       const internalAccounts = group.getAccounts();
@@ -329,53 +329,6 @@ describe('MultichainAccountWallet', () => {
       expect(consoleSpy).toHaveBeenCalledWith(
         'Unable to create some accounts for group index: 0 with provider "Mocked Provider 1". Error: Unable to create accounts',
       );
-    });
-
-    it('aggregates non-EVM failures when waiting for all providers', async () => {
-      const startingIndex = 0;
-
-      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(startingIndex)
-        .get();
-
-      const { wallet, providers } = setup({
-        providers: [
-          setupBip44AccountProvider({ accounts: [mockEvmAccount], index: 0 }),
-          setupBip44AccountProvider({
-            name: 'Non-EVM Provider',
-            accounts: [],
-            index: 1,
-          }),
-        ],
-      });
-
-      const nextIndex = 1;
-      const nextEvmAccount = MockAccountBuilder.from(mockEvmAccount)
-        .withGroupIndex(nextIndex)
-        .get();
-
-      const [evmProvider, solProvider] = providers;
-      evmProvider.createAccounts.mockResolvedValueOnce([nextEvmAccount]);
-      evmProvider.getAccounts.mockReturnValueOnce([nextEvmAccount]);
-      evmProvider.getAccount.mockReturnValueOnce(nextEvmAccount);
-
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
-
-      const SOL_PROVIDER_ERROR = 'SOL create failed';
-      solProvider.createAccounts.mockRejectedValueOnce(
-        new Error(SOL_PROVIDER_ERROR),
-      );
-
-      await expect(
-        wallet.createMultichainAccountGroup(nextIndex, {
-          waitForAllProvidersToFinishCreatingAccounts: true,
-        }),
-      ).rejects.toThrow(
-        `Unable to create multichain account group for index: ${nextIndex}:\n- Error: ${SOL_PROVIDER_ERROR}`,
-      );
-
-      expect(warnSpy).toHaveBeenCalled();
     });
   });
 
