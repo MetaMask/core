@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `addAsset` to allow adding assets for non-EVM chains ([#7016](https://github.com/MetaMask/core/pull/7016))
+- Added `addAssets` to allow adding multiple assets for non-EVM chains ([#7016](https://github.com/MetaMask/core/pull/7016))
 
 ## [86.0.0]
 
