@@ -40,6 +40,8 @@ import type {
   AccountTreeWalletPersistedMetadata,
 } from './wallet';
 import type {
+  MultichainAccountServiceGetMultichainAccountWalletsAction,
+  MultichainAccountServiceMultichainAccountGroupCreatedEvent,
   MultichainAccountServiceMultichainAccountGroupUpdatedEvent,
   MultichainAccountServiceWalletStatusChangeEvent,
 } from '../../multichain-account-service/src/types';
@@ -130,7 +132,8 @@ export type AllowedActions =
   | UserStorageController.UserStorageControllerPerformSetStorage
   | UserStorageController.UserStorageControllerPerformBatchSetStorage
   | AuthenticationController.AuthenticationControllerGetSessionProfile
-  | MultichainAccountServiceCreateMultichainAccountGroupAction;
+  | MultichainAccountServiceCreateMultichainAccountGroupAction
+  | MultichainAccountServiceGetMultichainAccountWalletsAction;
 
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
@@ -171,6 +174,7 @@ export type AllowedEvents =
   | AccountsControllerSelectedAccountChangeEvent
   | UserStorageController.UserStorageControllerStateChangeEvent
   | MultichainAccountServiceWalletStatusChangeEvent
+  | MultichainAccountServiceMultichainAccountGroupCreatedEvent
   | MultichainAccountServiceMultichainAccountGroupUpdatedEvent;
 
 export type AccountTreeControllerEvents =

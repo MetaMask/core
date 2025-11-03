@@ -251,9 +251,16 @@ export class AccountTreeController extends BaseController<
     );
 
     this.messenger.subscribe(
+      'MultichainAccountService:multichainAccountGroupCreated',
+      (group) => {
+        this.#handleMultichainAccountWalletGroupCreatedOrUpdated(group);
+      },
+    );
+
+    this.messenger.subscribe(
       'MultichainAccountService:multichainAccountGroupUpdated',
       (group) => {
-        this.#handleMultichainAccountWalletGroupUpdated(group);
+        this.#handleMultichainAccountWalletGroupCreatedOrUpdated(group);
       },
     );
 
@@ -305,6 +312,17 @@ export class AccountTreeController extends BaseController<
     // For now, we always re-compute all wallets, we do not re-use the existing state.
     for (const account of accounts) {
       this.#insert(wallets, account);
+    }
+
+    // Since we're building the tree out of of the account list, we don't know if those
+    // accounts got disabled at the service level. To make sure both states are "in-sync"
+    // we check each multichain account groups and remove extra accounts if there's any!
+    for (const wallet of this.messenger.call(
+      'MultichainAccountService:getMultichainAccountWallets',
+    )) {
+      for (const group of wallet.getMultichainAccountGroups()) {
+        this.#resyncAccountsFromMultichainAccountGroups(group);
+      }
     }
 
     // Once we have the account tree, we can apply persisted metadata (names + UI states).
@@ -1252,11 +1270,15 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Handles multichain account group updates.
+   * Check if an account group object is in-sync with its multichain
+   * account group counterpart.
    *
-   * @param group - Multichain account group that got updated.
+   * If not, then the extra-accounts fromt he account group object
+   * will be removed from the tree.
+   *
+   * @param group - Multichain account group that got created or updated.
    */
-  #handleMultichainAccountWalletGroupUpdated(
+  #resyncAccountsFromMultichainAccountGroups(
     group: MultichainAccountGroup<Bip44Account<KeyringAccount>>,
   ): void {
     const multichainGroupAccounts = new Set(
@@ -1279,6 +1301,17 @@ export class AccountTreeController extends BaseController<
     }
 
     this.#removeAccounts(treeGroupAccountsToRemove);
+  }
+
+  /**
+   * Handles multichain account group updates.
+   *
+   * @param group - Multichain account group that got updated.
+   */
+  #handleMultichainAccountWalletGroupCreatedOrUpdated(
+    group: MultichainAccountGroup<Bip44Account<KeyringAccount>>,
+  ): void {
+    this.#resyncAccountsFromMultichainAccountGroups(group);
   }
 
   /**

@@ -332,6 +332,9 @@ function setup({
       getAccount: jest.fn(),
       getSelectedMultichainAccount: jest.fn(),
     },
+    MultichainAccountService: {
+      getMultichainAccountWallets: jest.fn(),
+    },
     UserStorageController: {
       getState: jest.fn(),
       performGetStorage: jest.fn(),
@@ -427,6 +430,17 @@ function setup({
       mocks.KeyringController.getState,
     );
   }
+
+  // Using an empty list of wallets will make sure that no multichain accounts got
+  // removed automatically removed from the tree upon calling `init`. That's what
+  // we want for almost all tests.
+  mocks.MultichainAccountService.getMultichainAccountWallets.mockReturnValue(
+    [],
+  );
+  messenger.registerActionHandler(
+    'MultichainAccountService:getMultichainAccountWallets',
+    mocks.MultichainAccountService.getMultichainAccountWallets,
+  );
 
   const accountTreeControllerMessenger =
     getAccountTreeControllerMessenger(messenger);
