@@ -14,6 +14,8 @@ import {
 import { withRetry, withTimeout } from './utils';
 import type { MultichainAccountServiceMessenger } from '../types';
 
+export type BtcAccountProviderConfig = SnapAccountProviderConfig;
+
 export const BTC_ACCOUNT_PROVIDER_NAME = 'Bitcoin' as const;
 
 export class BtcAccountProvider extends SnapAccountProvider {
@@ -25,8 +27,7 @@ export class BtcAccountProvider extends SnapAccountProvider {
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
-    config: SnapAccountProviderConfig = {
-      maxConcurrency: Infinity,
+    config: BtcAccountProviderConfig = {
       createAccounts: {
         timeoutMs: 3000,
       },

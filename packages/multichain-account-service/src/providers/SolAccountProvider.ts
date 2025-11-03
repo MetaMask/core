@@ -19,6 +19,8 @@ import {
 import { withRetry, withTimeout } from './utils';
 import type { MultichainAccountServiceMessenger } from '../types';
 
+export type SolAccountProviderConfig = SnapAccountProviderConfig;
+
 export const SOL_ACCOUNT_PROVIDER_NAME = 'Solana' as const;
 
 export class SolAccountProvider extends SnapAccountProvider {
@@ -30,7 +32,7 @@ export class SolAccountProvider extends SnapAccountProvider {
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
-    config: SnapAccountProviderConfig = {
+    config: SolAccountProviderConfig = {
       maxConcurrency: 3,
       discovery: {
         timeoutMs: 2000,

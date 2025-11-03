@@ -395,8 +395,10 @@ describe('MultichainAccountWallet', () => {
       evmProvider.getAccount.mockReturnValueOnce(nextEvmAccount);
 
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const SOL_PROVIDER_ERROR = 'SOL create failed';
       solProvider.createAccounts.mockRejectedValueOnce(
-        new Error('SOL create failed'),
+        new Error(SOL_PROVIDER_ERROR),
       );
 
       await expect(
@@ -404,7 +406,7 @@ describe('MultichainAccountWallet', () => {
           waitForAllProvidersToFinishCreatingAccounts: true,
         }),
       ).rejects.toThrow(
-        `Unable to create multichain account group for index: ${nextIndex}`,
+        `Unable to create multichain account group for index: ${nextIndex}:\n- Error: ${SOL_PROVIDER_ERROR}`,
       );
 
       expect(warnSpy).toHaveBeenCalled();

@@ -15,6 +15,8 @@ import {
 import { withRetry, withTimeout } from './utils';
 import type { MultichainAccountServiceMessenger } from '../types';
 
+export type TrxAccountProviderConfig = SnapAccountProviderConfig;
+
 export const TRX_ACCOUNT_PROVIDER_NAME = 'Tron' as const;
 
 export class TrxAccountProvider extends SnapAccountProvider {
@@ -26,8 +28,7 @@ export class TrxAccountProvider extends SnapAccountProvider {
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
-    config: SnapAccountProviderConfig = {
-      maxConcurrency: Infinity,
+    config: TrxAccountProviderConfig = {
       discovery: {
         timeoutMs: 2000,
         maxAttempts: 3,

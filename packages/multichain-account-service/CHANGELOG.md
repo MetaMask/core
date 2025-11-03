@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add per-provider throttling for non-EVM account creation to improve performance on low-end devices ([#7000](https://github.com/MetaMask/core/pull/7000))
-  - Solana provider is now limited to 3 concurrent account creations when creating multichain account groups.
+  - Solana provider is now limited to 3 concurrent account creations by default when creating multichain account groups.
   - Other providers remain unthrottled by default.
 
 ## [2.0.1]

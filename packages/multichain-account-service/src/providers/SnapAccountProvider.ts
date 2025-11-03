@@ -14,7 +14,7 @@ export type RestrictedSnapKeyringCreateAccount = (
 ) => Promise<KeyringAccount>;
 
 export type SnapAccountProviderConfig = {
-  maxConcurrency: number;
+  maxConcurrency?: number;
   discovery: {
     maxAttempts: number;
     timeoutMs: number;
@@ -40,17 +40,22 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     super(messenger);
 
     this.snapId = snapId;
-    this.config = config;
+
+    const maxConcurrency = config.maxConcurrency ?? Infinity;
+    this.config = {
+      ...config,
+      maxConcurrency,
+    };
 
     // Create semaphore only if concurrency is limited
-    if (isFinite(config.maxConcurrency)) {
-      this.#queue = new Semaphore(config.maxConcurrency);
+    if (isFinite(maxConcurrency)) {
+      this.#queue = new Semaphore(maxConcurrency);
     }
   }
 
   /**
-   * Wraps an async operation with concurrency limiting based on createAccounts.maxConcurrency config.
-   * If maxConcurrency is Infinity, the operation runs immediately.
+   * Wraps an async operation with concurrency limiting based on maxConcurrency config.
+   * If maxConcurrency is Infinity (the default), the operation runs immediately without throttling.
    * Otherwise, it's queued through the semaphore to respect the concurrency limit.
    *
    * @param operation - The async operation to execute.
