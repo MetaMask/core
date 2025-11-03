@@ -34,4 +34,3 @@ export type AnalyticsPlatformAdapter = {
    */
   trackPage?(pageName: string, properties?: AnalyticsEventProperties): void;
 };
-

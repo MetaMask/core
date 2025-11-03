@@ -91,7 +91,6 @@ describe('AnalyticsController', () => {
     it('initializes with default state', () => {
       const { controller } = setupController();
 
-      const defaultState = getDefaultAnalyticsControllerState();
       const { state } = controller;
 
       expect(state.enabled).toBe(true);
@@ -287,7 +286,7 @@ describe('AnalyticsController', () => {
   describe('messenger actions', () => {
     it('handles trackEvent action', () => {
       const mockAdapter = createMockAdapter();
-      const { controller, messenger } = setupController({
+      const { messenger } = setupController({
         platformAdapter: mockAdapter,
       });
 
