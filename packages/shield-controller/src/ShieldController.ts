@@ -285,14 +285,19 @@ export class ShieldController extends BaseController<
       const previousTransaction = previousTransactionsById.get(transaction.id);
 
       // Check if the simulation data has changed.
-      const simulationDataNotChanged = isEqual(
-        transaction.simulationData,
-        previousTransaction?.simulationData,
-      );
+      const simulationDataChanged =
+        // only check if the previous transaction has simulation data and if it has changed
+        // this is to avoid checking coverage for the `TWICE` (once when it's added to the state and once when it's simulated for the first time).
+        // we only need to update the coverage result when the simulation data has changed.
+        Boolean(previousTransaction?.simulationData) &&
+        !isEqual(
+          transaction.simulationData,
+          previousTransaction?.simulationData,
+        );
 
       // Check coverage if the transaction is new or if the simulation data has
       // changed.
-      if (!previousTransaction || !simulationDataNotChanged) {
+      if (!previousTransaction || simulationDataChanged) {
         this.checkCoverage(transaction).catch(
           // istanbul ignore next
           (error) => log('Error checking coverage:', error),
