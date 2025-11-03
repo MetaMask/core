@@ -849,11 +849,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     const cryptoPaymentInfo = this.state.pricing?.paymentMethods.find(
       (t) => t.type === PAYMENT_TYPES.byCrypto,
     );
-    if (!cryptoPaymentInfo) {
-      return false;
-    }
 
-    const isSponsorshipSupported = cryptoPaymentInfo.chains?.find(
+    const isSponsorshipSupported = cryptoPaymentInfo?.chains?.find(
       (t) => t.chainId === chainId,
     )?.isSponsorshipSupported;
     return Boolean(isSponsorshipSupported);

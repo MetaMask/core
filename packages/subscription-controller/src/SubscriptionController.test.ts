@@ -1605,15 +1605,17 @@ describe('SubscriptionController', () => {
                 status: SUBSCRIPTION_STATUSES.canceled,
               },
             ],
+            pricing: MOCK_PRICE_INFO_RESPONSE,
             trialedProducts: [PRODUCT_TYPES.SHIELD],
           },
         },
         async ({ controller, mockService }) => {
           mockService.submitSponsorshipIntents.mockResolvedValue(undefined);
 
-          await controller.submitSponsorshipIntents(
+          const isSponsored = await controller.submitSponsorshipIntents(
             MOCK_SUBMISSION_INTENTS_REQUEST,
           );
+          expect(isSponsored).toBe(false);
           expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
         },
       );
