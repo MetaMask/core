@@ -339,10 +339,18 @@ export class MultichainAccountWallet<
         // Create account with all providers and await them.
         const results = await Promise.allSettled(
           this.#providers.map((provider) =>
-            provider.createAccounts({
-              entropySource: this.#entropySource,
-              groupIndex,
-            }),
+            provider
+              .createAccounts({
+                entropySource: this.#entropySource,
+                groupIndex,
+              })
+              .catch((error) => {
+                this.#messenger.call(
+                  'ErrorReportingService:captureException',
+                  error as Error,
+                );
+                throw error;
+              }),
           ),
         );
 
@@ -384,6 +392,10 @@ export class MultichainAccountWallet<
         } catch (error) {
           const errorMessage = `Unable to create multichain account group for index: ${groupIndex} with provider "${evmProvider.getName()}". Error: ${(error as Error).message}`;
           this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
+          this.#messenger.call(
+            'ErrorReportingService:captureException',
+            error as Error,
+          );
           throw new Error(errorMessage);
         }
 
@@ -398,6 +410,10 @@ export class MultichainAccountWallet<
               // Log errors from background providers but don't fail the operation
               const errorMessage = `Could not to create account with provider "${provider.getName()}" for multichain account group index: ${groupIndex}`;
               this.#log(`${WARNING_PREFIX} ${errorMessage}:`, error);
+              this.#messenger.call(
+                'ErrorReportingService:captureException',
+                error as Error,
+              );
             });
         });
       }
@@ -545,6 +561,10 @@ export class MultichainAccountWallet<
                 targetGroupIndex,
               ),
               error,
+            );
+            this.#messenger.call(
+              'ErrorReportingService:captureException',
+              error as Error,
             );
             break;
           }

@@ -236,20 +236,32 @@ export class MultichainAccountGroup<
 
     const results = await Promise.allSettled(
       this.#providers.map(async (provider) => {
-        const accounts = this.#providerToAccounts.get(provider);
-        if (!accounts || accounts.length === 0) {
-          this.#log(
-            `Found missing accounts for account provider "${provider.getName()}", creating them now...`,
-          );
-          const created = await provider.createAccounts({
-            entropySource: this.wallet.entropySource,
-            groupIndex: this.groupIndex,
-          });
-          this.#log(`Created ${created.length} accounts`);
+        try {
+          const accounts = this.#providerToAccounts.get(provider);
+          if (!accounts || accounts.length === 0) {
+            this.#log(
+              `Found missing accounts for account provider "${provider.getName()}", creating them now...`,
+            );
+            const created = await provider.createAccounts({
+              entropySource: this.wallet.entropySource,
+              groupIndex: this.groupIndex,
+            });
+            this.#log(`Created ${created.length} accounts`);
 
-          return created;
+            return created;
+          }
+          return Promise.resolve();
+        } catch (error) {
+          // istanbul ignore next
+          this.#log(
+            `${WARNING_PREFIX} ${error instanceof Error ? error.message : String(error)}`,
+          );
+          this.#messenger.call(
+            'ErrorReportingService:captureException',
+            error as Error,
+          );
+          throw error;
         }
-        return Promise.resolve();
       }),
     );
 
