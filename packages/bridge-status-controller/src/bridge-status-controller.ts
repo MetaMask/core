@@ -19,12 +19,6 @@ import {
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
-import type {
-  IntentOrder,
-  IntentSubmissionParams,
-} from '@metamask/intent-manager';
-import { IntentManager } from '@metamask/intent-manager';
-import { IntentOrderStatus } from '@metamask/intent-manager';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   TransactionController,
@@ -55,6 +49,8 @@ import type {
 import { type BridgeStatusControllerMessenger } from './types';
 import { BridgeClientId } from './types';
 import { IntentApiImpl } from './intent-api';
+import { IntentOrderStatus } from './intent-order-status';
+import type { IntentOrder } from './intent-order';
 import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
@@ -121,8 +117,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #addTransactionBatchFn: typeof TransactionController.prototype.addTransactionBatch;
 
   readonly #updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
-
-  #intentManager?: IntentManager;
 
   readonly #estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
 
@@ -206,7 +200,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.getBridgeHistoryItemByTxMetaId.bind(this),
     );
 
-    this.#intentManager = new IntentManager();
     // Set interval
     this.setIntervalLength(REFRESH_INTERVAL_MS);
 
@@ -294,15 +287,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       state.txHistory = DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.txHistory;
     });
   };
-
-  /**
-   * Set the intent manager instance for handling intent operations
-   *
-   * @param intentManager - The intent manager instance
-   */
-  setIntentManager(intentManager: IntentManager): void {
-    this.#intentManager = intentManager;
-  }
 
   wipeBridgeStatus = ({
     address,
@@ -711,11 +695,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #fetchIntentOrderStatus = async ({
     bridgeTxMetaId,
   }: FetchBridgeTxStatusArgs) => {
-    if (!this.#intentManager) {
-      console.warn('Intent manager not available for status polling');
-      return;
-    }
-
     const { txHistory } = this.state;
     const historyItem = txHistory[bridgeTxMetaId];
     if (!historyItem) {
@@ -731,13 +710,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       const orderUid = bridgeTxMetaId.replace(/^intent:/u, '');
       const { srcChainId } = historyItem.quote;
 
-      // Extract provider name from order metadata or default to empty and let intent manager throw error
+      // Extract provider name from order metadata or default to empty
       const providerName = historyItem.quote.intent?.protocol || '';
 
-      const intentOrder = await this.#intentManager.getOrderStatus(
+      const intentApi = new IntentApiImpl(
+        this.#config.customBridgeApiBaseUrl,
+        this.#fetchFn,
+      );
+      const intentOrder = await intentApi.getOrderStatus(
         orderUid,
         providerName,
-        srcChainId,
+        srcChainId.toString(),
       );
 
       // Update bridge history with intent order status
@@ -1573,15 +1556,21 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         intent,
       );
 
+      const chainId = quoteResponse.quote.srcChainId;
+
       const submissionParams = {
-        quote: intentQuote,
+        chainId: chainId.toString(),
+        quoteId: intentQuote.id,
         signature,
+        order: intentQuote.metadata.order,
         userAddress: accountAddress,
       };
-      const intentApi = new IntentApiImpl(this.#config.customBridgeApiBaseUrl, this.#fetchFn);
+      const intentApi = new IntentApiImpl(
+        this.#config.customBridgeApiBaseUrl,
+        this.#fetchFn,
+      );
       const intentOrder = await intentApi.submitIntent(submissionParams);
 
-      const chainId = quoteResponse.quote.srcChainId;
       const orderUid = intentOrder.id;
 
       // Determine transaction type: swap for same-chain, bridge for cross-chain
@@ -1669,7 +1658,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       // Record in bridge history with actual transaction metadata
       try {
-        // Use intent: prefix for intent transactions to route to intent manager
+        // Use 'intent:' prefix for intent transactions
         const bridgeHistoryKey = `intent:${orderUid}`;
 
         // Create a bridge transaction metadata that includes the original txId
