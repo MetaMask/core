@@ -113,7 +113,6 @@ export class TransactionPayController extends BaseController<
         updateSourceAmounts(transactionId, current as never, this.messenger);
 
         shouldUpdateQuotes = true;
-        current.isLoading = true;
       }
     });
 
@@ -123,13 +122,7 @@ export class TransactionPayController extends BaseController<
         transactionData: this.state.transactionData[transactionId],
         transactionId,
         updateTransactionData: this.#updateTransactionData.bind(this),
-      })
-        .finally(() => {
-          this.#updateTransactionData(transactionId, (data) => {
-            data.isLoading = false;
-          });
-        })
-        .catch(noop);
+      }).catch(noop);
     }
   }
 

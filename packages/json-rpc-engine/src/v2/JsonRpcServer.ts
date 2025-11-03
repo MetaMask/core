@@ -24,7 +24,7 @@ type Options<Middleware extends JsonRpcMiddleware> = {
   onError?: OnError;
 } & (
   | {
-      engine: JsonRpcEngineV2;
+      engine: ReturnType<typeof JsonRpcEngineV2.create<Middleware>>;
     }
   | {
       middleware: NonEmptyArray<Middleware>;
