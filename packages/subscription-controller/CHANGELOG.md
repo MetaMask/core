@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added new property, `isSponsorshipSupported` to the ControllerState, `pricing.paymentMethods.chains`. ([#7035](https://github.com/MetaMask/core/pull/7035))
+- Added `SubscriptionControllerSubmitSponsorshipIntentsAction` in the controller exports. ([#7037](https://github.com/MetaMask/core/pull/7037))
 
 ### Changed
 
