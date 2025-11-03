@@ -1,6 +1,7 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   AccountAssetListUpdatedEventPayload,
+  CaipAssetType,
   CaipAssetTypeOrId,
 } from '@metamask/keyring-api';
 import {
@@ -921,7 +922,7 @@ describe('MultichainAssetsController', () => {
     });
   });
 
-  describe('addAsset', () => {
+  describe('addAssets', () => {
     it('should add a single asset to account assets list', async () => {
       const { controller } = setupController({
         state: {
@@ -938,8 +939,8 @@ describe('MultichainAssetsController', () => {
       const assetToAdd =
         'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
 
-      const result = await controller.addAsset(
-        assetToAdd,
+      const result = await controller.addAssets(
+        [assetToAdd],
         mockSolanaAccount.id,
       );
 
@@ -968,8 +969,8 @@ describe('MultichainAssetsController', () => {
         } as MultichainAssetsControllerState,
       });
 
-      const result = await controller.addAsset(
-        existingAsset,
+      const result = await controller.addAssets(
+        [existingAsset],
         mockSolanaAccount.id,
       );
 
@@ -991,8 +992,8 @@ describe('MultichainAssetsController', () => {
         } as MultichainAssetsControllerState,
       });
 
-      const result = await controller.addAsset(
-        assetToAdd,
+      const result = await controller.addAssets(
+        [assetToAdd],
         mockSolanaAccount.id,
       );
 
@@ -1015,8 +1016,8 @@ describe('MultichainAssetsController', () => {
         } as MultichainAssetsControllerState,
       });
 
-      const result = await controller.addAsset(
-        assetToAdd,
+      const result = await controller.addAssets(
+        [assetToAdd],
         mockSolanaAccount.id,
       );
 
@@ -1044,12 +1045,122 @@ describe('MultichainAssetsController', () => {
         eventListener,
       );
 
-      await controller.addAsset(assetToAdd, mockSolanaAccount.id);
+      await controller.addAssets([assetToAdd], mockSolanaAccount.id);
 
       expect(eventListener).toHaveBeenCalledWith({
         assets: {
           [mockSolanaAccount.id]: {
             added: [assetToAdd],
+            removed: [],
+          },
+        },
+      });
+    });
+
+    it('should add multiple assets from the same chain', async () => {
+      const { controller } = setupController({
+        state: {
+          accountsAssets: {
+            [mockSolanaAccount.id]: [
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
+            ],
+          },
+          assetsMetadata: mockGetMetadataReturnValue.assets,
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      const assetsToAdd: CaipAssetType[] = [
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:AnotherTokenAddress',
+      ];
+
+      const result = await controller.addAssets(
+        assetsToAdd,
+        mockSolanaAccount.id,
+      );
+
+      expect(result).toStrictEqual([
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
+        ...assetsToAdd,
+      ]);
+      expect(
+        controller.state.accountsAssets[mockSolanaAccount.id],
+      ).toStrictEqual([
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
+        ...assetsToAdd,
+      ]);
+    });
+
+    it('should throw error when assets are from different chains', async () => {
+      const { controller } = setupController({
+        state: {
+          accountsAssets: {},
+          assetsMetadata: mockGetMetadataReturnValue.assets,
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      const assetsFromDifferentChains: CaipAssetType[] = [
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
+        'eip155:1/slip44:60', // Ethereum asset
+      ];
+
+      await expect(
+        controller.addAssets(assetsFromDifferentChains, mockSolanaAccount.id),
+      ).rejects.toThrow(
+        'All assets must belong to the same chain. Found assets from chains: solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1, eip155:1',
+      );
+    });
+
+    it('should return existing assets when empty array is provided', async () => {
+      const existingAsset =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
+      const { controller } = setupController({
+        state: {
+          accountsAssets: {
+            [mockSolanaAccount.id]: [existingAsset],
+          },
+          assetsMetadata: mockGetMetadataReturnValue.assets,
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      const result = await controller.addAssets([], mockSolanaAccount.id);
+
+      expect(result).toStrictEqual([existingAsset]);
+    });
+
+    it('should only publish event for newly added assets', async () => {
+      const existingAsset =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
+      const newAsset = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:NewToken';
+
+      const { controller, messenger } = setupController({
+        state: {
+          accountsAssets: {
+            [mockSolanaAccount.id]: [existingAsset],
+          },
+          assetsMetadata: mockGetMetadataReturnValue.assets,
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      const eventListener = jest.fn();
+      messenger.subscribe(
+        'MultichainAssetsController:accountAssetListUpdated',
+        eventListener,
+      );
+
+      await controller.addAssets(
+        [existingAsset, newAsset],
+        mockSolanaAccount.id,
+      );
+
+      expect(eventListener).toHaveBeenCalledWith({
+        assets: {
+          [mockSolanaAccount.id]: {
+            added: [newAsset], // Only the new asset should be in the event
             removed: [],
           },
         },
