@@ -1,13 +1,150 @@
-import { BaseController } from '@metamask/base-controller';
-import type { AnalyticsControllerMessenger } from './messenger';
-import { controllerName, type AnalyticsControllerActions, type AnalyticsControllerEvents } from './actions';
-import { getDefaultAnalyticsControllerState, controllerMetadata } from './state';
 import type {
-  PlatformAdapter,
-  AnalyticsControllerState,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  StateMetadata,
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
+
+import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types';
+import { projectLogger } from './AnalyticsLogger';
+import type {
+  AnalyticsPlatformAdapter,
   AnalyticsEventProperties,
-} from './types';
-import { projectLogger } from './logger';
+} from './AnalyticsPlatformAdapter.types';
+
+// === GENERAL ===
+
+/**
+ * The name of the {@link AnalyticsController}, used to namespace the
+ * controller's actions and events and to namespace the controller's state data
+ * when composed with other controllers.
+ */
+export const controllerName = 'AnalyticsController';
+
+// === STATE ===
+
+/**
+ * Describes the shape of the state object for {@link AnalyticsController}.
+ */
+export type AnalyticsControllerState = {
+  /**
+   * Whether analytics tracking is enabled
+   */
+  enabled: boolean;
+
+  /**
+   * Whether the user has opted in to analytics
+   */
+  optedIn: boolean;
+
+  /**
+   * User's UUIDv4 analytics identifier
+   */
+  analyticsId: string | null;
+};
+
+/**
+ * The metadata for each property in {@link AnalyticsControllerState}.
+ */
+const analyticsControllerMetadata = {
+  enabled: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  optedIn: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  analyticsId: {
+    includeInStateLogs: false,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
+  },
+} satisfies StateMetadata<AnalyticsControllerState>;
+
+/**
+ * Constructs the default {@link AnalyticsController} state. This allows
+ * consumers to provide a partial state object when initializing the controller
+ * and also helps in constructing complete state objects for this controller in
+ * tests.
+ *
+ * @returns The default {@link AnalyticsController} state.
+ */
+export function getDefaultAnalyticsControllerState(): AnalyticsControllerState {
+  return {
+    enabled: false,
+    optedIn: false,
+    analyticsId: null,
+  };
+}
+
+// === MESSENGER ===
+
+const MESSENGER_EXPOSED_METHODS = [
+  'trackEvent',
+  'identify',
+  'trackPage',
+  'enable',
+  'disable',
+  'optIn',
+  'optOut',
+] as const;
+
+/**
+ * Returns the state of the {@link AnalyticsController}.
+ */
+export type AnalyticsControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  AnalyticsControllerState
+>;
+
+/**
+ * Actions that {@link AnalyticsControllerMessenger} exposes to other consumers.
+ */
+export type AnalyticsControllerActions =
+  | AnalyticsControllerGetStateAction
+  | AnalyticsControllerMethodActions;
+
+/**
+ * Actions from other messengers that {@link AnalyticsControllerMessenger} calls.
+ */
+type AllowedActions = never;
+
+/**
+ * Event emitted when the state of the {@link AnalyticsController} changes.
+ */
+export type AnalyticsControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  AnalyticsControllerState
+>;
+
+/**
+ * Events that {@link AnalyticsControllerMessenger} exposes to other consumers.
+ */
+export type AnalyticsControllerEvents = AnalyticsControllerStateChangeEvent;
+
+/**
+ * Events from other messengers that {@link AnalyticsControllerMessenger} subscribes to.
+ */
+type AllowedEvents = never;
+
+/**
+ * The messenger restricted to actions and events accessed by
+ * {@link AnalyticsController}.
+ */
+export type AnalyticsControllerMessenger = Messenger<
+  typeof controllerName,
+  AnalyticsControllerActions | AllowedActions,
+  AnalyticsControllerEvents | AllowedEvents
+>;
+
+// === CONTROLLER DEFINITION ===
 
 /**
  * The options that AnalyticsController takes.
@@ -18,7 +155,7 @@ export type AnalyticsControllerOptions = {
   /**
    * Platform adapter implementation for tracking events
    */
-  platformAdapter: PlatformAdapter;
+  platformAdapter: AnalyticsPlatformAdapter;
   /**
    * Initial enabled state (default: true)
    */
@@ -32,18 +169,19 @@ export type AnalyticsControllerOptions = {
 /**
  * The AnalyticsController manages analytics tracking across platforms (Mobile/Extension).
  * It provides a unified interface for tracking events, identifying users, and managing
- * analytics preferences while delegating platform-specific implementation to a
- * PlatformAdapter.
+ * analytics preferences while delegating platform-specific implementation to an
+ * {@link AnalyticsPlatformAdapter}.
  *
  * This controller follows the MetaMask controller pattern and integrates with the
  * messenger system to allow other controllers and components to track analytics events.
+ * It delegates platform-specific implementation to an {@link AnalyticsPlatformAdapter}.
  */
 export class AnalyticsController extends BaseController<
   'AnalyticsController',
   AnalyticsControllerState,
   AnalyticsControllerMessenger
 > {
-  readonly #platformAdapter: PlatformAdapter;
+  readonly #platformAdapter: AnalyticsPlatformAdapter;
 
   /**
    * Constructs an AnalyticsController instance.
@@ -64,7 +202,7 @@ export class AnalyticsController extends BaseController<
   }: AnalyticsControllerOptions) {
     super({
       name: controllerName,
-      metadata: controllerMetadata,
+      metadata: analyticsControllerMetadata,
       state: {
         ...getDefaultAnalyticsControllerState(),
         enabled,
@@ -76,47 +214,15 @@ export class AnalyticsController extends BaseController<
 
     this.#platformAdapter = platformAdapter;
 
-    // Register action handlers
-    this.#registerActionHandlers();
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     projectLogger('AnalyticsController initialized and ready', {
       enabled,
       optedIn,
     });
-  }
-
-  /**
-   * Register action handlers for messenger system
-   */
-  #registerActionHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:trackEvent`,
-      this.trackEvent.bind(this),
-    );
-
-    if (this.#platformAdapter.identify) {
-      this.messenger.registerActionHandler(
-        `${controllerName}:identify`,
-        this.identify.bind(this),
-      );
-    }
-
-    if (this.#platformAdapter.trackPage) {
-      this.messenger.registerActionHandler(
-        `${controllerName}:trackPage`,
-        this.trackPage.bind(this),
-      );
-    }
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setEnabled`,
-      this.setEnabled.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setOptedIn`,
-      this.setOptedIn.bind(this),
-    );
   }
 
   /**
@@ -168,10 +274,7 @@ export class AnalyticsController extends BaseController<
    * @param pageName - The name of the page
    * @param properties - Page properties
    */
-  trackPage(
-    pageName: string,
-    properties?: AnalyticsEventProperties,
-  ): void {
+  trackPage(pageName: string, properties?: AnalyticsEventProperties): void {
     if (!this.state.enabled) {
       return;
     }
@@ -183,25 +286,38 @@ export class AnalyticsController extends BaseController<
   }
 
   /**
-   * Set the enabled state.
-   *
-   * @param enabled - Whether analytics tracking is enabled (default: true)
+   * Enable analytics tracking.
    */
-  setEnabled(enabled: boolean = true): void {
+  enable(): void {
     this.update((state) => {
-      state.enabled = enabled;
+      state.enabled = true;
     });
   }
 
   /**
-   * Set the opted-in state.
-   *
-   * @param optedIn - Whether the user has opted in to analytics (default: true)
+   * Disable analytics tracking.
    */
-  setOptedIn(optedIn: boolean = true): void {
+  disable(): void {
     this.update((state) => {
-      state.optedIn = optedIn;
+      state.enabled = false;
+    });
+  }
+
+  /**
+   * Opt in to analytics.
+   */
+  optIn(): void {
+    this.update((state) => {
+      state.optedIn = true;
+    });
+  }
+
+  /**
+   * Opt out of analytics.
+   */
+  optOut(): void {
+    this.update((state) => {
+      state.optedIn = false;
     });
   }
 }
-

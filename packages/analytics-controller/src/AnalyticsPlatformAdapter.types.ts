@@ -9,7 +9,7 @@ export type AnalyticsEventProperties = Record<string, Json>;
  * Platform adapter interface for analytics tracking
  * Implementations should handle platform-specific details (Segment SDK, etc.)
  */
-export type PlatformAdapter = {
+export type AnalyticsPlatformAdapter = {
   /**
    * Track an analytics event
    *
@@ -26,11 +26,12 @@ export type PlatformAdapter = {
    */
   identify?(userId: string, traits?: AnalyticsEventProperties): void;
 
-/**
- * Track a page view
- *
- * @param pageName - The name of the page
- * @param properties - Page properties
- */
-trackPage?(pageName: string, properties?: AnalyticsEventProperties): void;
+  /**
+   * Track a page view
+   *
+   * @param pageName - The name of the page
+   * @param properties - Page properties
+   */
+  trackPage?(pageName: string, properties?: AnalyticsEventProperties): void;
 };
+

@@ -5,25 +5,31 @@ export type { AnalyticsControllerOptions } from './AnalyticsController';
 // Export types
 export type {
   AnalyticsEventProperties,
-  PlatformAdapter,
-  AnalyticsControllerState,
-} from './types';
+  AnalyticsPlatformAdapter,
+} from './AnalyticsPlatformAdapter.types';
 
-// Export state utilities
-export { getDefaultAnalyticsControllerState } from './state';
+// Export state types and utilities
+export type { AnalyticsControllerState } from './AnalyticsController';
+export { getDefaultAnalyticsControllerState } from './AnalyticsController';
 
 // Export messenger types
-export type { AnalyticsControllerMessenger } from './messenger';
+export type { AnalyticsControllerMessenger } from './AnalyticsController';
 
 // Export action and event types
 export type {
   AnalyticsControllerActions,
   AnalyticsControllerEvents,
   AnalyticsControllerGetStateAction,
+  AnalyticsControllerStateChangeEvent,
+  controllerName,
+} from './AnalyticsController';
+export type {
   AnalyticsControllerTrackEventAction,
   AnalyticsControllerIdentifyAction,
   AnalyticsControllerTrackPageAction,
-  AnalyticsControllerSetEnabledAction,
-  AnalyticsControllerSetOptedInAction,
-  AnalyticsControllerStateChangeEvent,
-} from './actions';
+  AnalyticsControllerEnableAction,
+  AnalyticsControllerDisableAction,
+  AnalyticsControllerOptInAction,
+  AnalyticsControllerOptOutAction,
+  AnalyticsControllerMethodActions,
+} from './AnalyticsController-method-action-types';
