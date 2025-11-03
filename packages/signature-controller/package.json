@@ -65,6 +65,7 @@
     "@metamask/keyring-controller": "^24.0.0",
     "@metamask/logging-controller": "^7.0.0",
     "@metamask/network-controller": "^25.0.0",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
