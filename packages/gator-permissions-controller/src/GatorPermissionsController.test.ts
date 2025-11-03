@@ -18,6 +18,7 @@ import {
 } from '@metamask/messenger';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { hexToBigInt, numberToHex, type Hex } from '@metamask/utils';
 
 import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController';
@@ -837,7 +838,7 @@ describe('GatorPermissionsController', () => {
       // Emit transaction confirmed event
       rootMessenger.publish('TransactionController:transactionConfirmed', {
         id: txId,
-      });
+      } as TransactionMeta);
 
       // Wait for async operations
       await Promise.resolve();
@@ -877,7 +878,7 @@ describe('GatorPermissionsController', () => {
 
       // Emit transaction failed event
       rootMessenger.publish('TransactionController:transactionFailed', {
-        transactionMeta: { id: txId },
+        transactionMeta: { id: txId } as TransactionMeta,
         error: 'Transaction failed',
       });
 
@@ -911,7 +912,7 @@ describe('GatorPermissionsController', () => {
 
       // Emit transaction dropped event
       rootMessenger.publish('TransactionController:transactionDropped', {
-        id: txId,
+        transactionMeta: { id: txId } as TransactionMeta,
       });
 
       // Wait for async operations
@@ -976,7 +977,7 @@ describe('GatorPermissionsController', () => {
       // Emit transaction confirmed event for different transaction
       rootMessenger.publish('TransactionController:transactionConfirmed', {
         id: 'different-tx-id',
-      });
+      } as TransactionMeta);
 
       // Wait for async operations
       await Promise.resolve();
@@ -1011,7 +1012,7 @@ describe('GatorPermissionsController', () => {
       // Emit transaction confirmed event
       rootMessenger.publish('TransactionController:transactionConfirmed', {
         id: txId,
-      });
+      } as TransactionMeta);
 
       // Wait for async operations
       await Promise.resolve();

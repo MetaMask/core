@@ -10,6 +10,11 @@ import type { Messenger } from '@metamask/messenger';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
+import type {
+  TransactionControllerTransactionConfirmedEvent,
+  TransactionControllerTransactionDroppedEvent,
+  TransactionControllerTransactionFailedEvent,
+} from '@metamask/transaction-controller';
 import type { Json } from '@metamask/utils';
 
 import type { DecodedPermission } from './decodePermission';
@@ -225,35 +230,6 @@ export type GatorPermissionsControllerActions =
  * internally because they are used to fetch gator permissions from the Snap.
  */
 type AllowedActions = HandleSnapRequest | HasSnap;
-
-/**
- * Event emitted when a transaction is confirmed.
- */
-export type TransactionControllerTransactionConfirmedEvent = {
-  type: 'TransactionController:transactionConfirmed';
-  payload: [transactionMeta: { id: string }];
-};
-
-/**
- * Event emitted when a transaction fails.
- */
-export type TransactionControllerTransactionFailedEvent = {
-  type: 'TransactionController:transactionFailed';
-  payload: [
-    {
-      transactionMeta: { id: string };
-      error: string;
-    },
-  ];
-};
-
-/**
- * Event emitted when a transaction is dropped.
- */
-export type TransactionControllerTransactionDroppedEvent = {
-  type: 'TransactionController:transactionDropped';
-  payload: [transactionMeta: { id: string }];
-};
 
 /**
  * The event that {@link GatorPermissionsController} publishes when updating state.
@@ -753,21 +729,25 @@ export default class GatorPermissionsController extends BaseController<
 
     this.#assertGatorPermissionsEnabled();
 
+    type PendingRevocationHandlers = {
+      confirmed?: (
+        ...args: TransactionControllerTransactionConfirmedEvent['payload']
+      ) => void;
+      failed?: (
+        ...args: TransactionControllerTransactionFailedEvent['payload']
+      ) => void;
+      dropped?: (
+        ...args: TransactionControllerTransactionDroppedEvent['payload']
+      ) => void;
+      timeoutId?: ReturnType<typeof setTimeout>;
+    };
+
     // Track handlers and timeout for cleanup
-    const handlers = {
-      confirmed: undefined as
-        | ((transactionMeta: { id: string }) => void)
-        | undefined,
-      failed: undefined as
-        | ((payload: {
-            transactionMeta: { id: string };
-            error: string;
-          }) => void)
-        | undefined,
-      dropped: undefined as
-        | ((transactionMeta: { id: string }) => void)
-        | undefined,
-      timeoutId: undefined as ReturnType<typeof setTimeout> | undefined,
+    const handlers: PendingRevocationHandlers = {
+      confirmed: undefined,
+      failed: undefined,
+      dropped: undefined,
+      timeoutId: undefined,
     };
 
     // Cleanup function to unsubscribe from all events and clear timeout
@@ -796,7 +776,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Handle confirmed transaction - submit revocation
-    handlers.confirmed = (transactionMeta: { id: string }) => {
+    handlers.confirmed = (transactionMeta) => {
       if (transactionMeta.id === txId) {
         controllerLog('Transaction confirmed, submitting revocation', {
           txId,
@@ -819,10 +799,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Handle failed transaction - cleanup without submitting revocation
-    handlers.failed = (payload: {
-      transactionMeta: { id: string };
-      error: string;
-    }) => {
+    handlers.failed = (payload) => {
       if (payload.transactionMeta.id === txId) {
         controllerLog('Transaction failed, cleaning up revocation listener', {
           txId,
@@ -835,8 +812,8 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Handle dropped transaction - cleanup without submitting revocation
-    handlers.dropped = (transactionMeta: { id: string }) => {
-      if (transactionMeta.id === txId) {
+    handlers.dropped = (payload) => {
+      if (payload.transactionMeta.id === txId) {
         controllerLog('Transaction dropped, cleaning up revocation listener', {
           txId,
           permissionContext,
