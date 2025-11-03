@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-pay-controller",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Manages alternate payment strategies to provide required funds for transactions in MetaMask",
   "keywords": [
     "MetaMask",
@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/transaction-pay-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-pay-controller",
@@ -69,7 +70,7 @@
     "@metamask/network-controller": "^25.0.0",
     "@metamask/remote-feature-flag-controller": "^2.0.0",
     "@metamask/transaction-controller": "^61.1.0",
-    "@ts-bridge/cli": "^0.6.1",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

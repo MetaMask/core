@@ -75,49 +75,59 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
 
   let quotes: TransactionPayQuote<Json>[] | undefined = [];
 
-  const strategy = await getStrategy(messenger as never, transaction);
+  updateTransactionData(transactionId, (data) => {
+    data.isLoading = true;
+  });
 
   try {
-    quotes = requests?.length
-      ? ((await strategy.getQuotes({
-          messenger,
-          requests,
-          transaction,
-        })) as TransactionPayQuote<Json>[])
-      : [];
-  } catch (error) {
-    log('Error fetching quotes', { error, transactionId });
+    const strategy = await getStrategy(messenger as never, transaction);
+
+    try {
+      quotes = requests?.length
+        ? ((await strategy.getQuotes({
+            messenger,
+            requests,
+            transaction,
+          })) as TransactionPayQuote<Json>[])
+        : [];
+    } catch (error) {
+      log('Error fetching quotes', { error, transactionId });
+    }
+
+    log('Updated', { transactionId, quotes });
+
+    const batchTransactions =
+      quotes?.length && strategy.getBatchTransactions
+        ? await strategy.getBatchTransactions({
+            messenger,
+            quotes,
+          })
+        : [];
+
+    log('Batch transactions', { transactionId, batchTransactions });
+
+    const totals = calculateTotals(quotes as never, tokens, messenger);
+
+    log('Calculated totals', { transactionId, totals });
+
+    syncTransaction({
+      batchTransactions,
+      messenger: messenger as never,
+      paymentToken,
+      totals,
+      transactionId,
+    });
+
+    updateTransactionData(transactionId, (data) => {
+      data.quotes = quotes as never;
+      data.quotesLastUpdated = Date.now();
+      data.totals = totals;
+    });
+  } finally {
+    updateTransactionData(transactionId, (data) => {
+      data.isLoading = false;
+    });
   }
-
-  log('Updated', { transactionId, quotes });
-
-  const batchTransactions =
-    quotes?.length && strategy.getBatchTransactions
-      ? await strategy.getBatchTransactions({
-          messenger,
-          quotes,
-        })
-      : [];
-
-  log('Batch transactions', { transactionId, batchTransactions });
-
-  const totals = calculateTotals(quotes as never, tokens, messenger);
-
-  log('Calculated totals', { transactionId, totals });
-
-  syncTransaction({
-    batchTransactions,
-    messenger: messenger as never,
-    paymentToken,
-    totals,
-    transactionId,
-  });
-
-  updateTransactionData(transactionId, (data) => {
-    data.quotes = quotes as never;
-    data.quotesLastUpdated = Date.now();
-    data.totals = totals;
-  });
 }
 
 /**
@@ -204,10 +214,6 @@ export async function refreshQuotes(
       transactionId,
       strategy: strategyName,
       refreshInterval,
-    });
-
-    updateTransactionData(transactionId, (data) => {
-      data.isLoading = true;
     });
 
     await updateQuotes({

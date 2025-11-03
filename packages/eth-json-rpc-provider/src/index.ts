@@ -1,3 +1,12 @@
+import { InternalProvider } from './internal-provider';
+
 export * from './provider-from-engine';
 export * from './provider-from-middleware';
-export { SafeEventEmitterProvider } from './safe-event-emitter-provider';
+
+/**
+ * @deprecated Use {@link InternalProvider} instead.
+ */
+type SafeEventEmitterProvider = InternalProvider;
+const SafeEventEmitterProvider = InternalProvider;
+
+export { InternalProvider, SafeEventEmitterProvider };

@@ -180,6 +180,11 @@ export type ChainPaymentInfo = {
   chainId: Hex;
   paymentAddress: Hex;
   tokens: TokenPaymentInfo[];
+  /**
+   * Whether the chain supports sponsorship for the trialed subscription approval transaction.
+   * This is used to determine if the user can be sponsored for the gas fees for the trialed subscription approval transaction.
+   */
+  isSponsorshipSupported?: boolean;
 };
 
 export type PricingPaymentMethod = {
