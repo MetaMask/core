@@ -11,21 +11,15 @@ import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
-import type { MultichainAccountServiceMessenger } from 'src/types';
 
-import { SnapAccountProvider } from './SnapAccountProvider';
+import {
+  SnapAccountProvider,
+  type SnapAccountProviderConfig,
+} from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
+import type { MultichainAccountServiceMessenger } from '../types';
 
-export type SolAccountProviderConfig = {
-  discovery: {
-    maxAttempts: number;
-    timeoutMs: number;
-    backOffMs: number;
-  };
-  createAccounts: {
-    timeoutMs: number;
-  };
-};
+export type SolAccountProviderConfig = SnapAccountProviderConfig;
 
 export const SOL_ACCOUNT_PROVIDER_NAME = 'Solana' as const;
 
@@ -36,11 +30,10 @@ export class SolAccountProvider extends SnapAccountProvider {
 
   readonly #client: KeyringClient;
 
-  readonly #config: SolAccountProviderConfig;
-
   constructor(
     messenger: MultichainAccountServiceMessenger,
     config: SolAccountProviderConfig = {
+      maxConcurrency: 3,
       discovery: {
         timeoutMs: 2000,
         maxAttempts: 3,
@@ -51,11 +44,10 @@ export class SolAccountProvider extends SnapAccountProvider {
       },
     },
   ) {
-    super(SolAccountProvider.SOLANA_SNAP_ID, messenger);
+    super(SolAccountProvider.SOLANA_SNAP_ID, messenger, config);
     this.#client = this.#getKeyringClientFromSnapId(
       SolAccountProvider.SOLANA_SNAP_ID,
     );
-    this.#config = config;
   }
 
   getName(): string {
@@ -98,7 +90,7 @@ export class SolAccountProvider extends SnapAccountProvider {
     const createAccount = await this.getRestrictedSnapAccountCreator();
     const account = await withTimeout(
       createAccount({ entropySource, derivationPath }),
-      this.#config.createAccounts.timeoutMs,
+      this.config.createAccounts.timeoutMs,
     );
 
     // Ensure entropy is present before type assertion validation
@@ -120,14 +112,16 @@ export class SolAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
-    const account = await this.#createAccount({
-      entropySource,
-      groupIndex,
-      derivationPath,
-    });
+    return this.withMaxConcurrency(async () => {
+      const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
+      const account = await this.#createAccount({
+        entropySource,
+        groupIndex,
+        derivationPath,
+      });
 
-    return [account];
+      return [account];
+    });
   }
 
   async discoverAccounts({
@@ -145,11 +139,11 @@ export class SolAccountProvider extends SnapAccountProvider {
             entropySource,
             groupIndex,
           ),
-          this.#config.discovery.timeoutMs,
+          this.config.discovery.timeoutMs,
         ),
       {
-        maxAttempts: this.#config.discovery.maxAttempts,
-        backOffMs: this.#config.discovery.backOffMs,
+        maxAttempts: this.config.discovery.maxAttempts,
+        backOffMs: this.config.discovery.backOffMs,
       },
     );
 
