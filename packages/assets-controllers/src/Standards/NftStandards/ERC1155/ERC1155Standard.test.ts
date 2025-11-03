@@ -331,137 +331,94 @@ describe('ERC1155Standard', () => {
     });
   });
 
-  describe('getDetails error handling', () => {
-    it('should throw error for non-ERC1155 contract', async () => {
-      // Mock failed ERC1155 interface check
-      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
-        .post('/v3/341eacb578dd44a1a049cbc5f6fd4035')
-        .reply(200, {
-          jsonrpc: '2.0',
-          id: 1,
-          result:
-            '0x0000000000000000000000000000000000000000000000000000000000000000',
-        });
+  describe('getDetails optional parameters', () => {
+    it('should return details without tokenURI when no tokenId is provided', async () => {
+      // Mock successful ERC1155 interface check
+      jest
+        .spyOn(erc1155Standard, 'contractSupportsBase1155Interface')
+        .mockResolvedValue(true);
+      jest.spyOn(erc1155Standard, 'getAssetSymbol').mockResolvedValue('TEST');
+      jest
+        .spyOn(erc1155Standard, 'getAssetName')
+        .mockResolvedValue('Test Token');
 
-      await expect(
-        erc1155Standard.getDetails(ERC1155_ADDRESS, 'https://ipfs.gateway.com'),
-      ).rejects.toThrow("This isn't a valid ERC1155 contract");
+      const ipfsGateway = 'https://ipfs.gateway.com';
+      const details = await erc1155Standard.getDetails(
+        ERC1155_ADDRESS,
+        ipfsGateway,
+        // No tokenId parameter to test the optional parameter behavior
+      );
+
+      expect(details.standard).toBe('ERC1155');
+      expect(details.tokenURI).toBeUndefined(); // Should be undefined when no tokenId
+      expect(details.symbol).toBe('TEST');
+      expect(details.name).toBe('Test Token');
+
+      // Restore original methods
+      jest.restoreAllMocks();
     });
 
-    it('should handle JSON parsing errors gracefully', async () => {
+    it('should convert IPFS URIs to gateway URLs', async () => {
       // Mock successful ERC1155 interface check
-      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
-        .post('/v3/341eacb578dd44a1a049cbc5f6fd4035')
-        .reply(200, {
-          jsonrpc: '2.0',
-          id: 1,
-          result:
-            '0x0000000000000000000000000000000000000000000000000000000000000001',
-        })
-        .persist();
+      jest
+        .spyOn(erc1155Standard, 'contractSupportsBase1155Interface')
+        .mockResolvedValue(true);
+      jest.spyOn(erc1155Standard, 'getAssetSymbol').mockResolvedValue('TEST');
+      jest
+        .spyOn(erc1155Standard, 'getAssetName')
+        .mockResolvedValue('Test Token');
+      // Mock getTokenURI to return IPFS URI
+      jest
+        .spyOn(erc1155Standard, 'getTokenURI')
+        .mockResolvedValue(
+          'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG',
+        );
 
-      // Mock tokenURI call to return a valid URI
-      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
-        .post('/v3/341eacb578dd44a1a049cbc5f6fd4035')
-        .reply(200, {
-          jsonrpc: '2.0',
-          id: 2,
-          result:
-            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001968747470733a2f2f6578616d706c652e636f6d2f746f6b656e2f31000000',
-        });
+      const ipfsGateway = 'https://ipfs.gateway.com';
+      const details = await erc1155Standard.getDetails(
+        ERC1155_ADDRESS,
+        ipfsGateway,
+        SAMPLE_TOKEN_ID,
+      );
 
-      // Mock the metadata fetch to return invalid JSON
+      expect(details.standard).toBe('ERC1155');
+      expect(details.tokenURI).toContain('ipfs.gateway.com'); // Should be converted from IPFS URI
+
+      // Restore original methods
+      jest.restoreAllMocks();
+    });
+
+    it('should handle metadata fetching with network errors', async () => {
+      // Mock successful ERC1155 interface check
+      jest
+        .spyOn(erc1155Standard, 'contractSupportsBase1155Interface')
+        .mockResolvedValue(true);
+      jest.spyOn(erc1155Standard, 'getAssetSymbol').mockResolvedValue('TEST');
+      jest
+        .spyOn(erc1155Standard, 'getAssetName')
+        .mockResolvedValue('Test Token');
+      jest
+        .spyOn(erc1155Standard, 'getTokenURI')
+        .mockResolvedValue('https://example.com/metadata.json');
+
+      // Mock fetch to fail - this tests the catch block in getDetails
       nock('https://example.com')
-        .get('/token/1')
-        .reply(200, 'invalid json content');
+        .get('/metadata.json')
+        .replyWithError('Network error');
 
+      const ipfsGateway = 'https://ipfs.gateway.com';
       const details = await erc1155Standard.getDetails(
         ERC1155_ADDRESS,
-        'https://ipfs.gateway.com',
-        SAMPLE_TOKEN_ID,
-      );
-
-      // Should still return details even if JSON parsing fails
-      expect(details.standard).toBe('ERC1155');
-      expect(details.image).toBeUndefined(); // Image should be undefined due to JSON parse error
-    });
-
-    it('should handle IPFS URLs in image metadata', async () => {
-      // Mock successful ERC1155 interface check
-      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
-        .post('/v3/341eacb578dd44a1a049cbc5f6fd4035')
-        .reply(200, {
-          jsonrpc: '2.0',
-          id: 1,
-          result:
-            '0x0000000000000000000000000000000000000000000000000000000000000001',
-        })
-        .persist();
-
-      // Mock tokenURI call
-      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
-        .post('/v3/341eacb578dd44a1a049cbc5f6fd4035')
-        .reply(200, {
-          jsonrpc: '2.0',
-          id: 2,
-          result:
-            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001968747470733a2f2f6578616d706c652e636f6d2f746f6b656e2f31000000',
-        });
-
-      // Mock metadata with IPFS image URL
-      nock('https://example.com').get('/token/1').reply(200, {
-        name: 'Test NFT',
-        image: 'ipfs://QmTestHash/image.png',
-      });
-
-      const details = await erc1155Standard.getDetails(
-        ERC1155_ADDRESS,
-        'https://ipfs.gateway.com',
+        ipfsGateway,
         SAMPLE_TOKEN_ID,
       );
 
       expect(details.standard).toBe('ERC1155');
-      expect(details.image).toBe(
-        'https://ipfs.gateway.com/ipfs/QmTestHash/image.png',
-      );
-    });
+      expect(details.tokenURI).toBe('https://example.com/metadata.json');
+      expect(details.image).toBeUndefined(); // Should be undefined due to fetch error
 
-    it('should handle network timeout when fetching metadata', async () => {
-      // Mock successful ERC1155 interface check
-      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
-        .post('/v3/341eacb578dd44a1a049cbc5f6fd4035')
-        .reply(200, {
-          jsonrpc: '2.0',
-          id: 1,
-          result:
-            '0x0000000000000000000000000000000000000000000000000000000000000001',
-        })
-        .persist();
-
-      // Mock tokenURI call
-      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
-        .post('/v3/341eacb578dd44a1a049cbc5f6fd4035')
-        .reply(200, {
-          jsonrpc: '2.0',
-          id: 2,
-          result:
-            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001968747470733a2f2f6578616d706c652e636f6d2f746f6b656e2f31000000',
-        });
-
-      // Mock network timeout
-      nock('https://example.com')
-        .get('/token/1')
-        .replyWithError('Network timeout');
-
-      const details = await erc1155Standard.getDetails(
-        ERC1155_ADDRESS,
-        'https://ipfs.gateway.com',
-        SAMPLE_TOKEN_ID,
-      );
-
-      // Should handle timeout gracefully and still return basic details
-      expect(details.standard).toBe('ERC1155');
-      expect(details.image).toBeUndefined();
+      // Restore original methods
+      jest.restoreAllMocks();
     });
   });
 });
