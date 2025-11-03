@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.2.0]
 
-### Uncategorized
-
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- Release/650.0.0 ([#7003](https://github.com/MetaMask/core/pull/7003))
-
 ### Added
 
 - Added new property, `isSponsorshipSupported` to the ControllerState, `pricing.paymentMethods.chains`. ([#7035](https://github.com/MetaMask/core/pull/7035))
@@ -21,8 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0`. ([#7003](https://github.com/MetaMask/core/pull/7003))
 - Bump `@metamask/transaction-controller` from `^61.0.0` to `^61.1.0` ([#7007](https://github.com/MetaMask/core/pull/7007))
 - Updated `submitSponsorshipIntents` method with chain validation. ([#7035](https://github.com/MetaMask/core/pull/7035))
+- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
 
 ## [3.1.0]
 

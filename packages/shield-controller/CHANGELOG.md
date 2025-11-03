@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0]
 
-### Uncategorized
+### Changed
 
 - fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
 - chore(dev-deps): Bump `@ts-bridge/cli` from `^0.6.1` to `^0.6.4` ([#7039](https://github.com/MetaMask/core/pull/7039))
-- Release 651.0.0 ([#7007](https://github.com/MetaMask/core/pull/7007))
-- Release/650.0.0 ([#7003](https://github.com/MetaMask/core/pull/7003))
+- Bump `@metamask/transaction-controller` from `61.0.0` to `61.1.0`. ([#7007](https://github.com/MetaMask/core/pull/7007))
+- Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0`. ([#7003](https://github.com/MetaMask/core/pull/7003))
 
 ### Fixed
 
