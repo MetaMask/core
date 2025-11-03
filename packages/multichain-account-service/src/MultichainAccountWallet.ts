@@ -244,10 +244,18 @@ export class MultichainAccountWallet<
   }): Promise<void> {
     if (awaitAll) {
       const tasks = providers.map((provider) =>
-        provider.createAccounts({
-          entropySource: this.#entropySource,
-          groupIndex,
-        }),
+        provider
+          .createAccounts({
+            entropySource: this.#entropySource,
+            groupIndex,
+          })
+          .catch((error) => {
+            this.#messenger.call(
+              'ErrorReportingService:captureException',
+              error as Error,
+            );
+            throw error;
+          }),
       );
 
       const results = await Promise.allSettled(tasks);
@@ -276,6 +284,10 @@ export class MultichainAccountWallet<
         .catch((error) => {
           const errorMessage = `Unable to create multichain account group for index: ${groupIndex} (background mode with provider "${provider.getName()}")`;
           this.#log(`${WARNING_PREFIX} ${errorMessage}:`, error);
+          this.#messenger.call(
+            'ErrorReportingService:captureException',
+            error as Error,
+          );
         });
     });
   }
@@ -411,6 +423,10 @@ export class MultichainAccountWallet<
       } catch (error) {
         const errorMessage = `Unable to create multichain account group for index: ${groupIndex} with provider "${evmProvider.getName()}". Error: ${(error as Error).message}`;
         this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
+        this.#messenger.call(
+          'ErrorReportingService:captureException',
+          error as Error,
+        );
         throw new Error(errorMessage);
       }
 
