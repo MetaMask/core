@@ -114,7 +114,7 @@ describe('GatorPermissionsController', () => {
           other: {},
         }),
         gatorPermissionsProviderSnapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
-        pendingRevocation: [],
+        pendingRevocations: [],
       };
 
       const controller = new GatorPermissionsController({
