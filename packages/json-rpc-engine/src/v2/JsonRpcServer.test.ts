@@ -3,6 +3,7 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import { JsonRpcServer } from './JsonRpcServer';
+import type { MiddlewareContext } from './MiddlewareContext';
 import type { JsonRpcNotification, JsonRpcRequest } from './utils';
 import { isRequest, JsonRpcEngineError, stringify } from './utils';
 
@@ -106,6 +107,39 @@ describe('JsonRpcServer', () => {
     });
 
     expect(response).toBeUndefined();
+  });
+
+  it('forwards the context to the engine', async () => {
+    const middleware: JsonRpcMiddleware<
+      JsonRpcRequest,
+      string,
+      MiddlewareContext<{ foo: string }>
+    > = ({ context }) => {
+      return context.assertGet('foo');
+    };
+    const server = new JsonRpcServer({
+      middleware: [middleware],
+      onError: () => undefined,
+    });
+
+    const response = await server.handle(
+      {
+        jsonrpc,
+        id: 1,
+        method: 'hello',
+      },
+      {
+        context: {
+          foo: 'bar',
+        },
+      },
+    );
+
+    expect(response).toStrictEqual({
+      jsonrpc,
+      id: 1,
+      result: 'bar',
+    });
   });
 
   it('returns an error response for a failed request', async () => {
