@@ -16,9 +16,6 @@ export type {
   GatorPermissionsControllerActions,
   GatorPermissionsControllerEvents,
   GatorPermissionsControllerStateChangeEvent,
-  TransactionControllerTransactionConfirmedEvent,
-  TransactionControllerTransactionFailedEvent,
-  TransactionControllerTransactionDroppedEvent,
 } from './GatorPermissionsController';
 export type { DecodedPermission } from './decodePermission';
 export type {
