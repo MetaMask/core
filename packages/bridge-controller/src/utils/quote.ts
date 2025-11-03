@@ -5,14 +5,18 @@ import {
 } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import { isNativeAddress, isSolanaChainId } from './bridge';
+import { isNativeAddress, isNonEvmChainId } from './bridge';
+import { FeatureId } from './validators';
 import type {
+  BridgeAsset,
   ExchangeRate,
   GenericQuoteRequest,
   L1GasFees,
   Quote,
+  QuoteMetadata,
   QuoteResponse,
-  SolanaFees,
+  NonEvmFees,
+  TxData,
 } from '../types';
 
 export const isValidQuoteRequest = (
@@ -29,12 +33,18 @@ export const isValidQuoteRequest = (
   if (requireAmount) {
     stringFields.push('srcTokenAmount');
   }
-  // If bridging and one of the chains is solana, require the dest wallet address
+  // If bridging between different chain types or different non-EVM chains, require dest wallet address
+  // Cases that need destWalletAddress:
+  // 1. EVM -> non-EVM
+  // 2. non-EVM -> EVM
+  // 3. non-EVM -> different non-EVM (e.g., SOL -> BTC)
+  // Only same-chain swaps don't need destWalletAddress
   if (
     partialRequest.destChainId &&
     partialRequest.srcChainId &&
-    isSolanaChainId(partialRequest.destChainId) ===
-      !isSolanaChainId(partialRequest.srcChainId)
+    partialRequest.destChainId !== partialRequest.srcChainId && // Different chains
+    (isNonEvmChainId(partialRequest.destChainId) ||
+      isNonEvmChainId(partialRequest.srcChainId)) // At least one is non-EVM
   ) {
     stringFields.push('destWalletAddress');
     if (!partialRequest.destWalletAddress) {
@@ -86,25 +96,26 @@ const calcTokenAmount = (value: string | BigNumber, decimals: number) => {
   return new BigNumber(value).div(divisor);
 };
 
-export const calcSolanaTotalNetworkFee = (
-  bridgeQuote: QuoteResponse & SolanaFees,
+export const calcNonEvmTotalNetworkFee = (
+  bridgeQuote: QuoteResponse & NonEvmFees,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  const { solanaFeesInLamports } = bridgeQuote;
-  const solanaFeeInNative = calcTokenAmount(solanaFeesInLamports ?? '0', 9);
+  const { nonEvmFeesInNative } = bridgeQuote;
+  // Fees are now stored directly in native units (SOL, BTC) without conversion
+  const feeInNative = new BigNumber(nonEvmFeesInNative ?? '0');
+
   return {
-    amount: solanaFeeInNative.toString(),
+    amount: feeInNative.toString(),
     valueInCurrency: exchangeRate
-      ? solanaFeeInNative.times(exchangeRate).toString()
+      ? feeInNative.times(exchangeRate).toString()
       : null,
-    usd: usdExchangeRate
-      ? solanaFeeInNative.times(usdExchangeRate).toString()
-      : null,
+    usd: usdExchangeRate ? feeInNative.times(usdExchangeRate).toString() : null,
   };
 };
 
 export const calcToAmount = (
-  { destTokenAmount, destAsset }: Quote,
+  destTokenAmount: string,
+  destAsset: BridgeAsset,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   const normalizedDestAmount = calcTokenAmount(
@@ -147,9 +158,10 @@ export const calcSentAmount = (
 };
 
 export const calcRelayerFee = (
-  { quote, trade }: QuoteResponse,
+  quoteResponse: QuoteResponse<TxData>,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
+  const { quote, trade } = quoteResponse;
   const relayerFeeAmount = new BigNumber(
     convertHexToDecimal(trade.value || '0x0'),
   );
@@ -174,23 +186,25 @@ export const calcRelayerFee = (
 };
 
 const calcTotalGasFee = ({
-  bridgeQuote,
+  approvalGasLimit,
+  tradeGasLimit,
+  l1GasFeesInHexWei,
   feePerGasInDecGwei,
   priorityFeePerGasInDecGwei,
   nativeToDisplayCurrencyExchangeRate,
   nativeToUsdExchangeRate,
 }: {
-  bridgeQuote: QuoteResponse & L1GasFees;
+  approvalGasLimit?: number | null;
+  tradeGasLimit?: number | null;
+  l1GasFeesInHexWei?: string | null;
   feePerGasInDecGwei: string;
   priorityFeePerGasInDecGwei: string;
   nativeToDisplayCurrencyExchangeRate?: string;
   nativeToUsdExchangeRate?: string;
 }) => {
-  const { approval, trade, l1GasFeesInHexWei } = bridgeQuote;
-
   const totalGasLimitInDec = new BigNumber(
-    trade.gasLimit?.toString() ?? '0',
-  ).plus(approval?.gasLimit?.toString() ?? '0');
+    tradeGasLimit?.toString() ?? '0',
+  ).plus(approvalGasLimit?.toString() ?? '0');
 
   const totalFeePerGasInDecGwei = new BigNumber(feePerGasInDecGwei).plus(
     priorityFeePerGasInDecGwei,
@@ -216,59 +230,106 @@ const calcTotalGasFee = ({
 };
 
 export const calcEstimatedAndMaxTotalGasFee = ({
-  bridgeQuote,
+  bridgeQuote: { approval, trade, l1GasFeesInHexWei },
   estimatedBaseFeeInDecGwei,
   maxFeePerGasInDecGwei,
   maxPriorityFeePerGasInDecGwei,
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
-  bridgeQuote: QuoteResponse & L1GasFees;
+  bridgeQuote: QuoteResponse<TxData> & L1GasFees;
   estimatedBaseFeeInDecGwei: string;
   maxFeePerGasInDecGwei: string;
   maxPriorityFeePerGasInDecGwei: string;
-} & ExchangeRate) => {
-  const { amount, valueInCurrency, usd } = calcTotalGasFee({
-    bridgeQuote,
+} & ExchangeRate): QuoteMetadata['gasFee'] => {
+  // Estimated gas fees spent after receiving refunds, this is shown to the user
+  const {
+    amount: amountEffective,
+    valueInCurrency: valueInCurrencyEffective,
+    usd: usdEffective,
+  } = calcTotalGasFee({
+    // Fallback to gasLimit if effectiveGas is not available
+    approvalGasLimit: approval?.effectiveGas ?? approval?.gasLimit,
+    tradeGasLimit: trade?.effectiveGas ?? trade?.gasLimit,
+    l1GasFeesInHexWei,
     feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
     priorityFeePerGasInDecGwei: maxPriorityFeePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
+
+  // Estimated total gas fee, including refunded fees (medium)
+  const { amount, valueInCurrency, usd } = calcTotalGasFee({
+    approvalGasLimit: approval?.gasLimit,
+    tradeGasLimit: trade?.gasLimit,
+    l1GasFeesInHexWei,
+    feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
+    priorityFeePerGasInDecGwei: maxPriorityFeePerGasInDecGwei,
+    nativeToDisplayCurrencyExchangeRate,
+    nativeToUsdExchangeRate,
+  });
+
+  // Max gas fee (high), used to disable submission of the transaction
   const {
     amount: amountMax,
     valueInCurrency: valueInCurrencyMax,
     usd: usdMax,
   } = calcTotalGasFee({
-    bridgeQuote,
+    approvalGasLimit: approval?.gasLimit,
+    tradeGasLimit: trade?.gasLimit,
+    l1GasFeesInHexWei,
     feePerGasInDecGwei: maxFeePerGasInDecGwei,
     priorityFeePerGasInDecGwei: maxPriorityFeePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
+
   return {
-    amount,
-    amountMax,
-    valueInCurrency,
-    valueInCurrencyMax,
-    usd,
-    usdMax,
+    effective: {
+      amount: amountEffective,
+      valueInCurrency: valueInCurrencyEffective,
+      usd: usdEffective,
+    },
+    total: {
+      amount,
+      valueInCurrency,
+      usd,
+    },
+    max: {
+      amount: amountMax,
+      valueInCurrency: valueInCurrencyMax,
+      usd: usdMax,
+    },
   };
 };
 
+/**
+ * Calculates the total estimated network fees for the bridge transaction
+ *
+ * @param gasFee - The gas fee for the bridge transaction
+ * @param gasFee.effective - The fee to display to the user. If not available, this is equal to the gasLimit (total)
+ * @param relayerFee - The relayer fee paid to bridge providers
+ * @returns The total estimated network fee for the bridge transaction, including the relayer fee paid to bridge providers
+ */
 export const calcTotalEstimatedNetworkFee = (
-  gasFee: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
+  {
+    effective: gasFeeToDisplay,
+  }: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
   return {
-    amount: new BigNumber(gasFee.amount).plus(relayerFee.amount).toString(),
-    valueInCurrency: gasFee.valueInCurrency
-      ? new BigNumber(gasFee.valueInCurrency)
+    amount: new BigNumber(gasFeeToDisplay?.amount ?? '0')
+      .plus(relayerFee.amount)
+      .toString(),
+    valueInCurrency: gasFeeToDisplay?.valueInCurrency
+      ? new BigNumber(gasFeeToDisplay.valueInCurrency)
           .plus(relayerFee.valueInCurrency || '0')
           .toString()
       : null,
-    usd: gasFee.usd
-      ? new BigNumber(gasFee.usd).plus(relayerFee.usd || '0').toString()
+    usd: gasFeeToDisplay?.usd
+      ? new BigNumber(gasFeeToDisplay.usd)
+          .plus(relayerFee.usd || '0')
+          .toString()
       : null,
   };
 };
@@ -278,25 +339,25 @@ export const calcTotalMaxNetworkFee = (
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
   return {
-    amount: new BigNumber(gasFee.amountMax).plus(relayerFee.amount).toString(),
-    valueInCurrency: gasFee.valueInCurrencyMax
-      ? new BigNumber(gasFee.valueInCurrencyMax)
+    amount: new BigNumber(gasFee.max.amount).plus(relayerFee.amount).toString(),
+    valueInCurrency: gasFee.max.valueInCurrency
+      ? new BigNumber(gasFee.max.valueInCurrency)
           .plus(relayerFee.valueInCurrency || '0')
           .toString()
       : null,
-    usd: gasFee.usdMax
-      ? new BigNumber(gasFee.usdMax).plus(relayerFee.usd || '0').toString()
+    usd: gasFee.max.usd
+      ? new BigNumber(gasFee.max.usd).plus(relayerFee.usd || '0').toString()
       : null,
   };
 };
 
 // Gas is included for some swap quotes and this is the value displayed in the client
 export const calcIncludedTxFees = (
-  { gasIncluded, srcAsset, feeData: { txFee } }: Quote,
+  { gasIncluded, gasIncluded7702, srcAsset, feeData: { txFee } }: Quote,
   srcTokenExchangeRate: ExchangeRate,
   destTokenExchangeRate: ExchangeRate,
 ) => {
-  if (!txFee || !gasIncluded) {
+  if (!txFee || !(gasIncluded || gasIncluded7702)) {
     return null;
   }
   // Use exchange rate of the token that is being used to pay for the transaction
@@ -406,4 +467,19 @@ export const formatEtaInMinutes = (
     return `< 1`;
   }
   return (estimatedProcessingTimeInSeconds / 60).toFixed();
+};
+
+export const sortQuotes = (
+  quotes: QuoteResponse[],
+  featureId: FeatureId | null,
+) => {
+  // Sort perps quotes by increasing estimated processing time (fastest first)
+  if (featureId === FeatureId.PERPS) {
+    return quotes.sort((a, b) => {
+      return (
+        a.estimatedProcessingTimeInSeconds - b.estimatedProcessingTimeInSeconds
+      );
+    });
+  }
+  return quotes;
 };

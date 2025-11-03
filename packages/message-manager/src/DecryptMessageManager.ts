@@ -1,9 +1,10 @@
 import type {
-  ActionConstraint,
-  EventConstraint,
-  RestrictedMessenger,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
+import {} from '@metamask/messenger';
 
 import type {
   AbstractMessage,
@@ -30,14 +31,20 @@ export type DecryptMessageManagerUpdateBadgeEvent = {
   payload: [];
 };
 
-export type DecryptMessageManagerMessenger = RestrictedMessenger<
-  string,
-  ActionConstraint,
-  | EventConstraint
+type DecryptMessageManagerActions = ControllerGetStateAction<
+  typeof managerName,
+  DecryptMessageManagerState
+>;
+
+type DecryptMessageManagerEvents =
+  | ControllerStateChangeEvent<typeof managerName, DecryptMessageManagerState>
   | DecryptMessageManagerUnapprovedMessageAddedEvent
-  | DecryptMessageManagerUpdateBadgeEvent,
-  string,
-  string
+  | DecryptMessageManagerUpdateBadgeEvent;
+
+export type DecryptMessageManagerMessenger = Messenger<
+  typeof managerName,
+  DecryptMessageManagerActions,
+  DecryptMessageManagerEvents
 >;
 
 type DecryptMessageManagerOptions = {
@@ -93,13 +100,11 @@ export interface DecryptMessageParamsMetamask
  * Controller in charge of managing - storing, adding, removing, updating - DecryptMessages.
  */
 export class DecryptMessageManager extends AbstractMessageManager<
+  typeof managerName,
   DecryptMessage,
   DecryptMessageParams,
   DecryptMessageParamsMetamask,
-  ActionConstraint,
-  | EventConstraint
-  | DecryptMessageManagerUnapprovedMessageAddedEvent
-  | DecryptMessageManagerUpdateBadgeEvent
+  DecryptMessageManagerMessenger
 > {
   constructor({
     additionalFinishStatuses,
@@ -193,7 +198,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
     const messageId = messageData.id;
 
     await this.addMessage(messageData);
-    this.messagingSystem.publish(`${managerName}:unapprovedMessage`, {
+    this.messenger.publish(`${managerName}:unapprovedMessage`, {
       ...updatedMessageParams,
       metamaskId: messageId,
     });

@@ -7,21 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6533](https://github.com/MetaMask/core/pull/6533))
+  - Previously, `AuthenticationController` and `UserStorageController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6533](https://github.com/MetaMask/core/pull/6533))
+- **BREAKING:** Bump `@metamask/address-book-controller` from `^6.1.1` to `^7.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^23.0.0` to `^24.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [25.1.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [25.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [25.1.0]
+
+### Changed
+
+- Use deferred promises for encryption/decryption KDF operations ([#6736](https://github.com/MetaMask/core/pull/6736))
+  - That will prevent duplicate KDF operations from being computed if one with the same options is already in progress.
+  - For operations that already completed, we use the already existing cache.
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Bump `@metamask/keyring-internal-api` from `^8.1.0` to `^9.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Strip `srpSessionData.token.accessToken` from state logs ([#6553](https://github.com/MetaMask/core/pull/6553))
+  - We haven't started using the `includeInStateLogs` metadata yet in clients, so this will have no functional impact. This change brings this metadata into alignment with the hard-coded state log generation performed by clients.today.
+- Add dependency on `@metamask/utils` ([#6553](https://github.com/MetaMask/core/pull/6553))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
+## [25.0.0]
+
 ### Added
 
-- `UserStorageController` optional config callback `getIsMultichainAccountSyncingEnabled`, and `getIsMultichainAccountSyncingEnabled` public method / messenger action
+- **BREAKING:** Add missing `@metamask/address-book-controller` peer dependency ([#6344](https://github.com/MetaMask/core/pull/6344))
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6470](https://github.com/MetaMask/core/pull/6470))
+
+### Changed
+
+- Implement deferred login pattern in `SRPJwtBearerAuth` to prevent race conditions during concurrent authentication attempts ([#6353](https://github.com/MetaMask/core/pull/6353))
+  - Add `#deferredLogin` method that ensures only one login operation executes at a time using Promise map caching
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.3.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
+
+### Removed
+
+- **BREAKING:** Remove `@metamask/accounts-controller` peer dependency ([#6344](https://github.com/MetaMask/core/pull/6344))
+- **BREAKING:** Remove all account syncing code & logic ([#6344](https://github.com/MetaMask/core/pull/6344))
+  - `UserStorageController` now only holds the account syncing enablement status, but the logic itself has been moved to `@metamask/account-tree-controller`
+- Remove `UserStorageController` optional config callback `getIsMultichainAccountSyncingEnabled`, and `getIsMultichainAccountSyncingEnabled` public method / messenger action ([#6344](https://github.com/MetaMask/core/pull/6344))
+
+## [24.0.0]
+
+### Added
+
+- `UserStorageController` optional config callback `getIsMultichainAccountSyncingEnabled`, and `getIsMultichainAccountSyncingEnabled` public method / messenger action ([#6215](https://github.com/MetaMask/core/pull/6215))
   - This callback needs to be wired to client specific selectors in order to fetch the value of the feature flag dynamically
   - If `true`, Account syncing will stop pushing new data to the user storage and only act as an account restoration method that will be fired before multichain account syncing for legacy compatibility
   - This is done because `AccountTreeController` will become responsible for Multichain Account syncing
 
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` from `^32.0.0` to `^33.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` from `^22.0.0` to `^23.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
 - Bump `@noble/hashes` from `^1.4.0` to `^1.8.0` ([#6101](https://github.com/MetaMask/core/pull/6101))
 - Bump `@noble/ciphers` from `^0.5.2` to `^1.3.0` ([#6101](https://github.com/MetaMask/core/pull/6101))
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump accounts related packages ([#6309](https://github.com/MetaMask/core/pull/6309))
+  - Bump `@metamask/keyring-api` from `^20.0.0` to `^20.1.0`
+  - Bump `@metamask/keyring-internal-api` from `^8.0.0` to `^8.1.0`
 
 ### Removed
 
-- Unused `UserStorageController:saveInternalAccountToUserStorage` public method
+- **BREAKING:** Remove `UserStorageController:saveInternalAccountToUserStorage` public method ([#6215](https://github.com/MetaMask/core/pull/6215))
 
 ## [23.0.0]
 
@@ -696,7 +762,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.2...@metamask/profile-sync-controller@26.0.0
+[25.1.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.1...@metamask/profile-sync-controller@25.1.2
+[25.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.0...@metamask/profile-sync-controller@25.1.1
+[25.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.0.0...@metamask/profile-sync-controller@25.1.0
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@24.0.0...@metamask/profile-sync-controller@25.0.0
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@23.0.0...@metamask/profile-sync-controller@24.0.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@22.0.0...@metamask/profile-sync-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@21.0.0...@metamask/profile-sync-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@20.0.0...@metamask/profile-sync-controller@21.0.0

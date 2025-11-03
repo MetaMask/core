@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { InfuraNetworkType } from '@metamask/controller-utils';
 import type {
   AccountAssetListUpdatedEventPayload,
@@ -15,6 +15,13 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
@@ -23,11 +30,8 @@ import type { V4Options } from 'uuid';
 import * as uuid from 'uuid';
 
 import type {
-  AccountsControllerActions,
-  AccountsControllerEvents,
+  AccountsControllerMessenger,
   AccountsControllerState,
-  AllowedActions,
-  AllowedEvents,
 } from './AccountsController';
 import { AccountsController, EMPTY_ACCOUNT } from './AccountsController';
 import {
@@ -40,6 +44,17 @@ import {
   getUUIDOptionsFromAddressOfNormalAccount,
   keyringTypeToName,
 } from './utils';
+
+type AllAccountsControllerActions =
+  MessengerActions<AccountsControllerMessenger>;
+
+type AllAccountsControllerEvents = MessengerEvents<AccountsControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllAccountsControllerActions,
+  AllAccountsControllerEvents
+>;
 
 jest.mock('uuid');
 const mockUUID = jest.spyOn(uuid, 'v4');
@@ -217,27 +232,37 @@ function setExpectedLastSelectedAsAny(
 }
 
 /**
- * Builds a new instance of the Messenger class for the AccountsController.
+ * Builds a new instance of the root messenger.
  *
- * @returns A new instance of the Messenger class for the AccountsController.
+ * @returns A new instance of the root messenger.
  */
-function buildMessenger() {
-  return new Messenger<
-    AccountsControllerActions | AllowedActions,
-    AccountsControllerEvents | AllowedEvents
-  >();
+function buildMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 /**
- * Builds a restricted messenger for the AccountsController.
+ * Builds a messenger for the AccountsController.
  *
- * @param messenger - The messenger to restrict.
- * @returns The restricted messenger.
+ * @param rootMessenger - The root messenger.
+ * @returns The messenger for AccountsController.
  */
-function buildAccountsControllerMessenger(messenger = buildMessenger()) {
-  return messenger.getRestricted({
-    name: 'AccountsController',
-    allowedEvents: [
+function buildAccountsControllerMessenger(rootMessenger = buildMessenger()) {
+  const accountsControllerMessenger = new Messenger<
+    'AccountsController',
+    AllAccountsControllerActions,
+    AllAccountsControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'AccountsController',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger: accountsControllerMessenger,
+    actions: [
+      'KeyringController:getState',
+      'KeyringController:getKeyringsByType',
+    ],
+    events: [
       'SnapController:stateChange',
       'KeyringController:stateChange',
       'SnapKeyring:accountAssetListUpdated',
@@ -245,11 +270,8 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
       'SnapKeyring:accountTransactionsUpdated',
       'MultichainNetworkController:networkDidChange',
     ],
-    allowedActions: [
-      'KeyringController:getState',
-      'KeyringController:getKeyringsByType',
-    ],
   });
+  return accountsControllerMessenger;
 }
 
 /**
@@ -257,7 +279,7 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
  *
  * @param options - The options object.
  * @param [options.initialState] - The initial state to use for the AccountsController.
- * @param [options.messenger] - Messenger to use for the AccountsController.
+ * @param [options.messenger] - The root messenger to use for creating the AccountsController messenger.
  * @returns An instance of the AccountsController class.
  */
 function setupAccountsController({
@@ -265,16 +287,11 @@ function setupAccountsController({
   messenger = buildMessenger(),
 }: {
   initialState?: Partial<AccountsControllerState>;
-  messenger?: Messenger<
-    AccountsControllerActions | AllowedActions,
-    AccountsControllerEvents | AllowedEvents
-  >;
+  messenger?: RootMessenger;
 }): {
   accountsController: AccountsController;
-  messenger: Messenger<
-    AccountsControllerActions | AllowedActions,
-    AccountsControllerEvents | AllowedEvents
-  >;
+  messenger: RootMessenger;
+  accountsControllerMessenger: AccountsControllerMessenger;
   triggerMultichainNetworkChange: (id: NetworkClientId | CaipChainId) => void;
 } {
   const accountsControllerMessenger =
@@ -288,7 +305,12 @@ function setupAccountsController({
   const triggerMultichainNetworkChange = (id: NetworkClientId | CaipChainId) =>
     messenger.publish('MultichainNetworkController:networkDidChange', id);
 
-  return { accountsController, messenger, triggerMultichainNetworkChange };
+  return {
+    accountsController,
+    messenger,
+    accountsControllerMessenger,
+    triggerMultichainNetworkChange,
+  };
 }
 
 describe('AccountsController', () => {
@@ -1136,11 +1158,10 @@ describe('AccountsController', () => {
 
       it('publishes accountAdded event', async () => {
         const messenger = buildMessenger();
-        const messengerSpy = jest.spyOn(messenger, 'publish');
 
         mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
 
-        setupAccountsController({
+        const { accountsControllerMessenger } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: {
@@ -1151,6 +1172,8 @@ describe('AccountsController', () => {
           },
           messenger,
         });
+
+        const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
 
         const mockNewKeyringState = {
           isUnlocked: true,
@@ -1172,11 +1195,10 @@ describe('AccountsController', () => {
           [],
         );
 
-        // First call is 'KeyringController:stateChange'
+        // First call is 'AccountsController:stateChange'
         expect(messengerSpy).toHaveBeenNthCalledWith(
-          // 1. KeyringController:stateChange
-          // 2. AccountsController:stateChange
-          3,
+          // 1. AccountsController:stateChange
+          2,
           'AccountsController:accountAdded',
           MockExpectedInternalAccountBuilder.from(mockAccount2)
             .setExpectedLastSelectedAsAny()
@@ -1437,11 +1459,10 @@ describe('AccountsController', () => {
 
       it('publishes accountRemoved event', async () => {
         const messenger = buildMessenger();
-        const messengerSpy = jest.spyOn(messenger, 'publish');
 
         mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
 
-        setupAccountsController({
+        const { accountsControllerMessenger } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: {
@@ -1453,6 +1474,8 @@ describe('AccountsController', () => {
           },
           messenger,
         });
+
+        const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
 
         const mockNewKeyringState = {
           isUnlocked: true,
@@ -1473,11 +1496,10 @@ describe('AccountsController', () => {
           [],
         );
 
-        // First call is 'KeyringController:stateChange'
+        // First call is 'AccountsController:stateChange'
         expect(messengerSpy).toHaveBeenNthCalledWith(
-          // 1. KeyringController:stateChange
-          // 2. AccountsController:stateChange
-          3,
+          // 1. AccountsController:stateChange
+          2,
           'AccountsController:accountRemoved',
           mockAccount3.id,
         );
@@ -1634,6 +1656,62 @@ describe('AccountsController', () => {
         expect(selectedAccount.id).toStrictEqual(expectedSelectedId);
       },
     );
+
+    it('fires :accountAdded before :selectedAccountChange', async () => {
+      const messenger = buildMessenger();
+
+      mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+        messenger,
+      });
+
+      const mockNewKeyringState = {
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: KeyringTypes.hd,
+            accounts: [mockAccount.address],
+            metadata: {
+              id: 'mock-id',
+              name: 'mock-name',
+            },
+          },
+        ],
+      };
+
+      const mockEventsOrder = jest.fn();
+
+      messenger.subscribe('AccountsController:accountAdded', () => {
+        mockEventsOrder('AccountsController:accountAdded');
+      });
+      messenger.subscribe('AccountsController:selectedAccountChange', () => {
+        mockEventsOrder('AccountsController:selectedAccountChange');
+      });
+
+      expect(accountsController.getSelectedAccount()).toBe(EMPTY_ACCOUNT);
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringState,
+        [],
+      );
+
+      expect(mockEventsOrder).toHaveBeenNthCalledWith(
+        1,
+        'AccountsController:accountAdded',
+      );
+      expect(mockEventsOrder).toHaveBeenNthCalledWith(
+        2,
+        'AccountsController:selectedAccountChange',
+      );
+    });
   });
 
   describe('onSnapKeyringEvents', () => {
@@ -2721,6 +2799,30 @@ describe('AccountsController', () => {
     });
   });
 
+  describe('getAccounts', () => {
+    it('returns a list of accounts based on the given account IDs', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2,
+              [mockAccount3.id]: mockAccount3,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      const result = accountsController.getAccounts([
+        mockAccount.id,
+        mockAccount3.id,
+      ]);
+
+      expect(result).toStrictEqual([mockAccount, mockAccount3]);
+    });
+  });
+
   describe('getSelectedAccount', () => {
     it.each([
       {
@@ -3085,19 +3187,20 @@ describe('AccountsController', () => {
         },
         type: BtcAccountType.P2wpkh,
       });
-      const { accountsController, messenger } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockAccount.id]: mockAccount,
-              [mockNonEvmAccount.id]: mockNonEvmAccount,
+      const { accountsController, accountsControllerMessenger } =
+        setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockNonEvmAccount.id]: mockNonEvmAccount,
+              },
+              selectedAccount: mockAccount.id,
             },
-            selectedAccount: mockAccount.id,
           },
-        },
-      });
+        });
 
-      const messengerSpy = jest.spyOn(messenger, 'publish');
+      const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
 
       accountsController.setSelectedAccount(mockNonEvmAccount.id);
 
@@ -3191,10 +3294,10 @@ describe('AccountsController', () => {
     });
 
     it('publishes the accountRenamed event', () => {
-      const { accountsController, messenger } =
+      const { accountsController, accountsControllerMessenger } =
         setupAccountsController(mockState);
 
-      const messengerSpy = jest.spyOn(messenger, 'publish');
+      const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
 
       accountsController.setAccountNameAndSelectAccount(
         mockAccount.id,
@@ -3269,16 +3372,17 @@ describe('AccountsController', () => {
     });
 
     it('publishes the accountRenamed event', () => {
-      const { accountsController, messenger } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: { [mockAccount.id]: mockAccount },
-            selectedAccount: mockAccount.id,
+      const { accountsController, accountsControllerMessenger } =
+        setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: { [mockAccount.id]: mockAccount },
+              selectedAccount: mockAccount.id,
+            },
           },
-        },
-      });
+        });
 
-      const messengerSpy = jest.spyOn(messenger, 'publish');
+      const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
 
       accountsController.setAccountName(mockAccount.id, 'new name');
 
@@ -3837,6 +3941,77 @@ describe('AccountsController', () => {
           expect(accountName).toBe('Account 4');
         });
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { accountsController: controller } = setupAccountsController({});
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { accountsController: controller } = setupAccountsController({});
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "internalAccounts": Object {
+            "accounts": Object {},
+            "selectedAccount": "",
+          },
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { accountsController: controller } = setupAccountsController({});
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "internalAccounts": Object {
+            "accounts": Object {},
+            "selectedAccount": "",
+          },
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { accountsController: controller } = setupAccountsController({});
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "internalAccounts": Object {
+            "accounts": Object {},
+            "selectedAccount": "",
+          },
+        }
+      `);
     });
   });
 });

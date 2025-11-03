@@ -43,6 +43,14 @@ const HexStringSchema = define<string>('HexString', (v: unknown) =>
   isStrictHexString(v as string),
 );
 
+const VersionStringSchema = define<string>(
+  'VersionString',
+  (v: unknown) =>
+    typeof v === 'string' &&
+    /^(\d+\.*){2}\d+$/u.test(v) &&
+    v.split('.').length === 3,
+);
+
 export const truthyString = (s: string) => Boolean(s?.length);
 const TruthyDigitStringSchema = pattern(string(), /^\d+$/u);
 
@@ -80,13 +88,30 @@ export const BridgeAssetSchema = type({
   iconUrl: optional(nullable(string())),
 });
 
+const DefaultPairSchema = type({
+  /**
+   * The standard default pairs. Use this if the pair is only set once.
+   * The key is the CAIP asset type of the src token and the value is the CAIP asset type of the dest token.
+   */
+  standard: record(string(), string()),
+  /**
+   * The other default pairs. Use this if the dest token depends on the src token and can be set multiple times.
+   * The key is the CAIP asset type of the src token and the value is the CAIP asset type of the dest token.
+   */
+  other: record(string(), string()),
+});
+
 export const ChainConfigurationSchema = type({
   isActiveSrc: boolean(),
   isActiveDest: boolean(),
   refreshRate: optional(number()),
   topAssets: optional(array(string())),
+  stablecoins: optional(array(string())),
   isUnifiedUIEnabled: optional(boolean()),
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
+  isGaslessSwapEnabled: optional(boolean()),
+  noFeeAssets: optional(array(string())),
+  defaultPairs: optional(DefaultPairSchema),
 });
 
 export const PriceImpactThresholdSchema = type({
@@ -115,6 +140,20 @@ export const PlatformConfigSchema = type({
   maxRefreshCount: number(),
   support: boolean(),
   chains: record(string(), ChainConfigurationSchema),
+  /**
+   * The bip44 default pairs for the chains
+   * Key is the CAIP chainId namespace
+   */
+  bip44DefaultPairs: optional(record(string(), optional(DefaultPairSchema))),
+  sse: optional(
+    type({
+      enabled: boolean(),
+      /**
+       * The minimum version of the client required to enable SSE, for example 13.8.0
+       */
+      minimumVersion: VersionStringSchema,
+    }),
+  ),
 });
 
 export const validateFeatureFlagsResponse = (
@@ -168,6 +207,10 @@ export const QuoteSchema = type({
    * The amount received, in atomic amount
    */
   destTokenAmount: string(),
+  /**
+   * The minimum amount that will be received, in atomic amount
+   */
+  minDestTokenAmount: string(),
   feeData: type({
     [FeeType.METABRIDGE]: FeeDataSchema,
     /**
@@ -185,6 +228,10 @@ export const QuoteSchema = type({
     ),
   }),
   gasIncluded: optional(boolean()),
+  /**
+   * Whether the quote can use EIP-7702 delegated gasless execution
+   */
+  gasIncluded7702: optional(boolean()),
   bridgeId: string(),
   bridges: array(string()),
   steps: array(StepSchema),
@@ -194,6 +241,7 @@ export const QuoteSchema = type({
       totalFromAmountUsd: optional(string()),
       totalToAmountUsd: optional(string()),
       priceImpact: optional(string()),
+      totalFeeAmountUsd: optional(string()),
     }),
   ),
 });
@@ -205,13 +253,19 @@ export const TxDataSchema = type({
   value: HexStringSchema,
   data: HexStringSchema,
   gasLimit: nullable(number()),
+  effectiveGas: optional(number()),
+});
+
+export const BitcoinTradeDataSchema = type({
+  unsignedPsbtBase64: string(),
+  inputsToSign: nullable(array(type({}))),
 });
 
 export const QuoteResponseSchema = type({
   quote: QuoteSchema,
   estimatedProcessingTimeInSeconds: number(),
   approval: optional(TxDataSchema),
-  trade: union([TxDataSchema, string()]),
+  trade: union([TxDataSchema, BitcoinTradeDataSchema, string()]),
 });
 
 export const validateQuoteResponse = (

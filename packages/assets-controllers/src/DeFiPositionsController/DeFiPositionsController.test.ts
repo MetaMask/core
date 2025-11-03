@@ -1,4 +1,12 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { BtcAccountType } from '@metamask/keyring-api';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 
 import * as calculateDefiMetrics from './calculate-defi-metrics';
 import type { DeFiPositionsControllerMessenger } from './DeFiPositionsController';
@@ -10,11 +18,6 @@ import * as fetchPositions from './fetch-positions';
 import * as groupDeFiPositions from './group-defi-positions';
 import { flushPromises } from '../../../../tests/helpers';
 import { createMockInternalAccount } from '../../../accounts-controller/src/tests/mocks';
-import { Messenger } from '../../../base-controller/src/Messenger';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../../base-controller/tests/helpers';
 import type {
   InternalAccount,
   TransactionMeta,
@@ -35,9 +38,16 @@ const OWNER_ACCOUNTS = [
   }),
 ];
 
-type MainMessenger = Messenger<
-  ExtractAvailableAction<DeFiPositionsControllerMessenger>,
-  ExtractAvailableEvent<DeFiPositionsControllerMessenger>
+type AllDefiPositionsControllerActions =
+  MessengerActions<DeFiPositionsControllerMessenger>;
+
+type AllDefiPositionsControllerEvents =
+  MessengerEvents<DeFiPositionsControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllDefiPositionsControllerActions,
+  AllDefiPositionsControllerEvents
 >;
 
 /**
@@ -64,7 +74,9 @@ function setupController({
   mockCalculateDefiMetrics?: jest.Mock;
   mockTrackEvent?: jest.Mock;
 } = {}) {
-  const messenger: MainMessenger = new Messenger();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   const mockListAccounts = jest.fn().mockReturnValue(OWNER_ACCOUNTS);
   messenger.registerActionHandler(
@@ -72,10 +84,19 @@ function setupController({
     mockListAccounts,
   );
 
-  const restrictedMessenger = messenger.getRestricted({
-    name: 'DeFiPositionsController',
-    allowedActions: ['AccountsController:listAccounts'],
-    allowedEvents: [
+  const defiPositionControllerMessenger = new Messenger<
+    'DeFiPositionsController',
+    AllDefiPositionsControllerActions,
+    AllDefiPositionsControllerEvents,
+    RootMessenger
+  >({
+    namespace: 'DeFiPositionsController',
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: defiPositionControllerMessenger,
+    actions: ['AccountsController:listAccounts'],
+    events: [
       'KeyringController:unlock',
       'KeyringController:lock',
       'TransactionController:transactionConfirmed',
@@ -104,7 +125,7 @@ function setupController({
   groupDeFiPositionsSpy.mockImplementation(mockGroupDeFiPositions);
 
   const controller = new DeFiPositionsController({
-    messenger: restrictedMessenger,
+    messenger: defiPositionControllerMessenger,
     isEnabled,
     trackEvent: mockTrackEvent,
   });
@@ -501,5 +522,59 @@ describe('DeFiPositionsController', () => {
     expect(mockTrackEvent).toHaveBeenCalledTimes(2);
     expect(mockTrackEvent).toHaveBeenNthCalledWith(1, mockMetric1);
     expect(mockTrackEvent).toHaveBeenNthCalledWith(2, mockMetric2);
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "allDeFiPositions": Object {},
+        }
+      `);
+    });
   });
 });

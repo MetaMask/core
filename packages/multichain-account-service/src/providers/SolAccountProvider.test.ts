@@ -1,5 +1,4 @@
 import { isBip44Account } from '@metamask/account-api';
-import type { Messenger } from '@metamask/base-controller';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type {
@@ -7,6 +6,7 @@ import type {
   InternalAccount,
 } from '@metamask/keyring-internal-api';
 
+import { AccountProviderWrapper } from './AccountProviderWrapper';
 import { SolAccountProvider } from './SolAccountProvider';
 import {
   getMultichainAccountServiceMessenger,
@@ -14,14 +14,10 @@ import {
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_KEYRING_1,
   MOCK_SOL_ACCOUNT_1,
+  MOCK_SOL_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
+  type RootMessenger,
 } from '../tests';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  MultichainAccountServiceActions,
-  MultichainAccountServiceEvents,
-} from '../types';
 
 class MockSolanaKeyring {
   readonly type = 'MockSolanaKeyring';
@@ -92,17 +88,11 @@ function setup({
   messenger = getRootMessenger(),
   accounts = [],
 }: {
-  messenger?: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  messenger?: RootMessenger;
   accounts?: InternalAccount[];
 } = {}): {
-  provider: SolAccountProvider;
-  messenger: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  provider: AccountProviderWrapper;
+  messenger: RootMessenger;
   keyring: MockSolanaKeyring;
   mocks: {
     handleRequest: jest.Mock;
@@ -139,8 +129,10 @@ function setup({
       }),
   );
 
-  const provider = new SolAccountProvider(
-    getMultichainAccountServiceMessenger(messenger),
+  const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
+  const provider = new AccountProviderWrapper(
+    multichainMessenger,
+    new SolAccountProvider(multichainMessenger),
   );
 
   return {
@@ -157,6 +149,11 @@ function setup({
 }
 
 describe('SolAccountProvider', () => {
+  it('getName returns Solana', () => {
+    const { provider } = setup({ accounts: [] });
+    expect(provider.getName()).toBe('Solana');
+  });
+
   it('gets accounts', () => {
     const accounts = [MOCK_SOL_ACCOUNT_1];
     const { provider } = setup({
@@ -216,6 +213,27 @@ describe('SolAccountProvider', () => {
     expect(newAccounts[0]).toStrictEqual(MOCK_SOL_ACCOUNT_1);
   });
 
+  it('throws if the account creation process takes too long', async () => {
+    const { provider, mocks } = setup({
+      accounts: [],
+    });
+
+    mocks.keyring.createAccount.mockImplementation(() => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(MOCK_SOL_ACCOUNT_1);
+        }, 4000);
+      });
+    });
+
+    await expect(
+      provider.createAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).rejects.toThrow('Timed out');
+  });
+
   // Skip this test for now, since we manually inject those options upon
   // account creation, so it cannot fails (until the Solana Snap starts
   // using the new typed options).
@@ -239,17 +257,54 @@ describe('SolAccountProvider', () => {
     ).rejects.toThrow('Created account is not BIP-44 compatible');
   });
 
-  it('discover accounts', async () => {
-    const { provider } = setup({
-      accounts: [], // No accounts by defaults, so we can discover them
+  it('discover accounts at a new group index creates an account', async () => {
+    const { provider, mocks } = setup({
+      accounts: [],
     });
 
-    // TODO: Update this once we really implement the account discovery.
-    expect(
-      await provider.discoverAndCreateAccounts({
-        entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 0,
-      }),
-    ).toStrictEqual([]);
+    // Simulate one discovered account at the requested index.
+    mocks.handleRequest.mockReturnValue([MOCK_SOL_DISCOVERED_ACCOUNT_1]);
+
+    const discovered = await provider.discoverAccounts({
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+    });
+
+    expect(discovered).toHaveLength(1);
+    // Ensure we did go through creation path
+    expect(mocks.keyring.createAccount).toHaveBeenCalled();
+    // Provider should now expose one account (newly created)
+    expect(provider.getAccounts()).toHaveLength(1);
+  });
+
+  it('returns existing account if it already exists at index', async () => {
+    const { provider, mocks } = setup({
+      accounts: [MOCK_SOL_ACCOUNT_1],
+    });
+
+    // Simulate one discovered account — should resolve to the existing one
+    mocks.handleRequest.mockReturnValue([MOCK_SOL_DISCOVERED_ACCOUNT_1]);
+
+    const discovered = await provider.discoverAccounts({
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+    });
+
+    expect(discovered).toStrictEqual([MOCK_SOL_ACCOUNT_1]);
+  });
+
+  it('does not return any accounts if no account is discovered', async () => {
+    const { provider, mocks } = setup({
+      accounts: [],
+    });
+
+    mocks.handleRequest.mockReturnValue([]);
+
+    const discovered = await provider.discoverAccounts({
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+    });
+
+    expect(discovered).toStrictEqual([]);
   });
 });

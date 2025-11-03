@@ -1,7 +1,11 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import type { Bip44Account } from '@metamask/account-api';
 import { isBip44Account } from '@metamask/account-api';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type {
+  DiscoveredAccount,
+  EntropySourceId,
+  KeyringAccount,
+} from '@metamask/keyring-api';
 import {
   BtcAccountType,
   BtcMethod,
@@ -13,12 +17,15 @@ import {
   SolAccountType,
   SolMethod,
   SolScope,
+  TrxAccountType,
+  TrxMethod,
+  TrxScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { v4 as uuid } from 'uuid';
 
-const ETH_EOA_METHODS = [
+export const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
   EthMethod.Sign,
   EthMethod.SignTransaction,
@@ -49,6 +56,9 @@ export const MOCK_SNAP_2 = {
 
 export const MOCK_ENTROPY_SOURCE_1 = 'mock-keyring-id-1';
 export const MOCK_ENTROPY_SOURCE_2 = 'mock-keyring-id-2';
+
+export const MOCK_MNEMONIC =
+  'abandon ability able about above absent absorb abstract absurd abuse access accident';
 
 export const MOCK_HD_KEYRING_1 = {
   type: KeyringTypes.hd,
@@ -132,10 +142,52 @@ export const MOCK_SOL_ACCOUNT_1: Bip44Account<InternalAccount> = {
   },
 };
 
+export const MOCK_TRX_ACCOUNT_1: Bip44Account<InternalAccount> = {
+  id: 'mock-snap-id-1',
+  address: 'aabbccdd',
+  options: {
+    entropy: {
+      type: KeyringAccountEntropyTypeOption.Mnemonic,
+      // NOTE: shares entropy with MOCK_HD_ACCOUNT_2
+      id: MOCK_HD_KEYRING_2.metadata.id,
+      groupIndex: 0,
+      derivationPath: '',
+    },
+  },
+  methods: [TrxMethod.SignMessageV2, TrxMethod.VerifyMessageV2],
+  type: TrxAccountType.Eoa,
+  scopes: [TrxScope.Mainnet],
+  metadata: {
+    name: 'Tron Account 1',
+    keyring: { type: KeyringTypes.snap },
+    snap: MOCK_SNAP_1,
+    importTime: 0,
+    lastSelected: 0,
+  },
+};
+
+export const MOCK_SOL_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {
+  type: 'bip44',
+  scopes: [SolScope.Mainnet],
+  derivationPath: `m/44'/501'/0'/0'`,
+};
+
+export const MOCK_TRX_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {
+  type: 'bip44',
+  scopes: [TrxScope.Mainnet],
+  derivationPath: `m/44'/195'/0'/0'`,
+};
+
+export const MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {
+  type: 'bip44',
+  scopes: [BtcScope.Mainnet],
+  derivationPath: `m/44'/0'/0'/0'`,
+};
+
 export const MOCK_BTC_P2WPKH_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'b0f030d8-e101-4b5a-a3dd-13f8ca8ec1db',
   type: BtcAccountType.P2wpkh,
-  methods: [BtcMethod.SendBitcoin],
+  methods: Object.values(BtcMethod),
   address: 'bc1qx8ls07cy8j8nrluy2u0xwn7gh8fxg0rg4s8zze',
   options: {
     entropy: {
@@ -151,7 +203,7 @@ export const MOCK_BTC_P2WPKH_ACCOUNT_1: Bip44Account<InternalAccount> = {
     name: 'Bitcoin Native Segwit Account 1',
     importTime: 0,
     keyring: {
-      type: 'Snap keyring',
+      type: KeyringTypes.snap,
     },
     snap: {
       id: 'mock-btc-snap-id',
@@ -164,7 +216,7 @@ export const MOCK_BTC_P2WPKH_ACCOUNT_1: Bip44Account<InternalAccount> = {
 export const MOCK_BTC_P2TR_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'a20c2e1a-6ff6-40ba-b8e0-ccdb6f9933bb',
   type: BtcAccountType.P2tr,
-  methods: [BtcMethod.SendBitcoin],
+  methods: Object.values(BtcMethod),
   address: 'tb1p5cyxnuxmeuwuvkwfem96lxx9wex9kkf4mt9ll6q60jfsnrzqg4sszkqjnh',
   options: {
     entropy: {
@@ -180,7 +232,7 @@ export const MOCK_BTC_P2TR_ACCOUNT_1: Bip44Account<InternalAccount> = {
     name: 'Bitcoin Taproot Account 1',
     importTime: 0,
     keyring: {
-      type: 'Snap keyring',
+      type: KeyringTypes.snap,
     },
     snap: {
       id: 'mock-btc-snap-id',

@@ -1,12 +1,14 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { isSafeDynamicKey } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
+
+import type { SamplePetnamesControllerMethodActions } from './sample-petnames-controller-method-action-types';
 
 // === GENERAL ===
 
@@ -39,66 +41,12 @@ export type SamplePetnamesControllerState = {
  */
 const samplePetnamesControllerMetadata = {
   namesByChainIdAndAddress: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    usedInUi: true,
   },
 } satisfies StateMetadata<SamplePetnamesControllerState>;
-
-// === MESSENGER ===
-
-/**
- * The action which can be used to retrieve the state of the
- * {@link SamplePetnamesController}.
- */
-export type SamplePetnamesControllerGetStateAction = ControllerGetStateAction<
-  typeof controllerName,
-  SamplePetnamesControllerState
->;
-
-/**
- * All actions that {@link SamplePetnamesController} registers, to be called
- * externally.
- */
-export type SamplePetnamesControllerActions =
-  SamplePetnamesControllerGetStateAction;
-
-/**
- * All actions that {@link SamplePetnamesController} calls internally.
- */
-type AllowedActions = never;
-
-/**
- * The event that {@link SamplePetnamesController} publishes when updating state.
- */
-export type SamplePetnamesControllerStateChangeEvent =
-  ControllerStateChangeEvent<
-    typeof controllerName,
-    SamplePetnamesControllerState
-  >;
-
-/**
- * All events that {@link SamplePetnamesController} publishes, to be subscribed to
- * externally.
- */
-export type SamplePetnamesControllerEvents =
-  SamplePetnamesControllerStateChangeEvent;
-
-/**
- * All events that {@link SamplePetnamesController} subscribes to internally.
- */
-type AllowedEvents = never;
-
-/**
- * The messenger which is restricted to actions and events accessed by
- * {@link SamplePetnamesController}.
- */
-export type SamplePetnamesControllerMessenger = RestrictedMessenger<
-  typeof controllerName,
-  SamplePetnamesControllerActions | AllowedActions,
-  SamplePetnamesControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
->;
 
 /**
  * Constructs the default {@link SamplePetnamesController} state. This allows
@@ -108,46 +56,113 @@ export type SamplePetnamesControllerMessenger = RestrictedMessenger<
  *
  * @returns The default {@link SamplePetnamesController} state.
  */
-function getDefaultPetnamesControllerState(): SamplePetnamesControllerState {
+export function getDefaultPetnamesControllerState(): SamplePetnamesControllerState {
   return {
     namesByChainIdAndAddress: {},
   };
 }
 
+// === MESSENGER ===
+
+const MESSENGER_EXPOSED_METHODS = ['assignPetname'] as const;
+
+/**
+ * Retrieves the state of the {@link SamplePetnamesController}.
+ */
+export type SamplePetnamesControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  SamplePetnamesControllerState
+>;
+
+/**
+ * Actions that {@link SampleGasPricesMessenger} exposes to other consumers.
+ */
+export type SamplePetnamesControllerActions =
+  | SamplePetnamesControllerGetStateAction
+  | SamplePetnamesControllerMethodActions;
+
+/**
+ * Actions from other messengers that {@link SampleGasPricesMessenger} calls.
+ */
+type AllowedActions = never;
+
+/**
+ * Published when the state of {@link SamplePetnamesController} changes.
+ */
+export type SamplePetnamesControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    SamplePetnamesControllerState
+  >;
+
+/**
+ * Events that {@link SampleGasPricesMessenger} exposes to other consumers.
+ */
+export type SamplePetnamesControllerEvents =
+  SamplePetnamesControllerStateChangeEvent;
+
+/**
+ * Events from other messengers that {@link SampleGasPricesMessenger} subscribes
+ * to.
+ */
+type AllowedEvents = never;
+
+/**
+ * The messenger restricted to actions and events accessed by
+ * {@link SamplePetnamesController}.
+ */
+export type SamplePetnamesControllerMessenger = Messenger<
+  typeof controllerName,
+  SamplePetnamesControllerActions | AllowedActions,
+  SamplePetnamesControllerEvents | AllowedEvents
+>;
+
 // === CONTROLLER DEFINITION ===
 
 /**
- * `SamplePetnamesController` records user-provided nicknames for various addresses on
- * various chains.
+ * `SamplePetnamesController` records user-provided nicknames for various
+ * addresses on various chains.
  *
  * @example
  *
  * ``` ts
- * import { Messenger } from '@metamask/base-controller';
+ * import { Messenger } from '@metamask/messenger';
  * import type {
  *   SamplePetnamesControllerActions,
- *   SamplePetnamesControllerEvents
- * } from '@metamask/example-controllers';
+ *   SamplePetnamesControllerEvents,
+ * } from '@metamask/sample-controllers';
  *
  * const rootMessenger = new Messenger<
+ *  'Root',
  *  SamplePetnamesControllerActions,
  *  SamplePetnamesControllerEvents
- * >();
- * const samplePetnamesMessenger = rootMessenger.getRestricted({
- *   name: 'SamplePetnamesController',
- *   allowedActions: [],
- *   allowedEvents: [],
+ * >({ namespace: 'Root' });
+ * const samplePetnamesMessenger = new Messenger<
+ *  'SamplePetnamesController',
+ *  SamplePetnamesControllerActions,
+ *  SamplePetnamesControllerEvents,
+ *  typeof rootMessenger,
+ * >({
+ *  namespace: 'SamplePetnamesController',
+ *  parent: rootMessenger,
  * });
- * const samplePetnamesController = new SamplePetnamesController({
+ * // Instantiate the controller to register its actions on the messenger
+ * new SamplePetnamesController({
  *   messenger: samplePetnamesMessenger,
  * });
  *
- * samplePetnamesController.assignPetname(
- *   '0x1',
- *   '0xF57F855e17483B1f09bFec62783C9d3b6c8b3A99',
- *   'Primary Account'
+ * rootMessenger.call(
+ *   'SamplePetnamesController:assignPetname',
+ *   [
+ *     '0x1',
+ *     '0xF57F855e17483B1f09bFec62783C9d3b6c8b3A99',
+ *     'Primary Account',
+ *   ],
  * );
- * samplePetnamesController.state.namesByChainIdAndAddress
+ * const samplePetnamesControllerState = await rootMessenger.call(
+ *   'SamplePetnamesController:getState',
+ * );
+ * samplePetnamesControllerState.namesByChainIdAndAddress
  * // => { '0x1': { '0xF57F855e17483B1f09bFec62783C9d3b6c8b3A99': 'Primary Account' } }
  * ```
  */
@@ -159,7 +174,7 @@ export class SamplePetnamesController extends BaseController<
   /**
    * Constructs a new {@link SamplePetnamesController}.
    *
-   * @param args - The arguments to the controller.
+   * @param args - The arguments to this controller.
    * @param args.messenger - The messenger suited for this controller.
    * @param args.state - The desired state with which to initialize this
    * controller. Missing properties will be filled in with defaults.
@@ -180,6 +195,11 @@ export class SamplePetnamesController extends BaseController<
         ...state,
       },
     });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**

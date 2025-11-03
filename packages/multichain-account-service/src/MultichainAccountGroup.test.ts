@@ -18,11 +18,15 @@ import {
   MOCK_WALLET_1_ENTROPY_SOURCE,
   MOCK_WALLET_1_EVM_ACCOUNT,
   MOCK_WALLET_1_SOL_ACCOUNT,
-  setupAccountProvider,
+  setupNamedAccountProvider,
+  getMultichainAccountServiceMessenger,
+  getRootMessenger,
+  type RootMessenger,
 } from './tests';
 
 function setup({
   groupIndex = 0,
+  messenger = getRootMessenger(),
   accounts = [
     [MOCK_WALLET_1_EVM_ACCOUNT],
     [
@@ -32,24 +36,30 @@ function setup({
       MOCK_SNAP_ACCOUNT_2, // Non-BIP-44 account.
     ],
   ],
-}: { groupIndex?: number; accounts?: InternalAccount[][] } = {}): {
+}: {
+  groupIndex?: number;
+  messenger?: RootMessenger;
+  accounts?: InternalAccount[][];
+} = {}): {
   wallet: MultichainAccountWallet<Bip44Account<InternalAccount>>;
   group: MultichainAccountGroup<Bip44Account<InternalAccount>>;
   providers: MockAccountProvider[];
 } {
   const providers = accounts.map((providerAccounts) => {
-    return setupAccountProvider({ accounts: providerAccounts });
+    return setupNamedAccountProvider({ accounts: providerAccounts });
   });
 
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
-    providers,
     entropySource: MOCK_WALLET_1_ENTROPY_SOURCE,
+    messenger: getMultichainAccountServiceMessenger(messenger),
+    providers,
   });
 
   const group = new MultichainAccountGroup({
     wallet,
     groupIndex,
     providers,
+    messenger: getMultichainAccountServiceMessenger(messenger),
   });
 
   return { wallet, group, providers };
@@ -144,6 +154,64 @@ describe('MultichainAccount', () => {
       const { group } = setup({ accounts: [[MOCK_WALLET_1_EVM_ACCOUNT]] });
 
       expect(group.select({ scopes: [SolScope.Mainnet] })).toStrictEqual([]);
+    });
+  });
+
+  describe('alignAccounts', () => {
+    it('creates missing accounts only for providers with no accounts', async () => {
+      const groupIndex = 0;
+      const { group, providers, wallet } = setup({
+        groupIndex,
+        accounts: [
+          [MOCK_WALLET_1_EVM_ACCOUNT], // provider[0] already has group 0
+          [], // provider[1] missing group 0
+        ],
+      });
+
+      await group.alignAccounts();
+
+      expect(providers[0].createAccounts).not.toHaveBeenCalled();
+      expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        entropySource: wallet.entropySource,
+        groupIndex,
+      });
+    });
+
+    it('does nothing when already aligned', async () => {
+      const groupIndex = 0;
+      const { group, providers } = setup({
+        groupIndex,
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
+      });
+
+      await group.alignAccounts();
+
+      expect(providers[0].createAccounts).not.toHaveBeenCalled();
+      expect(providers[1].createAccounts).not.toHaveBeenCalled();
+    });
+
+    it('warns if provider alignment fails', async () => {
+      const groupIndex = 0;
+      const { group, providers, wallet } = setup({
+        groupIndex,
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      providers[1].createAccounts.mockRejectedValueOnce(
+        new Error('Unable to create accounts'),
+      );
+
+      await group.alignAccounts();
+
+      expect(providers[0].createAccounts).not.toHaveBeenCalled();
+      expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        entropySource: wallet.entropySource,
+        groupIndex,
+      });
+      expect(consoleSpy).toHaveBeenCalledWith(
+        `Failed to fully align multichain account group for entropy ID: ${wallet.entropySource} and group index: ${groupIndex}, some accounts might be missing`,
+      );
     });
   });
 });

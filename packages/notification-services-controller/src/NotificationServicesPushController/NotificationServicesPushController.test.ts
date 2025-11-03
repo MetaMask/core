@@ -1,3 +1,4 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
@@ -268,6 +269,77 @@ describe('NotificationServicesPushController', () => {
           oldToken: 'existing-fcm-token',
         },
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = arrangeMockMessenger();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "fcmToken": "",
+          "isPushEnabled": true,
+          "isUpdatingFCMToken": false,
+        }
+        `);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = arrangeMockMessenger();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "isPushEnabled": true,
+        }
+        `);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = arrangeMockMessenger();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "fcmToken": "",
+          "isPushEnabled": true,
+        }
+        `);
+    });
+
+    it('includes expected state in UI', () => {
+      const { controller } = arrangeMockMessenger();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "fcmToken": "",
+          "isPushEnabled": true,
+          "isUpdatingFCMToken": false,
+        }
+        `);
     });
   });
 });

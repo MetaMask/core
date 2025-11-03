@@ -1,13 +1,18 @@
-import { Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { getDefaultKeyringState } from '@metamask/keyring-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { cloneDeep } from 'lodash';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
 import type {
-  AllowedEvents,
   EtherscanSupportedHexChainId,
-  PreferencesControllerActions,
-  PreferencesControllerEvents,
+  PreferencesControllerMessenger,
 } from './PreferencesController';
 import { PreferencesController } from './PreferencesController';
 
@@ -22,7 +27,7 @@ describe('PreferencesController', () => {
       selectedAddress: '',
       useTokenDetection: true,
       useNftDetection: false,
-      openSeaEnabled: false,
+      displayNftMedia: false,
       securityAlertsEnabled: false,
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
@@ -30,7 +35,7 @@ describe('PreferencesController', () => {
       smartAccountOptInForAccounts: [],
       isIpfsGatewayEnabled: true,
       useTransactionSimulations: true,
-      useMultiRpcMigration: true,
+      showMultiRpcModal: false,
       showIncomingTransactions: Object.values(
         ETHERSCAN_SUPPORTED_CHAIN_IDS,
       ).reduce(
@@ -49,12 +54,13 @@ describe('PreferencesController', () => {
       },
       privacyMode: false,
       dismissSmartAccountSuggestionEnabled: false,
+      tokenNetworkFilter: {},
     });
   });
 
   describe('KeyringController:stateChange', () => {
     it('should update identities state to reflect new keyring accounts', () => {
-      const messenger = getMessenger();
+      const messenger = getRootMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -102,7 +108,7 @@ describe('PreferencesController', () => {
     });
 
     it('should update identities state to reflect removed keyring accounts', () => {
-      const messenger = getMessenger();
+      const messenger = getRootMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -141,7 +147,7 @@ describe('PreferencesController', () => {
     });
 
     it('should update selected address to first identity if the selected address was removed', () => {
-      const messenger = getMessenger();
+      const messenger = getRootMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -183,7 +189,7 @@ describe('PreferencesController', () => {
         '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
         '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
       };
-      const messenger = getMessenger();
+      const messenger = getRootMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -221,7 +227,7 @@ describe('PreferencesController', () => {
         '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
         '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
       };
-      const messenger = getMessenger();
+      const messenger = getRootMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -259,7 +265,7 @@ describe('PreferencesController', () => {
         '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
         '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
       };
-      const messenger = getMessenger();
+      const messenger = getRootMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -305,7 +311,7 @@ describe('PreferencesController', () => {
         '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
         '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
       };
-      const messenger = getMessenger();
+      const messenger = getRootMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -433,29 +439,38 @@ describe('PreferencesController', () => {
 
   it('should set useNftDetection', () => {
     const controller = setupPreferencesController();
-    controller.setOpenSeaEnabled(true);
+    controller.setDisplayNftMedia(true);
     controller.setUseNftDetection(true);
     expect(controller.state.useNftDetection).toBe(true);
   });
 
-  it('should throw an error when useNftDetection is set and openSeaEnabled is false', () => {
+  it('should throw an error when useNftDetection is set and displayNftMedia is false', () => {
     const controller = setupPreferencesController();
-    controller.setOpenSeaEnabled(false);
+    controller.setDisplayNftMedia(false);
     expect(() => controller.setUseNftDetection(true)).toThrow(
-      'useNftDetection cannot be enabled if openSeaEnabled is false',
+      'useNftDetection cannot be enabled if displayNftMedia is false',
     );
   });
 
   it('should set useMultiRpcMigration', () => {
     const controller = setupPreferencesController();
-    controller.setUseMultiRpcMigration(true);
-    expect(controller.state.useMultiRpcMigration).toBe(true);
+    controller.setShowMultiRpcModal(true);
+    expect(controller.state.showMultiRpcModal).toBe(true);
   });
 
   it('should set useMultiRpcMigration is false value is passed', () => {
     const controller = setupPreferencesController();
-    controller.setUseMultiRpcMigration(false);
-    expect(controller.state.useMultiRpcMigration).toBe(false);
+    controller.setShowMultiRpcModal(false);
+    expect(controller.state.showMultiRpcModal).toBe(false);
+  });
+
+  it('sets tokenNetworkFilter', () => {
+    const controller = setupPreferencesController();
+    controller.setTokenNetworkFilter({ '0x1': true, '0xa': false });
+    expect(controller.state.tokenNetworkFilter).toStrictEqual({
+      '0x1': true,
+      '0xa': false,
+    });
   });
 
   it('should set featureFlags', () => {
@@ -572,24 +587,284 @@ describe('PreferencesController', () => {
     controller.setSmartAccountOptInForAccounts(['0x1', '0x2']);
     expect(controller.state.smartAccountOptInForAccounts[0]).toBe('0x1');
   });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = setupPreferencesController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
+          "featureFlags": Object {},
+          "isIpfsGatewayEnabled": true,
+          "isMultiAccountBalancesEnabled": true,
+          "privacyMode": false,
+          "securityAlertsEnabled": false,
+          "showIncomingTransactions": Object {
+            "0x1": true,
+            "0x13881": true,
+            "0x38": true,
+            "0x5": true,
+            "0x504": true,
+            "0x505": true,
+            "0x507": true,
+            "0x531": true,
+            "0x61": true,
+            "0x64": true,
+            "0x89": true,
+            "0x8f": true,
+            "0xa": true,
+            "0xa869": true,
+            "0xa86a": true,
+            "0xaa36a7": true,
+            "0xaa37dc": true,
+            "0xe704": true,
+            "0xe705": true,
+            "0xe708": true,
+            "0xfa": true,
+            "0xfa2": true,
+          },
+          "showMultiRpcModal": false,
+          "showTestNetworks": false,
+          "smartAccountOptIn": true,
+          "smartAccountOptInForAccounts": Array [],
+          "tokenSortConfig": Object {
+            "key": "tokenFiatAmount",
+            "order": "dsc",
+            "sortCallback": "stringNumeric",
+          },
+          "useNftDetection": false,
+          "useSafeChainsListValidation": true,
+          "useTokenDetection": true,
+          "useTransactionSimulations": true,
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = setupPreferencesController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
+          "featureFlags": Object {},
+          "identities": Object {},
+          "ipfsGateway": "https://ipfs.io/ipfs/",
+          "isIpfsGatewayEnabled": true,
+          "isMultiAccountBalancesEnabled": true,
+          "lostIdentities": Object {},
+          "privacyMode": false,
+          "securityAlertsEnabled": false,
+          "selectedAddress": "",
+          "showIncomingTransactions": Object {
+            "0x1": true,
+            "0x13881": true,
+            "0x38": true,
+            "0x5": true,
+            "0x504": true,
+            "0x505": true,
+            "0x507": true,
+            "0x531": true,
+            "0x61": true,
+            "0x64": true,
+            "0x89": true,
+            "0x8f": true,
+            "0xa": true,
+            "0xa869": true,
+            "0xa86a": true,
+            "0xaa36a7": true,
+            "0xaa37dc": true,
+            "0xe704": true,
+            "0xe705": true,
+            "0xe708": true,
+            "0xfa": true,
+            "0xfa2": true,
+          },
+          "showMultiRpcModal": false,
+          "showTestNetworks": false,
+          "smartAccountOptIn": true,
+          "smartAccountOptInForAccounts": Array [],
+          "smartTransactionsOptInStatus": true,
+          "tokenNetworkFilter": Object {},
+          "tokenSortConfig": Object {
+            "key": "tokenFiatAmount",
+            "order": "dsc",
+            "sortCallback": "stringNumeric",
+          },
+          "useNftDetection": false,
+          "useSafeChainsListValidation": true,
+          "useTokenDetection": true,
+          "useTransactionSimulations": true,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = setupPreferencesController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
+          "featureFlags": Object {},
+          "identities": Object {},
+          "ipfsGateway": "https://ipfs.io/ipfs/",
+          "isIpfsGatewayEnabled": true,
+          "isMultiAccountBalancesEnabled": true,
+          "lostIdentities": Object {},
+          "privacyMode": false,
+          "securityAlertsEnabled": false,
+          "selectedAddress": "",
+          "showIncomingTransactions": Object {
+            "0x1": true,
+            "0x13881": true,
+            "0x38": true,
+            "0x5": true,
+            "0x504": true,
+            "0x505": true,
+            "0x507": true,
+            "0x531": true,
+            "0x61": true,
+            "0x64": true,
+            "0x89": true,
+            "0x8f": true,
+            "0xa": true,
+            "0xa869": true,
+            "0xa86a": true,
+            "0xaa36a7": true,
+            "0xaa37dc": true,
+            "0xe704": true,
+            "0xe705": true,
+            "0xe708": true,
+            "0xfa": true,
+            "0xfa2": true,
+          },
+          "showMultiRpcModal": false,
+          "showTestNetworks": false,
+          "smartAccountOptIn": true,
+          "smartAccountOptInForAccounts": Array [],
+          "smartTransactionsOptInStatus": true,
+          "tokenNetworkFilter": Object {},
+          "tokenSortConfig": Object {
+            "key": "tokenFiatAmount",
+            "order": "dsc",
+            "sortCallback": "stringNumeric",
+          },
+          "useNftDetection": false,
+          "useSafeChainsListValidation": true,
+          "useTokenDetection": true,
+          "useTransactionSimulations": true,
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = setupPreferencesController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
+          "featureFlags": Object {},
+          "identities": Object {},
+          "ipfsGateway": "https://ipfs.io/ipfs/",
+          "isIpfsGatewayEnabled": true,
+          "isMultiAccountBalancesEnabled": true,
+          "privacyMode": false,
+          "securityAlertsEnabled": false,
+          "selectedAddress": "",
+          "showIncomingTransactions": Object {
+            "0x1": true,
+            "0x13881": true,
+            "0x38": true,
+            "0x5": true,
+            "0x504": true,
+            "0x505": true,
+            "0x507": true,
+            "0x531": true,
+            "0x61": true,
+            "0x64": true,
+            "0x89": true,
+            "0x8f": true,
+            "0xa": true,
+            "0xa869": true,
+            "0xa86a": true,
+            "0xaa36a7": true,
+            "0xaa37dc": true,
+            "0xe704": true,
+            "0xe705": true,
+            "0xe708": true,
+            "0xfa": true,
+            "0xfa2": true,
+          },
+          "showMultiRpcModal": false,
+          "showTestNetworks": false,
+          "smartAccountOptIn": true,
+          "smartAccountOptInForAccounts": Array [],
+          "smartTransactionsOptInStatus": true,
+          "tokenNetworkFilter": Object {},
+          "tokenSortConfig": Object {
+            "key": "tokenFiatAmount",
+            "order": "dsc",
+            "sortCallback": "stringNumeric",
+          },
+          "useNftDetection": false,
+          "useSafeChainsListValidation": true,
+          "useTokenDetection": true,
+          "useTransactionSimulations": true,
+        }
+      `);
+    });
+  });
 });
 
+type AllPreferencesControllerActions =
+  MessengerActions<PreferencesControllerMessenger>;
+
+type AllPreferencesControllerEvents =
+  MessengerEvents<PreferencesControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllPreferencesControllerActions,
+  AllPreferencesControllerEvents
+>;
+
 /**
- * Construct a messenger for use in PreferencesController tests.
+ * Creates and returns a root messenger for testing
  *
- * This is a utility function that saves us from manually entering the correct
- * type parameters for the Messenger each time we construct it.
- *
- * @returns A messenger
+ * @returns A messenger instance
  */
-function getMessenger(): Messenger<
-  PreferencesControllerActions,
-  PreferencesControllerEvents | AllowedEvents
-> {
-  return new Messenger<
-    PreferencesControllerActions,
-    PreferencesControllerEvents | AllowedEvents
-  >();
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 }
 
 /**
@@ -602,22 +877,24 @@ function getMessenger(): Messenger<
  */
 function setupPreferencesController({
   options = {},
-  messenger = getMessenger(),
+  messenger = getRootMessenger(),
 }: {
   options?: Partial<ConstructorParameters<typeof PreferencesController>[0]>;
-  messenger?: Messenger<
-    PreferencesControllerActions,
-    PreferencesControllerEvents | AllowedEvents
-  >;
+  messenger?: RootMessenger;
 } = {}) {
-  const preferencesControllerMessenger = messenger.getRestricted<
+  const preferencesControllerMessenger = new Messenger<
     'PreferencesController',
-    never,
-    AllowedEvents['type']
+    AllPreferencesControllerActions,
+    AllPreferencesControllerEvents,
+    RootMessenger
   >({
-    name: 'PreferencesController',
-    allowedActions: [],
-    allowedEvents: ['KeyringController:stateChange'],
+    namespace: 'PreferencesController',
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: preferencesControllerMessenger,
+    actions: [],
+    events: ['KeyringController:stateChange'],
   });
   return new PreferencesController({
     messenger: preferencesControllerMessenger,

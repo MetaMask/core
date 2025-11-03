@@ -1,10 +1,5 @@
 import type { TypedTransaction, TypedTxData } from '@ethereumjs/tx';
 import { isValidPrivate, getBinarySize } from '@ethereumjs/util';
-import type {
-  MetaMaskKeyring as QRKeyring,
-  IKeyringState as IQRKeyringState,
-} from '@keystonehq/metamask-airgapped-keyring';
-import type { RestrictedMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import * as encryptorUtils from '@metamask/browser-passworder';
 import { HdKeyring } from '@metamask/eth-hd-keyring';
@@ -19,6 +14,7 @@ import type {
 } from '@metamask/keyring-api';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { KeyringClass } from '@metamask/keyring-utils';
+import type { Messenger } from '@metamask/messenger';
 import type { Eip1024EncryptedData, Hex, Json } from '@metamask/utils';
 import {
   add0x,
@@ -187,6 +183,21 @@ export type KeyringControllerWithKeyringAction = {
   handler: KeyringController['withKeyring'];
 };
 
+export type KeyringControllerCreateNewVaultAndKeychainAction = {
+  type: `${typeof name}:createNewVaultAndKeychain`;
+  handler: KeyringController['createNewVaultAndKeychain'];
+};
+
+export type KeyringControllerCreateNewVaultAndRestoreAction = {
+  type: `${typeof name}:createNewVaultAndRestore`;
+  handler: KeyringController['createNewVaultAndRestore'];
+};
+
+export type KeyringControllerAddNewKeyringAction = {
+  type: `${typeof name}:addNewKeyring`;
+  handler: KeyringController['addNewKeyring'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -207,11 +218,6 @@ export type KeyringControllerUnlockEvent = {
   payload: [];
 };
 
-export type KeyringControllerQRKeyringStateChangeEvent = {
-  type: `${typeof name}:qrKeyringStateChange`;
-  payload: [ReturnType<IQRKeyringState['getState']>];
-};
-
 export type KeyringControllerActions =
   | KeyringControllerGetStateAction
   | KeyringControllerSignMessageAction
@@ -228,21 +234,21 @@ export type KeyringControllerActions =
   | KeyringControllerPatchUserOperationAction
   | KeyringControllerSignUserOperationAction
   | KeyringControllerAddNewAccountAction
-  | KeyringControllerWithKeyringAction;
+  | KeyringControllerWithKeyringAction
+  | KeyringControllerAddNewKeyringAction
+  | KeyringControllerCreateNewVaultAndKeychainAction
+  | KeyringControllerCreateNewVaultAndRestoreAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
-  | KeyringControllerAccountRemovedEvent
-  | KeyringControllerQRKeyringStateChangeEvent;
+  | KeyringControllerAccountRemovedEvent;
 
-export type KeyringControllerMessenger = RestrictedMessenger<
+export type KeyringControllerMessenger = Messenger<
   typeof name,
   KeyringControllerActions,
-  KeyringControllerEvents,
-  never,
-  never
+  KeyringControllerEvents
 >;
 
 export type KeyringControllerOptions = {
@@ -508,7 +514,6 @@ const defaultKeyringBuilders = [
   // todo: keyring types are mismatched, this should be fixed in they keyrings themselves
   // @ts-expect-error keyring types are mismatched
   keyringBuilderFactory(SimpleKeyring),
-  // @ts-expect-error keyring types are mismatched
   keyringBuilderFactory(HdKeyring),
 ];
 
@@ -696,10 +701,6 @@ export class KeyringController extends BaseController<
 
   #encryptionKey?: CachedEncryptionKey;
 
-  #qrKeyringStateListener?: (
-    state: ReturnType<IQRKeyringState['getState']>,
-  ) => void;
-
   /**
    * Creates a KeyringController instance.
    *
@@ -720,11 +721,36 @@ export class KeyringController extends BaseController<
     super({
       name,
       metadata: {
-        vault: { persist: true, anonymous: false },
-        isUnlocked: { persist: false, anonymous: true },
-        keyrings: { persist: false, anonymous: false },
-        encryptionKey: { persist: false, anonymous: false },
-        encryptionSalt: { persist: false, anonymous: false },
+        vault: {
+          includeInStateLogs: false,
+          persist: true,
+          includeInDebugSnapshot: false,
+          usedInUi: false,
+        },
+        isUnlocked: {
+          includeInStateLogs: true,
+          persist: false,
+          includeInDebugSnapshot: true,
+          usedInUi: true,
+        },
+        keyrings: {
+          includeInStateLogs: true,
+          persist: false,
+          includeInDebugSnapshot: false,
+          usedInUi: true,
+        },
+        encryptionKey: {
+          includeInStateLogs: false,
+          persist: false,
+          includeInDebugSnapshot: false,
+          usedInUi: false,
+        },
+        encryptionSalt: {
+          includeInStateLogs: false,
+          persist: false,
+          includeInDebugSnapshot: false,
+          usedInUi: false,
+        },
       },
       messenger,
       state: {
@@ -886,10 +912,6 @@ export class KeyringController extends BaseController<
     opts?: unknown,
   ): Promise<KeyringMetadata> {
     this.#assertIsUnlocked();
-
-    if (type === KeyringTypes.qr) {
-      return this.#getKeyringMetadata(await this.getOrAddQRKeyring());
-    }
 
     return this.#getKeyringMetadata(
       await this.#persistOrRollback(async () => this.#newKeyring(type, opts)),
@@ -1193,7 +1215,7 @@ export class KeyringController extends BaseController<
       }
     });
 
-    this.messagingSystem.publish(`${name}:accountRemoved`, address);
+    this.messenger.publish(`${name}:accountRemoved`, address);
   }
 
   /**
@@ -1205,8 +1227,6 @@ export class KeyringController extends BaseController<
     this.#assertIsUnlocked();
 
     return this.#withRollback(async () => {
-      this.#unsubscribeFromQRKeyringsEvents();
-
       this.#encryptionKey = undefined;
       await this.#clearKeyrings();
 
@@ -1217,7 +1237,7 @@ export class KeyringController extends BaseController<
         delete state.encryptionSalt;
       });
 
-      this.messagingSystem.publish(`${name}:lock`);
+      this.messenger.publish(`${name}:lock`);
     });
   }
 
@@ -1693,209 +1713,6 @@ export class KeyringController extends BaseController<
     });
   }
 
-  // QR Hardware related methods
-
-  /**
-   * Get QR Hardware keyring.
-   *
-   * @returns The QR Keyring if defined, otherwise undefined
-   * @deprecated Use `withKeyring` instead.
-   */
-  getQRKeyring(): QRKeyring | undefined {
-    this.#assertIsUnlocked();
-    // QRKeyring is not yet compatible with Keyring type from @metamask/utils
-    return this.getKeyringsByType(KeyringTypes.qr)[0] as unknown as QRKeyring;
-  }
-
-  /**
-   * Get QR hardware keyring. If it doesn't exist, add it.
-   *
-   * @returns The added keyring
-   * @deprecated Use `addNewKeyring` and `withKeyring` instead.
-   */
-  async getOrAddQRKeyring(): Promise<QRKeyring> {
-    this.#assertIsUnlocked();
-
-    return (
-      this.getQRKeyring() ||
-      (await this.#persistOrRollback(async () => this.#addQRKeyring()))
-    );
-  }
-
-  /**
-   * Restore QR keyring from serialized data.
-   *
-   * @param serialized - Serialized data to restore the keyring from.
-   * @returns Promise resolving when the operation completes.
-   * @deprecated Use `withKeyring` instead.
-   */
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async restoreQRKeyring(serialized: any): Promise<void> {
-    this.#assertIsUnlocked();
-
-    return this.#persistOrRollback(async () => {
-      const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
-      keyring.deserialize(serialized);
-    });
-  }
-
-  /**
-   * Reset QR keyring state.
-   *
-   * @returns Promise resolving when the operation completes.
-   * @deprecated Use `withKeyring` instead.
-   */
-  async resetQRKeyringState(): Promise<void> {
-    this.#assertIsUnlocked();
-
-    (await this.getOrAddQRKeyring()).resetStore();
-  }
-
-  /**
-   * Get QR keyring state.
-   *
-   * @returns Promise resolving to the keyring state.
-   * @deprecated Use `withKeyring` or subscribe to `"KeyringController:qrKeyringStateChange"`
-   * instead.
-   */
-  async getQRKeyringState(): Promise<IQRKeyringState> {
-    this.#assertIsUnlocked();
-
-    return (await this.getOrAddQRKeyring()).getMemStore();
-  }
-
-  /**
-   * Submit QR hardware wallet public HDKey.
-   *
-   * @param cryptoHDKey - The key to submit.
-   * @returns Promise resolving when the operation completes.
-   * @deprecated Use `withKeyring` instead.
-   */
-  async submitQRCryptoHDKey(cryptoHDKey: string): Promise<void> {
-    this.#assertIsUnlocked();
-
-    (await this.getOrAddQRKeyring()).submitCryptoHDKey(cryptoHDKey);
-  }
-
-  /**
-   * Submit QR hardware wallet account.
-   *
-   * @param cryptoAccount - The account to submit.
-   * @returns Promise resolving when the operation completes.
-   * @deprecated Use `withKeyring` instead.
-   */
-  async submitQRCryptoAccount(cryptoAccount: string): Promise<void> {
-    this.#assertIsUnlocked();
-
-    (await this.getOrAddQRKeyring()).submitCryptoAccount(cryptoAccount);
-  }
-
-  /**
-   * Submit QR hardware wallet signature.
-   *
-   * @param requestId - The request ID.
-   * @param ethSignature - The signature to submit.
-   * @returns Promise resolving when the operation completes.
-   * @deprecated Use `withKeyring` instead.
-   */
-  async submitQRSignature(
-    requestId: string,
-    ethSignature: string,
-  ): Promise<void> {
-    this.#assertIsUnlocked();
-
-    (await this.getOrAddQRKeyring()).submitSignature(requestId, ethSignature);
-  }
-
-  /**
-   * Cancel QR sign request.
-   *
-   * @returns Promise resolving when the operation completes.
-   * @deprecated Use `withKeyring` instead.
-   */
-  async cancelQRSignRequest(): Promise<void> {
-    this.#assertIsUnlocked();
-
-    (await this.getOrAddQRKeyring()).cancelSignRequest();
-  }
-
-  /**
-   * Cancels qr keyring sync.
-   *
-   * @returns Promise resolving when the operation completes.
-   * @deprecated Use `withKeyring` instead.
-   */
-  async cancelQRSynchronization(): Promise<void> {
-    this.#assertIsUnlocked();
-
-    (await this.getOrAddQRKeyring()).cancelSync();
-  }
-
-  /**
-   * Connect to QR hardware wallet.
-   *
-   * @param page - The page to connect to.
-   * @returns Promise resolving to the connected accounts.
-   * @deprecated Use of this method is discouraged as it creates a dangling promise
-   * internal to the `QRKeyring`, which can lead to unpredictable deadlocks. Please use
-   * `withKeyring` instead.
-   */
-  async connectQRHardware(
-    page: number,
-  ): Promise<{ balance: string; address: string; index: number }[]> {
-    this.#assertIsUnlocked();
-
-    return this.#persistOrRollback(async () => {
-      try {
-        const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
-        let accounts;
-        switch (page) {
-          case -1:
-            accounts = await keyring.getPreviousPage();
-            break;
-          case 1:
-            accounts = await keyring.getNextPage();
-            break;
-          default:
-            accounts = await keyring.getFirstPage();
-        }
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return accounts.map((account: any) => {
-          return {
-            ...account,
-            balance: '0x0',
-          };
-        });
-      } catch (e) {
-        // TODO: Add test case for when keyring throws
-        /* istanbul ignore next */
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        throw new Error(`Unspecified error when connect QR Hardware, ${e}`);
-      }
-    });
-  }
-
-  /**
-   * Unlock a QR hardware wallet account.
-   *
-   * @param index - The index of the account to unlock.
-   * @returns Promise resolving when the operation completes.
-   * @deprecated Use `withKeyring` instead.
-   */
-  async unlockQRHardwareWalletAccount(index: number): Promise<void> {
-    this.#assertIsUnlocked();
-
-    return this.#persistOrRollback(async () => {
-      const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
-
-      keyring.setAccountToUnlock(index);
-      await keyring.addAccounts(1);
-    });
-  }
-
   async getAccountKeyringType(account: string): Promise<string> {
     this.#assertIsUnlocked();
 
@@ -1904,113 +1721,98 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Forget the QR hardware wallet.
-   *
-   * @returns Promise resolving to the removed accounts and the remaining accounts.
-   * @deprecated Use `withKeyring` instead.
-   */
-  async forgetQRDevice(): Promise<{
-    removedAccounts: string[];
-    remainingAccounts: string[];
-  }> {
-    this.#assertIsUnlocked();
-
-    return this.#persistOrRollback(async () => {
-      const keyring = this.getQRKeyring();
-
-      if (!keyring) {
-        return { removedAccounts: [], remainingAccounts: [] };
-      }
-
-      const allAccounts = (await this.#getAccountsFromKeyrings()) as string[];
-      keyring.forgetDevice();
-      const remainingAccounts =
-        (await this.#getAccountsFromKeyrings()) as string[];
-      const removedAccounts = allAccounts.filter(
-        (address: string) => !remainingAccounts.includes(address),
-      );
-      return { removedAccounts, remainingAccounts };
-    });
-  }
-
-  /**
-   * Constructor helper for registering this controller's messaging system
+   * Constructor helper for registering this controller's messeger
    * actions.
    */
   #registerMessageHandlers() {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:signMessage`,
       this.signMessage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:signEip7702Authorization`,
       this.signEip7702Authorization.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:signPersonalMessage`,
       this.signPersonalMessage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:signTypedMessage`,
       this.signTypedMessage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:decryptMessage`,
       this.decryptMessage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:getEncryptionPublicKey`,
       this.getEncryptionPublicKey.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:getAccounts`,
       this.getAccounts.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:getKeyringsByType`,
       this.getKeyringsByType.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:getKeyringForAccount`,
       this.getKeyringForAccount.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:persistAllKeyrings`,
       this.persistAllKeyrings.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:prepareUserOperation`,
       this.prepareUserOperation.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:patchUserOperation`,
       this.patchUserOperation.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:signUserOperation`,
       this.signUserOperation.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:addNewAccount`,
       this.addNewAccount.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:withKeyring`,
       this.withKeyring.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${name}:addNewKeyring`,
+      this.addNewKeyring.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${name}:createNewVaultAndKeychain`,
+      this.createNewVaultAndKeychain.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${name}:createNewVaultAndRestore`,
+      this.createNewVaultAndRestore.bind(this),
     );
   }
 
@@ -2067,46 +1869,6 @@ export class KeyringController extends BaseController<
     return this.#keyringBuilders.find(
       (keyringBuilder) => keyringBuilder.type === type,
     );
-  }
-
-  /**
-   * Add qr hardware keyring.
-   *
-   * @returns The added keyring
-   * @throws If a QRKeyring builder is not provided
-   * when initializing the controller
-   */
-  async #addQRKeyring(): Promise<QRKeyring> {
-    this.#assertControllerMutexIsLocked();
-
-    // QRKeyring is not yet compatible with Keyring type from @metamask/utils
-    return (await this.#newKeyring(KeyringTypes.qr)) as unknown as QRKeyring;
-  }
-
-  /**
-   * Subscribe to a QRKeyring state change events and
-   * forward them through the messaging system.
-   *
-   * @param qrKeyring - The QRKeyring instance to subscribe to
-   */
-  #subscribeToQRKeyringEvents(qrKeyring: QRKeyring) {
-    this.#qrKeyringStateListener = (state) => {
-      this.messagingSystem.publish(`${name}:qrKeyringStateChange`, state);
-    };
-
-    qrKeyring.getMemStore().subscribe(this.#qrKeyringStateListener);
-  }
-
-  #unsubscribeFromQRKeyringsEvents() {
-    const qrKeyrings = this.getKeyringsByType(
-      KeyringTypes.qr,
-    ) as unknown as QRKeyring[];
-
-    qrKeyrings.forEach((qrKeyring) => {
-      if (this.#qrKeyringStateListener) {
-        qrKeyring.getMemStore().unsubscribe(this.#qrKeyringStateListener);
-      }
-    });
   }
 
   /**
@@ -2614,12 +2376,6 @@ export class KeyringController extends BaseController<
       await keyring.addAccounts(1);
     }
 
-    if (type === KeyringTypes.qr) {
-      // In case of a QR keyring type, we need to subscribe
-      // to its events after creating it
-      this.#subscribeToQRKeyringEvents(keyring as unknown as QRKeyring);
-    }
-
     return keyring;
   }
 
@@ -2746,7 +2502,7 @@ export class KeyringController extends BaseController<
     this.update((state) => {
       state.isUnlocked = true;
     });
-    this.messagingSystem.publish(`${name}:unlock`);
+    this.messenger.publish(`${name}:unlock`);
   }
 
   /**

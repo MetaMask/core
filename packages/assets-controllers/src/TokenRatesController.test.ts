@@ -1,5 +1,4 @@
-import type { AddApprovalRequest } from '@metamask/approval-controller';
-import { Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   ChainId,
   InfuraNetworkType,
@@ -8,6 +7,13 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type {
   NetworkClientConfiguration,
   NetworkClientId,
@@ -21,13 +27,6 @@ import type { Patch } from 'immer';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
-import { advanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildMockGetNetworkClientById,
-  buildNetworkConfiguration,
-} from '../../network-controller/tests/helpers';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type {
   AbstractTokenPricesService,
@@ -36,14 +35,19 @@ import type {
 } from './token-prices-service/abstract-token-prices-service';
 import { controllerName, TokenRatesController } from './TokenRatesController';
 import type {
-  AllowedActions,
-  AllowedEvents,
   Token,
   TokenRatesControllerMessenger,
   TokenRatesControllerState,
 } from './TokenRatesController';
 import { getDefaultTokensState } from './TokensController';
 import type { TokensControllerState } from './TokensController';
+import { advanceTime } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+  buildNetworkConfiguration,
+} from '../../network-controller/tests/helpers';
 
 const defaultSelectedAddress = '0x0000000000000000000000000000000000000001';
 const defaultSelectedAccount = createMockInternalAccount({
@@ -51,35 +55,52 @@ const defaultSelectedAccount = createMockInternalAccount({
 });
 const mockTokenAddress = '0x0000000000000000000000000000000000000010';
 
-type MainMessenger = Messenger<
-  AllowedActions | AddApprovalRequest,
-  AllowedEvents
+type AllTokenRatesControllerActions =
+  MessengerActions<TokenRatesControllerMessenger>;
+
+type AllTokenRatesControllerEvents =
+  MessengerEvents<TokenRatesControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllTokenRatesControllerActions,
+  AllTokenRatesControllerEvents
 >;
 
 /**
  * Builds a messenger that `TokenRatesController` can use to communicate with other controllers.
  *
- * @param messenger - The main messenger.
- * @returns The restricted messenger.
+ * @param messenger - The root messenger.
+ * @returns The controller messenger.
  */
 function buildTokenRatesControllerMessenger(
-  messenger: MainMessenger = new Messenger(),
+  messenger: RootMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE }),
 ): TokenRatesControllerMessenger {
-  return messenger.getRestricted({
-    name: controllerName,
-    allowedActions: [
+  const tokenRatesControllerMessenger = new Messenger<
+    'TokenRatesController',
+    AllTokenRatesControllerActions,
+    AllTokenRatesControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: tokenRatesControllerMessenger,
+    actions: [
       'TokensController:getState',
       'NetworkController:getNetworkClientById',
       'NetworkController:getState',
       'AccountsController:getAccount',
       'AccountsController:getSelectedAccount',
     ],
-    allowedEvents: [
+    events: [
       'TokensController:stateChange',
       'NetworkController:stateChange',
       'AccountsController:selectedEvmAccountChange',
     ],
   });
+  return tokenRatesControllerMessenger;
 }
 
 describe('TokenRatesController', () => {
@@ -2018,28 +2039,28 @@ describe('TokenRatesController', () => {
             });
 
             expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "marketData": Object {
-              "0x1": Object {
-                "0x0000000000000000000000000000000000000001": Object {
-                  "currency": "ETH",
-                  "tokenAddress": "0x0000000000000000000000000000000000000001",
-                  "value": 0.001,
-                },
-                "0x0000000000000000000000000000000000000002": Object {
-                  "currency": "ETH",
-                  "tokenAddress": "0x0000000000000000000000000000000000000002",
-                  "value": 0.002,
-                },
-                "0x0000000000000000000000000000000000000003": Object {
-                  "currency": "ETH",
-                  "tokenAddress": "0x0000000000000000000000000000000000000003",
-                  "value": 0.003,
-                },
-              },
-            },
-          }
-        `);
+                        Object {
+                          "marketData": Object {
+                            "0x1": Object {
+                              "0x0000000000000000000000000000000000000001": Object {
+                                "currency": "ETH",
+                                "tokenAddress": "0x0000000000000000000000000000000000000001",
+                                "value": 0.001,
+                              },
+                              "0x0000000000000000000000000000000000000002": Object {
+                                "currency": "ETH",
+                                "tokenAddress": "0x0000000000000000000000000000000000000002",
+                                "value": 0.002,
+                              },
+                              "0x0000000000000000000000000000000000000003": Object {
+                                "currency": "ETH",
+                                "tokenAddress": "0x0000000000000000000000000000000000000003",
+                                "value": 0.003,
+                              },
+                            },
+                          },
+                        }
+                    `);
           },
         );
       });
@@ -2100,23 +2121,23 @@ describe('TokenRatesController', () => {
               });
 
               expect(controller.state).toMatchInlineSnapshot(`
-            Object {
-              "marketData": Object {
-                "0x2": Object {
-                  "0x0000000000000000000000000000000000000001": Object {
-                    "currency": "ETH",
-                    "tokenAddress": "0x0000000000000000000000000000000000000001",
-                    "value": 0.001,
-                  },
-                  "0x0000000000000000000000000000000000000002": Object {
-                    "currency": "ETH",
-                    "tokenAddress": "0x0000000000000000000000000000000000000002",
-                    "value": 0.002,
-                  },
-                },
-              },
-            }
-          `);
+                            Object {
+                              "marketData": Object {
+                                "0x2": Object {
+                                  "0x0000000000000000000000000000000000000001": Object {
+                                    "currency": "ETH",
+                                    "tokenAddress": "0x0000000000000000000000000000000000000001",
+                                    "value": 0.001,
+                                  },
+                                  "0x0000000000000000000000000000000000000002": Object {
+                                    "currency": "ETH",
+                                    "tokenAddress": "0x0000000000000000000000000000000000000002",
+                                    "value": 0.002,
+                                  },
+                                },
+                              },
+                            }
+                        `);
             },
           );
         });
@@ -2200,37 +2221,37 @@ describe('TokenRatesController', () => {
 
             // token value in terms of matic should be (token value in eth) * (eth value in matic)
             expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "marketData": Object {
-              "0x89": Object {
-                "0x0000000000000000000000000000000000000001": Object {
-                  "allTimeHigh": undefined,
-                  "allTimeLow": undefined,
-                  "currency": "UNSUPPORTED",
-                  "dilutedMarketCap": undefined,
-                  "high1d": undefined,
-                  "low1d": undefined,
-                  "marketCap": undefined,
-                  "price": 0.0005,
-                  "tokenAddress": "0x0000000000000000000000000000000000000001",
-                  "totalVolume": undefined,
-                },
-                "0x0000000000000000000000000000000000000002": Object {
-                  "allTimeHigh": undefined,
-                  "allTimeLow": undefined,
-                  "currency": "UNSUPPORTED",
-                  "dilutedMarketCap": undefined,
-                  "high1d": undefined,
-                  "low1d": undefined,
-                  "marketCap": undefined,
-                  "price": 0.001,
-                  "tokenAddress": "0x0000000000000000000000000000000000000002",
-                  "totalVolume": undefined,
-                },
-              },
-            },
-          }
-        `);
+                        Object {
+                          "marketData": Object {
+                            "0x89": Object {
+                              "0x0000000000000000000000000000000000000001": Object {
+                                "allTimeHigh": undefined,
+                                "allTimeLow": undefined,
+                                "currency": "UNSUPPORTED",
+                                "dilutedMarketCap": undefined,
+                                "high1d": undefined,
+                                "low1d": undefined,
+                                "marketCap": undefined,
+                                "price": 0.0005,
+                                "tokenAddress": "0x0000000000000000000000000000000000000001",
+                                "totalVolume": undefined,
+                              },
+                              "0x0000000000000000000000000000000000000002": Object {
+                                "allTimeHigh": undefined,
+                                "allTimeLow": undefined,
+                                "currency": "UNSUPPORTED",
+                                "dilutedMarketCap": undefined,
+                                "high1d": undefined,
+                                "low1d": undefined,
+                                "marketCap": undefined,
+                                "price": 0.001,
+                                "tokenAddress": "0x0000000000000000000000000000000000000002",
+                                "totalVolume": undefined,
+                              },
+                            },
+                          },
+                        }
+                    `);
           },
         );
       });
@@ -2397,15 +2418,15 @@ describe('TokenRatesController', () => {
             });
 
             expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "marketData": Object {
-              "0x3e7": Object {
-                "0x0000000000000000000000000000000000000001": undefined,
-                "0x0000000000000000000000000000000000000002": undefined,
-              },
-            },
-          }
-          `);
+                        Object {
+                          "marketData": Object {
+                            "0x3e7": Object {
+                              "0x0000000000000000000000000000000000000001": undefined,
+                              "0x0000000000000000000000000000000000000002": undefined,
+                            },
+                          },
+                        }
+                      `);
           },
         );
       });
@@ -2520,23 +2541,23 @@ describe('TokenRatesController', () => {
             expect(fetchTokenPricesMock).toHaveBeenCalledTimes(1);
 
             expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "marketData": Object {
-              "0x1": Object {
-                "0x0000000000000000000000000000000000000001": Object {
-                  "currency": "ETH",
-                  "tokenAddress": "0x0000000000000000000000000000000000000001",
-                  "value": 0.001,
-                },
-                "0x0000000000000000000000000000000000000002": Object {
-                  "currency": "ETH",
-                  "tokenAddress": "0x0000000000000000000000000000000000000002",
-                  "value": 0.002,
-                },
-              },
-            },
-          }
-        `);
+                        Object {
+                          "marketData": Object {
+                            "0x1": Object {
+                              "0x0000000000000000000000000000000000000001": Object {
+                                "currency": "ETH",
+                                "tokenAddress": "0x0000000000000000000000000000000000000001",
+                                "value": 0.001,
+                              },
+                              "0x0000000000000000000000000000000000000002": Object {
+                                "currency": "ETH",
+                                "tokenAddress": "0x0000000000000000000000000000000000000002",
+                                "value": 0.002,
+                              },
+                            },
+                          },
+                        }
+                    `);
           },
         );
       });
@@ -2681,6 +2702,64 @@ describe('TokenRatesController', () => {
       );
     });
   });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'includeInDebugSnapshot',
+          ),
+        ).toMatchInlineSnapshot(`Object {}`);
+      });
+    });
+
+    it('includes expected state in state logs', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'includeInStateLogs',
+          ),
+        ).toMatchInlineSnapshot(`Object {}`);
+      });
+    });
+
+    it('persists expected state', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'persist',
+          ),
+        ).toMatchInlineSnapshot(`
+          Object {
+            "marketData": Object {},
+          }
+        `);
+      });
+    });
+
+    it('exposes expected state to UI', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'usedInUi',
+          ),
+        ).toMatchInlineSnapshot(`
+          Object {
+            "marketData": Object {},
+          }
+        `);
+      });
+    });
+  });
 });
 /**
  * A callback for the `withController` helper function.
@@ -2735,7 +2814,9 @@ async function withController<ReturnValue>(
     mockTokensControllerState,
     mockNetworkState,
   } = rest;
-  const messenger = new Messenger<AllowedActions, AllowedEvents>();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   const mockTokensState = jest.fn<TokensControllerState, []>();
   messenger.registerActionHandler(
@@ -2913,6 +2994,9 @@ function buildMockTokenPricesService(
 ): AbstractTokenPricesService {
   return {
     async fetchTokenPrices() {
+      return {};
+    },
+    async fetchExchangeRates() {
       return {};
     },
     validateChainIdSupported(_chainId: unknown): _chainId is Hex {

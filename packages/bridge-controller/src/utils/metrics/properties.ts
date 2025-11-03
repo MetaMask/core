@@ -1,11 +1,14 @@
-import type { CaipChainId } from '@metamask/utils';
+import type { AccountsControllerState } from '@metamask/accounts-controller';
 
 import { MetricsSwapType } from './constants';
-import type { InputKeys, InputValues } from './types';
-import type { AccountsControllerState } from '../../../../accounts-controller/src/AccountsController';
+import type { InputKeys, InputValues, RequestParams } from './types';
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
-import type { BridgeControllerState, QuoteResponse, TxData } from '../../types';
-import { type GenericQuoteRequest, type QuoteRequest } from '../../types';
+import type { QuoteResponse, TxData } from '../../types';
+import {
+  ChainId,
+  type GenericQuoteRequest,
+  type QuoteRequest,
+} from '../../types';
 import { getNativeAssetForChainId, isCrossChain } from '../bridge';
 import {
   formatAddressToAssetId,
@@ -67,14 +70,18 @@ export const formatProviderLabel = ({
 }: QuoteResponse<TxData | string>['quote']): `${string}_${string}` =>
   `${bridgeId}_${bridges[0]}`;
 
-export const getRequestParams = (
-  {
-    destChainId,
-    srcTokenAddress,
-    destTokenAddress,
-  }: BridgeControllerState['quoteRequest'],
-  srcChainIdCaip: CaipChainId,
-) => {
+export const getRequestParams = ({
+  srcChainId,
+  destChainId,
+  srcTokenAddress,
+  destTokenAddress,
+}: Partial<GenericQuoteRequest>): Omit<
+  RequestParams,
+  'token_symbol_source' | 'token_symbol_destination'
+> => {
+  // Fallback to ETH if srcChainId is not defined. This is ok since the clients default to Ethereum as the source chain
+  // This also doesn't happen at runtime since the quote request is validated before metrics are published
+  const srcChainIdCaip = formatChainIdToCaip(srcChainId ?? ChainId.ETH);
   return {
     chain_id_source: srcChainIdCaip,
     chain_id_destination: destChainId ? formatChainIdToCaip(destChainId) : null,
@@ -98,6 +105,12 @@ export const isHardwareWallet = (
   return selectedAccount?.metadata?.keyring.type?.includes('Hardware') ?? false;
 };
 
+/**
+ * @param slippage - The slippage percentage
+ * @returns Whether the default slippage was overridden by the user
+ *
+ * @deprecated This function should not be used. Use {@link selectDefaultSlippagePercentage} instead.
+ */
 export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
   return slippage !== DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest.slippage;
 };

@@ -1,5 +1,4 @@
 import type {
-  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
@@ -17,6 +16,7 @@ import {
   KeyringTypes,
   type KeyringControllerState,
 } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import { assert } from '@metamask/utils';
 import log from 'loglevel';
@@ -28,11 +28,13 @@ import {
 } from './processors/process-notifications';
 import * as FeatureNotifications from './services/feature-announcements';
 import * as OnChainNotifications from './services/onchain-notifications';
+import { createPerpOrderNotification } from './services/perp-notifications';
 import type {
   INotification,
   MarkAsReadNotificationsParam,
 } from './types/notification/notification';
 import type { OnChainRawNotification } from './types/on-chain-notification/on-chain-notification';
+import type { OrderInput } from './types/perps';
 import type {
   NotificationServicesPushControllerEnablePushNotificationsAction,
   NotificationServicesPushControllerDisablePushNotificationsAction,
@@ -49,7 +51,7 @@ const controllerName = 'NotificationServicesController';
  */
 export type NotificationServicesControllerState = {
   /**
-   * We store and manage accounts that have been seen/visted through the
+   * We store and manage accounts that have been seen/visited through the
    * account subscription. This allows us to track and add notifications for new accounts and not previous accounts added.
    */
   subscriptionAccountsSeen: string[];
@@ -100,45 +102,65 @@ export type NotificationServicesControllerState = {
 
 const metadata: StateMetadata<NotificationServicesControllerState> = {
   subscriptionAccountsSeen: {
+    includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
   },
 
   isMetamaskNotificationsFeatureSeen: {
+    includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
   isNotificationServicesEnabled: {
+    includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
   isFeatureAnnouncementsEnabled: {
+    includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
   metamaskNotificationsList: {
+    includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
   },
   metamaskNotificationsReadList: {
+    includeInStateLogs: false,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
   },
   isUpdatingMetamaskNotifications: {
+    includeInStateLogs: false,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
   isFetchingMetamaskNotifications: {
+    includeInStateLogs: false,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
   isUpdatingMetamaskNotificationsAccount: {
+    includeInStateLogs: false,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
   isCheckingAccountsPresence: {
+    includeInStateLogs: false,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
 };
 export const defaultState: NotificationServicesControllerState = {
@@ -193,7 +215,7 @@ export type Actions =
   | NotificationServicesControllerDeleteNotificationsById;
 
 // Allowed Actions
-export type AllowedActions =
+type AllowedActions =
   // Keyring Controller Requests
   | KeyringControllerGetStateAction
   // Auth Controller Requests
@@ -229,7 +251,7 @@ export type Events =
   | MarkNotificationsAsReadEvent;
 
 // Allowed Events
-export type AllowedEvents =
+type AllowedEvents =
   // Keyring Events
   | KeyringControllerStateChangeEvent
   | KeyringControllerLockEvent
@@ -239,18 +261,17 @@ export type AllowedEvents =
   | NotificationServicesPushControllerStateChangeEvent;
 
 // Type for the messenger of NotificationServicesController
-export type NotificationServicesControllerMessenger = RestrictedMessenger<
+export type NotificationServicesControllerMessenger = Messenger<
   typeof controllerName,
   Actions | AllowedActions,
-  Events | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  Events | AllowedEvents
 >;
 
 type FeatureAnnouncementEnv = {
   spaceId: string;
   accessToken: string;
   platform: 'extension' | 'mobile';
+  platformVersion?: string;
 };
 
 /**
@@ -265,12 +286,10 @@ export default class NotificationServicesController extends BaseController<
     isUnlocked: false,
 
     setupLockedStateSubscriptions: (onUnlock: () => Promise<void>) => {
-      const { isUnlocked } = this.messagingSystem.call(
-        'KeyringController:getState',
-      );
+      const { isUnlocked } = this.messenger.call('KeyringController:getState');
       this.#keyringController.isUnlocked = isUnlocked;
 
-      this.messagingSystem.subscribe('KeyringController:unlock', () => {
+      this.messenger.subscribe('KeyringController:unlock', () => {
         this.#keyringController.isUnlocked = true;
         // messaging system cannot await promises
         // we don't need to wait for a result on this.
@@ -278,7 +297,7 @@ export default class NotificationServicesController extends BaseController<
         onUnlock();
       });
 
-      this.messagingSystem.subscribe('KeyringController:lock', () => {
+      this.messenger.subscribe('KeyringController:lock', () => {
         this.#keyringController.isUnlocked = false;
       });
     },
@@ -286,15 +305,15 @@ export default class NotificationServicesController extends BaseController<
 
   readonly #auth = {
     getBearerToken: async () => {
-      return await this.messagingSystem.call(
+      return await this.messenger.call(
         'AuthenticationController:getBearerToken',
       );
     },
     isSignedIn: () => {
-      return this.messagingSystem.call('AuthenticationController:isSignedIn');
+      return this.messenger.call('AuthenticationController:isSignedIn');
     },
     signIn: async () => {
-      return await this.messagingSystem.call(
+      return await this.messenger.call(
         'AuthenticationController:performSignIn',
       );
     },
@@ -307,13 +326,13 @@ export default class NotificationServicesController extends BaseController<
     isSetup: false,
 
     subscribeToPushNotifications: async () => {
-      await this.messagingSystem.call(
+      await this.messenger.call(
         'NotificationServicesPushController:subscribeToPushNotifications',
       );
     },
     enablePushNotifications: async (addresses: string[]) => {
       try {
-        await this.messagingSystem.call(
+        await this.messenger.call(
           'NotificationServicesPushController:enablePushNotifications',
           addresses,
         );
@@ -323,7 +342,7 @@ export default class NotificationServicesController extends BaseController<
     },
     disablePushNotifications: async () => {
       try {
-        await this.messagingSystem.call(
+        await this.messenger.call(
           'NotificationServicesPushController:disablePushNotifications',
         );
       } catch (e) {
@@ -331,7 +350,7 @@ export default class NotificationServicesController extends BaseController<
       }
     },
     subscribe: () => {
-      this.messagingSystem.subscribe(
+      this.messenger.subscribe(
         'NotificationServicesPushController:onNewNotifications',
         (notification) => {
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -370,9 +389,7 @@ export default class NotificationServicesController extends BaseController<
     isNotificationAccountsSetup: false,
 
     getNotificationAccounts: () => {
-      const { keyrings } = this.messagingSystem.call(
-        'KeyringController:getState',
-      );
+      const { keyrings } = this.messenger.call('KeyringController:getState');
       const firstHDKeyring = keyrings.find(
         (k) => k.type === KeyringTypes.hd.toString(),
       );
@@ -449,8 +466,9 @@ export default class NotificationServicesController extends BaseController<
      * And call effects to subscribe/unsubscribe to notifications.
      */
     subscribe: () => {
-      this.messagingSystem.subscribe(
+      this.messenger.subscribe(
         'KeyringController:stateChange',
+
         async (totalAccounts, prevTotalAccounts) => {
           const hasTotalAccountsChanged = totalAccounts !== prevTotalAccounts;
           if (
@@ -532,22 +550,22 @@ export default class NotificationServicesController extends BaseController<
   }
 
   #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:updateMetamaskNotificationsList`,
       this.updateMetamaskNotificationsList.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:disableNotificationServices`,
       this.disableNotificationServices.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:getNotificationsByType`,
       this.getNotificationsByType.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:deleteNotificationsById`,
       this.deleteNotificationsById.bind(this),
     );
@@ -1009,7 +1027,7 @@ export default class NotificationServicesController extends BaseController<
         state.metamaskNotificationsList = metamaskNotifications;
       });
 
-      this.messagingSystem.publish(
+      this.messenger.publish(
         `${controllerName}:notificationsListUpdated`,
         this.state.metamaskNotificationsList,
       );
@@ -1090,7 +1108,7 @@ export default class NotificationServicesController extends BaseController<
       await this.deleteNotificationById(id);
     }
 
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:notificationsListUpdated`,
       this.state.metamaskNotificationsList,
     );
@@ -1205,7 +1223,7 @@ export default class NotificationServicesController extends BaseController<
       );
     });
 
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:markNotificationsAsRead`,
       this.state.metamaskNotificationsList,
     );
@@ -1243,10 +1261,25 @@ export default class NotificationServicesController extends BaseController<
         }
       });
 
-      this.messagingSystem.publish(
+      this.messenger.publish(
         `${controllerName}:notificationsListUpdated`,
         this.state.metamaskNotificationsList,
       );
+    }
+  }
+
+  /**
+   * Creates an perp order notification subscription.
+   * Requires notifications and auth to be enabled to start receiving this notifications
+   *
+   * @param input perp input
+   */
+  public async sendPerpPlaceOrderNotification(input: OrderInput) {
+    try {
+      const { bearerToken } = await this.#getBearerToken();
+      await createPerpOrderNotification(bearerToken, input);
+    } catch {
+      // Do Nothing
     }
   }
 }

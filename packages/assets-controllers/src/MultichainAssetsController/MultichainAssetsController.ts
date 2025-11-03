@@ -8,7 +8,7 @@ import {
   BaseController,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-  type RestrictedMessenger,
+  type StateMetadata,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
@@ -18,6 +18,7 @@ import type {
 } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
+import type { Messenger } from '@metamask/messenger';
 import type {
   GetPermissions,
   PermissionConstraint,
@@ -47,6 +48,7 @@ export type MultichainAssetsControllerState = {
     [asset: CaipAssetType]: FungibleAssetMetadata;
   };
   accountsAssets: { [account: string]: CaipAssetType[] };
+  allIgnoredAssets: { [account: string]: CaipAssetType[] };
 };
 
 // Represents the response of the asset snap's onAssetLookup handler
@@ -70,12 +72,17 @@ export type MultichainAssetsControllerAccountAssetListUpdatedEvent = {
  * @returns The default {@link MultichainAssetsController} state.
  */
 export function getDefaultMultichainAssetsControllerState(): MultichainAssetsControllerState {
-  return { accountsAssets: {}, assetsMetadata: {} };
+  return { accountsAssets: {}, assetsMetadata: {}, allIgnoredAssets: {} };
 }
 
 export type MultichainAssetsControllerGetAssetMetadataAction = {
   type: `${typeof controllerName}:getAssetMetadata`;
   handler: MultichainAssetsController['getAssetMetadata'];
+};
+
+export type MultichainAssetsControllerIgnoreAssetsAction = {
+  type: `${typeof controllerName}:ignoreAssets`;
+  handler: MultichainAssetsController['ignoreAssets'];
 };
 
 /**
@@ -100,7 +107,8 @@ export type MultichainAssetsControllerStateChangeEvent =
  */
 export type MultichainAssetsControllerActions =
   | MultichainAssetsControllerGetStateAction
-  | MultichainAssetsControllerGetAssetMetadataAction;
+  | MultichainAssetsControllerGetAssetMetadataAction
+  | MultichainAssetsControllerIgnoreAssetsAction;
 
 /**
  * Events emitted by {@link MultichainAssetsController}.
@@ -141,12 +149,10 @@ type AllowedEvents =
 /**
  * Messenger type for the MultichainAssetsController.
  */
-export type MultichainAssetsControllerMessenger = RestrictedMessenger<
+export type MultichainAssetsControllerMessenger = Messenger<
   typeof controllerName,
   MultichainAssetsControllerActions | AllowedActions,
-  MultichainAssetsControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  MultichainAssetsControllerEvents | AllowedEvents
 >;
 
 /**
@@ -156,16 +162,27 @@ export type MultichainAssetsControllerMessenger = RestrictedMessenger<
  * using the `persist` flag; and if they can be sent to Sentry or not, using
  * the `anonymous` flag.
  */
-const assetsControllerMetadata = {
-  assetsMetadata: {
-    persist: true,
-    anonymous: false,
-  },
-  accountsAssets: {
-    persist: true,
-    anonymous: false,
-  },
-};
+const assetsControllerMetadata: StateMetadata<MultichainAssetsControllerState> =
+  {
+    assetsMetadata: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
+    accountsAssets: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
+    allIgnoredAssets: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
+  };
 
 // TODO: make this controller extends StaticIntervalPollingController and update all assetsMetadata once a day.
 
@@ -198,15 +215,15 @@ export class MultichainAssetsController extends BaseController<
 
     this.#snaps = {};
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:accountAdded',
       async (account) => await this.#handleOnAccountAddedEvent(account),
     );
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:accountRemoved',
       async (account) => await this.#handleOnAccountRemovedEvent(account),
     );
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:accountAssetListUpdated',
       async (event) => await this.#handleAccountAssetListUpdatedEvent(event),
     );
@@ -233,9 +250,14 @@ export class MultichainAssetsController extends BaseController<
    * actions.
    */
   #registerMessageHandlers() {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'MultichainAssetsController:getAssetMetadata',
       this.getAssetMetadata.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'MultichainAssetsController:ignoreAssets',
+      this.ignoreAssets.bind(this),
     );
   }
 
@@ -247,6 +269,42 @@ export class MultichainAssetsController extends BaseController<
    */
   getAssetMetadata(asset: CaipAssetType): FungibleAssetMetadata | undefined {
     return this.state.assetsMetadata[asset];
+  }
+
+  /**
+   * Ignores a batch of assets for a specific account.
+   *
+   * @param assetsToIgnore - Array of asset IDs to ignore.
+   * @param accountId - The account ID to ignore assets for.
+   */
+  ignoreAssets(assetsToIgnore: CaipAssetType[], accountId: string): void {
+    this.update((state) => {
+      if (state.accountsAssets[accountId]) {
+        state.accountsAssets[accountId] = state.accountsAssets[
+          accountId
+        ].filter((asset) => !assetsToIgnore.includes(asset));
+      }
+
+      if (!state.allIgnoredAssets[accountId]) {
+        state.allIgnoredAssets[accountId] = [];
+      }
+
+      const newIgnoredAssets = assetsToIgnore.filter(
+        (asset) => !state.allIgnoredAssets[accountId].includes(asset),
+      );
+      state.allIgnoredAssets[accountId].push(...newIgnoredAssets);
+    });
+  }
+
+  /**
+   * Checks if an asset is ignored for a specific account.
+   *
+   * @param asset - The asset ID to check.
+   * @param accountId - The account ID to check for.
+   * @returns True if the asset is ignored, false otherwise.
+   */
+  #isAssetIgnored(asset: CaipAssetType, accountId: string): boolean {
+    return this.state.allIgnoredAssets[accountId]?.includes(asset) ?? false;
   }
 
   /**
@@ -269,8 +327,12 @@ export class MultichainAssetsController extends BaseController<
         const existing = this.state.accountsAssets[accountId] || [];
 
         // In case accountsAndAssetsToUpdate event is fired with "added" assets that already exist, we don't want to add them again
+        // Also filter out ignored assets
         const filteredToBeAddedAssets = added.filter(
-          (asset) => !existing.includes(asset) && isCaipAssetType(asset),
+          (asset) =>
+            !existing.includes(asset) &&
+            isCaipAssetType(asset) &&
+            !this.#isAssetIgnored(asset, accountId),
         );
 
         // In case accountsAndAssetsToUpdate event is fired with "removed" assets that don't exist, we don't want to remove them
@@ -319,7 +381,7 @@ export class MultichainAssetsController extends BaseController<
     // Trigger fetching metadata for new assets
     await this.#refreshAssetsMetadata(Array.from(assetsForMetadataRefresh));
 
-    this.messagingSystem.publish(`${controllerName}:accountAssetListUpdated`, {
+    this.messenger.publish(`${controllerName}:accountAssetListUpdated`, {
       assets: accountsAndAssetsToUpdate,
     });
   }
@@ -360,17 +422,14 @@ export class MultichainAssetsController extends BaseController<
       this.update((state) => {
         state.accountsAssets[account.id] = assets;
       });
-      this.messagingSystem.publish(
-        `${controllerName}:accountAssetListUpdated`,
-        {
-          assets: {
-            [account.id]: {
-              added: assets,
-              removed: [],
-            },
+      this.messenger.publish(`${controllerName}:accountAssetListUpdated`, {
+        assets: {
+          [account.id]: {
+            added: assets,
+            removed: [],
           },
         },
-      );
+      });
     }
   }
 
@@ -380,14 +439,16 @@ export class MultichainAssetsController extends BaseController<
    * @param accountId - The new account id being removed.
    */
   async #handleOnAccountRemovedEvent(accountId: string): Promise<void> {
-    // Check if accountId is in accountsAssets and if it is, remove it
-    if (this.state.accountsAssets[accountId]) {
-      this.update((state) => {
-        // TODO: We are not deleting the assetsMetadata because we will soon make this controller extends StaticIntervalPollingController
-        // and update all assetsMetadata once a day.
+    this.update((state) => {
+      if (state.accountsAssets[accountId]) {
         delete state.accountsAssets[accountId];
-      });
-    }
+      }
+      if (state.allIgnoredAssets[accountId]) {
+        delete state.allIgnoredAssets[accountId];
+      }
+      // TODO: We are not deleting the assetsMetadata because we will soon make this controller extends StaticIntervalPollingController
+      // and update all assetsMetadata once a day.
+    });
   }
 
   /**
@@ -506,7 +567,7 @@ export class MultichainAssetsController extends BaseController<
    */
   #getAllSnaps(): Snap[] {
     // TODO: Use dedicated SnapController's action once available for this:
-    return this.messagingSystem
+    return this.messenger
       .call('SnapController:getAll')
       .filter((snap) => snap.enabled && !snap.blocked);
   }
@@ -520,7 +581,7 @@ export class MultichainAssetsController extends BaseController<
   #getSnapsPermissions(
     origin: string,
   ): SubjectPermissions<PermissionConstraint> {
-    return this.messagingSystem.call(
+    return this.messenger.call(
       'PermissionController:getPermissions',
       origin,
     ) as SubjectPermissions<PermissionConstraint>;
@@ -538,7 +599,7 @@ export class MultichainAssetsController extends BaseController<
     snapId: string,
   ): Promise<AssetMetadataResponse | undefined> {
     try {
-      return (await this.messagingSystem.call('SnapController:handleRequest', {
+      return (await this.messenger.call('SnapController:handleRequest', {
         snapId: snapId as SnapId,
         origin: 'metamask',
         handler: HandlerType.OnAssetsLookup,
@@ -580,7 +641,7 @@ export class MultichainAssetsController extends BaseController<
   #getClient(snapId: string): KeyringClient {
     return new KeyringClient({
       send: async (request: JsonRpcRequest) =>
-        (await this.messagingSystem.call('SnapController:handleRequest', {
+        (await this.messenger.call('SnapController:handleRequest', {
           snapId: snapId as SnapId,
           origin: 'metamask',
           handler: HandlerType.OnKeyringRequest,

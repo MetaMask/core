@@ -2,7 +2,11 @@ import type {
   AcceptResultCallbacks,
   AddResult,
 } from '@metamask/approval-controller';
-import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
+import {
+  ApprovalType,
+  ORIGIN_METAMASK,
+  toHex,
+} from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type {
   FetchGasFeeEstimateOptions,
@@ -27,7 +31,7 @@ import {
 } from './feature-flags';
 import { simulateGasBatch } from './gas';
 import { validateBatchRequest } from './validation';
-import type { TransactionControllerState } from '..';
+import type { GetSimulationConfig, TransactionControllerState } from '..';
 import {
   determineTransactionType,
   GasFeeEstimateLevel,
@@ -71,6 +75,7 @@ type UpdateStateCallback = (
 
 type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
+  estimateGas: TransactionController['estimateGas'];
   getChainId: (networkClientId: string) => Hex;
   getEthQuery: (networkClientId: string) => EthQuery;
   getGasFeeEstimates: (
@@ -80,6 +85,7 @@ type AddTransactionBatchRequest = {
   getPendingTransactionTracker: (
     networkClientId: string,
   ) => PendingTransactionTracker;
+  getSimulationConfig: GetSimulationConfig;
   getTransaction: (id: string) => TransactionMeta;
   isSimulationEnabled: () => boolean;
   messenger: TransactionControllerMessenger;
@@ -90,6 +96,9 @@ type AddTransactionBatchRequest = {
   ) => Promise<Hex>;
   publicKeyEIP7702?: Hex;
   request: TransactionBatchRequest;
+  signTransaction: (
+    transactionMeta: TransactionMeta,
+  ) => Promise<string | undefined>;
   update: UpdateStateCallback;
   updateTransaction: (
     options: { transactionId: string },
@@ -373,8 +382,25 @@ async function addTransactionBatchWith7702(
     ? ({ securityAlertId } as SecurityAlertResponse)
     : undefined;
 
+  const existingTransaction = transactions.find(
+    (tx) => tx.existingTransaction,
+  )?.existingTransaction;
+
+  if (existingTransaction) {
+    await convertTransactionToEIP7702({
+      batchId,
+      existingTransaction,
+      nestedTransactions,
+      request,
+      txParams,
+    });
+
+    return { batchId };
+  }
+
   const { result } = await addTransaction(txParams, {
     batchId,
+    isGasFeeIncluded: userRequest.isGasFeeIncluded,
     nestedTransactions,
     networkClientId,
     origin,
@@ -383,8 +409,9 @@ async function addTransactionBatchWith7702(
     type: TransactionType.batch,
   });
 
-  // Wait for the transaction to be published.
-  await result;
+  const transactionHash = await result;
+
+  log('Batch transaction added', { batchId, transactionHash });
 
   return {
     batchId,
@@ -456,12 +483,15 @@ async function addTransactionBatchWithHook(
 
   let txBatchMeta: TransactionBatchMeta | undefined;
   const batchId = generateBatchId();
+
   const nestedTransactions = requestedTransactions.map((tx) => ({
     ...tx,
     origin,
   }));
+
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
+
   try {
     if (requireApproval) {
       txBatchMeta = await prepareApprovalData({
@@ -477,6 +507,8 @@ async function addTransactionBatchWithHook(
     const hookTransactions: Omit<PublishBatchHookTransaction, 'signedTx'>[] =
       [];
 
+    let index = 0;
+
     for (const nestedTransaction of nestedTransactions) {
       const hookTransaction = await processTransactionWithHook(
         batchId,
@@ -484,16 +516,18 @@ async function addTransactionBatchWithHook(
         publishHook,
         request,
         txBatchMeta,
+        index,
       );
 
       hookTransactions.push(hookTransaction);
+      index += 1;
     }
 
     const { signedTransactions } = await collectHook.ready();
 
-    const transactions = hookTransactions.map((transaction, index) => ({
+    const transactions = hookTransactions.map((transaction, i) => ({
       ...transaction,
-      signedTx: signedTransactions[index],
+      signedTx: signedTransactions[i],
     }));
 
     const hookParams = { from, networkClientId, transactions };
@@ -547,6 +581,7 @@ async function addTransactionBatchWithHook(
  * @param publishHook - The publish hook to use for each transaction.
  * @param request - The request object including the user request and necessary callbacks.
  * @param txBatchMeta - Metadata for the transaction batch.
+ * @param index - The index of the transaction in the batch.
  * @returns The single transaction request to be processed by the publish batch hook.
  */
 async function processTransactionWithHook(
@@ -554,7 +589,8 @@ async function processTransactionWithHook(
   nestedTransaction: TransactionBatchSingleRequest,
   publishHook: PublishHook,
   request: AddTransactionBatchRequest,
-  txBatchMeta?: TransactionBatchMeta,
+  txBatchMeta: TransactionBatchMeta | undefined,
+  index: number,
 ) {
   const { assetsFiatValues, existingTransaction, params, type } =
     nestedTransaction;
@@ -569,12 +605,37 @@ async function processTransactionWithHook(
   const { from, networkClientId, origin } = userRequest;
 
   if (existingTransaction) {
-    const { id, onPublish, signedTransaction } = existingTransaction;
-    const transactionMeta = getTransaction(id);
+    const { id, onPublish } = existingTransaction;
+    let transactionMeta = getTransaction(id);
+    const currentNonceHex = transactionMeta.txParams.nonce;
+    let { signedTransaction } = existingTransaction;
+
+    const currentNonceNum = currentNonceHex
+      ? parseInt(currentNonceHex, 16)
+      : undefined;
+
+    const newNonce =
+      index > 0 && currentNonceNum !== undefined
+        ? currentNonceNum + index
+        : undefined;
 
     updateTransaction({ transactionId: id }, (_transactionMeta) => {
       _transactionMeta.batchId = batchId;
+
+      if (newNonce) {
+        _transactionMeta.txParams.nonce = toHex(newNonce);
+      }
     });
+
+    if (newNonce) {
+      const signResult = await updateTransactionSignature({
+        transactionId: id,
+        request,
+      });
+
+      signedTransaction = signResult.newSignature;
+      transactionMeta = signResult.transactionMeta;
+    }
 
     publishHook(transactionMeta, signedTransaction)
       .then(onPublish)
@@ -748,10 +809,11 @@ async function prepareApprovalData({
     messenger,
     request: userRequest,
     isSimulationEnabled,
-    getGasFeeEstimates,
-    update,
-    getEthQuery,
     getChainId,
+    getEthQuery,
+    getGasFeeEstimates,
+    getSimulationConfig,
+    update,
   } = request;
 
   const {
@@ -774,6 +836,7 @@ async function prepareApprovalData({
   const { gasLimit } = await simulateGasBatch({
     chainId,
     from,
+    getSimulationConfig,
     transactions: nestedTransactions,
   });
 
@@ -812,4 +875,124 @@ async function prepareApprovalData({
   addBatchMetadata(txBatchMeta, update);
 
   return txBatchMeta;
+}
+
+/**
+ * Convert an existing transaction to an EIP-7702 batch transaction.
+ *
+ * @param options - Options object.
+ * @param options.batchId - Batch ID for the transaction batch.
+ * @param options.existingTransaction - Existing transaction to be converted.
+ * @param options.nestedTransactions - Nested transactions to be included in the batch.
+ * @param options.request - Request object including the user request and necessary callbacks.
+ * @param options.txParams - Transaction parameters for the new EIP-7702 transaction.
+ * @param options.existingTransaction.id - ID of the existing transaction.
+ * @param options.existingTransaction.onPublish - Callback for when the transaction is published.
+ * @returns Promise that resolves after the publish callback has been invoked.
+ */
+async function convertTransactionToEIP7702({
+  batchId,
+  existingTransaction,
+  nestedTransactions,
+  request,
+  txParams,
+}: {
+  batchId: Hex;
+  request: AddTransactionBatchRequest;
+  existingTransaction: {
+    id: string;
+    onPublish?: ({
+      transactionHash,
+      newSignature,
+    }: {
+      transactionHash: string | undefined;
+      newSignature: Hex;
+    }) => void;
+  };
+  nestedTransactions: NestedTransactionMetadata[];
+  txParams: TransactionParams;
+}) {
+  const { getTransaction, estimateGas, updateTransaction } = request;
+  const existingTransactionMeta = getTransaction(existingTransaction.id);
+
+  if (!existingTransactionMeta) {
+    throw new Error('Existing transaction not found');
+  }
+
+  log('Converting existing transaction to 7702', { batchId, txParams });
+
+  const { networkClientId } = existingTransactionMeta;
+  const newGasResult = await estimateGas(txParams, networkClientId);
+
+  log('Estimated gas for converted EIP-7702 transaction', newGasResult);
+
+  updateTransaction(
+    { transactionId: existingTransactionMeta.id },
+    (transactionMeta) => {
+      transactionMeta.batchId = batchId;
+      transactionMeta.nestedTransactions = nestedTransactions;
+      transactionMeta.txParams = txParams;
+      transactionMeta.txParams.gas = newGasResult.gas;
+      transactionMeta.txParams.gasLimit = newGasResult.gas;
+      transactionMeta.txParams.maxFeePerGas =
+        existingTransactionMeta.txParams.maxFeePerGas;
+      transactionMeta.txParams.maxPriorityFeePerGas =
+        existingTransactionMeta.txParams.maxPriorityFeePerGas;
+      transactionMeta.txParams.nonce = existingTransactionMeta.txParams.nonce;
+      transactionMeta.txParams.type ??= TransactionEnvelopeType.feeMarket;
+    },
+  );
+
+  const { newSignature } = await updateTransactionSignature({
+    request,
+    transactionId: existingTransactionMeta.id,
+  });
+
+  existingTransaction.onPublish?.({
+    transactionHash: undefined,
+    newSignature,
+  });
+
+  log('Transaction updated to EIP-7702', { batchId, txParams, newSignature });
+}
+
+/**
+ * Update the signature of an existing transaction.
+ *
+ * @param options - Options object.
+ * @param options.request - The request object including the user request and necessary callbacks.
+ * @param options.transactionId - The ID of the transaction to update.
+ * @returns An object containing the new signature and updated transaction metadata.
+ */
+async function updateTransactionSignature({
+  request,
+  transactionId,
+}: {
+  request: AddTransactionBatchRequest;
+  transactionId: string;
+}): Promise<{
+  newSignature: Hex;
+  transactionMeta: TransactionMeta;
+}> {
+  const { getTransaction, signTransaction } = request;
+  const metadataToSign = getTransaction(transactionId);
+
+  log('Re-signing existing transaction', {
+    transactionId,
+    txParams: metadataToSign.txParams,
+  });
+
+  const newSignature = (await signTransaction(metadataToSign)) as
+    | Hex
+    | undefined;
+
+  if (!newSignature) {
+    throw new Error('Failed to re-sign transaction');
+  }
+
+  const transactionMeta = getTransaction(transactionId);
+
+  log('New signature', newSignature);
+
+  return { newSignature, transactionMeta };
 }

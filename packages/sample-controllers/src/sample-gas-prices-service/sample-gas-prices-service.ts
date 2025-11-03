@@ -1,4 +1,63 @@
-import type { Hex } from '@metamask/utils';
+import type {
+  CreateServicePolicyOptions,
+  ServicePolicy,
+} from '@metamask/controller-utils';
+import {
+  createServicePolicy,
+  fromHex,
+  HttpError,
+} from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
+import { hasProperty, isPlainObject, type Hex } from '@metamask/utils';
+
+import type { SampleGasPricesServiceMethodActions } from './sample-gas-prices-service-method-action-types';
+
+// === GENERAL ===
+
+/**
+ * The name of the {@link SampleGasPricesService}, used to namespace the
+ * service's actions and events.
+ */
+export const serviceName = 'SampleGasPricesService';
+
+// === MESSENGER ===
+
+const MESSENGER_EXPOSED_METHODS = ['fetchGasPrices'] as const;
+
+/**
+ * Actions that {@link SampleGasPricesService} exposes to other consumers.
+ */
+export type SampleGasPricesServiceActions = SampleGasPricesServiceMethodActions;
+
+/**
+ * Actions from other messengers that {@link SampleGasPricesMessenger} calls.
+ */
+type AllowedActions = never;
+
+/**
+ * Events that {@link SampleGasPricesService} exposes to other consumers.
+ */
+export type SampleGasPricesServiceEvents = never;
+
+/**
+ * Events from other messengers that {@link SampleGasPricesService} subscribes
+ * to.
+ */
+type AllowedEvents = never;
+
+/**
+ * The messenger which is restricted to actions and events accessed by
+ * {@link SampleGasPricesService}.
+ */
+export type SampleGasPricesServiceMessenger = Messenger<
+  typeof serviceName,
+  SampleGasPricesServiceActions | AllowedActions,
+  // TODO: Disable this lint rule
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-arguments
+  SampleGasPricesServiceEvents | AllowedEvents
+>;
+
+// === SERVICE DEFINITION ===
 
 /**
  * What the API endpoint returns.
@@ -16,41 +75,149 @@ type GasPricesResponse = {
  *
  * @example
  *
- * On its own:
- *
  * ``` ts
- * const gasPricesService = new SampleGasPricesService({ fetch });
- * // Fetch gas prices for Mainnet
- * const gasPricesResponse = await gasPricesService.fetchGasPrices('0x1');
- * // ... Do something with the response ...
- * ```
+ * import { Messenger } from '@metamask/messenger';
+ * import type {
+ *   SampleGasPricesServiceActions,
+ *   SampleGasPricesServiceEvents,
+ * } from '@metamask/sample-controllers';
  *
- * In conjunction with `SampleGasPricesController`:
- *
- * ``` ts
- * const gasPricesService = new SampleGasPricesService({ fetch });
- * const gasPricesController = new SampleGasPricesController({
- *   // ... state, messenger, etc. ...
- *   gasPricesService,
+ * const rootMessenger = new Messenger<
+ *   'Root',
+ *   SampleGasPricesServiceActions
+ *   SampleGasPricesServiceEvents
+ * >({ namespace: 'Root' });
+ * const gasPricesServiceMessenger = new Messenger<
+ *   'SampleGasPricesService',
+ *   SampleGasPricesServiceActions,
+ *   SampleGasPricesServiceEvents,
+ *   typeof rootMessenger,
+ * >({
+ *   namespace: 'SampleGasPricesService',
+ *   parent: rootMessenger,
  * });
- * // This will use the service object internally
- * gasPricesController.updateGasPrices();
+ * // Instantiate the service to register its actions on the messenger
+ * new SampleGasPricesService({
+ *   messenger: gasPricesServiceMessenger,
+ *   fetch,
+ * });
+ *
+ * // Later...
+ * // Fetch gas prices for Mainnet
+ * const gasPrices = await rootMessenger.call(
+ *   'SampleGasPricesService:fetchGasPrices',
+ *   '0x1',
+ * );
+ * // ... Do something with the gas prices ...
  * ```
  */
 export class SampleGasPricesService {
-  readonly #fetch: typeof fetch;
+  /**
+   * The name of the service.
+   */
+  readonly name: typeof serviceName;
+
+  /**
+   * The messenger suited for this service.
+   */
+  readonly #messenger: ConstructorParameters<
+    typeof SampleGasPricesService
+  >[0]['messenger'];
+
+  /**
+   * A function that can be used to make an HTTP request.
+   */
+  readonly #fetch: ConstructorParameters<
+    typeof SampleGasPricesService
+  >[0]['fetch'];
+
+  /**
+   * The policy that wraps the request.
+   *
+   * @see {@link createServicePolicy}
+   */
+  readonly #policy: ServicePolicy;
 
   /**
    * Constructs a new SampleGasPricesService object.
    *
-   * @param args - The arguments.
-   * @param args.fetch - A function that can be used to make an HTTP request.
-   * If your JavaScript environment supports `fetch` natively, you'll probably
-   * want to pass that; otherwise you can pass an equivalent (such as `fetch`
-   * via `node-fetch`).
+   * @param args - The constructor arguments.
+   * @param args.messenger - The messenger suited for this service.
+   * @param args.fetch - A function that can be used to make an HTTP request. If
+   * your JavaScript environment supports `fetch` natively, you'll probably want
+   * to pass that; otherwise you can pass an equivalent (such as `fetch` via
+   * `node-fetch`).
+   * @param args.policyOptions - Options to pass to `createServicePolicy`, which
+   * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    */
-  constructor({ fetch: fetchFunction }: { fetch: typeof fetch }) {
+  constructor({
+    messenger,
+    fetch: fetchFunction,
+    policyOptions = {},
+  }: {
+    messenger: SampleGasPricesServiceMessenger;
+    fetch: typeof fetch;
+    policyOptions?: CreateServicePolicyOptions;
+  }) {
+    this.name = serviceName;
+    this.#messenger = messenger;
     this.#fetch = fetchFunction;
+    this.#policy = createServicePolicy(policyOptions);
+
+    this.#messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
+
+  /**
+   * Registers a handler that will be called after a request returns a non-500
+   * response, causing a retry. Primarily useful in tests where timers are being
+   * mocked.
+   *
+   * @param listener - The handler to be called.
+   * @returns An object that can be used to unregister the handler. See
+   * {@link CockatielEvent}.
+   * @see {@link createServicePolicy}
+   */
+  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]) {
+    return this.#policy.onRetry(listener);
+  }
+
+  /**
+   * Registers a handler that will be called after a set number of retry rounds
+   * prove that requests to the API endpoint consistently return a 5xx response.
+   *
+   * @param listener - The handler to be called.
+   * @returns An object that can be used to unregister the handler. See
+   * {@link CockatielEvent}.
+   * @see {@link createServicePolicy}
+   */
+  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]) {
+    return this.#policy.onBreak(listener);
+  }
+
+  /* eslint-disable jsdoc/check-indentation */
+  /**
+   * Registers a handler that will be called under one of two circumstances:
+   *
+   * 1. After a set number of retries prove that requests to the API
+   * consistently result in one of the following failures:
+   *    1. A connection initiation error
+   *    2. A connection reset error
+   *    3. A timeout error
+   *    4. A non-JSON response
+   *    5. A 502, 503, or 504 response
+   * 2. After a successful request is made to the API, but the response takes
+   * longer than a set duration to return.
+   *
+   * @param listener - The handler to be called.
+   * @returns An object that can be used to unregister the handler. See
+   * {@link CockatielEvent}.
+   */
+  /* eslint-enable jsdoc/check-indentation */
+  onDegraded(listener: Parameters<ServicePolicy['onDegraded']>[0]) {
+    return this.#policy.onDegraded(listener);
   }
 
   /**
@@ -60,13 +227,41 @@ export class SampleGasPricesService {
    * @param chainId - The chain ID for which you want to fetch gas prices.
    * @returns The gas prices for the given chain.
    */
-  async fetchGasPrices(chainId: Hex) {
-    const response = await this.#fetch(
-      `https://example.com/gas-prices/${chainId}.json`,
-    );
-    // Type assertion: We have to assume the shape of the response data.
-    const gasPricesResponse =
-      (await response.json()) as unknown as GasPricesResponse;
-    return gasPricesResponse.data;
+  async fetchGasPrices(chainId: Hex): Promise<GasPricesResponse['data']> {
+    const response = await this.#policy.execute(async () => {
+      const url = new URL('https://api.example.com/gas-prices');
+      url.searchParams.append('chainId', `eip155:${fromHex(chainId)}`);
+      const localResponse = await this.#fetch(url);
+      if (!localResponse.ok) {
+        throw new HttpError(
+          localResponse.status,
+          `Fetching '${url.toString()}' failed with status '${localResponse.status}'`,
+        );
+      }
+      return localResponse;
+    });
+    const jsonResponse = await response.json();
+
+    if (
+      isPlainObject(jsonResponse) &&
+      hasProperty(jsonResponse, 'data') &&
+      isPlainObject(jsonResponse.data) &&
+      hasProperty(jsonResponse.data, 'low') &&
+      hasProperty(jsonResponse.data, 'average') &&
+      hasProperty(jsonResponse.data, 'high')
+    ) {
+      const {
+        data: { low, average, high },
+      } = jsonResponse;
+      if (
+        typeof low === 'number' &&
+        typeof average === 'number' &&
+        typeof high === 'number'
+      ) {
+        return { low, average, high };
+      }
+    }
+
+    throw new Error('Malformed response received from gas prices API');
   }
 }

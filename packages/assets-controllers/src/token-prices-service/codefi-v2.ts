@@ -12,6 +12,7 @@ import { hexToNumber } from '@metamask/utils';
 
 import type {
   AbstractTokenPricesService,
+  ExchangeRatesByCurrency,
   TokenPrice,
   TokenPricesByTokenAddress,
 } from './abstract-token-prices-service';
@@ -259,6 +260,8 @@ export const SUPPORTED_CHAIN_IDS = [
   '0x531',
   // Sonic Mainnet
   '0x92',
+  // Monad Mainnet
+  '0x8f',
 ] as const;
 
 /**
@@ -272,6 +275,8 @@ type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
  * All requests to V2 of the Price API start with this.
  */
 const BASE_URL = 'https://price.api.cx.metamask.io/v2';
+
+const BASE_URL_V1 = 'https://price.api.cx.metamask.io/v1';
 
 /**
  * The shape of the data that the /spot-prices endpoint returns.
@@ -525,6 +530,108 @@ export class CodefiTokenPricesServiceV2
       },
       {},
     ) as Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>;
+  }
+
+  /**
+   * Retrieves exchange rates in the given base currency.
+   *
+   * @param args - The arguments to this function.
+   * @param args.baseCurrency - The desired base currency of the exchange rates.
+   * @param args.includeUsdRate - Whether to include the USD rate in the response.
+   * @param args.cryptocurrencies - The cryptocurrencies to get exchange rates for.
+   * @returns The exchange rates for the requested base currency.
+   */
+  async fetchExchangeRates({
+    baseCurrency,
+    includeUsdRate,
+    cryptocurrencies,
+  }: {
+    baseCurrency: SupportedCurrency;
+    includeUsdRate: boolean;
+    cryptocurrencies: string[];
+  }): Promise<ExchangeRatesByCurrency<SupportedCurrency>> {
+    const url = new URL(`${BASE_URL_V1}/exchange-rates`);
+    url.searchParams.append('baseCurrency', baseCurrency);
+
+    const urlUsd = new URL(`${BASE_URL_V1}/exchange-rates`);
+    urlUsd.searchParams.append('baseCurrency', 'usd');
+
+    const [exchangeRatesResult, exchangeRatesResultUsd] =
+      await Promise.allSettled([
+        this.#policy.execute(() =>
+          handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
+        ),
+        ...(includeUsdRate && baseCurrency.toLowerCase() !== 'usd'
+          ? [
+              this.#policy.execute(() =>
+                handleFetch(urlUsd, {
+                  headers: { 'Cache-Control': 'no-cache' },
+                }),
+              ),
+            ]
+          : []),
+      ]);
+
+    // Handle resolved/rejected
+    const exchangeRates =
+      exchangeRatesResult.status === 'fulfilled'
+        ? exchangeRatesResult.value
+        : {};
+    const exchangeRatesUsd =
+      exchangeRatesResultUsd?.status === 'fulfilled'
+        ? exchangeRatesResultUsd.value
+        : {};
+
+    if (exchangeRatesResult.status === 'rejected') {
+      throw new Error('Failed to fetch');
+    }
+
+    const filteredExchangeRates = cryptocurrencies.reduce((acc, key) => {
+      if (exchangeRates[key.toLowerCase() as SupportedCurrency]) {
+        acc[key.toLowerCase() as SupportedCurrency] =
+          exchangeRates[key.toLowerCase() as SupportedCurrency];
+      }
+      return acc;
+    }, {} as ExchangeRatesByCurrency<SupportedCurrency>);
+
+    if (Object.keys(filteredExchangeRates).length === 0) {
+      throw new Error(
+        'None of the cryptocurrencies are supported by price api',
+      );
+    }
+
+    const filteredUsdExchangeRates = cryptocurrencies.reduce((acc, key) => {
+      if (exchangeRatesUsd[key.toLowerCase() as SupportedCurrency]) {
+        acc[key.toLowerCase() as SupportedCurrency] =
+          exchangeRatesUsd[key.toLowerCase() as SupportedCurrency];
+      }
+      return acc;
+    }, {} as ExchangeRatesByCurrency<SupportedCurrency>);
+
+    if (baseCurrency.toLowerCase() === 'usd') {
+      Object.keys(filteredExchangeRates).forEach((key) => {
+        filteredExchangeRates[key as SupportedCurrency] = {
+          ...filteredExchangeRates[key as SupportedCurrency],
+          usd: filteredExchangeRates[key as SupportedCurrency]?.value,
+        };
+      });
+      return filteredExchangeRates;
+    }
+    if (!includeUsdRate) {
+      return filteredExchangeRates;
+    }
+
+    const merged = Object.keys(filteredExchangeRates).reduce((acc, key) => {
+      acc[key as SupportedCurrency] = {
+        ...filteredExchangeRates[key as SupportedCurrency],
+        ...(filteredUsdExchangeRates[key as SupportedCurrency]?.value
+          ? { usd: filteredUsdExchangeRates[key as SupportedCurrency]?.value }
+          : {}),
+      };
+      return acc;
+    }, {} as ExchangeRatesByCurrency<SupportedCurrency>);
+
+    return merged;
   }
 
   /**

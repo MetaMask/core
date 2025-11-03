@@ -1,4 +1,4 @@
-import { BaseController } from '@metamask/base-controller';
+import { BaseController, type StateMetadata } from '@metamask/base-controller';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
 
@@ -25,10 +25,25 @@ export enum Cryptocurrency {
 
 const DEFAULT_INTERVAL = 180000;
 
-const metadata = {
-  fiatCurrency: { persist: true, anonymous: true },
-  rates: { persist: true, anonymous: true },
-  cryptocurrencies: { persist: true, anonymous: true },
+const metadata: StateMetadata<RatesControllerState> = {
+  fiatCurrency: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  rates: {
+    includeInStateLogs: false,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  cryptocurrencies: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: false,
+  },
 };
 
 const defaultState = {
@@ -165,7 +180,7 @@ export class RatesController extends BaseController<
       return;
     }
 
-    this.messagingSystem.publish(`${name}:pollingStarted`);
+    this.messenger.publish(`${name}:pollingStarted`);
 
     await this.#updateRates();
 
@@ -184,7 +199,7 @@ export class RatesController extends BaseController<
 
     clearInterval(this.#intervalId);
     this.#intervalId = undefined;
-    this.messagingSystem.publish(`${name}:pollingStopped`);
+    this.messenger.publish(`${name}:pollingStopped`);
   }
 
   /**

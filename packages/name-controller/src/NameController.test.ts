@@ -1,3 +1,5 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+
 import type {
   SetNameRequest,
   UpdateProposedNamesRequest,
@@ -2749,6 +2751,89 @@ describe('NameController', () => {
           }),
         );
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [createMockProvider(1)],
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [createMockProvider(1)],
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "nameSources": Object {},
+          "names": Object {
+            "ethereumAddress": Object {},
+          },
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [createMockProvider(1)],
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "nameSources": Object {},
+          "names": Object {
+            "ethereumAddress": Object {},
+          },
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [createMockProvider(1)],
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "nameSources": Object {},
+          "names": Object {
+            "ethereumAddress": Object {},
+          },
+        }
+      `);
     });
   });
 });

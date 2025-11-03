@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
+  StateMetadata,
 } from '@metamask/base-controller';
 import {
   convertHexToDecimal,
@@ -9,6 +9,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
   NetworkControllerGetEIP1559CompatibilityAction,
@@ -160,15 +161,37 @@ type FallbackGasFeeEstimates = {
   networkCongestion: null;
 };
 
-const metadata = {
+const metadata: StateMetadata<GasFeeState> = {
   gasFeeEstimatesByChainId: {
+    includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
-  gasFeeEstimates: { persist: true, anonymous: false },
-  estimatedGasFeeTimeBounds: { persist: true, anonymous: false },
-  gasEstimateType: { persist: true, anonymous: false },
-  nonRPCGasFeeApisDisabled: { persist: true, anonymous: false },
+  gasFeeEstimates: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  estimatedGasFeeTimeBounds: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  gasEstimateType: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  nonRPCGasFeeApisDisabled: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
+  },
 };
 
 export type GasFeeStateEthGasPrice = {
@@ -240,12 +263,10 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetEIP1559CompatibilityAction;
 
-type GasFeeMessenger = RestrictedMessenger<
+export type GasFeeMessenger = Messenger<
   typeof name,
   GasFeeControllerActions | AllowedActions,
-  GasFeeControllerEvents | NetworkControllerNetworkDidChangeEvent,
-  AllowedActions['type'],
-  NetworkControllerNetworkDidChangeEvent['type']
+  GasFeeControllerEvents | NetworkControllerNetworkDidChangeEvent
 >;
 
 const defaultState: GasFeeState = {
@@ -376,14 +397,14 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
         await this.#onNetworkControllerDidChange(networkControllerState);
       });
     } else {
-      const { selectedNetworkClientId } = this.messagingSystem.call(
+      const { selectedNetworkClientId } = this.messenger.call(
         'NetworkController:getState',
       );
-      this.currentChainId = this.messagingSystem.call(
+      this.currentChainId = this.messenger.call(
         'NetworkController:getNetworkClientById',
         selectedNetworkClientId,
       ).configuration.chainId;
-      this.messagingSystem.subscribe(
+      this.messenger.subscribe(
         'NetworkController:networkDidChange',
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -443,7 +464,7 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
       decimalChainId: number;
 
     if (networkClientId !== undefined) {
-      const networkClient = this.messagingSystem.call(
+      const networkClient = this.messenger.call(
         'NetworkController:getNetworkClientById',
         networkClientId,
       );
@@ -452,7 +473,7 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
       decimalChainId = convertHexToDecimal(networkClient.configuration.chainId);
 
       try {
-        const result = await this.messagingSystem.call(
+        const result = await this.messenger.call(
           'NetworkController:getEIP1559Compatibility',
           networkClientId,
         );
@@ -610,7 +631,7 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
   async #onNetworkControllerDidChange({
     selectedNetworkClientId,
   }: NetworkState) {
-    const newChainId = this.messagingSystem.call(
+    const newChainId = this.messenger.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     ).configuration.chainId;

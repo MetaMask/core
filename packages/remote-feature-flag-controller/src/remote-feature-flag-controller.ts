@@ -1,9 +1,9 @@
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedMessenger,
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type {
@@ -18,7 +18,7 @@ import {
 
 // === GENERAL ===
 
-export const controllerName = 'RemoteFeatureFlagController';
+const controllerName = 'RemoteFeatureFlagController';
 export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
 
 // === STATE ===
@@ -29,27 +29,39 @@ export type RemoteFeatureFlagControllerState = {
 };
 
 const remoteFeatureFlagControllerMetadata = {
-  remoteFeatureFlags: { persist: true, anonymous: true },
-  cacheTimestamp: { persist: true, anonymous: true },
+  remoteFeatureFlags: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  cacheTimestamp: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: false,
+  },
 };
 
 // === MESSENGER ===
 
+/**
+ * The action to retrieve the state of the {@link RemoteFeatureFlagController}.
+ */
 export type RemoteFeatureFlagControllerGetStateAction =
   ControllerGetStateAction<
     typeof controllerName,
     RemoteFeatureFlagControllerState
   >;
 
-export type RemoteFeatureFlagControllerGetRemoteFeatureFlagAction = {
+export type RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction = {
   type: `${typeof controllerName}:updateRemoteFeatureFlags`;
   handler: RemoteFeatureFlagController['updateRemoteFeatureFlags'];
 };
 
 export type RemoteFeatureFlagControllerActions =
-  RemoteFeatureFlagControllerGetStateAction;
-
-export type AllowedActions = never;
+  | RemoteFeatureFlagControllerGetStateAction
+  | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction;
 
 export type RemoteFeatureFlagControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -60,14 +72,10 @@ export type RemoteFeatureFlagControllerStateChangeEvent =
 export type RemoteFeatureFlagControllerEvents =
   RemoteFeatureFlagControllerStateChangeEvent;
 
-export type AllowedEvents = never;
-
-export type RemoteFeatureFlagControllerMessenger = RestrictedMessenger<
+export type RemoteFeatureFlagControllerMessenger = Messenger<
   typeof controllerName,
-  RemoteFeatureFlagControllerActions | AllowedActions,
-  RemoteFeatureFlagControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  RemoteFeatureFlagControllerActions,
+  RemoteFeatureFlagControllerEvents
 >;
 
 /**
@@ -192,7 +200,8 @@ export class RemoteFeatureFlagController extends BaseController<
    * @private
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags) {
-    const processedRemoteFeatureFlags = await this.#processRemoteFeatureFlags(remoteFeatureFlags);
+    const processedRemoteFeatureFlags =
+      await this.#processRemoteFeatureFlags(remoteFeatureFlags);
     this.update(() => {
       return {
         remoteFeatureFlags: processedRemoteFeatureFlags,

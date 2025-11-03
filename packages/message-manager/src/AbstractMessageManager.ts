@@ -1,10 +1,14 @@
-import { BaseController } from '@metamask/base-controller';
-import type {
-  ActionConstraint,
-  EventConstraint,
-  RestrictedMessenger,
+import {
+  BaseController,
+  type ControllerStateChangeEvent,
+  type ControllerGetStateAction,
 } from '@metamask/base-controller';
 import type { ApprovalType } from '@metamask/controller-utils';
+import type {
+  Messenger,
+  EventConstraint,
+  ActionConstraint,
+} from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
@@ -13,8 +17,18 @@ import type { Draft } from 'immer';
 import { v1 as random } from 'uuid';
 
 const stateMetadata = {
-  unapprovedMessages: { persist: false, anonymous: false },
-  unapprovedMessagesCount: { persist: false, anonymous: false },
+  unapprovedMessages: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  unapprovedMessagesCount: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const getDefaultState = () => ({
@@ -98,8 +112,8 @@ export type MessageManagerState<Message extends AbstractMessage> = {
   unapprovedMessagesCount: number;
 };
 
-export type UpdateBadgeEvent = {
-  type: `${string}:updateBadge`;
+export type UpdateBadgeEvent<Namespace extends string> = {
+  type: `${Namespace}:updateBadge`;
   payload: [];
 };
 
@@ -121,19 +135,20 @@ export type SecurityProviderRequest = (
  * @property state - Initial state to set on this controller.
  */
 export type AbstractMessageManagerOptions<
+  Name extends string,
   Message extends AbstractMessage,
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
+  MessageManagerMessenger extends Messenger<
+    Name,
+    | ControllerGetStateAction<Name, MessageManagerState<Message>>
+    | ActionConstraint,
+    | ControllerStateChangeEvent<Name, MessageManagerState<Message>>
+    | UpdateBadgeEvent<Name>
+    | EventConstraint
+  >,
 > = {
   additionalFinishStatuses?: string[];
-  messenger: RestrictedMessenger<
-    string,
-    Action,
-    Event | UpdateBadgeEvent,
-    string,
-    string
-  >;
-  name: string;
+  messenger: MessageManagerMessenger;
+  name: Name;
   securityProviderRequest?: SecurityProviderRequest;
   state?: MessageManagerState<Message>;
 };
@@ -142,15 +157,22 @@ export type AbstractMessageManagerOptions<
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
 export abstract class AbstractMessageManager<
+  Name extends string,
   Message extends AbstractMessage,
   Params extends AbstractMessageParams,
   ParamsMetamask extends AbstractMessageParamsMetamask,
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
+  MessageManagerMessenger extends Messenger<
+    Name,
+    | ControllerGetStateAction<Name, MessageManagerState<Message>>
+    | ActionConstraint,
+    | ControllerStateChangeEvent<Name, MessageManagerState<Message>>
+    | UpdateBadgeEvent<Name>
+    | EventConstraint
+  >,
 > extends BaseController<
-  string,
+  Name,
   MessageManagerState<Message>,
-  RestrictedMessenger<string, Action, Event | UpdateBadgeEvent, string, string>
+  MessageManagerMessenger
 > {
   protected messages: Message[];
 
@@ -166,7 +188,7 @@ export abstract class AbstractMessageManager<
     name,
     securityProviderRequest,
     state = {} as MessageManagerState<Message>,
-  }: AbstractMessageManagerOptions<Message, Action, Event>) {
+  }: AbstractMessageManagerOptions<Name, Message, MessageManagerMessenger>) {
     super({
       messenger,
       metadata: stateMetadata,
@@ -182,7 +204,7 @@ export abstract class AbstractMessageManager<
   }
 
   /**
-   * Adds request props to the messsage params and returns a new messageParams object.
+   * Adds request props to the message params and returns a new messageParams object.
    * @param messageParams - The messageParams to add the request props to.
    * @param req - The original request object.
    * @returns The messageParams with the request props added.
@@ -239,7 +261,7 @@ export abstract class AbstractMessageManager<
       state.unapprovedMessagesCount = this.getUnapprovedMessagesCount();
     });
     if (emitUpdateBadge) {
-      this.messagingSystem.publish(`${this.name as string}:updateBadge`);
+      this.messenger.publish(`${this.name}:updateBadge` as const);
     }
   }
 

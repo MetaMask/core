@@ -1,4 +1,11 @@
-import { Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { strict as assert } from 'assert';
 import nock, { cleanAll, isDone, pendingMocks } from 'nock';
 import sinon from 'sinon';
@@ -9,7 +16,6 @@ import {
   METAMASK_STALELIST_FILE,
   PhishingController,
   PHISHING_CONFIG_BASE_URL,
-  type PhishingControllerActions,
   type PhishingControllerOptions,
   CLIENT_SIDE_DETECION_BASE_URL,
   C2_DOMAIN_BLOCKLIST_ENDPOINT,
@@ -17,27 +23,74 @@ import {
   PHISHING_DETECTION_SCAN_ENDPOINT,
   PHISHING_DETECTION_BULK_SCAN_ENDPOINT,
   type BulkPhishingDetectionScanResponse,
+  type PhishingControllerMessenger,
 } from './PhishingController';
-import { formatHostnameToUrl } from './tests/utils';
+import {
+  createMockStateChangePayload,
+  createMockTransaction,
+  formatHostnameToUrl,
+  TEST_ADDRESSES,
+} from './tests/utils';
 import type { PhishingDetectionScanResult } from './types';
 import { PhishingDetectorResultType, RecommendedAction } from './types';
 import { getHostnameFromUrl } from './utils';
 
 const controllerName = 'PhishingController';
 
-/**
- * Constructs a restricted messenger.
- *
- * @returns A restricted messenger.
- */
-function getRestrictedMessenger() {
-  const messenger = new Messenger<PhishingControllerActions, never>();
+type AllPhishingControllerActions =
+  MessengerActions<PhishingControllerMessenger>;
 
-  return messenger.getRestricted({
-    name: controllerName,
-    allowedActions: [],
-    allowedEvents: [],
+type AllPhishingControllerEvents = MessengerEvents<PhishingControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllPhishingControllerActions,
+  AllPhishingControllerEvents,
+  RootMessenger
+>;
+
+/**
+ * Creates and returns a root messenger for testing
+ *
+ * @returns A messenger instance
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
   });
+}
+
+/**
+ * Constructs a messenger for use in PhishingController tests.
+ *
+ * @returns A messenger and the root messenger.
+ */
+function setupMessenger(): {
+  messenger: PhishingControllerMessenger;
+  rootMessenger: RootMessenger;
+} {
+  const rootMessenger = getRootMessenger();
+
+  const messenger = new Messenger<
+    typeof controllerName,
+    AllPhishingControllerActions,
+    AllPhishingControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
+
+  rootMessenger.delegate({
+    actions: [],
+    events: ['TransactionController:stateChange'],
+    messenger,
+  });
+
+  return {
+    messenger,
+    rootMessenger,
+  };
 }
 
 /**
@@ -47,8 +100,9 @@ function getRestrictedMessenger() {
  * @returns The constructed Phishing Controller.
  */
 function getPhishingController(options?: Partial<PhishingControllerOptions>) {
+  const { messenger } = setupMessenger();
   return new PhishingController({
-    messenger: getRestrictedMessenger(),
+    messenger,
     ...options,
   });
 }
@@ -92,6 +146,19 @@ describe('PhishingController', () => {
       type: PhishingDetectorResultType.All,
     });
   });
+
+  it('returns false if the URL is in the whitelistPaths', async () => {
+    const whitelistedURL = 'https://example.com/path';
+
+    const controller = getPhishingController();
+    controller.bypass(whitelistedURL);
+    const result = controller.test(whitelistedURL);
+    expect(result).toMatchObject({
+      result: false,
+      type: PhishingDetectorResultType.All,
+    });
+  });
+
   it('should return false if the URL is in the allowlist', async () => {
     const allowlistedHostname = 'example.com';
 
@@ -99,16 +166,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [allowlistedHostname],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [allowlistedHostname],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -140,18 +201,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            blocklist: [],
-            fuzzylist: [],
-            allowlist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
+          allowlist: [],
           tolerance: 0,
           version: 0,
         },
@@ -193,6 +246,7 @@ describe('PhishingController', () => {
             allowlist: [],
             blocklist: [],
             c2DomainBlocklist: [],
+            blocklistPaths: {},
             fuzzylist: [],
             tolerance: 0,
             lastUpdated: 1,
@@ -221,18 +275,10 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            eth_phishing_detect_config: {
-              blocklist: ['this-should-not-be-in-default-blocklist.com'],
-              fuzzylist: [],
-              allowlist: ['this-should-not-be-in-default-allowlist.com'],
-            },
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            phishfort_hotlist: {
-              blocklist: [],
-            },
+            blocklist: ['this-should-not-be-in-default-blocklist.com'],
+            blocklistPaths: [],
+            fuzzylist: [],
+            allowlist: ['this-should-not-be-in-default-allowlist.com'],
             tolerance: 0,
             version: 0,
             lastUpdated: 1,
@@ -382,6 +428,7 @@ describe('PhishingController', () => {
       await controller.maybeUpdateState();
       expect(controller.isHotlistOutOfDate()).toBe(false);
     });
+
     it('should not have c2DomainBlocklist be out of date immediately after maybeUpdateState is called', async () => {
       nockScope = nock(CLIENT_SIDE_DETECION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
@@ -398,6 +445,87 @@ describe('PhishingController', () => {
       expect(controller.isC2DomainBlocklistOutOfDate()).toBe(true);
       await controller.maybeUpdateState();
       expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
+    });
+
+    it('replaces existing phishing lists with completely new list from phishing detection API', async () => {
+      const { messenger } = setupMessenger();
+      const controller = new PhishingController({
+        messenger,
+        stalelistRefreshInterval: 10,
+        state: {
+          phishingLists: [
+            {
+              allowlist: ['initial-safe-site.com'],
+              blocklist: ['new-phishing-site.com'],
+              blocklistPaths: {},
+              c2DomainBlocklist: [],
+              fuzzylist: ['new-fuzzy-site.com'],
+              tolerance: 2,
+              version: 1,
+              lastUpdated: 1,
+              name: ListNames.MetaMask,
+            },
+          ],
+          whitelist: [],
+          whitelistPaths: {},
+          hotlistLastFetched: 0,
+          stalelistLastFetched: 0,
+          c2DomainBlocklistLastFetched: 0,
+          urlScanCache: {},
+        },
+      });
+
+      cleanAll();
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            blocklist: [],
+            blocklistPaths: ['example.com/path'],
+            fuzzylist: ['new-fuzzy-site.com'],
+            allowlist: ['new-safe-site.com'],
+            tolerance: 2,
+            version: 2,
+            lastUpdated: 2,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${2}`)
+        .reply(200, {
+          data: [],
+        });
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 2,
+        });
+
+      // Force the stalelist to be out of date and trigger update
+      const clock = sinon.useFakeTimers();
+      clock.tick(1000 * 10);
+
+      await controller.maybeUpdateState();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: ['new-safe-site.com'],
+          blocklist: [],
+          blocklistPaths: {
+            'example.com': {
+              path: {},
+            },
+          },
+          c2DomainBlocklist: [],
+          fuzzylist: ['new-fuzzy-site.com'],
+          tolerance: 2,
+          version: 2,
+          lastUpdated: 2,
+          name: ListNames.MetaMask,
+        },
+      ]);
+
+      clock.restore();
     });
   });
 
@@ -518,6 +646,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 0,
               lastUpdated: 1,
@@ -679,18 +808,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: ['metamask.io'],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: ['metamask.io'],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -721,18 +842,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -754,18 +867,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -787,18 +892,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['etnerscan.io'],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['etnerscan.io'],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -829,18 +926,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            blocklist: ['xn--myetherallet-4k5fwn.com'],
-            allowlist: [],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          blocklist: ['xn--myetherallet-4k5fwn.com'],
+          blocklistPaths: [],
+          allowlist: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -873,18 +962,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['xn--myetherallet-4k5fwn.com'],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['xn--myetherallet-4k5fwn.com'],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -917,18 +998,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -971,18 +1044,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -1008,18 +1073,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: ['opensea.io'],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: ['opensea.io'],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -1050,18 +1107,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: ['opensea.io'],
-            blocklist: [],
-            fuzzylist: ['opensea.io'],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: ['opensea.io'],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: ['opensea.io'],
           tolerance: 2,
           version: 0,
           lastUpdated: 1,
@@ -1092,18 +1141,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: ['opensea.io'],
-            blocklist: [],
-            fuzzylist: ['opensea.io'],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: ['opensea.io'],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: ['opensea.io'],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -1128,18 +1169,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['electrum.mx'],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['electrum.mx'],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 2,
           version: 0,
           lastUpdated: 1,
@@ -1176,18 +1209,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['electrum.mx'],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['electrum.mx'],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -1225,18 +1250,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['xn--myetherallet-4k5fwn.com'],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['xn--myetherallet-4k5fwn.com'],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -1273,18 +1290,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['xn--myetherallet-4k5fwn.com'],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['xn--myetherallet-4k5fwn.com'],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -1316,10 +1325,101 @@ describe('PhishingController', () => {
     });
   });
 
+  it('returns positive result for unsafe hostname+pathname from MetaMask config', async () => {
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_STALELIST_FILE)
+      .reply(200, {
+        data: {
+          allowlist: [],
+          blocklist: [],
+          blocklistPaths: ['example.com/path'],
+          fuzzylist: [],
+          tolerance: 0,
+          version: 0,
+          lastUpdated: 1,
+        },
+      })
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .reply(200, { data: [] });
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const controller = getPhishingController();
+    await controller.updateStalelist();
+    expect(controller.test('https://example.com/path')).toMatchObject({
+      result: true,
+      type: PhishingDetectorResultType.Blocklist,
+    });
+  });
+
+  it('returns negative result if the hostname+pathname is in the whitelistPaths', async () => {
+    const controller = getPhishingController({
+      state: {
+        phishingLists: [
+          {
+            allowlist: [],
+            blocklist: [],
+            c2DomainBlocklist: [],
+            blocklistPaths: {
+              'example.com': {
+                path: {},
+              },
+            },
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 0,
+            name: ListNames.MetaMask,
+          },
+        ],
+      },
+    });
+    controller.bypass('https://example.com/path');
+    expect(controller.test('https://example.com/path')).toMatchObject({
+      result: false,
+      type: PhishingDetectorResultType.All,
+    });
+  });
+
+  it('returns positive result even if the hostname+pathname contains percent encoding', async () => {
+    const controller = getPhishingController({
+      state: {
+        phishingLists: [
+          {
+            allowlist: [],
+            blocklist: [],
+            blocklistPaths: {
+              'example.com': {
+                path: {},
+              },
+            },
+            c2DomainBlocklist: [],
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 0,
+            name: ListNames.MetaMask,
+          },
+        ],
+      },
+    });
+
+    expect(controller.test('https://example.com/%70%61%74%68')).toMatchObject({
+      result: true,
+      type: PhishingDetectorResultType.Blocklist,
+    });
+  });
+
   describe('updateStalelist', () => {
     it('should update lists with addition to hotlist', async () => {
       sinon.useFakeTimers(2);
-      const exampleBlockedUrl = 'https://example-blocked-website.com';
+      const exampleBlockedUrl = 'example-blocked-website.com';
       const exampleRequestBlockedHash =
         '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
       const exampleBlockedUrlOne =
@@ -1328,20 +1428,11 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            eth_phishing_detect_config: {
-              allowlist: [],
-              blocklist: [exampleBlockedUrl],
-              fuzzylist: [],
-            },
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            phishfort_hotlist: {
-              blocklist: [],
-            },
-            tolerance: 0,
             allowlist: [],
+            blocklist: [exampleBlockedUrl],
+            blocklistPaths: [],
+            fuzzylist: [],
+            tolerance: 0,
             version: 0,
             lastUpdated: 1,
           },
@@ -1373,6 +1464,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [exampleBlockedUrl, exampleBlockedUrlOne],
           c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 0,
           lastUpdated: 2,
@@ -1392,18 +1484,10 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            eth_phishing_detect_config: {
-              allowlist: [],
-              blocklist: [exampleBlockedUrl],
-              fuzzylist: [],
-            },
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            phishfort_hotlist: {
-              blocklist: [],
-            },
+            allowlist: [],
+            blocklist: [exampleBlockedUrl],
+            blocklistPaths: [],
+            fuzzylist: [],
             tolerance: 0,
             version: 0,
             lastUpdated: 1,
@@ -1442,10 +1526,57 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [exampleBlockedUrlTwo],
           c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 2,
+          name: ListNames.MetaMask,
+        },
+      ]);
+    });
+
+    it('should correctly process blocklist entries with paths into blocklistPaths', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            allowlist: [],
+            blocklist: ['example.com'],
+            blocklistPaths: ['malicious.com/phishing'],
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController();
+      await controller.updateStalelist();
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: ['example.com'],
+          c2DomainBlocklist: [],
+          blocklistPaths: {
+            'malicious.com': {
+              phishing: {},
+            },
+          },
+          fuzzylist: [],
+          tolerance: 0,
+          version: 0,
+          lastUpdated: 1,
           name: ListNames.MetaMask,
         },
       ]);
@@ -1465,6 +1596,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1481,6 +1613,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1508,6 +1641,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1524,6 +1658,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1557,18 +1692,9 @@ describe('PhishingController', () => {
           .delay(100)
           .reply(200, {
             data: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
-              eth_phishing_detect_config: {
-                allowlist: [],
-                blocklist: [],
-                fuzzylist: [],
-              },
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
-              phishfort_hotlist: {
-                blocklist: [],
-              },
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
               tolerance: 0,
               version: 0,
               lastUpdated: 1,
@@ -1599,18 +1725,9 @@ describe('PhishingController', () => {
           .delay(100)
           .reply(200, {
             data: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
-              eth_phishing_detect_config: {
-                allowlist: [],
-                blocklist: [],
-                fuzzylist: [],
-              },
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
-              phishfort_hotlist: {
-                blocklist: [],
-              },
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
               tolerance: 0,
               version: 0,
               lastUpdated: 1,
@@ -1655,6 +1772,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1671,6 +1789,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [testBlockedDomain],
           c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           name: ListNames.MetaMask,
@@ -1692,6 +1811,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1755,6 +1875,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1772,6 +1893,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1804,6 +1926,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [exampleRequestBlockedHash],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1822,6 +1945,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           name: ListNames.MetaMask,
@@ -1853,6 +1977,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1871,6 +1996,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           name: ListNames.MetaMask,
@@ -1902,6 +2028,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1920,6 +2047,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1942,6 +2070,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1960,6 +2089,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1992,6 +2122,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [exampleRequestBlockedHashTwo],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -2010,6 +2141,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           name: ListNames.MetaMask,
@@ -2038,6 +2170,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -2060,6 +2193,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -2086,6 +2220,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -2104,6 +2239,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -2126,6 +2262,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -2144,6 +2281,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -2165,16 +2303,9 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            eth_phishing_detect_config: {
-              allowlist: [],
-              blocklist: [],
-              fuzzylist: [],
-            },
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            phishfort_hotlist: {
-              blocklist: [],
-            },
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
             tolerance: 0,
             version: 0,
             lastUpdated: 1,
@@ -2207,16 +2338,9 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            eth_phishing_detect_config: {
-              allowlist: [],
-              blocklist: [],
-              fuzzylist: [],
-            },
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            phishfort_hotlist: {
-              blocklist: [],
-            },
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
             tolerance: 0,
             version: 0,
             lastUpdated: 1,
@@ -2250,16 +2374,9 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            eth_phishing_detect_config: {
-              allowlist: [],
-              blocklist: [],
-              fuzzylist: [],
-            },
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            phishfort_hotlist: {
-              blocklist: [],
-            },
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
             tolerance: 0,
             version: 0,
             lastUpdated: 1,
@@ -2290,16 +2407,9 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            eth_phishing_detect_config: {
-              allowlist: [],
-              blocklist: [],
-              fuzzylist: [],
-            },
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            phishfort_hotlist: {
-              blocklist: [],
-            },
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
             tolerance: 0,
             version: 0,
             lastUpdated: 1,
@@ -2346,16 +2456,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [allowlistedDomain],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [allowlistedDomain],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -2383,47 +2487,126 @@ describe('PhishingController', () => {
       type: PhishingDetectorResultType.Allowlist,
     });
   });
-  describe('PhishingController - bypass', () => {
+  describe('bypass', () => {
     let controller: PhishingController;
 
     beforeEach(() => {
-      controller = getPhishingController();
+      controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {
+                'example.com': {
+                  path: {},
+                },
+                'sub.example.com': {
+                  path1: {
+                    path2: {},
+                  },
+                },
+              },
+              fuzzylist: [],
+              tolerance: 0,
+              version: 0,
+              lastUpdated: 0,
+              name: ListNames.MetaMask,
+            },
+          ],
+          whitelistPaths: {},
+        },
+      });
     });
 
-    it('should do nothing if the origin is already in the whitelist', () => {
-      const origin = 'https://example.com';
-      const hostname = getHostnameFromUrl(origin);
+    describe('whitelist', () => {
+      it('should do nothing if the origin is already in the whitelist', () => {
+        const origin = 'https://example.com';
+        const hostname = getHostnameFromUrl(origin);
 
-      // Call the bypass function
-      controller.bypass(origin);
-      controller.bypass(origin);
+        // Call the bypass function
+        controller.bypass(origin);
+        controller.bypass(origin);
 
-      // Verify that the whitelist has not changed
-      expect(controller.state.whitelist).toContain(hostname);
-      expect(controller.state.whitelist).toHaveLength(1); // No duplicates added
+        // Verify that the whitelist has not changed
+        expect(controller.state.whitelist).toContain(hostname);
+        expect(controller.state.whitelist).toHaveLength(1); // No duplicates added
+        expect(Object.keys(controller.state.whitelistPaths)).toHaveLength(0);
+      });
+
+      it('should add the origin to the whitelist if not already present', () => {
+        const origin = 'https://newsite.com';
+        const hostname = getHostnameFromUrl(origin);
+
+        // Call the bypass function
+        controller.bypass(origin);
+
+        // Verify that the whitelist now includes the new origin
+        expect(controller.state.whitelist).toContain(hostname);
+        expect(controller.state.whitelist).toHaveLength(1);
+        expect(Object.keys(controller.state.whitelistPaths)).toHaveLength(0);
+      });
+
+      it('should add punycode origins to the whitelist if not already present', () => {
+        const punycodeOrigin = 'xn--fsq.com'; // Example punycode domain
+
+        // Call the bypass function
+        controller.bypass(punycodeOrigin);
+
+        // Verify that the whitelist now includes the punycode origin
+        expect(controller.state.whitelist).toContain(punycodeOrigin);
+        expect(controller.state.whitelist).toHaveLength(1);
+        expect(Object.keys(controller.state.whitelistPaths)).toHaveLength(0);
+      });
     });
 
-    it('should add the origin to the whitelist if not already present', () => {
-      const origin = 'https://newsite.com';
-      const hostname = getHostnameFromUrl(origin);
+    describe('whitelistPaths', () => {
+      it('adds the matched path prefix within blocklistPaths to the whitelistPaths', () => {
+        const origin = 'https://sub.example.com/path1/path2/path3';
+        controller.bypass(origin);
 
-      // Call the bypass function
-      controller.bypass(origin);
+        expect(controller.state.whitelistPaths).toStrictEqual({
+          'sub.example.com': {
+            path1: {
+              path2: {},
+            },
+          },
+        });
+        expect(controller.state.whitelist).toHaveLength(0);
+      });
 
-      // Verify that the whitelist now includes the new origin
-      expect(controller.state.whitelist).toContain(hostname);
-      expect(controller.state.whitelist).toHaveLength(1);
-    });
+      it('does not add if a matched path prefix is not present', () => {
+        const origin = 'https://sub.example.com/path1/path3';
+        controller.bypass(origin);
 
-    it('should add punycode origins to the whitelist if not already present', () => {
-      const punycodeOrigin = 'xn--fsq.com'; // Example punycode domain
+        expect(controller.state.whitelistPaths).toStrictEqual({});
+        expect(controller.state.whitelist).toStrictEqual(['sub.example.com']);
+      });
 
-      // Call the bypass function
-      controller.bypass(punycodeOrigin);
+      it('idempotent', () => {
+        const origin = 'https://example.com/path';
+        controller.bypass(origin);
+        controller.bypass(origin);
 
-      // Verify that the whitelist now includes the punycode origin
-      expect(controller.state.whitelist).toContain(punycodeOrigin);
-      expect(controller.state.whitelist).toHaveLength(1);
+        expect(controller.state.whitelistPaths).toStrictEqual({
+          'example.com': {
+            path: {},
+          },
+        });
+        expect(controller.state.whitelist).toHaveLength(0);
+      });
+
+      it('if the pathname contains percent encoding, it is added decoded', () => {
+        const origin = 'https://example.com/%70%61%74%68';
+        controller.bypass(origin);
+
+        expect(controller.state.whitelistPaths).toStrictEqual({
+          'example.com': {
+            path: {},
+          },
+        });
+      });
     });
   });
 
@@ -3344,5 +3527,267 @@ describe('URL Scan Cache', () => {
     // Second call should also return an error (not from cache)
     const result2 = await controller.scanUrl(invalidUrl);
     expect(result2.fetchError).toBeDefined();
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = getPhishingController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = getPhishingController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "c2DomainBlocklistLastFetched": 0,
+          "hotlistLastFetched": 0,
+          "stalelistLastFetched": 0,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = getPhishingController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "c2DomainBlocklistLastFetched": 0,
+          "hotlistLastFetched": 0,
+          "phishingLists": Array [],
+          "stalelistLastFetched": 0,
+          "tokenScanCache": Object {},
+          "urlScanCache": Object {},
+          "whitelist": Array [],
+          "whitelistPaths": Object {},
+        }
+      `);
+    });
+
+    it('includes expected state in UI', () => {
+      const controller = getPhishingController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "tokenScanCache": Object {},
+          "urlScanCache": Object {},
+        }
+      `);
+    });
+  });
+
+  describe('Transaction Controller State Change Integration', () => {
+    let controller: PhishingController;
+    let globalMessenger: RootMessenger;
+    let bulkScanTokensSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      const { messenger, rootMessenger } = setupMessenger();
+
+      globalMessenger = rootMessenger;
+
+      controller = new PhishingController({
+        messenger,
+      });
+
+      bulkScanTokensSpy = jest
+        .spyOn(controller, 'bulkScanTokens')
+        .mockResolvedValue({});
+    });
+
+    afterEach(() => {
+      bulkScanTokensSpy.mockRestore();
+    });
+
+    it('should trigger bulk token scanning when transaction with token balance changes is added', async () => {
+      const mockTransaction = createMockTransaction('test-tx-1', [
+        TEST_ADDRESSES.USDC,
+        TEST_ADDRESSES.MOCK_TOKEN_1,
+      ]);
+      const stateChangePayload = createMockStateChangePayload([
+        mockTransaction,
+      ]);
+
+      globalMessenger.publish(
+        'TransactionController:stateChange',
+        stateChangePayload,
+        [
+          {
+            op: 'add' as const,
+            path: ['transactions', 0],
+            value: mockTransaction,
+          },
+        ],
+      );
+
+      await new Promise(process.nextTick);
+
+      expect(bulkScanTokensSpy).toHaveBeenCalledWith({
+        chainId: mockTransaction.chainId.toLowerCase(),
+        tokens: [
+          TEST_ADDRESSES.USDC.toLowerCase(),
+          TEST_ADDRESSES.MOCK_TOKEN_1.toLowerCase(),
+        ],
+      });
+    });
+
+    it('should skip processing when patch operation is remove', async () => {
+      const mockTransaction = createMockTransaction('test-tx-1', [
+        TEST_ADDRESSES.USDC,
+      ]);
+
+      const stateChangePayload = createMockStateChangePayload([]);
+
+      globalMessenger.publish(
+        'TransactionController:stateChange',
+        stateChangePayload,
+        [
+          {
+            op: 'remove' as const,
+            path: ['transactions', 0],
+            value: mockTransaction,
+          },
+        ],
+      );
+
+      await new Promise(process.nextTick);
+
+      expect(bulkScanTokensSpy).not.toHaveBeenCalled();
+    });
+
+    it('should not trigger bulk token scanning when transaction has no token balance changes', async () => {
+      const mockTransaction = createMockTransaction('test-tx-1', []);
+
+      const stateChangePayload = createMockStateChangePayload([
+        mockTransaction,
+      ]);
+
+      globalMessenger.publish(
+        'TransactionController:stateChange',
+        stateChangePayload,
+        [
+          {
+            op: 'add' as const,
+            path: ['transactions', 0],
+            value: mockTransaction,
+          },
+        ],
+      );
+
+      await new Promise(process.nextTick);
+
+      expect(bulkScanTokensSpy).not.toHaveBeenCalled();
+    });
+
+    it('should not trigger bulk token scanning when using default tokenAddresses parameter', async () => {
+      const mockTransaction = createMockTransaction('test-tx-2');
+
+      const stateChangePayload = createMockStateChangePayload([
+        mockTransaction,
+      ]);
+
+      globalMessenger.publish(
+        'TransactionController:stateChange',
+        stateChangePayload,
+        [
+          {
+            op: 'add' as const,
+            path: ['transactions', 0],
+            value: mockTransaction,
+          },
+        ],
+      );
+
+      await new Promise(process.nextTick);
+
+      expect(bulkScanTokensSpy).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors in transaction state change processing', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const stateChangePayload = createMockStateChangePayload([]);
+
+      globalMessenger.publish(
+        'TransactionController:stateChange',
+        stateChangePayload,
+        [
+          {
+            op: 'add' as const,
+            path: ['transactions', 0],
+            value: null,
+          },
+        ],
+      );
+
+      await new Promise(process.nextTick);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error processing transaction state change:',
+        expect.any(Error),
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('should handle errors in bulk token scanning', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      bulkScanTokensSpy.mockRejectedValue(new Error('Scanning failed'));
+
+      const mockTransaction = createMockTransaction('test-tx-1', [
+        TEST_ADDRESSES.USDC,
+      ]);
+
+      const stateChangePayload = createMockStateChangePayload([
+        mockTransaction,
+      ]);
+
+      globalMessenger.publish(
+        'TransactionController:stateChange',
+        stateChangePayload,
+        [
+          {
+            op: 'add' as const,
+            path: ['transactions', 0],
+            value: mockTransaction,
+          },
+        ],
+      );
+
+      await new Promise(process.nextTick);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error scanning tokens for chain 0x1:',
+        expect.any(Error),
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
   });
 });

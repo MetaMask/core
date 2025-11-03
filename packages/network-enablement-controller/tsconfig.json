@@ -8,7 +8,9 @@
     { "path": "../base-controller" },
     { "path": "../network-controller" },
     { "path": "../multichain-network-controller" },
-    { "path": "../controller-utils" }
+    { "path": "../controller-utils" },
+    { "path": "../transaction-controller" },
+    { "path": "../messenger" }
   ],
   "include": ["../../types", "./src"]
 }

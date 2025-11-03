@@ -131,6 +131,41 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: BlockExplorerUrl['base-mainnet'],
     },
   },
+  [NetworkType['arbitrum-mainnet']]: {
+    chainId: ChainId['arbitrum-mainnet'],
+    ticker: NetworksTicker['arbitrum-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['arbitrum-mainnet'],
+    },
+  },
+  [NetworkType['bsc-mainnet']]: {
+    chainId: ChainId['bsc-mainnet'],
+    ticker: NetworksTicker['bsc-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['bsc-mainnet'],
+    },
+  },
+  [NetworkType['optimism-mainnet']]: {
+    chainId: ChainId['optimism-mainnet'],
+    ticker: NetworksTicker['optimism-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['optimism-mainnet'],
+    },
+  },
+  [NetworkType['polygon-mainnet']]: {
+    chainId: ChainId['polygon-mainnet'],
+    ticker: NetworksTicker['polygon-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['polygon-mainnet'],
+    },
+  },
+  [NetworkType['sei-mainnet']]: {
+    chainId: ChainId['sei-mainnet'],
+    ticker: NetworksTicker['sei-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['sei-mainnet'],
+    },
+  },
   [NetworkType.rpc]: {
     chainId: undefined,
     blockExplorerUrl: undefined,
@@ -138,6 +173,22 @@ export const BUILT_IN_NETWORKS = {
     rpcPrefs: undefined,
   },
 } as const;
+
+/**
+ * When a user adds a custom network to MetaMask, we perform some basic
+ * validations on the network. For instance, usually a network cannot share the
+ * same chain as another. In some cases, however, we want to allow networks that
+ * would normally be invalid. This mapping contains networks that should bypass
+ * validation.
+ */
+export const NETWORKS_BYPASSING_VALIDATION = {
+  // HyperEVM uses the same chain ID as Wanchain
+  '0x3e7': {
+    name: 'HyperEVM',
+    symbol: 'HYPE',
+    rpcUrl: 'https://rpc.hyperliquid.xyz',
+  },
+};
 
 // APIs
 export const OPENSEA_PROXY_URL =

@@ -57,7 +57,30 @@ export type TransactionMeta = {
   /**
    * Additional transactions that must also be submitted in a batch.
    */
-  batchTransactions?: NestedTransactionMetadata[];
+  batchTransactions?: BatchTransaction[];
+
+  /**
+   * Optional configuration when processing `batchTransactions`.
+   */
+  batchTransactionsOptions?: {
+    /**
+     * Whether to disable batch transaction processing via an EIP-7702 upgraded account.
+     * Defaults to `true` if no options object, `false` otherwise.
+     */
+    disable7702?: boolean;
+
+    /**
+     * Whether to disable batch transaction via the `publishBatch` hook.
+     * Defaults to `false`.
+     */
+    disableHook?: boolean;
+
+    /**
+     * Whether to disable batch transaction via sequential transactions.
+     * Defaults to `true` if no options object, `false` otherwise.
+     */
+    disableSequential?: boolean;
+  };
 
   /**
    * Number of the block where the transaction has been included.
@@ -200,6 +223,11 @@ export type TransactionMeta = {
    */
   isFirstTimeInteraction?: boolean;
 
+  /**
+   * Whether the transaction is sponsored meaning the user does not pay the gas fee.
+   */
+  isGasFeeSponsored?: boolean;
+
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;
 
@@ -210,6 +238,11 @@ export type TransactionMeta = {
    * The estimated gas for the transaction without any buffer applied.
    */
   gasLimitNoBuffer?: string;
+
+  /**
+   * The estimated gas used by the transaction, after any refunds. Generated from transaction simulation.
+   */
+  gasUsed?: Hex;
 
   /**
    * A hex string of the transaction hash, used to identify the transaction on the network.
@@ -231,6 +264,12 @@ export type TransactionMeta = {
    * No signing will be performed in the client and the `nonce` will be `undefined`.
    */
   isExternalSign?: boolean;
+
+  /** Whether MetaMask will be compensated for the gas fee by the transaction. */
+  isGasFeeIncluded?: boolean;
+
+  /** Whether the intent of the transaction was achieved via an alternate route or chain. */
+  isIntentComplete?: boolean;
 
   /**
    * Whether the transaction is an incoming token transfer.
@@ -287,6 +326,9 @@ export type TransactionMeta = {
    */
   originalType?: TransactionType;
 
+  /** Metadata specific to the MetaMask Pay feature. */
+  metamaskPay?: MetamaskPayMetadata;
+
   /**
    * Account transaction balance after swap.
    */
@@ -336,6 +378,12 @@ export type TransactionMeta = {
    * When the transaction is dropped, this is the replacement transaction ID.
    */
   replacedById?: string;
+
+  /**
+   * IDs of any transactions that must be confirmed before this one is submitted.
+   * Unlike a transaction batch, these transactions can be on alternate chains.
+   */
+  requiredTransactionIds?: string[];
 
   /**
    * The number of times that the transaction submit has been retried.
@@ -702,9 +750,43 @@ export enum TransactionType {
   lendingWithdraw = 'lendingWithdraw',
 
   /**
+   * Deposit funds to be available for trading via Perps.
+   */
+  perpsDeposit = 'perpsDeposit',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
+
+  /**
+   * Buy a position via Predict.
+   *
+   * @deprecated Not used.
+   */
+  predictBuy = 'predictBuy',
+
+  /**
+   * Claim winnings from a position via Predict.
+   */
+  predictClaim = 'predictClaim',
+
+  /**
+   * Deposit funds to be available for use via Predict.
+   */
+  predictDeposit = 'predictDeposit',
+
+  /**
+   * Sell a position via Predict.
+   *
+   * @deprecated Not used.
+   */
+  predictSell = 'predictSell',
+
+  /**
+   * Withdraw funds from Predict.
+   */
+  predictWithdraw = 'predictWithdraw',
 
   /**
    * When a transaction is failed it can be retried by
@@ -805,6 +887,11 @@ export enum TransactionType {
    * Increase the allowance by a given increment
    */
   tokenMethodIncreaseAllowance = 'increaseAllowance',
+
+  /**
+   * A token approval transaction subscribing to the shield insurance service
+   */
+  shieldSubscriptionApprove = 'shieldSubscriptionApprove',
 }
 
 export enum TransactionContainerType {
@@ -1350,7 +1437,7 @@ export type Layer1GasFeeFlow = {
    * @param args - The arguments for the matcher function.
    * @param args.transactionMeta - The transaction metadata.
    * @param args.messenger - The messenger instance.
-   * @returns Whether the gas fee flow supports the transaction.
+   * @returns A promise that resolves to whether the gas fee flow supports the transaction.
    */
   matchesTransaction({
     transactionMeta,
@@ -1358,7 +1445,7 @@ export type Layer1GasFeeFlow = {
   }: {
     transactionMeta: TransactionMeta;
     messenger: TransactionControllerMessenger;
-  }): boolean;
+  }): Promise<boolean>;
 
   /**
    * Get layer 1 gas fee estimates for a specific transaction.
@@ -1572,6 +1659,20 @@ export type NestedTransactionMetadata = BatchTransactionParams & {
 };
 
 /**
+ * An additional transaction dynamically added to a standard single transaction to form a batch.
+ */
+export type BatchTransaction = BatchTransactionParams & {
+  /**
+   * Whether the transaction is executed after the main transaction.
+   * Defaults to `true`.
+   */
+  isAfter?: boolean;
+
+  /** Type of the batch transaction. */
+  type?: TransactionType;
+};
+
+/**
  * Specification for a single transaction within a batch request.
  */
 export type TransactionBatchSingleRequest = {
@@ -1585,6 +1686,9 @@ export type TransactionBatchSingleRequest = {
 
     /** Optional callback to be invoked once the transaction is published. */
     onPublish?: (request: {
+      /** Updated signature for the transaction, if applicable. */
+      newSignature?: Hex;
+
       /** Hash of the transaction on the network. */
       transactionHash?: string;
     }) => void;
@@ -1607,8 +1711,20 @@ export type TransactionBatchSingleRequest = {
 export type TransactionBatchRequest = {
   batchId?: Hex;
 
+  /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */
+  disable7702?: boolean;
+
+  /** Whether to disable batch transaction via the `publishBatch` hook. */
+  disableHook?: boolean;
+
+  /** Whether to disable batch transaction via sequential transactions. */
+  disableSequential?: boolean;
+
   /** Address of the account to submit the transaction batch. */
   from: Hex;
+
+  /** Whether MetaMask will be compensated for the gas fee by the transaction. */
+  isGasFeeIncluded?: boolean;
 
   /** ID of the network client to submit the transaction. */
   networkClientId: NetworkClientId;
@@ -1624,15 +1740,6 @@ export type TransactionBatchRequest = {
 
   /** Transactions to be submitted as part of the batch. */
   transactions: TransactionBatchSingleRequest[];
-
-  /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */
-  disable7702?: boolean;
-
-  /** Whether to disable batch transaction via the `publishBatch` hook. */
-  disableHook?: boolean;
-
-  /** Whether to disable batch transaction via sequential transactions. */
-  disableSequential?: boolean;
 
   /**
    * Whether to use the publish batch hook to submit the batch.
@@ -1899,4 +2006,97 @@ export type AssetsFiatValues = {
    * The fiat value of the sending assets.
    */
   sending?: string;
+};
+
+/** Metadata specific to the MetaMask Pay feature. */
+export type MetamaskPayMetadata = {
+  /** Total fee from any bridge transactions, in fiat currency. */
+  bridgeFeeFiat?: string;
+
+  /** Chain ID of the payment token. */
+  chainId?: Hex;
+
+  /** Total network fee in fiat currency, including the original and bridge transactions. */
+  networkFeeFiat?: string;
+
+  /** Address of the payment token that the transaction funds were sourced from. */
+  tokenAddress?: Hex;
+
+  /** Total cost of the transaction in fiat currency, including gas, fees, and the funds themselves. */
+  totalFiat?: string;
+};
+
+/**
+ * Parameters for the transaction simulation API.
+ */
+export type GetSimulationConfig = (
+  url: string,
+  opts?: {
+    txMeta?: TransactionMeta;
+  },
+) => Promise<{
+  newUrl?: string;
+  authorization?: string;
+}>;
+
+/**
+ * Options for adding a transaction.
+ */
+export type AddTransactionOptions = {
+  /** Unique ID to prevent duplicate requests.  */
+  actionId?: string;
+
+  /** Fiat values of the assets being sent and received. */
+  assetsFiatValues?: AssetsFiatValues;
+
+  /** Custom ID for the batch this transaction belongs to. */
+  batchId?: Hex;
+
+  /** Enum to indicate what device confirmed the transaction. */
+  deviceConfirmedOn?: WalletDevice;
+
+  /** Whether to disable the gas estimation buffer. */
+  disableGasBuffer?: boolean;
+
+  /** Whether MetaMask will be compensated for the gas fee by the transaction. */
+  isGasFeeIncluded?: boolean;
+
+  /** RPC method that requested the transaction. */
+  method?: string;
+
+  /** Params for any nested transactions encoded in the data. */
+  nestedTransactions?: NestedTransactionMetadata[];
+
+  /** ID of the network client for this transaction. */
+  networkClientId: NetworkClientId;
+
+  /** Origin of the transaction request, such as a dApp hostname. */
+  origin?: string;
+
+  /** Custom logic to publish the transaction. */
+  publishHook?: PublishHook;
+
+  /** Whether the transaction requires approval by the user, defaults to true unless explicitly disabled. */
+  requireApproval?: boolean | undefined;
+
+  /** Response from security validator. */
+  securityAlertResponse?: SecurityAlertResponse;
+
+  /** Entries to add to the `sendFlowHistory`. */
+  sendFlowHistory?: SendFlowHistoryEntry[];
+
+  /** Options for swaps transactions. */
+  swaps?: {
+    /** Whether the transaction has an approval transaction. */
+    hasApproveTx?: boolean;
+
+    /** Metadata for swap transaction. */
+    meta?: Partial<TransactionMeta>;
+  };
+
+  /** Parent context for any new traces. */
+  traceContext?: unknown;
+
+  /** Type of transaction to add, such as 'cancel' or 'swap'. */
+  type?: TransactionType;
 };

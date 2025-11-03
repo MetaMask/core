@@ -4,8 +4,14 @@ import {
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
-import { remove0x } from '@metamask/utils';
+import {
+  hexToNumber,
+  KnownCaipNamespace,
+  remove0x,
+  toCaipChainId,
+} from '@metamask/utils';
 import BN from 'bn.js';
+import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController';
 import type { AbstractTokenPricesService } from './token-prices-service';
@@ -189,6 +195,9 @@ export enum SupportedTokenDetectionNetworks {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   sei = '0x531', // decimal: 1329
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  monad_mainnet = '0x8f', // decimal: 143
 }
 
 /**
@@ -260,7 +269,6 @@ export async function getIpfsCIDv1AndPath(ipfsUrl: string): Promise<{
   const cid = index !== -1 ? url.substring(0, index) : url;
   const path = index !== -1 ? url.substring(index) : undefined;
 
-  const { CID } = await import('multiformats');
   // We want to ensure that the CID is v1 (https://docs.ipfs.io/concepts/content-addressing/#identifier-formats)
   // because most cid v0s appear to be incompatible with IPFS subdomains
   return {
@@ -451,4 +459,22 @@ export function getKeyByValue(map: Map<string, string>, value: string) {
     }
   }
   return null; // Return null if no match is found
+}
+
+/**
+ * Converts a hex chainId and account address to a CAIP account reference.
+ *
+ * @param chainId - The hex chain ID
+ * @param accountAddress - The account address
+ * @returns The CAIP account reference in format "namespace:reference:address"
+ */
+export function accountAddressToCaipReference(
+  chainId: Hex,
+  accountAddress: string,
+) {
+  const caipChainId = toCaipChainId(
+    KnownCaipNamespace.Eip155,
+    hexToNumber(chainId).toString(),
+  );
+  return `${caipChainId}:${accountAddress}`;
 }

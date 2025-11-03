@@ -1,7 +1,6 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
@@ -11,6 +10,7 @@ import {
   toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 /**
@@ -147,7 +147,12 @@ export type AddressBookControllerEvents =
   | AddressBookControllerContactDeletedEvent;
 
 const addressBookControllerMetadata = {
-  addressBook: { persist: true, anonymous: false },
+  addressBook: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 /**
@@ -165,12 +170,10 @@ export const getDefaultAddressBookControllerState =
 /**
  * The messenger of the {@link AddressBookController} for communication.
  */
-export type AddressBookControllerMessenger = RestrictedMessenger<
+export type AddressBookControllerMessenger = Messenger<
   typeof controllerName,
   AddressBookControllerActions,
-  AddressBookControllerEvents,
-  never,
-  never
+  AddressBookControllerEvents
 >;
 
 /**
@@ -270,7 +273,7 @@ export class AddressBookController extends BaseController<
     // These entries with chainId='*' are the wallet's own accounts (internal MetaMask accounts),
     // not user-created contacts. They don't need to trigger sync events.
     if (String(chainId) !== WALLET_ACCOUNTS_CHAIN_ID) {
-      this.messagingSystem.publish(
+      this.messenger.publish(
         'AddressBookController:contactDeleted',
         deletedEntry,
       );
@@ -330,10 +333,7 @@ export class AddressBookController extends BaseController<
     // These entries with chainId='*' are the wallet's own accounts (internal MetaMask accounts),
     // not user-created contacts. They don't need to trigger sync events.
     if (String(chainId) !== WALLET_ACCOUNTS_CHAIN_ID) {
-      this.messagingSystem.publish(
-        'AddressBookController:contactUpdated',
-        entry,
-      );
+      this.messenger.publish('AddressBookController:contactUpdated', entry);
     }
 
     return true;
@@ -343,15 +343,15 @@ export class AddressBookController extends BaseController<
    * Registers message handlers for the AddressBookController.
    */
   #registerMessageHandlers() {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:list`,
       this.list.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:set`,
       this.set.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:delete`,
       this.delete.bind(this),
     );

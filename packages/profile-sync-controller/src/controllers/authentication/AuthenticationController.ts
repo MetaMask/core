@@ -1,16 +1,17 @@
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedMessenger,
-  StateMetadata,
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+  type StateMetadata,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { Json } from '@metamask/utils';
 
 import {
   createSnapPublicKeyRequest,
@@ -43,12 +44,38 @@ export const defaultState: AuthenticationControllerState = {
 };
 const metadata: StateMetadata<AuthenticationControllerState> = {
   isSignedIn: {
+    includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
   },
   srpSessionData: {
+    // Remove access token from state logs
+    includeInStateLogs: (srpSessionData) => {
+      // Unreachable branch, included just to fix a type error for the case where this property is
+      // unset. The type gets collapsed to include `| undefined` even though `undefined` is never
+      // set here, because we don't yet use `exactOptionalPropertyTypes`.
+      // TODO: Remove branch after enabling `exactOptionalPropertyTypes`
+      // ref: https://github.com/MetaMask/core/issues/6565
+      if (srpSessionData === null || srpSessionData === undefined) {
+        return null;
+      }
+      return Object.entries(srpSessionData).reduce<Record<string, Json>>(
+        (sanitizedSrpSessionData, [key, value]) => {
+          const { accessToken: _unused, ...tokenWithoutAccessToken } =
+            value.token;
+          sanitizedSrpSessionData[key] = {
+            ...value,
+            token: tokenWithoutAccessToken,
+          };
+          return sanitizedSrpSessionData;
+        },
+        {},
+      );
+    },
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
 };
 
@@ -98,21 +125,15 @@ export type AuthenticationControllerStateChangeEvent =
 export type Events = AuthenticationControllerStateChangeEvent;
 
 // Allowed Actions
-export type AllowedActions =
-  | HandleSnapRequest
-  | KeyringControllerGetStateAction;
+type AllowedActions = HandleSnapRequest | KeyringControllerGetStateAction;
 
-export type AllowedEvents =
-  | KeyringControllerLockEvent
-  | KeyringControllerUnlockEvent;
+type AllowedEvents = KeyringControllerLockEvent | KeyringControllerUnlockEvent;
 
 // Messenger
-export type AuthenticationControllerMessenger = RestrictedMessenger<
+export type AuthenticationControllerMessenger = Messenger<
   typeof controllerName,
   Actions | AllowedActions,
-  Events | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  Events | AllowedEvents
 >;
 
 /**
@@ -136,16 +157,14 @@ export default class AuthenticationController extends BaseController<
 
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
-      const { isUnlocked } = this.messagingSystem.call(
-        'KeyringController:getState',
-      );
+      const { isUnlocked } = this.messenger.call('KeyringController:getState');
       this.#isUnlocked = isUnlocked;
 
-      this.messagingSystem.subscribe('KeyringController:unlock', () => {
+      this.messenger.subscribe('KeyringController:unlock', () => {
         this.#isUnlocked = true;
       });
 
-      this.messagingSystem.subscribe('KeyringController:lock', () => {
+      this.messenger.subscribe('KeyringController:lock', () => {
         this.#isUnlocked = false;
       });
     },
@@ -212,32 +231,32 @@ export default class AuthenticationController extends BaseController<
    * actions.
    */
   #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'AuthenticationController:getBearerToken',
       this.getBearerToken.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'AuthenticationController:getSessionProfile',
       this.getSessionProfile.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'AuthenticationController:isSignedIn',
       this.isSignedIn.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'AuthenticationController:performSignIn',
       this.performSignIn.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'AuthenticationController:performSignOut',
       this.performSignOut.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'AuthenticationController:getUserProfileLineage',
       this.getUserProfileLineage.bind(this),
     );
@@ -361,7 +380,7 @@ export default class AuthenticationController extends BaseController<
   async #snapGetPublicKey(entropySourceId?: string): Promise<string> {
     this.#assertIsUnlocked('#snapGetPublicKey');
 
-    const result = (await this.messagingSystem.call(
+    const result = (await this.messenger.call(
       'SnapController:handleRequest',
       createSnapPublicKeyRequest(entropySourceId),
     )) as string;
@@ -377,7 +396,7 @@ export default class AuthenticationController extends BaseController<
   async #snapGetAllPublicKeys(): Promise<[string, string][]> {
     this.#assertIsUnlocked('#snapGetAllPublicKeys');
 
-    const result = (await this.messagingSystem.call(
+    const result = (await this.messenger.call(
       'SnapController:handleRequest',
       createSnapAllPublicKeysRequest(),
     )) as [string, string][];
@@ -407,7 +426,7 @@ export default class AuthenticationController extends BaseController<
 
     this.#assertIsUnlocked('#snapSignMessage');
 
-    const result = (await this.messagingSystem.call(
+    const result = (await this.messenger.call(
       'SnapController:handleRequest',
       createSnapSignMessageRequest(message, entropySourceId),
     )) as string;

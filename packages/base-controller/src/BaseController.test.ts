@@ -1,20 +1,21 @@
 /* eslint-disable jest/no-export */
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
+import type { Json } from '@metamask/utils';
 import type { Draft, Patch } from 'immer';
 import * as sinon from 'sinon';
 
 import type {
+  ControllerActions,
+  ControllerEvents,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StatePropertyMetadata,
 } from './BaseController';
-import {
-  BaseController,
-  getAnonymizedState,
-  getPersistentState,
-  isBaseController,
-} from './BaseController';
-import { Messenger } from './Messenger';
-import type { RestrictedMessenger } from './RestrictedMessenger';
-import { JsonRpcEngine } from '../../json-rpc-engine/src';
+import { BaseController, deriveStateFromMetadata } from './BaseController';
 
 export const countControllerName = 'CountController';
 
@@ -34,36 +35,30 @@ export type CountControllerEvent = ControllerStateChangeEvent<
 
 export const countControllerStateMetadata = {
   count: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    usedInUi: true,
   },
 };
 
-type CountMessenger = RestrictedMessenger<
+type CountMessenger = Messenger<
   typeof countControllerName,
   CountControllerAction,
-  CountControllerEvent,
-  never,
-  never
+  CountControllerEvent
 >;
 
 /**
- * Constructs a restricted messenger for the Count controller.
+ * Constructs a messenger for the Count controller.
  *
- * @param messenger - The messenger.
- * @returns A restricted messenger for the Count controller.
+ * @returns A messenger for the Count controller.
  */
-export function getCountMessenger(
-  messenger?: Messenger<CountControllerAction, CountControllerEvent>,
-): CountMessenger {
-  if (!messenger) {
-    messenger = new Messenger<CountControllerAction, CountControllerEvent>();
-  }
-  return messenger.getRestricted({
-    name: countControllerName,
-    allowedActions: [],
-    allowedEvents: [],
-  });
+export function getCountMessenger(): CountMessenger {
+  return new Messenger<
+    typeof countControllerName,
+    CountControllerAction,
+    CountControllerEvent
+  >({ namespace: countControllerName });
 }
 
 export class CountController extends BaseController<
@@ -113,39 +108,30 @@ type MessagesControllerEvent = ControllerStateChangeEvent<
 
 const messagesControllerStateMetadata = {
   messages: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    usedInUi: true,
   },
 };
 
-type MessagesMessenger = RestrictedMessenger<
+type MessagesMessenger = Messenger<
   typeof messagesControllerName,
   MessagesControllerAction,
-  MessagesControllerEvent,
-  never,
-  never
+  MessagesControllerEvent
 >;
 
 /**
- * Constructs a restricted messenger for the Messages controller.
+ * Constructs a messenger for the Messages controller.
  *
- * @param messenger - The messenger.
- * @returns A restricted messenger for the Messages controller.
+ * @returns A messenger for the Messages controller.
  */
-function getMessagesMessenger(
-  messenger?: Messenger<MessagesControllerAction, MessagesControllerEvent>,
-): MessagesMessenger {
-  if (!messenger) {
-    messenger = new Messenger<
-      MessagesControllerAction,
-      MessagesControllerEvent
-    >();
-  }
-  return messenger.getRestricted({
-    name: messagesControllerName,
-    allowedActions: [],
-    allowedEvents: [],
-  });
+function getMessagesMessenger(): MessagesMessenger {
+  return new Messenger<
+    typeof messagesControllerName,
+    MessagesControllerAction,
+    MessagesControllerEvent
+  >({ namespace: messagesControllerName });
 }
 
 class MessagesController extends BaseController<
@@ -171,27 +157,6 @@ class MessagesController extends BaseController<
   }
 }
 
-describe('isBaseController', () => {
-  it('should return true if passed a V2 controller', () => {
-    const messenger = new Messenger<
-      CountControllerAction,
-      CountControllerEvent
-    >();
-    const controller = new CountController({
-      messenger: getCountMessenger(messenger),
-      name: countControllerName,
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    expect(isBaseController(controller)).toBe(true);
-  });
-
-  it('should return false if passed a non-controller', () => {
-    const notController = new JsonRpcEngine();
-    expect(isBaseController(notController)).toBe(false);
-  });
-});
-
 describe('BaseController', () => {
   afterEach(() => {
     sinon.restore();
@@ -209,12 +174,9 @@ describe('BaseController', () => {
   });
 
   it('should allow getting state via the getState action', () => {
-    const messenger = new Messenger<
-      CountControllerAction,
-      CountControllerEvent
-    >();
+    const messenger = getCountMessenger();
     new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: countControllerName,
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -409,9 +371,9 @@ describe('BaseController', () => {
   });
 
   it('should inform subscribers of state changes as a result of applying patches', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -438,9 +400,9 @@ describe('BaseController', () => {
   });
 
   it('should inform subscribers of state changes', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -467,9 +429,9 @@ describe('BaseController', () => {
   });
 
   it('should notify a subscriber with a selector of state changes', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -493,9 +455,9 @@ describe('BaseController', () => {
   });
 
   it('should not inform a subscriber of state changes if the selected value is unchanged', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -519,9 +481,9 @@ describe('BaseController', () => {
   });
 
   it('should inform a subscriber of each state change once even after multiple subscriptions', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -543,9 +505,9 @@ describe('BaseController', () => {
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -562,9 +524,9 @@ describe('BaseController', () => {
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing once, even if they subscribed many times', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -582,9 +544,9 @@ describe('BaseController', () => {
   });
 
   it('should throw when unsubscribing listener who was never subscribed', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -597,9 +559,9 @@ describe('BaseController', () => {
   });
 
   it('should no longer update subscribers after being destroyed', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -617,362 +579,6 @@ describe('BaseController', () => {
     expect(listener1.callCount).toBe(0);
     expect(listener2.callCount).toBe(0);
   });
-});
-
-describe('getAnonymizedState', () => {
-  afterEach(() => {
-    sinon.restore();
-  });
-
-  it('should return empty state', () => {
-    expect(getAnonymizedState({}, {})).toStrictEqual({});
-  });
-
-  it('should return empty state when no properties are anonymized', () => {
-    const anonymizedState = getAnonymizedState(
-      { count: 1 },
-      { count: { anonymous: false, persist: false } },
-    );
-    expect(anonymizedState).toStrictEqual({});
-  });
-
-  it('should return state that is already anonymized', () => {
-    const anonymizedState = getAnonymizedState(
-      {
-        password: 'secret password',
-        privateKey: '123',
-        network: 'mainnet',
-        tokens: ['DAI', 'USDC'],
-      },
-      {
-        password: {
-          anonymous: false,
-          persist: false,
-        },
-        privateKey: {
-          anonymous: false,
-          persist: false,
-        },
-        network: {
-          anonymous: true,
-          persist: false,
-        },
-        tokens: {
-          anonymous: true,
-          persist: false,
-        },
-      },
-    );
-    expect(anonymizedState).toStrictEqual({
-      network: 'mainnet',
-      tokens: ['DAI', 'USDC'],
-    });
-  });
-
-  it('should use anonymizing function to anonymize state', () => {
-    const anonymizeTransactionHash = (hash: string) => {
-      return hash.split('').reverse().join('');
-    };
-
-    const anonymizedState = getAnonymizedState(
-      {
-        transactionHash: '0x1234',
-      },
-      {
-        transactionHash: {
-          anonymous: anonymizeTransactionHash,
-          persist: false,
-        },
-      },
-    );
-
-    expect(anonymizedState).toStrictEqual({ transactionHash: '4321x0' });
-  });
-
-  it('should allow returning a partial object from an anonymizing function', () => {
-    const anonymizeTxMeta = (txMeta: { hash: string; value: number }) => {
-      return { value: txMeta.value };
-    };
-
-    const anonymizedState = getAnonymizedState(
-      {
-        txMeta: {
-          hash: '0x123',
-          value: 10,
-        },
-      },
-      {
-        txMeta: {
-          anonymous: anonymizeTxMeta,
-          persist: false,
-        },
-      },
-    );
-
-    expect(anonymizedState).toStrictEqual({ txMeta: { value: 10 } });
-  });
-
-  it('should allow returning a nested partial object from an anonymizing function', () => {
-    const anonymizeTxMeta = (txMeta: {
-      hash: string;
-      value: number;
-      history: { hash: string; value: number }[];
-    }) => {
-      return {
-        history: txMeta.history.map((entry) => {
-          return { value: entry.value };
-        }),
-        value: txMeta.value,
-      };
-    };
-
-    const anonymizedState = getAnonymizedState(
-      {
-        txMeta: {
-          hash: '0x123',
-          history: [
-            {
-              hash: '0x123',
-              value: 9,
-            },
-          ],
-          value: 10,
-        },
-      },
-      {
-        txMeta: {
-          anonymous: anonymizeTxMeta,
-          persist: false,
-        },
-      },
-    );
-
-    expect(anonymizedState).toStrictEqual({
-      txMeta: { history: [{ value: 9 }], value: 10 },
-    });
-  });
-
-  it('should allow transforming types in an anonymizing function', () => {
-    const anonymizedState = getAnonymizedState(
-      {
-        count: '1',
-      },
-      {
-        count: {
-          anonymous: (count) => Number(count),
-          persist: false,
-        },
-      },
-    );
-
-    expect(anonymizedState).toStrictEqual({ count: 1 });
-  });
-
-  it('should suppress errors thrown when deriving state', () => {
-    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
-    const persistentState = getAnonymizedState(
-      {
-        extraState: 'extraState',
-        privateKey: '123',
-        network: 'mainnet',
-      },
-      // @ts-expect-error Intentionally testing invalid state
-      {
-        privateKey: {
-          anonymous: true,
-          persist: true,
-        },
-        network: {
-          anonymous: false,
-          persist: false,
-        },
-      },
-    );
-    expect(persistentState).toStrictEqual({
-      privateKey: '123',
-    });
-    expect(setTimeoutStub.callCount).toBe(1);
-    const onTimeout = setTimeoutStub.firstCall.args[0];
-    expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
-  });
-});
-
-describe('getPersistentState', () => {
-  afterEach(() => {
-    sinon.restore();
-  });
-
-  it('should return empty state', () => {
-    expect(getPersistentState({}, {})).toStrictEqual({});
-  });
-
-  it('should return empty state when no properties are persistent', () => {
-    const persistentState = getPersistentState(
-      { count: 1 },
-      { count: { anonymous: false, persist: false } },
-    );
-    expect(persistentState).toStrictEqual({});
-  });
-
-  it('should return persistent state', () => {
-    const persistentState = getPersistentState(
-      {
-        password: 'secret password',
-        privateKey: '123',
-        network: 'mainnet',
-        tokens: ['DAI', 'USDC'],
-      },
-      {
-        password: {
-          anonymous: false,
-          persist: true,
-        },
-        privateKey: {
-          anonymous: false,
-          persist: true,
-        },
-        network: {
-          anonymous: false,
-          persist: false,
-        },
-        tokens: {
-          anonymous: false,
-          persist: false,
-        },
-      },
-    );
-    expect(persistentState).toStrictEqual({
-      password: 'secret password',
-      privateKey: '123',
-    });
-  });
-
-  it('should use function to derive persistent state', () => {
-    const normalizeTransacitonHash = (hash: string) => {
-      return hash.toLowerCase();
-    };
-
-    const persistentState = getPersistentState(
-      {
-        transactionHash: '0X1234',
-      },
-      {
-        transactionHash: {
-          anonymous: false,
-          persist: normalizeTransacitonHash,
-        },
-      },
-    );
-
-    expect(persistentState).toStrictEqual({ transactionHash: '0x1234' });
-  });
-
-  it('should allow returning a partial object from a persist function', () => {
-    const getPersistentTxMeta = (txMeta: { hash: string; value: number }) => {
-      return { value: txMeta.value };
-    };
-
-    const persistentState = getPersistentState(
-      {
-        txMeta: {
-          hash: '0x123',
-          value: 10,
-        },
-      },
-      {
-        txMeta: {
-          anonymous: false,
-          persist: getPersistentTxMeta,
-        },
-      },
-    );
-
-    expect(persistentState).toStrictEqual({ txMeta: { value: 10 } });
-  });
-
-  it('should allow returning a nested partial object from a persist function', () => {
-    const getPersistentTxMeta = (txMeta: {
-      hash: string;
-      value: number;
-      history: { hash: string; value: number }[];
-    }) => {
-      return {
-        history: txMeta.history.map((entry) => {
-          return { value: entry.value };
-        }),
-        value: txMeta.value,
-      };
-    };
-
-    const persistentState = getPersistentState(
-      {
-        txMeta: {
-          hash: '0x123',
-          history: [
-            {
-              hash: '0x123',
-              value: 9,
-            },
-          ],
-          value: 10,
-        },
-      },
-      {
-        txMeta: {
-          anonymous: false,
-          persist: getPersistentTxMeta,
-        },
-      },
-    );
-
-    expect(persistentState).toStrictEqual({
-      txMeta: { history: [{ value: 9 }], value: 10 },
-    });
-  });
-
-  it('should allow transforming types in a persist function', () => {
-    const persistentState = getPersistentState(
-      {
-        count: '1',
-      },
-      {
-        count: {
-          anonymous: false,
-          persist: (count) => Number(count),
-        },
-      },
-    );
-
-    expect(persistentState).toStrictEqual({ count: 1 });
-  });
-
-  it('should suppress errors thrown when deriving state', () => {
-    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
-    const persistentState = getPersistentState(
-      {
-        extraState: 'extraState',
-        privateKey: '123',
-        network: 'mainnet',
-      },
-      // @ts-expect-error Intentionally testing invalid state
-      {
-        privateKey: {
-          anonymous: false,
-          persist: true,
-        },
-        network: {
-          anonymous: false,
-          persist: false,
-        },
-      },
-    );
-    expect(persistentState).toStrictEqual({
-      privateKey: '123',
-    });
-    expect(setTimeoutStub.callCount).toBe(1);
-    const onTimeout = setTimeoutStub.firstCall.args[0];
-    expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
-  });
 
   describe('inter-controller communication', () => {
     // These two contrived mock controllers are setup to test with.
@@ -985,46 +591,49 @@ describe('getPersistentState', () => {
     type VisitorControllerState = {
       visitors: string[];
     };
-    type VisitorControllerAction = {
+    type VisitorControllerClearAction = {
       type: `${typeof visitorName}:clear`;
       handler: () => void;
     };
-    type VisitorControllerEvent = {
-      type: `${typeof visitorName}:stateChange`;
-      payload: [VisitorControllerState, Patch[]];
-    };
+    type VisitorExternalActions = VisitorOverflowUpdateMaxAction;
+    type VisitorControllerActions =
+      | VisitorControllerClearAction
+      | ControllerActions<typeof visitorName, VisitorControllerState>;
+    type VisitorControllerStateChangeEvent = ControllerEvents<
+      typeof visitorName,
+      VisitorControllerState
+    >;
+    type VisitorExternalEvents = VisitorOverflowStateChangeEvent;
+    type VisitorControllerEvents = VisitorControllerStateChangeEvent;
 
     const visitorControllerStateMetadata = {
       visitors: {
+        includeInDebugSnapshot: true,
+        includeInStateLogs: true,
         persist: true,
-        anonymous: true,
+        usedInUi: true,
       },
     };
 
-    type VisitorMessenger = RestrictedMessenger<
+    type VisitorMessenger = Messenger<
       typeof visitorName,
-      VisitorControllerAction | VisitorOverflowControllerAction,
-      VisitorControllerEvent | VisitorOverflowControllerEvent,
-      never,
-      never
+      VisitorControllerActions | VisitorExternalActions,
+      VisitorControllerEvents | VisitorExternalEvents
     >;
     class VisitorController extends BaseController<
       typeof visitorName,
       VisitorControllerState,
       VisitorMessenger
     > {
-      constructor(messagingSystem: VisitorMessenger) {
+      constructor(messenger: VisitorMessenger) {
         super({
-          messenger: messagingSystem,
+          messenger,
           metadata: visitorControllerStateMetadata,
           name: visitorName,
           state: { visitors: [] },
         });
 
-        messagingSystem.registerActionHandler(
-          'VisitorController:clear',
-          this.clear,
-        );
+        messenger.registerActionHandler('VisitorController:clear', this.clear);
       }
 
       clear = () => {
@@ -1049,28 +658,37 @@ describe('getPersistentState', () => {
     type VisitorOverflowControllerState = {
       maxVisitors: number;
     };
-    type VisitorOverflowControllerAction = {
+    type VisitorOverflowUpdateMaxAction = {
       type: `${typeof visitorOverflowName}:updateMax`;
       handler: (max: number) => void;
     };
-    type VisitorOverflowControllerEvent = {
-      type: `${typeof visitorOverflowName}:stateChange`;
-      payload: [VisitorOverflowControllerState, Patch[]];
-    };
+    type VisitorOverflowExternalActions = VisitorControllerClearAction;
+    type VisitorOverflowControllerActions =
+      | VisitorOverflowUpdateMaxAction
+      | ControllerActions<
+          typeof visitorOverflowName,
+          VisitorOverflowControllerState
+        >;
+    type VisitorOverflowStateChangeEvent = ControllerEvents<
+      typeof visitorOverflowName,
+      VisitorOverflowControllerState
+    >;
+    type VisitorOverflowExternalEvents = VisitorControllerStateChangeEvent;
+    type VisitorOverflowControllerEvents = VisitorOverflowStateChangeEvent;
 
     const visitorOverflowControllerMetadata = {
       maxVisitors: {
+        includeInDebugSnapshot: true,
+        includeInStateLogs: true,
         persist: false,
-        anonymous: true,
+        usedInUi: true,
       },
     };
 
-    type VisitorOverflowMessenger = RestrictedMessenger<
+    type VisitorOverflowMessenger = Messenger<
       typeof visitorOverflowName,
-      VisitorControllerAction | VisitorOverflowControllerAction,
-      VisitorControllerEvent | VisitorOverflowControllerEvent,
-      `${typeof visitorName}:clear`,
-      `${typeof visitorName}:stateChange`
+      VisitorOverflowControllerActions | VisitorOverflowExternalActions,
+      VisitorOverflowControllerEvents | VisitorOverflowExternalEvents
     >;
 
     class VisitorOverflowController extends BaseController<
@@ -1078,28 +696,25 @@ describe('getPersistentState', () => {
       VisitorOverflowControllerState,
       VisitorOverflowMessenger
     > {
-      constructor(messagingSystem: VisitorOverflowMessenger) {
+      constructor(messenger: VisitorOverflowMessenger) {
         super({
-          messenger: messagingSystem,
+          messenger,
           metadata: visitorOverflowControllerMetadata,
           name: visitorOverflowName,
           state: { maxVisitors: 5 },
         });
 
-        messagingSystem.registerActionHandler(
+        messenger.registerActionHandler(
           'VisitorOverflowController:updateMax',
           this.updateMax,
         );
 
-        messagingSystem.subscribe(
-          'VisitorController:stateChange',
-          this.onVisit,
-        );
+        messenger.subscribe('VisitorController:stateChange', this.onVisit);
       }
 
       onVisit = ({ visitors }: VisitorControllerState) => {
         if (visitors.length > this.state.maxVisitors) {
-          this.messagingSystem.call('VisitorController:clear');
+          this.messenger.call('VisitorController:clear');
         }
       };
 
@@ -1115,34 +730,444 @@ describe('getPersistentState', () => {
     }
 
     it('should allow messaging between controllers', () => {
-      const messenger = new Messenger<
-        VisitorControllerAction | VisitorOverflowControllerAction,
-        VisitorControllerEvent | VisitorOverflowControllerEvent
-      >();
-      const visitorControllerMessenger = messenger.getRestricted({
-        name: visitorName,
-        allowedActions: [],
-        allowedEvents: [],
+      // Construct root messenger
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        VisitorControllerActions | VisitorOverflowControllerActions,
+        VisitorControllerEvents | VisitorOverflowControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+      // Construct controller messengers, delegating to parent
+      const visitorControllerMessenger = new Messenger<
+        typeof visitorName,
+        VisitorControllerActions | VisitorOverflowUpdateMaxAction,
+        VisitorControllerEvents | VisitorOverflowStateChangeEvent,
+        typeof rootMessenger
+      >({ namespace: visitorName, parent: rootMessenger });
+      const visitorOverflowControllerMessenger = new Messenger<
+        typeof visitorOverflowName,
+        VisitorOverflowControllerActions | VisitorControllerClearAction,
+        VisitorOverflowControllerEvents | VisitorControllerStateChangeEvent,
+        typeof rootMessenger
+      >({ namespace: visitorOverflowName, parent: rootMessenger });
+      // Delegate external actions/events to controller messengers
+      rootMessenger.delegate({
+        actions: ['VisitorController:clear'],
+        events: ['VisitorController:stateChange'],
+        messenger: visitorOverflowControllerMessenger,
       });
+      rootMessenger.delegate({
+        actions: ['VisitorOverflowController:updateMax'],
+        events: ['VisitorOverflowController:stateChange'],
+        messenger: visitorControllerMessenger,
+      });
+      // Construct controllers
       const visitorController = new VisitorController(
         visitorControllerMessenger,
       );
-      const visitorOverflowControllerMessenger = messenger.getRestricted({
-        name: visitorOverflowName,
-        allowedActions: ['VisitorController:clear'],
-        allowedEvents: ['VisitorController:stateChange'],
-      });
       const visitorOverflowController = new VisitorOverflowController(
         visitorOverflowControllerMessenger,
       );
 
-      messenger.call('VisitorOverflowController:updateMax', 2);
+      rootMessenger.call('VisitorOverflowController:updateMax', 2);
       visitorController.addVisitor('A');
       visitorController.addVisitor('B');
       visitorController.addVisitor('C'); // this should trigger an overflow
 
       expect(visitorOverflowController.state.maxVisitors).toBe(2);
       expect(visitorController.state.visitors).toHaveLength(0);
+    });
+  });
+});
+
+describe('deriveStateFromMetadata', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
+  it('returns an empty object when deriving state for an unset property', () => {
+    const derivedState = deriveStateFromMetadata(
+      { count: 1 },
+      {
+        count: {
+          includeInDebugSnapshot: false,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+      },
+      // @ts-expect-error Intentionally passing in fake unset property
+      'unset',
+    );
+
+    expect(derivedState).toStrictEqual({});
+  });
+
+  describe.each([
+    'includeInDebugSnapshot',
+    'includeInStateLogs',
+    'persist',
+    'usedInUi',
+  ] as const)('%s', (property: keyof StatePropertyMetadata<Json>) => {
+    it('should return empty state', () => {
+      expect(deriveStateFromMetadata({}, {}, property)).toStrictEqual({});
+    });
+
+    it('should return empty state when no properties are enabled', () => {
+      const derivedState = deriveStateFromMetadata(
+        { count: 1 },
+        {
+          count: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+      );
+
+      expect(derivedState).toStrictEqual({});
+    });
+
+    it('should return derived state', () => {
+      const derivedState = deriveStateFromMetadata(
+        {
+          password: 'secret password',
+          privateKey: '123',
+          network: 'mainnet',
+          tokens: ['DAI', 'USDC'],
+        },
+        {
+          password: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          privateKey: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+          tokens: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+      );
+
+      expect(derivedState).toStrictEqual({
+        password: 'secret password',
+        privateKey: '123',
+      });
+    });
+
+    if (property !== 'usedInUi') {
+      it('should use function to derive state', () => {
+        const normalizeTransactionHash = (hash: string) => {
+          return hash.toLowerCase();
+        };
+
+        const derivedState = deriveStateFromMetadata(
+          {
+            transactionHash: '0X1234',
+          },
+          {
+            transactionHash: {
+              includeInDebugSnapshot: false,
+              includeInStateLogs: false,
+              persist: false,
+              usedInUi: false,
+              [property]: normalizeTransactionHash,
+            },
+          },
+          property,
+        );
+
+        expect(derivedState).toStrictEqual({ transactionHash: '0x1234' });
+      });
+
+      it('should allow returning a partial object from a deriver', () => {
+        const getDerivedTxMeta = (txMeta: { hash: string; value: number }) => {
+          return { value: txMeta.value };
+        };
+
+        const derivedState = deriveStateFromMetadata(
+          {
+            txMeta: {
+              hash: '0x123',
+              value: 10,
+            },
+          },
+          {
+            txMeta: {
+              includeInDebugSnapshot: false,
+              includeInStateLogs: false,
+              persist: false,
+              usedInUi: false,
+              [property]: getDerivedTxMeta,
+            },
+          },
+          property,
+        );
+
+        expect(derivedState).toStrictEqual({ txMeta: { value: 10 } });
+      });
+
+      it('should allow returning a nested partial object from a deriver', () => {
+        const getDerivedTxMeta = (txMeta: {
+          hash: string;
+          value: number;
+          history: { hash: string; value: number }[];
+        }) => {
+          return {
+            history: txMeta.history.map((entry) => {
+              return { value: entry.value };
+            }),
+            value: txMeta.value,
+          };
+        };
+
+        const derivedState = deriveStateFromMetadata(
+          {
+            txMeta: {
+              hash: '0x123',
+              history: [
+                {
+                  hash: '0x123',
+                  value: 9,
+                },
+              ],
+              value: 10,
+            },
+          },
+          {
+            txMeta: {
+              includeInDebugSnapshot: false,
+              includeInStateLogs: false,
+              persist: false,
+              usedInUi: false,
+              [property]: getDerivedTxMeta,
+            },
+          },
+          property,
+        );
+
+        expect(derivedState).toStrictEqual({
+          txMeta: { history: [{ value: 9 }], value: 10 },
+        });
+      });
+
+      it('should allow transforming types in a deriver', () => {
+        const derivedState = deriveStateFromMetadata(
+          {
+            count: '1',
+          },
+          {
+            count: {
+              includeInDebugSnapshot: false,
+              includeInStateLogs: false,
+              persist: false,
+              usedInUi: false,
+              [property]: (count: string) => Number(count),
+            },
+          },
+          property,
+        );
+
+        expect(derivedState).toStrictEqual({ count: 1 });
+      });
+    }
+
+    it('reports thrown error when deriving state', () => {
+      const captureException = jest.fn();
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        // @ts-expect-error Intentionally testing invalid state
+        {
+          privateKey: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+        captureException,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(captureException).toHaveBeenCalledTimes(1);
+      expect(captureException).toHaveBeenCalledWith(
+        new Error(`No metadata found for 'extraState'`),
+      );
+    });
+
+    it('reports thrown non-error when deriving state, wrapping it in an error', () => {
+      const captureException = jest.fn();
+      const testException = 'Non-Error exception';
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        {
+          extraState: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: () => {
+              // Intentionally throwing non-error to test handling
+              // eslint-disable-next-line @typescript-eslint/only-throw-error
+              throw testException;
+            },
+          },
+          privateKey: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+        captureException,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(captureException).toHaveBeenCalledTimes(1);
+      expect(captureException).toHaveBeenCalledWith(new Error(testException));
+    });
+
+    it('logs thrown error and captureException error to console if captureException throws', () => {
+      const consoleError = jest.fn();
+      const testError = new Error('Test error');
+      const captureException = jest.fn().mockImplementation(() => {
+        throw testError;
+      });
+      jest.spyOn(console, 'error').mockImplementation(consoleError);
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        // @ts-expect-error Intentionally testing invalid state
+        {
+          privateKey: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+        captureException,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(consoleError).toHaveBeenCalledTimes(2);
+      expect(consoleError).toHaveBeenNthCalledWith(
+        1,
+        new Error(`Error thrown when calling 'captureException'`),
+        testError,
+      );
+      expect(consoleError).toHaveBeenNthCalledWith(
+        2,
+        new Error(`No metadata found for 'extraState'`),
+      );
+    });
+
+    it('logs thrown error to console when deriving state if no captureException function is given', () => {
+      const consoleError = jest.fn();
+      jest.spyOn(console, 'error').mockImplementation(consoleError);
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        // @ts-expect-error Intentionally testing invalid state
+        {
+          privateKey: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(consoleError).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledWith(
+        new Error(`No metadata found for 'extraState'`),
+      );
     });
   });
 });

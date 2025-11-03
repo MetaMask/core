@@ -8,7 +8,6 @@ import type { TransactionController } from '..';
 import { projectLogger } from '../logger';
 import type {
   BatchTransactionParams,
-  NestedTransactionMetadata,
   PublishHook,
   PublishHookResult,
   TransactionBatchSingleRequest,
@@ -27,17 +26,22 @@ const log = createModuleLogger(
 export class ExtraTransactionsPublishHook {
   readonly #addTransactionBatch: TransactionController['addTransactionBatch'];
 
-  readonly #transactions: NestedTransactionMetadata[];
+  readonly #getTransaction: (transactionId: string) => TransactionMeta;
+
+  readonly #originalPublishHook: PublishHook;
 
   constructor({
     addTransactionBatch,
-    transactions,
+    getTransaction,
+    originalPublishHook,
   }: {
     addTransactionBatch: TransactionController['addTransactionBatch'];
-    transactions: NestedTransactionMetadata[];
+    getTransaction: (transactionId: string) => TransactionMeta;
+    originalPublishHook: PublishHook;
   }) {
     this.#addTransactionBatch = addTransactionBatch;
-    this.#transactions = transactions;
+    this.#getTransaction = getTransaction;
+    this.#originalPublishHook = originalPublishHook;
   }
 
   /**
@@ -53,20 +57,50 @@ export class ExtraTransactionsPublishHook {
   ): Promise<PublishHookResult> {
     log('Publishing transaction as batch', { transactionMeta, signedTx });
 
-    const { id, networkClientId, txParams } = transactionMeta;
+    const {
+      batchTransactions,
+      batchTransactionsOptions,
+      id: transactionId,
+      networkClientId,
+      txParams,
+    } = transactionMeta;
+
     const from = txParams.from as Hex;
     const to = txParams.to as Hex | undefined;
     const data = txParams.data as Hex | undefined;
     const value = txParams.value as Hex | undefined;
     const gas = txParams.gas as Hex | undefined;
     const maxFeePerGas = txParams.maxFeePerGas as Hex | undefined;
+
     const maxPriorityFeePerGas = txParams.maxPriorityFeePerGas as
       | Hex
       | undefined;
+
     const signedTransaction = signedTx as Hex;
     const resultPromise = createDeferredPromise<PublishHookResult>();
 
-    const onPublish = ({ transactionHash }: { transactionHash?: string }) => {
+    const onPublish = ({
+      newSignature,
+      transactionHash,
+    }: {
+      newSignature?: Hex;
+      transactionHash?: string;
+    }) => {
+      if (newSignature) {
+        const latestTransactionMeta = this.#getTransaction(transactionId);
+
+        log('Calling original publish hook with new signature', {
+          latestTransactionMeta,
+          newSignature,
+        });
+
+        this.#originalPublishHook(latestTransactionMeta, newSignature)
+          .then(resultPromise.resolve)
+          .catch(resultPromise.reject);
+
+        return;
+      }
+
       resultPromise.resolve({ transactionHash });
     };
 
@@ -79,27 +113,44 @@ export class ExtraTransactionsPublishHook {
       value,
     };
 
-    const firstTransaction: TransactionBatchSingleRequest = {
+    const mainTransaction: TransactionBatchSingleRequest = {
       existingTransaction: {
-        id,
+        id: transactionId,
         onPublish,
         signedTransaction,
       },
       params: firstParams,
     };
 
-    const extraTransactions: TransactionBatchSingleRequest[] =
-      this.#transactions.map((transaction) => {
-        const { type, ...rest } = transaction;
-        return {
-          params: rest,
-          type,
-        };
-      });
+    const extraTransactions = (batchTransactions ?? []).map((transaction) => {
+      const { isAfter, type, ...rest } = transaction;
+      return {
+        isAfter,
+        params: rest,
+        type,
+      };
+    });
+
+    const beforeTransactions: TransactionBatchSingleRequest[] =
+      extraTransactions
+        .filter((transaction) => transaction.isAfter === false)
+        .map(({ isAfter, ...rest }) => ({
+          ...rest,
+        }));
+
+    const afterTransactions: TransactionBatchSingleRequest[] = extraTransactions
+      .filter(
+        (transaction) =>
+          transaction.isAfter === undefined || transaction.isAfter,
+      )
+      .map(({ isAfter, ...rest }) => ({
+        ...rest,
+      }));
 
     const transactions: TransactionBatchSingleRequest[] = [
-      firstTransaction,
-      ...extraTransactions,
+      ...beforeTransactions,
+      mainTransaction,
+      ...afterTransactions,
     ];
 
     log('Adding transaction batch', {
@@ -108,13 +159,18 @@ export class ExtraTransactionsPublishHook {
       transactions,
     });
 
-    await this.#addTransactionBatch({
-      from,
-      networkClientId,
-      transactions,
+    const options = batchTransactionsOptions ?? {
       disable7702: true,
       disableHook: false,
       disableSequential: true,
+    };
+
+    await this.#addTransactionBatch({
+      from,
+      networkClientId,
+      requireApproval: false,
+      transactions,
+      ...options,
     });
 
     return resultPromise.promise;

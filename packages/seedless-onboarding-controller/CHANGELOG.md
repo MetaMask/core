@@ -11,6 +11,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `SeedlessOnboardingController` now requires an additional `SupportedKeyDerivationOptions` type parameter ([#5963](https://github.com/MetaMask/core/pull/5963))
 
+## [5.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6364](https://github.com/MetaMask/core/pull/6364))
+  - Previously, `SeedlessOnboardingController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6364](https://github.com/MetaMask/core/pull/6364))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^23.0.0` to `^24.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [4.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [4.1.0]
+
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6504](https://github.com/MetaMask/core/pull/6504))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.1` ([#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.1` ([#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [4.0.0]
+
+### Added
+
+- Added `renewRefreshToken` options in SeedlessOnboardingController constructor - A function to renew the refresh token and get new revoke token. ([#6275](https://github.com/MetaMask/core/pull/6275))
+- Added `renewRefreshToken` method to renew refresh token from client ([#6275](https://github.com/MetaMask/core/pull/6275))
+- Added `revokePendingRefreshTokens` method to revoke all pending old refresh tokens instead from client ([#6275](https://github.com/MetaMask/core/pull/6275))
+
+### Changed
+
+- **BREAKING:** Updated ControllerMessenger `AllowedEvents`. ([#6292](https://github.com/MetaMask/core/pull/6292))
+- Update `setLocked()` method with `mutex` and it becomes `async` method. ([#6292](https://github.com/MetaMask/core/pull/6292))
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.3.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
+- refactor: cache vault data while unlock ([#6205](https://github.com/MetaMask/core/pull/6205))
+
+### Removed
+
+- **BREAKING:** Removed `Keyring:lock` and `Keyring:unlock` events from the controller allowed events. ([#6292](https://github.com/MetaMask/core/pull/6292))
+- Removed `revokeRefreshToken` method ([#6275](https://github.com/MetaMask/core/pull/6275))
+
+## [3.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` from `^22.0.0` to `^23.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+
+## [2.6.0]
+
+### Added
+
+- Added new persisted state value, `isSeedlessOnboardingUserAuthenticated`. ([#6288](https://github.com/MetaMask/core/pull/6288))
+  - This is for the UI state in the clients, to avoid querying sensistive controller state data to determine the social login authentication state.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+
+### Fixed
+
+- Set `anonymous` to `false` for sensitive fields in the controller state. ([#6283](https://github.com/MetaMask/core/pull/6283))
+
 ## [2.5.1]
 
 ### Changed
@@ -137,7 +205,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.5.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.1.1...@metamask/seedless-onboarding-controller@5.0.0
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.1.0...@metamask/seedless-onboarding-controller@4.1.1
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.0.0...@metamask/seedless-onboarding-controller@4.1.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@3.0.0...@metamask/seedless-onboarding-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.6.0...@metamask/seedless-onboarding-controller@3.0.0
+[2.6.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.5.1...@metamask/seedless-onboarding-controller@2.6.0
 [2.5.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.5.0...@metamask/seedless-onboarding-controller@2.5.1
 [2.5.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.4.0...@metamask/seedless-onboarding-controller@2.5.0
 [2.4.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.3.0...@metamask/seedless-onboarding-controller@2.4.0

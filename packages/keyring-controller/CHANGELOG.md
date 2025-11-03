@@ -21,6 +21,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** The `cacheEncryptionKey` parameter has been removed from the `KeyringController` constructor options ([#5963](https://github.com/MetaMask/core/pull/5963))
   - This parameter was previously used to enable encryption key in-memory caching, but it is no longer needed as the controller now always uses the latest encryption key.
 
+## [24.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6370](https://github.com/MetaMask/core/pull/6370))
+  - Previously, `KeyringController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6370](https://github.com/MetaMask/core/pull/6370))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [23.2.0]
+
+### Added
+
+- Add actions for `createNewVaultAndKeychain` and `createNewVaultAndRestore` ([#6928](https://github.com/MetaMask/core/pull/6928))
+  - These actions are meant to to be consumed by the `MultichainAccountService` in its `createMultichainAccountWallet` method.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [23.1.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.1` ([#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.1` ([#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [23.1.0]
+
+### Added
+
+- Add `KeyringController:addNewKeyring` action ([#6439](https://github.com/MetaMask/core/pull/6439))
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.3.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
+- Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Bump `@metamask/keyring-internal-api` from `^8.1.0` to `^9.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Bump `@metamask/eth-hd-keyring` from `^12.0.0` to `13.0.0` ([#6566](https://github.com/MetaMask/core/pull/6566))
+- Bump `@metamask/eth-simple-keyring` from `^10.0.0` to `11.0.0` ([#6566](https://github.com/MetaMask/core/pull/6566))
+
+## [23.0.0]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump accounts related packages ([#6309](https://github.com/MetaMask/core/pull/6309))
+  - Bump `@metamask/keyring-api` from `^20.0.0` to `^20.1.0`
+  - Bump `@metamask/keyring-internal-api` from `^8.0.0` to `^8.1.0`
+
+### Removed
+
+- **BREAKING:** Removed QR keyring methods ([#6031](https://github.com/MetaMask/core/pull/6031))
+  - The following methods have been removed:
+    - `cancelQRSignRequest`
+    - `cancelQRSynchronization`
+    - `connectQRHardware`
+    - `forgetQRDevice`
+    - `getOrAddQRKeyring`
+    - `getQRKeyring`
+    - `getQRKeyringState`
+    - `resetQRKeyringState`
+    - `restoreQRKeyring`
+    - `submitQRCryptoHDKey`
+    - `submitQRCryptoAccount`
+    - `submitQRSignature`
+    - `unlockQRHardwareWalletAccount`
+  - Consumers can use the `withKeyring` method to select a QR keyring and execute a callback with it as argument.
+- **BREAKING:** Removed `KeyringController:qrKeyringStateChange` event ([#6031](https://github.com/MetaMask/core/pull/6031))
+
 ## [22.1.1]
 
 ### Changed
@@ -828,7 +899,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.2.0...@metamask/keyring-controller@24.0.0
+[23.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.1.1...@metamask/keyring-controller@23.2.0
+[23.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.1.0...@metamask/keyring-controller@23.1.1
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.0.0...@metamask/keyring-controller@23.1.0
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.1.1...@metamask/keyring-controller@23.0.0
 [22.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.1.0...@metamask/keyring-controller@22.1.1
 [22.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.2...@metamask/keyring-controller@22.1.0
 [22.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.1...@metamask/keyring-controller@22.0.2

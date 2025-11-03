@@ -1,10 +1,10 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { isSafeDynamicKey } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 
 import type {
   NameProvider,
@@ -41,8 +41,18 @@ const DEFAULT_VARIATION = '';
 const controllerName = 'NameController';
 
 const stateMetadata = {
-  names: { persist: true, anonymous: false },
-  nameSources: { persist: true, anonymous: false },
+  names: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  nameSources: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const getDefaultState = () => ({
@@ -89,12 +99,10 @@ export type NameControllerActions = GetNameState;
 
 export type NameControllerEvents = NameStateChange;
 
-export type NameControllerMessenger = RestrictedMessenger<
+export type NameControllerMessenger = Messenger<
   typeof controllerName,
   NameControllerActions,
-  NameControllerEvents,
-  never,
-  never
+  NameControllerEvents
 >;
 
 export type NameControllerOptions = {

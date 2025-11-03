@@ -1,7 +1,6 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Partialize } from '@metamask/controller-utils';
@@ -20,6 +19,7 @@ import {
 import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
+import type { Messenger } from '@metamask/messenger';
 import { errorCodes } from '@metamask/rpc-errors';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
@@ -470,6 +470,7 @@ export type NetworkControllerRpcEndpointDegradedEvent = {
     {
       chainId: Hex;
       endpointUrl: string;
+      error: unknown;
     },
   ];
 };
@@ -602,12 +603,10 @@ export type NetworkControllerActions =
  */
 type AllowedActions = ErrorReportingServiceCaptureExceptionAction;
 
-export type NetworkControllerMessenger = RestrictedMessenger<
+export type NetworkControllerMessenger = Messenger<
   typeof controllerName,
   NetworkControllerActions | AllowedActions,
-  NetworkControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  NetworkControllerEvents | AllowedEvents
 >;
 
 /**
@@ -1199,16 +1198,22 @@ export class NetworkController extends BaseController<
       name: controllerName,
       metadata: {
         selectedNetworkClientId: {
+          includeInStateLogs: true,
           persist: true,
-          anonymous: false,
+          includeInDebugSnapshot: false,
+          usedInUi: true,
         },
         networksMetadata: {
+          includeInStateLogs: true,
           persist: true,
-          anonymous: false,
+          includeInDebugSnapshot: false,
+          usedInUi: true,
         },
         networkConfigurationsByChainId: {
+          includeInStateLogs: true,
           persist: true,
-          anonymous: false,
+          includeInDebugSnapshot: false,
+          usedInUi: true,
         },
       },
       messenger,
@@ -1228,7 +1233,7 @@ export class NetworkController extends BaseController<
         this.state.networkConfigurationsByChainId,
       );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getEthQuery`,
@@ -1237,80 +1242,80 @@ export class NetworkController extends BaseController<
       },
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getNetworkClientById`,
       this.getNetworkClientById.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getEIP1559Compatibility`,
       this.getEIP1559Compatibility.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:setActiveNetwork`,
       this.setActiveNetwork.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:setProviderType`,
       this.setProviderType.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:findNetworkClientIdByChainId`,
       this.findNetworkClientIdByChainId.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getNetworkConfigurationByChainId`,
       this.getNetworkConfigurationByChainId.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // ESLint is mistaken here; `name` is a string.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getNetworkConfigurationByNetworkClientId`,
       this.getNetworkConfigurationByNetworkClientId.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${this.name}:getSelectedNetworkClient`,
       this.getSelectedNetworkClient.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${this.name}:getSelectedChainId`,
       this.getSelectedChainId.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // ESLint is mistaken here; `name` is a string.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:addNetwork`,
       this.addNetwork.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // ESLint is mistaken here; `name` is a string.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:removeNetwork`,
       this.removeNetwork.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // ESLint is mistaken here; `name` is a string.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:updateNetwork`,
@@ -1534,48 +1539,98 @@ export class NetworkController extends BaseController<
       updateState?: (state: Draft<NetworkState>) => void;
     } = {},
   ) {
-    this.messagingSystem.publish(
-      'NetworkController:networkWillChange',
-      this.state,
-    );
+    this.messenger.publish('NetworkController:networkWillChange', this.state);
     this.#applyNetworkSelection(networkClientId, options);
-    this.messagingSystem.publish(
-      'NetworkController:networkDidChange',
-      this.state,
-    );
+    this.messenger.publish('NetworkController:networkDidChange', this.state);
     await this.lookupNetwork();
   }
 
   /**
-   * Ensures that network clients for Infura and custom RPC endpoints have been
-   * created. Then, consulting state, initializes and establishes the currently
-   * selected network client.
-   */
-  async initializeProvider() {
-    this.#applyNetworkSelection(this.state.selectedNetworkClientId);
-    await this.lookupNetwork();
-  }
-
-  /**
-   * Refreshes the network meta with EIP-1559 support and the network status
-   * based on the given network client ID.
+   * Creates proxies for accessing the global network client and its block
+   * tracker. You must call this method in order to use
+   * `getProviderAndBlockTracker` (or its replacement,
+   * `getSelectedNetworkClient`).
    *
-   * @param networkClientId - The ID of the network client to update.
+   * @param options - Optional arguments.
+   * @param options.lookupNetwork - Usually, metadata for the global network
+   * will be populated via a call to `lookupNetwork` after creating the provider
+   * and block tracker proxies. This allows for responding to the status of the
+   * global network after initializing this controller; however, it requires
+   * making a request to the network to do so. In the clients, where controllers
+   * are initialized before the UI is shown, this may be undesirable, as it
+   * means that if the user has just installed MetaMask, their IP address may be
+   * shared with a third party before they have a chance to finish onboarding.
+   * You can pass `false` if you'd like to disable this request and call
+   * `lookupNetwork` yourself.
    */
-  async lookupNetworkByClientId(networkClientId: NetworkClientId) {
-    const isInfura = isInfuraNetworkType(networkClientId);
-    let updatedNetworkStatus: NetworkStatus;
-    let updatedIsEIP1559Compatible: boolean | undefined;
+  initializeProvider(options: { lookupNetwork: false }): void;
+
+  /**
+   * Creates proxies for accessing the global network client and its block
+   * tracker. You must call this method in order to use
+   * `getProviderAndBlockTracker` (or its replacement,
+   * `getSelectedNetworkClient`).
+   *
+   * @param options - Optional arguments.
+   * @param options.lookupNetwork - Usually, metadata for the global network
+   * will be populated via a call to `lookupNetwork` after creating the provider
+   * and block tracker proxies. This allows for responding to the status of the
+   * global network after initializing this controller; however, it requires
+   * making a request to the network to do so. In the clients, where controllers
+   * are initialized before the UI is shown, this may be undesirable, as it
+   * means that if the user has just installed MetaMask, their IP address may be
+   * shared with a third party before they have a chance to finish onboarding.
+   * You can pass `false` if you'd like to disable this request and call
+   * `lookupNetwork` yourself.
+   * @returns A promise that resolves when the network lookup completes.
+   */
+  initializeProvider(options?: { lookupNetwork?: boolean }): Promise<void>;
+
+  initializeProvider({
+    lookupNetwork = true,
+  }: {
+    lookupNetwork?: boolean;
+  } = {}) {
+    this.#applyNetworkSelection(this.state.selectedNetworkClientId);
+
+    if (lookupNetwork) {
+      return this.lookupNetwork();
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Uses a request for the latest block to gather the following information on
+   * the given network:
+   *
+   * - The connectivity status: whether it is available, geo-blocked (Infura
+   * only), unavailable, or unknown
+   * - The capabilities status: whether it supports EIP-1559, whether it does
+   * not, or whether it is unknown
+   *
+   * @param networkClientId - The ID of the network client to inspect.
+   * If no ID is provided, uses the currently selected network.
+   * @returns The resulting metadata for the network.
+   */
+  async #determineNetworkMetadata(networkClientId: NetworkClientId) {
+    // Force TypeScript to use one of the two overloads explicitly
+    const networkClient = isInfuraNetworkType(networkClientId)
+      ? this.getNetworkClientById(networkClientId)
+      : this.getNetworkClientById(networkClientId);
+
+    const isInfura =
+      networkClient.configuration.type === NetworkClientType.Infura;
+    let networkStatus: NetworkStatus;
+    let isEIP1559Compatible: boolean | undefined;
 
     try {
-      updatedIsEIP1559Compatible =
+      isEIP1559Compatible =
         await this.#determineEIP1559Compatibility(networkClientId);
-      updatedNetworkStatus = NetworkStatus.Available;
+      networkStatus = NetworkStatus.Available;
     } catch (error) {
-      debugLog('NetworkController: lookupNetworkByClientId: ', error);
+      debugLog('NetworkController: lookupNetwork: ', error);
 
-      // TODO: mock ethQuery.sendAsync to throw error without error code
-      /* istanbul ignore else */
       if (isErrorWithCode(error)) {
         let responseBody;
         if (
@@ -1588,7 +1643,7 @@ export class NetworkController extends BaseController<
           } catch {
             // error.message must not be JSON
             this.#log?.warn(
-              'NetworkController: lookupNetworkByClientId: json parse error: ',
+              'NetworkController: lookupNetwork: json parse error: ',
               error,
             );
           }
@@ -1598,89 +1653,114 @@ export class NetworkController extends BaseController<
           isPlainObject(responseBody) &&
           responseBody.error === INFURA_BLOCKED_KEY
         ) {
-          updatedNetworkStatus = NetworkStatus.Blocked;
+          networkStatus = NetworkStatus.Blocked;
         } else if (error.code === errorCodes.rpc.internal) {
-          updatedNetworkStatus = NetworkStatus.Unknown;
+          networkStatus = NetworkStatus.Unknown;
           this.#log?.warn(
-            'NetworkController: lookupNetworkByClientId: rpc internal error: ',
+            'NetworkController: lookupNetwork: rpc internal error: ',
             error,
           );
         } else {
-          updatedNetworkStatus = NetworkStatus.Unavailable;
-          this.#log?.warn(
-            'NetworkController: lookupNetworkByClientId: ',
-            error,
-          );
+          networkStatus = NetworkStatus.Unavailable;
+          this.#log?.warn('NetworkController: lookupNetwork: ', error);
         }
-      } else if (
-        typeof Error !== 'undefined' &&
-        hasProperty(error as unknown as Error, 'message') &&
-        typeof (error as unknown as Error).message === 'string' &&
-        (error as unknown as Error).message.includes(
-          'No custom network client was found with the ID',
-        )
-      ) {
-        throw error;
       } else {
         debugLog(
           'NetworkController - could not determine network status',
           error,
         );
-        updatedNetworkStatus = NetworkStatus.Unknown;
-        this.#log?.warn('NetworkController: lookupNetworkByClientId: ', error);
+        networkStatus = NetworkStatus.Unknown;
+        this.#log?.warn('NetworkController: lookupNetwork: ', error);
       }
     }
-    this.update((state) => {
-      if (state.networksMetadata[networkClientId] === undefined) {
-        state.networksMetadata[networkClientId] = {
-          status: NetworkStatus.Unknown,
-          EIPS: {},
-        };
-      }
-      const meta = state.networksMetadata[networkClientId];
-      meta.status = updatedNetworkStatus;
-      if (updatedIsEIP1559Compatible === undefined) {
-        delete meta.EIPS[1559];
-      } else {
-        meta.EIPS[1559] = updatedIsEIP1559Compatible;
-      }
-    });
+
+    return { isInfura, networkStatus, isEIP1559Compatible };
   }
 
   /**
-   * Persists the following metadata about the given or selected network to
-   * state:
+   * Uses a request for the latest block to gather the following information on
+   * the given or selected network, persisting it to state:
    *
-   * - The status of the network, namely, whether it is available, geo-blocked
-   * (Infura only), or unavailable, or whether the status is unknown
-   * - Whether the network supports EIP-1559, or whether it is unknown
+   * - The connectivity status: whether it is available, geo-blocked (Infura
+   * only), unavailable, or unknown
+   * - The capabilities status: whether it supports EIP-1559, whether it does
+   * not, or whether it is unknown
    *
-   * Note that it is possible for the network to be switched while this data is
-   * being collected. If that is the case, no metadata for the (now previously)
-   * selected network will be updated.
-   *
-   * @param networkClientId - The ID of the network client to update.
+   * @param networkClientId - The ID of the network client to inspect.
    * If no ID is provided, uses the currently selected network.
    */
   async lookupNetwork(networkClientId?: NetworkClientId) {
     if (networkClientId) {
-      await this.lookupNetworkByClientId(networkClientId);
-      return;
+      await this.#lookupGivenNetwork(networkClientId);
+    } else {
+      await this.#lookupSelectedNetwork();
     }
+  }
 
+  /**
+   * Uses a request for the latest block to gather the following information on
+   * the given network, persisting it to state:
+   *
+   * - The connectivity status: whether the network is available, geo-blocked
+   * (Infura only), unavailable, or unknown
+   * - The feature compatibility status: whether the network supports EIP-1559,
+   * whether it does not, or whether it is unknown
+   *
+   * @param networkClientId - The ID of the network client to inspect.
+   * @deprecated Please use `lookupNetwork` and pass a network client ID
+   * instead. This method will be removed in a future major version.
+   */
+  // We are planning on removing this so we aren't interested in testing this
+  // right now.
+  /* istanbul ignore next */
+  async lookupNetworkByClientId(networkClientId: NetworkClientId) {
+    await this.#lookupGivenNetwork(networkClientId);
+  }
+
+  /**
+   * Uses a request for the latest block to gather the following information on
+   * the given network, persisting it to state:
+   *
+   * - The connectivity status: whether the network is available, geo-blocked
+   * (Infura only), unavailable, or unknown
+   * - The feature compatibility status: whether the network supports EIP-1559,
+   * whether it does not, or whether it is unknown
+   *
+   * @param networkClientId - The ID of the network client to inspect.
+   */
+  async #lookupGivenNetwork(networkClientId: NetworkClientId) {
+    const { networkStatus, isEIP1559Compatible } =
+      await this.#determineNetworkMetadata(networkClientId);
+    this.#updateMetadataForNetwork(
+      networkClientId,
+      networkStatus,
+      isEIP1559Compatible,
+    );
+  }
+
+  /**
+   * Uses a request for the latest block to gather the following information on
+   * the currently selected network, persisting it to state:
+   *
+   * - The connectivity status: whether the network is available, geo-blocked
+   * (Infura only), unavailable, or unknown
+   * - The feature compatibility status: whether the network supports EIP-1559,
+   * whether it does not, or whether it is unknown
+   *
+   * Note that it is possible for the current network to be switched while this
+   * method is running. If that is the case, it will exit early (as this method
+   * will also run for the new network).
+   */
+  async #lookupSelectedNetwork() {
     if (!this.#ethQuery) {
       return;
     }
-
-    const isInfura =
-      this.#autoManagedNetworkClient?.configuration.type ===
-      NetworkClientType.Infura;
 
     let networkChanged = false;
     const listener = () => {
       networkChanged = true;
       try {
-        this.messagingSystem.unsubscribe(
+        this.messenger.unsubscribe(
           'NetworkController:networkDidChange',
           listener,
         );
@@ -1704,65 +1784,10 @@ export class NetworkController extends BaseController<
         }
       }
     };
-    this.messagingSystem.subscribe(
-      'NetworkController:networkDidChange',
-      listener,
-    );
+    this.messenger.subscribe('NetworkController:networkDidChange', listener);
 
-    let updatedNetworkStatus: NetworkStatus;
-    let updatedIsEIP1559Compatible: boolean | undefined;
-
-    try {
-      const isEIP1559Compatible = await this.#determineEIP1559Compatibility(
-        this.state.selectedNetworkClientId,
-      );
-      updatedNetworkStatus = NetworkStatus.Available;
-      updatedIsEIP1559Compatible = isEIP1559Compatible;
-    } catch (error) {
-      // TODO: mock ethQuery.sendAsync to throw error without error code
-      /* istanbul ignore else */
-      if (isErrorWithCode(error)) {
-        let responseBody;
-        if (
-          isInfura &&
-          hasProperty(error, 'message') &&
-          typeof error.message === 'string'
-        ) {
-          try {
-            responseBody = JSON.parse(error.message);
-          } catch (parseError) {
-            // error.message must not be JSON
-            this.#log?.warn(
-              'NetworkController: lookupNetwork: json parse error',
-              parseError,
-            );
-          }
-        }
-
-        if (
-          isPlainObject(responseBody) &&
-          responseBody.error === INFURA_BLOCKED_KEY
-        ) {
-          updatedNetworkStatus = NetworkStatus.Blocked;
-        } else if (error.code === errorCodes.rpc.internal) {
-          updatedNetworkStatus = NetworkStatus.Unknown;
-          this.#log?.warn(
-            'NetworkController: lookupNetwork: rpc internal error',
-            error,
-          );
-        } else {
-          updatedNetworkStatus = NetworkStatus.Unavailable;
-          this.#log?.warn('NetworkController: lookupNetwork: ', error);
-        }
-      } else {
-        debugLog(
-          'NetworkController - could not determine network status',
-          error,
-        );
-        updatedNetworkStatus = NetworkStatus.Unknown;
-        this.#log?.warn('NetworkController: lookupNetwork: ', error);
-      }
-    }
+    const { isInfura, networkStatus, isEIP1559Compatible } =
+      await this.#determineNetworkMetadata(this.state.selectedNetworkClientId);
 
     if (networkChanged) {
       // If the network has changed, then `lookupNetwork` either has been or is
@@ -1771,7 +1796,7 @@ export class NetworkController extends BaseController<
     }
 
     try {
-      this.messagingSystem.unsubscribe(
+      this.messenger.unsubscribe(
         'NetworkController:networkDidChange',
         listener,
       );
@@ -1785,28 +1810,54 @@ export class NetworkController extends BaseController<
       }
     }
 
-    this.update((state) => {
-      const meta = state.networksMetadata[state.selectedNetworkClientId];
-      meta.status = updatedNetworkStatus;
-      if (updatedIsEIP1559Compatible === undefined) {
-        delete meta.EIPS[1559];
-      } else {
-        meta.EIPS[1559] = updatedIsEIP1559Compatible;
-      }
-    });
+    this.#updateMetadataForNetwork(
+      this.state.selectedNetworkClientId,
+      networkStatus,
+      isEIP1559Compatible,
+    );
 
     if (isInfura) {
-      if (updatedNetworkStatus === NetworkStatus.Available) {
-        this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
-      } else if (updatedNetworkStatus === NetworkStatus.Blocked) {
-        this.messagingSystem.publish('NetworkController:infuraIsBlocked');
+      if (networkStatus === NetworkStatus.Available) {
+        this.messenger.publish('NetworkController:infuraIsUnblocked');
+      } else if (networkStatus === NetworkStatus.Blocked) {
+        this.messenger.publish('NetworkController:infuraIsBlocked');
       }
     } else {
       // Always publish infuraIsUnblocked regardless of network status to
       // prevent consumers from being stuck in a blocked state if they were
       // previously connected to an Infura network that was blocked
-      this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
+      this.messenger.publish('NetworkController:infuraIsUnblocked');
     }
+  }
+
+  /**
+   * Updates the metadata for the given network in state.
+   *
+   * @param networkClientId - The associated network client ID.
+   * @param networkStatus - The network status to store in state.
+   * @param isEIP1559Compatible - The EIP-1559 compatibility status to
+   * store in state.
+   */
+  #updateMetadataForNetwork(
+    networkClientId: NetworkClientId,
+    networkStatus: NetworkStatus,
+    isEIP1559Compatible: boolean | undefined,
+  ) {
+    this.update((state) => {
+      if (state.networksMetadata[networkClientId] === undefined) {
+        state.networksMetadata[networkClientId] = {
+          status: NetworkStatus.Unknown,
+          EIPS: {},
+        };
+      }
+      const meta = state.networksMetadata[networkClientId];
+      meta.status = networkStatus;
+      if (isEIP1559Compatible === undefined) {
+        delete meta.EIPS[1559];
+      } else {
+        meta.EIPS[1559] = isEIP1559Compatible;
+      }
+    });
   }
 
   /**
@@ -2046,7 +2097,7 @@ export class NetworkController extends BaseController<
       });
     });
 
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:networkAdded`,
       newNetworkConfiguration,
     );
@@ -2383,7 +2434,7 @@ export class NetworkController extends BaseController<
       });
     });
 
-    this.messagingSystem.publish(
+    this.messenger.publish(
       'NetworkController:networkRemoved',
       existingNetworkConfiguration,
     );
@@ -2787,8 +2838,9 @@ export class NetworkController extends BaseController<
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
-          messenger: this.messagingSystem,
+          messenger: this.messenger,
           isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+          logger: this.#log,
         });
       } else {
         autoManagedNetworkClientRegistry[NetworkClientType.Custom][
@@ -2803,8 +2855,9 @@ export class NetworkController extends BaseController<
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
-          messenger: this.messagingSystem,
+          messenger: this.messenger,
           isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+          logger: this.#log,
         });
       }
     }
@@ -2965,8 +3018,9 @@ export class NetworkController extends BaseController<
               },
               getRpcServiceOptions: this.#getRpcServiceOptions,
               getBlockTrackerOptions: this.#getBlockTrackerOptions,
-              messenger: this.messagingSystem,
+              messenger: this.messenger,
               isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+              logger: this.#log,
             }),
           ] as const;
         }
@@ -2982,8 +3036,9 @@ export class NetworkController extends BaseController<
             },
             getRpcServiceOptions: this.#getRpcServiceOptions,
             getBlockTrackerOptions: this.#getBlockTrackerOptions,
-            messenger: this.messagingSystem,
+            messenger: this.messenger,
             isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+            logger: this.#log,
           }),
         ] as const;
       });

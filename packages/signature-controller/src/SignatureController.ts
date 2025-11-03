@@ -4,18 +4,21 @@ import type {
   AcceptResultCallbacks,
   AddResult,
 } from '@metamask/approval-controller';
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedMessenger,
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import {
   ApprovalType,
   detectSIWE,
   ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
+import type {
+  GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction,
+  DecodedPermission,
+} from '@metamask/gator-permissions-controller';
 import type {
   KeyringControllerSignMessageAction,
   KeyringControllerSignPersonalMessageAction,
@@ -28,6 +31,7 @@ import {
   SigningStage,
   type AddLog,
 } from '@metamask/logging-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -46,8 +50,14 @@ import type {
   TypedSigningOptions,
   LegacyStateMessage,
   StateSIWEMessage,
+  MessageParamsTypedData,
 } from './types';
 import { DECODING_API_ERRORS, decodeSignature } from './utils/decoding-api';
+import {
+  decodePermissionFromRequest,
+  isDelegationRequest,
+  validateExecutionPermissionMetadata,
+} from './utils/delegations';
 import {
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
@@ -60,11 +70,36 @@ import {
 const controllerName = 'SignatureController';
 
 const stateMetadata = {
-  signatureRequests: { persist: false, anonymous: false },
-  unapprovedPersonalMsgs: { persist: false, anonymous: false },
-  unapprovedTypedMessages: { persist: false, anonymous: false },
-  unapprovedPersonalMsgCount: { persist: false, anonymous: false },
-  unapprovedTypedMessagesCount: { persist: false, anonymous: false },
+  signatureRequests: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  unapprovedPersonalMsgs: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  unapprovedTypedMessages: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  unapprovedPersonalMsgCount: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  unapprovedTypedMessagesCount: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const getDefaultState = () => ({
@@ -120,11 +155,12 @@ export type SignatureControllerState = {
 type AllowedActions =
   | AccountsControllerGetStateAction
   | AddApprovalRequest
+  | AddLog
+  | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction
+  | NetworkControllerGetNetworkClientByIdAction
   | KeyringControllerSignMessageAction
   | KeyringControllerSignPersonalMessageAction
-  | KeyringControllerSignTypedMessageAction
-  | AddLog
-  | NetworkControllerGetNetworkClientByIdAction;
+  | KeyringControllerSignTypedMessageAction;
 
 export type GetSignatureState = ControllerGetStateAction<
   typeof controllerName,
@@ -140,12 +176,10 @@ export type SignatureControllerActions = GetSignatureState;
 
 export type SignatureControllerEvents = SignatureStateChange;
 
-export type SignatureControllerMessenger = RestrictedMessenger<
+export type SignatureControllerMessenger = Messenger<
   typeof controllerName,
   SignatureControllerActions | AllowedActions,
-  SignatureControllerEvents,
-  AllowedActions['type'],
-  never
+  SignatureControllerEvents
 >;
 
 export type SignatureControllerOptions = {
@@ -282,7 +316,9 @@ export class SignatureController extends BaseController<
     const unapprovedSignatureRequests = Object.values(
       this.state.signatureRequests,
     ).filter(
-      (metadata) => metadata.status === SignatureRequestStatus.Unapproved,
+      (metadata) =>
+        (metadata.status as SignatureRequestStatus) ===
+        SignatureRequestStatus.Unapproved,
     );
 
     for (const metadata of unapprovedSignatureRequests) {
@@ -297,7 +333,9 @@ export class SignatureController extends BaseController<
     this.#updateState((state) => {
       Object.values(state.signatureRequests)
         .filter(
-          (metadata) => metadata.status === SignatureRequestStatus.Unapproved,
+          (metadata) =>
+            (metadata.status as SignatureRequestStatus) ===
+            SignatureRequestStatus.Unapproved,
         )
         .forEach((metadata) => delete state.signatureRequests[metadata.id]);
     });
@@ -341,7 +379,7 @@ export class SignatureController extends BaseController<
    *
    * @param messageParams - The params of the message to sign and return to the dApp.
    * @param request - The original request, containing the origin.
-   * @param version - The version of the signTypedData request.
+   * @param versionString - The version of the signTypedData request.
    * @param signingOptions - Options for signing the typed message.
    * @param options - An options bag for the method.
    * @param options.traceContext - The parent context for any new traces.
@@ -350,19 +388,28 @@ export class SignatureController extends BaseController<
   async newUnsignedTypedMessage(
     messageParams: MessageParamsTyped,
     request: OriginalRequest,
-    version: string,
+    versionString: string,
     signingOptions?: TypedSigningOptions,
     options: { traceContext?: TraceContext } = {},
   ): Promise<string> {
     const chainId = this.#getChainId(request);
     const internalAccounts = this.#getInternalAccounts();
 
+    const version = versionString as SignTypedDataVersion;
+
+    const decodedPermission = this.#tryGetDecodedPermissionIfDelegation({
+      messageParams,
+      version,
+      request,
+    });
+
     validateTypedSignatureRequest({
       currentChainId: chainId,
       internalAccounts,
       messageData: messageParams,
       request,
-      version: version as SignTypedDataVersion,
+      version,
+      decodedPermission,
     });
 
     const normalizedMessageParams = normalizeTypedMessageParams(
@@ -377,8 +424,68 @@ export class SignatureController extends BaseController<
       signingOptions,
       traceContext: options.traceContext,
       type: SignatureRequestType.TypedSign,
-      version: version as SignTypedDataVersion,
+      version,
+      decodedPermission,
     });
+  }
+
+  /**
+   * Attempts to decoded a permission if the request is a delegation request.
+   *
+   * @param args - The arguments for the method.
+   * @param args.messageParams - The message parameters.
+   * @param args.version - The version of the signTypedData request.
+   * @param args.request - The original request.
+   *
+   * @returns The decoded permission if the request is a delegation request.
+   */
+  #tryGetDecodedPermissionIfDelegation({
+    messageParams,
+    version,
+    request,
+  }: {
+    messageParams: MessageParamsTyped;
+    version: SignTypedDataVersion;
+    request: OriginalRequest;
+  }): DecodedPermission | undefined {
+    let data: MessageParamsTypedData;
+    try {
+      data = this.#parseTypedData(messageParams, version)
+        .data as MessageParamsTypedData;
+    } catch (error) {
+      log('Failed to parse typed data', error);
+      return undefined;
+    }
+
+    const isRequestDelegationRequest = isDelegationRequest(data);
+
+    if (
+      !isRequestDelegationRequest ||
+      !request.origin ||
+      version !== SignTypedDataVersion.V4
+    ) {
+      return undefined;
+    }
+
+    let decodedPermission: DecodedPermission | undefined;
+
+    try {
+      validateExecutionPermissionMetadata(data);
+
+      decodedPermission = decodePermissionFromRequest({
+        origin: request.origin,
+        data,
+        messenger: this.messenger,
+      });
+    } catch (error) {
+      // we ignore this error, because it simply means the request could not be
+      // decoded into a permission in which case we will not set a
+      // decodedPermission on the metadata, and may fail validation if the
+      // request is invalid.
+      log('Failed to decode permission', (error as Error).message);
+    }
+
+    return decodedPermission;
   }
 
   /**
@@ -392,7 +499,8 @@ export class SignatureController extends BaseController<
   setDeferredSignSuccess(signatureRequestId: string, signature: any) {
     this.#updateMetadata(signatureRequestId, (draftMetadata) => {
       draftMetadata.rawSig = signature;
-      draftMetadata.status = SignatureRequestStatus.Signed;
+      draftMetadata.status =
+        SignatureRequestStatus.Signed as SignatureRequestStatus;
     });
   }
 
@@ -468,6 +576,7 @@ export class SignatureController extends BaseController<
     version,
     signingOptions,
     traceContext,
+    decodedPermission,
   }: {
     chainId?: Hex;
     messageParams: MessageParams;
@@ -477,6 +586,7 @@ export class SignatureController extends BaseController<
     version?: SignTypedDataVersion;
     signingOptions?: TypedSigningOptions;
     traceContext?: TraceContext;
+    decodedPermission?: DecodedPermission;
   }): Promise<string> {
     log('Processing signature request', {
       messageParams,
@@ -496,6 +606,7 @@ export class SignatureController extends BaseController<
       signingOptions,
       type,
       version,
+      decodedPermission,
     });
 
     let resultCallbacks: AcceptResultCallbacks | undefined;
@@ -514,7 +625,7 @@ export class SignatureController extends BaseController<
 
       await this.#approveAndSignRequest(metadata, traceContext);
     } catch (error) {
-      log('Signature request failed', error);
+      log('Signature request failed', (error as Error).message);
       approveOrSignError = error;
     }
 
@@ -569,6 +680,7 @@ export class SignatureController extends BaseController<
     signingOptions,
     type,
     version,
+    decodedPermission,
   }: {
     chainId: Hex;
     messageParams: MessageParams;
@@ -576,6 +688,7 @@ export class SignatureController extends BaseController<
     signingOptions?: TypedSigningOptions;
     type: SignatureRequestType;
     version?: SignTypedDataVersion;
+    decodedPermission?: DecodedPermission;
   }): SignatureRequest {
     const id = random();
     const origin = request?.origin ?? messageParams.origin;
@@ -602,6 +715,7 @@ export class SignatureController extends BaseController<
       time: Date.now(),
       type,
       version,
+      decodedPermission,
     } as SignatureRequest;
 
     this.#updateState((state) => {
@@ -675,7 +789,7 @@ export class SignatureController extends BaseController<
 
       switch (type) {
         case SignatureRequestType.PersonalSign:
-          signature = await this.messagingSystem.call(
+          signature = await this.messenger.call(
             'KeyringController:signPersonalMessage',
             // Keyring controller temporarily using message manager types.
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -688,7 +802,7 @@ export class SignatureController extends BaseController<
             ? this.#parseTypedData(messageParams, metadata.version)
             : messageParams;
 
-          signature = await this.messagingSystem.call(
+          signature = await this.messenger.call(
             'KeyringController:signTypedMessage',
             finalRequest,
             metadata.version as SignTypedDataVersion,
@@ -767,7 +881,7 @@ export class SignatureController extends BaseController<
       parentContext: traceContext,
     });
 
-    return (await this.messagingSystem.call(
+    return (await this.messenger.call(
       'ApprovalController:addRequest',
       {
         id,
@@ -870,7 +984,7 @@ export class SignatureController extends BaseController<
       version,
     );
 
-    this.messagingSystem.call('LoggingController:add', {
+    this.messenger.call('LoggingController:add', {
       type: LogType.EthSignLog,
       data: {
         signingMethod,
@@ -912,7 +1026,7 @@ export class SignatureController extends BaseController<
       throw new Error('Network client ID not found in request');
     }
 
-    const networkClient = this.messagingSystem.call(
+    const networkClient = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
@@ -953,7 +1067,7 @@ export class SignatureController extends BaseController<
   }
 
   #getInternalAccounts(): Hex[] {
-    const state = this.messagingSystem.call('AccountsController:getState');
+    const state = this.messenger.call('AccountsController:getState');
 
     /* istanbul ignore next */
     return Object.values(state.internalAccounts?.accounts ?? {})

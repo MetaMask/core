@@ -3,9 +3,10 @@ import { AccountWalletType } from '@metamask/account-api';
 import { toAccountGroupId, toAccountWalletId } from '@metamask/account-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { AccountWalletObjectOf } from 'src/wallet';
 
+import type { AccountGroupObjectOf } from '../group';
 import { BaseRule, type Rule, type RuleResult } from '../rule';
+import type { AccountWalletObjectOf } from '../wallet';
 
 /**
  * Get wallet name from a keyring type.
@@ -44,6 +45,47 @@ export function getAccountWalletNameFromKeyringType(type: KeyringTypes) {
     // ------------------------------------------------------------------------
     default: {
       return 'Unknown';
+    }
+  }
+}
+
+/**
+ * Get group name prefix from a keyring type.
+ *
+ * @param type - Keyring's type.
+ * @returns Wallet name.
+ */
+export function getAccountGroupPrefixFromKeyringType(type: KeyringTypes) {
+  switch (type) {
+    case KeyringTypes.simple: {
+      return 'Imported Account';
+    }
+    case KeyringTypes.trezor: {
+      return 'Trezor Account';
+    }
+    case KeyringTypes.oneKey: {
+      return 'OneKey Account';
+    }
+    case KeyringTypes.ledger: {
+      return 'Ledger Account';
+    }
+    case KeyringTypes.lattice: {
+      return 'Lattice Account';
+    }
+    case KeyringTypes.qr: {
+      return 'QR Account';
+    }
+    // Those keyrings should never really be used in such context since they
+    // should be used by other grouping rules.
+    case KeyringTypes.hd: {
+      return 'Account';
+    }
+    case KeyringTypes.snap: {
+      return 'Snap Account';
+    }
+    // ------------------------------------------------------------------------
+    default: {
+      return 'Unknown Account';
     }
   }
 }
@@ -92,5 +134,17 @@ export class KeyringRule
     wallet: AccountWalletObjectOf<AccountWalletType.Keyring>,
   ): string {
     return getAccountWalletNameFromKeyringType(wallet.metadata.keyring.type);
+  }
+
+  getComputedAccountGroupName(
+    group: AccountGroupObjectOf<AccountGroupType.SingleAccount>,
+  ): string {
+    return super.getComputedAccountGroupName(group);
+  }
+
+  getDefaultAccountGroupPrefix(
+    wallet: AccountWalletObjectOf<AccountWalletType.Keyring>,
+  ): string {
+    return getAccountGroupPrefixFromKeyringType(wallet.metadata.keyring.type);
   }
 }

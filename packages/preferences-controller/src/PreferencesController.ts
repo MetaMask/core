@@ -2,13 +2,13 @@ import {
   BaseController,
   type ControllerStateChangeEvent,
   type ControllerGetStateAction,
-  type RestrictedMessenger,
 } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type {
   KeyringControllerState,
   KeyringControllerStateChangeEvent,
 } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
@@ -82,7 +82,7 @@ export type PreferencesState = {
   /**
    * Controls whether the OpenSea API is used
    */
-  openSeaEnabled: boolean;
+  displayNftMedia: boolean;
   /**
    * Controls whether "security alerts" are enabled
    */
@@ -120,7 +120,7 @@ export type PreferencesState = {
   /**
    * Controls whether Multi rpc modal is displayed or not
    */
-  useMultiRpcMigration: boolean;
+  showMultiRpcModal: boolean;
   /**
    * Controls whether to use the safe chains list validation
    */
@@ -147,31 +147,151 @@ export type PreferencesState = {
    * @deprecated This preference is deprecated and will be removed in the future.
    */
   smartAccountOptInForAccounts: Hex[];
+  /**
+   * Controls token filtering controls
+   */
+  tokenNetworkFilter: Record<string, boolean>;
 };
 
 const metadata = {
-  featureFlags: { persist: true, anonymous: true },
-  identities: { persist: true, anonymous: false },
-  ipfsGateway: { persist: true, anonymous: false },
-  isIpfsGatewayEnabled: { persist: true, anonymous: true },
-  isMultiAccountBalancesEnabled: { persist: true, anonymous: true },
-  lostIdentities: { persist: true, anonymous: false },
-  openSeaEnabled: { persist: true, anonymous: true },
-  securityAlertsEnabled: { persist: true, anonymous: true },
-  selectedAddress: { persist: true, anonymous: false },
-  showTestNetworks: { persist: true, anonymous: true },
-  showIncomingTransactions: { persist: true, anonymous: true },
-  useNftDetection: { persist: true, anonymous: true },
-  useTokenDetection: { persist: true, anonymous: true },
-  smartTransactionsOptInStatus: { persist: true, anonymous: false },
-  useTransactionSimulations: { persist: true, anonymous: true },
-  useMultiRpcMigration: { persist: true, anonymous: true },
-  useSafeChainsListValidation: { persist: true, anonymous: true },
-  tokenSortConfig: { persist: true, anonymous: true },
-  privacyMode: { persist: true, anonymous: true },
-  dismissSmartAccountSuggestionEnabled: { persist: true, anonymous: true },
-  smartAccountOptIn: { persist: true, anonymous: true },
-  smartAccountOptInForAccounts: { persist: true, anonymous: true },
+  featureFlags: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  identities: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  ipfsGateway: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  isIpfsGatewayEnabled: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  isMultiAccountBalancesEnabled: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  lostIdentities: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
+  },
+  displayNftMedia: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  securityAlertsEnabled: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  selectedAddress: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  showTestNetworks: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  showIncomingTransactions: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  useNftDetection: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  useTokenDetection: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  smartTransactionsOptInStatus: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  useTransactionSimulations: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  showMultiRpcModal: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  useSafeChainsListValidation: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  tokenSortConfig: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  privacyMode: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  dismissSmartAccountSuggestionEnabled: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  smartAccountOptIn: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  smartAccountOptInForAccounts: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  tokenNetworkFilter: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const name = 'PreferencesController';
@@ -190,14 +310,12 @@ export type PreferencesControllerActions = PreferencesControllerGetStateAction;
 
 export type PreferencesControllerEvents = PreferencesControllerStateChangeEvent;
 
-export type AllowedEvents = KeyringControllerStateChangeEvent;
+type AllowedEvents = KeyringControllerStateChangeEvent;
 
-export type PreferencesControllerMessenger = RestrictedMessenger<
+export type PreferencesControllerMessenger = Messenger<
   typeof name,
   PreferencesControllerActions,
-  PreferencesControllerEvents | AllowedEvents,
-  never,
-  AllowedEvents['type']
+  PreferencesControllerEvents | AllowedEvents
 >;
 
 /**
@@ -213,7 +331,7 @@ export function getDefaultPreferencesState(): PreferencesState {
     isIpfsGatewayEnabled: true,
     isMultiAccountBalancesEnabled: true,
     lostIdentities: {},
-    openSeaEnabled: false,
+    displayNftMedia: false,
     securityAlertsEnabled: false,
     selectedAddress: '',
     showIncomingTransactions: {
@@ -238,11 +356,12 @@ export function getDefaultPreferencesState(): PreferencesState {
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONRIVER]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.GNOSIS]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.SEI]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.MONAD]: true,
     },
     showTestNetworks: false,
     useNftDetection: false,
     useTokenDetection: true,
-    useMultiRpcMigration: true,
+    showMultiRpcModal: false,
     smartTransactionsOptInStatus: true,
     useTransactionSimulations: true,
     useSafeChainsListValidation: true,
@@ -255,6 +374,7 @@ export function getDefaultPreferencesState(): PreferencesState {
     dismissSmartAccountSuggestionEnabled: false,
     smartAccountOptIn: true,
     smartAccountOptInForAccounts: [],
+    tokenNetworkFilter: {},
   };
 }
 
@@ -451,9 +571,9 @@ export class PreferencesController extends BaseController<
    * @param useNftDetection - Boolean indicating user preference on NFT detection.
    */
   setUseNftDetection(useNftDetection: boolean) {
-    if (useNftDetection && !this.state.openSeaEnabled) {
+    if (useNftDetection && !this.state.displayNftMedia) {
       throw new Error(
-        'useNftDetection cannot be enabled if openSeaEnabled is false',
+        'useNftDetection cannot be enabled if displayNftMedia is false',
       );
     }
     this.update((state) => {
@@ -462,14 +582,14 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * Toggle the opensea enabled setting.
+   * Toggle the display nft media enabled setting.
    *
-   * @param openSeaEnabled - Boolean indicating user preference on using OpenSea's API.
+   * @param displayNftMedia - Boolean indicating user preference on using OpenSea's API.
    */
-  setOpenSeaEnabled(openSeaEnabled: boolean) {
+  setDisplayNftMedia(displayNftMedia: boolean) {
     this.update((state) => {
-      state.openSeaEnabled = openSeaEnabled;
-      if (!openSeaEnabled) {
+      state.displayNftMedia = displayNftMedia;
+      if (!displayNftMedia) {
         state.useNftDetection = false;
       }
     });
@@ -542,13 +662,13 @@ export class PreferencesController extends BaseController<
   /**
    * Toggle multi rpc migration modal.
    *
-   * @param useMultiRpcMigration - Boolean indicating if the multi rpc modal will be displayed or not.
+   * @param showMultiRpcModal - Boolean indicating if the multi rpc modal will be displayed or not.
    */
-  setUseMultiRpcMigration(useMultiRpcMigration: boolean) {
+  setShowMultiRpcModal(showMultiRpcModal: boolean) {
     this.update((state) => {
-      state.useMultiRpcMigration = useMultiRpcMigration;
-      if (!useMultiRpcMigration) {
-        state.useMultiRpcMigration = false;
+      state.showMultiRpcModal = showMultiRpcModal;
+      if (!showMultiRpcModal) {
+        state.showMultiRpcModal = false;
       }
     });
   }
@@ -643,6 +763,17 @@ export class PreferencesController extends BaseController<
   setSmartAccountOptInForAccounts(accounts: Hex[] = []): void {
     this.update((state) => {
       state.smartAccountOptInForAccounts = accounts;
+    });
+  }
+
+  /**
+   * Set the token network filter configuration setting.
+   *
+   * @param tokenNetworkFilter - Object describing token network filter configuration.
+   */
+  setTokenNetworkFilter(tokenNetworkFilter: Record<string, boolean>) {
+    this.update((state) => {
+      state.tokenNetworkFilter = tokenNetworkFilter;
     });
   }
 }

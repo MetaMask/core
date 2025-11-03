@@ -1,9 +1,10 @@
 import {
   BaseController,
+  type StateMetadata,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-  type RestrictedMessenger,
 } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 import type { TokenDisplayData } from './types';
@@ -33,10 +34,21 @@ export type TokenSearchDiscoveryDataControllerState = {
   >;
 };
 
-const tokenSearchDiscoveryDataControllerMetadata = {
-  tokenDisplayData: { persist: true, anonymous: false },
-  swapsTokenAddressesByChainId: { persist: true, anonymous: false },
-} as const;
+const tokenSearchDiscoveryDataControllerMetadata: StateMetadata<TokenSearchDiscoveryDataControllerState> =
+  {
+    tokenDisplayData: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
+    swapsTokenAddressesByChainId: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
+  } as const;
 
 // === MESSENGER ===
 
@@ -88,12 +100,10 @@ export type AllowedEvents = never;
  * The messenger which is restricted to actions and events accessed by
  * {@link TokenSearchDiscoveryDataController}.
  */
-export type TokenSearchDiscoveryDataControllerMessenger = RestrictedMessenger<
+export type TokenSearchDiscoveryDataControllerMessenger = Messenger<
   typeof controllerName,
   TokenSearchDiscoveryDataControllerActions | AllowedActions,
-  TokenSearchDiscoveryDataControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  TokenSearchDiscoveryDataControllerEvents | AllowedEvents
 >;
 
 /**
@@ -166,7 +176,7 @@ export class TokenSearchDiscoveryDataController extends BaseController<
     chainId: Hex,
     address: string,
   ): Promise<TokenPrice<Hex, string> | null> {
-    const { currentCurrency } = this.messagingSystem.call(
+    const { currentCurrency } = this.messenger.call(
       'CurrencyRateController:getState',
     );
 
@@ -241,7 +251,7 @@ export class TokenSearchDiscoveryDataController extends BaseController<
       }
     }
 
-    const { currentCurrency } = this.messagingSystem.call(
+    const { currentCurrency } = this.messenger.call(
       'CurrencyRateController:getState',
     );
 

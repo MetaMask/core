@@ -1,16 +1,16 @@
-import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
+import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 import type {
   GetCurrencyRateState,
   MultichainAssetsRatesControllerGetStateAction,
   TokenRatesControllerGetStateAction,
 } from '@metamask/assets-controllers';
 import type {
+  ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
 } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
-  NetworkControllerGetStateAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
@@ -27,8 +27,10 @@ import type {
 import type { BridgeController } from './bridge-controller';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 import type {
+  BitcoinTradeDataSchema,
   BridgeAssetSchema,
   ChainConfigurationSchema,
+  FeatureId,
   FeeDataSchema,
   PlatformConfigSchema,
   ProtocolSchema,
@@ -38,19 +40,9 @@ import type {
   TxDataSchema,
 } from './utils/validators';
 
-/**
- * Additional options accepted by the extension's fetchWithCache function
- */
-type FetchWithCacheOptions = {
-  cacheOptions?: {
-    cacheRefreshTime: number;
-  };
-  functionName?: string;
-};
-
 export type FetchFunction = (
-  input: RequestInfo | URL,
-  init?: RequestInit & FetchWithCacheOptions,
+  input: RequestInfo | URL | string,
+  init?: RequestInit,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<any>;
 
@@ -77,8 +69,8 @@ export type L1GasFees = {
   l1GasFeesInHexWei?: string; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
 };
 
-export type SolanaFees = {
-  solanaFeesInLamports?: string; // solana fees in lamports, appended by BridgeController.#appendSolanaFees
+export type NonEvmFees = {
+  nonEvmFeesInNative?: string; // Non-EVM chain fees in native units (SOL for Solana, BTC for Bitcoin)
 };
 
 /**
@@ -118,13 +110,24 @@ export type QuoteMetadata = {
    * If gas is included, this is the value of the src or dest token that was used to pay for the gas
    */
   includedTxFees?: TokenAmountValues | null;
-  gasFee: TokenAmountValues;
+  /**
+   * The gas fee for the bridge transaction.
+   * effective is the gas fee that is shown to the user. If this value is not
+   * included in the trade, the calculation falls back to the gasLimit (total)
+   * total is the gas fee that is spent by the user, including refunds.
+   * max is the max gas fee that will be used by the transaction.
+   */
+  gasFee: Record<'effective' | 'total' | 'max', TokenAmountValues>;
   totalNetworkFee: TokenAmountValues; // estimatedGasFees + relayerFees
   totalMaxNetworkFee: TokenAmountValues; // maxGasFees + relayerFees
   /**
    * The amount that the user will receive (destTokenAmount)
    */
   toTokenAmount: TokenAmountValues;
+  /**
+   * The minimum amount that the user will receive (minDestTokenAmount)
+   */
+  minToTokenAmount: TokenAmountValues;
   /**
    * If gas is included: toTokenAmount
    * Otherwise: toTokenAmount - totalNetworkFee
@@ -208,6 +211,10 @@ export type QuoteRequest<
    * and the current network has STX support
    */
   gasIncluded: boolean;
+  /**
+   * Whether to request quotes that use EIP-7702 delegated gasless execution
+   */
+  gasIncluded7702: boolean;
   noFee?: boolean;
 };
 
@@ -240,16 +247,18 @@ export type FeeData = Infer<typeof FeeDataSchema>;
 export type Quote = Infer<typeof QuoteSchema>;
 
 export type TxData = Infer<typeof TxDataSchema>;
+
+export type BitcoinTradeData = Infer<typeof BitcoinTradeDataSchema>;
 /**
  * This is the type for the quote response from the bridge-api
  * TxDataType can be overriden to be a string when the quote is non-evm
  */
-export type QuoteResponse<TxDataType = TxData> = Infer<
-  typeof QuoteResponseSchema
-> & {
-  trade: TxDataType;
-  approval?: TxData;
-};
+export type QuoteResponse<TxDataType = TxData | string | BitcoinTradeData> =
+  Infer<typeof QuoteResponseSchema> & {
+    trade: TxDataType;
+    approval?: TxData;
+    featureId?: FeatureId;
+  };
 
 export enum ChainId {
   ETH = 1,
@@ -262,6 +271,7 @@ export enum ChainId {
   AVALANCHE = 43114,
   LINEA = 59144,
   SOLANA = 1151111081099710,
+  BTC = 20000000000001,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
@@ -286,11 +296,31 @@ export enum BridgeBackgroundAction {
 
 export type BridgeControllerState = {
   quoteRequest: Partial<GenericQuoteRequest>;
-  quotes: (QuoteResponse & L1GasFees & SolanaFees)[];
+  quotes: (QuoteResponse & L1GasFees & NonEvmFees)[];
+  /**
+   * The time elapsed between the initial quote fetch and when the first valid quote was received
+   */
   quotesInitialLoadTime: number | null;
+  /**
+   * The timestamp of when the latest quote fetch started
+   */
   quotesLastFetched: number | null;
+  /**
+   * The status of the quote fetch, including fee calculations and validations
+   * This is set to
+   * - LOADING when the quote fetch starts
+   * - FETCHED when the process completes successfully, including when quotes are empty
+   * - ERROR when any errors occur
+   *
+   * When SSE is enabled, this is set to LOADING even when a quote is available. It is only
+   * set to FETCHED when the stream is closed and all quotes have been received
+   */
   quotesLoadingStatus: RequestStatus | null;
   quoteFetchError: string | null;
+  /**
+   * The number of times the quotes have been refreshed, starts at 0 and is
+   * incremented at the end of each quote fetch
+   */
   quotesRefreshCount: number;
   /**
    * Asset exchange rates for EVM and multichain assets that are not indexed by the assets controllers
@@ -310,8 +340,19 @@ export type BridgeControllerAction<
   handler: BridgeController[FunctionName];
 };
 
+export type BridgeControllerGetStateAction = ControllerGetStateAction<
+  typeof BRIDGE_CONTROLLER_NAME,
+  BridgeControllerState
+>;
+
+export type BridgeControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof BRIDGE_CONTROLLER_NAME,
+  BridgeControllerState
+>;
+
 // Maps to BridgeController function names
 export type BridgeControllerActions =
+  | BridgeControllerGetStateAction
   | BridgeControllerAction<BridgeBackgroundAction.SET_CHAIN_INTERVAL_LENGTH>
   | BridgeControllerAction<BridgeBackgroundAction.RESET_STATE>
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
@@ -320,19 +361,15 @@ export type BridgeControllerActions =
   | BridgeControllerAction<BridgeBackgroundAction.FETCH_QUOTES>
   | BridgeControllerAction<BridgeUserAction.UPDATE_QUOTE_PARAMS>;
 
-export type BridgeControllerEvents = ControllerStateChangeEvent<
-  typeof BRIDGE_CONTROLLER_NAME,
-  BridgeControllerState
->;
+export type BridgeControllerEvents = BridgeControllerStateChangeEvent;
 
 export type AllowedActions =
-  | AccountsControllerGetSelectedMultichainAccountAction
+  | AccountsControllerGetAccountByAddressAction
   | GetCurrencyRateState
   | TokenRatesControllerGetStateAction
   | MultichainAssetsRatesControllerGetStateAction
   | HandleSnapRequest
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | RemoteFeatureFlagControllerGetStateAction;
 export type AllowedEvents = never;
@@ -340,10 +377,8 @@ export type AllowedEvents = never;
 /**
  * The messenger for the BridgeController.
  */
-export type BridgeControllerMessenger = RestrictedMessenger<
+export type BridgeControllerMessenger = Messenger<
   typeof BRIDGE_CONTROLLER_NAME,
   BridgeControllerActions | AllowedActions,
-  BridgeControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  BridgeControllerEvents | AllowedEvents
 >;

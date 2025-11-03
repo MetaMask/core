@@ -1,4 +1,4 @@
-import { SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope } from '@metamask/keyring-api';
 
 import type { AllowedBridgeChainIds } from './bridge';
 import { CHAIN_IDS } from './chains';
@@ -53,6 +53,8 @@ const CURRENCY_SYMBOLS = {
   ONE: 'ONE',
   SOL: 'SOL',
   SEI: 'SEI',
+  BTC: 'BTC',
+  MON: 'MON',
 } as const;
 
 const ETH_SWAPS_TOKEN_OBJECT = {
@@ -139,9 +141,25 @@ const SOLANA_SWAPS_TOKEN_OBJECT = {
   iconUrl: '',
 } as const;
 
+const BTC_SWAPS_TOKEN_OBJECT = {
+  symbol: CURRENCY_SYMBOLS.BTC,
+  name: 'Bitcoin',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 8,
+  iconUrl: '',
+} as const;
+
 const SEI_SWAPS_TOKEN_OBJECT = {
   symbol: CURRENCY_SYMBOLS.SEI,
   name: 'Sei',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 18,
+  iconUrl: '',
+} as const;
+
+const MONAD_SWAPS_TOKEN_OBJECT = {
+  symbol: CURRENCY_SYMBOLS.MON,
+  name: 'Mon',
   address: DEFAULT_TOKEN_ADDRESS,
   decimals: 18,
   iconUrl: '',
@@ -163,7 +181,10 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.LINEA_MAINNET]: LINEA_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.BASE]: BASE_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.SEI]: SEI_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.MONAD]: MONAD_SWAPS_TOKEN_OBJECT,
   [SolScope.Mainnet]: SOLANA_SWAPS_TOKEN_OBJECT,
+  [SolScope.Devnet]: SOLANA_SWAPS_TOKEN_OBJECT,
+  [BtcScope.Mainnet]: BTC_SWAPS_TOKEN_OBJECT,
 } as const;
 
 export type SupportedSwapsNativeCurrencySymbols =
@@ -180,10 +201,12 @@ export const SYMBOL_TO_SLIP44_MAP: Record<
   `${string}:${string}`
 > = {
   SOL: 'slip44:501',
+  BTC: 'slip44:0',
   ETH: 'slip44:60',
   POL: 'slip44:966',
   BNB: 'slip44:714',
   AVAX: 'slip44:9000',
   TESTETH: 'slip44:60',
   SEI: 'slip44:19000118',
+  MON: 'slip44:268435779',
 };

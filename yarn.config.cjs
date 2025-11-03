@@ -226,7 +226,7 @@ module.exports = defineConfig({
       if (isChildWorkspace) {
         workspace.unset('packageManager');
       } else {
-        expectWorkspaceField(workspace, 'packageManager', 'yarn@4.2.2');
+        expectWorkspaceField(workspace, 'packageManager', 'yarn@4.10.3');
       }
 
       // All packages must specify a minimum Node.js version of 18.18.
@@ -500,6 +500,7 @@ async function expectWorkspaceLicense(workspace) {
       '@metamask/json-rpc-engine',
       '@metamask/json-rpc-middleware-stream',
       '@metamask/permission-log-controller',
+      '@metamask/eth-json-rpc-middleware',
       '@metamask/eth-json-rpc-provider',
     ].includes(workspace.manifest.name)
   ) {
@@ -663,10 +664,16 @@ function expectUpToDateWorkspacePeerDependencies(Yarn, workspace) {
           dependency.range,
         )
       ) {
-        // We allow "non-stable" peer dependency to be set to any range
-        // until they are being "stable" (^1.0.0).
+        // Ensure peer dependency includes latest breaking changes.
+        //
+        // Technically pre-1.0 versions can make breaking changes in patch releases, but
+        // conventionally we always bump the most significant digit for breaking changes.
         if (dependencyWorkspaceVersion.major > 0) {
           dependency.update(`^${dependencyWorkspaceVersion.major}.0.0`);
+        } else if (dependencyWorkspaceVersion.minor > 0) {
+          dependency.update(`^0.${dependencyWorkspaceVersion.minor}.0`);
+        } else {
+          dependency.update(`^0.0.${dependencyWorkspaceVersion.patch}`);
         }
       }
     }

@@ -1,9 +1,9 @@
 import type {
-  ActionConstraint,
-  EventConstraint,
-  RestrictedMessenger,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 
 import type {
   AbstractMessage,
@@ -31,14 +31,23 @@ export type EncryptionPublicKeyManagerUpdateBadgeEvent = {
   payload: [];
 };
 
-export type EncryptionPublicKeyManagerMessenger = RestrictedMessenger<
-  string,
-  ActionConstraint,
-  | EventConstraint
+type EncryptionPublicKeyManagerActions = ControllerGetStateAction<
+  typeof managerName,
+  EncryptionPublicKeyManagerState
+>;
+
+type EncryptionPublicKeyManagerEvents =
+  | ControllerStateChangeEvent<
+      typeof managerName,
+      EncryptionPublicKeyManagerState
+    >
   | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent
-  | EncryptionPublicKeyManagerUpdateBadgeEvent,
-  string,
-  string
+  | EncryptionPublicKeyManagerUpdateBadgeEvent;
+
+export type EncryptionPublicKeyManagerMessenger = Messenger<
+  typeof managerName,
+  EncryptionPublicKeyManagerActions,
+  EncryptionPublicKeyManagerEvents
 >;
 
 type EncryptionPublicKeyManagerOptions = {
@@ -91,13 +100,11 @@ export type EncryptionPublicKeyParamsMetamask =
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
 export class EncryptionPublicKeyManager extends AbstractMessageManager<
+  typeof managerName,
   EncryptionPublicKey,
   EncryptionPublicKeyParams,
   EncryptionPublicKeyParamsMetamask,
-  ActionConstraint,
-  | EventConstraint
-  | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent
-  | EncryptionPublicKeyManagerUpdateBadgeEvent
+  EncryptionPublicKeyManagerMessenger
 > {
   constructor({
     additionalFinishStatuses,
@@ -184,7 +191,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
     const messageId = messageData.id;
 
     await this.addMessage(messageData);
-    this.messagingSystem.publish(`${this.name as string}:unapprovedMessage`, {
+    this.messenger.publish(`${this.name}:unapprovedMessage` as const, {
       ...updatedMessageParams,
       metamaskId: messageId,
     });

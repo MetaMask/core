@@ -7,17 +7,25 @@ export enum UnifiedSwapBridgeEventName {
   ButtonClicked = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Button Clicked`,
   PageViewed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Page Viewed`,
   InputChanged = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Input Changed`,
-  InputSourceDestinationFlipped = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Source Destination Flipped`,
+  InputSourceDestinationSwitched = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Source Destination Switched`,
   QuotesRequested = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Requested`,
   QuotesReceived = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Received`,
-  QuoteError = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quote Error`,
-  SnapConfirmationViewed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Snap Confirmation Page Viewed`,
+  QuotesError = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Error`,
   Submitted = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Submitted`,
   Completed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Completed`,
   Failed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Failed`,
   AllQuotesOpened = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} All Quotes Opened`,
   AllQuotesSorted = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} All Quotes Sorted`,
   QuoteSelected = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quote Selected`,
+  AssetDetailTooltipClicked = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Asset Detail Tooltip Clicked`,
+  QuotesValidationFailed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Failed Validation`,
+  StatusValidationFailed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Status Failed Validation`,
+}
+
+export enum AbortReason {
+  NewQuoteRequest = 'New Quote Request',
+  QuoteRequestUpdated = 'Quote Request Updated',
+  ResetState = 'Reset controller state',
 }
 
 /**

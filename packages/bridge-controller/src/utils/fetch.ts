@@ -1,11 +1,12 @@
 import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
-import { Duration } from '@metamask/utils';
 
 import {
   formatAddressToCaipReference,
   formatChainIdToDec,
 } from './caip-formatters';
+import { fetchServerEvents } from './fetch-server-events';
+import type { FeatureId } from './validators';
 import { validateQuoteResponse, validateSwapsTokenObject } from './validators';
 import type {
   QuoteResponse,
@@ -15,10 +16,9 @@ import type {
   BridgeAsset,
 } from '../types';
 
-const CACHE_REFRESH_TEN_MINUTES = 10 * Duration.Minute;
-
-export const getClientIdHeader = (clientId: string) => ({
+export const getClientHeaders = (clientId: string, clientVersion?: string) => ({
   'X-Client-Id': clientId,
+  ...(clientVersion ? { 'Client-Version': clientVersion } : {}),
 });
 
 /**
@@ -28,6 +28,7 @@ export const getClientIdHeader = (clientId: string) => ({
  * @param clientId - The client ID for metrics
  * @param fetchFn - The fetch function to use
  * @param bridgeApiBaseUrl - The base URL for the bridge API
+ * @param clientVersion - The client version for metrics (optional)
  * @returns A list of enabled (unblocked) tokens
  */
 export async function fetchBridgeTokens(
@@ -35,6 +36,7 @@ export async function fetchBridgeTokens(
   clientId: string,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
+  clientVersion?: string,
 ): Promise<Record<string, BridgeAsset>> {
   // TODO make token api v2 call
   const url = `${bridgeApiBaseUrl}/getTokens?chainId=${formatChainIdToDec(chainId)}`;
@@ -43,9 +45,7 @@ export async function fetchBridgeTokens(
   // If we allow selecting dest networks which the user has not imported,
   // note that the Assets controller won't be able to provide tokens. In extension we fetch+cache the token list from bridge-api to handle this
   const tokens = await fetchFn(url, {
-    headers: getClientIdHeader(clientId),
-    cacheOptions: { cacheRefreshTime: CACHE_REFRESH_TEN_MINUTES },
-    functionName: 'fetchBridgeTokens',
+    headers: getClientHeaders(clientId, clientVersion),
   });
 
   const transformedTokens: Record<string, BridgeAsset> = {};
@@ -59,22 +59,11 @@ export async function fetchBridgeTokens(
 
 /**
  * Converts the generic quote request to the type that the bridge-api expects
- * then fetches quotes from the bridge-api
  *
  * @param request - The quote request
- * @param signal - The abort signal
- * @param clientId - The client ID for metrics
- * @param fetchFn - The fetch function to use
- * @param bridgeApiBaseUrl - The base URL for the bridge API
- * @returns A list of bridge tx quotes
+ * @returns A URLSearchParams object with the query parameters
  */
-export async function fetchBridgeQuotes(
-  request: GenericQuoteRequest,
-  signal: AbortSignal | null,
-  clientId: string,
-  fetchFn: FetchFunction,
-  bridgeApiBaseUrl: string,
-): Promise<QuoteResponse[]> {
+const formatQueryParams = (request: GenericQuoteRequest): URLSearchParams => {
   const destWalletAddress = request.destWalletAddress ?? request.walletAddress;
   // Transform the generic quote request into QuoteRequest
   const normalizedRequest: QuoteRequest = {
@@ -88,6 +77,7 @@ export async function fetchBridgeQuotes(
     insufficientBal: Boolean(request.insufficientBal),
     resetApproval: Boolean(request.resetApproval),
     gasIncluded: Boolean(request.gasIncluded),
+    gasIncluded7702: Boolean(request.gasIncluded7702),
   };
   if (request.slippage !== undefined) {
     normalizedRequest.slippage = request.slippage;
@@ -106,48 +96,88 @@ export async function fetchBridgeQuotes(
   Object.entries(normalizedRequest).forEach(([key, value]) => {
     queryParams.append(key, value.toString());
   });
+  return queryParams;
+};
+
+/**
+ * Fetches quotes from the bridge-api's getQuote endpoint
+ *
+ * @param request - The quote request
+ * @param signal - The abort signal
+ * @param clientId - The client ID for metrics
+ * @param fetchFn - The fetch function to use
+ * @param bridgeApiBaseUrl - The base URL for the bridge API
+ * @param featureId - The feature ID to append to each quote
+ * @param clientVersion - The client version for metrics (optional)
+ * @returns A list of bridge tx quotes
+ */
+export async function fetchBridgeQuotes(
+  request: GenericQuoteRequest,
+  signal: AbortSignal | null,
+  clientId: string,
+  fetchFn: FetchFunction,
+  bridgeApiBaseUrl: string,
+  featureId: FeatureId | null,
+  clientVersion?: string,
+): Promise<{
+  quotes: QuoteResponse[];
+  validationFailures: string[];
+}> {
+  const queryParams = formatQueryParams(request);
+
   const url = `${bridgeApiBaseUrl}/getQuote?${queryParams}`;
   const quotes: unknown[] = await fetchFn(url, {
-    headers: getClientIdHeader(clientId),
+    headers: getClientHeaders(clientId, clientVersion),
     signal,
-    cacheOptions: { cacheRefreshTime: 0 },
-    functionName: 'fetchBridgeQuotes',
   });
 
-  const validationFailuresByAggregator: {
-    [aggregator: string]: Set<string>;
-  } = {};
-  const filteredQuotes = quotes.filter((quoteResponse: unknown) => {
-    try {
-      return validateQuoteResponse(quoteResponse);
-    } catch (error) {
-      if (error instanceof StructError) {
-        error.failures().forEach(({ branch, path }) => {
-          const aggregatorId = branch?.[0]?.quote?.bridgeId;
-          if (!validationFailuresByAggregator[aggregatorId]) {
-            validationFailuresByAggregator[aggregatorId] = new Set([]);
-          }
-          const pathString = path?.join('.') || 'unknown';
-          validationFailuresByAggregator[aggregatorId].add(pathString);
-        });
+  const uniqueValidationFailures: Set<string> = new Set<string>([]);
+  const filteredQuotes = quotes
+    .filter((quoteResponse: unknown): quoteResponse is QuoteResponse => {
+      try {
+        return validateQuoteResponse(quoteResponse);
+      } catch (error) {
+        if (error instanceof StructError) {
+          error.failures().forEach(({ branch, path }) => {
+            const aggregatorId =
+              branch?.[0]?.quote?.bridgeId ||
+              branch?.[0]?.quote?.bridges?.[0] ||
+              (quoteResponse as QuoteResponse)?.quote?.bridgeId ||
+              (quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ||
+              'unknown';
+            const pathString = path?.join('.') || 'unknown';
+            uniqueValidationFailures.add([aggregatorId, pathString].join('|'));
+          });
+        }
+        return false;
       }
-      return false;
-    }
-  });
+    })
+    .map((quote) => ({
+      ...quote,
+      featureId: featureId ?? undefined,
+    }));
 
-  if (Object.keys(validationFailuresByAggregator).length > 0) {
-    console.error('Quote validation failed', validationFailuresByAggregator);
+  const validationFailures = Array.from(uniqueValidationFailures);
+  if (uniqueValidationFailures.size > 0) {
+    console.warn('Quote validation failed', validationFailures);
   }
-  return filteredQuotes as QuoteResponse[];
+
+  return {
+    quotes: filteredQuotes,
+    validationFailures,
+  };
 }
 
 const fetchAssetPricesForCurrency = async (request: {
   currency: string;
   assetIds: Set<CaipAssetType>;
   clientId: string;
+  clientVersion?: string;
   fetchFn: FetchFunction;
+  signal?: AbortSignal;
 }): Promise<Record<CaipAssetType, { [currency: string]: string }>> => {
-  const { currency, assetIds, clientId, fetchFn } = request;
+  const { currency, assetIds, clientId, clientVersion, fetchFn, signal } =
+    request;
   const validAssetIds = Array.from(assetIds).filter(Boolean);
   if (validAssetIds.length === 0) {
     return {};
@@ -159,11 +189,9 @@ const fetchAssetPricesForCurrency = async (request: {
   });
   const url = `https://price.api.cx.metamask.io/v3/spot-prices?${queryParams}`;
   const priceApiResponse = (await fetchFn(url, {
-    headers: getClientIdHeader(clientId),
-    cacheOptions: { cacheRefreshTime: Number(Duration.Second * 30) },
-    functionName: 'fetchAssetExchangeRates',
+    headers: getClientHeaders(clientId, clientVersion),
+    signal,
   })) as Record<CaipAssetType, { [currency: string]: number }>;
-
   if (!priceApiResponse || typeof priceApiResponse !== 'object') {
     return {};
   }
@@ -228,3 +256,87 @@ export const fetchAssetPrices = async (
 
   return combinedPrices;
 };
+
+/**
+ * Converts the generic quote request to the type that the bridge-api expects
+ * then fetches quotes from the bridge-api
+ *
+ * @param fetchFn - The fetch function to use
+ * @param request - The quote request
+ * @param signal - The abort signal
+ * @param clientId - The client ID for metrics
+ * @param bridgeApiBaseUrl - The base URL for the bridge API
+ * @param serverEventHandlers - The server event handlers
+ * @param serverEventHandlers.onValidationFailure - The function to handle validation failures
+ * @param serverEventHandlers.onValidQuoteReceived - The function to handle valid quotes
+ * @param serverEventHandlers.onClose - The function to run when the stream is closed and there are no thrown errors
+ * @param clientVersion - The client version for metrics (optional)
+ * @returns A list of bridge tx quotes
+ */
+export async function fetchBridgeQuoteStream(
+  fetchFn: FetchFunction,
+  request: GenericQuoteRequest,
+  signal: AbortSignal | undefined,
+  clientId: string,
+  bridgeApiBaseUrl: string,
+  serverEventHandlers: {
+    onClose: () => void;
+    onValidationFailure: (validationFailures: string[]) => void;
+    onValidQuoteReceived: (quotes: QuoteResponse) => Promise<void>;
+  },
+  clientVersion?: string,
+): Promise<void> {
+  const queryParams = formatQueryParams(request);
+
+  const onMessage = (quoteResponse: unknown) => {
+    const uniqueValidationFailures: Set<string> = new Set<string>([]);
+
+    try {
+      if (validateQuoteResponse(quoteResponse)) {
+        // eslint-disable-next-line promise/catch-or-return, @typescript-eslint/no-floating-promises
+        serverEventHandlers.onValidQuoteReceived(quoteResponse).then((v) => {
+          return v;
+        });
+      }
+    } catch (error) {
+      if (error instanceof StructError) {
+        error.failures().forEach(({ branch, path }) => {
+          const aggregatorId =
+            branch?.[0]?.quote?.bridgeId ||
+            branch?.[0]?.quote?.bridges?.[0] ||
+            (quoteResponse as QuoteResponse)?.quote?.bridgeId ||
+            (quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ||
+            'unknown';
+          const pathString = path?.join('.') || 'unknown';
+          uniqueValidationFailures.add([aggregatorId, pathString].join('|'));
+        });
+      }
+      const validationFailures = Array.from(uniqueValidationFailures);
+      if (uniqueValidationFailures.size > 0) {
+        console.warn('Quote validation failed', validationFailures);
+        serverEventHandlers.onValidationFailure(validationFailures);
+      } else {
+        // Rethrow any unexpected errors
+        throw error;
+      }
+    }
+  };
+
+  const urlStream = `${bridgeApiBaseUrl}/getQuoteStream?${queryParams}`;
+  await fetchServerEvents(urlStream, {
+    headers: {
+      ...getClientHeaders(clientId, clientVersion),
+      'Content-Type': 'text/event-stream',
+    },
+    signal,
+    onMessage,
+    onError: (e) => {
+      // Rethrow error to prevent silent fetch failures
+      throw e;
+    },
+    onClose: () => {
+      serverEventHandlers.onClose();
+    },
+    fetchFn,
+  });
+}

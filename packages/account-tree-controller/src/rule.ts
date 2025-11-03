@@ -10,7 +10,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountGroupObject, AccountGroupObjectOf } from './group';
 import type { AccountTreeControllerMessenger } from './types';
-import type { AccountWalletObjectOf } from './wallet';
+import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
 
 export type RuleResult<
   WalletType extends AccountWalletType,
@@ -73,12 +73,22 @@ export type Rule<
   ): string;
 
   /**
-   * Gets default name for a group.
+   * Gets computed name for a group based on its accounts.
    *
    * @param group - Group associated to this rule.
-   * @returns The default name for that group.
+   * @returns The computed name based on existing accounts.
    */
-  getDefaultAccountGroupName(group: AccountGroupObjectOf<GroupType>): string;
+  getComputedAccountGroupName(group: AccountGroupObjectOf<GroupType>): string;
+
+  /**
+   * Gets default name for a group based on its position in the wallet.
+   *
+   * @param wallet - Wallet associated to this rule.
+   * @returns The default name prefix for groups of that wallet.
+   */
+  getDefaultAccountGroupPrefix(
+    wallet: AccountWalletObjectOf<WalletType>,
+  ): string;
 };
 
 export class BaseRule {
@@ -89,18 +99,29 @@ export class BaseRule {
   }
 
   /**
-   * Gets default name for a group.
+   * Gets computed name for a group based on its accounts.
    *
    * @param group - Group associated to this rule.
-   * @returns The default name for that group.
+   * @returns The computed name based on existing accounts.
    */
-  getDefaultAccountGroupName(group: AccountGroupObject): string {
+  getComputedAccountGroupName(group: AccountGroupObject): string {
     const account = this.messenger.call(
       'AccountsController:getAccount',
       // Type-wise, we are guaranteed to always have at least 1 account.
       group.accounts[0],
     );
 
-    return account?.metadata.name ?? ''; // Not sure what fallback name to use here..
+    return account?.metadata.name ?? '';
+  }
+
+  /**
+   * Gets default prefix name for a group.
+   *
+   * @param wallet - Wallet of this group.
+   * @returns The default prefix name for that group.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  getDefaultAccountGroupPrefix(wallet: AccountWalletObject): string {
+    return 'Account';
   }
 }

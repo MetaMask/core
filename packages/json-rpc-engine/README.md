@@ -12,192 +12,721 @@ or
 
 ## Usage
 
-```js
-const { JsonRpcEngine } = require('@metamask/json-rpc-engine');
+> [!NOTE]
+> For the legacy `JsonRpcEngine`, see [its readme](./src/README.md).
 
-const engine = new JsonRpcEngine();
-```
+```ts
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import type {
+  Json,
+  JsonRpcMiddleware,
+  MiddlewareContext,
+} from '@metamask/json-rpc-engine/v2';
 
-Build a stack of JSON-RPC processors by pushing middleware to the engine.
+type Middleware = JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  MiddlewareContext<{ hello: string }>
+>;
 
-```js
-engine.push(function (req, res, next, end) {
-  res.result = 42;
-  end();
+// Engines are instantiated using the `create()` factory method as opposed to
+// the constructor, which is private.
+const engine = JsonRpcEngineV2.create<Middleware>({
+  middleware: [
+    ({ request, next, context }) => {
+      if (request.method === 'hello') {
+        context.set('hello', 'world');
+        return next();
+      }
+      return null;
+    },
+    ({ context }) => context.assertGet('hello'),
+  ],
 });
 ```
 
-Requests are handled asynchronously, stepping down the stack until complete.
+Requests are handled asynchronously, stepping down the middleware stack until complete.
 
-```js
-const request = { id: 1, jsonrpc: '2.0', method: 'hello' };
+```ts
+const request = { id: '1', jsonrpc: '2.0', method: 'hello' };
 
-engine.handle(request, function (err, response) {
-  // Do something with response.result, or handle response.error
-});
-
-// There is also a Promise signature
-const response = await engine.handle(request);
+try {
+  const result = await engine.handle(request);
+  // Do something with the result
+} catch (error) {
+  // Handle the error
+}
 ```
 
-Middleware have direct access to the request and response objects.
-They can let processing continue down the stack with `next()`, or complete the request with `end()`.
+Alternatively, pass the engine to a `JsonRpcServer`, which coerces raw request
+objects into well-formed requests, and handles error serialization:
 
-```js
-engine.push(function (req, res, next, end) {
-  if (req.skipCache) return next();
-  res.result = getResultFromCache(req);
-  end();
-});
-```
+```ts
+const server = new JsonRpcServer({ engine, onError });
+const request = { id: '1', jsonrpc: '2.0', method: 'hello' };
 
-By passing a _return handler_ to the `next` function, you can get a peek at the result before it returns.
+// server.handle() never throws
+const response = await server.handle(request);
+if ('result' in response) {
+  // Handle result
+} else {
+  // Handle error
+}
 
-```js
-engine.push(function (req, res, next, end) {
-  next(function (cb) {
-    insertIntoCache(res, cb);
-  });
-});
-```
-
-If you specify a `notificationHandler` when constructing the engine, JSON-RPC notifications passed to `handle()` will be handed off directly to this function without touching the middleware stack:
-
-```js
-const engine = new JsonRpcEngine({ notificationHandler });
-
-// A notification is defined as a JSON-RPC request without an `id` property.
 const notification = { jsonrpc: '2.0', method: 'hello' };
 
-const response = await engine.handle(notification);
-console.log(typeof response); // 'undefined'
+// Always returns undefined for notifications
+await server.handle(notification);
 ```
 
-Engines can be nested by converting them to middleware using `JsonRpcEngine.asMiddleware()`:
+### Legacy compatibility
 
-```js
-const engine = new JsonRpcEngine();
-const subengine = new JsonRpcEngine();
-engine.push(subengine.asMiddleware());
-```
+Use the `asLegacyMiddleware` function to use a `JsonRpcEngineV2` as a
+middleware in a legacy `JsonRpcEngine`:
 
-### `async` Middleware
+```ts
+import {
+  asLegacyMiddleware,
+  JsonRpcEngineV2,
+} from '@metamask/json-rpc-engine/v2';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 
-If you require your middleware function to be `async`, use `createAsyncMiddleware`:
+const legacyEngine = new JsonRpcEngine();
 
-```js
-const { createAsyncMiddleware } = require('@metamask/json-rpc-engine');
-
-let engine = new RpcEngine();
-engine.push(
-  createAsyncMiddleware(async (req, res, next) => {
-    res.result = 42;
-    next();
-  }),
-);
-```
-
-`async` middleware do not take an `end` callback.
-Instead, the request ends if the middleware returns without calling `next()`:
-
-```js
-engine.push(
-  createAsyncMiddleware(async (req, res, next) => {
-    res.result = 42;
-    /* The request will end when this returns */
-  }),
-);
-```
-
-The `next` callback of `async` middleware also don't take return handlers.
-Instead, you can `await next()`.
-When the execution of the middleware resumes, you can work with the response again.
-
-```js
-engine.push(
-  createAsyncMiddleware(async (req, res, next) => {
-    res.result = 42;
-    await next();
-    /* Your return handler logic goes here */
-    addToMetrics(res);
-  }),
-);
-```
-
-You can freely mix callback-based and `async` middleware:
-
-```js
-engine.push(function (req, res, next, end) {
-  if (!isCached(req)) {
-    return next((cb) => {
-      insertIntoCache(res, cb);
-    });
-  }
-  res.result = getResultFromCache(req);
-  end();
+const v2Engine = JsonRpcEngineV2.create({
+  middleware: [
+    // ...
+  ],
 });
 
-engine.push(
-  createAsyncMiddleware(async (req, res, next) => {
-    res.result = 42;
-    await next();
-    addToMetrics(res);
-  }),
-);
+legacyEngine.push(asLegacyMiddleware(v2Engine));
 ```
 
-### Teardown
+In keeping with the conventions of the legacy engine, non-JSON-RPC string properties of the `context` will be
+copied over to the request once the V2 engine is done with the request. _Note that **only `string` keys** of
+the `context` will be copied over._
 
-If your middleware has teardown to perform, you can assign a method `destroy()` to your middleware function(s),
-and calling `JsonRpcEngine.destroy()` will call this method on each middleware that has it.
-A destroyed engine can no longer be used.
+### Middleware
 
-```js
-const middleware = (req, res, next, end) => {
-  /* do something */
+Middleware functions can be sync or async.
+They receive a `MiddlewareParams` object containing:
+
+- `request`
+  - The JSON-RPC request or notification (readonly)
+- `context`
+  - An append-only `Map` for passing data between middleware
+- `next`
+  - Function that calls the next middleware in the stack and returns its result (if any)
+
+Here's a basic example:
+
+```ts
+const engine = JsonRpcEngineV2.create({
+  middleware: [
+    ({ next, context }) => {
+      context.set('foo', 'bar');
+      // Proceed to the next middleware and return its result
+      return next();
+    },
+    async ({ request, context }) => {
+      await doSomething(request, context.get('foo'));
+      // Return a result wihout calling next() to end the request
+      return 42;
+    },
+  ],
+});
+```
+
+In practice, middleware functions are often defined apart from the engine in which
+they are used. Middleware defined in this manner must use the `JsonRpcMiddleware` type:
+
+```ts
+export const permissionMiddleware: JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json, // The result
+  MiddlewareContext<{ user: User; permissions: Permissions }>
+> = async ({ request, context, next }) => {
+  const user = context.assertGet('user');
+  const permissions = await getUserPermissions(user.id);
+  context.set('permissions', permissions);
+  return next();
 };
-middleware.destroy = () => {
-  /* perform teardown */
-};
-
-const engine = new JsonRpcEngine();
-engine.push(middleware);
-
-/* perform work */
-
-// This will call middleware.destroy() and destroy the engine itself.
-engine.destroy();
-
-// Calling any public method on the middleware other than `destroy()` itself
-// will throw an error.
-engine.handle(req);
 ```
 
-### Gotchas
+Middleware can specify a return type, however `next()` always returns the widest possible
+type based on the type of the `request`. See [Requests vs. notifications](#requests-vs-notifications)
+for more details.
 
-Handle errors via `end(err)`, _NOT_ `next(err)`.
+Creating a useful `JsonRpcEngineV2` requires composing differently typed middleware together.
+See [Engine composition](#engine-composition) for how to
+accomplish this in the same or a set of composed engines.
 
-```js
-/* INCORRECT */
-engine.push(function (req, res, next, end) {
-  next(new Error());
+### Requests vs. notifications
+
+JSON-RPC requests come in two flavors:
+
+- [Requests](https://www.jsonrpc.org/specification#request_object), i.e. request objects _with_ an `id`
+- [Notifications](https://www.jsonrpc.org/specification#notification), i.e. request objects _without_ an `id`
+
+`next()` returns `Json` for requests, `void` for notifications, and `Json | void` if the type of the request
+object is not known.
+
+For requests, one of the engine's middleware must "end" the request by returning a non-`undefined` result, or `.handle()`
+will throw an error:
+
+```ts
+const engine = JsonRpcEngineV2.create({
+  middleware: [
+    () => {
+      if (Math.random() > 0.5) {
+        return 42;
+      }
+      return undefined;
+    },
+  ],
 });
 
-/* CORRECT */
-engine.push(function (req, res, next, end) {
-  end(new Error());
+const request = { jsonrpc: '2.0', id: '1', method: 'hello' };
+
+try {
+  const result = await engine.handle(request);
+  console.log(result); // 42
+} catch (error) {
+  console.error(error); // Nothing ended request: { ... }
+}
+```
+
+For notifications, on the other hand, one of the engine's middleware must return `undefined` to end the request,
+and any non-`undefined` return values will cause an error to be thrown:
+
+```ts
+const notification = { jsonrpc: '2.0', method: 'hello' };
+
+try {
+  const result = await engine.handle(notification);
+  console.log(result); // undefined
+} catch (error) {
+  console.error(error); // Result returned for notification: { ... }
+}
+```
+
+If your middleware may be passed both requests and notifications,
+use the `isRequest` or `isNotification` utilities to determine what to do:
+
+> [!NOTE]
+> Middleware that handle both requests and notifications—i.e. the `JsonRpcCall` type—
+> must ensure that their return values are valid for incoming requests at runtime.
+> There is no compile time type error if such a middleware returns e.g. a string
+> for a notification.
+
+```ts
+import {
+  isRequest,
+  isNotification,
+  JsonRpcEngineV2,
+} from '@metamask/json-rpc-engine/v2';
+
+const engine = JsonRpcEngineV2.create({
+  middleware: [
+    async ({ request, next }) => {
+      if (isRequest(request) && request.method === 'everything') {
+        return 42;
+      }
+      return next();
+    },
+    ({ request }) => {
+      if (isNotification(request)) {
+        console.log(`Received notification: ${request.method}`);
+        return undefined;
+      }
+      return null;
+    },
+  ],
 });
 ```
 
-However, `next()` will detect errors on the response object, and cause
-`end(res.error)` to be called.
+### Request modification
 
-```js
-engine.push(function (req, res, next, end) {
-  res.error = new Error();
-  next(); /* This will cause end(res.error) to be called. */
+The `request` object is immutable.
+Attempting to directly modify it will throw an error.
+Middleware can modify the `method` and `params` properties
+by passing a new request object to `next()`:
+
+```ts
+const engine = JsonRpcEngineV2.create({
+  middleware: [
+    ({ request, next }) => {
+      // Modify the request for subsequent middleware
+      // The new request object will be deeply frozen
+      return next({
+        ...request,
+        method: 'modified_method',
+        params: [1, 2, 3],
+      });
+    },
+    ({ request }) => {
+      // This middleware receives the modified request
+      return request.params[0];
+    },
+  ],
 });
 ```
+
+Modifying the `jsonrpc` or `id` properties is not allowed, and will cause
+an error:
+
+```ts
+const engine = JsonRpcEngineV2.create({
+  middleware: [
+    ({ request, next }) => {
+      return next({
+        ...request,
+        // Modifying either property will cause an error
+        jsonrpc: '3.0',
+        id: 'foo',
+      });
+    },
+    () => 42,
+  ],
+});
+
+// Error: Middleware attempted to modify readonly property...
+await engine.handle(anyRequest);
+```
+
+### Result handling
+
+Middleware can observe the result by awaiting `next()`:
+
+```ts
+const engine = JsonRpcEngineV2.create({
+  middleware: [
+    async ({ request, next }) => {
+      const startTime = Date.now();
+      const result = await next();
+      const duration = Date.now() - startTime;
+
+      // Log the request duration
+      console.log(
+        `Request ${request.method} producing ${result} took ${duration}ms`,
+      );
+
+      // By returning `undefined`, the result will be forwarded unmodified to earlier
+      // middleware.
+    },
+    ({ request }) => {
+      return 'Hello, World!';
+    },
+  ],
+});
+```
+
+Like the `request`, the `result` is also immutable.
+Middleware can update the result by returning a new one.
+
+```ts
+const engine = JsonRpcEngineV2.create({
+  middleware: [
+    async ({ request, next }) => {
+      const result = await next();
+
+      // Add metadata to the result
+      if (result && typeof result === 'object') {
+        // The new result will also be deeply frozen
+        return {
+          ...result,
+          metadata: {
+            processedAt: new Date().toISOString(),
+            requestId: request.id,
+          },
+        };
+      }
+
+      // Returning the unmodified result is equivalent to returning `undefined`
+      return result;
+    },
+    ({ request }) => {
+      // Initial result
+      return { message: 'Hello, World!' };
+    },
+  ],
+});
+
+const result = await engine.handle({
+  id: '1',
+  jsonrpc: '2.0',
+  method: 'hello',
+});
+console.log(result);
+// {
+//   message: 'Hello, World!',
+//   metadata: {
+//     processedAt: '2024-01-01T12:00:00.000Z',
+//     requestId: 1
+//   }
+// }
+```
+
+### The `MiddlewareContext`
+
+Use the `context` to share data between middleware:
+
+```ts
+const engine = JsonRpcEngineV2.create({
+  middleware: [
+    async ({ context, next }) => {
+      context.set('user', { id: '123', name: 'Alice' });
+      return next();
+    },
+    async ({ context, next }) => {
+      // context.assertGet() throws if the value does not exist
+      const user = context.assertGet('user') as { id: string; name: string };
+      context.set('permissions', await getUserPermissions(user.id));
+      return next();
+    },
+    ({ context }) => {
+      const user = context.get('user');
+      const permissions = context.get('permissions');
+      return { user, permissions };
+    },
+  ],
+});
+```
+
+The `context` supports `PropertyKey` keys, i.e. strings, numbers, and symbols.
+To prevent accidental naming collisions, existing keys must be deleted before they can be
+overwritten via `set()`.
+Context values are not frozen, and objects can be mutated as normal:
+
+```ts
+const engine = JsonRpcEngineV2.create({
+  middleware: [
+    async ({ context, next }) => {
+      context.set('user', { id: '123', name: 'Alice' });
+      return next();
+    },
+    async ({ context, next }) => {
+      const user = context.assertGet<{ id: string; name: string }>('user');
+      user.name = 'Bob';
+      return next();
+    },
+    // ...
+  ],
+});
+```
+
+#### Constraining context keys and values
+
+The context exposes a generic parameter `KeyValues`, which determines the keys and values
+a context instance supports:
+
+```ts
+const context = new MiddlewareContext();
+context.set('foo', 'bar');
+context.get('foo'); // 'bar'
+context.get('fizz'); // undefined
+```
+
+By default, `KeyValues` is `Record<PropertyKey, unknown>`. However, any object type can be
+specified, effectively turning the context into a strongly typed `Map`:
+
+```ts
+const context = new MiddlewareContext<{ foo: string }>([['foo', 'bar']]);
+context.get('foo'); // 'bar'
+context.get('fizz'); // Type error
+```
+
+The context is itself exposed as the third generic parameter of the `JsonRpcMiddleware` type.
+See [Instrumenting middleware pipelines](#instrumenting-middleware-pipelines) for how to
+compose different context types together.
+
+### Error handling
+
+Errors in middleware are propagated up the call stack:
+
+```ts
+const engine = JsonRpcEngineV2.create({
+  middleware: [
+    ({ next }) => {
+      return next();
+    },
+    ({ request, next }) => {
+      if (request.method === 'restricted') {
+        throw new Error('Method not allowed');
+      }
+      return 'Success';
+    },
+  ],
+});
+
+try {
+  await engine.handle({ id: '1', jsonrpc: '2.0', method: 'restricted' });
+} catch (error) {
+  console.error('Request failed:', error.message);
+}
+```
+
+If your middleware awaits `next()`, it can handle errors using `try`/`catch`:
+
+```ts
+const engine = JsonRpcEngineV2.create({
+  middleware: [
+    ({ request, next }) => {
+      try {
+        return await next();
+      } catch (error) {
+        console.error(`Request ${request.method} errored:`, error);
+        return 42;
+      }
+    },
+    ({ request }) => {
+      if (!isValid(request)) {
+        throw new Error('Invalid request');
+      }
+    },
+  ],
+});
+
+const result = await engine.handle({
+  id: '1',
+  jsonrpc: '2.0',
+  method: 'hello',
+});
+console.log('Result:', result);
+// Request hello errored: Error: Invalid request
+// Result: 42
+```
+
+#### Internal errors
+
+The engine throws `JsonRpcEngineError` values when its invariants are violated, e.g. a middleware returns
+a result value for a notification.
+If you want to reliably detect these cases, use `JsonRpcEngineError.isInstance(error)`, which works across
+versions of this package in the same realm.
+
+### Engine composition
+
+#### Instrumenting middleware pipelines
+
+As discussed in the [Middleware](#middleware) section, middleware are often defined apart from the
+engine in which they are used. To be used within the same engine, a set of middleware must have
+compatible types. Specifically, all middleware must:
+
+- Handle either `JsonRpcRequest`, `JsonRpcNotification`, or both (i.e. `JsonRpcCall`)
+  - It is okay to mix `JsonRpcCall` middleware with either `JsonRpcRequest` or `JsonRpcNotification`
+    middleware, as long as the latter two are not mixed together.
+- Return valid results for the overall request type
+- Specify mutually inclusive context types
+  - The context types may be the same, partially intersecting, or completely disjoint
+    so long as they are not mutually exclusive.
+
+For example, the following middleware are compatible:
+
+```ts
+const middleware1: JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  MiddlewareContext<{ foo: string }>
+> = /* ... */;
+
+const middleware2: JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  MiddlewareContext<{ bar: string }>
+> = /* ... */;
+
+const middleware3: JsonRpcMiddleware<
+  JsonRpcRequest,
+  { foo: string; bar: string },
+  MiddlewareContext<{ foo: string; bar: string; baz: number }>
+> = /* ... */;
+
+// ✅ OK
+const engine = JsonRpcEngineV2.create<Middleware>({
+  middleware: [middleware1, middleware2, middleware3],
+});
+```
+
+The following middleware are incompatible due to mismatched request types:
+
+> [!WARNING]
+> Providing `JsonRpcRequest`- and `JsonRpcNotification`-only middleware to the same engine is
+> generally unsound and should be avoided. However, doing so will **not** cause a type error,
+> and it is the programmer's responsibility to prevent it from happening.
+
+```ts
+const middleware1: JsonRpcMiddleware<JsonRpcNotification> = /* ... */;
+
+const middleware2: JsonRpcMiddleware<JsonRpcRequest> = /* ... */;
+
+// ⚠️ Attempting to call engine.handle() will NOT cause a type error, but it
+// may cause errors at runtime and should be avoided.
+const engine = JsonRpcEngineV2.create<Middleware>({
+  middleware: [middleware1, middleware2],
+});
+```
+
+Finally, these middleware are incompatible due to mismatched context types:
+
+```ts
+const middleware1: JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  MiddlewareContext<{ foo: string }>
+> = /* ... */;
+
+const middleware2: JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  MiddlewareContext<{ foo: number }>
+> = /* ... */;
+
+// ❌ The type of the engine is `never`; accessing any property will cause a type error
+const engine = JsonRpcEngineV2.create<Middleware>({
+  middleware: [middleware1, middleware2],
+});
+```
+
+#### `asMiddleware()`
+
+Engines can be nested by converting them to middleware using `asMiddleware()`:
+
+```ts
+const subEngine = JsonRpcEngineV2.create({
+  middleware: [
+    ({ request }) => {
+      return 'Sub-engine result';
+    },
+  ],
+});
+
+const mainEngine = JsonRpcEngineV2.create({
+  middleware: [
+    subEngine.asMiddleware(),
+    ({ request, next }) => {
+      const subResult = await next();
+      return `Main engine processed: ${subResult}`;
+    },
+  ],
+});
+```
+
+Engines used as middleware may return `undefined` for requests, but only when
+used as middleware:
+
+```ts
+const loggingEngine = JsonRpcEngineV2.create({
+  middleware: [
+    ({ request, next }) => {
+      console.log('Observed request:', request.method);
+    },
+  ],
+});
+
+const mainEngine = JsonRpcEngineV2.create({
+  middleware: [
+    loggingEngine.asMiddleware(),
+    ({ request }) => {
+      return 'success';
+    },
+  ],
+});
+
+const request = { id: '1', jsonrpc: '2.0', method: 'hello' };
+const result = await mainEngine.handle(request);
+console.log('Result:', result);
+// Observed request: hello
+// Result: success
+
+// ATTN: This will throw "Nothing ended request"
+const result2 = await loggingEngine.handle(request);
+```
+
+#### Calling `handle()` in a middleware
+
+You can also compose different engines together by calling `handle(request, context)`
+on a different engine in a middleware. Keep in mind that, unlike when using `asMiddleware()`,
+these "sub"-engines must return results for requests.
+
+This method of composition can be useful to instrument request- and notification-only
+middleware pipelines:
+
+```ts
+const requestEngine = JsonRpcEngineV2.create({
+  middleware: [
+    /* Request-only middleware */
+  ],
+});
+
+const notificationEngine = JsonRpcEngineV2.create({
+  middleware: [
+    /* Notification-only middleware */
+  ],
+});
+
+const orchestratorEngine = JsonRpcEngineV2.create({
+  middleware: [
+    ({ request, context }) =>
+      isRequest(request)
+        ? requestEngine.handle(request, { context })
+        : notificationEngine.handle(request as JsonRpcNotification, {
+            context,
+          }),
+  ],
+});
+```
+
+### `JsonRpcServer`
+
+The `JsonRpcServer` wraps a `JsonRpcEngineV2` to provide JSON-RPC 2.0 compliance and error handling. It coerces raw request objects into well-formed requests and handles error serialization.
+
+```ts
+import { JsonRpcEngineV2, JsonRpcServer } from '@metamask/json-rpc-engine/v2';
+
+const engine = new JsonRpcEngine({ middleware });
+
+const server = new JsonRpcServer({
+  engine,
+  // onError receives the raw error, before it is coerced into a JSON-RPC error.
+  onError: (error) => console.error('Server error:', error),
+});
+
+// server.handle() never throws - all errors are handled by onError
+const response = await server.handle({
+  id: '1',
+  jsonrpc: '2.0',
+  method: 'hello',
+});
+if ('result' in response) {
+  // Handle successful response
+} else {
+  // Handle error response
+}
+
+// Notifications always return undefined
+const notification = { jsonrpc: '2.0', method: 'hello' };
+await server.handle(notification); // Returns undefined
+```
+
+The server accepts any object with a `method` property, coercing it into a request or notification
+depending on the presence or absence of the `id` property, respectively.
+Except for the `id`, all present JSON-RPC 2.0 fields are validated for spec conformance.
+The `id` is replaced during request processing with an internal, trusted value, although the
+original `id` is attached to the response before it is returned.
+
+Response objects are returned for requests, and contain
+the `result` in case of success and `error` in case of failure.
+`undefined` is always returned for notifications.
+
+Errors thrown by the underlying engine are always passed to `onError` unmodified.
+If the request is not a notification, the error is subsequently serialized and attached
+to the response object via the `error` property.
+
+> [!WARNING]
+> It is possible to construct a `JsonRpcServer` the only accepts either requests or notifications,
+> but not both. If you do so, it is your responsibility to ensure that the server is only used with the
+> appropriate request objects. `JsonRpcServer.handle()` will not type error at compile time if you attempt to pass
+> it an unsupported request object.
 
 ## Contributing
 

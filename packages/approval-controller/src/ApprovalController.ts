@@ -1,9 +1,12 @@
-import type { ControllerGetStateAction } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  StateMetadata,
+} from '@metamask/base-controller';
 import {
   BaseController,
   type ControllerStateChangeEvent,
-  type RestrictedMessenger,
 } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { JsonRpcError, DataWithOptionalCause } from '@metamask/rpc-errors';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, OptionalField } from '@metamask/utils';
@@ -26,10 +29,25 @@ export const APPROVAL_TYPE_RESULT_SUCCESS = 'result_success';
 
 const controllerName = 'ApprovalController';
 
-const stateMetadata = {
-  pendingApprovals: { persist: false, anonymous: true },
-  pendingApprovalCount: { persist: false, anonymous: false },
-  approvalFlows: { persist: false, anonymous: false },
+const stateMetadata: StateMetadata<ApprovalControllerState> = {
+  pendingApprovals: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  pendingApprovalCount: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  approvalFlows: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const getAlreadyPendingMessage = (origin: string, type: string) =>
@@ -119,12 +137,10 @@ export type ApprovalControllerState = {
   approvalFlows: ApprovalFlowState[];
 };
 
-export type ApprovalControllerMessenger = RestrictedMessenger<
+export type ApprovalControllerMessenger = Messenger<
   typeof controllerName,
   ApprovalControllerActions,
-  ApprovalControllerEvents,
-  never,
-  never
+  ApprovalControllerEvents
 >;
 
 // Option Types
@@ -398,12 +414,12 @@ export class ApprovalController extends BaseController<
    * actions.
    */
   private registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:clearRequests` as const,
       this.clear.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:addRequest` as const,
       (opts: AddApprovalOptions, shouldShowRequest: boolean) => {
         if (shouldShowRequest) {
@@ -413,47 +429,47 @@ export class ApprovalController extends BaseController<
       },
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:hasRequest` as const,
       this.has.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:acceptRequest` as const,
       this.accept.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:rejectRequest` as const,
       this.reject.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:updateRequestState` as const,
       this.updateRequestState.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:startFlow` as const,
       this.startFlow.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:endFlow` as const,
       this.endFlow.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:setFlowLoadingText` as const,
       this.setFlowLoadingText.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:showSuccess` as const,
       this.success.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:showError` as const,
       this.error.bind(this),
     );

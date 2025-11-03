@@ -1,8 +1,10 @@
 import {
   BaseController,
-  type RestrictedMessenger,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import type { Messenger } from '@metamask/messenger';
 import {
   type Json,
   type JsonRpcRequest,
@@ -70,12 +72,24 @@ export type PermissionLogControllerOptions = {
   messenger: PermissionLogControllerMessenger;
 };
 
-export type PermissionLogControllerMessenger = RestrictedMessenger<
+export type PermissionLogControllerGetStateAction = ControllerGetStateAction<
   typeof name,
-  never,
-  never,
-  never,
-  never
+  PermissionLogControllerState
+>;
+
+export type PermissionLogControllerActions =
+  PermissionLogControllerGetStateAction;
+
+export type PermissionLogControllerStateChangeEvent =
+  ControllerStateChangeEvent<typeof name, PermissionLogControllerState>;
+
+export type PermissionLogControllerEvents =
+  PermissionLogControllerStateChangeEvent;
+
+export type PermissionLogControllerMessenger = Messenger<
+  typeof name,
+  PermissionLogControllerActions,
+  PermissionLogControllerEvents
 >;
 
 const defaultState: PermissionLogControllerState = {
@@ -106,12 +120,16 @@ export class PermissionLogController extends BaseController<
       name,
       metadata: {
         permissionHistory: {
+          includeInStateLogs: true,
           persist: true,
-          anonymous: false,
+          includeInDebugSnapshot: false,
+          usedInUi: true,
         },
         permissionActivityLog: {
+          includeInStateLogs: true,
           persist: false,
-          anonymous: false,
+          includeInDebugSnapshot: false,
+          usedInUi: false,
         },
       },
       state: { ...defaultState, ...state },

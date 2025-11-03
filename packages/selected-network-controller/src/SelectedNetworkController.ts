@@ -1,5 +1,9 @@
-import type { RestrictedMessenger } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+} from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   BlockTrackerProxy,
   NetworkClientId,
@@ -16,12 +20,16 @@ import type {
 } from '@metamask/permission-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
-import type { Patch } from 'immer';
 
-export const controllerName = 'SelectedNetworkController';
+const controllerName = 'SelectedNetworkController';
 
 const stateMetadata = {
-  domains: { persist: true, anonymous: false },
+  domains: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const getDefaultState = () => ({ domains: {} });
@@ -46,15 +54,17 @@ export type SelectedNetworkControllerState = {
   domains: Record<Domain, NetworkClientId>;
 };
 
-export type SelectedNetworkControllerStateChangeEvent = {
-  type: typeof SelectedNetworkControllerEventTypes.stateChange;
-  payload: [SelectedNetworkControllerState, Patch[]];
-};
+export type SelectedNetworkControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    SelectedNetworkControllerState
+  >;
 
-export type SelectedNetworkControllerGetSelectedNetworkStateAction = {
-  type: typeof SelectedNetworkControllerActionTypes.getState;
-  handler: () => SelectedNetworkControllerState;
-};
+export type SelectedNetworkControllerGetSelectedNetworkStateAction =
+  ControllerGetStateAction<
+    typeof controllerName,
+    SelectedNetworkControllerState
+  >;
 
 export type SelectedNetworkControllerGetNetworkClientIdForDomainAction = {
   type: typeof SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain;
@@ -71,7 +81,7 @@ export type SelectedNetworkControllerActions =
   | SelectedNetworkControllerGetNetworkClientIdForDomainAction
   | SelectedNetworkControllerSetNetworkClientIdForDomainAction;
 
-export type AllowedActions =
+type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetSelectedNetworkClientAction
   | NetworkControllerGetStateAction
@@ -81,25 +91,19 @@ export type AllowedActions =
 export type SelectedNetworkControllerEvents =
   SelectedNetworkControllerStateChangeEvent;
 
-export type AllowedEvents =
+type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | PermissionControllerStateChange;
 
-export type SelectedNetworkControllerMessenger = RestrictedMessenger<
+export type SelectedNetworkControllerMessenger = Messenger<
   typeof controllerName,
   SelectedNetworkControllerActions | AllowedActions,
-  SelectedNetworkControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  SelectedNetworkControllerEvents | AllowedEvents
 >;
 
 export type SelectedNetworkControllerOptions = {
   state?: SelectedNetworkControllerState;
   messenger: SelectedNetworkControllerMessenger;
-  useRequestQueuePreference: boolean;
-  onPreferencesStateChange: (
-    listener: (preferencesState: { useRequestQueue: boolean }) => void,
-  ) => void;
   domainProxyMap: Map<Domain, NetworkProxy>;
 };
 
@@ -116,25 +120,19 @@ export class SelectedNetworkController extends BaseController<
   SelectedNetworkControllerState,
   SelectedNetworkControllerMessenger
 > {
-  #domainProxyMap: Map<Domain, NetworkProxy>;
-
-  #useRequestQueuePreference: boolean;
+  readonly #domainProxyMap: Map<Domain, NetworkProxy>;
 
   /**
    * Construct a SelectedNetworkController controller.
    *
    * @param options - The controller options.
-   * @param options.messenger - The restricted messenger for the EncryptionPublicKey controller.
+   * @param options.messenger - The messenger for the SelectedNetworkController controller.
    * @param options.state - The controllers initial state.
-   * @param options.useRequestQueuePreference - A boolean indicating whether to use the request queue preference.
-   * @param options.onPreferencesStateChange - A callback that is called when the preference state changes.
    * @param options.domainProxyMap - A map for storing domain-specific proxies that are held in memory only during use.
    */
   constructor({
     messenger,
     state = getDefaultState(),
-    useRequestQueuePreference,
-    onPreferencesStateChange,
     domainProxyMap,
   }: SelectedNetworkControllerOptions) {
     super({
@@ -143,23 +141,22 @@ export class SelectedNetworkController extends BaseController<
       messenger,
       state,
     });
-    this.#useRequestQueuePreference = useRequestQueuePreference;
     this.#domainProxyMap = domainProxyMap;
     this.#registerMessageHandlers();
 
     // this is fetching all the dapp permissions from the PermissionsController and looking for any domains that are not in domains state in this controller. Then we take any missing domains and add them to state here, setting it with the globally selected networkClientId (fetched from the NetworkController)
-    this.messagingSystem
+    this.messenger
       .call('PermissionController:getSubjectNames')
       .filter((domain) => this.state.domains[domain] === undefined)
       .forEach((domain) =>
         this.setNetworkClientIdForDomain(
           domain,
-          this.messagingSystem.call('NetworkController:getState')
+          this.messenger.call('NetworkController:getState')
             .selectedNetworkClientId,
         ),
       );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'PermissionController:stateChange',
       (_, patches) => {
         patches.forEach(({ op, path }) => {
@@ -170,7 +167,7 @@ export class SelectedNetworkController extends BaseController<
             if (op === 'add' && this.state.domains[domain] === undefined) {
               this.setNetworkClientIdForDomain(
                 domain,
-                this.messagingSystem.call('NetworkController:getState')
+                this.messenger.call('NetworkController:getState')
                   .selectedNetworkClientId,
               );
             } else if (
@@ -184,7 +181,7 @@ export class SelectedNetworkController extends BaseController<
       },
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'NetworkController:stateChange',
       (
         { selectedNetworkClientId, networkConfigurationsByChainId },
@@ -199,12 +196,16 @@ export class SelectedNetworkController extends BaseController<
         if (patch) {
           const networkClientIdToChainId = Object.values(
             networkConfigurationsByChainId,
-          ).reduce((acc, network) => {
-            network.rpcEndpoints.forEach(
-              ({ networkClientId }) => (acc[networkClientId] = network.chainId),
-            );
-            return acc;
-          }, {} as Record<string, Hex>);
+          ).reduce(
+            (acc, network) => {
+              network.rpcEndpoints.forEach(
+                ({ networkClientId }) =>
+                  (acc[networkClientId] = network.chainId),
+              );
+              return acc;
+            },
+            {} as Record<string, Hex>,
+          );
 
           Object.entries(this.state.domains).forEach(
             ([domain, networkClientIdForDomain]) => {
@@ -241,29 +242,14 @@ export class SelectedNetworkController extends BaseController<
         }
       },
     );
-
-    onPreferencesStateChange(({ useRequestQueue }) => {
-      if (this.#useRequestQueuePreference !== useRequestQueue) {
-        if (!useRequestQueue) {
-          // Loop through all domains and points each domain's proxy
-          // to the NetworkController's own proxy of the globally selected networkClient
-          Object.keys(this.state.domains).forEach((domain) => {
-            this.#unsetNetworkClientIdForDomain(domain);
-          });
-        } else {
-          this.#resetAllPermissionedDomains();
-        }
-        this.#useRequestQueuePreference = useRequestQueue;
-      }
-    });
   }
 
   #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
       this.getNetworkClientIdForDomain.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain,
       this.setNetworkClientIdForDomain.bind(this),
     );
@@ -273,7 +259,7 @@ export class SelectedNetworkController extends BaseController<
     domain: Domain,
     networkClientId: NetworkClientId,
   ) {
-    const networkClient = this.messagingSystem.call(
+    const networkClient = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
@@ -296,7 +282,7 @@ export class SelectedNetworkController extends BaseController<
    * @param domain - The domain for which to unset the network client ID.
    */
   #unsetNetworkClientIdForDomain(domain: Domain) {
-    const globallySelectedNetworkClient = this.messagingSystem.call(
+    const globallySelectedNetworkClient = this.messenger.call(
       'NetworkController:getSelectedNetworkClient',
     );
     const networkProxy = this.#domainProxyMap.get(domain);
@@ -314,37 +300,13 @@ export class SelectedNetworkController extends BaseController<
   }
 
   #domainHasPermissions(domain: Domain): boolean {
-    return this.messagingSystem.call(
-      'PermissionController:hasPermissions',
-      domain,
-    );
-  }
-
-  // Loop through all domains and for those with permissions it points that domain's proxy
-  // to an unproxied instance of the globally selected network client.
-  // NOT the NetworkController's proxy of the globally selected networkClient
-  #resetAllPermissionedDomains() {
-    this.#domainProxyMap.forEach((_: NetworkProxy, domain: string) => {
-      const { selectedNetworkClientId } = this.messagingSystem.call(
-        'NetworkController:getState',
-      );
-      // can't use public setNetworkClientIdForDomain because it will throw an error
-      // rather than simply skip if the domain doesn't have permissions which can happen
-      // in this case since proxies are added for each site the user visits
-      if (this.#domainHasPermissions(domain)) {
-        this.#setNetworkClientIdForDomain(domain, selectedNetworkClientId);
-      }
-    });
+    return this.messenger.call('PermissionController:hasPermissions', domain);
   }
 
   setNetworkClientIdForDomain(
     domain: Domain,
     networkClientId: NetworkClientId,
   ) {
-    if (!this.#useRequestQueuePreference) {
-      return;
-    }
-
     if (domain === METAMASK_DOMAIN) {
       throw new Error(
         `NetworkClientId for domain "${METAMASK_DOMAIN}" cannot be set on the SelectedNetworkController`,
@@ -362,10 +324,8 @@ export class SelectedNetworkController extends BaseController<
 
   getNetworkClientIdForDomain(domain: Domain): NetworkClientId {
     const { selectedNetworkClientId: metamaskSelectedNetworkClientId } =
-      this.messagingSystem.call('NetworkController:getState');
-    if (!this.#useRequestQueuePreference) {
-      return metamaskSelectedNetworkClientId;
-    }
+      this.messenger.call('NetworkController:getState');
+
     return this.state.domains[domain] ?? metamaskSelectedNetworkClientId;
   }
 
@@ -378,7 +338,7 @@ export class SelectedNetworkController extends BaseController<
   getProviderAndBlockTracker(domain: Domain): NetworkProxy {
     // If the domain is 'metamask', return the NetworkController's globally selected network client proxy
     if (domain === METAMASK_DOMAIN) {
-      const networkClient = this.messagingSystem.call(
+      const networkClient = this.messenger.call(
         'NetworkController:getSelectedNetworkClient',
       );
       if (networkClient === undefined) {
@@ -390,17 +350,14 @@ export class SelectedNetworkController extends BaseController<
     let networkProxy = this.#domainProxyMap.get(domain);
     if (networkProxy === undefined) {
       let networkClient;
-      if (
-        this.#useRequestQueuePreference &&
-        this.#domainHasPermissions(domain)
-      ) {
+      if (this.#domainHasPermissions(domain)) {
         const networkClientId = this.getNetworkClientIdForDomain(domain);
-        networkClient = this.messagingSystem.call(
+        networkClient = this.messenger.call(
           'NetworkController:getNetworkClientById',
           networkClientId,
         );
       } else {
-        networkClient = this.messagingSystem.call(
+        networkClient = this.messenger.call(
           'NetworkController:getSelectedNetworkClient',
         );
         if (networkClient === undefined) {

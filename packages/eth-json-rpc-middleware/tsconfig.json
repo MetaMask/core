@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../error-reporting-service"
+    },
+    {
+      "path": "../eth-block-tracker"
+    },
+    {
+      "path": "../eth-json-rpc-provider"
+    },
+    {
+      "path": "../json-rpc-engine"
+    },
+    {
+      "path": "../network-controller"
+    }
+  ],
+  "include": ["../../types", "./src", "./test", "./types"]
+}
