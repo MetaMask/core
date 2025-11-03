@@ -9,6 +9,7 @@ import type {
 import { hasProperty, isObject } from '@metamask/utils';
 
 import type {
+  HandleOptions,
   JsonRpcMiddleware,
   MergedContextOf,
   MiddlewareConstraint,
@@ -102,9 +103,14 @@ export class JsonRpcServer<
    * engine. The request will fail if the engine can only handle notifications.
    *
    * @param request - The request to handle.
+   * @param options - The options for the handle operation.
+   * @param options.context - The context to pass to the middleware.
    * @returns The JSON-RPC response.
    */
-  async handle(request: JsonRpcRequest): Promise<JsonRpcResponse>;
+  async handle(
+    request: JsonRpcRequest,
+    options?: HandleOptions<MergedContextOf<Middleware>>,
+  ): Promise<JsonRpcResponse>;
 
   /**
    * Handle a JSON-RPC notification.
@@ -116,8 +122,13 @@ export class JsonRpcServer<
    * engine. The request will fail if the engine cannot handle notifications.
    *
    * @param notification - The notification to handle.
+   * @param options - The options for the handle operation.
+   * @param options.context - The context to pass to the middleware.
    */
-  async handle(notification: JsonRpcNotification): Promise<void>;
+  async handle(
+    notification: JsonRpcNotification,
+    options?: HandleOptions<MergedContextOf<Middleware>>,
+  ): Promise<void>;
 
   /**
    * Handle an alleged JSON-RPC request or notification. Permits any plain
@@ -133,12 +144,20 @@ export class JsonRpcServer<
    * response) is not of the type expected by the underlying engine.
    *
    * @param rawRequest - The raw request to handle.
+   * @param options - The options for the handle operation.
+   * @param options.context - The context to pass to the middleware.
    * @returns The JSON-RPC response, or `undefined` if the request is a
    * notification.
    */
-  async handle(rawRequest: unknown): Promise<JsonRpcResponse | void>;
+  async handle(
+    rawRequest: unknown,
+    options?: HandleOptions<MergedContextOf<Middleware>>,
+  ): Promise<JsonRpcResponse | void>;
 
-  async handle(rawRequest: unknown): Promise<JsonRpcResponse | void> {
+  async handle(
+    rawRequest: unknown,
+    options?: HandleOptions<MergedContextOf<Middleware>>,
+  ): Promise<JsonRpcResponse | void> {
     // If rawRequest is not a notification, the originalId will be attached
     // to the response. We attach our own, trusted id in #coerceRequest()
     // while the request is being handled.
@@ -148,7 +167,7 @@ export class JsonRpcServer<
       const request = this.#coerceRequest(rawRequest, isRequest);
       // @ts-expect-error - The request may not be of the type expected by the engine,
       // and we intentionally allow this to happen.
-      const result = await this.#engine.handle(request);
+      const result = await this.#engine.handle(request, options);
 
       if (result !== undefined) {
         return {

@@ -64,7 +64,7 @@ type RequestState<Request extends JsonRpcCall> = {
   result: Readonly<ResultConstraint<Request>> | undefined;
 };
 
-export type HandleOptions<Context extends MiddlewareContext> = {
+export type HandleOptions<Context extends ContextConstraint> = {
   context?: Context | InferKeyValues<Context>;
 };
 
