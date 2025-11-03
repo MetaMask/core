@@ -65,7 +65,16 @@ type AllEvents = AllGasFeeControllerEvents | AllNetworkControllerEvents;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const getRootMessenger = (): RootMessenger => {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+  const rootMessenger = new Messenger<
+    MockAnyNamespace,
+    MessengerActions<NetworkControllerMessenger>,
+    MessengerEvents<NetworkControllerMessenger>
+  >({ namespace: MOCK_ANY_NAMESPACE });
+  rootMessenger.registerActionHandler(
+    'ErrorReportingService:captureException',
+    jest.fn(),
+  );
+  return rootMessenger;
 };
 
 const setupNetworkController = async ({
@@ -79,21 +88,6 @@ const setupNetworkController = async ({
   clock: sinon.SinonFakeTimers;
   initializeProvider?: boolean;
 }) => {
-  const errorReportingMessenger = new Messenger<
-    'ErrorReportingService',
-    MessengerActions<ErrorReportingServiceMessenger>,
-    MessengerEvents<ErrorReportingServiceMessenger>,
-    typeof rootMessenger
-  >({
-    namespace: 'ErrorReportingService',
-    parent: rootMessenger,
-  });
-
-  new ErrorReportingService({
-    messenger: errorReportingMessenger,
-    captureException: jest.fn(),
-  });
-
   const networkControllerMessenger = new Messenger<
     'NetworkController',
     MessengerActions<NetworkControllerMessenger>,

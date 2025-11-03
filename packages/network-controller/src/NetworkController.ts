@@ -1114,7 +1114,7 @@ function correctInitialState(
       messenger.call(
         'ErrorReportingService:captureException',
         new Error(
-          '`networksMetadata` had invalid network client IDs which have been removed',
+          '`networksMetadata` had invalid network client IDs, which have been removed',
         ),
       );
     }

@@ -351,12 +351,12 @@ describe('NetworkController', () => {
     });
 
     it('corrects an invalid selectedNetworkClientId to the default RPC endpoint of the first chain, logging this fact', () => {
-      const messenger = buildRootMessenger();
       const captureExceptionMock = jest.fn();
-      messenger.registerActionHandler(
-        'ErrorReportingService:captureException',
-        captureExceptionMock,
-      );
+      const messenger = buildRootMessenger({
+        actionHandlers: {
+          'ErrorReportingService:captureException': captureExceptionMock,
+        },
+      });
       const controllerMessenger = buildNetworkControllerMessenger(messenger);
 
       const controller = new NetworkController({
@@ -398,12 +398,12 @@ describe('NetworkController', () => {
     });
 
     it('removes invalid network client IDs from networksMetadata, logging this fact', () => {
-      const messenger = buildRootMessenger();
       const captureExceptionMock = jest.fn();
-      messenger.registerActionHandler(
-        'ErrorReportingService:captureException',
-        captureExceptionMock,
-      );
+      const messenger = buildRootMessenger({
+        actionHandlers: {
+          'ErrorReportingService:captureException': captureExceptionMock,
+        },
+      });
       const controllerMessenger = buildNetworkControllerMessenger(messenger);
 
       const controller = new NetworkController({
@@ -452,7 +452,7 @@ describe('NetworkController', () => {
       );
       expect(captureExceptionMock).toHaveBeenCalledWith(
         new Error(
-          '`networksMetadata` had invalid network client IDs which have been removed',
+          '`networksMetadata` had invalid network client IDs, which have been removed',
         ),
       );
     });
@@ -852,7 +852,7 @@ describe('NetworkController', () => {
               },
             },
             networksMetadata: {
-              mainnet: {
+              [TESTNET.networkType]: {
                 EIPS: { 1559: true },
                 status: NetworkStatus.Unknown,
               },
@@ -886,7 +886,7 @@ describe('NetworkController', () => {
                 },
               },
               "networksMetadata": Object {
-                "mainnet": Object {
+                "sepolia": Object {
                   "EIPS": Object {
                     "1559": true,
                   },
@@ -15682,7 +15682,7 @@ function lookupNetworkTests({
             state: {
               ...initialState,
               networksMetadata: {
-                mainnet: {
+                [expectedNetworkClientId]: {
                   EIPS: { 1559: false },
                   status: NetworkStatus.Unknown,
                 },
@@ -15725,7 +15725,7 @@ function lookupNetworkTests({
             state: {
               ...initialState,
               networksMetadata: {
-                mainnet: {
+                [expectedNetworkClientId]: {
                   EIPS: { 1559: true },
                   status: NetworkStatus.Unknown,
                 },

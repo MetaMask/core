@@ -43,6 +43,7 @@ import type {
   InfuraNetworkClientConfiguration,
 } from '../src/types';
 import { NetworkClientType } from '../src/types';
+import { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 
 export type AllNetworkControllerActions =
   MessengerActions<NetworkControllerMessenger>;
@@ -82,10 +83,29 @@ export const TESTNET = {
  * Build a root messenger that includes all events used by the network
  * controller.
  *
+ * @param options - Options.
+ * @param options.actionHandlers - Handlers for actions that are pre-registered
+ * on the messenger.
  * @returns The messenger.
  */
-export function buildRootMessenger(): RootMessenger {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+export function buildRootMessenger({
+  actionHandlers = {},
+}: {
+  actionHandlers?: {
+    'ErrorReportingService:captureException'?: ErrorReportingServiceCaptureExceptionAction['handler'];
+  };
+} = {}): RootMessenger {
+  const rootMessenger = new Messenger<
+    MockAnyNamespace,
+    MessengerActions<NetworkControllerMessenger>,
+    MessengerEvents<NetworkControllerMessenger>
+  >({ namespace: MOCK_ANY_NAMESPACE });
+  rootMessenger.registerActionHandler(
+    'ErrorReportingService:captureException',
+    actionHandlers['ErrorReportingService:captureException'] ??
+      ((error) => console.error(error)),
+  );
+  return rootMessenger;
 }
 
 /**
