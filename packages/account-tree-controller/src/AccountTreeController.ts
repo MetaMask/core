@@ -321,7 +321,15 @@ export class AccountTreeController extends BaseController<
       'MultichainAccountService:getMultichainAccountWallets',
     )) {
       for (const group of wallet.getMultichainAccountGroups()) {
-        this.#resyncAccountsFromMultichainAccountGroups(group);
+        const { inSync } =
+          this.#getDiffAccountsFromMultichainAccountGroups(group);
+
+        const groupObject = wallets[wallet.id]?.groups[group.id];
+        if (groupObject && inSync.length > 0) {
+          // We still check for `inSync` length to make sure we can cast here (since groups
+          // MUST HAVE at least 1 account).
+          groupObject.accounts = inSync as AccountGroupObject['accounts'];
+        }
       }
     }
 
@@ -1270,37 +1278,42 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Check if an account group object is in-sync with its multichain
+   * Gets the difference between an account group object and its multichain
    * account group counterpart.
    *
-   * If not, then the extra-accounts fromt he account group object
-   * will be removed from the tree.
-   *
    * @param group - Multichain account group that got created or updated.
+   * @returns The diff object to know which accounts are similar and the ones that
+   * needs to be removed.
    */
-  #resyncAccountsFromMultichainAccountGroups(
+  #getDiffAccountsFromMultichainAccountGroups(
     group: MultichainAccountGroup<Bip44Account<KeyringAccount>>,
-  ): void {
+  ): { inSync: AccountId[]; toRemove: AccountId[] } {
     const multichainGroupAccounts = new Set(
       group.getAccounts().map((account) => account.id),
     );
+
+    const sync = {
+      inSync: [] as AccountId[],
+      toRemove: [] as AccountId[],
+    };
 
     // We only check if some accounts are no longer part of the multichain
     // account group. This is required mainly with the `AccountProviderWrapper`s that
     // can be disabled when "Basic functionality" is turned OFF or when the wrappers
     // are controlled by remote feature flags.
     const treeGroup = this.#getAccountGroup(group.id);
-    const treeGroupAccountsToRemove: AccountId[] = [];
     if (treeGroup) {
       for (const account of treeGroup.accounts) {
         // Remove accounts that not longer exist on the multichain account group.
-        if (!multichainGroupAccounts.has(account)) {
-          treeGroupAccountsToRemove.push(account);
+        if (multichainGroupAccounts.has(account)) {
+          sync.inSync.push(account);
+        } else {
+          sync.toRemove.push(account);
         }
       }
     }
 
-    this.#removeAccounts(treeGroupAccountsToRemove);
+    return sync;
   }
 
   /**
@@ -1311,7 +1324,9 @@ export class AccountTreeController extends BaseController<
   #handleMultichainAccountWalletGroupCreatedOrUpdated(
     group: MultichainAccountGroup<Bip44Account<KeyringAccount>>,
   ): void {
-    this.#resyncAccountsFromMultichainAccountGroups(group);
+    const { toRemove } =
+      this.#getDiffAccountsFromMultichainAccountGroups(group);
+    this.#removeAccounts(toRemove);
   }
 
   /**
