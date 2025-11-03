@@ -8,7 +8,9 @@ export const TX_META_SIMULATION_DATA_MOCKS: {
 }[] = [
   {
     description: '`SimulationData.nativeBalanceChange` has changed',
-    previousSimulationData: undefined,
+    previousSimulationData: {
+      tokenBalanceChanges: [],
+    },
     newSimulationData: {
       nativeBalanceChange: {
         difference: '0x1',
@@ -48,7 +50,9 @@ export const TX_META_SIMULATION_DATA_MOCKS: {
   },
   {
     description: '`SimulationData.error` has changed',
-    previousSimulationData: undefined,
+    previousSimulationData: {
+      tokenBalanceChanges: [],
+    },
     newSimulationData: {
       error: {
         code: '-123',
