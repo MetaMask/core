@@ -98,6 +98,14 @@ export type GatorPermissionsControllerState = {
    * Default value is `@metamask/gator-permissions-snap`
    */
   gatorPermissionsProviderSnapId: SnapId;
+
+  /**
+   * List of gator permission pending a revocation transaction
+   */
+  pendingRevocations: {
+    txId: string;
+    permissionContext: Hex;
+  }[];
 };
 
 const gatorPermissionsControllerMetadata: StateMetadata<GatorPermissionsControllerState> =
@@ -126,6 +134,12 @@ const gatorPermissionsControllerMetadata: StateMetadata<GatorPermissionsControll
       includeInDebugSnapshot: false,
       usedInUi: false,
     },
+    pendingRevocations: {
+      includeInStateLogs: true,
+      persist: false,
+      includeInDebugSnapshot: false,
+      usedInUi: false,
+    },
   } satisfies StateMetadata<GatorPermissionsControllerState>;
 
 /**
@@ -144,6 +158,7 @@ export function getDefaultGatorPermissionsControllerState(): GatorPermissionsCon
     ),
     isFetchingGatorPermissions: false,
     gatorPermissionsProviderSnapId: defaultGatorPermissionsProviderSnapId,
+    pendingRevocations: [],
   };
 }
 
@@ -333,6 +348,23 @@ export default class GatorPermissionsController extends BaseController<
   #setIsGatorPermissionsEnabled(isGatorPermissionsEnabled: boolean) {
     this.update((state) => {
       state.isGatorPermissionsEnabled = isGatorPermissionsEnabled;
+    });
+  }
+
+  #addPendingRevocationToState(txId: string, permissionContext: Hex) {
+    this.update((state) => {
+      state.pendingRevocations = [
+        ...state.pendingRevocations,
+        { txId, permissionContext },
+      ];
+    });
+  }
+
+  #removePendingRevocationFromState(txId: string) {
+    this.update((state) => {
+      state.pendingRevocations = state.pendingRevocations.filter(
+        (pendingRevocations) => pendingRevocations.txId !== txId,
+      );
     });
   }
 
@@ -538,6 +570,15 @@ export default class GatorPermissionsController extends BaseController<
    */
   get permissionsProviderSnapId(): SnapId {
     return this.state.gatorPermissionsProviderSnapId;
+  }
+
+  /**
+   * Gets the pending revocations list.
+   *
+   * @returns The pending revocations list.
+   */
+  get pendingRevocations(): { txId: string; permissionContext: Hex }[] {
+    return this.state.pendingRevocations;
   }
 
   /**
@@ -751,6 +792,7 @@ export default class GatorPermissionsController extends BaseController<
     });
 
     this.#assertGatorPermissionsEnabled();
+    this.#addPendingRevocationToState(txId, permissionContext);
 
     // Track handlers and timeout for cleanup
     const handlers = {
@@ -770,7 +812,7 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Cleanup function to unsubscribe from all events and clear timeout
-    const cleanup = () => {
+    const cleanup = (txIdToRemove: string) => {
       if (handlers.confirmed) {
         this.messenger.unsubscribe(
           'TransactionController:transactionConfirmed',
@@ -792,6 +834,9 @@ export default class GatorPermissionsController extends BaseController<
       if (handlers.timeoutId !== undefined) {
         clearTimeout(handlers.timeoutId);
       }
+
+      // Remove the pending revocation from the state
+      this.#removePendingRevocationFromState(txIdToRemove);
     };
 
     // Handle confirmed transaction - submit revocation
@@ -802,7 +847,7 @@ export default class GatorPermissionsController extends BaseController<
           permissionContext,
         });
 
-        cleanup();
+        cleanup(txId);
 
         this.submitRevocation({ permissionContext }).catch((error) => {
           controllerLog(
@@ -829,7 +874,7 @@ export default class GatorPermissionsController extends BaseController<
           error: payload.error,
         });
 
-        cleanup();
+        cleanup(txId);
       }
     };
 
@@ -841,7 +886,7 @@ export default class GatorPermissionsController extends BaseController<
           permissionContext,
         });
 
-        cleanup();
+        cleanup(txId);
       }
     };
 
@@ -865,7 +910,7 @@ export default class GatorPermissionsController extends BaseController<
         txId,
         permissionContext,
       });
-      cleanup();
+      cleanup(txId);
     }, PENDING_REVOCATION_TIMEOUT);
   }
 }
