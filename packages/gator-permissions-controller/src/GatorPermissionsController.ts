@@ -772,19 +772,19 @@ export default class GatorPermissionsController extends BaseController<
     // Cleanup function to unsubscribe from all events and clear timeout
     const cleanup = () => {
       if (handlers.confirmed) {
-        this.messagingSystem.unsubscribe(
+        this.messenger.unsubscribe(
           'TransactionController:transactionConfirmed',
           handlers.confirmed,
         );
       }
       if (handlers.failed) {
-        this.messagingSystem.unsubscribe(
+        this.messenger.unsubscribe(
           'TransactionController:transactionFailed',
           handlers.failed,
         );
       }
       if (handlers.dropped) {
-        this.messagingSystem.unsubscribe(
+        this.messenger.unsubscribe(
           'TransactionController:transactionDropped',
           handlers.dropped,
         );
@@ -846,15 +846,15 @@ export default class GatorPermissionsController extends BaseController<
     };
 
     // Subscribe to terminal transaction events
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       handlers.confirmed,
     );
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:transactionFailed',
       handlers.failed,
     );
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:transactionDropped',
       handlers.dropped,
     );

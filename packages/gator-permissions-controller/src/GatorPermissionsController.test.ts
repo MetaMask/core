@@ -1128,3 +1128,15 @@ function getGatorPermissionsControllerMessenger(
   });
   return gatorPermissionsControllerMessenger;
 }
+
+/**
+ * Shorthand alias for getGatorPermissionsControllerMessenger.
+ *
+ * @param rootMessenger - The root messenger to restrict.
+ * @returns The controller messenger.
+ */
+function getMessenger(
+  rootMessenger = getRootMessenger(),
+): GatorPermissionsControllerMessenger {
+  return getGatorPermissionsControllerMessenger(rootMessenger);
+}
