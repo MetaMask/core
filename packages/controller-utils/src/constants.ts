@@ -131,6 +131,41 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: BlockExplorerUrl['base-mainnet'],
     },
   },
+  [NetworkType['arbitrum-mainnet']]: {
+    chainId: ChainId['arbitrum-mainnet'],
+    ticker: NetworksTicker['arbitrum-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['arbitrum-mainnet'],
+    },
+  },
+  [NetworkType['bsc-mainnet']]: {
+    chainId: ChainId['bsc-mainnet'],
+    ticker: NetworksTicker['bsc-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['bsc-mainnet'],
+    },
+  },
+  [NetworkType['optimism-mainnet']]: {
+    chainId: ChainId['optimism-mainnet'],
+    ticker: NetworksTicker['optimism-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['optimism-mainnet'],
+    },
+  },
+  [NetworkType['polygon-mainnet']]: {
+    chainId: ChainId['polygon-mainnet'],
+    ticker: NetworksTicker['polygon-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['polygon-mainnet'],
+    },
+  },
+  [NetworkType['sei-mainnet']]: {
+    chainId: ChainId['sei-mainnet'],
+    ticker: NetworksTicker['sei-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['sei-mainnet'],
+    },
+  },
   [NetworkType.rpc]: {
     chainId: undefined,
     blockExplorerUrl: undefined,

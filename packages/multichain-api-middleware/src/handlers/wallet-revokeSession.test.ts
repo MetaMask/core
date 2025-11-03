@@ -182,6 +182,17 @@ describe('wallet_revokeSession', () => {
     expect(end).toHaveBeenCalledWith(rpcErrors.internal());
   });
 
+  it('throws an internal RPC error if a non-error is thrown', async () => {
+    const { handler, revokePermissionForOrigin, end } = createMockedHandler();
+    revokePermissionForOrigin.mockImplementation(() => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw 'revoke failed';
+    });
+
+    await handler(baseRequest);
+    expect(end).toHaveBeenCalledWith(rpcErrors.internal());
+  });
+
   it('returns true if the permission was revoked', async () => {
     const { handler, response } = createMockedHandler();
 

@@ -61,9 +61,9 @@ const MESSAGE_DATA_MOCK = {
 };
 
 describe('normalizeTypedMessage', () => {
-  function parseNormalizerResult(data: Record<string, unknown>) {
+  const parseNormalizerResult = (data: Record<string, unknown>) => {
     return JSON.parse(normalizeTypedMessage(JSON.stringify(data)));
-  }
+  };
 
   it('should normalize verifyingContract address in domain', () => {
     const msgMock = {

@@ -1,14 +1,15 @@
 import type {
-  AccountsControllerAccountAddedEvent,
-  AccountsControllerListAccountsAction,
-} from '@metamask/accounts-controller';
+  AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
+  AccountTreeControllerSelectedAccountGroupChangeEvent,
+} from '@metamask/account-tree-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
-import type { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
+import { isEvmAccountType } from '@metamask/keyring-api';
 import type { KeyringControllerLockEvent } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
@@ -21,11 +22,8 @@ import {
   groupDeFiPositions,
   type GroupedDeFiPositions,
 } from './group-defi-positions';
-import { reduceInBatchesSerially } from '../assetsUtil';
 
 const TEN_MINUTES_IN_MS = 600_000;
-
-const FETCH_POSITIONS_BATCH_SIZE = 10;
 
 const controllerName = 'DeFiPositionsController';
 
@@ -109,16 +107,16 @@ export type DeFiPositionsControllerStateChangeEvent =
 /**
  * The external actions available to the {@link DeFiPositionsController}.
  */
-export type AllowedActions = AccountsControllerListAccountsAction;
+export type AllowedActions =
+  AccountTreeControllerGetAccountsFromSelectedAccountGroupAction;
 
 /**
  * The external events available to the {@link DeFiPositionsController}.
  */
 export type AllowedEvents =
-  | KeyringControllerUnlockEvent
   | KeyringControllerLockEvent
   | TransactionControllerTransactionConfirmedEvent
-  | AccountsControllerAccountAddedEvent;
+  | AccountTreeControllerSelectedAccountGroupChangeEvent;
 
 /**
  * The messenger of the {@link DeFiPositionsController}.
@@ -174,10 +172,6 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     this.#fetchPositions = buildPositionFetcher();
     this.#isEnabled = isEnabled;
 
-    this.messenger.subscribe('KeyringController:unlock', () => {
-      this.startPolling(null);
-    });
-
     this.messenger.subscribe('KeyringController:lock', () => {
       this.stopAllPolling();
     });
@@ -185,22 +179,30 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       async (transactionMeta) => {
-        if (!this.#isEnabled()) {
+        const selectedAddress = this.#getSelectedEvmAdress();
+
+        if (
+          !selectedAddress ||
+          selectedAddress.toLowerCase() !==
+            transactionMeta.txParams.from.toLowerCase()
+        ) {
           return;
         }
 
-        await this.#updateAccountPositions(transactionMeta.txParams.from);
+        await this.#updateAccountPositions(selectedAddress);
       },
     );
 
     this.messenger.subscribe(
-      'AccountsController:accountAdded',
-      async (account) => {
-        if (!this.#isEnabled() || !account.type.startsWith('eip155:')) {
+      'AccountTreeController:selectedAccountGroupChange',
+      async () => {
+        const selectedAddress = this.#getSelectedEvmAdress();
+
+        if (!selectedAddress) {
           return;
         }
 
-        await this.#updateAccountPositions(account.address);
+        await this.#updateAccountPositions(selectedAddress);
       },
     );
 
@@ -212,57 +214,24 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
       return;
     }
 
-    const accounts = this.messenger.call('AccountsController:listAccounts');
+    const selectedAddress = this.#getSelectedEvmAdress();
 
-    const initialResult: {
-      accountAddress: string;
-      positions: GroupedDeFiPositionsPerChain | null;
-    }[] = [];
+    if (!selectedAddress) {
+      return;
+    }
 
-    const results = await reduceInBatchesSerially({
-      initialResult,
-      values: accounts,
-      batchSize: FETCH_POSITIONS_BATCH_SIZE,
-      eachBatch: async (workingResult, batch) => {
-        const batchResults = (
-          await Promise.all(
-            batch.map(async ({ address: accountAddress, type }) => {
-              if (type.startsWith('eip155:')) {
-                const positions =
-                  await this.#fetchAccountPositions(accountAddress);
-
-                return {
-                  accountAddress,
-                  positions,
-                };
-              }
-
-              return undefined;
-            }),
-          )
-        ).filter(Boolean) as {
-          accountAddress: string;
-          positions: GroupedDeFiPositionsPerChain | null;
-        }[];
-
-        return [...workingResult, ...batchResults];
-      },
-    });
-
-    const allDefiPositions = results.reduce(
-      (acc, { accountAddress, positions }) => {
-        acc[accountAddress] = positions;
-        return acc;
-      },
-      {} as DeFiPositionsControllerState['allDeFiPositions'],
-    );
+    const accountPositions = await this.#fetchAccountPositions(selectedAddress);
 
     this.update((state) => {
-      state.allDeFiPositions = allDefiPositions;
+      state.allDeFiPositions[selectedAddress] = accountPositions;
     });
   }
 
   async #updateAccountPositions(accountAddress: string): Promise<void> {
+    if (!this.#isEnabled()) {
+      return;
+    }
+
     const accountPositionsPerChain =
       await this.#fetchAccountPositions(accountAddress);
 
@@ -313,5 +282,12 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
 
       this.#trackEvent?.(defiMetrics);
     }
+  }
+
+  #getSelectedEvmAdress(): string | undefined {
+    return this.messenger
+      .call('AccountTreeController:getAccountsFromSelectedAccountGroup')
+      .find((account: InternalAccount) => isEvmAccountType(account.type))
+      ?.address;
   }
 }

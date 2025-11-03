@@ -73,6 +73,7 @@ export type AssetListState = {
   marketData: TokenRatesControllerState['marketData'];
   currencyRates: CurrencyRateState['currencyRates'];
   accountsAssets: MultichainAssetsControllerState['accountsAssets'];
+  allIgnoredAssets: MultichainAssetsControllerState['allIgnoredAssets'];
   assetsMetadata: MultichainAssetsControllerState['assetsMetadata'];
   balances: MultichainBalancesControllerState['balances'];
   conversionRates: MultichainAssetsRatesControllerState['conversionRates'];
@@ -315,6 +316,7 @@ const selectAllMultichainAssets = createAssetListSelector(
   [
     selectAccountsToGroupIdMap,
     (state) => state.accountsAssets,
+    (state) => state.allIgnoredAssets,
     (state) => state.assetsMetadata,
     (state) => state.balances,
     (state) => state.conversionRates,
@@ -323,6 +325,7 @@ const selectAllMultichainAssets = createAssetListSelector(
   (
     accountsMap,
     multichainTokens,
+    ignoredMultichainAssets,
     multichainAssetsMetadata,
     multichainBalances,
     multichainConversionRates,
@@ -350,6 +353,10 @@ const selectAllMultichainAssets = createAssetListSelector(
         }
 
         const { accountGroupId, type } = account;
+
+        if (ignoredMultichainAssets?.[accountId]?.includes(assetId)) {
+          continue;
+        }
 
         groupAssets[accountGroupId] ??= {};
         groupAssets[accountGroupId][chainId] ??= [];

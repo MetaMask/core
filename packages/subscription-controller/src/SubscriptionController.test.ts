@@ -6,6 +6,11 @@ import {
   type MessengerEvents,
   type MockAnyNamespace,
 } from '@metamask/messenger';
+import {
+  TransactionStatus,
+  TransactionType,
+} from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import * as sinon from 'sinon';
 
 import {
@@ -31,7 +36,10 @@ import type {
   UpdatePaymentMethodOpts,
   Product,
   SubscriptionEligibility,
-  CachedLastSelectedPaymentMethods,
+  CachedLastSelectedPaymentMethod,
+  SubmitSponsorshipIntentsMethodParams,
+  ProductType,
+  RecurringInterval,
 } from './types';
 import {
   PAYMENT_TYPES,
@@ -41,6 +49,7 @@ import {
   SubscriptionUserEvent,
 } from './types';
 import { advanceTime } from '../../../tests/helpers';
+import { generateMockTxMeta } from '../tests/utils';
 
 type AllActions = MessengerActions<SubscriptionControllerMessenger>;
 
@@ -82,6 +91,14 @@ const MOCK_PRODUCT_PRICE: ProductPricing = {
       unitAmount: 900,
       unitDecimals: 2,
       trialPeriodDays: 0,
+      minBillingCycles: 12,
+    },
+    {
+      interval: 'year',
+      unitAmount: 8000,
+      unitDecimals: 2,
+      currency: 'usd',
+      trialPeriodDays: 14,
       minBillingCycles: 1,
     },
   ],
@@ -93,6 +110,7 @@ const MOCK_PRICING_PAYMENT_METHOD: PricingPaymentMethod = {
     {
       chainId: '0x1',
       paymentAddress: '0xspender',
+      isSponsorshipSupported: true,
       tokens: [
         {
           address: '0xtoken',
@@ -199,6 +217,7 @@ function createMockSubscriptionService() {
   const mockGetBillingPortalUrl = jest.fn();
   const mockGetSubscriptionsEligibilities = jest.fn();
   const mockSubmitUserEvent = jest.fn();
+  const mockSubmitSponsorshipIntents = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
@@ -212,6 +231,7 @@ function createMockSubscriptionService() {
     getBillingPortalUrl: mockGetBillingPortalUrl,
     getSubscriptionsEligibilities: mockGetSubscriptionsEligibilities,
     submitUserEvent: mockSubmitUserEvent,
+    submitSponsorshipIntents: mockSubmitSponsorshipIntents,
   };
 
   return {
@@ -224,6 +244,7 @@ function createMockSubscriptionService() {
     mockStartSubscriptionWithCrypto,
     mockUpdatePaymentMethodCard,
     mockUpdatePaymentMethodCrypto,
+    mockSubmitSponsorshipIntents,
   };
 }
 
@@ -988,7 +1009,7 @@ describe('SubscriptionController', () => {
           });
 
           expect(result).toStrictEqual({
-            approveAmount: '9000000000000000000',
+            approveAmount: '108000000000000000000',
             paymentAddress: '0xspender',
             paymentTokenAddress: '0xtoken',
             chainId: '0x1',
@@ -1424,6 +1445,13 @@ describe('SubscriptionController', () => {
   });
 
   describe('cacheLastSelectedPaymentMethod', () => {
+    const MOCK_CACHED_PAYMENT_METHOD: CachedLastSelectedPaymentMethod = {
+      type: PAYMENT_TYPES.byCrypto,
+      paymentTokenAddress: '0x123',
+      paymentTokenSymbol: 'USDT',
+      plan: RECURRING_INTERVALS.month,
+    };
+
     it('should cache last selected payment method successfully', async () => {
       await withController(async ({ controller }) => {
         controller.cacheLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD, {
@@ -1460,18 +1488,13 @@ describe('SubscriptionController', () => {
             },
           });
 
-          controller.cacheLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD, {
-            type: PAYMENT_TYPES.byCrypto,
-            paymentTokenAddress: '0x123',
-            plan: RECURRING_INTERVALS.month,
-          });
+          controller.cacheLastSelectedPaymentMethod(
+            PRODUCT_TYPES.SHIELD,
+            MOCK_CACHED_PAYMENT_METHOD,
+          );
 
           expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({
-            [PRODUCT_TYPES.SHIELD]: {
-              type: PAYMENT_TYPES.byCrypto,
-              paymentTokenAddress: '0x123',
-              plan: RECURRING_INTERVALS.month,
-            },
+            [PRODUCT_TYPES.SHIELD]: MOCK_CACHED_PAYMENT_METHOD,
           });
         },
       );
@@ -1483,11 +1506,472 @@ describe('SubscriptionController', () => {
           controller.cacheLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD, {
             type: PAYMENT_TYPES.byCrypto,
             plan: RECURRING_INTERVALS.month,
-          } as CachedLastSelectedPaymentMethods),
+          } as CachedLastSelectedPaymentMethod),
         ).toThrow(
-          SubscriptionControllerErrorMessage.PaymentTokenAddressRequiredForCrypto,
+          SubscriptionControllerErrorMessage.PaymentTokenAddressAndSymbolRequiredForCrypto,
         );
       });
+    });
+  });
+
+  describe('submitSponsorshipIntents', () => {
+    const MOCK_SUBMISSION_INTENTS_REQUEST: SubmitSponsorshipIntentsMethodParams =
+      {
+        chainId: '0x1',
+        address: '0x1234567890123456789012345678901234567890',
+        products: [PRODUCT_TYPES.SHIELD],
+      };
+    const MOCK_CACHED_PAYMENT_METHOD: Record<
+      ProductType,
+      CachedLastSelectedPaymentMethod
+    > = {
+      [PRODUCT_TYPES.SHIELD]: {
+        type: PAYMENT_TYPES.byCrypto,
+        paymentTokenAddress: '0xtoken',
+        paymentTokenSymbol: 'USDT',
+        plan: RECURRING_INTERVALS.month,
+      },
+    };
+
+    it('should submit sponsorship intents successfully', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ controller, mockService }) => {
+          const submitSponsorshipIntentsSpy = jest
+            .spyOn(mockService, 'submitSponsorshipIntents')
+            .mockResolvedValue(undefined);
+
+          await controller.submitSponsorshipIntents(
+            MOCK_SUBMISSION_INTENTS_REQUEST,
+          );
+          expect(submitSponsorshipIntentsSpy).toHaveBeenCalledWith({
+            ...MOCK_SUBMISSION_INTENTS_REQUEST,
+            paymentTokenSymbol: 'USDT',
+            billingCycles: 12,
+            recurringInterval: RECURRING_INTERVALS.month,
+          });
+        },
+      );
+    });
+
+    it('should throw error when products array is empty', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.submitSponsorshipIntents({
+            ...MOCK_SUBMISSION_INTENTS_REQUEST,
+            products: [],
+          }),
+        ).rejects.toThrow(
+          SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+        );
+      });
+    });
+
+    it('should throw error when user is already subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller, mockService }) => {
+          await expect(
+            controller.submitSponsorshipIntents(
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.UserAlreadySubscribed,
+          );
+
+          // Verify the subscription service was not called
+          expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should not submit sponsorship intents if the user has trailed the products before', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+            subscriptions: [
+              {
+                ...MOCK_SUBSCRIPTION,
+                status: SUBSCRIPTION_STATUSES.canceled,
+              },
+            ],
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.submitSponsorshipIntents.mockResolvedValue(undefined);
+
+          const isSponsored = await controller.submitSponsorshipIntents(
+            MOCK_SUBMISSION_INTENTS_REQUEST,
+          );
+          expect(isSponsored).toBe(false);
+          expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should not submit sponsorship intents if the chain does not support sponsorship', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+            pricing: {
+              ...MOCK_PRICE_INFO_RESPONSE,
+              paymentMethods: [
+                ...MOCK_PRICE_INFO_RESPONSE.paymentMethods.map(
+                  (paymentMethod) => ({
+                    ...paymentMethod,
+                    chains: paymentMethod.chains?.map((chain) => ({
+                      ...chain,
+                      isSponsorshipSupported: false, // <==== Sponsorship not supported
+                    })),
+                  }),
+                ),
+              ],
+            },
+          },
+        },
+        async ({ controller, mockService }) => {
+          const isSponsored = await controller.submitSponsorshipIntents(
+            MOCK_SUBMISSION_INTENTS_REQUEST,
+          );
+          expect(isSponsored).toBe(false);
+          expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should throw error when no cached payment method is found', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.submitSponsorshipIntents(MOCK_SUBMISSION_INTENTS_REQUEST),
+        ).rejects.toThrow(
+          SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
+        );
+      });
+    });
+
+    it('should throw error when payment method is not crypto', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCard,
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.submitSponsorshipIntents(
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
+          );
+        },
+      );
+    });
+
+    it('should throw error when product price is not found', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+            pricing: {
+              products: [],
+              paymentMethods: [MOCK_PRICING_PAYMENT_METHOD],
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.submitSponsorshipIntents(
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.ProductPriceNotFound,
+          );
+        },
+      );
+    });
+
+    it('should handle subscription service errors', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                ...MOCK_CACHED_PAYMENT_METHOD[PRODUCT_TYPES.SHIELD],
+                plan: RECURRING_INTERVALS.year,
+              },
+            },
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.submitSponsorshipIntents.mockRejectedValue(
+            new SubscriptionServiceError(
+              'Failed to submit sponsorship intents',
+            ),
+          );
+
+          await expect(
+            controller.submitSponsorshipIntents(
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow(SubscriptionServiceError);
+          expect(mockService.submitSponsorshipIntents).toHaveBeenCalledWith({
+            ...MOCK_SUBMISSION_INTENTS_REQUEST,
+            paymentTokenSymbol: 'USDT',
+            billingCycles: 1,
+            recurringInterval: RECURRING_INTERVALS.year,
+          });
+        },
+      );
+    });
+  });
+
+  describe('submitShieldSubscriptionCryptoApproval', () => {
+    it('should handle subscription crypto approval when shield subscription transaction is submitted', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.startSubscriptionWithCrypto.mockResolvedValue({
+            subscriptionId: 'sub_123',
+            status: SUBSCRIPTION_STATUSES.trialing,
+          });
+
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          // Create a shield subscription approval transaction
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xtoken',
+            },
+            status: TransactionStatus.submitted,
+          };
+
+          await controller.submitShieldSubscriptionCryptoApproval(txMeta);
+
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledTimes(
+            1,
+          );
+        },
+      );
+    });
+
+    it('should not handle subscription crypto approval when pricing is not found', async () => {
+      await withController(
+        {
+          state: {
+            pricing: undefined,
+            trialedProducts: [],
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          // Create a non-shield subscription transaction
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            status: TransactionStatus.submitted,
+            hash: '0x123',
+            rawTx: '0x123',
+          };
+
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow('Subscription pricing not found');
+
+          // Verify that startSubscriptionWithCrypto was not called
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should not handle subscription crypto approval for non-shield subscription transactions', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          // Create a non-shield subscription transaction
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.contractInteraction,
+            status: TransactionStatus.submitted,
+            hash: '0x123',
+          };
+
+          await controller.submitShieldSubscriptionCryptoApproval(txMeta);
+
+          // Verify that decodeTransactionDataHandler was not called
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should throw error when chainId is missing', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          // Create a transaction without chainId
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: undefined as unknown as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0x789',
+            },
+            status: TransactionStatus.submitted,
+            hash: '0x123',
+          };
+
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow('Chain ID or raw transaction not found');
+
+          // Verify that decodeTransactionDataHandler was not called due to early error
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should throw error when last selected payment method is not found', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          // Create a shield subscription approval transaction with token address that doesn't exist
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xnonexistent',
+            },
+            status: TransactionStatus.submitted,
+            hash: '0x123',
+          };
+
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow('Last selected payment method not found');
+
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should throw error when product price is not found', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: 'invalidPlan' as RecurringInterval,
+              },
+            },
+          },
+        },
+        async ({ controller, mockService }) => {
+          // Create a shield subscription approval transaction
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xtoken',
+            },
+            status: TransactionStatus.submitted,
+            hash: '0x123',
+          };
+
+          await expect(
+            controller.submitShieldSubscriptionCryptoApproval(txMeta),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.ProductPriceNotFound,
+          );
+
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
+        },
+      );
     });
   });
 });

@@ -81,8 +81,15 @@ await server.handle(notification);
 
 ### Legacy compatibility
 
-Use the `asLegacyMiddleware` function to use a `JsonRpcEngineV2` as a
-middleware in a legacy `JsonRpcEngine`:
+Use `asLegacyMiddleware()` to convert a `JsonRpcEngineV2` or one or more V2 middleware into a legacy middleware.
+
+#### Context propagation
+
+In keeping with the conventions of the legacy engine, non-JSON-RPC string properties of the `context` will be
+copied over to the request once the V2 engine is done with the request. _Note that **only `string` keys** of
+the `context` will be copied over._
+
+#### Converting a V2 engine
 
 ```ts
 import {
@@ -102,9 +109,31 @@ const v2Engine = JsonRpcEngineV2.create({
 legacyEngine.push(asLegacyMiddleware(v2Engine));
 ```
 
-In keeping with the conventions of the legacy engine, non-JSON-RPC string properties of the `context` will be
-copied over to the request once the V2 engine is done with the request. _Note that **only `string` keys** of
-the `context` will be copied over._
+#### Converting V2 middleware
+
+```ts
+import {
+  asLegacyMiddleware,
+  type JsonRpcMiddleware,
+} from '@metamask/json-rpc-engine/v2';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+
+// Convert a single V2 middleware
+const middleware1: JsonRpcMiddleware<JsonRpcRequest> = ({ request }) => {
+  /* ... */
+};
+
+const legacyEngine = new JsonRpcEngine();
+legacyEngine.push(asLegacyMiddleware(middleware1));
+
+// Convert multiple V2 middlewares at once
+const middleware2: JsonRpcMiddleware<JsonRpcRequest> = ({ context, next }) => {
+  /* ... */
+};
+
+const legacyEngine2 = new JsonRpcEngine();
+legacyEngine2.push(asLegacyMiddleware(middleware1, middleware2));
+```
 
 ### Middleware
 
@@ -551,8 +580,8 @@ The following middleware are incompatible due to mismatched request types:
 
 > [!WARNING]
 > Providing `JsonRpcRequest`- and `JsonRpcNotification`-only middleware to the same engine is
-> unsound and should be avoided. However, doing so will **not** cause a type error, and it
-> is the programmer's responsibility to prevent it from happening.
+> generally unsound and should be avoided. However, doing so will **not** cause a type error,
+> and it is the programmer's responsibility to prevent it from happening.
 
 ```ts
 const middleware1: JsonRpcMiddleware<JsonRpcNotification> = /* ... */;
@@ -721,6 +750,12 @@ the `result` in case of success and `error` in case of failure.
 Errors thrown by the underlying engine are always passed to `onError` unmodified.
 If the request is not a notification, the error is subsequently serialized and attached
 to the response object via the `error` property.
+
+> [!WARNING]
+> It is possible to construct a `JsonRpcServer` the only accepts either requests or notifications,
+> but not both. If you do so, it is your responsibility to ensure that the server is only used with the
+> appropriate request objects. `JsonRpcServer.handle()` will not type error at compile time if you attempt to pass
+> it an unsupported request object.
 
 ## Contributing
 

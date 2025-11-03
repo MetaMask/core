@@ -1,6 +1,13 @@
 export { asLegacyMiddleware } from './asLegacyMiddleware';
 export { getUniqueId } from '../getUniqueId';
-export * from './JsonRpcEngineV2';
+export { createScaffoldMiddleware } from './createScaffoldMiddleware';
+export { JsonRpcEngineV2 } from './JsonRpcEngineV2';
+export type {
+  JsonRpcMiddleware,
+  MiddlewareParams,
+  Next,
+  ResultConstraint,
+} from './JsonRpcEngineV2';
 export { JsonRpcServer } from './JsonRpcServer';
 export { MiddlewareContext } from './MiddlewareContext';
 export type { EmptyContext } from './MiddlewareContext';
