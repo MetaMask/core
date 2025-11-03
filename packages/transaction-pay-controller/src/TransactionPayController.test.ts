@@ -119,7 +119,7 @@ describe('TransactionPayController', () => {
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK],
       ).toStrictEqual({
-        isLoading: true,
+        isLoading: false,
         sourceAmounts: [{ sourceAmountHuman: '1.23' }],
         tokens: [],
       });

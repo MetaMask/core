@@ -74,21 +74,6 @@ describe('createAutoManagedNetworkClient', () => {
         });
 
         // This also tests the `has` trap in the proxy
-        expect('addListener' in provider).toBe(true);
-        expect('on' in provider).toBe(true);
-        expect('once' in provider).toBe(true);
-        expect('removeListener' in provider).toBe(true);
-        expect('off' in provider).toBe(true);
-        expect('removeAllListeners' in provider).toBe(true);
-        expect('setMaxListeners' in provider).toBe(true);
-        expect('getMaxListeners' in provider).toBe(true);
-        expect('listeners' in provider).toBe(true);
-        expect('rawListeners' in provider).toBe(true);
-        expect('emit' in provider).toBe(true);
-        expect('listenerCount' in provider).toBe(true);
-        expect('prependListener' in provider).toBe(true);
-        expect('prependOnceListener' in provider).toBe(true);
-        expect('eventNames' in provider).toBe(true);
         expect('send' in provider).toBe(true);
         expect('sendAsync' in provider).toBe(true);
         expect('request' in provider).toBe(true);

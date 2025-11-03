@@ -23,8 +23,15 @@ engine.push(function (req, res, next, end) {
 
 ### V2 compatibility
 
-Use the `asV2Middleware` function to use a `JsonRpcEngine` as a middleware in a
-`JsonRpcEngineV2`:
+Use `asV2Middleware()` to convert a `JsonRpcEngine` or one or more legacy middleware into a V2 middleware.
+
+#### Context propagation
+
+Non-JSON-RPC string properties on the request object will be copied over to the V2 engine's `context` object
+once the legacy engine is done with the request, _unless_ they already exist on the `context`, in which case
+they will be ignored.
+
+#### Converting a legacy engine
 
 ```ts
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
@@ -38,9 +45,32 @@ const v2Engine = JsonRpcEngineV2.create({
 });
 ```
 
-Non-JSON-RPC string properties on the request object will be copied over to the V2 engine's `context` object
-once the legacy engine is done with the request, _unless_ they already exist on the `context`, in which case
-they will be ignored.
+#### Converting legacy middleware
+
+You can also directly convert one or more legacy middlewares without creating an engine:
+
+```ts
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import { asV2Middleware } from '@metamask/json-rpc-engine';
+
+// Convert a single legacy middleware
+const middleware1 = (req, res, next, end) => {
+  /* ... */
+};
+
+const v2Engine = JsonRpcEngineV2.create({
+  middleware: [asV2Middleware(middleware1)],
+});
+
+// Convert multiple legacy middlewares at once
+const middleware2 = (req, res, next, end) => {
+  /* ... */
+};
+
+const v2Engine2 = JsonRpcEngineV2.create({
+  middleware: [asV2Middleware(middleware1, middleware2)],
+});
+```
 
 ### Middleware
 

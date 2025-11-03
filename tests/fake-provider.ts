@@ -1,4 +1,4 @@
-import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type {
   Json,
@@ -93,16 +93,16 @@ type FakeProviderEngineOptions = {
 
 /**
  * An implementation of the provider that NetworkController exposes, which is
- * actually an instance of SafeEventEmitterProvider (from the
+ * actually an instance of InternalProvider (from the
  * `@metamask/eth-json-rpc-provider` package). Hence it supports the same
- * interface as SafeEventEmitterProvider, except that fake responses for any RPC
+ * interface as InternalProvider, except that fake responses for any RPC
  * methods that are accessed can be supplied via an API that is more succinct
  * than using Jest's mocking API.
  */
 // NOTE: We shouldn't need to extend from the "real" provider here, but
-// we'd need a `SafeEventEmitterProvider` _interface_ and that doesn't exist (at
+// we'd need a `InternalProvider` _interface_ and that doesn't exist (at
 // least not yet).
-export class FakeProvider extends SafeEventEmitterProvider {
+export class FakeProvider extends InternalProvider {
   calledStubs: FakeProviderStub[];
 
   #originalStubs: FakeProviderStub[];

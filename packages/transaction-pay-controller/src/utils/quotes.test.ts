@@ -133,7 +133,9 @@ describe('Quotes Utils', () => {
 
       const transactionDataMock = {};
 
-      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
 
       expect(transactionDataMock).toMatchObject({
         quotes: [QUOTE_MOCK],
@@ -152,7 +154,9 @@ describe('Quotes Utils', () => {
         quotes: [QUOTE_MOCK],
       };
 
-      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
 
       expect(transactionDataMock).toMatchObject({
         quotes: [],
@@ -174,7 +178,9 @@ describe('Quotes Utils', () => {
         quotes: [QUOTE_MOCK],
       };
 
-      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
 
       expect(transactionDataMock).toMatchObject({
         quotes: [],
@@ -243,7 +249,9 @@ describe('Quotes Utils', () => {
 
       const transactionDataMock = {};
 
-      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
 
       expect(transactionDataMock).toStrictEqual(
         expect.objectContaining({ totals: TOTALS_MOCK }),
@@ -297,11 +305,12 @@ describe('Quotes Utils', () => {
 
       await refreshQuotes(messenger, updateTransactionDataMock);
 
-      expect(updateTransactionDataMock).toHaveBeenCalledTimes(2);
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(3);
 
       const transactionDataMock = {};
-      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
-      updateTransactionDataMock.mock.calls[1][1](transactionDataMock);
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
 
       expect(transactionDataMock).toMatchObject({
         quotes: [],
@@ -321,11 +330,12 @@ describe('Quotes Utils', () => {
 
       await refreshQuotes(messenger, updateTransactionDataMock);
 
-      expect(updateTransactionDataMock).toHaveBeenCalledTimes(2);
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(3);
 
       const transactionDataMock = {};
-      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
-      updateTransactionDataMock.mock.calls[1][1](transactionDataMock);
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
 
       expect(transactionDataMock).toMatchObject({
         quotes: [],
