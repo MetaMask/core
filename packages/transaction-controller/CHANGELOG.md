@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Calculate operator fee for OP stack networks and include it in `layer1GasFee` ([#6979](https://github.com/MetaMask/core/pull/6979))
+- Added `SubscriptionControllerSubmitSponsorshipIntentsAction` in the controller exports. ([#7037](https://github.com/MetaMask/core/pull/7037))
 
 ## [61.1.0]
 
