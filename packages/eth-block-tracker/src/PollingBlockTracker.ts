@@ -1,4 +1,4 @@
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
 import {
   createDeferredPromise,
@@ -18,7 +18,7 @@ const sec = 1000;
 const blockTrackerEvents: (string | symbol)[] = ['sync', 'latest'];
 
 export type PollingBlockTrackerOptions = {
-  provider?: SafeEventEmitterProvider;
+  provider?: InternalProvider;
   pollingInterval?: number;
   retryTimeout?: number;
   keepEventLoopActive?: boolean;
@@ -49,7 +49,7 @@ export class PollingBlockTracker
 
   private _pollingTimeout?: ReturnType<typeof setTimeout>;
 
-  private readonly _provider: SafeEventEmitterProvider;
+  private readonly _provider: InternalProvider;
 
   private readonly _pollingInterval: number;
 

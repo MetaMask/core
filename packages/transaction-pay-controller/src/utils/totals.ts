@@ -50,8 +50,13 @@ export function calculateTotals(
     (quote) => quote.fees.targetNetwork.usd,
   );
 
-  const amountFiat = sumProperty(tokens, (token) => token.amountFiat);
-  const amountUsd = sumProperty(tokens, (token) => token.amountUsd);
+  const quoteTokens = tokens.filter(
+    (t) =>
+      !t.skipIfBalance || new BigNumber(t.balanceRaw).isLessThan(t.amountRaw),
+  );
+
+  const amountFiat = sumProperty(quoteTokens, (token) => token.amountFiat);
+  const amountUsd = sumProperty(quoteTokens, (token) => token.amountUsd);
 
   const totalFiat = new BigNumber(providerFeeFiat)
     .plus(sourceNetworkFeeFiat)

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed and optimized initiating shield coverage result for transactions. ([#7036](https://github.com/MetaMask/core/pull/7036))
+
 ## [1.1.0]
 
 ### Fixed

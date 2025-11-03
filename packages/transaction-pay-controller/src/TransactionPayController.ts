@@ -6,6 +6,7 @@ import { noop } from 'lodash';
 
 import { updatePaymentToken } from './actions/update-payment-token';
 import { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
+import { QuoteRefresher } from './helpers/QuoteRefresher';
 import type {
   TransactionData,
   TransactionPayControllerMessenger,
@@ -13,7 +14,7 @@ import type {
   TransactionPayControllerState,
   UpdatePaymentTokenRequest,
 } from './types';
-import { queueRefreshQuotes, updateQuotes } from './utils/quotes';
+import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
 
@@ -61,7 +62,10 @@ export class TransactionPayController extends BaseController<
       this.#removeTransactionData.bind(this),
     );
 
-    queueRefreshQuotes(messenger, this.#updateTransactionData.bind(this));
+    new QuoteRefresher({
+      messenger,
+      updateTransactionData: this.#updateTransactionData.bind(this),
+    });
   }
 
   updatePaymentToken(request: UpdatePaymentTokenRequest) {
@@ -109,7 +113,6 @@ export class TransactionPayController extends BaseController<
         updateSourceAmounts(transactionId, current as never, this.messenger);
 
         shouldUpdateQuotes = true;
-        current.isLoading = true;
       }
     });
 
