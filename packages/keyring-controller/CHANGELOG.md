@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** The `KeyringController` constructor now requires an encryptor supporting the `keyFromPassword`, `exportKey` and `generateSalt` methods ([#5963](https://github.com/MetaMask/core/pull/5963))
 
+### Fixed
+
+- Fixed incorrect type for `decryptWithKey` method of `ExportableKeyEncryptor` ([#5963](https://github.com/MetaMask/core/pull/5963))
+
 ### Removed
 
 - **BREAKING:** The `cacheEncryptionKey` parameter has been removed from the `KeyringController` constructor options ([#5963](https://github.com/MetaMask/core/pull/5963))

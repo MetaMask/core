@@ -412,12 +412,12 @@ export type ExportableKeyEncryptor<
    * Decrypts the given encrypted string with the given encryption key.
    *
    * @param key - The encryption key to decrypt with.
-   * @param encryptedString - The encrypted string to decrypt.
+   * @param encryptedObject - The encrypted string to decrypt.
    * @returns The decrypted object.
    */
   decryptWithKey: (
     key: EncryptionKey,
-    encryptedString: string,
+    encryptedObject: encryptorUtils.EncryptionResult,
   ) => Promise<unknown>;
   /**
    * Decrypts the given encrypted string with the given password, and returns
