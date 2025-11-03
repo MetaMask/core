@@ -19,7 +19,7 @@ import {
   fromLegacyRequest,
   propagateToContext,
   propagateToRequest,
-  unserializeError,
+  deserializeError,
 } from './v2/compatibility-utils';
 import type {
   // Used in docs.
@@ -104,8 +104,11 @@ export function asV2Middleware<
     });
     propagateToContext(req, context);
 
-    if (hasProperty(response, 'error')) {
-      throw unserializeError(response.error);
+    // Mimic the behavior of JsonRpcEngine.#handle(), which only treats truthy errors as errors.
+    // Legacy middleware may violate the invariant that response objects have either a result or an
+    // error property. In practice, we may see response objects with results and `{ error: undefined }`.
+    if (hasProperty(response, 'error') && response.error) {
+      throw deserializeError(response.error);
     } else if (hasProperty(response, 'result')) {
       return response.result as ResultConstraint<Request>;
     }

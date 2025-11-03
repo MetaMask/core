@@ -15,8 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Use `JsonRpcServer` instead of `JsonRpcEngine` ([#7001](https://github.com/MetaMask/core/pull/7001))
   - Adds a new `server` constructor option to the `InternalProvider` class, mutually exclusive with the now deprecated `engine` option.
   - Legacy `JsonRpcEngine` instances are wrapped in a `JsonRpcServer` internally
-  wherever they appear. Due to differences in error serialization, this may be
-  breaking for consumers.
+    wherever they appear. Due to differences in error serialization, this may be
+    breaking for consumers.
 
 ## [5.0.1]
 

@@ -197,7 +197,8 @@ export function convertEip1193RequestToJsonRpcRequest<
 }
 
 /**
- * Deserialize a JSON-RPC error.
+ * Deserialize a JSON-RPC error. Ignores the possibility of `stack` property, since this is
+ * stripped by `JsonRpcServer`.
  *
  * @param error - The JSON-RPC error to deserialize.
  * @returns The deserialized error.
