@@ -1,4 +1,8 @@
+import { hasProperty, isObject } from '@metamask/utils';
+
 import type { UnionToIntersection } from './utils';
+
+const MiddlewareContextSymbol = Symbol.for('json-rpc-engine#MiddlewareContext');
 
 /**
  * An context object for middleware that attempts to protect against accidental
@@ -27,10 +31,33 @@ import type { UnionToIntersection } from './utils';
 export class MiddlewareContext<
   KeyValues extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
 > extends Map<keyof KeyValues, KeyValues[keyof KeyValues]> {
+  private readonly [MiddlewareContextSymbol] = true;
+
+  /**
+   * Check if a value is a {@link MiddlewareContext} instance.
+   * Works across different package versions in the same realm.
+   *
+   * @param value - The value to check.
+   * @returns Whether the value is a {@link MiddlewareContext} instance.
+   */
+  static isInstance(value: unknown): value is MiddlewareContext {
+    return (
+      isObject(value) &&
+      hasProperty(value, MiddlewareContextSymbol) &&
+      value[MiddlewareContextSymbol] === true
+    );
+  }
+
   constructor(
-    entries?: Iterable<readonly [keyof KeyValues, KeyValues[keyof KeyValues]]>,
+    entries?:
+      | Iterable<readonly [keyof KeyValues, KeyValues[keyof KeyValues]]>
+      | KeyValues,
   ) {
-    super(entries);
+    super(
+      entries && Array.isArray(entries)
+        ? entries
+        : Object.entries(entries ?? {}),
+    );
     Object.freeze(this);
   }
 
@@ -72,7 +99,8 @@ export class MiddlewareContext<
 /**
  * Infer the KeyValues type from a {@link MiddlewareContext}.
  */
-type InferKeyValues<T> = T extends MiddlewareContext<infer U> ? U : never;
+export type InferKeyValues<T> =
+  T extends MiddlewareContext<infer U> ? U : never;
 
 /**
  * Simplifies an object type by "merging" its properties.
