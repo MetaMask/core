@@ -5,12 +5,15 @@ import type {
   AccountSelector,
   MultichainAccountWalletId,
   AccountGroupType,
+  Bip44Account,
 } from '@metamask/account-api';
 import type { MultichainAccountWalletStatus } from '@metamask/account-api';
+import type { MultichainAccountGroup } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
+import type { KeyringAccount } from '@metamask/keyring-api';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { assert } from '@metamask/utils';
@@ -244,6 +247,13 @@ export class AccountTreeController extends BaseController<
       'MultichainAccountService:walletStatusChange',
       (walletId, status) => {
         this.#handleMultichainAccountWalletStatusChange(walletId, status);
+      },
+    );
+
+    this.messenger.subscribe(
+      'MultichainAccountService:multichainAccountGroupUpdated',
+      (group) => {
+        this.#handleMultichainAccountWalletGroupUpdated(group);
       },
     );
 
@@ -846,43 +856,63 @@ export class AccountTreeController extends BaseController<
       return;
     }
 
-    const context = this.#accountIdToContext.get(accountId);
+    this.#removeAccounts([accountId]);
+  }
 
-    if (context) {
-      const { walletId, groupId } = context;
+  /**
+   * Removes an account from the tree if it exists. If not, this method does nothing.
+   *
+   * @param accountIds - Account IDs to remove from the tree.
+   */
+  #removeAccounts(accountIds: AccountId[]) {
+    const removedAccounts: AccountId[] = [];
 
-      const previousSelectedAccountGroup =
-        this.state.accountTree.selectedAccountGroup;
-      let selectedAccountGroupChanged = false;
+    const previousSelectedAccountGroup =
+      this.state.accountTree.selectedAccountGroup;
+    let selectedAccountGroupChanged = false;
 
-      this.update((state) => {
-        const accounts =
-          state.accountTree.wallets[walletId]?.groups[groupId]?.accounts;
+    this.update((state) => {
+      for (const accountId of accountIds) {
+        const context = this.#accountIdToContext.get(accountId);
 
-        if (accounts) {
-          const index = accounts.indexOf(accountId);
-          if (index !== -1) {
-            accounts.splice(index, 1);
+        if (context) {
+          const { walletId, groupId } = context;
 
-            // Check if we need to update selectedAccountGroup after removal
-            if (
-              state.accountTree.selectedAccountGroup === groupId &&
-              accounts.length === 0
-            ) {
-              // The currently selected group is now empty, find a new group to select
-              const newSelectedAccountGroup = this.#getDefaultAccountGroupId(
-                state.accountTree.wallets,
-              );
-              state.accountTree.selectedAccountGroup = newSelectedAccountGroup;
-              selectedAccountGroupChanged =
-                newSelectedAccountGroup !== previousSelectedAccountGroup;
+          const accounts =
+            state.accountTree.wallets[walletId]?.groups[groupId]?.accounts;
+
+          if (accounts) {
+            const index = accounts.indexOf(accountId);
+            if (index !== -1) {
+              accounts.splice(index, 1);
+
+              // Now we know this account got removed.
+              removedAccounts.push(accountId);
+
+              // Check if we need to update selectedAccountGroup after removal
+              if (
+                state.accountTree.selectedAccountGroup === groupId &&
+                accounts.length === 0
+              ) {
+                // The currently selected group is now empty, find a new group to select
+                const newSelectedAccountGroup = this.#getDefaultAccountGroupId(
+                  state.accountTree.wallets,
+                );
+                state.accountTree.selectedAccountGroup =
+                  newSelectedAccountGroup;
+                selectedAccountGroupChanged =
+                  newSelectedAccountGroup !== previousSelectedAccountGroup;
+              }
+            }
+            if (accounts.length === 0) {
+              this.#pruneEmptyGroupAndWallet(state, walletId, groupId);
             }
           }
-          if (accounts.length === 0) {
-            this.#pruneEmptyGroupAndWallet(state, walletId, groupId);
-          }
         }
-      });
+      }
+    });
+
+    if (removedAccounts.length) {
       this.messenger.publish(
         `${controllerName}:accountTreeChange`,
         this.state.accountTree,
@@ -898,7 +928,9 @@ export class AccountTreeController extends BaseController<
       }
 
       // Clear reverse-mapping for that account.
-      this.#accountIdToContext.delete(accountId);
+      removedAccounts.forEach((accountId) =>
+        this.#accountIdToContext.delete(accountId),
+      );
     }
   }
 
@@ -1217,6 +1249,36 @@ export class AccountTreeController extends BaseController<
         wallet.status = walletStatus;
       }
     });
+  }
+
+  /**
+   * Handles multichain account group updates.
+   *
+   * @param group - Multichain account group that got updated.
+   */
+  #handleMultichainAccountWalletGroupUpdated(
+    group: MultichainAccountGroup<Bip44Account<KeyringAccount>>,
+  ): void {
+    const multichainGroupAccounts = new Set(
+      group.getAccounts().map((account) => account.id),
+    );
+
+    // We only check if some accounts are no longer part of the multichain
+    // account group. This is required mainly with the `AccountProviderWrapper`s that
+    // can be disabled when "Basic functionality" is turned OFF or when the wrappers
+    // are controlled by remote feature flags.
+    const treeGroup = this.#getAccountGroup(group.id);
+    const treeGroupAccountsToRemove: AccountId[] = [];
+    if (treeGroup) {
+      for (const account of treeGroup.accounts) {
+        // Remove accounts that not longer exist on the multichain account group.
+        if (!multichainGroupAccounts.has(account)) {
+          treeGroupAccountsToRemove.push(account);
+        }
+      }
+    }
+
+    this.#removeAccounts(treeGroupAccountsToRemove);
   }
 
   /**

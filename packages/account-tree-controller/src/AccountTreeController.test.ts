@@ -1,4 +1,8 @@
-import type { AccountWalletId, Bip44Account } from '@metamask/account-api';
+import type {
+  AccountWalletId,
+  Bip44Account,
+  MultichainAccountGroup,
+} from '@metamask/account-api';
 import {
   AccountGroupType,
   AccountWalletType,
@@ -10,6 +14,7 @@ import {
 } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type { KeyringAccount } from '@metamask/keyring-api';
 import {
   BtcAccountType,
   EthAccountType,
@@ -1337,6 +1342,50 @@ describe('AccountTreeController', () => {
       );
 
       expect(mockAccountTreeChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('on MultichainAccountService:multichainAccountGroupUpdated', () => {
+    it('removes account from the tree if their no longer part of the multichain account group', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_TRX_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      messenger.registerActionHandler(
+        'SnapController:get',
+        () =>
+          // TODO: Update this to avoid the unknown cast if possible.
+          MOCK_SNAP_3 as unknown as ReturnType<
+            SnapControllerGetSnap['handler']
+          >,
+      );
+
+      controller.init();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(walletId, 0);
+
+      let group = controller.getAccountGroupObject(groupId);
+      expect(group).toBeDefined();
+      expect(group?.accounts).toHaveLength(2);
+
+      messenger.publish(
+        'MultichainAccountService:multichainAccountGroupUpdated',
+        // Partial implementation, so we need to cast here.
+        {
+          id: groupId,
+          // Simulate a group with just 1 account now, meaning that `MOCK_TRX_ACCOUNT_1` got
+          // "removed/disabled" from this multichain account group.
+          getAccounts: jest.fn().mockReturnValue([MOCK_HD_ACCOUNT_1]),
+        } as unknown as MultichainAccountGroup<Bip44Account<KeyringAccount>>,
+      );
+
+      group = controller.getAccountGroupObject(groupId);
+      expect(group).toBeDefined();
+      expect(group?.accounts).toHaveLength(1);
     });
   });
 
