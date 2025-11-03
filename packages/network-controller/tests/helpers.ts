@@ -5,6 +5,7 @@ import {
   NetworksTicker,
   toHex,
 } from '@metamask/controller-utils';
+import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 import {
   Messenger,
   type MockAnyNamespace,
@@ -43,7 +44,6 @@ import type {
   InfuraNetworkClientConfiguration,
 } from '../src/types';
 import { NetworkClientType } from '../src/types';
-import { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 
 export type AllNetworkControllerActions =
   MessengerActions<NetworkControllerMessenger>;

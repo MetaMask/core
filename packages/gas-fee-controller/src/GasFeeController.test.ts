@@ -4,8 +4,6 @@ import {
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
-import type { ErrorReportingServiceMessenger } from '@metamask/error-reporting-service';
-import { ErrorReportingService } from '@metamask/error-reporting-service';
 import EthQuery from '@metamask/eth-query';
 import {
   Messenger,
