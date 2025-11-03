@@ -108,7 +108,9 @@ describe('AnalyticsController', () => {
 
       expect(isValidUUIDv4(controller1.state.analyticsId)).toBe(true);
       expect(isValidUUIDv4(controller2.state.analyticsId)).toBe(true);
-      expect(controller1.state.analyticsId).not.toBe(controller2.state.analyticsId);
+      expect(controller1.state.analyticsId).not.toBe(
+        controller2.state.analyticsId,
+      );
     });
 
     it('initializes with provided state', () => {
@@ -155,8 +157,12 @@ describe('AnalyticsController', () => {
 
       // The restored controller should have the same state as the original controller
       expect(restoredController.state.analyticsId).toBe(originalAnalyticsId);
-      expect(restoredController.state.enabled).toBe(firstController.state.enabled);
-      expect(restoredController.state.optedIn).toBe(firstController.state.optedIn);
+      expect(restoredController.state.enabled).toBe(
+        firstController.state.enabled,
+      );
+      expect(restoredController.state.optedIn).toBe(
+        firstController.state.optedIn,
+      );
     });
 
     it('initializes with custom enabled/optedIn', () => {
@@ -198,7 +204,7 @@ describe('AnalyticsController', () => {
       expect(controller.state.enabled).toBe(defaultState.enabled);
       expect(controller.state.optedIn).toBe(defaultState.optedIn);
       // analyticsId is auto-generated (UUIDv4)
-      expect(controller.state.analyticsId).toBeTruthy();
+      expect(typeof controller.state.analyticsId).toBe('string');
       expect(isValidUUIDv4(controller.state.analyticsId)).toBe(true);
     });
   });
