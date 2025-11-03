@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Properly removes "outdated" accounts from the `MultichainAccountService` ([#7038](https://github.com/MetaMask/core/pull/7038))
+  - The `MultichainAccountService:multichainAccountGroupUpdated` event is now required.
+  - This change will ensure that "disabled" accounts are not properly removed from the account tree too.
+
 ## [2.0.0]
 
 ### Changed
