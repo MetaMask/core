@@ -224,7 +224,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
       {
         name: TraceName.EvmDiscoverAccounts,
         data: {
-          providerName: this.getName(),
+          provider: this.getName(),
         },
       },
       async () => {

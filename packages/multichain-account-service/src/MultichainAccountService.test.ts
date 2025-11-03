@@ -216,38 +216,17 @@ describe('MultichainAccountService', () => {
         providerConfigs,
       });
 
-      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
-        messenger,
-        providerConfigs[EvmAccountProvider.NAME],
-      );
-      expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
-        messenger,
-        providerConfigs[SolAccountProvider.NAME],
-      );
-    });
+      const evmProviderCall =
+        mocks.EvmAccountProvider.constructor.mock.calls[0];
+      expect(evmProviderCall[0]).toBe(messenger);
+      expect(evmProviderCall[1]).toBe(providerConfigs[EvmAccountProvider.NAME]);
+      expect(typeof evmProviderCall[2]).toBe('function'); // TraceCallback
 
-    it('accepts trace callback in config', () => {
-      const mockTrace = jest.fn().mockImplementation((_request, fn) => fn?.());
-      const config = { trace: mockTrace };
-
-      // Test that the service can be constructed with a trace config
-      const rootMessenger = getRootMessenger();
-      const messenger = getMultichainAccountServiceMessenger(rootMessenger);
-
-      // Mock the required handlers for initialization
-      rootMessenger.registerActionHandler(
-        'KeyringController:getState',
-        jest.fn().mockReturnValue({ isUnlocked: true, keyrings: [] }),
-      );
-
-      const serviceWithTrace = new MultichainAccountService({
-        messenger,
-        config,
-      });
-
-      serviceWithTrace.init();
-
-      expect(serviceWithTrace).toBeDefined();
+      const solProviderCall =
+        mocks.SolAccountProvider.constructor.mock.calls[0];
+      expect(solProviderCall[0]).toBe(messenger);
+      expect(solProviderCall[1]).toBe(providerConfigs[SolAccountProvider.NAME]);
+      expect(typeof solProviderCall[2]).toBe('function'); // TraceCallback
     });
 
     it('allows optional configs for some providers', () => {
@@ -276,10 +255,12 @@ describe('MultichainAccountService', () => {
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
         undefined,
+        expect.any(Function),
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
         providerConfigs[SolAccountProvider.NAME],
+        expect.any(Function),
       );
     });
   });
@@ -585,10 +566,20 @@ describe('MultichainAccountService', () => {
       );
 
       // Should emit updated event for the existing group
+      expect(publishSpy).toHaveBeenCalled();
       expect(publishSpy).toHaveBeenCalledWith(
         'MultichainAccountService:multichainAccountGroupUpdated',
-        expect.any(Object),
+        expect.objectContaining({
+          groupIndex: 0,
+        }),
       );
+
+      const emittedGroup = publishSpy.mock.calls[0][1];
+      expect(emittedGroup).toBeDefined();
+      expect(emittedGroup).toHaveProperty('groupIndex', 0);
+      expect(emittedGroup).toHaveProperty('getAccounts');
+      expect(emittedGroup).toHaveProperty('select');
+      expect(emittedGroup).toHaveProperty('get');
     });
 
     it('creates new detected wallets and update reverse mapping on AccountsController:accountAdded', () => {
@@ -1113,152 +1104,6 @@ describe('MultichainAccountService', () => {
       // Test with false return
       (solProvider.isAccountCompatible as jest.Mock).mockReturnValue(false);
       expect(wrapper.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(false);
-    });
-
-    it('calls trace callback when discoverAccounts() is enabled', async () => {
-      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-        expect(request.name).toBe('Snap Discover Accounts');
-        expect(request.data).toStrictEqual({
-          providerName: solProvider.getName(),
-        });
-        return await fn();
-      });
-
-      const options = {
-        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
-        groupIndex: 0,
-      };
-
-      const wrapperWithTrace = new AccountProviderWrapper(
-        getMultichainAccountServiceMessenger(
-          setup({ accounts: [MOCK_HD_ACCOUNT_1] }).rootMessenger,
-        ),
-        solProvider,
-        mockTrace,
-      );
-
-      (solProvider.discoverAccounts as jest.Mock).mockResolvedValue([
-        MOCK_HD_ACCOUNT_1,
-      ]);
-
-      const result = await wrapperWithTrace.discoverAccounts(options);
-
-      expect(result).toStrictEqual([MOCK_HD_ACCOUNT_1]);
-      expect(mockTrace).toHaveBeenCalledTimes(1);
-      expect(solProvider.discoverAccounts).toHaveBeenCalledWith(options);
-    });
-
-    it('uses fallback trace when no trace callback is provided', async () => {
-      const options = {
-        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
-        groupIndex: 0,
-      };
-
-      (solProvider.discoverAccounts as jest.Mock).mockResolvedValue([
-        MOCK_HD_ACCOUNT_1,
-      ]);
-
-      // Wrapper without trace callback should use fallback
-      const result = await wrapper.discoverAccounts(options);
-
-      expect(result).toStrictEqual([MOCK_HD_ACCOUNT_1]);
-      expect(solProvider.discoverAccounts).toHaveBeenCalledWith(options);
-    });
-
-    it('uses correct trace name for Snap-based providers', async () => {
-      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-        expect(request.name).toBe('Snap Discover Accounts');
-        expect(request.data).toStrictEqual({
-          providerName: solProvider.getName(),
-        });
-        return await fn();
-      });
-
-      const options = {
-        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
-        groupIndex: 0,
-      };
-
-      const wrapperWithTrace = new AccountProviderWrapper(
-        getMultichainAccountServiceMessenger(
-          setup({ accounts: [MOCK_HD_ACCOUNT_1] }).rootMessenger,
-        ),
-        solProvider,
-        mockTrace,
-      );
-
-      (solProvider.discoverAccounts as jest.Mock).mockResolvedValue([
-        MOCK_HD_ACCOUNT_1,
-      ]);
-
-      const result = await wrapperWithTrace.discoverAccounts(options);
-
-      expect(result).toStrictEqual([MOCK_HD_ACCOUNT_1]);
-      expect(mockTrace).toHaveBeenCalledTimes(1);
-    });
-
-    it('uses correct trace name for EVM providers', async () => {
-      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-        expect(request.name).toBe('EVM Discover Accounts');
-        expect(request.data).toStrictEqual({
-          providerName: 'EVM',
-        });
-        return await fn();
-      });
-
-      const { rootMessenger } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
-      const evmProvider = new EvmAccountProvider(
-        getMultichainAccountServiceMessenger(rootMessenger),
-      );
-
-      jest.spyOn(evmProvider, 'discoverAccounts');
-      jest.spyOn(evmProvider, 'getName').mockReturnValue('EVM');
-
-      const options = {
-        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
-        groupIndex: 0,
-      };
-
-      const evmWrapper = new AccountProviderWrapper(
-        getMultichainAccountServiceMessenger(rootMessenger),
-        evmProvider,
-        mockTrace,
-      );
-
-      (evmProvider.discoverAccounts as jest.Mock).mockResolvedValue([
-        MOCK_HD_ACCOUNT_1,
-      ]);
-
-      const result = await evmWrapper.discoverAccounts(options);
-
-      expect(result).toStrictEqual([MOCK_HD_ACCOUNT_1]);
-      expect(mockTrace).toHaveBeenCalledTimes(1);
-      expect(evmProvider.discoverAccounts).toHaveBeenCalledWith(options);
-    });
-
-    it('returns empty array when disabled without calling trace', async () => {
-      const mockTrace = jest.fn();
-      const options = {
-        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
-        groupIndex: 0,
-      };
-
-      const wrapperWithTrace = new AccountProviderWrapper(
-        getMultichainAccountServiceMessenger(
-          setup({ accounts: [MOCK_HD_ACCOUNT_1] }).rootMessenger,
-        ),
-        solProvider,
-        mockTrace,
-      );
-
-      // Disable the wrapper
-      wrapperWithTrace.setEnabled(false);
-
-      const result = await wrapperWithTrace.discoverAccounts(options);
-
-      expect(result).toStrictEqual([]);
-      expect(mockTrace).not.toHaveBeenCalled();
-      expect(solProvider.discoverAccounts).not.toHaveBeenCalled();
     });
   });
 

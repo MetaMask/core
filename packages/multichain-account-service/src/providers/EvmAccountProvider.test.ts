@@ -12,7 +12,10 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { createBytes } from '@metamask/utils';
 
-import { EvmAccountProvider } from './EvmAccountProvider';
+import {
+  EVM_ACCOUNT_PROVIDER_NAME,
+  EvmAccountProvider,
+} from './EvmAccountProvider';
 import { TimeoutError } from './utils';
 import {
   getMultichainAccountServiceMessenger,
@@ -203,7 +206,7 @@ function setup({
 describe('EvmAccountProvider', () => {
   it('getName returns EVM', () => {
     const { provider } = setup({ accounts: [] });
-    expect(provider.getName()).toBe('EVM');
+    expect(provider.getName()).toBe(EVM_ACCOUNT_PROVIDER_NAME);
   });
 
   it('gets accounts', () => {
@@ -413,7 +416,7 @@ describe('EvmAccountProvider', () => {
     const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
       expect(request.name).toBe('EVM Discover Accounts');
       expect(request.data).toStrictEqual({
-        providerName: 'EVM',
+        provider: EVM_ACCOUNT_PROVIDER_NAME,
       });
       return await fn();
     });
@@ -483,7 +486,7 @@ describe('EvmAccountProvider', () => {
     const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
       expect(request.name).toBe('EVM Discover Accounts');
       expect(request.data).toStrictEqual({
-        providerName: 'EVM',
+        provider: EVM_ACCOUNT_PROVIDER_NAME,
       });
       return await fn();
     });

@@ -1,4 +1,5 @@
 import { assertIsBip44Account, type Bip44Account } from '@metamask/account-api';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { TrxAccountType, TrxScope } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -7,10 +8,12 @@ import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
-import type { MultichainAccountServiceMessenger } from 'src/types';
 
 import { SnapAccountProvider } from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
+import { traceFallback } from '../analytics';
+import { TraceName } from '../constants/traces';
+import type { MultichainAccountServiceMessenger } from '../types';
 
 export type TrxAccountProviderConfig = {
   discovery: {
@@ -46,8 +49,9 @@ export class TrxAccountProvider extends SnapAccountProvider {
         timeoutMs: 3000,
       },
     },
+    trace: TraceCallback = traceFallback,
   ) {
-    super(TrxAccountProvider.TRX_SNAP_ID, messenger);
+    super(TrxAccountProvider.TRX_SNAP_ID, messenger, trace);
     this.#client = this.#getKeyringClientFromSnapId(
       TrxAccountProvider.TRX_SNAP_ID,
     );
@@ -112,31 +116,41 @@ export class TrxAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    const discoveredAccounts = await withRetry(
-      () =>
-        withTimeout(
-          this.#client.discoverAccounts(
-            [TrxScope.Mainnet],
-            entropySource,
-            groupIndex,
-          ),
-          this.#config.discovery.timeoutMs,
-        ),
+    return await super.trace(
       {
-        maxAttempts: this.#config.discovery.maxAttempts,
-        backOffMs: this.#config.discovery.backOffMs,
+        name: TraceName.SnapDiscoverAccounts,
+        data: {
+          provider: this.getName(),
+        },
+      },
+      async () => {
+        const discoveredAccounts = await withRetry(
+          () =>
+            withTimeout(
+              this.#client.discoverAccounts(
+                [TrxScope.Mainnet],
+                entropySource,
+                groupIndex,
+              ),
+              this.#config.discovery.timeoutMs,
+            ),
+          {
+            maxAttempts: this.#config.discovery.maxAttempts,
+            backOffMs: this.#config.discovery.backOffMs,
+          },
+        );
+
+        if (!discoveredAccounts.length) {
+          return [];
+        }
+
+        const createdAccounts = await this.createAccounts({
+          entropySource,
+          groupIndex,
+        });
+
+        return createdAccounts;
       },
     );
-
-    if (!discoveredAccounts.length) {
-      return [];
-    }
-
-    const createdAccounts = await this.createAccounts({
-      entropySource,
-      groupIndex,
-    });
-
-    return createdAccounts;
   }
 }

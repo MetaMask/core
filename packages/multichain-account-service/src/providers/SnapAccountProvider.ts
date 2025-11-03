@@ -1,12 +1,14 @@
 import { type Bip44Account } from '@metamask/account-api';
+import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Json, SnapId } from '@metamask/snaps-sdk';
-import type { MultichainAccountServiceMessenger } from 'src/types';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
+import { traceFallback } from '../analytics';
+import type { MultichainAccountServiceMessenger } from '../types';
 
 export type RestrictedSnapKeyringCreateAccount = (
   options: Record<string, Json>,
@@ -15,10 +17,25 @@ export type RestrictedSnapKeyringCreateAccount = (
 export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   readonly snapId: SnapId;
 
-  constructor(snapId: SnapId, messenger: MultichainAccountServiceMessenger) {
+  readonly #trace: TraceCallback;
+
+  constructor(
+    snapId: SnapId,
+    messenger: MultichainAccountServiceMessenger,
+    /* istanbul ignore next */
+    trace: TraceCallback = traceFallback,
+  ) {
     super(messenger);
 
     this.snapId = snapId;
+    this.#trace = trace;
+  }
+
+  protected async trace<ReturnType>(
+    request: TraceRequest,
+    fn: () => Promise<ReturnType>,
+  ): Promise<ReturnType> {
+    return this.#trace(request, fn);
   }
 
   protected async getRestrictedSnapAccountCreator(): Promise<RestrictedSnapKeyringCreateAccount> {

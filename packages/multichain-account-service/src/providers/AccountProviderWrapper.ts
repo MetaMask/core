@@ -1,11 +1,7 @@
 import type { Bip44Account } from '@metamask/account-api';
-import type { TraceCallback } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
-import { EVM_ACCOUNT_PROVIDER_NAME } from './EvmAccountProvider';
-import { traceFallback } from '../analytics';
-import { TraceName } from '../constants/traces';
 import type { MultichainAccountServiceMessenger } from '../types';
 
 /**
@@ -17,32 +13,12 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
 
   private readonly provider: BaseBip44AccountProvider;
 
-  readonly #trace: TraceCallback;
-
   constructor(
     messenger: MultichainAccountServiceMessenger,
     provider: BaseBip44AccountProvider,
-    trace?: TraceCallback,
   ) {
     super(messenger);
     this.provider = provider;
-    this.#trace = trace ?? traceFallback;
-  }
-
-  /**
-   * Determines the appropriate trace name based on the wrapped provider type.
-   *
-   * @returns The appropriate TraceName for the wrapped provider.
-   */
-  private getTraceNameForProvider(): string {
-    const providerName = this.provider.getName();
-
-    if (providerName === EVM_ACCOUNT_PROVIDER_NAME) {
-      return TraceName.EvmDiscoverAccounts;
-    }
-
-    // All other providers (Solana, Bitcoin, Tron) are Snap-based
-    return TraceName.SnapDiscoverAccounts;
   }
 
   override getName(): string {
@@ -130,17 +106,7 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
     if (!this.isEnabled) {
       return [];
     }
-
-    // TODO: Try to move the tracing logic later in SnapAccountProvider to be more DRY
-    return this.#trace(
-      {
-        name: this.getTraceNameForProvider(),
-        data: {
-          providerName: this.getName(),
-        },
-      },
-      async () => this.provider.discoverAccounts(options),
-    );
+    return this.provider.discoverAccounts(options);
   }
 }
 

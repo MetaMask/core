@@ -324,4 +324,129 @@ describe('BtcAccountProvider', () => {
 
     expect(discovered).toStrictEqual([]);
   });
+
+  describe('trace functionality', () => {
+    it('calls trace callback during account discovery', async () => {
+      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
+        expect(request.name).toBe('Snap Discover Accounts');
+        expect(request.data).toStrictEqual({
+          provider: 'Bitcoin',
+        });
+        return await fn();
+      });
+
+      const { messenger, mocks } = setup({
+        accounts: [],
+      });
+
+      // Simulate one discovered account at the requested index.
+      mocks.handleRequest.mockReturnValue([MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1]);
+
+      const multichainMessenger =
+        getMultichainAccountServiceMessenger(messenger);
+      const btcProvider = new BtcAccountProvider(
+        multichainMessenger,
+        undefined,
+        mockTrace,
+      );
+      const provider = new AccountProviderWrapper(
+        multichainMessenger,
+        btcProvider,
+      );
+
+      const discovered = await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+
+      expect(discovered).toHaveLength(1);
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses fallback trace when no trace callback is provided', async () => {
+      const { provider, mocks } = setup({
+        accounts: [],
+      });
+
+      mocks.handleRequest.mockReturnValue([MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1]);
+
+      const discovered = await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+
+      expect(discovered).toHaveLength(1);
+      // No trace errors, fallback trace should be used silently
+    });
+
+    it('trace callback is called even when discovery returns empty results', async () => {
+      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
+        expect(request.name).toBe('Snap Discover Accounts');
+        expect(request.data).toStrictEqual({
+          provider: 'Bitcoin',
+        });
+        return await fn();
+      });
+
+      const { messenger, mocks } = setup({
+        accounts: [],
+      });
+
+      mocks.handleRequest.mockReturnValue([]);
+
+      const multichainMessenger =
+        getMultichainAccountServiceMessenger(messenger);
+      const btcProvider = new BtcAccountProvider(
+        multichainMessenger,
+        undefined,
+        mockTrace,
+      );
+      const provider = new AccountProviderWrapper(
+        multichainMessenger,
+        btcProvider,
+      );
+
+      const discovered = await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+
+      expect(discovered).toStrictEqual([]);
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+    });
+
+    it('trace callback receives error when discovery fails', async () => {
+      const mockError = new Error('Discovery failed');
+      const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
+        return await fn();
+      });
+
+      const { messenger, mocks } = setup({
+        accounts: [],
+      });
+
+      mocks.handleRequest.mockRejectedValue(mockError);
+
+      const multichainMessenger =
+        getMultichainAccountServiceMessenger(messenger);
+      const btcProvider = new BtcAccountProvider(
+        multichainMessenger,
+        undefined,
+        mockTrace,
+      );
+      const provider = new AccountProviderWrapper(
+        multichainMessenger,
+        btcProvider,
+      );
+
+      await expect(
+        provider.discoverAccounts({
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: 0,
+        }),
+      ).rejects.toThrow(mockError);
+
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+    });
+  });
 });

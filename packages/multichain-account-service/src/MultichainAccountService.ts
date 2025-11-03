@@ -105,14 +105,15 @@ export class MultichainAccountService {
       new EvmAccountProvider(
         this.#messenger,
         providerConfigs?.[EvmAccountProvider.NAME],
+        this.#trace.bind(this),
       ),
       new AccountProviderWrapper(
         this.#messenger,
         new SolAccountProvider(
           this.#messenger,
           providerConfigs?.[SolAccountProvider.NAME],
+          this.#trace.bind(this),
         ),
-        this.#trace,
       ),
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,
