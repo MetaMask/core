@@ -341,8 +341,8 @@ describe('MultichainAccountWallet', () => {
 
       const { wallet, providers } = setup({
         providers: [
-          setupNamedAccountProvider({ accounts: [mockEvmAccount], index: 0 }),
-          setupNamedAccountProvider({
+          setupBip44AccountProvider({ accounts: [mockEvmAccount], index: 0 }),
+          setupBip44AccountProvider({
             name: 'Non-EVM Provider',
             accounts: [],
             index: 1,

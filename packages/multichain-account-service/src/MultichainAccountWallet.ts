@@ -30,7 +30,6 @@ import {
 import type { ServiceState, StateKeys } from './MultichainAccountService';
 import { type Bip44AccountProvider, EvmAccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
-import { toRejectedErrorMessage } from './utils';
 
 /**
  * The context for a provider discovery.
@@ -206,7 +205,7 @@ export class MultichainAccountWallet<
    * @param options.groupIndex - The group index to create accounts for.
    * @param options.providers - The non‑EVM account providers.
    * @param options.awaitAll - Whether to wait for all providers to finish.
-   * @param options.initialGroup - The initial group to create accounts for.
+   * @param options.group - The group object pertaining to the group index to create accounts for.
    * @throws If awaitAll is true and any provider fails to create accounts.
    * @returns A promise that resolves when done (if awaitAll is true) or immediately (if false).
    */
@@ -214,14 +213,13 @@ export class MultichainAccountWallet<
     groupIndex,
     providers,
     awaitAll,
-    initialGroup,
+    group,
   }: {
     groupIndex: number;
     providers: Bip44AccountProvider<Account>[];
     awaitAll: boolean;
-    initialGroup: MultichainAccountGroup<Account>;
+    group: MultichainAccountGroup<Account>;
   }): Promise<void> {
-    let group;
     if (awaitAll) {
       const tasks = providers.map((provider) =>
         provider.createAccounts({
@@ -256,15 +254,6 @@ export class MultichainAccountWallet<
         this.#log(`${WARNING_PREFIX} ${message}`);
       }
 
-      group =
-        initialGroup ??
-        new MultichainAccountGroup({
-          wallet: this,
-          providers: this.#providers,
-          groupIndex,
-          messenger: this.#messenger,
-        });
-
       // No need to fetch the accounts list from the AccountsController since we already have the account IDs to be used in the controller
       const groupState = results.reduce<GroupState>((state, result, idx) => {
         if (result.status === 'fulfilled') {
@@ -275,35 +264,10 @@ export class MultichainAccountWallet<
         return state;
       }, {});
 
-      group.init(groupState);
+      group.update(groupState);
     } else {
-      // Create the group here because the EVM provider will not fail.
-      // There isn't a failure scenario here since this function is only used by createNextMultichainAccountGroup (no throw on gap error).
-      // We have to deterministically create the group here because otherwise we can't set the group in state.
-      group = new MultichainAccountGroup({
-        wallet: this,
-        providers: this.#providers,
-        groupIndex,
-        messenger: this.#messenger,
-      });
-
-      evmProvider
-        .createAccounts({
-          entropySource: this.#entropySource,
-          groupIndex,
-        })
-        .then((account) => {
-          group?.init({ [evmProvider.getName()]: [account[0].id] });
-          return group;
-        })
-        .catch((error) => {
-          const errorMessage = `Unable to create some accounts for group index: ${groupIndex} with provider "${evmProvider.getName()}". Error: ${(error as Error).message}`;
-          console.warn(errorMessage);
-          this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
-        });
-
       // Create account with other providers in the background
-      otherProviders.forEach((provider) => {
+      providers.forEach((provider) => {
         provider
           .createAccounts({
             entropySource: this.#entropySource,
@@ -444,16 +408,31 @@ export class MultichainAccountWallet<
         'EVM account provider must be first',
       );
 
-      try {
-        await evmProvider.createAccounts({
+      // Create the group here because the EVM provider will not fail.
+      // There isn't a failure scenario here since this function is only used by createNextMultichainAccountGroup (no throw on gap error).
+      // We have to deterministically create the group here because otherwise we can't set the group in state.
+      group = new MultichainAccountGroup({
+        wallet: this,
+        providers: this.#providers,
+        groupIndex,
+        messenger: this.#messenger,
+      });
+
+      evmProvider
+        .createAccounts({
           entropySource: this.#entropySource,
           groupIndex,
+        })
+        .then((account) => {
+          group?.init({ [evmProvider.getName()]: [account[0].id] });
+          return group;
+        })
+        .catch((error) => {
+          const errorMessage = `Unable to create some accounts for group index: ${groupIndex} with provider "${evmProvider.getName()}". Error: ${(error as Error).message}`;
+          console.warn(errorMessage);
+          this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
+          throw new Error(errorMessage);
         });
-      } catch (error) {
-        const errorMessage = `Unable to create multichain account group for index: ${groupIndex} with provider "${evmProvider.getName()}". Error: ${(error as Error).message}`;
-        this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
-        throw new Error(errorMessage);
-      }
 
       // We then create accounts with other providers (some being throttled if configured).
       // Depending on the options, we either await all providers or run them in background.
