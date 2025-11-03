@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/multichain-api-middleware",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/multichain-api-middleware",
@@ -64,6 +65,7 @@
     "@metamask/eth-json-rpc-filters": "^9.0.0",
     "@metamask/multichain-transactions-controller": "^6.0.0",
     "@metamask/safe-event-emitter": "^3.0.0",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
