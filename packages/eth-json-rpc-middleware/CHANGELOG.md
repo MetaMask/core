@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- test(eth-json-rpc-middleware): Round out test suite ([#6967](https://github.com/MetaMask/core/pull/6967))
-- Release/642.0.0 ([#6962](https://github.com/MetaMask/core/pull/6962))
-- Release 641.0.0 ([#6940](https://github.com/MetaMask/core/pull/6940))
-
 ### Changed
 
 - **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
