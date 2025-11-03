@@ -3,6 +3,7 @@ import {
   MOCK_ANY_NAMESPACE,
   type MockAnyNamespace,
 } from '@metamask/messenger';
+import { validate as uuidValidate, version as uuidVersion } from 'uuid';
 
 import {
   AnalyticsController,
@@ -10,13 +11,12 @@ import {
   type AnalyticsControllerActions,
   type AnalyticsControllerEvents,
   type AnalyticsPlatformAdapter,
+  getDefaultAnalyticsControllerState,
 } from '.';
 import type { AnalyticsControllerState } from '.';
 
 type SetupControllerOptions = {
   state?: Partial<AnalyticsControllerState>;
-  enabled?: boolean;
-  optedIn?: boolean;
   platformAdapter?: AnalyticsPlatformAdapter;
 };
 
@@ -34,12 +34,7 @@ type SetupControllerReturn = {
 function setupController(
   options: SetupControllerOptions = {},
 ): SetupControllerReturn {
-  const {
-    state = {},
-    enabled = true,
-    optedIn = false,
-    platformAdapter,
-  } = options;
+  const { state = {}, platformAdapter } = options;
 
   // Create default mock adapter if not provided
   const adapter =
@@ -69,8 +64,6 @@ function setupController(
   const controller = new AnalyticsController({
     messenger: analyticsControllerMessenger,
     platformAdapter: adapter,
-    enabled,
-    optedIn,
     state,
   });
 
@@ -78,6 +71,16 @@ function setupController(
     controller,
     messenger: analyticsControllerMessenger,
   };
+}
+
+/**
+ * Validates that a string is a valid UUIDv4 format.
+ *
+ * @param value - The string to validate
+ * @returns True if the string matches UUIDv4 format
+ */
+function isValidUUIDv4(value: string): boolean {
+  return uuidValidate(value) && uuidVersion(value) === 4;
 }
 
 describe('AnalyticsController', () => {
@@ -88,34 +91,80 @@ describe('AnalyticsController', () => {
   });
 
   describe('constructor', () => {
-    it('initializes with default state', () => {
+    it('initializes with default state including auto-generated analyticsId', () => {
       const { controller } = setupController();
 
-      const { state } = controller;
+      const defaultState = getDefaultAnalyticsControllerState();
 
-      expect(state.enabled).toBe(true);
-      expect(state.optedIn).toBe(false);
-      expect(state.analyticsId).toBeNull();
+      expect(controller.state.enabled).toBe(defaultState.enabled);
+      expect(controller.state.optedIn).toBe(defaultState.optedIn);
+      expect(isValidUUIDv4(controller.state.analyticsId)).toBe(true);
+    });
+
+    it('generates a new UUID when no state is provided (first-time initialization)', () => {
+      // Create two controllers without providing state
+      const { controller: controller1 } = setupController();
+      const { controller: controller2 } = setupController();
+
+      expect(isValidUUIDv4(controller1.state.analyticsId)).toBe(true);
+      expect(isValidUUIDv4(controller2.state.analyticsId)).toBe(true);
+      expect(controller1.state.analyticsId).not.toBe(controller2.state.analyticsId);
     });
 
     it('initializes with provided state', () => {
+      const customId = '550e8400-e29b-41d4-a716-446655440000';
       const { controller } = setupController({
         state: {
           enabled: false,
           optedIn: true,
-          analyticsId: 'test-id',
+          analyticsId: customId,
         },
       });
 
       expect(controller.state.enabled).toBe(false);
       expect(controller.state.optedIn).toBe(true);
-      expect(controller.state.analyticsId).toBe('test-id');
+      expect(controller.state.analyticsId).toBe(customId);
+    });
+
+    it('preserves provided analyticsId and does not auto-generate', () => {
+      const customId = '550e8400-e29b-41d4-a716-446655440000';
+      const { controller } = setupController({
+        state: {
+          analyticsId: customId,
+        },
+      });
+
+      expect(controller.state.analyticsId).toBe(customId);
+    });
+
+    it('restores analyticsId from persisted state', () => {
+      // First, create a controller (generates UUID)
+      const { controller: firstController } = setupController();
+      const originalAnalyticsId = firstController.state.analyticsId;
+
+      expect(isValidUUIDv4(originalAnalyticsId)).toBe(true);
+
+      // Simulate restoration: create a new controller with the previous state
+      const { controller: restoredController } = setupController({
+        state: {
+          enabled: firstController.state.enabled,
+          optedIn: firstController.state.optedIn,
+          analyticsId: firstController.state.analyticsId,
+        },
+      });
+
+      // The restored controller should have the same state as the original controller
+      expect(restoredController.state.analyticsId).toBe(originalAnalyticsId);
+      expect(restoredController.state.enabled).toBe(firstController.state.enabled);
+      expect(restoredController.state.optedIn).toBe(firstController.state.optedIn);
     });
 
     it('initializes with custom enabled/optedIn', () => {
       const { controller } = setupController({
-        enabled: false,
-        optedIn: true,
+        state: {
+          enabled: false,
+          optedIn: true,
+        },
       });
 
       expect(controller.state.enabled).toBe(false);
@@ -145,8 +194,12 @@ describe('AnalyticsController', () => {
         platformAdapter: mockAdapter,
       });
 
-      expect(controller.state.enabled).toBe(true);
-      expect(controller.state.optedIn).toBe(false);
+      const defaultState = getDefaultAnalyticsControllerState();
+      expect(controller.state.enabled).toBe(defaultState.enabled);
+      expect(controller.state.optedIn).toBe(defaultState.optedIn);
+      // analyticsId is auto-generated (UUIDv4)
+      expect(controller.state.analyticsId).toBeTruthy();
+      expect(isValidUUIDv4(controller.state.analyticsId)).toBe(true);
     });
   });
 
@@ -174,7 +227,7 @@ describe('AnalyticsController', () => {
     it('does not track event when disabled', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
-        enabled: false,
+        state: { enabled: false },
         platformAdapter: mockAdapter,
       });
 
@@ -200,7 +253,7 @@ describe('AnalyticsController', () => {
     it('does not identify when disabled', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
-        enabled: false,
+        state: { enabled: false },
         platformAdapter: mockAdapter,
       });
 
@@ -225,7 +278,7 @@ describe('AnalyticsController', () => {
     it('does not track page when disabled', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
-        enabled: false,
+        state: { enabled: false },
         platformAdapter: mockAdapter,
       });
 
@@ -237,7 +290,9 @@ describe('AnalyticsController', () => {
 
   describe('enable', () => {
     it('enables analytics tracking', () => {
-      const { controller } = setupController({ enabled: false });
+      const { controller } = setupController({
+        state: { enabled: false },
+      });
 
       expect(controller.state.enabled).toBe(false);
 
@@ -249,7 +304,9 @@ describe('AnalyticsController', () => {
 
   describe('disable', () => {
     it('disables analytics tracking', () => {
-      const { controller } = setupController({ enabled: true });
+      const { controller } = setupController({
+        state: { enabled: true },
+      });
 
       expect(controller.state.enabled).toBe(true);
 
@@ -273,7 +330,9 @@ describe('AnalyticsController', () => {
 
   describe('optOut', () => {
     it('opts out of analytics', () => {
-      const { controller } = setupController({ optedIn: true });
+      const { controller } = setupController({
+        state: { optedIn: true },
+      });
 
       expect(controller.state.optedIn).toBe(true);
 
@@ -321,7 +380,9 @@ describe('AnalyticsController', () => {
     });
 
     it('handles enable action', () => {
-      const { controller, messenger } = setupController({ enabled: false });
+      const { controller, messenger } = setupController({
+        state: { enabled: false },
+      });
 
       expect(controller.state.enabled).toBe(false);
 
@@ -331,7 +392,9 @@ describe('AnalyticsController', () => {
     });
 
     it('handles disable action', () => {
-      const { controller, messenger } = setupController({ enabled: true });
+      const { controller, messenger } = setupController({
+        state: { enabled: true },
+      });
 
       expect(controller.state.enabled).toBe(true);
 
@@ -351,7 +414,9 @@ describe('AnalyticsController', () => {
     });
 
     it('handles optOut action', () => {
-      const { controller, messenger } = setupController({ optedIn: true });
+      const { controller, messenger } = setupController({
+        state: { optedIn: true },
+      });
 
       expect(controller.state.optedIn).toBe(true);
 

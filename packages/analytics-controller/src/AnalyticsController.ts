@@ -5,6 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import { v4 as uuidv4 } from 'uuid';
 
 import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types';
 import { projectLogger } from './AnalyticsLogger';
@@ -41,7 +42,7 @@ export type AnalyticsControllerState = {
   /**
    * User's UUIDv4 analytics identifier
    */
-  analyticsId: string | null;
+  analyticsId: string;
 };
 
 /**
@@ -78,9 +79,9 @@ const analyticsControllerMetadata = {
  */
 export function getDefaultAnalyticsControllerState(): AnalyticsControllerState {
   return {
-    enabled: false,
+    enabled: true,
     optedIn: false,
-    analyticsId: null,
+    analyticsId: uuidv4(),
   };
 }
 
@@ -156,14 +157,6 @@ export type AnalyticsControllerOptions = {
    * Platform adapter implementation for tracking events
    */
   platformAdapter: AnalyticsPlatformAdapter;
-  /**
-   * Initial enabled state (default: true)
-   */
-  enabled?: boolean;
-  /**
-   * Initial opted-in state (default: false)
-   */
-  optedIn?: boolean;
 };
 
 /**
@@ -187,28 +180,29 @@ export class AnalyticsController extends BaseController<
    * Constructs an AnalyticsController instance.
    *
    * @param options - Controller options
-   * @param options.state - Initial controller state
+   * @param options.state - Initial controller state (defaults from getDefaultAnalyticsControllerState)
    * @param options.messenger - Messenger used to communicate with BaseController
    * @param options.platformAdapter - Platform adapter implementation for tracking
-   * @param options.enabled - Initial enabled state (default: true)
-   * @param options.optedIn - Initial opted-in state (default: false)
    */
   constructor({
     state = {},
     messenger,
     platformAdapter,
-    enabled = true,
-    optedIn = false,
   }: AnalyticsControllerOptions) {
+    const defaultState = getDefaultAnalyticsControllerState();
+    // Generate UUIDv4 analytics ID only if not provided in state
+    const analyticsId: string =
+      state.analyticsId !== undefined ? state.analyticsId : uuidv4();
+    const mergedState: AnalyticsControllerState = {
+      ...defaultState,
+      ...state,
+      analyticsId,
+    };
+
     super({
       name: controllerName,
       metadata: analyticsControllerMetadata,
-      state: {
-        ...getDefaultAnalyticsControllerState(),
-        enabled,
-        optedIn,
-        ...state,
-      },
+      state: mergedState,
       messenger,
     });
 
@@ -220,8 +214,9 @@ export class AnalyticsController extends BaseController<
     );
 
     projectLogger('AnalyticsController initialized and ready', {
-      enabled,
-      optedIn,
+      enabled: this.state.enabled,
+      optedIn: this.state.optedIn,
+      analyticsId: this.state.analyticsId,
     });
   }
 
