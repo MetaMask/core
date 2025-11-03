@@ -7,21 +7,15 @@ import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
-import type { MultichainAccountServiceMessenger } from 'src/types';
 
-import { SnapAccountProvider } from './SnapAccountProvider';
+import {
+  SnapAccountProvider,
+  type SnapAccountProviderConfig,
+} from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
+import type { MultichainAccountServiceMessenger } from '../types';
 
-export type TrxAccountProviderConfig = {
-  discovery: {
-    maxAttempts: number;
-    timeoutMs: number;
-    backOffMs: number;
-  };
-  createAccounts: {
-    timeoutMs: number;
-  };
-};
+export type TrxAccountProviderConfig = SnapAccountProviderConfig;
 
 export const TRX_ACCOUNT_PROVIDER_NAME = 'Tron' as const;
 
@@ -31,8 +25,6 @@ export class TrxAccountProvider extends SnapAccountProvider {
   static TRX_SNAP_ID = 'npm:@metamask/tron-wallet-snap' as SnapId;
 
   readonly #client: KeyringClient;
-
-  readonly #config: TrxAccountProviderConfig;
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
@@ -47,11 +39,10 @@ export class TrxAccountProvider extends SnapAccountProvider {
       },
     },
   ) {
-    super(TrxAccountProvider.TRX_SNAP_ID, messenger);
+    super(TrxAccountProvider.TRX_SNAP_ID, messenger, config);
     this.#client = this.#getKeyringClientFromSnapId(
       TrxAccountProvider.TRX_SNAP_ID,
     );
-    this.#config = config;
   }
 
   getName(): string {
@@ -89,20 +80,22 @@ export class TrxAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    const createAccount = await this.getRestrictedSnapAccountCreator();
+    return this.withMaxConcurrency(async () => {
+      const createAccount = await this.getRestrictedSnapAccountCreator();
 
-    const account = await withTimeout(
-      createAccount({
-        entropySource,
-        index,
-        addressType: TrxAccountType.Eoa,
-        scope: TrxScope.Mainnet,
-      }),
-      this.#config.createAccounts.timeoutMs,
-    );
+      const account = await withTimeout(
+        createAccount({
+          entropySource,
+          index,
+          addressType: TrxAccountType.Eoa,
+          scope: TrxScope.Mainnet,
+        }),
+        this.config.createAccounts.timeoutMs,
+      );
 
-    assertIsBip44Account(account);
-    return [account];
+      assertIsBip44Account(account);
+      return [account];
+    });
   }
 
   async discoverAccounts({
@@ -120,11 +113,11 @@ export class TrxAccountProvider extends SnapAccountProvider {
             entropySource,
             groupIndex,
           ),
-          this.#config.discovery.timeoutMs,
+          this.config.discovery.timeoutMs,
         ),
       {
-        maxAttempts: this.#config.discovery.maxAttempts,
-        backOffMs: this.#config.discovery.backOffMs,
+        maxAttempts: this.config.discovery.maxAttempts,
+        backOffMs: this.config.discovery.backOffMs,
       },
     );
 
