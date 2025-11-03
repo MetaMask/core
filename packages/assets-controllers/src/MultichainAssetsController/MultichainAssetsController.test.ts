@@ -1194,16 +1194,23 @@ describe('MultichainAssetsController', () => {
     });
 
     it('should partially remove assets from ignored list when only some are added', async () => {
-      const ignoredAsset1 = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
-      const ignoredAsset2 = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Token1';
-      const ignoredAsset3 = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Token2';
+      const ignoredAsset1 =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
+      const ignoredAsset2 =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Token1';
+      const ignoredAsset3 =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Token2';
 
       const { controller } = setupController({
         state: {
           accountsAssets: {},
           assetsMetadata: mockGetMetadataReturnValue.assets,
           allIgnoredAssets: {
-            [mockSolanaAccount.id]: [ignoredAsset1, ignoredAsset2, ignoredAsset3],
+            [mockSolanaAccount.id]: [
+              ignoredAsset1,
+              ignoredAsset2,
+              ignoredAsset3,
+            ],
           },
         } as MultichainAssetsControllerState,
       });
