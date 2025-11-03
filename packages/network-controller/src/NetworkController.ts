@@ -1893,6 +1893,8 @@ export class NetworkController extends BaseController<
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
         (error: unknown, block?: unknown) => {
           if (error) {
+            // This error comes from JsonRpcEngine, we don't control it.
+            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(error);
           } else {
             // TODO: Validate this type

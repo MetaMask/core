@@ -3834,7 +3834,7 @@ describe('NetworkController', () => {
               operation: async () => {
                 try {
                   await controller.getEIP1559Compatibility();
-                } catch (error) {
+                } catch {
                   // ignore error
                 }
               },
@@ -16506,9 +16506,7 @@ async function withController<ReturnValue>(
     return await fn({ controller, messenger, networkControllerMessenger });
   } finally {
     const { blockTracker } = controller.getProviderAndBlockTracker();
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    blockTracker?.destroy();
+    await blockTracker?.destroy();
   }
 }
 
@@ -16694,14 +16692,14 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
             resolve(interestingEventPayloads);
           } else {
             reject(
-              // False positive - eventType is a string.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-              `Expected to receive ${expectedNumberOfEvents} ${eventType} event(s), but received ${
-                interestingEventPayloads.length
-              } after ${timeBeforeAssumingNoMoreEvents}ms.\n\nAll payloads:\n\n${inspect(
-                allEventPayloads,
-                { depth: null },
-              )}`,
+              new Error(
+                `Expected to receive ${expectedNumberOfEvents} ${String(eventType)} event(s), but received ${
+                  interestingEventPayloads.length
+                } after ${timeBeforeAssumingNoMoreEvents}ms.\n\nAll payloads:\n\n${inspect(
+                  allEventPayloads,
+                  { depth: null },
+                )}`,
+              ),
             );
           }
           alreadyEnded = true;
