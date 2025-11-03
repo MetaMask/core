@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AssetsByAccountGroup` to list of exported types ([#6983](https://github.com/MetaMask/core/pull/6983))
+
+### Changed
+
+- `isNative` is inferred as `true` for all non-evm assets with slip44 as its asset namespace ([#6983](https://github.com/MetaMask/core/pull/6983))
+- **BREAKING:** Modify DeFi position fetching behaviour ([#6944](https://github.com/MetaMask/core/pull/6944))
+  - The fetch request to the API times out after 8 seconds and attempts a single retry
+  - Refresh only updates the selected evm address
+  - `KeyringController:unlock` no longer starts polling
+  - `AccountsController:accountAdded` no longer updates DeFi positions
+  - `AccountTreeController:selectedAccountGroupChange` updates DeFi positions for the selected address
+  - `TransactionController:transactionConfirmed` only updates DeFi positions if the transaction is for the selected address
+
 ## [86.0.0]
 
 ### Changed
