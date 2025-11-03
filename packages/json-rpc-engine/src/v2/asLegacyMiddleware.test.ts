@@ -190,4 +190,93 @@ describe('asLegacyMiddleware', () => {
     await legacyEngine.handle(makeRequest());
     expect(observedContextValues).toStrictEqual([1, 2]);
   });
+
+  describe('with V2 middleware', () => {
+    it('accepts a single V2 middleware', async () => {
+      const v2Middleware: JsonRpcMiddleware<JsonRpcRequest> = jest.fn(
+        () => 'test-result',
+      );
+
+      const legacyEngine = new JsonRpcEngine();
+      legacyEngine.push(asLegacyMiddleware(v2Middleware));
+
+      const response = (await legacyEngine.handle(
+        makeRequest(),
+      )) as JsonRpcSuccess;
+
+      expect(response.result).toBe('test-result');
+      expect(v2Middleware).toHaveBeenCalledTimes(1);
+    });
+
+    it('accepts multiple V2 middlewares via rest params', async () => {
+      const middleware1: JsonRpcMiddleware<JsonRpcRequest> = jest.fn(
+        ({ context, next }) => {
+          context.set('visited1', true);
+          return next();
+        },
+      );
+
+      const middleware2: JsonRpcMiddleware<JsonRpcRequest> = jest.fn(
+        ({ context }) => {
+          expect(context.get('visited1')).toBe(true);
+          return 'composed-result';
+        },
+      );
+
+      const legacyEngine = new JsonRpcEngine();
+      legacyEngine.push(asLegacyMiddleware(middleware1, middleware2));
+
+      const response = (await legacyEngine.handle(
+        makeRequest(),
+      )) as JsonRpcSuccess;
+
+      expect(response.result).toBe('composed-result');
+      expect(middleware1).toHaveBeenCalledTimes(1);
+      expect(middleware2).toHaveBeenCalledTimes(1);
+    });
+
+    it('forwards errors from V2 middleware', async () => {
+      const v2Middleware: JsonRpcMiddleware<JsonRpcRequest> = jest.fn(() => {
+        throw new Error('v2-error');
+      });
+
+      const legacyEngine = new JsonRpcEngine();
+      legacyEngine.push(asLegacyMiddleware(v2Middleware));
+
+      const response = (await legacyEngine.handle(
+        makeRequest(),
+      )) as JsonRpcFailure;
+
+      expect(response.error).toStrictEqual({
+        message: 'v2-error',
+        code: -32603,
+        data: {
+          cause: {
+            message: 'v2-error',
+            stack: expect.any(String),
+          },
+        },
+      });
+    });
+
+    it('allows legacy engine to continue when V2 middleware does not end', async () => {
+      const v2Middleware: JsonRpcMiddleware<JsonRpcRequest> = jest.fn(
+        ({ next }) => next(),
+      );
+
+      const legacyEngine = new JsonRpcEngine();
+      legacyEngine.push(asLegacyMiddleware(v2Middleware));
+      legacyEngine.push((_req, res, _next, end) => {
+        res.result = 'continued';
+        end();
+      });
+
+      const response = (await legacyEngine.handle(
+        makeRequest(),
+      )) as JsonRpcSuccess;
+
+      expect(response.result).toBe('continued');
+      expect(v2Middleware).toHaveBeenCalledTimes(1);
+    });
+  });
 });

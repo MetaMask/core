@@ -98,6 +98,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/notification-services-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/notification-services-controller",
@@ -126,6 +127,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^24.0.0",
     "@metamask/profile-sync-controller": "^26.0.0",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "@types/semver": "^7",
