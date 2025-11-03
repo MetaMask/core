@@ -18,14 +18,16 @@ import { MultichainAccountWallet } from './MultichainAccountWallet';
 import type {
   EvmAccountProviderConfig,
   NamedAccountProvider,
-  SolAccountProviderConfig,
 } from './providers';
 import {
   AccountProviderWrapper,
   isAccountProviderWrapper,
 } from './providers/AccountProviderWrapper';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
-import { SolAccountProvider } from './providers/SolAccountProvider';
+import {
+  SolAccountProvider,
+  type SolAccountProviderConfig,
+} from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
 
 export const serviceName = 'MultichainAccountService';
