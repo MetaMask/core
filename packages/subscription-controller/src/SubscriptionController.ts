@@ -825,7 +825,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
   /**
    * Determines if the user is eligible for trialed sponsorship for the given chain and products.
-   * The user is eligible if the chain supports sponsorship and the user has not trailed the provided products before.
+   * The user is eligible if the chain supports sponsorship and the user has not trialed the provided products before.
    *
    * @param chainId - The chain ID
    * @param products - The products to check eligibility for
@@ -837,12 +837,12 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   ): boolean {
     const isSponsorshipSupported = this.#getChainSupportsSponsorship(chainId);
 
-    // verify if the user has trailed the provided products before
-    const hasTrailedBefore = this.state.trialedProducts.some((product) =>
+    // verify if the user has trialed the provided products before
+    const hasTrialedBefore = this.state.trialedProducts.some((product) =>
       products.includes(product),
     );
 
-    return isSponsorshipSupported && !hasTrailedBefore;
+    return isSponsorshipSupported && !hasTrialedBefore;
   }
 
   #getChainSupportsSponsorship(chainId: Hex): boolean {
