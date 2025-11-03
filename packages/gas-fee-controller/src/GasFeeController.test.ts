@@ -4,6 +4,8 @@ import {
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
+import type { ErrorReportingServiceMessenger } from '@metamask/error-reporting-service';
+import { ErrorReportingService } from '@metamask/error-reporting-service';
 import EthQuery from '@metamask/eth-query';
 import {
   Messenger,
@@ -77,6 +79,21 @@ const setupNetworkController = async ({
   clock: sinon.SinonFakeTimers;
   initializeProvider?: boolean;
 }) => {
+  const errorReportingMessenger = new Messenger<
+    'ErrorReportingService',
+    MessengerActions<ErrorReportingServiceMessenger>,
+    MessengerEvents<ErrorReportingServiceMessenger>,
+    typeof rootMessenger
+  >({
+    namespace: 'ErrorReportingService',
+    parent: rootMessenger,
+  });
+
+  new ErrorReportingService({
+    messenger: errorReportingMessenger,
+    captureException: jest.fn(),
+  });
+
   const networkControllerMessenger = new Messenger<
     'NetworkController',
     MessengerActions<NetworkControllerMessenger>,
