@@ -224,6 +224,7 @@ export {
   calculateBalanceChangeForAccountGroup,
 } from './balances';
 export type {
+  AssetsByAccountGroup,
   AccountGroupAssets,
   Asset,
   AssetListState,

@@ -26,6 +26,7 @@ import {
   StatusTypes,
   type BridgeControllerMessenger,
   type QuoteResponse,
+  type GenericQuoteRequest,
 } from './types';
 import * as balanceUtils from './utils/balance';
 import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge';
@@ -2615,6 +2616,21 @@ describe('BridgeController', function () {
     const quotesByDecreasingProcessingTime = [...mockBridgeQuotesSolErc20];
     quotesByDecreasingProcessingTime.reverse();
 
+    const makeQuoteRequest = (
+      overrides: Partial<GenericQuoteRequest> = {},
+    ): GenericQuoteRequest => ({
+      walletAddress: '0x123',
+      srcChainId: 1,
+      destChainId: 10,
+      srcTokenAddress: '0x0000000000000000000000000000000000000000',
+      destTokenAddress: '0x0000000000000000000000000000000000000000',
+      srcTokenAmount: '1000',
+      slippage: 0.5,
+      gasIncluded: false,
+      gasIncluded7702: false,
+      ...overrides,
+    });
+
     beforeEach(() => {
       jest.clearAllMocks();
       jest
@@ -2844,6 +2860,33 @@ describe('BridgeController', function () {
       `);
       expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
       expect(bridgeController.state).toStrictEqual(expectedControllerState);
+    });
+
+    it('should preserve gasSponsored flag on quotes', async () => {
+      const firstQuoteWithFlag: QuoteResponse = {
+        ...mockBridgeQuotesNativeErc20Eth[0],
+        quote: {
+          ...mockBridgeQuotesNativeErc20Eth[0].quote,
+          gasSponsored: true,
+        },
+      } as QuoteResponse;
+      const secondQuote: QuoteResponse =
+        mockBridgeQuotesNativeErc20Eth[1] as QuoteResponse;
+      const quotesWithFlag: QuoteResponse[] = [firstQuoteWithFlag, secondQuote];
+
+      const fetchBridgeQuotesSpy = jest
+        .spyOn(fetchUtils, 'fetchBridgeQuotes')
+        .mockResolvedValueOnce({
+          quotes: quotesWithFlag,
+          validationFailures: [],
+        });
+
+      const quotes = await bridgeController.fetchQuotes(makeQuoteRequest());
+
+      expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+      expect(quotes).toHaveLength(2);
+      expect(quotes[0].quote.gasSponsored).toBe(true);
+      expect(quotes[1].quote.gasSponsored).toBeUndefined();
     });
   });
 
