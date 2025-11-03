@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [59.0.0]
 
-### Changed
-
-- **BREAKING:** Bump `@metamask/assets-controller` from `^86.0.0` to `^87.0.0` ([#7043](https://github.com/MetaMask/core/pull/7043))
-
 ### Added
 
 - Quotes as returned by `fetchQuotes` now include a `gasSponsored` property ([#6687](https://github.com/MetaMask/core/pull/6687))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` from `^86.0.0` to `^87.0.0` ([#7043](https://github.com/MetaMask/core/pull/7043))
 
 ## [58.0.0]
 
