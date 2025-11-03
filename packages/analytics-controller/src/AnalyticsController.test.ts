@@ -10,11 +10,11 @@ import {
   type AnalyticsControllerActions,
   type AnalyticsControllerEvents,
   type AnalyticsPlatformAdapter,
-  getDefaultAnalyticsControllerState,
 } from '.';
+import type { AnalyticsControllerState } from '.';
 
 type SetupControllerOptions = {
-  state?: Partial<ReturnType<typeof getDefaultAnalyticsControllerState>>;
+  state?: Partial<AnalyticsControllerState>;
   enabled?: boolean;
   optedIn?: boolean;
   platformAdapter?: AnalyticsPlatformAdapter;
