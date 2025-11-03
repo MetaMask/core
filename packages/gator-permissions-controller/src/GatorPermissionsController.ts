@@ -138,7 +138,7 @@ const gatorPermissionsControllerMetadata: StateMetadata<GatorPermissionsControll
       includeInStateLogs: true,
       persist: false,
       includeInDebugSnapshot: false,
-      usedInUi: false,
+      usedInUi: true,
     },
   } satisfies StateMetadata<GatorPermissionsControllerState>;
 
