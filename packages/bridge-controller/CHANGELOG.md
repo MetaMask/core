@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [59.0.0]
 
-### Uncategorized
+### Changed
 
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- refactor!: Replace `SafeEventEmitterProvider` with `InternalProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
+- **BREAKING:** Bump `@metamask/assets-controller` from `^86.0.0` to `^87.0.0` ([#7043](https://github.com/MetaMask/core/pull/7043))
 
 ## [58.0.0]
 
