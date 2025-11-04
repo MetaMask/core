@@ -11,7 +11,7 @@ import { InternalProvider } from './internal-provider';
  *
  * @param middleware - The middleware to construct a provider from.
  * @returns An Ethereum provider.
- * @deprecated Use {@link providerFromMiddlewareV2} instead.
+ * @deprecated Use `JsonRpcEngineV2` middleware and {@link providerFromMiddlewareV2} instead.
  */
 export function providerFromMiddleware<
   Params extends JsonRpcParams,

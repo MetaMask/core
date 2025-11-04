@@ -145,9 +145,11 @@ export class InternalProvider<
   readonly #handle = async <Result extends Json>(
     jsonRpcRequest: JsonRpcRequest,
   ): Promise<JsonRpcResponse<Result>> => {
-    // @ts-expect-error - The signatures are incompatible between the legacy engine
-    // and server, but this works at runtime.
-    return await this.#server.handle(jsonRpcRequest);
+    // This typecast is technicaly unsafe, but we need it to preserve the provider's
+    // public interface, which allows you to typecast results.
+    return (await this.#server.handle(
+      jsonRpcRequest,
+    )) as JsonRpcResponse<Result>;
   };
 
   readonly #handleWithCallback = (
