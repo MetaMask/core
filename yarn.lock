@@ -3913,6 +3913,7 @@ __metadata:
     typescript: "npm:~5.2.2"
   peerDependencies:
     "@metamask/snaps-controllers": ^14.0.1
+    "@metamask/transaction-controller": ^61.1.0
   languageName: unknown
   linkType: soft
 
