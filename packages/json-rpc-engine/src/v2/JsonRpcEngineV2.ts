@@ -64,6 +64,9 @@ type RequestState<Request extends JsonRpcCall> = {
   result: Readonly<ResultConstraint<Request>> | undefined;
 };
 
+/**
+ * The options for the JSON-RPC request/notification handling operation.
+ */
 export type HandleOptions<Context extends ContextConstraint> = {
   context?: Context | InferKeyValues<Context>;
 };
