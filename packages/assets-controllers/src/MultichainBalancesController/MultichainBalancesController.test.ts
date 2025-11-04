@@ -643,6 +643,96 @@ describe('MultichainBalancesController', () => {
         },
       });
     });
+
+    it('sets balance to zero for assets that were added but have no balance from snap', async () => {
+      const mockSolanaAccountId1 = mockListSolanaAccounts[0].id;
+
+      const existingBalancesState = {
+        [mockSolanaAccountId1]: {
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:existingToken': {
+            amount: '5.00000000',
+            unit: 'SOL',
+          },
+        },
+      };
+
+      const {
+        controller,
+        messenger,
+        mockSnapHandleRequest,
+        mockListMultichainAccounts,
+      } = setupController({
+        state: {
+          balances: existingBalancesState,
+        },
+        mocks: {
+          handleMockGetAssetsState: {
+            accountsAssets: {
+              [mockSolanaAccountId1]: [
+                'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:existingToken',
+              ],
+            },
+          },
+          handleRequestReturnValue: {
+            'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:existingToken': {
+              amount: '5.00000000',
+              unit: 'SOL',
+            },
+          },
+          listMultichainAccounts: [mockListSolanaAccounts[0]],
+        },
+      });
+
+      mockSnapHandleRequest.mockReset();
+      mockListMultichainAccounts.mockReset();
+
+      mockListMultichainAccounts.mockReturnValue(mockListSolanaAccounts);
+
+      // Mock snap returning balance for only one asset, not the newly added ones
+      mockSnapHandleRequest.mockResolvedValueOnce({
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newTokenWithBalance': {
+          amount: '1.00000000',
+          unit: 'SOL',
+        },
+        // Note: newTokenWithoutBalance is not returned by snap, so it should get 0 balance
+      });
+
+      // Simulate adding assets where some have balance and some don't
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          [mockSolanaAccountId1]: {
+            added: [
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newTokenWithBalance',
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newTokenWithoutBalance',
+            ],
+            removed: [],
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
+      expect(controller.state.balances).toStrictEqual({
+        [mockSolanaAccountId1]: {
+          // Existing balance should remain
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:existingToken': {
+            amount: '5.00000000',
+            unit: 'SOL',
+          },
+          // New asset with balance from snap
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newTokenWithBalance': {
+            amount: '1.00000000',
+            unit: 'SOL',
+          },
+          // New asset without balance from snap should get zero balance
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newTokenWithoutBalance':
+            {
+              amount: '0',
+              unit: '',
+            },
+        },
+      });
+    });
   });
 
   it('resumes updating balances after unlocking KeyringController', async () => {
