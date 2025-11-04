@@ -200,6 +200,7 @@ describe('MultichainAccountService', () => {
             },
           },
           [SOL_ACCOUNT_PROVIDER_NAME]: {
+            maxConcurrency: 3,
             discovery: {
               timeoutMs: 5000,
               maxAttempts: 4,
@@ -216,17 +217,16 @@ describe('MultichainAccountService', () => {
         providerConfigs,
       });
 
-      const evmProviderCall =
-        mocks.EvmAccountProvider.constructor.mock.calls[0];
-      expect(evmProviderCall[0]).toBe(messenger);
-      expect(evmProviderCall[1]).toBe(providerConfigs[EvmAccountProvider.NAME]);
-      expect(typeof evmProviderCall[2]).toBe('function'); // TraceCallback
-
-      const solProviderCall =
-        mocks.SolAccountProvider.constructor.mock.calls[0];
-      expect(solProviderCall[0]).toBe(messenger);
-      expect(solProviderCall[1]).toBe(providerConfigs[SolAccountProvider.NAME]);
-      expect(typeof solProviderCall[2]).toBe('function'); // TraceCallback
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        providerConfigs?.[EvmAccountProvider.NAME],
+        expect.any(Function), // TraceCallback
+      );
+      expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        providerConfigs?.[SolAccountProvider.NAME],
+        expect.any(Function), // TraceCallback
+      );
     });
 
     it('allows optional configs for some providers', () => {
@@ -235,6 +235,7 @@ describe('MultichainAccountService', () => {
           // NOTE: We use constants here, since `*AccountProvider` are mocked, thus, their `.NAME` will
           // be `undefined`.
           [SOL_ACCOUNT_PROVIDER_NAME]: {
+            maxConcurrency: 3,
             discovery: {
               timeoutMs: 5000,
               maxAttempts: 4,
@@ -255,12 +256,12 @@ describe('MultichainAccountService', () => {
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
         undefined,
-        expect.any(Function),
+        expect.any(Function), // TraceCallback
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs[SolAccountProvider.NAME],
-        expect.any(Function),
+        providerConfigs?.[SolAccountProvider.NAME],
+        expect.any(Function), // TraceCallback
       );
     });
   });
