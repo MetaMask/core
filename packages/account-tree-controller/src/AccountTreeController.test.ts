@@ -1035,6 +1035,30 @@ describe('AccountTreeController', () => {
       expect(groupIds[1]).toBe(toMultichainAccountGroupId(walletId, 1));
       expect(groupIds[2]).toBe(toMultichainAccountGroupId(walletId, 2));
     });
+
+    it('skips disabled bip-44 accounts', () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_TRX_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      // We simulate TRX account to be "disabled" here, so the `AccountsController` has 2 accounts (EVM + TRX), but
+      // our wallets will only returns the EVM account here, meaning TRX will be skipped.
+      mocks.MultichainAccountService.getMultichainAccountWallets.mockImplementation(
+        () => getMultichainAccountWalletsFromAccounts([MOCK_HD_ACCOUNT_1]),
+      );
+
+      controller.init();
+
+      const group = controller.getAccountGroupObject(
+        toMultichainAccountGroupId(
+          toMultichainAccountWalletId(MOCK_HD_KEYRING_1.metadata.id),
+          MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+        ),
+      );
+      expect(group).toBeDefined();
+      expect(group?.accounts).toHaveLength(1); // Just EVM, no TRX.
+    });
   });
 
   describe('getAccountGroupObject', () => {
@@ -1486,7 +1510,6 @@ describe('AccountTreeController', () => {
       expect(group).toBeUndefined();
     });
   });
-
 
   describe('account ordering by type', () => {
     it('orders accounts in group according to ACCOUNT_TYPE_TO_SORT_ORDER regardless of insertion order', () => {
