@@ -11,13 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- New Action on the GatorPermissionsController to Allow the Consumer to SubmitRevocation ([#6713](https://github.com/MetaMask/core/pull/6713))
-- feat: Expose list of pending revocations in state ([#7055](https://github.com/MetaMask/core/pull/7055))
-
+- **BREAKING:** Expose list of pending revocations in state ([#7055](https://github.com/MetaMask/core/pull/7055))
+  - Add `pendingRevocations` property to state
+  - Add `pendingRevocations` getter to controller, which accesses the same property in state
+- **BREAKING:** The GatorPermissionsController messenger must allow `TransactionController:transactionConfirmed`, `TransactionController:transactionFailed`, and `TransactionController:transactionDropped` events ([#6713](https://github.com/MetaMask/core/pull/6713))
+- Add `submitRevocation` and `addPendingRevocation` methods to GatorPermissionsController ([#6713](https://github.com/MetaMask/core/pull/6713))
+  - These are also available as actions (`GatorPermissionsController:submitRevocation` and `GatorPermissionsController:addPendingRevocation`)
+- Export `RevocationParams` type ([#6713](https://github.com/MetaMask/core/pull/6713))
+  
 ### Fixed
 
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- chore(dev-deps): Bump `@ts-bridge/cli` from `^0.6.1` to `^0.6.4` ([#7039](https://github.com/MetaMask/core/pull/7039))
+- Added `@ts-bridge/cli` dependency to resolve failing build ([#7040](https://github.com/MetaMask/core/pull/7040))
 
 ## [0.3.0]
 
