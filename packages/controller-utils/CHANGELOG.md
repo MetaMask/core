@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Use latest network nicknames as defined in extension and mobile ([#7045](https://github.com/MetaMask/core/pull/7045))
+- Change network nicknames ([#7045](https://github.com/MetaMask/core/pull/7045))
 
 ## [11.15.0]
 
