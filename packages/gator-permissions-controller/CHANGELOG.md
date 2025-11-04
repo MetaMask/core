@@ -22,10 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Add `@metamask/transaction-controller` as peer dependency ([#7058](https://github.com/MetaMask/core/pull/7058))
 
-### Fixed
-
-- Added `@ts-bridge/cli` dependency to resolve failing build ([#7040](https://github.com/MetaMask/core/pull/7040))
-
 ## [0.3.0]
 
 ### Changed
