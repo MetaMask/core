@@ -207,7 +207,6 @@ describe.each([
       await expect(async () => provider.request(request)).rejects.toThrow(
         rpcErrors.internal({
           message: 'Test error',
-          data: { cause: 'Test cause' },
         }),
       );
     });
