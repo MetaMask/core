@@ -258,10 +258,7 @@ export type KeyringControllerOptions<
   keyringBuilders?: { (): EthKeyring; type: string }[];
   messenger: KeyringControllerMessenger;
   state?: { vault?: string; keyringsMetadata?: KeyringMetadata[] };
-  encryptor: ExportableKeyEncryptor<
-    EncryptionKey,
-    SupportedKeyDerivationOptions
-  >;
+  encryptor: Encryptor<EncryptionKey, SupportedKeyDerivationOptions>;
 };
 
 /**
@@ -350,7 +347,7 @@ type SessionState = {
  * An encryptor interface that supports encrypting and decrypting
  * serializable data with a password, and exporting and importing keys.
  */
-export type ExportableKeyEncryptor<
+export type Encryptor<
   EncryptionKey = encryptorUtils.EncryptionKey | CryptoKey,
   SupportedKeyDerivationParams = encryptorUtils.KeyDerivationOptions,
 > = {
@@ -669,10 +666,7 @@ export class KeyringController<
 
   readonly #keyringBuilders: { (): EthKeyring; type: string }[];
 
-  readonly #encryptor: ExportableKeyEncryptor<
-    EncryptionKey,
-    SupportedKeyDerivationOptions
-  >;
+  readonly #encryptor: Encryptor<EncryptionKey, SupportedKeyDerivationOptions>;
 
   #keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
 

@@ -2,7 +2,7 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import type { ExportableKeyEncryptor } from '@metamask/keyring-controller';
+import type { Encryptor } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
@@ -227,7 +227,7 @@ export type SeedlessOnboardingControllerMessenger = Messenger<
  * Encryptor interface for encrypting and decrypting seedless onboarding vault.
  */
 export type VaultEncryptor<EncryptionKey, KeyDerivationParams> = Omit<
-  ExportableKeyEncryptor<EncryptionKey, KeyDerivationParams>,
+  Encryptor<EncryptionKey, KeyDerivationParams>,
   'encryptWithKey'
 >;
 
