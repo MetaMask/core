@@ -13,6 +13,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
   TransactionPayRequiredToken,
+  TransactionPaySourceAmount,
   TransactionPayTotals,
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
@@ -48,65 +49,31 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
 
   const { paymentToken, sourceAmounts, tokens } = transactionData;
 
-  if (!paymentToken) {
-    return;
-  }
-
-  const requests: QuoteRequest[] = (sourceAmounts ?? []).map((sourceAmount) => {
-    const token = tokens.find(
-      (t) => t.address === sourceAmount.targetTokenAddress,
-    ) as TransactionPayRequiredToken;
-
-    return {
-      from: transaction.txParams.from as Hex,
-      sourceBalanceRaw: paymentToken.balanceRaw,
-      sourceTokenAmount: sourceAmount.sourceAmountRaw,
-      sourceChainId: paymentToken.chainId,
-      sourceTokenAddress: paymentToken.address,
-      targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
-      targetChainId: token.chainId,
-      targetTokenAddress: token.address,
-    };
+  const requests = buildQuoteRequests({
+    from: transaction.txParams.from as Hex,
+    paymentToken,
+    sourceAmounts,
+    tokens,
+    transactionId,
   });
-
-  if (!requests?.length) {
-    log('No quote requests', { transactionId });
-  }
-
-  let quotes: TransactionPayQuote<Json>[] | undefined = [];
 
   updateTransactionData(transactionId, (data) => {
     data.isLoading = true;
   });
 
   try {
-    const strategy = await getStrategy(messenger as never, transaction);
+    const { batchTransactions, quotes } = await getQuotes(
+      transaction,
+      requests,
+      messenger,
+    );
 
-    try {
-      quotes = requests?.length
-        ? ((await strategy.getQuotes({
-            messenger,
-            requests,
-            transaction,
-          })) as TransactionPayQuote<Json>[])
-        : [];
-    } catch (error) {
-      log('Error fetching quotes', { error, transactionId });
-    }
-
-    log('Updated', { transactionId, quotes });
-
-    const batchTransactions =
-      quotes?.length && strategy.getBatchTransactions
-        ? await strategy.getBatchTransactions({
-            messenger,
-            quotes,
-          })
-        : [];
-
-    log('Batch transactions', { transactionId, batchTransactions });
-
-    const totals = calculateTotals(quotes as never, tokens, messenger);
+    const totals = calculateTotals({
+      quotes: quotes as TransactionPayQuote<unknown>[],
+      messenger,
+      tokens,
+      transaction,
+    });
 
     log('Calculated totals', { transactionId, totals });
 
@@ -149,10 +116,14 @@ function syncTransaction({
 }: {
   batchTransactions: BatchTransaction[];
   messenger: TransactionPayControllerMessenger;
-  paymentToken: TransactionPaymentToken;
+  paymentToken: TransactionPaymentToken | undefined;
   totals: TransactionPayTotals;
   transactionId: string;
 }) {
+  if (!paymentToken) {
+    return;
+  }
+
   updateTransaction(
     {
       transactionId,
@@ -225,4 +196,103 @@ export async function refreshQuotes(
 
     log('Refreshed quotes', { transactionId, strategy: strategyName });
   }
+}
+
+/**
+ * Build quote requests required to retrieve quotes.
+ *
+ * @param request - Request parameters.
+ * @param request.from - Address from which the transaction is sent.
+ * @param request.paymentToken - Payment token used for the transaction.
+ * @param request.sourceAmounts - Source amounts for the transaction.
+ * @param request.tokens - Required tokens for the transaction.
+ * @param request.transactionId - ID of the transaction.
+ * @returns Array of quote requests.
+ */
+function buildQuoteRequests({
+  from,
+  paymentToken,
+  sourceAmounts,
+  tokens,
+  transactionId,
+}: {
+  from: Hex;
+  paymentToken: TransactionPaymentToken | undefined;
+  sourceAmounts: TransactionPaySourceAmount[] | undefined;
+  tokens: TransactionPayRequiredToken[];
+  transactionId: string;
+}): QuoteRequest[] {
+  if (!paymentToken) {
+    return [];
+  }
+
+  const requests = (sourceAmounts ?? []).map((sourceAmount) => {
+    const token = tokens.find(
+      (t) => t.address === sourceAmount.targetTokenAddress,
+    ) as TransactionPayRequiredToken;
+
+    return {
+      from,
+      sourceBalanceRaw: paymentToken.balanceRaw,
+      sourceTokenAmount: sourceAmount.sourceAmountRaw,
+      sourceChainId: paymentToken.chainId,
+      sourceTokenAddress: paymentToken.address,
+      targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
+      targetChainId: token.chainId,
+      targetTokenAddress: token.address,
+    };
+  });
+
+  if (!requests.length) {
+    log('No quote requests', { transactionId });
+  }
+
+  return requests;
+}
+
+/**
+ * Retrieve quotes for a transaction.
+ *
+ * @param transaction - Transaction metadata.
+ * @param requests - Quote requests.
+ * @param messenger - Controller messenger.
+ * @returns An object containing batch transactions and quotes.
+ */
+async function getQuotes(
+  transaction: TransactionMeta,
+  requests: QuoteRequest[],
+  messenger: TransactionPayControllerMessenger,
+) {
+  const { id: transactionId } = transaction;
+  const strategy = await getStrategy(messenger as never, transaction);
+  let quotes: TransactionPayQuote<Json>[] | undefined = [];
+
+  try {
+    quotes = requests?.length
+      ? ((await strategy.getQuotes({
+          messenger,
+          requests,
+          transaction,
+        })) as TransactionPayQuote<Json>[])
+      : [];
+  } catch (error) {
+    log('Error fetching quotes', { error, transactionId });
+  }
+
+  log('Updated', { transactionId, quotes });
+
+  const batchTransactions =
+    quotes?.length && strategy.getBatchTransactions
+      ? await strategy.getBatchTransactions({
+          messenger,
+          quotes,
+        })
+      : [];
+
+  log('Batch transactions', { transactionId, batchTransactions });
+
+  return {
+    batchTransactions,
+    quotes,
+  };
 }

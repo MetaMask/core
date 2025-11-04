@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Calculate totals even if no quotes received ([#7042](https://github.com/MetaMask/core/pull/7042))
+
 ## [3.0.0]
 
 ### Changed

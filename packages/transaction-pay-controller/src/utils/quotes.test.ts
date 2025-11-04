@@ -187,7 +187,7 @@ describe('Quotes Utils', () => {
       });
     });
 
-    it('does nothing if no payment token', async () => {
+    it('clears state if no payment token', async () => {
       await run({
         transactionData: {
           ...TRANSACTION_DATA_MOCK,
@@ -195,7 +195,19 @@ describe('Quotes Utils', () => {
         },
       });
 
-      expect(updateTransactionDataMock).not.toHaveBeenCalled();
+      const transactionDataMock = {
+        quotes: [QUOTE_MOCK],
+        quotesLastUpdated: undefined,
+      };
+
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [],
+        quotesLastUpdated: expect.any(Number),
+      });
     });
 
     it('gets quotes from strategy', async () => {
