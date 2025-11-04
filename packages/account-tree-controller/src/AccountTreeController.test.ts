@@ -1455,6 +1455,39 @@ describe('AccountTreeController', () => {
     });
   });
 
+  describe('on MultichainAccountService:multichainAccountGroupCreated', () => {
+    it('does nothing if an multichain account group got created before inserting any accounts', () => {
+      const { controller, messenger } = setup({
+        accounts: [],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(walletId, 0);
+
+      let group = controller.getAccountGroupObject(groupId);
+      expect(group).toBeUndefined();
+
+      messenger.publish(
+        'MultichainAccountService:multichainAccountGroupCreated',
+        // Partial implementation, so we need to cast here.
+        {
+          id: groupId,
+          getAccounts: jest.fn().mockReturnValue([MOCK_HD_ACCOUNT_1]),
+        } as unknown as MultichainAccountGroup<Bip44Account<KeyringAccount>>,
+      );
+
+      // Still undefined, since we're only reacting to `:accountAdded` for now.
+      group = controller.getAccountGroupObject(groupId);
+      expect(group).toBeUndefined();
+    });
+  });
+
+
   describe('account ordering by type', () => {
     it('orders accounts in group according to ACCOUNT_TYPE_TO_SORT_ORDER regardless of insertion order', () => {
       const evmAccount = MOCK_HD_ACCOUNT_1;
