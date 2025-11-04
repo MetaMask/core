@@ -950,7 +950,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     try {
       this.#assertIsAuthenticatedUser(this.state);
       isAuthenticated =
-        Boolean(this.state.accessToken) && Boolean(this.state.refreshToken);
+        Boolean(this.state.accessToken) && Boolean(this.state.revokeToken);
     } catch {
       isAuthenticated = false;
     }
@@ -1617,16 +1617,22 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     password: string,
   ): Promise<{ accessToken: string; revokeToken: string }> {
     let { accessToken, revokeToken } = this.state;
+    // `accessToken` and `revokeToken` are both available in the state, `ONLY` when the wallet (vault) is unlocked
+    // or during the period between the social authentication and the vault creation during the onboarding flow.
     if (accessToken && revokeToken) {
       return { accessToken, revokeToken };
     }
 
+    // if `password` is provided to decrypt the vault, decrypt the vault and get the access token and revoke token from the vault
     if (this.state.vault) {
       // if the access token or revoke token is not available in the state, decrypt the vault and get the access token and revoke token from the vault
       const { vaultData } = await this.#decryptAndParseVaultData({ password });
       accessToken = accessToken || vaultData.accessToken;
       revokeToken = revokeToken || vaultData.revokeToken;
     }
+
+    // we should always throw an error if the access token or revoke token is not available
+    // to prevent the caller from using the controller in an invalid state
 
     if (!accessToken) {
       throw new Error(
@@ -1815,6 +1821,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     try {
       const { idTokens, accessToken, metadataAccessToken } = res;
       // re-authenticate with the new id tokens to set new node auth tokens
+      // NOTE: here we can't provide the `revokeToken` value to the `authenticate` method because `refreshAuthTokens` method can be called when the wallet (vault) is locked
       await this.authenticate({
         idTokens,
         accessToken,
