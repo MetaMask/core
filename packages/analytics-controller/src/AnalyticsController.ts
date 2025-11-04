@@ -62,9 +62,9 @@ const analyticsControllerMetadata = {
     usedInUi: true,
   },
   analyticsId: {
-    includeInStateLogs: false,
+    includeInStateLogs: true,
     persist: true,
-    includeInDebugSnapshot: false,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
 } satisfies StateMetadata<AnalyticsControllerState>;
