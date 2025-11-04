@@ -954,7 +954,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     let isAuthenticated = false;
     try {
       this.#assertIsAuthenticatedUser(this.state);
-      console.log('skipVaultCreationCheck', skipVaultCreationCheck);
       isAuthenticated =
         skipVaultCreationCheck || // if the `vaultCreationCheck` is skipped, we won't check the `accessToken` and `revokeToken`
         (Boolean(this.state.accessToken) && Boolean(this.state.revokeToken));
