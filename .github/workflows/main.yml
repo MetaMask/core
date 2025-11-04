@@ -26,9 +26,9 @@ jobs:
   analyse-code:
     name: Analyse code
     needs: check-workflows
-    uses: MetaMask/action-security-code-scanner/.github/workflows/security-scan.yml@346750edc72e2eb9f7d5e985d4cf79047446348e
+    uses: MetaMask/action-security-code-scanner/.github/workflows/security-scan.yml@v2
     with:
-      scanner-ref: 346750edc72e2eb9f7d5e985d4cf79047446348e
+      scanner-ref: v2
     secrets:
       project-metrics-token: ${{ secrets.SECURITY_SCAN_METRICS_TOKEN }}
       slack-webhook: ${{ secrets.APPSEC_BOT_SLACK_WEBHOOK }}
