@@ -738,6 +738,12 @@ describe('GatorPermissionsController', () => {
           isGatorPermissionsEnabled: true,
           gatorPermissionsProviderSnapId:
             MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+          pendingRevocations: [
+            {
+              txId: 'test-tx-id',
+              permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+            },
+          ],
         },
       });
 
@@ -757,6 +763,7 @@ describe('GatorPermissionsController', () => {
           params: revocationParams,
         },
       });
+      expect(controller.pendingRevocations).toStrictEqual([]);
     });
 
     it('should throw GatorPermissionsNotEnabledError when gator permissions are disabled', async () => {
