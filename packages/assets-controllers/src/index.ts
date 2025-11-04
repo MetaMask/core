@@ -142,7 +142,7 @@ export {
   SUPPORTED_CHAIN_IDS,
   getNativeTokenAddress,
 } from './token-prices-service';
-export { searchTokens } from './token-service';
+export { searchTokens, getTrendingTokens } from './token-service';
 export { RatesController, Cryptocurrency } from './RatesController';
 export type {
   RatesControllerState,
