@@ -1,5 +1,5 @@
 # Please see the documentation for all configuration options:
-# https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
 version: 2
 updates:
@@ -10,3 +10,14 @@ updates:
     allow:
       - dependency-name: '@metamask/*'
     versioning-strategy: 'increase'
+
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'daily'
+      time: '06:00'
+    allow:
+      - dependency-name: 'MetaMask/*'
+      - dependency-name: 'actions/*'
+    target-branch: 'main'
+    open-pull-requests-limit: 10

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
+  - Wherever a `SafeEventEmitterProvider` was expected, an `InternalProvider` is now expected instead.
 - Migrate all uses of `interface` to `type` ([#6885](https://github.com/MetaMask/core/pull/6885))
 
 ## [21.0.0]

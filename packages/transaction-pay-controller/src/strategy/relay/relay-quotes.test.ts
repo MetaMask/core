@@ -174,7 +174,7 @@ describe('Relay Quotes Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         cacheTimestamp: 0,
         remoteFeatureFlags: {
-          confirmation_pay: {
+          confirmations_pay: {
             relayQuoteUrl,
           },
         },

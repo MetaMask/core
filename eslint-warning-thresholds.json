@@ -228,12 +228,6 @@
     "@typescript-eslint/no-explicit-any": 5,
     "jsdoc/match-description": 11
   },
-  "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.test.ts": {
-    "import-x/namespace": 1
-  },
-  "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.ts": {
-    "@typescript-eslint/prefer-readonly": 1
-  },
   "packages/gas-fee-controller/src/GasFeeController.test.ts": {
     "import-x/namespace": 2,
     "import-x/order": 1
@@ -326,24 +320,6 @@
   },
   "packages/name-controller/src/util.ts": {
     "jsdoc/require-returns": 1
-  },
-  "packages/network-controller/src/NetworkController.ts": {
-    "@typescript-eslint/prefer-promise-reject-errors": 1,
-    "@typescript-eslint/prefer-readonly": 2,
-    "jsdoc/tag-lines": 1
-  },
-  "packages/network-controller/tests/NetworkController.test.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "@typescript-eslint/prefer-promise-reject-errors": 1
-  },
-  "packages/network-controller/tests/create-network-client.test.ts": {
-    "import-x/order": 1
-  },
-  "packages/network-controller/tests/provider-api-tests/helpers.ts": {
-    "@typescript-eslint/prefer-promise-reject-errors": 1,
-    "import-x/namespace": 1,
-    "import-x/no-named-as-default-member": 1,
-    "promise/catch-or-return": 1
   },
   "packages/permission-controller/src/PermissionController.test.ts": {
     "jest/no-conditional-in-test": 4

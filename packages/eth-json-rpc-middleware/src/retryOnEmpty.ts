@@ -1,5 +1,5 @@
 import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import type { Json, JsonRpcParams } from '@metamask/utils';
@@ -39,7 +39,7 @@ export function createRetryOnEmptyMiddleware({
   provider,
   blockTracker,
 }: {
-  provider?: SafeEventEmitterProvider;
+  provider?: InternalProvider;
   blockTracker?: PollingBlockTracker;
 } = {}): JsonRpcMiddleware<JsonRpcParams, Json> {
   if (!provider) {
