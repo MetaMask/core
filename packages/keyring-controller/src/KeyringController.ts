@@ -1,7 +1,7 @@
 import type { TypedTransaction, TypedTxData } from '@ethereumjs/tx';
 import { isValidPrivate, getBinarySize } from '@ethereumjs/util';
 import { BaseController } from '@metamask/base-controller';
-import * as encryptorUtils from '@metamask/browser-passworder';
+import type * as encryptorUtils from '@metamask/browser-passworder';
 import { HdKeyring } from '@metamask/eth-hd-keyring';
 import { normalize as ethNormalize } from '@metamask/eth-sig-util';
 import SimpleKeyring from '@metamask/eth-simple-keyring';
@@ -251,11 +251,17 @@ export type KeyringControllerMessenger = Messenger<
   KeyringControllerEvents
 >;
 
-export type KeyringControllerOptions = {
+export type KeyringControllerOptions<
+  EncryptionKey = encryptorUtils.EncryptionKey | CryptoKey,
+  SupportedKeyDerivationOptions = encryptorUtils.KeyDerivationOptions,
+> = {
   keyringBuilders?: { (): EthKeyring; type: string }[];
   messenger: KeyringControllerMessenger;
   state?: { vault?: string; keyringsMetadata?: KeyringMetadata[] };
-  encryptor?: ExportableKeyEncryptor;
+  encryptor: ExportableKeyEncryptor<
+    EncryptionKey,
+    SupportedKeyDerivationOptions
+  >;
 };
 
 /**
@@ -341,10 +347,13 @@ type SessionState = {
 };
 
 /**
- * A generic encryptor interface that supports encrypting and decrypting
- * serializable data with a password.
+ * An encryptor interface that supports encrypting and decrypting
+ * serializable data with a password, and exporting and importing keys.
  */
-export type GenericEncryptor = {
+export type ExportableKeyEncryptor<
+  EncryptionKey = encryptorUtils.EncryptionKey | CryptoKey,
+  SupportedKeyDerivationParams = encryptorUtils.KeyDerivationOptions,
+> = {
   /**
    * Encrypts the given object with the given password.
    *
@@ -373,16 +382,6 @@ export type GenericEncryptor = {
     vault: string,
     targetDerivationParams?: encryptorUtils.KeyDerivationOptions,
   ) => boolean;
-};
-
-/**
- * An encryptor interface that supports encrypting and decrypting
- * serializable data with a password, and exporting and importing keys.
- */
-export type ExportableKeyEncryptor<
-  EncryptionKey = unknown,
-  SupportedKeyDerivationParams = unknown,
-> = GenericEncryptor & {
   /**
    * Encrypts the given object with the given encryption key.
    *
@@ -460,8 +459,6 @@ export type ExportableKeyEncryptor<
     password: string,
     salt: string,
     exportable?: boolean,
-    // setting this to unknown as currently each client has different
-    // key derivation options
     keyDerivationOptions?: SupportedKeyDerivationParams,
   ) => Promise<EncryptionKey>;
   /**
@@ -540,30 +537,6 @@ function assertHasUint8ArrayMnemonic(
     )
   ) {
     throw new Error("Can't get mnemonic bytes from keyring");
-  }
-}
-
-/**
- * Assert that the provided encryptor supports
- * encryption and encryption key export.
- *
- * @param encryptor - The encryptor to check.
- * @throws If the encryptor does not support key encryption.
- */
-function assertIsExportableKeyEncryptor(
-  encryptor: GenericEncryptor | ExportableKeyEncryptor,
-): asserts encryptor is ExportableKeyEncryptor {
-  if (
-    !(
-      'importKey' in encryptor &&
-      typeof encryptor.importKey === 'function' &&
-      'decryptWithKey' in encryptor &&
-      typeof encryptor.decryptWithKey === 'function' &&
-      'encryptWithKey' in encryptor &&
-      typeof encryptor.encryptWithKey === 'function'
-    )
-  ) {
-    throw new Error(KeyringControllerError.UnsupportedEncryptionKeyExport);
   }
 }
 
@@ -682,7 +655,10 @@ function normalize(address: string): string | undefined {
  * with the internal keyring controller and handling certain complex operations that involve the
  * keyrings.
  */
-export class KeyringController extends BaseController<
+export class KeyringController<
+  EncryptionKey = encryptorUtils.EncryptionKey | CryptoKey,
+  SupportedKeyDerivationOptions = encryptorUtils.KeyDerivationOptions,
+> extends BaseController<
   typeof name,
   KeyringControllerState,
   KeyringControllerMessenger
@@ -693,7 +669,10 @@ export class KeyringController extends BaseController<
 
   readonly #keyringBuilders: { (): EthKeyring; type: string }[];
 
-  readonly #encryptor: ExportableKeyEncryptor;
+  readonly #encryptor: ExportableKeyEncryptor<
+    EncryptionKey,
+    SupportedKeyDerivationOptions
+  >;
 
   #keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
 
@@ -710,13 +689,13 @@ export class KeyringController extends BaseController<
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    */
-  constructor(options: KeyringControllerOptions) {
-    const {
-      encryptor = encryptorUtils,
-      keyringBuilders,
-      messenger,
-      state,
-    } = options;
+  constructor(
+    options: KeyringControllerOptions<
+      EncryptionKey,
+      SupportedKeyDerivationOptions
+    >,
+  ) {
+    const { encryptor, keyringBuilders, messenger, state } = options;
 
     super({
       name,
@@ -763,7 +742,6 @@ export class KeyringController extends BaseController<
       ? keyringBuilders.concat(defaultKeyringBuilders)
       : defaultKeyringBuilders;
 
-    assertIsExportableKeyEncryptor(encryptor);
     this.#encryptor = encryptor;
     this.#keyrings = [];
     this.#unsupportedKeyrings = [];
@@ -1936,7 +1914,7 @@ export class KeyringController extends BaseController<
       throw new TypeError(KeyringControllerError.WrongPasswordType);
     }
 
-    let salt: string, keyMetadata: unknown;
+    let salt: string, keyMetadata: SupportedKeyDerivationOptions | undefined;
     if (vault && options.useVaultKeyMetadata) {
       const parsedVault = JSON.parse(vault);
       salt = parsedVault.salt;
