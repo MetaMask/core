@@ -42,7 +42,8 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
   async decrypt(password: string, text: string): Promise<Json> {
     const { salt } = JSON.parse(text);
     const key = deriveKey(password, salt);
-    return await this.decryptWithKey(key, text);
+    const payload = JSON.parse(text);
+    return await this.decryptWithKey(key, payload);
   }
 
   async encryptWithDetail(
@@ -68,8 +69,9 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
   ): Promise<DetailedDecryptResult> {
     const { salt } = JSON.parse(text);
     const key = deriveKey(password, salt);
+    const payload = JSON.parse(text);
     return {
-      vault: await this.decryptWithKey(key, text),
+      vault: await this.decryptWithKey(key, payload),
       salt,
       exportedKeyString: JSON.stringify(key),
     };
@@ -86,7 +88,10 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
     };
   }
 
-  async decryptWithKey(key: unknown, ciphertext: string): Promise<Json> {
+  async decryptWithKey(
+    key: unknown,
+    ciphertext: EncryptionResult,
+  ): Promise<Json> {
     // This conditional assignment is required because sometimes the keyring
     // controller passes in the parsed object instead of the string.
     const ciphertextObj =
