@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [6.1.0]
 
-### Uncategorized
-
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-
 ### Changed
 
 - Revert `revokeToken` value as optional in `authenticate` method. ([#7012](https://github.com/MetaMask/core/pull/7012))
