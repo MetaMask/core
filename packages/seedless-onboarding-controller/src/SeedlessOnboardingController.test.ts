@@ -675,10 +675,7 @@ describe('SeedlessOnboardingController', () => {
         newRefreshToken: 'newRefreshToken',
       });
       const { messenger } = mockSeedlessOnboardingMessenger();
-      const controller = new SeedlessOnboardingController<
-        EncryptionKey | webcrypto.CryptoKey,
-        KeyDerivationOptions
-      >({
+      const controller = new SeedlessOnboardingController({
         messenger,
         encryptor: getDefaultSeedlessOnboardingVaultEncryptor(),
         refreshJWTToken: mockRefreshJWTToken,

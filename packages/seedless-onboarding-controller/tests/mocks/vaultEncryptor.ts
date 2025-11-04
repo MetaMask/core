@@ -152,7 +152,7 @@ export default class MockVaultEncryptor
 
   async decryptWithKey(
     encryptionKey: EncryptionKey | webcrypto.CryptoKey,
-    payload: string,
+    payload: EncryptionResult,
   ) {
     let encData: EncryptionResult;
     if (typeof payload === 'string') {
