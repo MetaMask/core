@@ -841,8 +841,6 @@ export default class GatorPermissionsController extends BaseController<
           permissionContext,
         });
 
-        cleanup(transactionMeta.id);
-
         this.submitRevocation({ permissionContext }).catch((error) => {
           controllerLog(
             'Failed to submit revocation after transaction confirmed',
@@ -853,6 +851,8 @@ export default class GatorPermissionsController extends BaseController<
             },
           );
         });
+
+        cleanup(transactionMeta.id);
       }
     };
 
