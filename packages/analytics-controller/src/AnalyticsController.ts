@@ -195,7 +195,7 @@ export class AnalyticsController extends BaseController<
       state: {
         ...getDefaultAnalyticsControllerState(),
         ...state,
-      };,
+      },
       messenger,
     });
 
