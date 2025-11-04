@@ -189,15 +189,13 @@ export class AnalyticsController extends BaseController<
     messenger,
     platformAdapter,
   }: AnalyticsControllerOptions) {
-    const mergedState: AnalyticsControllerState = {
-      ...getDefaultAnalyticsControllerState(),
-      ...state,
-    };
-
     super({
       name: controllerName,
       metadata: analyticsControllerMetadata,
-      state: mergedState,
+      state: {
+        ...getDefaultAnalyticsControllerState(),
+        ...state,
+      };,
       messenger,
     });
 
