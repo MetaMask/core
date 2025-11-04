@@ -1085,6 +1085,11 @@ function correctInitialState(
   const availableNetworkClientIds = getAvailableNetworkClientIds(
     networkConfigurationsSortedByChainId,
   );
+  const invalidNetworkClientIdsWithMetadata = Object.keys(
+    state.networksMetadata,
+  ).filter(
+    (networkClientId) => !availableNetworkClientIds.includes(networkClientId),
+  );
 
   return produce(state, (newState) => {
     if (!availableNetworkClientIds.includes(state.selectedNetworkClientId)) {
@@ -1102,14 +1107,9 @@ function correctInitialState(
       newState.selectedNetworkClientId = newSelectedNetworkClientId;
     }
 
-    const invalidNetworkClientIdsWithMetadata = Object.keys(
-      state.networksMetadata,
-    ).filter(
-      (networkClientId) => !availableNetworkClientIds.includes(networkClientId),
-    );
     if (invalidNetworkClientIdsWithMetadata.length > 0) {
       for (const invalidNetworkClientId of invalidNetworkClientIdsWithMetadata) {
-        delete state.networksMetadata[invalidNetworkClientId];
+        delete newState.networksMetadata[invalidNetworkClientId];
       }
       messenger.call(
         'ErrorReportingService:captureException',
