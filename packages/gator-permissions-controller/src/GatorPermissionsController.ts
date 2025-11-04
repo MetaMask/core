@@ -337,10 +337,19 @@ export default class GatorPermissionsController extends BaseController<
     });
   }
 
-  #removePendingRevocationFromState(txId: string) {
+  #removePendingRevocationFromStateByTxId(txId: string) {
     this.update((state) => {
       state.pendingRevocations = state.pendingRevocations.filter(
         (pendingRevocations) => pendingRevocations.txId !== txId,
+      );
+    });
+  }
+
+  #removePendingRevocationFromStateByPermissionContext(permissionContext: Hex) {
+    this.update((state) => {
+      state.pendingRevocations = state.pendingRevocations.filter(
+        (pendingRevocations) =>
+          pendingRevocations.permissionContext !== permissionContext,
       );
     });
   }
@@ -730,6 +739,10 @@ export default class GatorPermissionsController extends BaseController<
         snapRequest,
       );
 
+      this.#removePendingRevocationFromStateByPermissionContext(
+        revocationParams.permissionContext,
+      );
+
       controllerLog('Successfully submitted revocation', {
         permissionContext: revocationParams.permissionContext,
         result,
@@ -817,7 +830,7 @@ export default class GatorPermissionsController extends BaseController<
       }
 
       // Remove the pending revocation from the state
-      this.#removePendingRevocationFromState(txIdToRemove);
+      this.#removePendingRevocationFromStateByTxId(txIdToRemove);
     };
 
     // Handle confirmed transaction - submit revocation
