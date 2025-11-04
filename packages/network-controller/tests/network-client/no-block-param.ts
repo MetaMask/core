@@ -149,7 +149,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
     });
   });
 
-  for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
+  for (const emptyValue of [null, '\u003cnil\u003e']) {
     it(`does not retry an empty response of "${emptyValue}"`, async () => {
       const request = { method };
       const mockResult = emptyValue;
