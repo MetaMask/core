@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Revert `revokeToken` value as optional in `authenticate` method. ([#7012](https://github.com/MetaMask/core/pull/7012))
+- Renamed, `checkIsSeedlessOnboardingUserAuthenticated` to `getIsUserAuthenticated` and added an optional parameter to skip the vault creation check. ([#7012](https://github.com/MetaMask/core/pull/7012))
 
 ### Fixed
 

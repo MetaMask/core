@@ -943,14 +943,21 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   /**
    * Check if the user is authenticated with the seedless onboarding flow by checking the token values in the state.
    *
+   * @param skipVaultCreationCheck - An optional flag to skip the vault creation check.
+   * If false, the method will check all the required state values which are necessary for vault creation.
+   * If true, the method will only check the persisted authentication state values which are accessible regardless of the vault lock status.
    * @returns True if the user is authenticated, false otherwise.
    */
-  async checkIsSeedlessOnboardingUserAuthenticated(): Promise<boolean> {
+  async getIsUserAuthenticated(
+    skipVaultCreationCheck: boolean = false,
+  ): Promise<boolean> {
     let isAuthenticated = false;
     try {
       this.#assertIsAuthenticatedUser(this.state);
+      console.log('skipVaultCreationCheck', skipVaultCreationCheck);
       isAuthenticated =
-        Boolean(this.state.accessToken) && Boolean(this.state.revokeToken);
+        skipVaultCreationCheck || // if the `vaultCreationCheck` is skipped, we won't check the `accessToken` and `revokeToken`
+        (Boolean(this.state.accessToken) && Boolean(this.state.revokeToken));
     } catch {
       isAuthenticated = false;
     }
