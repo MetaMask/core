@@ -21,14 +21,12 @@ import type {
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
-  TransactionControllerConfirmExternalTransactionAction,
   TransactionControllerGetNonceLockAction,
   TransactionControllerGetTransactionsAction,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
-import { TransactionStatus } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 import cloneDeep from 'lodash/cloneDeep';
 
@@ -53,14 +51,11 @@ import type {
 import { APIType, SmartTransactionStatuses } from './types';
 import {
   calculateStatus,
-  generateHistoryEntry,
   getAPIRequestURL,
   handleFetch,
   incrementNonceInHex,
   isSmartTransactionCancellable,
   isSmartTransactionPending,
-  replayHistory,
-  snapshotFromTxMeta,
   getTxHash,
   getSmartTransactionMetricsProperties,
   getSmartTransactionMetricsSensitiveProperties,
@@ -154,7 +149,6 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | TransactionControllerGetNonceLockAction
-  | TransactionControllerConfirmExternalTransactionAction
   | TransactionControllerGetTransactionsAction
   | TransactionControllerUpdateTransactionAction;
 
@@ -560,8 +554,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
       ...smartTransaction,
     };
 
-    // We have to emit this event here, because then a txHash is returned to the TransactionController once it's available
-    // and the #doesTransactionNeedConfirmation function will work properly, since it will find the txHash in the regular transactions list.
+    // We have to emit this event here, so a txHash is returned to the TransactionController once it's available.
     this.messenger.publish(
       `SmartTransactionsController:smartTransaction`,
       nextSmartTransaction,
@@ -643,27 +636,6 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     }
   }
 
-  #doesTransactionNeedConfirmation(txHash: string | undefined): boolean {
-    if (!txHash) {
-      return true;
-    }
-    const transactions = this.messenger.call(
-      'TransactionController:getTransactions',
-    );
-    const foundTransaction = transactions?.find((tx) => {
-      return tx.hash?.toLowerCase() === txHash.toLowerCase();
-    });
-    if (!foundTransaction) {
-      return true;
-    }
-    // If a found transaction is either confirmed or submitted, it doesn't need confirmation from the STX controller.
-    // When it's in the submitted state, the TransactionController checks its status and confirms it,
-    // so no need to confirm it again here.
-    return ![TransactionStatus.confirmed, TransactionStatus.submitted].includes(
-      foundTransaction.status,
-    );
-  }
-
   async #confirmSmartTransaction(
     smartTransaction: SmartTransaction,
     {
@@ -680,65 +652,10 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     const txHash = smartTransaction.statusMetadata?.minedHash;
     try {
       const transactionReceipt: {
-        maxFeePerGas?: string;
-        maxPriorityFeePerGas?: string;
         blockNumber: string;
       } | null = await query(ethQuery, 'getTransactionReceipt', [txHash]);
-      const transaction: {
-        maxFeePerGas?: string;
-        maxPriorityFeePerGas?: string;
-      } | null = await query(ethQuery, 'getTransactionByHash', [txHash]);
 
-      const maxFeePerGas = transaction?.maxFeePerGas;
-      const maxPriorityFeePerGas = transaction?.maxPriorityFeePerGas;
       if (transactionReceipt?.blockNumber) {
-        const blockData: { baseFeePerGas?: Hex } | null = await query(
-          ethQuery,
-          'getBlockByNumber',
-          [transactionReceipt?.blockNumber, false],
-        );
-        const baseFeePerGas = blockData?.baseFeePerGas;
-        const updatedTxParams = {
-          ...smartTransaction.txParams,
-          maxFeePerGas,
-          maxPriorityFeePerGas,
-        };
-        // call confirmExternalTransaction
-        const originalTxMeta = {
-          ...smartTransaction,
-          id: smartTransaction.uuid,
-          status: TransactionStatus.confirmed,
-          hash: txHash,
-          txParams: updatedTxParams,
-        };
-        // create txMeta snapshot for history
-        const snapshot = snapshotFromTxMeta(originalTxMeta);
-        // recover previous tx state obj
-        const previousState = replayHistory(originalTxMeta.history);
-        // generate history entry and add to history
-        const entry = generateHistoryEntry(
-          previousState,
-          snapshot,
-          'txStateManager: setting status to confirmed',
-        );
-        const txMeta =
-          entry.length > 0
-            ? {
-                ...originalTxMeta,
-                history: originalTxMeta.history.concat(entry),
-              }
-            : originalTxMeta;
-
-        if (this.#doesTransactionNeedConfirmation(txHash)) {
-          this.messenger.call(
-            'TransactionController:confirmExternalTransaction',
-            // TODO: Replace 'as' assertion with correct typing for `txMeta`
-            txMeta as TransactionMeta,
-            transactionReceipt,
-            // TODO: Replace 'as' assertion with correct typing for `baseFeePerGas`
-            baseFeePerGas as Hex,
-          );
-        }
         this.#trackMetaMetricsEvent({
           event: MetaMetricsEventName.StxConfirmed,
           category: MetaMetricsEventCategory.Transactions,

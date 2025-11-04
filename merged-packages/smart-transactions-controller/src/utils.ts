@@ -8,7 +8,6 @@ import type {
 } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
-import jsonDiffer from 'fast-json-patch';
 import _ from 'lodash';
 
 // Ignoring TypeScript errors here because this import is disallowed for production builds, because
@@ -113,57 +112,6 @@ export const calculateStatus = (stxStatus: SmartTransactionsStatus) => {
   }
   return SmartTransactionStatuses.UNKNOWN;
 };
-
-/**
-  Generates an array of history objects sense the previous state.
-  The object has the keys
-    op (the operation performed),
-    path (the key and if a nested object then each key will be separated with a `/`)
-    value
-  with the first entry having the note and a timestamp when the change took place
-  @param previousState - the previous state of the object
-  @param newState - the update object
-  @param [note] - a optional note for the state change
-  @returns
-*/
-export function generateHistoryEntry(
-  previousState: any,
-  newState: any,
-  note: string,
-) {
-  const entry: any = jsonDiffer.compare(previousState, newState);
-  // Add a note to the first op, since it breaks if we append it to the entry
-  if (entry[0]) {
-    if (note) {
-      entry[0].note = note;
-    }
-
-    entry[0].timestamp = Date.now();
-  }
-  return entry;
-}
-
-/**
-  Recovers previous txMeta state obj
-  @returns
-*/
-export function replayHistory(_shortHistory: any) {
-  const shortHistory = _.cloneDeep(_shortHistory);
-  return shortHistory.reduce(
-    (val: any, entry: any) => jsonDiffer.applyPatch(val, entry).newDocument,
-  );
-}
-
-/**
- * Snapshot {@code txMeta}
- * @param txMeta - the tx metadata object
- * @returns a deep clone without history
- */
-export function snapshotFromTxMeta(txMeta: any) {
-  const shallow = { ...txMeta };
-  delete shallow.history;
-  return _.cloneDeep(shallow);
-}
 
 /**
  * Returns processing time for an STX in seconds.
