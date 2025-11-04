@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Limit Bitcoin provider to 3 conccurent account creations by default when creating multichain account groups ([]())
+
 ## [2.1.0]
 
 ### Added
