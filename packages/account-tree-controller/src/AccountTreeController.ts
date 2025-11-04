@@ -1,4 +1,8 @@
-import { AccountWalletType, select } from '@metamask/account-api';
+import {
+  AccountWalletType,
+  isBip44Account,
+  select,
+} from '@metamask/account-api';
 import type {
   AccountGroupId,
   AccountWalletId,
@@ -309,28 +313,23 @@ export class AccountTreeController extends BaseController<
       (a, b) => a.metadata.importTime - b.metadata.importTime,
     );
 
+    // HACK: Since we're not consuming accounts directly from the service, we have to
+    // cross-check with its internal state before inserting initial BIP-44 accounts.
+    // Those accounts could be marked as "disabled" (using the
+    // `AccountProviderWrapper`) and if they are, we don't want to insert them in the tree.
+    // The real fix for this would be consume accounts from the service instead of the
+    // `AccountsController`, but this requires a bit more testing, for now we keep this
+    // simple.
+    const bip44Accounts = this.#getBip44AccountIds();
+
     // For now, we always re-compute all wallets, we do not re-use the existing state.
     for (const account of accounts) {
-      this.#insert(wallets, account);
-    }
-
-    // Since we're building the tree out of of the account list, we don't know if those
-    // accounts got disabled at the service level. To make sure both states are "in-sync"
-    // we check each multichain account groups and remove extra accounts if there's any!
-    for (const wallet of this.messenger.call(
-      'MultichainAccountService:getMultichainAccountWallets',
-    )) {
-      for (const group of wallet.getMultichainAccountGroups()) {
-        const { inSync } =
-          this.#getDiffAccountsFromMultichainAccountGroups(group);
-
-        const groupObject = wallets[wallet.id]?.groups[group.id];
-        if (groupObject && inSync.length > 0) {
-          // We still check for `inSync` length to make sure we can cast here (since groups
-          // MUST HAVE at least 1 account).
-          groupObject.accounts = inSync as AccountGroupObject['accounts'];
-        }
+      if (isBip44Account(account) && !bip44Accounts.has(account.id)) {
+        // We skip those, so they won't be part of the initial tree.
+        continue;
       }
+
+      this.#insert(wallets, account);
     }
 
     // Once we have the account tree, we can apply persisted metadata (names + UI states).
@@ -1278,55 +1277,69 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Gets the difference between an account group object and its multichain
-   * account group counterpart.
+   * Get account IDs from a multichain account group.
    *
-   * @param group - Multichain account group that got created or updated.
-   * @returns The diff object to know which accounts are similar and the ones that
-   * needs to be removed.
+   * @param group - Multichain account group to extract account IDs from.
+   * @returns Set of BIP-44 account IDs for the given group.
    */
-  #getDiffAccountsFromMultichainAccountGroups(
+  #getBip44AccountIdsFromMultichainAccountGroup(
     group: MultichainAccountGroup<Bip44Account<KeyringAccount>>,
-  ): { inSync: AccountId[]; toRemove: AccountId[] } {
-    const multichainGroupAccounts = new Set(
-      group.getAccounts().map((account) => account.id),
-    );
+  ): Set<Bip44Account<KeyringAccount>['id']> {
+    // FIXME: We should introduce a way to just get the account IDs since getting
+    // account object might be a bit more costly (at least with the current
+    // architecture).
+    return new Set(group.getAccounts().map((account) => account.id));
+  }
 
-    const sync = {
-      inSync: [] as AccountId[],
-      toRemove: [] as AccountId[],
-    };
+  /**
+   * Get account IDs owned by the multichain account service.
+   *
+   * @returns Set of BIP-44 account IDs.
+   */
+  #getBip44AccountIds() {
+    const accounts = new Set();
 
-    // We only check if some accounts are no longer part of the multichain
-    // account group. This is required mainly with the `AccountProviderWrapper`s that
-    // can be disabled when "Basic functionality" is turned OFF or when the wrappers
-    // are controlled by remote feature flags.
-    const treeGroup = this.#getAccountGroup(group.id);
-    if (treeGroup) {
-      for (const account of treeGroup.accounts) {
-        // Remove accounts that not longer exist on the multichain account group.
-        if (multichainGroupAccounts.has(account)) {
-          sync.inSync.push(account);
-        } else {
-          sync.toRemove.push(account);
+    // Since we're building the tree out of of the account list, we don't know if those
+    // accounts got disabled at the service level. To make sure both states are "in-sync"
+    // we check each multichain account groups and remove extra accounts if there's any!
+    for (const wallet of this.messenger.call(
+      'MultichainAccountService:getMultichainAccountWallets',
+    )) {
+      for (const group of wallet.getMultichainAccountGroups()) {
+        for (const account of this.#getBip44AccountIdsFromMultichainAccountGroup(
+          group,
+        )) {
+          accounts.add(account);
         }
       }
     }
 
-    return sync;
+    return accounts;
   }
 
   /**
    * Handles multichain account group updates.
    *
-   * @param group - Multichain account group that got updated.
+   * @param multichainGroup - Multichain account group that got updated.
    */
   #handleMultichainAccountWalletGroupCreatedOrUpdated(
-    group: MultichainAccountGroup<Bip44Account<KeyringAccount>>,
+    multichainGroup: MultichainAccountGroup<Bip44Account<KeyringAccount>>,
   ): void {
-    const { toRemove } =
-      this.#getDiffAccountsFromMultichainAccountGroups(group);
-    this.#removeAccounts(toRemove);
+    const bip44GroupAccounts =
+      this.#getBip44AccountIdsFromMultichainAccountGroup(multichainGroup);
+
+    const group = this.#getAccountGroup(multichainGroup.id);
+    if (group) {
+      this.#removeAccounts(
+        group.accounts.filter(
+          // We only check if some accounts are no longer part of the multichain
+          // account group. This is required mainly with the `AccountProviderWrapper`s that
+          // can be disabled when "Basic functionality" is turned OFF or when the wrappers
+          // are controlled by remote feature flags.
+          (account) => !bip44GroupAccounts.has(account),
+        ),
+      );
+    }
   }
 
   /**

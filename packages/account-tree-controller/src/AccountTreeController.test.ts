@@ -6,6 +6,7 @@ import type {
 import {
   AccountGroupType,
   AccountWalletType,
+  isBip44Account,
   toAccountGroupId,
   toAccountWalletId,
   toMultichainAccountGroupId,
@@ -14,7 +15,7 @@ import {
 } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import type { KeyringAccount } from '@metamask/keyring-api';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import {
   BtcAccountType,
   EthAccountType,
@@ -238,6 +239,48 @@ const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
 const mockGetSelectedMultichainAccountActionHandler = jest.fn();
 
 /**
+ * Get multichain account wallets for the given list of accounts.
+ *
+ * @param accounts Accounts to build wallets for.
+ * @returns Multichain account wallets.
+ */
+function getMultichainAccountWalletsFromAccounts(accounts: KeyringAccount[]) {
+  const bip44Accounts = accounts.filter(isBip44Account);
+
+  const wallets: {
+    [entropySource: EntropySourceId]: {
+      [groupIndex: number]: Set<Bip44Account<KeyringAccount>>;
+    };
+  } = {};
+  for (const bip44Account of bip44Accounts) {
+    const { id: entropySource, groupIndex } = bip44Account.options.entropy;
+
+    wallets[entropySource] ??= {};
+    wallets[entropySource][groupIndex] ??= new Set();
+    wallets[entropySource][groupIndex].add(bip44Account);
+  }
+
+  return Object.entries(wallets).map(([entropySource, groups]) => {
+    const walletId = toMultichainAccountWalletId(entropySource);
+    return {
+      id: walletId,
+      getMultichainAccountGroups: jest.fn().mockImplementation(() => {
+        return Object.entries(groups).map(([groupIndex, groupAccounts]) => {
+          const groupId = toMultichainAccountGroupId(
+            walletId,
+            Number(groupIndex),
+          );
+          return {
+            id: groupId,
+            getAccounts: jest.fn().mockReturnValue(Array.from(groupAccounts)),
+          };
+        });
+      }),
+    };
+  });
+}
+
+/**
  * Sets up the AccountTreeController for testing.
  *
  * @param options - Configuration options for setup.
@@ -308,6 +351,9 @@ function setup({
       listMultichainAccounts: jest.Mock;
       getSelectedMultichainAccount: jest.Mock;
       getAccount: jest.Mock;
+    };
+    MultichainAccountService: {
+      getMultichainAccountWallets: jest.Mock;
     };
     UserStorageController: {
       performGetStorage: jest.Mock;
@@ -418,6 +464,17 @@ function setup({
       'UserStorageController:performBatchSetStorage',
       mocks.UserStorageController.performBatchSetStorage,
     );
+
+    mocks.MultichainAccountService.getMultichainAccountWallets.mockImplementation(
+      () =>
+        getMultichainAccountWalletsFromAccounts(
+          mocks.AccountsController.accounts,
+        ),
+    );
+    messenger.registerActionHandler(
+      'MultichainAccountService:getMultichainAccountWallets',
+      mocks.MultichainAccountService.getMultichainAccountWallets,
+    );
   }
 
   if (keyrings) {
@@ -430,17 +487,6 @@ function setup({
       mocks.KeyringController.getState,
     );
   }
-
-  // Using an empty list of wallets will make sure that no multichain accounts got
-  // removed automatically removed from the tree upon calling `init`. That's what
-  // we want for almost all tests.
-  mocks.MultichainAccountService.getMultichainAccountWallets.mockReturnValue(
-    [],
-  );
-  messenger.registerActionHandler(
-    'MultichainAccountService:getMultichainAccountWallets',
-    mocks.MultichainAccountService.getMultichainAccountWallets,
-  );
 
   const accountTreeControllerMessenger =
     getAccountTreeControllerMessenger(messenger);
@@ -962,12 +1008,18 @@ describe('AccountTreeController', () => {
       });
 
       const now = Date.now();
-      mocks.AccountsController.listMultichainAccounts.mockReturnValue([
+      const mockAccounts = [
         // Faking accounts to be out of order:
         mockAccountWith(1, now + 1000),
         mockAccountWith(2, now + 2000),
         mockAccountWith(0, now),
-      ]);
+      ];
+      mocks.AccountsController.listMultichainAccounts.mockReturnValue(
+        mockAccounts,
+      );
+      mocks.MultichainAccountService.getMultichainAccountWallets.mockImplementation(
+        () => getMultichainAccountWalletsFromAccounts(mockAccounts),
+      );
 
       controller.init();
 
