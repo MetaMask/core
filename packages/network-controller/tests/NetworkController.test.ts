@@ -350,90 +350,111 @@ describe('NetworkController', () => {
       );
     });
 
-    describe('if selectedNetworkClientId does not match the networkClientId of an RPC endpoint in networkConfigurationsByChainId', () => {
-      it('corrects selectedNetworkClientId to the default RPC endpoint of the first chain', () => {
-        const messenger = buildRootMessenger();
-        messenger.registerActionHandler(
-          'ErrorReportingService:captureException',
-          jest.fn(),
-        );
-        const controllerMessenger = buildNetworkControllerMessenger(messenger);
-        const controller = new NetworkController({
-          messenger: controllerMessenger,
-          state: {
-            selectedNetworkClientId: 'nonexistent',
-            networkConfigurationsByChainId: {
-              '0x1': buildCustomNetworkConfiguration({
-                chainId: '0x1',
-                defaultRpcEndpointIndex: 1,
-                rpcEndpoints: [
-                  buildCustomRpcEndpoint({
-                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                  }),
-                  buildCustomRpcEndpoint({
-                    networkClientId: 'BBBB-BBBB-BBBB-BBBB',
-                  }),
-                ],
-              }),
-              '0x2': buildCustomNetworkConfiguration({ chainId: '0x2' }),
-              '0x3': buildCustomNetworkConfiguration({ chainId: '0x3' }),
-            },
-          },
-          infuraProjectId: 'infura-project-id',
-          getRpcServiceOptions: () => ({
-            fetch,
-            btoa,
-          }),
-        });
+    it('corrects an invalid selectedNetworkClientId to the default RPC endpoint of the first chain, logging this fact', () => {
+      const captureExceptionMock = jest.fn();
+      const messenger = buildRootMessenger({
+        actionHandlers: {
+          'ErrorReportingService:captureException': captureExceptionMock,
+        },
+      });
+      const controllerMessenger = buildNetworkControllerMessenger(messenger);
 
-        expect(controller.state.selectedNetworkClientId).toBe(
-          'BBBB-BBBB-BBBB-BBBB',
-        );
+      const controller = new NetworkController({
+        messenger: controllerMessenger,
+        state: {
+          selectedNetworkClientId: 'nonexistent',
+          networkConfigurationsByChainId: {
+            '0x1': buildCustomNetworkConfiguration({
+              chainId: '0x1',
+              defaultRpcEndpointIndex: 1,
+              rpcEndpoints: [
+                buildCustomRpcEndpoint({
+                  networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                }),
+                buildCustomRpcEndpoint({
+                  networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                }),
+              ],
+            }),
+            '0x2': buildCustomNetworkConfiguration({ chainId: '0x2' }),
+            '0x3': buildCustomNetworkConfiguration({ chainId: '0x3' }),
+          },
+        },
+        infuraProjectId: 'infura-project-id',
+        getRpcServiceOptions: () => ({
+          fetch,
+          btoa,
+        }),
       });
 
-      it('logs a Sentry error', () => {
-        const messenger = buildRootMessenger();
-        const captureExceptionMock = jest.fn();
-        messenger.registerActionHandler(
-          'ErrorReportingService:captureException',
-          captureExceptionMock,
-        );
-        const controllerMessenger = buildNetworkControllerMessenger(messenger);
+      expect(controller.state.selectedNetworkClientId).toBe(
+        'BBBB-BBBB-BBBB-BBBB',
+      );
+      expect(captureExceptionMock).toHaveBeenCalledWith(
+        new Error(
+          "`selectedNetworkClientId` 'nonexistent' does not refer to an RPC endpoint within a network configuration; correcting to 'BBBB-BBBB-BBBB-BBBB'",
+        ),
+      );
+    });
 
-        new NetworkController({
-          messenger: controllerMessenger,
-          state: {
-            selectedNetworkClientId: 'nonexistent',
-            networkConfigurationsByChainId: {
-              '0x1': buildCustomNetworkConfiguration({
-                chainId: '0x1',
-                defaultRpcEndpointIndex: 1,
-                rpcEndpoints: [
-                  buildCustomRpcEndpoint({
-                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                  }),
-                  buildCustomRpcEndpoint({
-                    networkClientId: 'BBBB-BBBB-BBBB-BBBB',
-                  }),
-                ],
-              }),
-              '0x2': buildCustomNetworkConfiguration({ chainId: '0x2' }),
-              '0x3': buildCustomNetworkConfiguration({ chainId: '0x3' }),
+    it('removes invalid network client IDs from networksMetadata, logging this fact', () => {
+      const captureExceptionMock = jest.fn();
+      const messenger = buildRootMessenger({
+        actionHandlers: {
+          'ErrorReportingService:captureException': captureExceptionMock,
+        },
+      });
+      const controllerMessenger = buildNetworkControllerMessenger(messenger);
+
+      const controller = new NetworkController({
+        messenger: controllerMessenger,
+        state: {
+          selectedNetworkClientId: InfuraNetworkType.sepolia,
+          networkConfigurationsByChainId: {
+            [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+              InfuraNetworkType.sepolia,
+            ),
+          },
+          networksMetadata: {
+            [InfuraNetworkType.sepolia]: {
+              status: NetworkStatus.Available,
+              EIPS: {},
+            },
+            'AAAA-AAAA-AAAA-AAAA': {
+              status: NetworkStatus.Available,
+              EIPS: {},
+            },
+            'BBBB-BBBB-BBBB-BBBB': {
+              status: NetworkStatus.Available,
+              EIPS: {},
+            },
+            'CCCC-CCCC-CCCC-CCCC': {
+              status: NetworkStatus.Available,
+              EIPS: {},
             },
           },
-          infuraProjectId: 'infura-project-id',
-          getRpcServiceOptions: () => ({
-            fetch,
-            btoa,
-          }),
-        });
-
-        expect(captureExceptionMock).toHaveBeenCalledWith(
-          new Error(
-            "`selectedNetworkClientId` 'nonexistent' does not refer to an RPC endpoint within a network configuration; correcting to 'BBBB-BBBB-BBBB-BBBB'",
-          ),
-        );
+        },
+        infuraProjectId: 'infura-project-id',
+        getRpcServiceOptions: () => ({
+          fetch,
+          btoa,
+        }),
       });
+
+      expect(controller.state.networksMetadata).not.toHaveProperty(
+        'AAAA-AAAA-AAAA-AAAA',
+      );
+      expect(controller.state.networksMetadata).not.toHaveProperty(
+        'BBBB-BBBB-BBBB-BBBB',
+      );
+      expect(controller.state.networksMetadata).not.toHaveProperty(
+        'CCCC-CCCC-CCCC-CCCC',
+      );
+      expect(captureExceptionMock).toHaveBeenCalledWith(
+        new Error(
+          '`networksMetadata` had invalid network client IDs, which have been removed',
+        ),
+      );
     });
 
     const invalidInfuraProjectIds = [undefined, null, {}, 1];
@@ -831,7 +852,7 @@ describe('NetworkController', () => {
               },
             },
             networksMetadata: {
-              mainnet: {
+              [TESTNET.networkType]: {
                 EIPS: { 1559: true },
                 status: NetworkStatus.Unknown,
               },
@@ -865,7 +886,7 @@ describe('NetworkController', () => {
                 },
               },
               "networksMetadata": Object {
-                "mainnet": Object {
+                "sepolia": Object {
                   "EIPS": Object {
                     "1559": true,
                   },
@@ -13130,6 +13151,41 @@ describe('NetworkController', () => {
           );
         });
 
+        it('removes the existing metadata for the network from state', async () => {
+          await withController(
+            {
+              state: {
+                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                networkConfigurationsByChainId: {
+                  [infuraChainId]:
+                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  '0x1337': buildCustomNetworkConfiguration({
+                    chainId: '0x1337',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      }),
+                    ],
+                  }),
+                },
+                networksMetadata: {
+                  [infuraNetworkType]: {
+                    status: NetworkStatus.Available,
+                    EIPS: {},
+                  },
+                },
+              },
+            },
+            ({ controller }) => {
+              controller.removeNetwork(infuraChainId);
+
+              expect(controller.state.networksMetadata).not.toHaveProperty(
+                infuraNetworkType,
+              );
+            },
+          );
+        });
+
         it('destroys and unregisters the network clients for each of the RPC endpoints defined in the network configuration (even the Infura endpoint)', async () => {
           const defaultRpcEndpoint = buildInfuraRpcEndpoint(infuraNetworkType);
 
@@ -13190,7 +13246,7 @@ describe('NetworkController', () => {
     }
 
     describe('given the ID of a non-Infura-supported chain', () => {
-      it('removes the existing network configuration', async () => {
+      it('removes the existing network configuration from state', async () => {
         await withController(
           {
             state: {
@@ -13213,6 +13269,61 @@ describe('NetworkController', () => {
             expect(
               controller.state.networkConfigurationsByChainId,
             ).not.toHaveProperty('0x1337');
+          },
+        );
+      });
+
+      it('removes the existing metadata for all RPC endpoints in the network from state', async () => {
+        await withController(
+          {
+            state: {
+              selectedNetworkClientId: TESTNET.networkType,
+              networkConfigurationsByChainId: {
+                '0x1337': buildCustomNetworkConfiguration({
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    }),
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                    }),
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'CCCC-CCCC-CCCC-CCCC',
+                    }),
+                  ],
+                }),
+                [TESTNET.chainId]: buildInfuraNetworkConfiguration(
+                  TESTNET.networkType,
+                ),
+              },
+              networksMetadata: {
+                'AAAA-AAAA-AAAA-AAAA': {
+                  status: NetworkStatus.Available,
+                  EIPS: {},
+                },
+                'BBBB-BBBB-BBBB-BBBB': {
+                  status: NetworkStatus.Available,
+                  EIPS: {},
+                },
+                'CCCC-CCCC-CCCC-CCCC': {
+                  status: NetworkStatus.Available,
+                  EIPS: {},
+                },
+              },
+            },
+          },
+          ({ controller }) => {
+            controller.removeNetwork('0x1337');
+
+            expect(controller.state.networksMetadata).not.toHaveProperty(
+              'AAAA-AAAA-AAAA-AAAA',
+            );
+            expect(controller.state.networksMetadata).not.toHaveProperty(
+              'BBBB-BBBB-BBBB-BBBB',
+            );
+            expect(controller.state.networksMetadata).not.toHaveProperty(
+              'CCCC-CCCC-CCCC-CCCC',
+            );
           },
         );
       });
@@ -15571,7 +15682,7 @@ function lookupNetworkTests({
             state: {
               ...initialState,
               networksMetadata: {
-                mainnet: {
+                [expectedNetworkClientId]: {
                   EIPS: { 1559: false },
                   status: NetworkStatus.Unknown,
                 },
@@ -15614,7 +15725,7 @@ function lookupNetworkTests({
             state: {
               ...initialState,
               networksMetadata: {
-                mainnet: {
+                [expectedNetworkClientId]: {
                   EIPS: { 1559: true },
                   status: NetworkStatus.Unknown,
                 },
