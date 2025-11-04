@@ -17,7 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** The GatorPermissionsController messenger must allow `TransactionController:transactionConfirmed`, `TransactionController:transactionFailed`, and `TransactionController:transactionDropped` events ([#6713](https://github.com/MetaMask/core/pull/6713))
 - Add `submitRevocation` and `addPendingRevocation` methods to GatorPermissionsController ([#6713](https://github.com/MetaMask/core/pull/6713))
   - These are also available as actions (`GatorPermissionsController:submitRevocation` and `GatorPermissionsController:addPendingRevocation`)
-- Export `RevocationParams` type ([#6713](https://github.com/MetaMask/core/pull/6713))
+
+### Changed
+
+- **BREAKING:** Add `@metamask/transaction-controller` as peer dependency ([#7058](https://github.com/MetaMask/core/pull/7058))
 
 ### Fixed
 
