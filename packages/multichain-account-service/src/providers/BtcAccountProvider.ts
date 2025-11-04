@@ -28,6 +28,7 @@ export class BtcAccountProvider extends SnapAccountProvider {
   constructor(
     messenger: MultichainAccountServiceMessenger,
     config: BtcAccountProviderConfig = {
+      maxConcurrency: 3,
       createAccounts: {
         timeoutMs: 3000,
       },
