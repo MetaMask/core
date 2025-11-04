@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0]
+
 ### Added
 
 - Added new property, `isSponsorshipSupported` to the ControllerState, `pricing.paymentMethods.chains`. ([#7035](https://github.com/MetaMask/core/pull/7035))
@@ -14,8 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0`. ([#7003](https://github.com/MetaMask/core/pull/7003))
 - Bump `@metamask/transaction-controller` from `^61.0.0` to `^61.1.0` ([#7007](https://github.com/MetaMask/core/pull/7007))
 - Updated `submitSponsorshipIntents` method with chain validation. ([#7035](https://github.com/MetaMask/core/pull/7035))
+- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
 
 ## [3.1.0]
 
@@ -139,7 +143,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@3.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@3.2.0...HEAD
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@3.1.0...@metamask/subscription-controller@3.2.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@3.0.0...@metamask/subscription-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@2.1.0...@metamask/subscription-controller@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@2.0.0...@metamask/subscription-controller@2.1.0
