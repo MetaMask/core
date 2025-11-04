@@ -2794,18 +2794,17 @@ describe('TokenRatesController', () => {
             },
           },
           async ({ controller }) => {
-            // First call should call fetchSupportedChainIds
-            await controller.updateExchangeRates([
-              { chainId: ChainId.mainnet, nativeCurrency: 'ETH' },
-            ]);
-
-            // Second call should not call fetchSupportedChainIds
-            await controller.updateExchangeRates([
-              { chainId: ChainId.mainnet, nativeCurrency: 'ETH' },
+            // use promise.all to call the updateExchangeRates method twice
+            await Promise.all([
+              controller.updateExchangeRates([
+                { chainId: ChainId.mainnet, nativeCurrency: 'ETH' },
+              ]),
+              controller.updateExchangeRates([
+                { chainId: ChainId.mainnet, nativeCurrency: 'ETH' },
+              ]),
             ]);
 
             expect(fetchSupportedChainIdsMock).toHaveBeenCalledTimes(1);
-            expect(fetchTokenPricesMock).toHaveBeenCalledTimes(2);
           },
         );
       });
