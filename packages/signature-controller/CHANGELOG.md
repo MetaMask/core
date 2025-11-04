@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/gator-permissions-controller` from `^0.3.0` to `^0.4.0`
+- **BREAKING:** Bump peer dependency `@metamask/gator-permissions-controller` from `^0.3.0` to `^0.4.0` ([#7057](https://github.com/MetaMask/core/pull/7057))
 
 ## [35.0.0]
 
