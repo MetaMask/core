@@ -1082,12 +1082,17 @@ function correctInitialState(
   const networkConfigurationsSortedByChainId = getNetworkConfigurations(
     state,
   ).sort((a, b) => a.chainId.localeCompare(b.chainId));
-  const networkClientIds = getAvailableNetworkClientIds(
+  const availableNetworkClientIds = getAvailableNetworkClientIds(
     networkConfigurationsSortedByChainId,
+  );
+  const invalidNetworkClientIdsWithMetadata = Object.keys(
+    state.networksMetadata,
+  ).filter(
+    (networkClientId) => !availableNetworkClientIds.includes(networkClientId),
   );
 
   return produce(state, (newState) => {
-    if (!networkClientIds.includes(state.selectedNetworkClientId)) {
+    if (!availableNetworkClientIds.includes(state.selectedNetworkClientId)) {
       const firstNetworkConfiguration = networkConfigurationsSortedByChainId[0];
       const newSelectedNetworkClientId =
         firstNetworkConfiguration.rpcEndpoints[
@@ -1100,6 +1105,18 @@ function correctInitialState(
         ),
       );
       newState.selectedNetworkClientId = newSelectedNetworkClientId;
+    }
+
+    if (invalidNetworkClientIdsWithMetadata.length > 0) {
+      for (const invalidNetworkClientId of invalidNetworkClientIdsWithMetadata) {
+        delete newState.networksMetadata[invalidNetworkClientId];
+      }
+      messenger.call(
+        'ErrorReportingService:captureException',
+        new Error(
+          '`networksMetadata` had invalid network client IDs, which have been removed',
+        ),
+      );
     }
   });
 }
@@ -2401,6 +2418,10 @@ export class NetworkController extends BaseController<
         mode: 'remove',
         existingNetworkConfiguration,
       });
+
+      for (const rpcEndpoint of existingNetworkConfiguration.rpcEndpoints) {
+        delete state.networksMetadata[rpcEndpoint.networkClientId];
+      }
     });
 
     this.messenger.publish(
