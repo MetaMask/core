@@ -115,6 +115,7 @@ describe('GatorPermissionsController', () => {
           other: {},
         }),
         gatorPermissionsProviderSnapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        pendingRevocations: [],
       };
 
       const controller = new GatorPermissionsController({
@@ -454,6 +455,7 @@ describe('GatorPermissionsController', () => {
           "gatorPermissionsProviderSnapId": "npm:@metamask/gator-permissions-snap",
           "isFetchingGatorPermissions": false,
           "isGatorPermissionsEnabled": false,
+          "pendingRevocations": Array [],
         }
       `);
     });
@@ -491,6 +493,7 @@ describe('GatorPermissionsController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "gatorPermissionsMapSerialized": "{\\"native-token-stream\\":{},\\"native-token-periodic\\":{},\\"erc20-token-stream\\":{},\\"erc20-token-periodic\\":{},\\"other\\":{}}",
+          "pendingRevocations": Array [],
         }
       `);
     });
@@ -735,6 +738,12 @@ describe('GatorPermissionsController', () => {
           isGatorPermissionsEnabled: true,
           gatorPermissionsProviderSnapId:
             MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+          pendingRevocations: [
+            {
+              txId: 'test-tx-id',
+              permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+            },
+          ],
         },
       });
 
@@ -754,6 +763,7 @@ describe('GatorPermissionsController', () => {
           params: revocationParams,
         },
       });
+      expect(controller.pendingRevocations).toStrictEqual([]);
     });
 
     it('should throw GatorPermissionsNotEnabledError when gator permissions are disabled', async () => {
@@ -1036,6 +1046,33 @@ describe('GatorPermissionsController', () => {
       await expect(
         controller.addPendingRevocation({ txId, permissionContext }),
       ).rejects.toThrow('Gator permissions are not enabled');
+    });
+  });
+
+  describe('get pendingRevocations', () => {
+    it('should return the pending revocations list', () => {
+      const messenger = getMessenger();
+      const controller = new GatorPermissionsController({
+        messenger,
+        state: {
+          isGatorPermissionsEnabled: true,
+          gatorPermissionsProviderSnapId:
+            MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+          pendingRevocations: [
+            {
+              txId: 'test-tx-id',
+              permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+            },
+          ],
+        },
+      });
+
+      expect(controller.pendingRevocations).toStrictEqual([
+        {
+          txId: 'test-tx-id',
+          permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        },
+      ]);
     });
   });
 });

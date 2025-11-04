@@ -7,12 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.0]
-
 ### Added
 
 - Add `submitRevocation` action to submit permission revocations through the gator permissions provider snap
 - Add `addPendingRevocation` action to queue revocations until transaction confirmation
+- Expose list of pending revocations in state
+
+## [0.3.0]
 
 ### Changed
 
