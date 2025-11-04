@@ -96,22 +96,24 @@ function getTrendingTokensURL(
   if (sortBy) {
     queryParams.append('sortBy', sortBy);
   }
-  if (minLiquidity) {
+  if (minLiquidity !== undefined) {
     queryParams.append('minLiquidity', minLiquidity.toString());
   }
-  if (minVolume24hUsd) {
+  if (minVolume24hUsd !== undefined) {
     queryParams.append('minVolume24hUsd', minVolume24hUsd.toString());
   }
-  if (maxVolume24hUsd) {
+  if (maxVolume24hUsd !== undefined) {
     queryParams.append('maxVolume24hUsd', maxVolume24hUsd.toString());
   }
-  if (minMarketCap) {
+  if (minMarketCap !== undefined) {
     queryParams.append('minMarketCap', minMarketCap.toString());
   }
-  if (maxMarketCap) {
+  if (maxMarketCap !== undefined) {
     queryParams.append('maxMarketCap', maxMarketCap.toString());
   }
-  return `${TOKEN_END_POINT_API}/v3/tokens/trending?chainIds=${encodedChainIds}&${queryParams.toString()}`;
+  const additionalParams = queryParams.toString();
+
+  return `${TOKEN_END_POINT_API}/v3/tokens/trending?chainIds=${encodedChainIds}${additionalParams ? `&${additionalParams}` : ''}`;
 }
 
 const tenSecondsInMilliseconds = 10_000;

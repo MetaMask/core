@@ -740,7 +740,9 @@ describe('Token service', () => {
 
     it('returns empty array if the fetch fails', async () => {
       nock(TOKEN_END_POINT_API)
-        .get('/v3/tokens/trending?chainIds=')
+        .get(
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}`,
+        )
         .reply(500)
         .persist();
 
@@ -751,9 +753,14 @@ describe('Token service', () => {
     it('returns the list of trending tokens if the fetch succeeds', async () => {
       const testChainId = 'eip155:1';
       const sortBy: SortTrendingBy = 'm5_trending';
+      const testMinLiquidity = 1000000;
+      const testMinVolume24hUsd = 1000000;
+      const testMaxVolume24hUsd = 1000000;
+      const testMinMarketCap = 1000000;
+      const testMaxMarketCap = 1000000;
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&sortBy=${sortBy}`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&sortBy=${sortBy}&minLiquidity=${testMinLiquidity}&minVolume24hUsd=${testMinVolume24hUsd}&maxVolume24hUsd=${testMaxVolume24hUsd}&minMarketCap=${testMinMarketCap}&maxMarketCap=${testMaxMarketCap}`,
         )
         .reply(200, sampleTrendingTokens)
         .persist();
@@ -761,6 +768,25 @@ describe('Token service', () => {
       const result = await getTrendingTokens({
         chainIds: [testChainId],
         sortBy,
+        minLiquidity: testMinLiquidity,
+        minVolume24hUsd: testMinVolume24hUsd,
+        maxVolume24hUsd: testMaxVolume24hUsd,
+        minMarketCap: testMinMarketCap,
+        maxMarketCap: testMaxMarketCap,
+      });
+      expect(result).toStrictEqual(sampleTrendingTokens);
+    });
+
+    it('returns the list of trending tokens if the fetch succeeds with no query params', async () => {
+      const testChainId = 'eip155:1';
+
+      nock(TOKEN_END_POINT_API)
+        .get(`/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}`)
+        .reply(200, sampleTrendingTokens)
+        .persist();
+
+      const result = await getTrendingTokens({
+        chainIds: [testChainId],
       });
       expect(result).toStrictEqual(sampleTrendingTokens);
     });
