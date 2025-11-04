@@ -1,7 +1,7 @@
 // We use conditions exclusively in this file.
 /* eslint-disable jest/no-conditional-in-test */
 
-import { HttpError } from '@metamask/controller-utils';
+import { CUSTOM_RPC_ERRORS, HttpError } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
 import nock from 'nock';
 import { FetchError } from 'node-fetch';
@@ -9,7 +9,7 @@ import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
 
 import type { AbstractRpcService } from './abstract-rpc-service';
-import { CUSTOM_RPC_ERRORS, RpcService } from './rpc-service';
+import { RpcService } from './rpc-service';
 import { DEFAULT_CIRCUIT_BREAK_DURATION } from '../../../controller-utils/src/create-service-policy';
 
 describe('RpcService', () => {

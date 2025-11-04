@@ -1,3 +1,4 @@
+import { InvalidResponseFromEndpointError } from '@metamask/controller-utils';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import { rpcErrors } from '@metamask/rpc-errors';
@@ -63,6 +64,13 @@ export function createFetchMiddleware({
       if ('error' in jsonRpcResponse) {
         throw rpcErrors.internal({
           data: jsonRpcResponse.error,
+        });
+      }
+
+      if (jsonRpcResponse.result === undefined) {
+        throw new InvalidResponseFromEndpointError({
+          message: 'Received undefined result from endpoint',
+          response: jsonRpcResponse,
         });
       }
 

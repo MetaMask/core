@@ -4,6 +4,7 @@ import type {
 } from '@metamask/controller-utils';
 import {
   BrokenCircuitError,
+  CUSTOM_RPC_ERRORS,
   CircuitState,
   HttpError,
   createServicePolicy,
@@ -132,16 +133,6 @@ export const CONNECTION_ERRORS = [
     pattern: /terminated/u,
   },
 ];
-
-/**
- * Custom JSON-RPC error codes for specific cases.
- *
- * These should be moved to `@metamask/rpc-errors` eventually.
- */
-export const CUSTOM_RPC_ERRORS = {
-  unauthorized: -32006,
-  httpClientError: -32080,
-} as const;
 
 /**
  * Determines whether the given error represents a failure to reach the network

@@ -286,3 +286,14 @@ export const DAY = HOURS * 24;
  * The number of milliseconds in a day.
  */
 export const DAYS = DAY;
+
+/**
+ * Custom JSON-RPC error codes for specific cases.
+ *
+ * TODO: These should be moved to `@metamask/rpc-errors`.
+ */
+export const CUSTOM_RPC_ERRORS = {
+  unauthorized: -32006,
+  invalidResponseFromEndpoint: -32007,
+  httpClientError: -32080,
+} as const;

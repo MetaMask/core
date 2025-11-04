@@ -50,6 +50,7 @@ describe('@metamask/controller-utils', () => {
         "DAY",
         "DAYS",
         "NETWORKS_BYPASSING_VALIDATION",
+        "CUSTOM_RPC_ERRORS",
         "BNToHex",
         "convertHexToDecimal",
         "fetchWithErrorHandling",
@@ -91,6 +92,7 @@ describe('@metamask/controller-utils', () => {
         "parseDomainParts",
         "isValidSIWEOrigin",
         "detectSIWE",
+        "InvalidResponseFromEndpointError",
       ]
     `);
   });

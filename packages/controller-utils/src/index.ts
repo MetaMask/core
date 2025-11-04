@@ -52,6 +52,7 @@ export {
   DAY,
   DAYS,
   NETWORKS_BYPASSING_VALIDATION,
+  CUSTOM_RPC_ERRORS,
 } from './constants';
 export type { NonEmptyArray } from './util';
 export {
@@ -86,3 +87,4 @@ export {
 } from './util';
 export * from './types';
 export * from './siwe';
+export * from './errors';

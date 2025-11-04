@@ -1,3 +1,4 @@
+import { CUSTOM_RPC_ERRORS } from '@metamask/controller-utils';
 import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 
 import type { ProviderType } from './helpers';
@@ -7,7 +8,6 @@ import {
   withNetworkClient,
 } from './helpers';
 import { testsForRpcFailoverBehavior } from './rpc-failover';
-import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
 import { NetworkClientType } from '../../src/types';
 
 type TestsForRpcMethodThatCheckForBlockHashInResponseOptions = {

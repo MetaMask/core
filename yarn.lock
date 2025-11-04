@@ -3120,6 +3120,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-unit": "npm:^0.3.0"
+    "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^11.8.1"
     "@spruceid/siwe-parser": "npm:2.1.0"
     "@ts-bridge/cli": "npm:^0.6.4"

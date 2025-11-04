@@ -1,5 +1,8 @@
 import type { InfuraNetworkType } from '@metamask/controller-utils';
-import { ChainId } from '@metamask/controller-utils';
+import {
+  ChainId,
+  InvalidResponseFromEndpointError,
+} from '@metamask/controller-utils';
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
@@ -139,12 +142,25 @@ export function createNetworkClient({
 
   const rpcApiMiddleware =
     configuration.type === NetworkClientType.Infura
-      ? createInfuraMiddleware({
-          rpcService: rpcServiceChain,
-          options: {
-            source: 'metamask',
+      ? mergeMiddleware([
+          // TODO: This should be removed after modifying the behavior of the Infura middleware
+          (_req, res, next, _end) => {
+            return next(() => {
+              if (res.result === undefined) {
+                throw new InvalidResponseFromEndpointError({
+                  message: 'Received undefined result from endpoint',
+                  response: res,
+                });
+              }
+            });
           },
-        })
+          createInfuraMiddleware({
+            rpcService: rpcServiceChain,
+            options: {
+              source: 'metamask',
+            },
+          }),
+        ])
       : createFetchMiddleware({ rpcService: rpcServiceChain });
 
   const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
