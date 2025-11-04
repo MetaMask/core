@@ -1121,42 +1121,6 @@ describe('SeedlessOnboardingController', () => {
         expect(await controller.getIsUserAuthenticated()).toBe(false);
       });
     });
-
-    it('should skip the `accessToken` and `revokeToken` check if `skipVaultCreationCheck` is true', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withoutMockAccessToken: true, // missing accessToken
-            withoutMockRevokeToken: true, // missing revokeToken
-          }),
-        },
-        async ({ controller }) => {
-          const skipVaultCreationCheck = true;
-          expect(
-            await controller.getIsUserAuthenticated(skipVaultCreationCheck),
-          ).toBe(true);
-        },
-      );
-    });
-
-    it('should return false if the user is not authenticated with `skipVaultCreationCheck` is true.', async () => {
-      await withController(
-        {
-          state: {
-            // missing NodeAuthTokens, authConnectionId, userId
-            groupedAuthConnectionId,
-            metadataAccessToken,
-          },
-        },
-        async ({ controller }) => {
-          const skipVaultCreationCheck = true;
-          expect(
-            await controller.getIsUserAuthenticated(skipVaultCreationCheck),
-          ).toBe(false);
-        },
-      );
-    });
   });
 
   describe('createToprfKeyAndBackupSeedPhrase', () => {
