@@ -5,6 +5,7 @@ import type {
   RecoverEncryptionKeyResult,
   SEC1EncodedPublicKey,
 } from '@metamask/toprf-secure-backup';
+import type * as encryptionUtils from '@metamask/browser-passworder';
 import {
   ToprfSecureBackup,
   TOPRFErrorCode,
@@ -59,7 +60,6 @@ import {
   deserializeVaultData,
   serializeVaultData,
 } from './utils';
-
 const log = createModuleLogger(projectLogger, controllerName);
 
 /**
@@ -226,8 +226,8 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
   };
 
 export class SeedlessOnboardingController<
-  EncryptionKey,
-  SupportedKeyDerivationOptions,
+  EncryptionKey = encryptionUtils.EncryptionKey | CryptoKey,
+  SupportedKeyDerivationOptions = encryptionUtils.KeyDerivationOptions,
 > extends BaseController<
   typeof controllerName,
   SeedlessOnboardingControllerState,

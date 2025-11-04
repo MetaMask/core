@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `SeedlessOnboardingController` now requires an additional `SupportedKeyDerivationOptions` type parameter ([#5963](https://github.com/MetaMask/core/pull/5963))
+- `SeedlessOnboardingController` now accepts an optional `SupportedKeyDerivationOptions` type parameter ([#5963](https://github.com/MetaMask/core/pull/5963))
+  - The type parameter can be used to specify which key derivation algorithms are supported by the controller instance.
 
 ## [6.0.0]
 
