@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `providerFromMiddlewareV2` ([#7001](https://github.com/MetaMask/core/pull/7001))
+  - This accepts the new middleware from `@metamask/json-rpc-engine/v2`.
+
 ### Changed
 
 - **BREAKING:** Replace `SafeEventEmitterProvider` with `InternalProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
@@ -15,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Migrate from `JsonRpcEngine` to `JsonRpcEngineV2` ([#7001](https://github.com/MetaMask/core/pull/7001))
   - Legacy `JsonRpcEngine` instances are wrapped in a `JsonRpcEngineV2` internally wherever they appear.
     This change should mostly be unobservable. However, due to differences in error handling, this may be breaking for consumers.
+
+### Deprecated
+
+- Deprecate `providerFromMiddleware` ([#7001](https://github.com/MetaMask/core/pull/7001))
+  - Use `providerFromMiddlewareV2` instead, which supports the new middleware from `@metamask/json-rpc-engine/v2`.
 
 ### Removed
 
