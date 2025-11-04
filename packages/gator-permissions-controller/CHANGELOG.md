@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `submitRevocation` and `addPendingRevocation` methods to GatorPermissionsController ([#6713](https://github.com/MetaMask/core/pull/6713))
   - These are also available as actions (`GatorPermissionsController:submitRevocation` and `GatorPermissionsController:addPendingRevocation`)
 - Export `RevocationParams` type ([#6713](https://github.com/MetaMask/core/pull/6713))
-  
+
 ### Fixed
 
 - Added `@ts-bridge/cli` dependency to resolve failing build ([#7040](https://github.com/MetaMask/core/pull/7040))
