@@ -177,6 +177,28 @@ describe('AnalyticsController', () => {
       expect(controller.state.optedIn).toBe(true);
     });
 
+    it('uses default analyticsId when not provided in partial state', () => {
+      const { controller } = setupController({
+        state: {
+          enabled: false,
+          optedIn: true,
+        },
+      });
+
+      expect(isValidUUIDv4(controller.state.analyticsId)).toBe(true);
+    });
+
+    it('uses provided analyticsId when passed in state at initialization', () => {
+      const customId = '550e8400-e29b-41d4-a716-446655440000';
+      const { controller } = setupController({
+        state: {
+          analyticsId: customId,
+        },
+      });
+
+      expect(controller.state.analyticsId).toBe(customId);
+    });
+
     it('initializes with default values when options are undefined', () => {
       const mockAdapter = createMockAdapter();
       const rootMessenger = new Messenger<

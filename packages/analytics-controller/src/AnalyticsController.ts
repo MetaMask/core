@@ -189,16 +189,9 @@ export class AnalyticsController extends BaseController<
     messenger,
     platformAdapter,
   }: AnalyticsControllerOptions) {
-    const defaultState = getDefaultAnalyticsControllerState();
-    // Use analyticsId from state if provided, otherwise use the one from defaultState
-    const analyticsId: string =
-      state.analyticsId !== undefined
-        ? state.analyticsId
-        : defaultState.analyticsId;
     const mergedState: AnalyticsControllerState = {
-      ...defaultState,
+      ...getDefaultAnalyticsControllerState(),
       ...state,
-      analyticsId,
     };
 
     super({
