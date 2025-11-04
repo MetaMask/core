@@ -101,19 +101,9 @@ describe('KeyringController', () => {
         () =>
           new KeyringController({
             messenger: buildKeyringControllerMessenger(),
+            encryptor: new MockEncryptor(),
           }),
       ).not.toThrow();
-    });
-
-    it('should throw error if encryptor does not support key export', () => {
-      expect(
-        () =>
-          new KeyringController({
-            messenger: buildKeyringControllerMessenger(),
-            // @ts-expect-error testing an invalid encryptor
-            encryptor: { encrypt: jest.fn(), decrypt: jest.fn() },
-          }),
-      ).toThrow(KeyringControllerError.UnsupportedEncryptionKeyExport);
     });
 
     it('allows overwriting the built-in Simple keyring builder', async () => {

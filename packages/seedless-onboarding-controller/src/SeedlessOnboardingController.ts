@@ -60,6 +60,7 @@ import {
   deserializeVaultData,
   serializeVaultData,
 } from './utils';
+
 const log = createModuleLogger(projectLogger, controllerName);
 
 /**
