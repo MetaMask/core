@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING** Use CrossChain API instead of the intent manager package for intent order submission ([#6963](https://github.com/MetaMask/core/pull/6963))
+
 ## [52.0.0]
 
 ### Changed
