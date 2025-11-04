@@ -29,6 +29,26 @@ jobs:
     uses: MetaMask/action-security-code-scanner/.github/workflows/security-scan.yml@v2
     with:
       scanner-ref: v2
+      paths-ignored: |
+        '.storybook/'
+        '**/__snapshots__/'
+        '**/*.snap'
+        '**/*.stories.js'
+        '**/*.stories.tsx'
+        '**/*.test.browser.ts*'
+        '**/*.test.js*'
+        '**/*.test.ts*'
+        '**/fixtures/'
+        '**/jest.config.js'
+        '**/jest.environment.js'
+        '**/mocks/'
+        '**/test*/'
+        'docs/'
+        'e2e/'
+        'merged-packages/'
+        'node_modules/'
+        'storybook/'
+        'test*/'
     secrets:
       project-metrics-token: ${{ secrets.SECURITY_SCAN_METRICS_TOKEN }}
       slack-webhook: ${{ secrets.APPSEC_BOT_SLACK_WEBHOOK }}
