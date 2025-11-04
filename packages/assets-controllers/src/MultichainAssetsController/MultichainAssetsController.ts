@@ -85,6 +85,11 @@ export type MultichainAssetsControllerIgnoreAssetsAction = {
   handler: MultichainAssetsController['ignoreAssets'];
 };
 
+export type MultichainAssetsControllerAddAssetsAction = {
+  type: `${typeof controllerName}:addAssets`;
+  handler: MultichainAssetsController['addAssets'];
+};
+
 /**
  * Returns the state of the {@link MultichainAssetsController}.
  */
@@ -108,7 +113,8 @@ export type MultichainAssetsControllerStateChangeEvent =
 export type MultichainAssetsControllerActions =
   | MultichainAssetsControllerGetStateAction
   | MultichainAssetsControllerGetAssetMetadataAction
-  | MultichainAssetsControllerIgnoreAssetsAction;
+  | MultichainAssetsControllerIgnoreAssetsAction
+  | MultichainAssetsControllerAddAssetsAction;
 
 /**
  * Events emitted by {@link MultichainAssetsController}.
@@ -259,6 +265,11 @@ export class MultichainAssetsController extends BaseController<
       'MultichainAssetsController:ignoreAssets',
       this.ignoreAssets.bind(this),
     );
+
+    this.messenger.registerActionHandler(
+      'MultichainAssetsController:addAssets',
+      this.addAssets.bind(this),
+    );
   }
 
   /**
@@ -293,6 +304,82 @@ export class MultichainAssetsController extends BaseController<
         (asset) => !state.allIgnoredAssets[accountId].includes(asset),
       );
       state.allIgnoredAssets[accountId].push(...newIgnoredAssets);
+    });
+  }
+
+  /**
+   * Adds multiple assets to the stored asset list for a specific account.
+   * All assets must belong to the same chain.
+   *
+   * @param assetIds - Array of CAIP asset IDs to add (must be from same chain).
+   * @param accountId - The account ID to add the assets to.
+   * @returns The updated asset list for the account.
+   * @throws Error if assets are from different chains.
+   */
+  async addAssets(
+    assetIds: CaipAssetType[],
+    accountId: string,
+  ): Promise<CaipAssetType[]> {
+    if (assetIds.length === 0) {
+      return this.state.accountsAssets[accountId] || [];
+    }
+
+    // Validate that all assets are from the same chain
+    const chainIds = new Set(
+      assetIds.map((assetId) => parseCaipAssetType(assetId).chainId),
+    );
+    if (chainIds.size > 1) {
+      throw new Error(
+        `All assets must belong to the same chain. Found assets from chains: ${Array.from(chainIds).join(', ')}`,
+      );
+    }
+
+    return this.#withControllerLock(async () => {
+      // Refresh metadata for all assets
+      await this.#refreshAssetsMetadata(assetIds);
+
+      const addedAssets: CaipAssetType[] = [];
+
+      this.update((state) => {
+        // Initialize account assets if it doesn't exist
+        if (!state.accountsAssets[accountId]) {
+          state.accountsAssets[accountId] = [];
+        }
+
+        // Add assets if they don't already exist
+        for (const assetId of assetIds) {
+          if (!state.accountsAssets[accountId].includes(assetId)) {
+            state.accountsAssets[accountId].push(assetId);
+            addedAssets.push(assetId);
+          }
+        }
+
+        // Remove from ignored list if they exist there (inline logic like EVM)
+        if (state.allIgnoredAssets[accountId]) {
+          state.allIgnoredAssets[accountId] = state.allIgnoredAssets[
+            accountId
+          ].filter((asset) => !assetIds.includes(asset));
+
+          // Clean up empty arrays
+          if (state.allIgnoredAssets[accountId].length === 0) {
+            delete state.allIgnoredAssets[accountId];
+          }
+        }
+      });
+
+      // Publish event to notify other controllers (balances, rates) about the new assets
+      if (addedAssets.length > 0) {
+        this.messenger.publish(`${controllerName}:accountAssetListUpdated`, {
+          assets: {
+            [accountId]: {
+              added: addedAssets,
+              removed: [],
+            },
+          },
+        });
+      }
+
+      return this.state.accountsAssets[accountId] || [];
     });
   }
 

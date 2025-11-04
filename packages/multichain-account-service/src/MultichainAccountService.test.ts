@@ -200,6 +200,7 @@ describe('MultichainAccountService', () => {
             },
           },
           [SOL_ACCOUNT_PROVIDER_NAME]: {
+            maxConcurrency: 3,
             discovery: {
               timeoutMs: 5000,
               maxAttempts: 4,
@@ -218,11 +219,11 @@ describe('MultichainAccountService', () => {
 
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs[EvmAccountProvider.NAME],
+        providerConfigs?.[EvmAccountProvider.NAME],
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs[SolAccountProvider.NAME],
+        providerConfigs?.[SolAccountProvider.NAME],
       );
     });
 
@@ -232,6 +233,7 @@ describe('MultichainAccountService', () => {
           // NOTE: We use constants here, since `*AccountProvider` are mocked, thus, their `.NAME` will
           // be `undefined`.
           [SOL_ACCOUNT_PROVIDER_NAME]: {
+            maxConcurrency: 3,
             discovery: {
               timeoutMs: 5000,
               maxAttempts: 4,
@@ -255,7 +257,7 @@ describe('MultichainAccountService', () => {
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs[SolAccountProvider.NAME],
+        providerConfigs?.[SolAccountProvider.NAME],
       );
     });
   });

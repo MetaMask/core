@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/transaction-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-controller",
@@ -80,7 +81,7 @@
     "@metamask/gas-fee-controller": "^25.0.0",
     "@metamask/network-controller": "^25.0.0",
     "@metamask/remote-feature-flag-controller": "^2.0.0",
-    "@ts-bridge/cli": "^0.6.1",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/bn.js": "^5.1.5",
     "@types/jest": "^27.4.1",
     "@types/node": "^16.18.54",
