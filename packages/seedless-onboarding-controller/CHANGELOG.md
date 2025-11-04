@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Revert `revokeToken` value as optional in `authenticate` method. ([#7012](https://github.com/MetaMask/core/pull/7012))
+- Renamed `checkIsSeedlessOnboardingUserAuthenticated` to `getIsUserAuthenticated`. ([#7012](https://github.com/MetaMask/core/pull/7012))
+
+### Fixed
+
+- Fixed `InvalidRevokeToken` issue in `refreshAuthTokens` method. ([#7012](https://github.com/MetaMask/core/pull/7012))
+
 ## [6.0.0]
 
 ### Added
