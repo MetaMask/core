@@ -1,6 +1,6 @@
 {
   "name": "@metamask/user-operation-controller",
-  "version": "40.0.0",
+  "version": "41.0.0",
   "description": "Creates user operations and manages their life cycle",
   "keywords": [
     "MetaMask",
@@ -66,10 +66,10 @@
     "@metamask/approval-controller": "^8.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-block-tracker": "^14.0.0",
-    "@metamask/gas-fee-controller": "^25.0.0",
+    "@metamask/gas-fee-controller": "^26.0.0",
     "@metamask/keyring-controller": "^24.0.0",
-    "@metamask/network-controller": "^25.0.0",
-    "@metamask/transaction-controller": "^61.1.0",
+    "@metamask/network-controller": "^26.0.0",
+    "@metamask/transaction-controller": "^62.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -82,10 +82,10 @@
   "peerDependencies": {
     "@metamask/approval-controller": "^8.0.0",
     "@metamask/eth-block-tracker": ">=9",
-    "@metamask/gas-fee-controller": "^25.0.0",
+    "@metamask/gas-fee-controller": "^26.0.0",
     "@metamask/keyring-controller": "^24.0.0",
-    "@metamask/network-controller": "^25.0.0",
-    "@metamask/transaction-controller": "^61.0.0"
+    "@metamask/network-controller": "^26.0.0",
+    "@metamask/transaction-controller": "^62.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [62.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^35.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- **BREAKING:** Bump peer dependency `@metamask/gas-fee-controlelr` to `^26.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^26.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
 ### Added
 
 - Calculate operator fee for OP stack networks and include it in `layer1GasFee` ([#6979](https://github.com/MetaMask/core/pull/6979))
@@ -1920,7 +1928,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.0.0...HEAD
+[62.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.1.0...@metamask/transaction-controller@62.0.0
 [61.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.0.0...@metamask/transaction-controller@61.1.0
 [61.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.10.0...@metamask/transaction-controller@61.0.0
 [60.10.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.9.0...@metamask/transaction-controller@60.10.0

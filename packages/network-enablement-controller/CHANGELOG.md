@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+## [4.0.0]
 
-- include additional popular networks now enabled by default ([#7014](https://github.com/MetaMask/core/pull/7014))
+### Added
+
+- BSC, Optimism, Polygon, and Sei are now enabled by default ([#6972](https://github.com/MetaMask/core/pull/6972))
+  - This is made possible by the `@metamask/controller-utils` bump (see below)
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/multichain-network-controller` to `^3.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^26.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^62.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Bump `@metamask/controller-utils` to `^11.15.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
 
 ## [3.1.0]
 
@@ -154,7 +164,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@3.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@3.1.0...@metamask/network-enablement-controller@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@3.0.0...@metamask/network-enablement-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.1.2...@metamask/network-enablement-controller@3.0.0
 [2.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.1.1...@metamask/network-enablement-controller@2.1.2

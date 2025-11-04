@@ -52,7 +52,7 @@
     "@metamask/controller-utils": "^11.15.0",
     "@metamask/messenger": "^0.3.0",
     "@metamask/polling-controller": "^15.0.0",
-    "@metamask/transaction-controller": "^61.1.0",
+    "@metamask/transaction-controller": "^62.0.0",
     "@metamask/utils": "^11.8.1"
   },
   "devDependencies": {

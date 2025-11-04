@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+
 ### Added
 
 - Calculate totals even if no quotes received ([#7042](https://github.com/MetaMask/core/pull/7042))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` to `^88.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- **BREAKING:** Bump peer dependency `@metamask/bridge-controller` to `^60.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- **BREAKING:** Bump peer dependency `@metamask/bridge-status-controller` to `^60.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- **BREAKING:** Bump peer dependency `@metamask/gas-fee-controller` to `^26.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^26.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^62.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
 
 ### Fixed
 
@@ -54,7 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@3.0.0...@metamask/transaction-pay-controller@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@2.0.2...@metamask/transaction-pay-controller@3.0.0
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@2.0.1...@metamask/transaction-pay-controller@2.0.2
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@2.0.0...@metamask/transaction-pay-controller@2.0.1

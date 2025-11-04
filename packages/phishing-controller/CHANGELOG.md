@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^62.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
 ## [15.0.0]
 
 ### Changed
@@ -466,7 +472,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@15.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@16.0.0...HEAD
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@15.0.0...@metamask/phishing-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.3...@metamask/phishing-controller@15.0.0
 [14.1.3]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.2...@metamask/phishing-controller@14.1.3
 [14.1.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.1...@metamask/phishing-controller@14.1.2

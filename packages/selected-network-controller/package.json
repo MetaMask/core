@@ -1,6 +1,6 @@
 {
   "name": "@metamask/selected-network-controller",
-  "version": "25.0.0",
+  "version": "26.0.0",
   "description": "Provides an interface to the currently selected networkClientId for a given domain",
   "keywords": [
     "MetaMask",
@@ -56,7 +56,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^25.0.0",
+    "@metamask/network-controller": "^26.0.0",
     "@metamask/permission-controller": "^12.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
@@ -72,7 +72,7 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^25.0.0",
+    "@metamask/network-controller": "^26.0.0",
     "@metamask/permission-controller": "^12.0.0"
   },
   "engines": {

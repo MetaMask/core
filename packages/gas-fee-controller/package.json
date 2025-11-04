@@ -1,6 +1,6 @@
 {
   "name": "@metamask/gas-fee-controller",
-  "version": "25.0.0",
+  "version": "26.0.0",
   "description": "Periodically calculates gas fee estimates based on various gas limits as well as other data displayed on transaction confirm screens",
   "keywords": [
     "MetaMask",
@@ -62,7 +62,7 @@
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^25.0.0",
+    "@metamask/network-controller": "^26.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "@types/jest-when": "^2.7.3",
@@ -78,7 +78,7 @@
   },
   "peerDependencies": {
     "@babel/runtime": "^7.0.0",
-    "@metamask/network-controller": "^25.0.0"
+    "@metamask/network-controller": "^26.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

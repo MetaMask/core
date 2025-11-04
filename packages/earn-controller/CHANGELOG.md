@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/account-tree-controller` to `^3.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^26.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Bump `@metamask/controller-utils` to `^11.15.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
+- Bump `@metamask/transaction-controller` to `^62.0.0` ([#7007](https://github.com/MetaMask/core/pull/7007), [#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
 ## [9.0.0]
 
 ### Changed
@@ -312,7 +321,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@9.0.0...@metamask/earn-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.2...@metamask/earn-controller@9.0.0
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.1...@metamask/earn-controller@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.0...@metamask/earn-controller@8.0.1
