@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.0]
+
 ### Uncategorized
 
 - fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
@@ -231,7 +233,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@6.1.0...HEAD
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@6.0.0...@metamask/seedless-onboarding-controller@6.1.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@5.0.0...@metamask/seedless-onboarding-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.1.1...@metamask/seedless-onboarding-controller@5.0.0
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.1.0...@metamask/seedless-onboarding-controller@4.1.1
