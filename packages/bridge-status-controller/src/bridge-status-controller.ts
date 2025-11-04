@@ -707,7 +707,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     try {
-      const orderUid = bridgeTxMetaId.replace(/^intent:/u, '');
+      const orderId = bridgeTxMetaId.replace(/^intent:/u, '');
       const { srcChainId } = historyItem.quote;
 
       // Extract provider name from order metadata or default to empty
@@ -718,7 +718,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#fetchFn,
       );
       const intentOrder = await intentApi.getOrderStatus(
-        orderUid,
+        orderId,
         providerName,
         srcChainId.toString(),
       );

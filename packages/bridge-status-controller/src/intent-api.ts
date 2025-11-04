@@ -35,11 +35,11 @@ export class IntentApiImpl implements IntentApi {
   }
 
   async getOrderStatus(
-    orderUid: string,
-    providerName: string,
-    srcChainId: string,
+    orderId: string,
+    aggregatorId: string,
+    chainId: string,
   ): Promise<any> {
-    const endpoint = `${this.baseUrl}/getOrderStatus?orderUid=${orderUid}&providerName=${encodeURIComponent(providerName)}&srcChainId=${srcChainId}`;
+    const endpoint = `${this.baseUrl}/getOrderStatus?orderId=${orderId}&aggregatorId=${encodeURIComponent(aggregatorId)}&chainId=${chainId}`;
     const response = (await this.fetchFn(endpoint, {
       method: 'GET',
     })) as Response;
