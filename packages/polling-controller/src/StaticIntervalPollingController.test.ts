@@ -1,4 +1,8 @@
-import { Messenger } from '@metamask/base-controller';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { createDeferredPromise } from '@metamask/utils';
 import { useFakeTimers } from 'sinon';
 
@@ -39,14 +43,10 @@ class ChildBlockTrackerPollingController extends StaticIntervalPollingController
 
 describe('StaticIntervalPollingController', () => {
   let clock: sinon.SinonFakeTimers;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockMessenger: any;
+  let mockMessenger: Messenger<MockAnyNamespace, never, never>;
   let controller: ChildBlockTrackerPollingController;
   beforeEach(() => {
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mockMessenger = new Messenger<any, any>();
+    mockMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
     controller = new ChildBlockTrackerPollingController({
       messenger: mockMessenger,
       metadata: {},

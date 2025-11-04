@@ -122,7 +122,7 @@ export const PriceImpactThresholdSchema = type({
 const GenericQuoteRequestSchema = type({
   aggIds: optional(array(string())),
   bridgeIds: optional(array(string())),
-  noFee: optional(boolean()),
+  fee: optional(number()),
 });
 
 const FeatureIdSchema = enums(Object.values(FeatureId));
