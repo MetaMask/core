@@ -6,7 +6,6 @@ describe('Package exports', () => {
       Array [
         "InternalProvider",
         "SafeEventEmitterProvider",
-        "providerFromEngine",
         "providerFromMiddleware",
         "providerFromMiddlewareV2",
       ]
