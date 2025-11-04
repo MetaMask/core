@@ -73,6 +73,9 @@ type ConstructorOptions<
   >;
 };
 
+/**
+ * The request type of a middleware.
+ */
 export type RequestOf<Middleware> =
   Middleware extends JsonRpcMiddleware<
     infer Request,
@@ -91,6 +94,9 @@ type ContextOf<Middleware> =
     ? C
     : never;
 
+/**
+ * A constraint for {@link JsonRpcMiddleware} generic parameters.
+ */
 // Non-polluting `any` constraint.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type MiddlewareConstraint = JsonRpcMiddleware<
@@ -100,6 +106,9 @@ export type MiddlewareConstraint = JsonRpcMiddleware<
 >;
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+/**
+ * The context supertype of a middleware type.
+ */
 export type MergedContextOf<Middleware extends MiddlewareConstraint> =
   MergeContexts<ContextOf<Middleware>>;
 

@@ -1,52 +1,38 @@
-import { asV2Middleware, type JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
-import { JsonRpcServer } from '@metamask/json-rpc-engine/v2';
-import { JsonRpcError } from '@metamask/rpc-errors';
-import type { JsonRpcFailure } from '@metamask/utils';
 import {
-  hasProperty,
+  asV2Middleware,
+  getUniqueId,
+  type JsonRpcEngine,
+} from '@metamask/json-rpc-engine';
+import type {
+  ContextConstraint,
+  MiddlewareContext,
+} from '@metamask/json-rpc-engine/v2';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import type { JsonRpcSuccess } from '@metamask/utils';
+import {
   type Json,
   type JsonRpcId,
   type JsonRpcParams,
   type JsonRpcRequest,
-  type JsonRpcResponse,
   type JsonRpcVersion2,
 } from '@metamask/utils';
-import { v4 as uuidV4 } from 'uuid';
 
 /**
  * A JSON-RPC request conforming to the EIP-1193 specification.
  */
-type Eip1193Request<Params extends JsonRpcParams> = {
+type Eip1193Request<Params extends JsonRpcParams = JsonRpcParams> = {
   id?: JsonRpcId;
   jsonrpc?: JsonRpcVersion2;
   method: string;
   params?: Params;
 };
 
-/**
- * The {@link JsonRpcMiddleware} constraint and default type for the {@link InternalProvider}.
- * We care that the middleware can handle JSON-RPC requests, but do not care about the context,
- * the validity of which is enforced by the {@link JsonRpcServer}.
- */
-export type InternalProviderMiddleware = JsonRpcMiddleware<
-  JsonRpcRequest,
-  Json,
-  // Non-polluting `any` constraint.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  any
->;
-
-type Options<Middleware extends InternalProviderMiddleware> =
-  | {
-      /**
-       * @deprecated Use `server` instead.
-       */
-      engine: JsonRpcEngine;
-    }
-  | {
-      server: JsonRpcServer<Middleware>;
-    };
+type Options<
+  Request extends JsonRpcRequest = JsonRpcRequest,
+  Context extends ContextConstraint = MiddlewareContext,
+> = {
+  engine: JsonRpcEngine | JsonRpcEngineV2<Request, Context>;
+};
 
 /**
  * An Ethereum provider.
@@ -54,27 +40,22 @@ type Options<Middleware extends InternalProviderMiddleware> =
  * This provider loosely follows conventions that pre-date EIP-1193.
  * It is not compliant with any Ethereum provider standard.
  */
-export class InternalProvider<
-  Middleware extends InternalProviderMiddleware = InternalProviderMiddleware,
-> {
-  readonly #server: JsonRpcServer<Middleware>;
+export class InternalProvider {
+  readonly #engine: JsonRpcEngineV2<JsonRpcRequest, MiddlewareContext>;
 
   /**
    * Construct a InternalProvider from a JSON-RPC server or legacy engine.
    *
    * @param options - Options.
-   * @param options.engine - **Deprecated:** The JSON-RPC engine used to process requests. Mutually exclusive with `server`.
-   * @param options.server - The JSON-RPC server used to process requests. Mutually exclusive with `engine`.
+   * @param options.engine - The JSON-RPC engine used to process requests.
    */
-  constructor(options: Options<Middleware>) {
-    const serverOrLegacyEngine =
-      'server' in options ? options.server : options.engine;
-    this.#server =
-      'push' in serverOrLegacyEngine
-        ? new JsonRpcServer({
-            middleware: [asV2Middleware(serverOrLegacyEngine)],
+  constructor({ engine }: Options) {
+    this.#engine =
+      'push' in engine
+        ? JsonRpcEngineV2.create({
+            middleware: [asV2Middleware<JsonRpcParams, JsonRpcRequest>(engine)],
           })
-        : serverOrLegacyEngine;
+        : engine;
   }
 
   /**
@@ -88,13 +69,7 @@ export class InternalProvider<
   ): Promise<Result> {
     const jsonRpcRequest =
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
-    const response: JsonRpcResponse<Result> =
-      await this.#handle(jsonRpcRequest);
-
-    if ('result' in response) {
-      return response.result;
-    }
-    throw deserializeError(response.error);
+    return (await this.#handle<Result>(jsonRpcRequest)).result;
   }
 
   /**
@@ -105,7 +80,8 @@ export class InternalProvider<
    *
    * @param eip1193Request - The request to send.
    * @param callback - A function that is called upon the success or failure of the request.
-   * @deprecated Use {@link request} instead.
+   * @deprecated Use {@link request} instead. This method is retained solely for backwards
+   * compatibility with certain libraries.
    */
   sendAsync = <Params extends JsonRpcParams>(
     eip1193Request: Eip1193Request<Params>,
@@ -126,7 +102,8 @@ export class InternalProvider<
    *
    * @param eip1193Request - The request to send.
    * @param callback - A function that is called upon the success or failure of the request.
-   * @deprecated Use {@link request} instead.
+   * @deprecated Use {@link request} instead. This method is retained solely for backwards
+   * compatibility with certain libraries.
    */
   send = <Params extends JsonRpcParams>(
     eip1193Request: Eip1193Request<Params>,
@@ -144,31 +121,33 @@ export class InternalProvider<
 
   readonly #handle = async <Result extends Json>(
     jsonRpcRequest: JsonRpcRequest,
-  ): Promise<JsonRpcResponse<Result>> => {
+  ): Promise<JsonRpcSuccess<Result>> => {
+    const { id, jsonrpc } = jsonRpcRequest;
     // This typecast is technicaly unsafe, but we need it to preserve the provider's
     // public interface, which allows you to typecast results.
-    return (await this.#server.handle(
+    const result = (await this.#engine.handle(
       jsonRpcRequest,
-    )) as JsonRpcResponse<Result>;
+    )) as unknown as Result;
+
+    return {
+      id,
+      jsonrpc,
+      result,
+    };
   };
 
   readonly #handleWithCallback = (
     jsonRpcRequest: JsonRpcRequest,
     callback: (error: unknown, providerRes?: unknown) => void,
   ): void => {
-    /* eslint-disable promise/always-return,promise/no-callback-in-promise */
+    /* eslint-disable promise/no-callback-in-promise */
     this.#handle(jsonRpcRequest)
-      .then((response) => {
-        if (hasProperty(response, 'result')) {
-          callback(null, response);
-        } else {
-          callback(deserializeError(response.error));
-        }
-      })
+      // A resolution will always be a successful response
+      .then((response) => callback(null, response))
       .catch((error) => {
         callback(error);
       });
-    /* eslint-enable promise/always-return,promise/no-callback-in-promise */
+    /* eslint-enable promise/no-callback-in-promise */
   };
 }
 
@@ -178,12 +157,16 @@ export class InternalProvider<
  * @param eip1193Request - The EIP-1193 request to convert.
  * @returns The JSON-RPC request.
  */
-export function convertEip1193RequestToJsonRpcRequest<
-  Params extends JsonRpcParams,
->(
-  eip1193Request: Eip1193Request<Params>,
-): JsonRpcRequest<Params | Record<never, never>> {
-  const { id = uuidV4(), jsonrpc = '2.0', method, params } = eip1193Request;
+export function convertEip1193RequestToJsonRpcRequest(
+  eip1193Request: Eip1193Request,
+): JsonRpcRequest {
+  const {
+    id = getUniqueId(),
+    jsonrpc = '2.0',
+    method,
+    params,
+  } = eip1193Request;
+
   return params
     ? {
         id,
@@ -196,15 +179,4 @@ export function convertEip1193RequestToJsonRpcRequest<
         jsonrpc,
         method,
       };
-}
-
-/**
- * Deserialize a JSON-RPC error. Ignores the possibility of `stack` property, since this is
- * stripped by `JsonRpcServer`.
- *
- * @param error - The JSON-RPC error to deserialize.
- * @returns The deserialized error.
- */
-function deserializeError(error: JsonRpcFailure['error']): JsonRpcError<Json> {
-  return new JsonRpcError(error.code, error.message, error.data);
 }

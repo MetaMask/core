@@ -55,8 +55,7 @@
   "dependencies": {
     "@metamask/json-rpc-engine": "^10.1.1",
     "@metamask/rpc-errors": "^7.0.2",
-    "@metamask/utils": "^11.8.1",
-    "uuid": "^8.3.2"
+    "@metamask/utils": "^11.8.1"
   },
   "devDependencies": {
     "@ethersproject/providers": "^5.7.0",
