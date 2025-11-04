@@ -29,8 +29,16 @@ gatorPermissionsController.enableGatorPermissions();
 ### Fetch from Profile Sync
 
 ```typescript
+// Fetch all permissions
 const permissions =
   await gatorPermissionsController.fetchAndUpdateGatorPermissions();
+
+// Fetch permissions with optional filter params
+const filteredPermissions =
+  await gatorPermissionsController.fetchAndUpdateGatorPermissions({
+    origin: 'https://example.com',
+    chainId: '0x1',
+  });
 ```
 
 ## Contributing
