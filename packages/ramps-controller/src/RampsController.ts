@@ -8,9 +8,9 @@ import {
   NativeRampsSdk,
   Context,
   SdkEnvironment,
-  type DepositRegion,
   type NativeRampsSdkConfig,
 } from '@consensys/native-ramps-sdk';
+import axios from 'axios';
 
 const controllerName = 'RampsController';
 
@@ -179,16 +179,15 @@ export class RampsController extends BaseController<
 
   async #getGeolocation(): Promise<String> {
     const url = this.#getApiUrl();
-    const response = await fetch(`${url}/geolocation`);
-    const data = await response.json();
-    return data;
+    const response = await axios.get(`${url}/geolocation`);
+    return response.data;
   }
 
   async getCountries(): Promise<void> {
     const geolocation = await this.#getGeolocation();
     const url = this.#getApiUrl(ApiService.Regions);
-    const response = await fetch(`${url}/countries/${geolocation}`);
-    const data = await response.json();
+    const response = await axios.get(`${url}/countries/${geolocation}`);
+    const data = response.data;
    
     this.update((state) => {
       state.region = {
