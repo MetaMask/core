@@ -48,7 +48,6 @@
   },
   "dependencies": {
     "@consensys/native-ramps-sdk": "2.1.5",
-    "@consensys/on-ramp-sdk": "^2.1.11",
     "@metamask/base-controller": "^8.4.2",
     "@metamask/messenger": "^0.3.0",
     "@metamask/utils": "^11.8.1"

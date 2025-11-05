@@ -680,20 +680,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@consensys/on-ramp-sdk@npm:^2.1.11":
-  version: 2.1.12
-  resolution: "@consensys/on-ramp-sdk@npm:2.1.12"
-  dependencies:
-    async: "npm:^3.2.3"
-    axios: "npm:^1.8.3"
-    axios-retry: "npm:^3.1.2"
-    crypto-js: "npm:^4.2.0"
-    reflect-metadata: "npm:^0.1.13"
-    uuid: "npm:^9.0.0"
-  checksum: 10/59c70f0cbec62a55e3de01422026600913b07c075f592f212cbd8e5fc11b9555d1da385a7f12704403e5d1bc21d0f3b0730b6ca37f0440a51c05d18ac5b1e7a9
-  languageName: node
-  linkType: hard
-
 "@contentful/content-source-maps@npm:^0.11.0":
   version: 0.11.39
   resolution: "@contentful/content-source-maps@npm:0.11.39"
@@ -4842,7 +4828,6 @@ __metadata:
   resolution: "@metamask/ramps-controller@workspace:packages/ramps-controller"
   dependencies:
     "@consensys/native-ramps-sdk": "npm:2.1.5"
-    "@consensys/on-ramp-sdk": "npm:^2.1.11"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.2"
     "@metamask/messenger": "npm:^0.3.0"
@@ -8050,7 +8035,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"axios@npm:^1.11.0, axios@npm:^1.7.4, axios@npm:^1.8.3":
+"axios@npm:^1.11.0, axios@npm:^1.7.4":
   version: 1.13.1
   resolution: "axios@npm:1.13.1"
   dependencies:
