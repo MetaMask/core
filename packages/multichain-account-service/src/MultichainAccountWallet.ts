@@ -26,7 +26,7 @@ import {
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 import { EvmAccountProvider, type NamedAccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
-import { toRejectedErrorMessage } from './utils';
+import { createSentryError, toRejectedErrorMessage } from './utils';
 
 /**
  * The context for a provider discovery.
@@ -250,9 +250,18 @@ export class MultichainAccountWallet<
             groupIndex,
           })
           .catch((error) => {
+            const sentryError = createSentryError(
+              `Unable to create account with provider "${provider.getName()}"`,
+              error,
+              {
+                groupIndex,
+                providerName: provider.getName(),
+                entropySource: this.#entropySource,
+              },
+            );
             this.#messenger.call(
               'ErrorReportingService:captureException',
-              error as Error,
+              sentryError,
             );
             throw error;
           }),
@@ -284,9 +293,18 @@ export class MultichainAccountWallet<
         .catch((error) => {
           const errorMessage = `Unable to create multichain account group for index: ${groupIndex} (background mode with provider "${provider.getName()}")`;
           this.#log(`${WARNING_PREFIX} ${errorMessage}:`, error);
+          const sentryError = createSentryError(
+            `Unable to create account with provider "${provider.getName()}"`,
+            error,
+            {
+              groupIndex,
+              providerName: provider.getName(),
+              entropySource: this.#entropySource,
+            },
+          );
           this.#messenger.call(
             'ErrorReportingService:captureException',
-            error as Error,
+            sentryError,
           );
         });
     });
@@ -423,9 +441,18 @@ export class MultichainAccountWallet<
       } catch (error) {
         const errorMessage = `Unable to create multichain account group for index: ${groupIndex} with provider "${evmProvider.getName()}". Error: ${(error as Error).message}`;
         this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
+        const sentryError = createSentryError(
+          `Unable to create account with provider "${evmProvider.getName()}"`,
+          error as Error,
+          {
+            groupIndex,
+            providerName: evmProvider.getName(),
+            entropySource: this.#entropySource,
+          },
+        );
         this.#messenger.call(
           'ErrorReportingService:captureException',
-          error as Error,
+          sentryError,
         );
         throw new Error(errorMessage);
       }

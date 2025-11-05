@@ -235,7 +235,7 @@ describe('MultichainAccount', () => {
       await group.alignAccounts();
       expect(callSpy).toHaveBeenCalledWith(
         'ErrorReportingService:captureException',
-        new Error('Unable to create accounts'),
+        new Error('Unable to align accounts with provider "Mocked Provider"'),
       );
     });
   });

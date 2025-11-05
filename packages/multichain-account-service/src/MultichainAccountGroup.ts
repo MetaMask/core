@@ -17,6 +17,7 @@ import {
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { NamedAccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
+import { createSentryError } from './utils';
 
 /**
  * A multichain account group that holds multiple accounts.
@@ -256,9 +257,18 @@ export class MultichainAccountGroup<
           this.#log(
             `${WARNING_PREFIX} ${error instanceof Error ? error.message : String(error)}`,
           );
+          const sentryError = createSentryError(
+            `Unable to align accounts with provider "${provider.getName()}"`,
+            error as Error,
+            {
+              groupIndex: this.groupIndex,
+              providerName: provider.getName(),
+              entropySource: this.wallet.entropySource,
+            },
+          );
           this.#messenger.call(
             'ErrorReportingService:captureException',
-            error as Error,
+            sentryError,
           );
           throw error;
         }

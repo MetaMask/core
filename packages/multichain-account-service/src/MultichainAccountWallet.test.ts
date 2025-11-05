@@ -387,7 +387,7 @@ describe('MultichainAccountWallet', () => {
       );
       expect(callSpy).toHaveBeenCalledWith(
         'ErrorReportingService:captureException',
-        new Error('Unable to create accounts'),
+        new Error('Unable to create account with provider "Mocked Provider 0"'),
       );
     });
 
