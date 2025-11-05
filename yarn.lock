@@ -3612,10 +3612,10 @@ __metadata:
     ethers: "npm:^6.12.0"
     jest: "npm:^27.5.1"
     jest-it-up: "npm:^2.0.2"
+    nanoid: "npm:^3.3.8"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typescript: "npm:~5.2.2"
-    uuid: "npm:^8.3.2"
   languageName: unknown
   linkType: soft
 

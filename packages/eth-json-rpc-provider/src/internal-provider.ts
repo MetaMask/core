@@ -1,6 +1,5 @@
 import {
   asV2Middleware,
-  getUniqueId,
   type JsonRpcEngine,
 } from '@metamask/json-rpc-engine';
 import type {
@@ -16,6 +15,7 @@ import {
   type JsonRpcRequest,
   type JsonRpcVersion2,
 } from '@metamask/utils';
+import { nanoid } from 'nanoid';
 
 /**
  * A JSON-RPC request conforming to the EIP-1193 specification.
@@ -161,7 +161,7 @@ export function convertEip1193RequestToJsonRpcRequest(
   eip1193Request: Eip1193Request,
 ): JsonRpcRequest {
   const {
-    id = getUniqueId(),
+    id = nanoid(),
     jsonrpc = '2.0',
     method,
     params,

@@ -117,7 +117,7 @@ describe.each([
       });
       const provider = new InternalProvider({ engine: rpcHandler });
       const request = {
-        id: 1,
+        id: '1',
         jsonrpc: '2.0' as const,
         method: 'test',
         params: {
@@ -129,7 +129,7 @@ describe.each([
       const result = await provider.request(request);
 
       expect(req).toStrictEqual({
-        id: expect.any(Number),
+        id: expect.any(String),
         jsonrpc: '2.0' as const,
         method: 'test',
         params: {
@@ -158,7 +158,7 @@ describe.each([
       const result = await provider.request(request);
 
       expect(req).toStrictEqual({
-        id: expect.any(Number),
+        id: expect.any(String),
         jsonrpc: '2.0' as const,
         method: 'test',
         params: {
@@ -179,7 +179,7 @@ describe.each([
       });
       const provider = new InternalProvider({ engine: rpcHandler });
       const request = {
-        id: 1,
+        id: '1',
         jsonrpc: '2.0' as const,
         method: 'test',
       };
@@ -199,7 +199,7 @@ describe.each([
       });
       const provider = new InternalProvider({ engine: rpcHandler });
       const request = {
-        id: 1,
+        id: '1',
         jsonrpc: '2.0' as const,
         method: 'test',
       };
@@ -222,7 +222,7 @@ describe.each([
       const provider = new InternalProvider({ engine: rpcHandler });
       const promisifiedSendAsync = promisify(provider.sendAsync);
       const request = {
-        id: 1,
+        id: '1',
         jsonrpc: '2.0' as const,
         method: 'test',
         params: {
@@ -234,7 +234,7 @@ describe.each([
       const response = await promisifiedSendAsync(request);
 
       expect(req).toStrictEqual({
-        id: expect.any(Number),
+        id: expect.any(String),
         jsonrpc: '2.0' as const,
         method: 'test',
         params: {
@@ -264,7 +264,7 @@ describe.each([
       const response = await promisifiedSendAsync(request);
 
       expect(req).toStrictEqual({
-        id: expect.any(Number),
+        id: expect.any(String),
         jsonrpc: '2.0' as const,
         method: 'test',
         params: {
@@ -282,7 +282,7 @@ describe.each([
       const provider = new InternalProvider({ engine: rpcHandler });
       const promisifiedSendAsync = promisify(provider.sendAsync);
       const request = {
-        id: 1,
+        id: '1',
         jsonrpc: '2.0' as const,
         method: 'test',
       };
@@ -307,7 +307,7 @@ describe.each([
       const provider = new InternalProvider({ engine: rpcHandler });
       const promisifiedSendAsync = promisify(provider.sendAsync);
       const request = {
-        id: 1,
+        id: '1',
         jsonrpc: '2.0' as const,
         method: 'test',
       };
@@ -323,7 +323,7 @@ describe.each([
       const rpcHandler = createRpcHandler('test', 42);
       const provider = new InternalProvider({ engine: rpcHandler });
       const request = {
-        id: 1,
+        id: '1',
         jsonrpc: '2.0' as const,
         method: 'test',
       };
@@ -343,7 +343,7 @@ describe.each([
       const provider = new InternalProvider({ engine: rpcHandler });
       const promisifiedSend = promisify(provider.send);
       const request = {
-        id: 1,
+        id: '1',
         jsonrpc: '2.0' as const,
         method: 'test',
         params: {
@@ -355,7 +355,7 @@ describe.each([
       const response = await promisifiedSend(request);
 
       expect(req).toStrictEqual({
-        id: expect.any(Number),
+        id: expect.any(String),
         jsonrpc: '2.0' as const,
         method: 'test',
         params: {
@@ -385,7 +385,7 @@ describe.each([
       const response = await promisifiedSend(request);
 
       expect(req).toStrictEqual({
-        id: expect.any(Number),
+        id: expect.any(String),
         jsonrpc: '2.0' as const,
         method: 'test',
         params: {
@@ -403,7 +403,7 @@ describe.each([
       const provider = new InternalProvider({ engine: rpcHandler });
       const promisifiedSend = promisify(provider.send);
       const request = {
-        id: 1,
+        id: '1',
         jsonrpc: '2.0' as const,
         method: 'test',
       };
@@ -426,7 +426,7 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
 
     expect(jsonRpcRequest).toStrictEqual({
-      id: expect.any(Number),
+      id: expect.any(String),
       jsonrpc: '2.0',
       method: 'test',
       params: { param1: 'value1', param2: 'value2' },
@@ -443,7 +443,7 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
 
     expect(jsonRpcRequest).toStrictEqual({
-      id: expect.any(Number),
+      id: expect.any(String),
       jsonrpc: '2.0',
       method: 'test',
       params: { param1: 'value1', param2: 'value2' },
@@ -461,7 +461,7 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
 
     expect(jsonRpcRequest).toStrictEqual({
-      id: expect.any(Number),
+      id: expect.any(String),
       jsonrpc: '2.0',
       method: 'test',
       params: { param1: 'value1', param2: 'value2' },
@@ -477,7 +477,7 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
 
     expect(jsonRpcRequest).toStrictEqual({
-      id: expect.any(Number),
+      id: expect.any(String),
       jsonrpc: '2.0',
       method: 'test',
     });
