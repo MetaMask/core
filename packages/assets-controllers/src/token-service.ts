@@ -20,7 +20,6 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  */
 function getTokensURL(chainId: Hex) {
   const occurrenceFloor = chainId === ChainId['linea-mainnet'] ? 1 : 3;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
@@ -35,8 +34,6 @@ function getTokensURL(chainId: Hex) {
  * @returns The token metadata URL.
  */
 function getTokenMetadataURL(chainId: Hex, tokenAddress: string) {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   return `${TOKEN_END_POINT_API}/token/${convertHexToDecimal(
     chainId,
   )}?address=${tokenAddress}`;
@@ -276,8 +273,6 @@ export async function getTrendingTokens({
  * @param options.timeout - The fetch timeout.
  * @returns The token metadata, or `undefined` if the request was either aborted or failed.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
 export async function fetchTokenMetadata<T>(
   chainId: Hex,
   tokenAddress: string,
@@ -339,8 +334,6 @@ async function parseJsonResponse(apiResponse: Response): Promise<unknown> {
   const responseObj = await apiResponse.json();
   // api may return errors as json without setting an error http status code
   if (responseObj?.error) {
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
     throw new Error(`TokenService Error: ${responseObj.error}`);
   }
   return responseObj;
