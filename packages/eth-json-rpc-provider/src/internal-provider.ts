@@ -63,7 +63,7 @@ export class InternalProvider<
    *
    * @param eip1193Request - The request to send.
    * @param options - The options for the request operation.
-   * @param options.context - The context to pass to the server.
+   * @param options.context - The context to include with the request.
    * @returns The JSON-RPC response.
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
