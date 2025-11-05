@@ -181,7 +181,11 @@ export function createNetworkClient({
         });
 
   const provider = new InternalProvider({
-    server: new JsonRpcServer({ middleware: [networkMiddleware] }),
+    engine: JsonRpcEngineV2.create({
+      middleware: [
+        networkMiddleware as unknown as JsonRpcMiddleware<JsonRpcRequest>,
+      ],
+    }),
   });
 
   const destroy = () => {
