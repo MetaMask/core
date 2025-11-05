@@ -1,6 +1,6 @@
 {
   "name": "@metamask/shield-controller",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Controller handling shield transaction coverage logic",
   "keywords": [
     "MetaMask",
@@ -59,7 +59,7 @@
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/signature-controller": "^35.0.0",
+    "@metamask/signature-controller": "^36.0.0",
     "@metamask/transaction-controller": "^61.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
@@ -73,7 +73,7 @@
     "uuid": "^8.3.2"
   },
   "peerDependencies": {
-    "@metamask/signature-controller": "^35.0.0",
+    "@metamask/signature-controller": "^36.0.0",
     "@metamask/transaction-controller": "^61.0.0"
   },
   "engines": {
