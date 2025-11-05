@@ -26,7 +26,7 @@ import { v4 as uuid } from 'uuid';
 
 import { calculateGasFees } from './gas';
 import { createClientTransactionRequest } from './snaps';
-import { extractTradeData } from './trade-utils';
+import { extractTradeData, isTronTrade } from './trade-utils';
 import type { TransactionBatchSingleRequest } from '../../../transaction-controller/src/types';
 import { APPROVAL_DELAY_MS } from '../constants';
 import type {
@@ -249,12 +249,19 @@ export const getClientRequest = (
   // Extract the transaction data - Bitcoin uses unsignedPsbtBase64, others use string
   const transactionData = extractTradeData(quoteResponse.trade);
 
+  // Tron trades need the visible flag and contract type to be included in the request options
+  const options = isTronTrade(quoteResponse.trade) ? { 
+    visible: quoteResponse.trade.visible,
+    type: quoteResponse.trade.raw_data?.contract?.[0]?.type 
+  } : undefined;
+
   // Use the new unified interface
   return createClientTransactionRequest(
     selectedAccount.metadata.snap?.id as string,
     transactionData,
     scope,
     selectedAccount.id,
+    options,
   );
 };
 
