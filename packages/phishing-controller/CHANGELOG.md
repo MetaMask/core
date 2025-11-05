@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
+- Release 651.0.0 ([#7007](https://github.com/MetaMask/core/pull/7007))
+- Release/650.0.0 ([#7003](https://github.com/MetaMask/core/pull/7003))
+
 ## [15.0.0]
 
 ### Changed
