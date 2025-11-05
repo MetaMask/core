@@ -738,6 +738,18 @@ describe('Token service', () => {
       expect(result).toStrictEqual([]);
     });
 
+    it('returns empty array if api returns non-array response', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}`,
+        )
+        .reply(200, { error: 'Invalid response' })
+        .persist();
+
+      const result = await getTrendingTokens({ chainIds: [sampleCaipChainId] });
+      expect(result).toStrictEqual([]);
+    });
+
     it('returns empty array if the fetch fails', async () => {
       nock(TOKEN_END_POINT_API)
         .get(

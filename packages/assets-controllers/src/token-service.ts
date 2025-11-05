@@ -250,7 +250,15 @@ export async function getTrendingTokens({
 
   try {
     const result = await handleFetch(trendingTokensURL);
-    return result;
+
+    // Validate that the API returned an array
+    if (Array.isArray(result)) {
+      return result;
+    }
+
+    // Handle non-expected responses
+    console.error('Trending tokens API returned non-array response:', result);
+    return [];
   } catch (error) {
     console.error('Trending tokens request failed:', error);
     return [];
