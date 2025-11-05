@@ -17,7 +17,7 @@ export const isBitcoinTrade = (trade: Trade): trade is { unsignedPsbtBase64: str
 export const isTronTrade = (trade: Trade): trade is { 
   raw_data_hex: string;
   visible?: boolean;
-  raw_data?: { contract?: Array<{ type?: string }> };
+  raw_data?: { contract?: { type?: string }[] };
 } =>
   typeof trade === 'object' && trade !== null && 'raw_data_hex' in trade;
 
