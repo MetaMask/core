@@ -1,6 +1,4 @@
-import { isObject } from '@metamask/utils';
-
-import type { UnionToIntersection } from './utils';
+import { isInstance, type UnionToIntersection } from './utils';
 
 const MiddlewareContextSymbol = Symbol.for('json-rpc-engine#MiddlewareContext');
 
@@ -41,11 +39,7 @@ export class MiddlewareContext<
    * @returns Whether the value is a {@link MiddlewareContext} instance.
    */
   static isInstance(value: unknown): value is MiddlewareContext {
-    return (
-      isObject(value) &&
-      MiddlewareContextSymbol in value &&
-      value[MiddlewareContextSymbol] === true
-    );
+    return isInstance(value, MiddlewareContextSymbol);
   }
 
   constructor(

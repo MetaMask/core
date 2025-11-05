@@ -75,14 +75,10 @@ describe('MiddlewareContext', () => {
     );
   });
 
-  it('detects instances of MiddlewareContext', () => {
+  it('identifies instances of MiddlewareContext via isInstance', () => {
     const context = new MiddlewareContext();
-    expect(MiddlewareContext.isInstance(context)).toBe(true);
-  });
 
-  it('detects sub-classes of MiddlewareContext', () => {
-    class SubContext extends MiddlewareContext {}
-    const context = new SubContext();
     expect(MiddlewareContext.isInstance(context)).toBe(true);
+    expect(MiddlewareContext.isInstance({ foo: 'bar' })).toBe(false);
   });
 });
