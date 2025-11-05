@@ -9,7 +9,7 @@ import type {
 import type { Json } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
-import type { ExportableKeyEncryptor } from '../../src/KeyringController';
+import type { Encryptor } from '../../src/KeyringController';
 
 export const PASSWORD = 'password123';
 export const SALT = 'salt';
@@ -28,7 +28,7 @@ function deriveKey(password: string, salt: string) {
   };
 }
 
-export default class MockEncryptor implements ExportableKeyEncryptor {
+export default class MockEncryptor implements Encryptor {
   async encrypt(password: string, dataObj: Json): Promise<string> {
     const salt = this.generateSalt();
     const key = deriveKey(password, salt);

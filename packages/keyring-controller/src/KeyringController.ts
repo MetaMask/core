@@ -1908,18 +1908,22 @@ export class KeyringController<
       throw new TypeError(KeyringControllerError.WrongPasswordType);
     }
 
-    let salt: string, keyMetadata: SupportedKeyDerivationOptions | undefined;
+    let serializedEncryptionKey: string, salt: string;
     if (vault && options.useVaultKeyMetadata) {
-      const parsedVault = JSON.parse(vault);
-      salt = parsedVault.salt;
-      keyMetadata = parsedVault.keyMetadata;
+      // The `decryptWithDetail` method is being used here instead of
+      // `keyFromPassword` + `exportKey` to let the encryptor handle
+      // any legacy encryption formats and metadata that might be
+      // present (or absent) in the vault.
+      const { exportedKeyString, salt: existingSalt } =
+        await this.#encryptor.decryptWithDetail(password, vault);
+      serializedEncryptionKey = exportedKeyString;
+      salt = existingSalt;
     } else {
       salt = this.#encryptor.generateSalt();
+      serializedEncryptionKey = await this.#encryptor.exportKey(
+        await this.#encryptor.keyFromPassword(password, salt, true),
+      );
     }
-
-    const serializedEncryptionKey = await this.#encryptor.exportKey(
-      await this.#encryptor.keyFromPassword(password, salt, true, keyMetadata),
-    );
 
     this.#encryptionKey = {
       salt,
