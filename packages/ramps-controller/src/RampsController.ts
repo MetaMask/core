@@ -187,7 +187,7 @@ export class RampsController extends BaseController<
   async getCountries(): Promise<void> {
     const geolocation = await this.#getGeolocation();
     const url = this.#getApiUrl(ApiService.Regions);
-    const response = await fetch(`${url}/${geolocation}/countries`);
+    const response = await fetch(`${url}/countries/${geolocation}`);
     const data = await response.json();
    
     this.update((state) => {
