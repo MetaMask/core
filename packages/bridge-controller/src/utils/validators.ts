@@ -110,6 +110,7 @@ export const ChainConfigurationSchema = type({
   isUnifiedUIEnabled: optional(boolean()),
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
   isGaslessSwapEnabled: optional(boolean()),
+  isGaslessCrossChainSwapEnabled: optional(boolean()),
   noFeeAssets: optional(array(string())),
   defaultPairs: optional(DefaultPairSchema),
 });

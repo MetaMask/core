@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add optional `isGaslessCrossChainSwapEnabled` LaunchDarkly config to feature flags schema ([#7066](https://github.com/MetaMask/core/pull/7066))
+
 ## [59.0.0]
 
 ### Added
