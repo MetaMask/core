@@ -1564,6 +1564,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         signature,
         order: intentQuote.metadata.order,
         userAddress: accountAddress,
+        aggregatorId: 'cowswap',
       };
       const intentApi = new IntentApiImpl(
         this.#config.customBridgeApiBaseUrl,

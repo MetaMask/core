@@ -6,6 +6,7 @@ export interface IntentSubmissionParams {
   signature: string;
   order: any;
   userAddress: string;
+  aggregatorId: string;
 }
 
 export interface IntentApi {
@@ -23,15 +24,16 @@ export class IntentApiImpl implements IntentApi {
 
   async submitIntent(params: IntentSubmissionParams): Promise<any> {
     const endpoint = `${this.baseUrl}/submitOrder`;
-    const response = (await this.fetchFn(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    })) as Response;
-    if (!response.ok) {
-      throw new Error(`Failed to submit intent: ${response.statusText}`);
+    try {
+      const response = await this.fetchFn(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+      return response;
+    } catch (e) {
+      throw new Error(`Failed to submit intent: ${e}`);
     }
-    return response.json();
   }
 
   async getOrderStatus(
@@ -40,12 +42,13 @@ export class IntentApiImpl implements IntentApi {
     chainId: string,
   ): Promise<any> {
     const endpoint = `${this.baseUrl}/getOrderStatus?orderId=${orderId}&aggregatorId=${encodeURIComponent(aggregatorId)}&chainId=${chainId}`;
-    const response = (await this.fetchFn(endpoint, {
-      method: 'GET',
-    })) as Response;
-    if (!response.ok) {
-      throw new Error(`Failed to get order status: ${response.statusText}`);
+    try {
+      const response = await this.fetchFn(endpoint, {
+        method: 'GET',
+      });
+      return response;
+    } catch (e) {
+      throw new Error(`Failed to get order status: ${e}`);
     }
-    return response.json();
   }
 }
