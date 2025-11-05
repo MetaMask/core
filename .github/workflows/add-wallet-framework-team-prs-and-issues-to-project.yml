@@ -14,7 +14,7 @@ jobs:
       pull-requests: write
       contents: read
       repository-projects: write
-    uses: metamask/github-tools/.github/workflows/add-item-to-project.yml@56a094ccb23085b708eacbfbcc0b4fdf024491c0
+    uses: metamask/github-tools/.github/workflows/add-item-to-project.yml@749c097218590d5cd36d28d07967e12ba830b146
     with:
       project-url: 'https://github.com/orgs/MetaMask/projects/113'
       team-name: 'wallet-framework-engineers'
