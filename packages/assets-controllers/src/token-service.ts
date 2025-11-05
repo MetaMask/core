@@ -20,8 +20,7 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  */
 function getTokensURL(chainId: Hex) {
   const occurrenceFloor = chainId === ChainId['linea-mainnet'] ? 1 : 3;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
   )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
@@ -35,12 +34,19 @@ function getTokensURL(chainId: Hex) {
  * @returns The token metadata URL.
  */
 function getTokenMetadataURL(chainId: Hex, tokenAddress: string) {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `${TOKEN_END_POINT_API}/token/${convertHexToDecimal(
     chainId,
   )}?address=${tokenAddress}`;
 }
+
+/**
+ * The sort by field for trending tokens.
+ */
+export type SortTrendingBy =
+  | 'm5_trending'
+  | 'h1_trending'
+  | 'h6_trending'
+  | 'h24_trending';
 
 /**
  * Get the token search URL for the given networks and search query.
@@ -56,6 +62,43 @@ function getTokenSearchURL(chainIds: CaipChainId[], query: string, limit = 10) {
     .map((id) => encodeURIComponent(id))
     .join(',');
   return `${TOKEN_END_POINT_API}/tokens/search?chainIds=${encodedChainIds}&query=${encodedQuery}&limit=${limit}`;
+}
+
+/**
+ * Get the trending tokens URL for the given networks and search query.
+ *
+ * @param options - Options for getting trending tokens.
+ * @param options.chainIds - Array of CAIP format chain IDs (e.g., ['eip155:1', 'eip155:137', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp']).
+ * @param options.sortBy - The sort by field.
+ * @param options.minLiquidity - The minimum liquidity.
+ * @param options.minVolume24hUsd - The minimum volume 24h in USD.
+ * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
+ * @param options.minMarketCap - The minimum market cap.
+ * @param options.maxMarketCap - The maximum market cap.
+ * @returns The trending tokens URL.
+ */
+function getTrendingTokensURL(options: {
+  chainIds: CaipChainId[];
+  sortBy?: SortTrendingBy;
+  minLiquidity?: number;
+  minVolume24hUsd?: number;
+  maxVolume24hUsd?: number;
+  minMarketCap?: number;
+  maxMarketCap?: number;
+}): string {
+  const encodedChainIds = options.chainIds
+    .map((id) => encodeURIComponent(id))
+    .join(',');
+  // Add the rest of query params if they are defined
+  const queryParams = new URLSearchParams();
+  const { chainIds, ...rest } = options;
+  Object.entries(rest).forEach(([key, value]) => {
+    if (value !== undefined) {
+      queryParams.append(key, String(value));
+    }
+  });
+
+  return `${TOKEN_END_POINT_API}/v3/tokens/trending?chainIds=${encodedChainIds}${queryParams.toString() ? `&${queryParams.toString()}` : ''}`;
 }
 
 const tenSecondsInMilliseconds = 10_000;
@@ -135,6 +178,91 @@ export async function searchTokens(
 }
 
 /**
+ * The trending asset type.
+ */
+export type TrendingAsset = {
+  assetId: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  price: string;
+  aggregatedUsdVolume: number;
+  marketCap: number;
+  priceChangePct?: {
+    m5?: string;
+    m15?: string;
+    m30?: string;
+    h1?: string;
+    h6?: string;
+    h24?: string;
+  };
+  labels?: string[];
+};
+
+/**
+ * Get the trending tokens for the given chains.
+ *
+ * @param options - Options for getting trending tokens.
+ * @param options.chainIds - The chains to get the trending tokens for.
+ * @param options.sortBy - The sort by field.
+ * @param options.minLiquidity - The minimum liquidity.
+ * @param options.minVolume24hUsd - The minimum volume 24h in USD.
+ * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
+ * @param options.minMarketCap - The minimum market cap.
+ * @param options.maxMarketCap - The maximum market cap.
+ * @returns The trending tokens.
+ * @throws Will throw if the request fails.
+ */
+export async function getTrendingTokens({
+  chainIds,
+  sortBy,
+  minLiquidity,
+  minVolume24hUsd,
+  maxVolume24hUsd,
+  minMarketCap,
+  maxMarketCap,
+}: {
+  chainIds: CaipChainId[];
+  sortBy?: SortTrendingBy;
+  minLiquidity?: number;
+  minVolume24hUsd?: number;
+  maxVolume24hUsd?: number;
+  minMarketCap?: number;
+  maxMarketCap?: number;
+}): Promise<TrendingAsset[]> {
+  if (chainIds.length === 0) {
+    console.error('No chains provided');
+    return [];
+  }
+
+  const trendingTokensURL = getTrendingTokensURL({
+    chainIds,
+    sortBy,
+    minLiquidity,
+    minVolume24hUsd,
+    maxVolume24hUsd,
+    minMarketCap,
+    maxMarketCap,
+  });
+
+  try {
+    const result = await handleFetch(trendingTokensURL);
+
+    // Validate that the API returned an array
+    if (Array.isArray(result)) {
+      return result;
+    }
+
+    // Handle non-expected responses
+    console.error('Trending tokens API returned non-array response:', result);
+    return [];
+  } catch (error) {
+    console.error('Trending tokens request failed:', error);
+    return [];
+  }
+}
+
+/**
  * Fetch metadata for the token address provided for a given network. This request is cancellable
  * using the abort signal passed in.
  *
@@ -145,8 +273,6 @@ export async function searchTokens(
  * @param options.timeout - The fetch timeout.
  * @returns The token metadata, or `undefined` if the request was either aborted or failed.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export async function fetchTokenMetadata<T>(
   chainId: Hex,
   tokenAddress: string,
@@ -208,8 +334,6 @@ async function parseJsonResponse(apiResponse: Response): Promise<unknown> {
   const responseObj = await apiResponse.json();
   // api may return errors as json without setting an error http status code
   if (responseObj?.error) {
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     throw new Error(`TokenService Error: ${responseObj.error}`);
   }
   return responseObj;
