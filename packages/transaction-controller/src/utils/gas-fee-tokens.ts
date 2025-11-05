@@ -1,7 +1,10 @@
+import type EthQuery from '@metamask/eth-query';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
+import { getNativeBalance } from './balance';
 import { ERROR_MESSAGE_NO_UPGRADE_CONTRACT } from './batch';
 import { ERROR_MESSGE_PUBLIC_KEY, doesChainSupportEIP7702 } from './eip7702';
 import { getEIP7702UpgradeContractAddress } from './feature-flags';
@@ -113,6 +116,81 @@ export async function getGasFeeTokens({
     log('Failed to gas fee tokens', error);
     return { gasFeeTokens: [], isGasFeeSponsored: false };
   }
+}
+
+/**
+ * Process gas fee tokens for a transaction without approval.
+ *
+ * @param request - Request object.
+ * @param request.ethQuery - EthQuery instance.
+ * @param request.fetchGasFeeTokens - Function to fetch gas fee tokens.
+ * @param request.transaction - Transaction metadata.
+ * @param request.updateTransaction - Function to update the transaction.
+ */
+export async function processGasFeeTokensNoApproval({
+  ethQuery,
+  fetchGasFeeTokens,
+  transaction,
+  updateTransaction,
+}: {
+  ethQuery: EthQuery;
+  fetchGasFeeTokens: (transaction: TransactionMeta) => Promise<GasFeeToken[]>;
+  transaction: TransactionMeta;
+  updateTransaction: (
+    transactionId: string,
+    fn: (tx: TransactionMeta) => void,
+  ) => void;
+}) {
+  const {
+    id: transactionId,
+    isGasFeeTokenIgnoredIfBalance,
+    selectedGasFeeToken,
+    txParams: { from },
+  } = transaction;
+
+  if (!selectedGasFeeToken) {
+    return;
+  }
+
+  if (isGasFeeTokenIgnoredIfBalance) {
+    const gasCostRawValue = new BigNumber(
+      transaction.txParams.gas ?? '0x0',
+    ).multipliedBy(
+      transaction.txParams.maxFeePerGas ??
+        transaction.txParams.gasPrice ??
+        '0x0',
+    );
+
+    const gasCostRaw = gasCostRawValue.toString(10);
+
+    const { balanceRaw } = await getNativeBalance(from as Hex, ethQuery);
+
+    if (gasCostRawValue.isLessThanOrEqualTo(balanceRaw)) {
+      log('Ignoring gas fee token as sufficient native balance', {
+        balanceRaw,
+        gasCostRaw,
+      });
+
+      updateTransaction(transactionId, (tx) => {
+        tx.selectedGasFeeToken = undefined;
+      });
+
+      return;
+    }
+
+    log('Using gas fee token as insufficient native balance', {
+      balanceRaw,
+      gasCostRaw,
+    });
+  }
+
+  const gasFeeTokens = await fetchGasFeeTokens(transaction);
+
+  log('Fetched gas fee tokens for transaction without approval', gasFeeTokens);
+
+  updateTransaction(transactionId, (tx) => {
+    tx.gasFeeTokens = gasFeeTokens;
+  });
 }
 
 /**

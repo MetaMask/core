@@ -137,7 +137,10 @@ import {
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
-import { getGasFeeTokens } from './utils/gas-fee-tokens';
+import {
+  getGasFeeTokens,
+  processGasFeeTokensNoApproval,
+} from './utils/gas-fee-tokens';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
 import {
@@ -1215,6 +1218,7 @@ export class TransactionController extends BaseController<
       batchId,
       deviceConfirmedOn,
       disableGasBuffer,
+      gasFeeToken,
       isGasFeeIncluded,
       isGasFeeSponsored,
       method,
@@ -1315,6 +1319,7 @@ export class TransactionController extends BaseController<
           deviceConfirmedOn,
           disableGasBuffer,
           id: random(),
+          isGasFeeTokenIgnoredIfBalance: Boolean(gasFeeToken),
           isGasFeeIncluded,
           isGasFeeSponsored,
           isFirstTimeInteraction: undefined,
@@ -1322,6 +1327,7 @@ export class TransactionController extends BaseController<
           networkClientId,
           origin,
           securityAlertResponse,
+          selectedGasFeeToken: gasFeeToken,
           status: TransactionStatus.unapproved as const,
           time: Date.now(),
           txParams,
@@ -1406,6 +1412,15 @@ export class TransactionController extends BaseController<
           log('Error while updating first interaction properties', error);
         });
       } else {
+        await processGasFeeTokensNoApproval({
+          ethQuery,
+          fetchGasFeeTokens: async (tx) =>
+            (await this.#getGasFeeTokens(tx)).gasFeeTokens,
+          transaction: addedTransactionMeta,
+          updateTransaction: (transactionId, fn) =>
+            this.#updateTransactionInternal({ transactionId }, fn),
+        });
+
         log(
           'Skipping simulation & first interaction update as approval not required',
         );
@@ -4255,14 +4270,8 @@ export class TransactionController extends BaseController<
         };
       }
 
-      const gasFeeTokensResponse = await getGasFeeTokens({
-        chainId,
-        getSimulationConfig: this.#getSimulationConfig,
-        isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
-        messenger: this.messenger,
-        publicKeyEIP7702: this.#publicKeyEIP7702,
-        transactionMeta,
-      });
+      const gasFeeTokensResponse = await this.#getGasFeeTokens(transactionMeta);
+
       gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
       isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
     }
@@ -4636,5 +4645,18 @@ export class TransactionController extends BaseController<
     log('Publish successful', transactionHash);
 
     return { transactionHash };
+  }
+
+  async #getGasFeeTokens(transaction: TransactionMeta) {
+    const { chainId } = transaction;
+
+    return await getGasFeeTokens({
+      chainId,
+      getSimulationConfig: this.#getSimulationConfig,
+      isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
+      messenger: this.messenger,
+      publicKeyEIP7702: this.#publicKeyEIP7702,
+      transactionMeta: transaction,
+    });
   }
 }
