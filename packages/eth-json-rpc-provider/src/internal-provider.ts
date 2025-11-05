@@ -1,7 +1,4 @@
-import {
-  asV2Middleware,
-  type JsonRpcEngine,
-} from '@metamask/json-rpc-engine';
+import { asV2Middleware, type JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type {
   ContextConstraint,
   MiddlewareContext,
@@ -160,12 +157,7 @@ export class InternalProvider {
 export function convertEip1193RequestToJsonRpcRequest(
   eip1193Request: Eip1193Request,
 ): JsonRpcRequest {
-  const {
-    id = nanoid(),
-    jsonrpc = '2.0',
-    method,
-    params,
-  } = eip1193Request;
+  const { id = nanoid(), jsonrpc = '2.0', method, params } = eip1193Request;
 
   return params
     ? {
