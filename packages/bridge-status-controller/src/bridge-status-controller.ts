@@ -750,7 +750,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     ].includes(intentOrder.status);
     const isFailed = [
       IntentOrderStatus.FAILED,
-      IntentOrderStatus.CANCELLED,
       IntentOrderStatus.EXPIRED,
     ].includes(intentOrder.status);
     const isPending = [IntentOrderStatus.PENDING].includes(intentOrder.status);
@@ -1740,7 +1739,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       case IntentOrderStatus.COMPLETED:
         return TransactionStatus.confirmed;
       case IntentOrderStatus.FAILED:
-      case IntentOrderStatus.CANCELLED:
       case IntentOrderStatus.EXPIRED:
         return TransactionStatus.failed;
       default:
