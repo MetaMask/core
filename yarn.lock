@@ -4833,6 +4833,7 @@ __metadata:
     "@metamask/messenger": "npm:^0.3.0"
     "@metamask/utils": "npm:^11.8.1"
     "@types/jest": "npm:^27.4.1"
+    axios: "npm:^1.13.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
     ts-jest: "npm:^27.1.4"
@@ -8035,7 +8036,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"axios@npm:^1.11.0, axios@npm:^1.7.4":
+"axios@npm:^1.11.0, axios@npm:^1.13.1, axios@npm:^1.7.4":
   version: 1.13.1
   resolution: "axios@npm:1.13.1"
   dependencies:
