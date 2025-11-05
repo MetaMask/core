@@ -89,14 +89,20 @@ export function assertIsValidVaultData(
     !('toprfPwEncryptionKey' in value) || // toprfPwEncryptionKey is not defined
     typeof value.toprfPwEncryptionKey !== 'string' || // toprfPwEncryptionKey is not a string
     !('toprfAuthKeyPair' in value) || // toprfAuthKeyPair is not defined
-    typeof value.toprfAuthKeyPair !== 'string' || // toprfAuthKeyPair is not a string
-    // revoke token exists but is not a string and is not undefined
-    ('revokeToken' in value &&
-      typeof value.revokeToken !== 'string' &&
-      value.revokeToken !== undefined) ||
-    !('accessToken' in value) || // accessToken is not defined
-    typeof value.accessToken !== 'string' // accessToken is not a string
+    typeof value.toprfAuthKeyPair !== 'string' // toprfAuthKeyPair is not a string
   ) {
     throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
+  }
+
+  if (!('revokeToken' in value) || typeof value.revokeToken !== 'string') {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
+    );
+  }
+
+  if (!('accessToken' in value) || typeof value.accessToken !== 'string') {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
+    );
   }
 }

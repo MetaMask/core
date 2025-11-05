@@ -7,20 +7,14 @@ import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import { SnapAccountProvider } from './SnapAccountProvider';
+import {
+  SnapAccountProvider,
+  type SnapAccountProviderConfig,
+} from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
 import type { MultichainAccountServiceMessenger } from '../types';
 
-export type BtcAccountProviderConfig = {
-  discovery: {
-    maxAttempts: number;
-    timeoutMs: number;
-    backOffMs: number;
-  };
-  createAccounts: {
-    timeoutMs: number;
-  };
-};
+export type BtcAccountProviderConfig = SnapAccountProviderConfig;
 
 export const BTC_ACCOUNT_PROVIDER_NAME = 'Bitcoin' as const;
 
@@ -31,11 +25,10 @@ export class BtcAccountProvider extends SnapAccountProvider {
 
   readonly #client: KeyringClient;
 
-  readonly #config: BtcAccountProviderConfig;
-
   constructor(
     messenger: MultichainAccountServiceMessenger,
     config: BtcAccountProviderConfig = {
+      maxConcurrency: 3,
       createAccounts: {
         timeoutMs: 3000,
       },
@@ -46,11 +39,10 @@ export class BtcAccountProvider extends SnapAccountProvider {
       },
     },
   ) {
-    super(BtcAccountProvider.BTC_SNAP_ID, messenger);
+    super(BtcAccountProvider.BTC_SNAP_ID, messenger, config);
     this.#client = this.#getKeyringClientFromSnapId(
       BtcAccountProvider.BTC_SNAP_ID,
     );
-    this.#config = config;
   }
 
   getName(): string {
@@ -88,20 +80,22 @@ export class BtcAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    const createAccount = await this.getRestrictedSnapAccountCreator();
+    return this.withMaxConcurrency(async () => {
+      const createAccount = await this.getRestrictedSnapAccountCreator();
 
-    const account = await withTimeout(
-      createAccount({
-        entropySource,
-        index,
-        addressType: BtcAccountType.P2wpkh,
-        scope: BtcScope.Mainnet,
-      }),
-      this.#config.createAccounts.timeoutMs,
-    );
+      const account = await withTimeout(
+        createAccount({
+          entropySource,
+          index,
+          addressType: BtcAccountType.P2wpkh,
+          scope: BtcScope.Mainnet,
+        }),
+        this.config.createAccounts.timeoutMs,
+      );
 
-    assertIsBip44Account(account);
-    return [account];
+      assertIsBip44Account(account);
+      return [account];
+    });
   }
 
   async discoverAccounts({
@@ -119,11 +113,11 @@ export class BtcAccountProvider extends SnapAccountProvider {
             entropySource,
             groupIndex,
           ),
-          this.#config.discovery.timeoutMs,
+          this.config.discovery.timeoutMs,
         ),
       {
-        maxAttempts: this.#config.discovery.maxAttempts,
-        backOffMs: this.#config.discovery.backOffMs,
+        maxAttempts: this.config.discovery.maxAttempts,
+        backOffMs: this.config.discovery.backOffMs,
       },
     );
 

@@ -131,7 +131,7 @@ export const PriceImpactThresholdSchema = type({
 const GenericQuoteRequestSchema = type({
   aggIds: optional(array(string())),
   bridgeIds: optional(array(string())),
-  noFee: optional(boolean()),
+  fee: optional(number()),
 });
 
 const FeatureIdSchema = enums(Object.values(FeatureId));
@@ -257,6 +257,10 @@ export const QuoteSchema = type({
       totalFeeAmountUsd: optional(string()),
     }),
   ),
+  /**
+   * A third party sponsors the gas. If true, then gasIncluded7702 is also true.
+   */
+  gasSponsored: optional(boolean()),
 });
 
 export const TxDataSchema = type({

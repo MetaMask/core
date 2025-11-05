@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/eip1193-permission-middleware",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eip1193-permission-middleware",
@@ -48,7 +49,7 @@
   },
   "dependencies": {
     "@metamask/chain-agnostic-permission": "^1.2.2",
-    "@metamask/controller-utils": "^11.14.1",
+    "@metamask/controller-utils": "^11.15.0",
     "@metamask/json-rpc-engine": "^10.1.1",
     "@metamask/permission-controller": "^12.1.0",
     "@metamask/utils": "^11.8.1",
@@ -57,6 +58,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/rpc-errors": "^7.0.2",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

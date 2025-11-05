@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/eip-5792-middleware",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eip-5792-middleware",
@@ -49,7 +50,7 @@
   "dependencies": {
     "@metamask/messenger": "^0.3.0",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/transaction-controller": "^61.0.0",
+    "@metamask/transaction-controller": "^61.1.0",
     "@metamask/utils": "^11.8.1",
     "lodash": "^4.17.21",
     "uuid": "^8.3.2"
@@ -58,6 +59,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^24.0.0",
     "@metamask/rpc-errors": "^7.0.2",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

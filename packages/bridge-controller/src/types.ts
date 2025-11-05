@@ -218,7 +218,10 @@ export type QuoteRequest<
    * Whether to request quotes that use EIP-7702 delegated gasless execution
    */
   gasIncluded7702: boolean;
-  noFee?: boolean;
+  /**
+   * The fee that will be charged by MetaMask
+   */
+  fee?: number;
 };
 
 export enum StatusTypes {

@@ -516,7 +516,7 @@ export class TokensController extends BaseController<
       ...tokensToImport,
     ].reduce(
       (output, token) => {
-        output[token.address] = token;
+        output[toChecksumHexAddress(token.address)] = token;
         return output;
       },
       {} as { [address: string]: Token },
@@ -534,7 +534,7 @@ export class TokensController extends BaseController<
           aggregators,
           name,
         };
-        newTokensMap[address] = formattedToken;
+        newTokensMap[checksumAddress] = formattedToken;
         importedTokensMap[address.toLowerCase()] = true;
         return formattedToken;
       });
@@ -542,7 +542,9 @@ export class TokensController extends BaseController<
 
       const newIgnoredTokens = allIgnoredTokens[interactingChainId]?.[
         this.#getSelectedAddress()
-      ]?.filter((tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()]);
+      ]?.filter(
+        (tokenAddress) => !newTokensMap[toChecksumHexAddress(tokenAddress)],
+      );
 
       const detectedTokensForGivenChain = interactingChainId
         ? allDetectedTokens?.[interactingChainId]?.[this.#getSelectedAddress()]
