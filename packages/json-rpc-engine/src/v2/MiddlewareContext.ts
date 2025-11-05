@@ -56,7 +56,7 @@ export class MiddlewareContext<
     super(
       entries && Array.isArray(entries)
         ? entries
-        : Object.entries(entries ?? {}),
+        : entriesFromKeyValues(entries ?? {}),
     );
     Object.freeze(this);
   }
@@ -94,6 +94,22 @@ export class MiddlewareContext<
     super.set(key, value);
     return this;
   }
+}
+
+/**
+ * Like Object.entries(), but includes symbol-keyed properties.
+ *
+ * @template KeyValues - The type of the keys and values in the object.
+ * @param keyValues - The object to convert.
+ * @returns The array of entries, including symbol-keyed properties.
+ */
+function entriesFromKeyValues<KeyValues extends Record<PropertyKey, unknown>>(
+  keyValues: KeyValues,
+): [keyof KeyValues, KeyValues[keyof KeyValues]][] {
+  return Reflect.ownKeys(keyValues).map((key: keyof KeyValues) => [
+    key,
+    keyValues[key],
+  ]);
 }
 
 /**

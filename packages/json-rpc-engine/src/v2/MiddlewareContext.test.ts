@@ -12,8 +12,14 @@ describe('MiddlewareContext', () => {
   });
 
   it('can be constructed with a KeyValues object', () => {
-    const context = new MiddlewareContext<{ test: string }>({ test: 'value' });
-    expect(context.get('test')).toBe('value');
+    const symbol = Symbol('symbol');
+    const context = new MiddlewareContext<{ test: string; [symbol]: string }>({
+      test: 'string value',
+      [symbol]: 'symbol value',
+    });
+
+    expect(context.get('test')).toBe('string value');
+    expect(context.get(symbol)).toBe('symbol value');
   });
 
   it('is frozen', () => {
