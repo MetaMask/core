@@ -46,7 +46,7 @@ describe('TransactionPayController', () => {
 
     messenger = getMessengerMock({ skipRegister: true }).messenger;
 
-    updateQuotesMock.mockResolvedValue();
+    updateQuotesMock.mockResolvedValue(true);
   });
 
   describe('updatePaymentToken', () => {

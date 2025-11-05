@@ -63,7 +63,16 @@ type AllEvents = AllGasFeeControllerEvents | AllNetworkControllerEvents;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const getRootMessenger = (): RootMessenger => {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+  const rootMessenger = new Messenger<
+    MockAnyNamespace,
+    MessengerActions<NetworkControllerMessenger>,
+    MessengerEvents<NetworkControllerMessenger>
+  >({ namespace: MOCK_ANY_NAMESPACE });
+  rootMessenger.registerActionHandler(
+    'ErrorReportingService:captureException',
+    jest.fn(),
+  );
+  return rootMessenger;
 };
 
 const setupNetworkController = async ({
@@ -85,6 +94,10 @@ const setupNetworkController = async ({
   >({
     namespace: 'NetworkController',
     parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger: networkControllerMessenger,
+    actions: ['ErrorReportingService:captureException'],
   });
 
   const infuraProjectId = '123';

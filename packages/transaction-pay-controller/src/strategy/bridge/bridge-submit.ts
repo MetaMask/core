@@ -64,10 +64,15 @@ export async function submitBridgeQuotes(
   for (const quote of quotes) {
     log('Submitting bridge', index, quote);
 
-    const finalQuote =
-      index > 0
-        ? await refreshQuote(quote, messenger as never, transaction)
-        : quote.original;
+    let finalQuote = quote.original;
+
+    if (index > 0) {
+      try {
+        finalQuote = await refreshQuote(quote, messenger, transaction);
+      } catch (error) {
+        log('Failed to refresh subsequent quote before submit', error);
+      }
+    }
 
     await submitBridgeTransaction(request, finalQuote);
 
