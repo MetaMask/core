@@ -69,7 +69,7 @@ export class JsonRpcEngineError extends Error {
     value: Value,
   ): value is Value & JsonRpcEngineError {
     return (
-      hasProperty(value, JsonRpcEngineErrorSymbol) &&
+      JsonRpcEngineErrorSymbol in value &&
       value[JsonRpcEngineErrorSymbol] === true
     );
   }
