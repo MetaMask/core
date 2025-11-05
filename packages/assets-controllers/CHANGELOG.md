@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [87.1.0]
+
+### Added
+
+- Added `getTrendingTokens` function to fetch trending tokens for specific chains ([#7054]) (https://github.com/MetaMask/core/pull/7054)
+- Added new types `SortTrendingBy` and `TrendingAsset` ([#7054]) (https://github.com/MetaMask/core/pull/7054)
+
+## [87.0.0]
+
+### Added
+
+- Add `AssetsByAccountGroup` to list of exported types ([#6983](https://github.com/MetaMask/core/pull/6983))
+- Added `addAssets` to allow adding multiple assets for non-EVM chains ([#7016](https://github.com/MetaMask/core/pull/7016))
+
+### Changed
+
+- `isNative` is inferred as `true` for all non-evm assets with slip44 as its asset namespace ([#6983](https://github.com/MetaMask/core/pull/6983))
+- **BREAKING:** Modify DeFi position fetching behaviour ([#6944](https://github.com/MetaMask/core/pull/6944))
+  - The fetch request to the API times out after 8 seconds and attempts a single retry
+  - Refresh only updates the selected evm address
+  - `KeyringController:unlock` no longer starts polling
+  - `AccountsController:accountAdded` no longer updates DeFi positions
+  - `AccountTreeController:selectedAccountGroupChange` updates DeFi positions for the selected address
+  - `TransactionController:transactionConfirmed` only updates DeFi positions if the transaction is for the selected address
+
+### Fixed
+
+- Fixed token is not removed from ignored tokens list when added back due to case insensiteivity ([#7016](https://github.com/MetaMask/core/pull/7016))
+
 ## [86.0.0]
 
 ### Changed
@@ -2217,7 +2246,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@86.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.0...HEAD
+[87.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.0.0...@metamask/assets-controllers@87.1.0
+[87.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@86.0.0...@metamask/assets-controllers@87.0.0
 [86.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@85.0.0...@metamask/assets-controllers@86.0.0
 [85.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@84.0.0...@metamask/assets-controllers@85.0.0
 [84.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@83.1.0...@metamask/assets-controllers@84.0.0

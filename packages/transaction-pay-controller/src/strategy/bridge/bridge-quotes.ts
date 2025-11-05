@@ -59,17 +59,22 @@ export async function getBridgeQuotes(
 
   const { requests, messenger, transaction } = request;
 
-  const finalRequests = getFinalRequests(requests, messenger);
+  try {
+    const finalRequests = getFinalRequests(requests, messenger);
 
-  const quotes = await Promise.all(
-    finalRequests.map((r, index) =>
-      getSufficientSingleBridgeQuote(r, index, request),
-    ),
-  );
+    const quotes = await Promise.all(
+      finalRequests.map((r, index) =>
+        getSufficientSingleBridgeQuote(r, index, request),
+      ),
+    );
 
-  return quotes.map((quote, index) =>
-    normalizeQuote(quote, finalRequests[index], messenger, transaction),
-  );
+    return quotes.map((quote, index) =>
+      normalizeQuote(quote, finalRequests[index], messenger, transaction),
+    );
+  } catch (error) {
+    log('Error fetching quotes', { error });
+    throw new Error(`Failed to fetch bridge quotes: ${String(error)}`);
+  }
 }
 
 /**
@@ -265,7 +270,13 @@ async function getSufficientSingleBridgeQuote(
         sourceBalanceRaw,
       )
     ) {
-      log('Reached balance limit', targetTokenAddress);
+      log('Reached balance limit', {
+        targetTokenAddress,
+        sourceBalanceRaw,
+        currentSourceAmount,
+        attempt: i + 1,
+      });
+
       break;
     }
 
@@ -435,7 +446,7 @@ function getFinalRequests(
  */
 function getFeatureFlags(messenger: TransactionPayControllerMessenger) {
   const featureFlags = messenger.call('RemoteFeatureFlagController:getState')
-    .remoteFeatureFlags.confirmation_pay as Record<string, number> | undefined;
+    .remoteFeatureFlags.confirmations_pay as Record<string, number> | undefined;
 
   return {
     attemptsMax: featureFlags?.attemptsMax ?? ATTEMPTS_MAX_DEFAULT,
@@ -462,20 +473,28 @@ function normalizeQuote(
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
 ): TransactionPayQuote<TransactionPayBridgeQuote> {
-  const targetFiatRate = getTokenFiatRate(
-    messenger,
-    quote.quote.destAsset.address as Hex,
-    toHex(quote.quote.destChainId),
-  );
-
   const sourceFiatRate = getTokenFiatRate(
     messenger,
-    quote.quote.srcAsset.address as Hex,
-    toHex(quote.quote.srcChainId),
+    request.sourceTokenAddress,
+    request.sourceChainId,
   );
 
-  if (sourceFiatRate === undefined || targetFiatRate === undefined) {
-    throw new Error('Fiat rate not found for source or target token');
+  if (sourceFiatRate === undefined) {
+    throw new Error(
+      `Fiat rate not found for source token - Chain ID: ${request.sourceChainId}, Address: ${request.sourceTokenAddress}`,
+    );
+  }
+
+  const targetFiatRate = getTokenFiatRate(
+    messenger,
+    request.targetTokenAddress,
+    request.targetChainId,
+  );
+
+  if (targetFiatRate === undefined) {
+    throw new Error(
+      `Fiat rate not found for target token - Chain ID: ${request.targetChainId}, Address: ${request.targetTokenAddress}`,
+    );
   }
 
   const targetAmountMinimumFiat = calculateFiatValue(

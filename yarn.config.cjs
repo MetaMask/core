@@ -120,6 +120,13 @@ module.exports = defineConfig({
           'ts-bridge --project tsconfig.build.json --verbose --clean --no-references',
         );
 
+        // All non-root packages must have the same "build:all" script.
+        expectWorkspaceField(
+          workspace,
+          'scripts.build:all',
+          'ts-bridge --project tsconfig.build.json --verbose --clean',
+        );
+
         // All non-root packages must have the same "build:docs" script.
         expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
 

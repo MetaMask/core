@@ -46,7 +46,7 @@ describe('TransactionPayController', () => {
 
     messenger = getMessengerMock({ skipRegister: true }).messenger;
 
-    updateQuotesMock.mockResolvedValue();
+    updateQuotesMock.mockResolvedValue(true);
   });
 
   describe('updatePaymentToken', () => {
@@ -119,7 +119,7 @@ describe('TransactionPayController', () => {
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK],
       ).toStrictEqual({
-        isLoading: true,
+        isLoading: false,
         sourceAmounts: [{ sourceAmountHuman: '1.23' }],
         tokens: [],
       });

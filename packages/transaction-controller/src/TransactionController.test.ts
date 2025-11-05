@@ -12,7 +12,7 @@ import {
   ORIGIN_METAMASK,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import {
@@ -312,7 +312,7 @@ function buildMockEthQuery(): EthQuery {
  */
 function buildMockBlockTracker(
   latestBlockNumber: string,
-  provider: SafeEventEmitterProvider,
+  provider: InternalProvider,
 ): BlockTracker {
   const fakeBlockTracker = new FakeBlockTracker({ provider });
   fakeBlockTracker.mockLatestBlockNumber(latestBlockNumber);
