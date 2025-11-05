@@ -6,6 +6,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import {
   Messenger,
   type MockAnyNamespace,
@@ -154,7 +155,9 @@ function buildFakeNetworkClient({
   return {
     configuration,
     provider,
-    blockTracker: new FakeBlockTracker({ provider }),
+    blockTracker: new FakeBlockTracker({
+      provider: provider as unknown as InternalProvider,
+    }),
     destroy: () => {
       // do nothing
     },
