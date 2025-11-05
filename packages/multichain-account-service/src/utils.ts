@@ -12,7 +12,7 @@ export const toRejectedErrorMessage = <Result>(
 };
 
 /**
- * Creates a Sentry error from an error and a context.
+ * Creates a Sentry error from an error message, an inner error and a context.
  *
  * NOTE: Sentry defaults to a depth of 3 when extracting non-native attributes.
  * As such, the context depth shouldn't be too deep.
