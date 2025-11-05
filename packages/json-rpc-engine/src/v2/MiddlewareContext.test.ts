@@ -74,4 +74,15 @@ describe('MiddlewareContext', () => {
       `MiddlewareContext key "test" already exists`,
     );
   });
+
+  it('detects instances of MiddlewareContext', () => {
+    const context = new MiddlewareContext();
+    expect(MiddlewareContext.isInstance(context)).toBe(true);
+  });
+
+  it('detects sub-classes of MiddlewareContext', () => {
+    class SubContext extends MiddlewareContext {}
+    const context = new SubContext();
+    expect(MiddlewareContext.isInstance(context)).toBe(true);
+  });
 });

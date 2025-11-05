@@ -1,4 +1,4 @@
-import { hasProperty, isObject } from '@metamask/utils';
+import { isObject } from '@metamask/utils';
 
 import type { UnionToIntersection } from './utils';
 
@@ -43,7 +43,7 @@ export class MiddlewareContext<
   static isInstance(value: unknown): value is MiddlewareContext {
     return (
       isObject(value) &&
-      hasProperty(value, MiddlewareContextSymbol) &&
+      MiddlewareContextSymbol in value &&
       value[MiddlewareContextSymbol] === true
     );
   }
@@ -54,7 +54,7 @@ export class MiddlewareContext<
       | KeyValues,
   ) {
     super(
-      entries && Array.isArray(entries)
+      entries && isIterable(entries)
         ? entries
         : entriesFromKeyValues(entries ?? {}),
     );
@@ -94,6 +94,18 @@ export class MiddlewareContext<
     super.set(key, value);
     return this;
   }
+}
+
+/**
+ * {@link Iterable} type guard.
+ *
+ * @param value - The value to check.
+ * @returns Whether the value is an {@link Iterable}.
+ */
+function isIterable(
+  value: Iterable<unknown> | Record<PropertyKey, unknown>,
+): value is Iterable<unknown> {
+  return Symbol.iterator in value;
 }
 
 /**
