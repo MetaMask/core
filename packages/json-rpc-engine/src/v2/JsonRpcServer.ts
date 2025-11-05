@@ -164,7 +164,7 @@ export class JsonRpcServer<
     const [originalId, isRequest] = getOriginalId(rawRequest);
 
     try {
-      const request = this.#coerceRequest(rawRequest, isRequest);
+      const request = JsonRpcServer.#coerceRequest(rawRequest, isRequest);
       // @ts-expect-error - The request may not be of the type expected by the engine,
       // and we intentionally allow this to happen.
       const result = await this.#engine.handle(request, options);
@@ -195,7 +195,7 @@ export class JsonRpcServer<
     return undefined;
   }
 
-  #coerceRequest(rawRequest: unknown, isRequest: boolean): JsonRpcCall {
+  static #coerceRequest(rawRequest: unknown, isRequest: boolean): JsonRpcCall {
     if (!isMinimalRequest(rawRequest)) {
       throw rpcErrors.invalidRequest({
         data: {
