@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Calculate totals even if no quotes received ([#7042](https://github.com/MetaMask/core/pull/7042))
 
+### Fixed
+
+- Fix bridging to native Polygon ([#7053](https://github.com/MetaMask/core/pull/7053))
+  - Use original quote if bridge quote fails to refresh during submit.
+  - Only refresh quotes if transaction status is unapproved.
+
 ## [3.0.0]
 
 ### Changed

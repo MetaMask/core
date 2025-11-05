@@ -1,4 +1,7 @@
-import type { BatchTransaction } from '@metamask/transaction-controller';
+import {
+  TransactionStatus,
+  type BatchTransaction,
+} from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -34,18 +37,25 @@ export type UpdateQuotesRequest = {
  * Update the quotes for a specific transaction.
  *
  * @param request - Request parameters.
+ * @returns Boolean indicating if the quotes were updated.
  */
-export async function updateQuotes(request: UpdateQuotesRequest) {
+export async function updateQuotes(
+  request: UpdateQuotesRequest,
+): Promise<boolean> {
   const { messenger, transactionData, transactionId, updateTransactionData } =
     request;
 
   const transaction = getTransaction(transactionId, messenger);
 
-  log('Updating quotes', { transactionId });
-
   if (!transaction || !transactionData) {
     throw new Error('Transaction not found');
   }
+
+  if (transaction?.status !== TransactionStatus.unapproved) {
+    return false;
+  }
+
+  log('Updating quotes', { transactionId });
 
   const { paymentToken, sourceAmounts, tokens } = transactionData;
 
@@ -95,6 +105,8 @@ export async function updateQuotes(request: UpdateQuotesRequest) {
       data.isLoading = false;
     });
   }
+
+  return true;
 }
 
 /**
@@ -181,20 +193,16 @@ export async function refreshQuotes(
       continue;
     }
 
-    log('Refreshing expired quotes', {
-      transactionId,
-      strategy: strategyName,
-      refreshInterval,
-    });
-
-    await updateQuotes({
+    const isUpdated = await updateQuotes({
       messenger,
       transactionData,
       transactionId,
       updateTransactionData,
     });
 
-    log('Refreshed quotes', { transactionId, strategy: strategyName });
+    if (isUpdated) {
+      log('Refreshed quotes', { transactionId, strategy: strategyName });
+    }
   }
 }
 

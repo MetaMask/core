@@ -18,7 +18,7 @@ const TEST_SNAP_ID = 'npm:@metamask/test-snap' as SnapId;
 const TEST_ENTROPY_SOURCE = 'test-entropy-source' as EntropySourceId;
 
 // Helper to create a tracked provider that monitors concurrent execution
-const createTrackedProvider = (maxConcurrency: number) => {
+const createTrackedProvider = (maxConcurrency?: number) => {
   const tracker: {
     startLog: number[];
     endLog: number[];
@@ -67,7 +67,7 @@ const createTrackedProvider = (maxConcurrency: number) => {
 
   const messenger = getMultichainAccountServiceMessenger(getRootMessenger());
   const config = {
-    maxConcurrency,
+    ...(maxConcurrency !== undefined && { maxConcurrency }),
     createAccounts: {
       timeoutMs: 5000,
     },
@@ -196,6 +196,27 @@ describe('SnapAccountProvider', () => {
 
       // With maxConcurrency=1, never more than 1 should run at a time
       expect(tracker.maxActiveCount).toBe(1);
+    });
+
+    it('defaults to Infinity when maxConcurrency is not provided', async () => {
+      const { provider, tracker } = createTrackedProvider();
+
+      // Start 4 concurrent calls
+      const promises = [0, 1, 2, 3].map((index) =>
+        provider.createAccounts({
+          entropySource: TEST_ENTROPY_SOURCE,
+          groupIndex: index,
+        }),
+      );
+
+      await Promise.all(promises);
+
+      // All 4 operations should complete
+      expect(tracker.startLog).toHaveLength(4);
+
+      // Without maxConcurrency specified, should default to Infinity (no throttling)
+      // So all 4 should have been able to run concurrently
+      expect(tracker.maxActiveCount).toBe(4);
     });
   });
 });
