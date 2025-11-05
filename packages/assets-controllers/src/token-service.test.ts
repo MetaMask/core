@@ -2,9 +2,11 @@ import { toHex } from '@metamask/controller-utils';
 import type { CaipChainId } from '@metamask/utils';
 import nock from 'nock';
 
+import type { SortTrendingBy } from './token-service';
 import {
   fetchTokenListByChainId,
   fetchTokenMetadata,
+  getTrendingTokens,
   searchTokens,
   TOKEN_END_POINT_API,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
@@ -707,6 +709,98 @@ describe('Token service', () => {
         count: sampleSearchResults.length,
         data: sampleSearchResults,
       });
+    });
+  });
+
+  describe('getTrendingTokens', () => {
+    const sampleTrendingTokens = [
+      {
+        assetId: 'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+        name: 'USDC',
+        symbol: 'USDC',
+        decimals: 6,
+        price: '1.00294333595976',
+        aggregatedUsdVolume: 455616484.38,
+        marketCap: 75877371441.07,
+      },
+      {
+        assetId: 'eip155:1/erc20:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+        name: 'Wrapped Ether',
+        symbol: 'WETH',
+        decimals: 18,
+        price: '3406.01599421582',
+        aggregatedUsdVolume: 358982988.74,
+        marketCap: 7610628690.4,
+      },
+    ];
+    it('returns empty array if no chains are provided', async () => {
+      const result = await getTrendingTokens({ chainIds: [] });
+      expect(result).toStrictEqual([]);
+    });
+
+    it('returns empty array if api returns non-array response', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}`,
+        )
+        .reply(200, { error: 'Invalid response' })
+        .persist();
+
+      const result = await getTrendingTokens({ chainIds: [sampleCaipChainId] });
+      expect(result).toStrictEqual([]);
+    });
+
+    it('returns empty array if the fetch fails', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}`,
+        )
+        .reply(500)
+        .persist();
+
+      const result = await getTrendingTokens({ chainIds: [sampleCaipChainId] });
+      expect(result).toStrictEqual([]);
+    });
+
+    it('returns the list of trending tokens if the fetch succeeds', async () => {
+      const testChainId = 'eip155:1';
+      const sortBy: SortTrendingBy = 'm5_trending';
+      const testMinLiquidity = 1000000;
+      const testMinVolume24hUsd = 1000000;
+      const testMaxVolume24hUsd = 1000000;
+      const testMinMarketCap = 1000000;
+      const testMaxMarketCap = 1000000;
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&sortBy=${sortBy}&minLiquidity=${testMinLiquidity}&minVolume24hUsd=${testMinVolume24hUsd}&maxVolume24hUsd=${testMaxVolume24hUsd}&minMarketCap=${testMinMarketCap}&maxMarketCap=${testMaxMarketCap}`,
+        )
+        .reply(200, sampleTrendingTokens)
+        .persist();
+
+      const result = await getTrendingTokens({
+        chainIds: [testChainId],
+        sortBy,
+        minLiquidity: testMinLiquidity,
+        minVolume24hUsd: testMinVolume24hUsd,
+        maxVolume24hUsd: testMaxVolume24hUsd,
+        minMarketCap: testMinMarketCap,
+        maxMarketCap: testMaxMarketCap,
+      });
+      expect(result).toStrictEqual(sampleTrendingTokens);
+    });
+
+    it('returns the list of trending tokens if the fetch succeeds with no query params', async () => {
+      const testChainId = 'eip155:1';
+
+      nock(TOKEN_END_POINT_API)
+        .get(`/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}`)
+        .reply(200, sampleTrendingTokens)
+        .persist();
+
+      const result = await getTrendingTokens({
+        chainIds: [testChainId],
+      });
+      expect(result).toStrictEqual(sampleTrendingTokens);
     });
   });
 });
