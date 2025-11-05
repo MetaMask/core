@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `providerFromMiddlewareV2` ([#7001](https://github.com/MetaMask/core/pull/7001))
   - This accepts the new middleware from `@metamask/json-rpc-engine/v2`.
+- Add `context` option to `InternalProvider.request()` ([#7061](https://github.com/MetaMask/core/pull/7061))
+  - Enables passing a `MiddlewareContext` to the JSON-RPC server.
 
 ### Changed
 
