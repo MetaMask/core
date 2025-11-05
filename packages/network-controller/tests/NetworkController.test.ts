@@ -13,7 +13,6 @@ import {
   NetworkType,
   toHex,
 } from '@metamask/controller-utils';
-import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
@@ -16641,7 +16640,7 @@ function buildFakeClient(
     },
     provider,
     blockTracker: new FakeBlockTracker({
-      provider: provider as unknown as InternalProvider,
+      provider,
     }),
     destroy: () => {
       // do nothing
