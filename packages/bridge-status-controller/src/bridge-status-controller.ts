@@ -823,7 +823,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           transactionType: isBridgeTx
             ? TransactionType.bridgeApproval
             : TransactionType.swapApproval,
-          trade: approval,
+          trade: approval as TxData,
           requireApproval,
         });
 
@@ -925,7 +925,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (resetApproval) {
       await this.#handleEvmTransaction({
         transactionType: TransactionType.bridgeApproval,
-        trade: resetApproval,
+        trade: resetApproval as TxData,
       });
     }
   };
@@ -1124,8 +1124,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
                 resetApproval: await getUSDTAllowanceResetTx(
                   this.messenger,
                   quoteResponse,
-                ),
-                approval: quoteResponse.approval,
+                ) as TxData,
+                approval: quoteResponse.approval as TxData,
                 trade: quoteResponse.trade as TxData,
                 quoteResponse,
                 requireApproval,

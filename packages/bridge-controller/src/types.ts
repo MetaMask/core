@@ -258,11 +258,14 @@ export type TronTradeData = Infer<typeof TronTradeDataSchema>;
 /**
  * This is the type for the quote response from the bridge-api
  * TxDataType can be overriden to be a string when the quote is non-evm
+ * ApprovalType can be overriden when you know the specific approval type (e.g., TxData for EVM-only contexts)
  */
-export type QuoteResponse<TxDataType = TxData | string | BitcoinTradeData | TronTradeData> =
-  Infer<typeof QuoteResponseSchema> & {
+export type QuoteResponse<
+  TxDataType = TxData | string | BitcoinTradeData | TronTradeData,
+  ApprovalType = TxData | TronTradeData
+> = Infer<typeof QuoteResponseSchema> & {
     trade: TxDataType;
-    approval?: TxData;
+    approval?: ApprovalType;
     featureId?: FeatureId;
   };
 

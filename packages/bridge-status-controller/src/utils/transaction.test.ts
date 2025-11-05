@@ -1540,7 +1540,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         includeApproval?: boolean;
         includeResetApproval?: boolean;
       } = {},
-    ): QuoteResponse<TxData> &
+    ): QuoteResponse<TxData, TxData> &
       QuoteMetadata & { approval?: TxData; resetApproval?: TxData } =>
       ({
         quote: {

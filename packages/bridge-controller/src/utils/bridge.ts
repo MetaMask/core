@@ -220,7 +220,7 @@ export const isNonEvmChainId = (
 
 export const isEvmQuoteResponse = (
   quoteResponse: QuoteResponse,
-): quoteResponse is QuoteResponse<TxData> => {
+): quoteResponse is QuoteResponse<TxData, TxData> => {
   return !isNonEvmChainId(quoteResponse.quote.srcChainId);
 };
 
