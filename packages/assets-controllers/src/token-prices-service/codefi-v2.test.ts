@@ -3,7 +3,6 @@ import { useFakeTimers } from 'sinon';
 
 import {
   CodefiTokenPricesServiceV2,
-  SUPPORTED_CHAIN_IDS,
   SUPPORTED_CURRENCIES,
   ZERO_ADDRESS,
   getNativeTokenAddress,
@@ -1271,6 +1270,22 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
   });
 
+  describe('fetchSupportedChainIds', () => {
+    it('should return the supported chain ids in hexadecimal format', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v1/supportedNetworks')
+        .reply(200, {
+          fullSupport: [1],
+          partialSupport: { spotPricesV2: [2] },
+        });
+
+      const supportedChainIds =
+        await new CodefiTokenPricesServiceV2().fetchSupportedChainIds();
+
+      expect(supportedChainIds).toStrictEqual(['0x1', '0x2']);
+    });
+  });
+
   describe('fetchExchangeRates', () => {
     const exchangeRatesMockResponseUsd = {
       btc: {
@@ -1751,25 +1766,6 @@ describe('CodefiTokenPricesServiceV2', () => {
 
         expect(onBreakHandler).toHaveBeenCalledTimes(1);
       });
-    });
-  });
-
-  describe('validateChainIdSupported', () => {
-    it.each(SUPPORTED_CHAIN_IDS)(
-      'returns true if the given chain ID is %s',
-      (chainId) => {
-        expect(
-          new CodefiTokenPricesServiceV2().validateChainIdSupported(chainId),
-        ).toBe(true);
-      },
-    );
-
-    it('returns false if the given chain ID is not one of the supported chain IDs', () => {
-      expect(
-        new CodefiTokenPricesServiceV2().validateChainIdSupported(
-          '0x999999999999999',
-        ),
-      ).toBe(false);
     });
   });
 

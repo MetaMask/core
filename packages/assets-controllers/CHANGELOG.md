@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Removed exported `SUPPORTED_CHAIN_IDS` from `codefi-v2.ts` ([#7005](https://github.com/MetaMask/core/pull/7005))
+- **BREAKING:** Added `supportedChainIds` argument in `fetchTokenContractExchangeRates` ([#7005](https://github.com/MetaMask/core/pull/7005))
+- Removed `validateChainIdSupported` from `codefi-v2.ts` ([#7005](https://github.com/MetaMask/core/pull/7005))
+- Added `fetchSupportedChainIds` in `codefi-v2.ts` ([#7005](https://github.com/MetaMask/core/pull/7005))
+
 ## [87.0.0]
 
 ### Added
@@ -46,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Added constructor argument `tokenPricesService` in `currencyRateController` ([#6863](https://github.com/MetaMask/core/pull/6863))
+- **BREAKING:** Added supportedChainIds argument in `fetchTokenContractExchangeRates` util function ([#6863](https://github.com/MetaMask/core/pull/6863))
 - Added `fetchExchangeRates` function to fetch exchange rates from price-api ([#6863](https://github.com/MetaMask/core/pull/6863))
 - Added `ignoreAssets` to allow ignoring assets for non-EVM chains ([#6981](https://github.com/MetaMask/core/pull/6981))
 

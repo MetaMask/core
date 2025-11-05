@@ -139,7 +139,6 @@ export {
 } from './assetsUtil';
 export {
   CodefiTokenPricesServiceV2,
-  SUPPORTED_CHAIN_IDS,
   getNativeTokenAddress,
 } from './token-prices-service';
 export { searchTokens } from './token-service';

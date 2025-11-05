@@ -5,6 +5,7 @@ import {
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
   DEFAULT_MAX_RETRIES,
   handleFetch,
+  toHex,
 } from '@metamask/controller-utils';
 import type { ServicePolicy } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
@@ -182,100 +183,13 @@ type SupportedCurrency =
   | Uppercase<(typeof SUPPORTED_CURRENCIES)[number]>;
 
 /**
- * The list of chain IDs that can be supplied in the URL for the `/spot-prices`
- * endpoint, but in hexadecimal form (for consistency with how we represent
- * chain IDs in other places).
- * @see Used by {@link CodefiTokenPricesServiceV2} to validate that a given chain ID is supported by V2 of the Codefi Price API.
- */
-export const SUPPORTED_CHAIN_IDS = [
-  // Ethereum Mainnet
-  '0x1',
-  // OP Mainnet
-  '0xa',
-  // Cronos Mainnet
-  '0x19',
-  // BNB Smart Chain Mainnet
-  '0x38',
-  // Syscoin Mainnet
-  '0x39',
-  // OKXChain Mainnet
-  '0x42',
-  // Hoo Smart Chain
-  '0x46',
-  // Meter Mainnet
-  '0x52',
-  // TomoChain
-  '0x58',
-  // Gnosis
-  '0x64',
-  // Velas EVM Mainnet
-  '0x6a',
-  // Fuse Mainnet
-  '0x7a',
-  // Huobi ECO Chain Mainnet
-  '0x80',
-  // Polygon Mainnet
-  '0x89',
-  // Fantom Opera
-  '0xfa',
-  // Boba Network
-  '0x120',
-  // KCC Mainnet
-  '0x141',
-  // zkSync Era Mainnet
-  '0x144',
-  // Theta Mainnet
-  '0x169',
-  // Metis Andromeda Mainnet
-  '0x440',
-  // Moonbeam
-  '0x504',
-  // Moonriver
-  '0x505',
-  // Mantle
-  '0x1388',
-  // Base
-  '0x2105',
-  // Shiden
-  '0x150',
-  // Smart Bitcoin Cash
-  '0x2710',
-  // Arbitrum One
-  '0xa4b1',
-  // Celo Mainnet
-  '0xa4ec',
-  // Oasis Emerald
-  '0xa516',
-  // Avalanche C-Chain
-  '0xa86a',
-  // Polis Mainnet
-  '0x518af',
-  // Aurora Mainnet
-  '0x4e454152',
-  // Harmony Mainnet Shard 0
-  '0x63564c40',
-  // Linea Mainnet
-  '0xe708',
-  // Sei Mainnet
-  '0x531',
-  // Sonic Mainnet
-  '0x92',
-  // Monad Mainnet
-  '0x8f',
-] as const;
-
-/**
- * A chain ID that can be supplied in the URL for the `/spot-prices` endpoint,
- * but in hexadecimal form (for consistency with how we represent chain IDs in
- * other places).
- */
-type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
-
-/**
  * All requests to V2 of the Price API start with this.
  */
 const BASE_URL = 'https://price.api.cx.metamask.io/v2';
 
+/**
+ * All requests to V1 of the Price API start with this.
+ */
 const BASE_URL_V1 = 'https://price.api.cx.metamask.io/v1';
 
 /**
@@ -362,8 +276,7 @@ type MarketDataByTokenAddress = { [address: Hex]: MarketData };
  * fetch token prices.
  */
 export class CodefiTokenPricesServiceV2
-  implements
-    AbstractTokenPricesService<SupportedChainId, Hex, SupportedCurrency>
+  implements AbstractTokenPricesService<Hex, Hex, SupportedCurrency>
 {
   readonly #policy: ServicePolicy;
 
@@ -482,7 +395,7 @@ export class CodefiTokenPricesServiceV2
     tokenAddresses,
     currency,
   }: {
-    chainId: SupportedChainId;
+    chainId: Hex;
     tokenAddresses: Hex[];
     currency: SupportedCurrency;
   }): Promise<Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>> {
@@ -638,12 +551,15 @@ export class CodefiTokenPricesServiceV2
    * Type guard for whether the API can return token prices for the given chain
    * ID.
    *
-   * @param chainId - The chain ID to check.
-   * @returns True if the API supports the chain ID, false otherwise.
+   * @returns The supported chain ids in hexadecimal format.
    */
-  validateChainIdSupported(chainId: unknown): chainId is SupportedChainId {
-    const supportedChainIds: readonly string[] = SUPPORTED_CHAIN_IDS;
-    return typeof chainId === 'string' && supportedChainIds.includes(chainId);
+  async fetchSupportedChainIds(): Promise<Hex[]> {
+    const url = new URL(`${BASE_URL_V1}/supportedNetworks`);
+    const response = await handleFetch(url);
+    const supportedChainIds = response.fullSupport.concat(
+      response.partialSupport.spotPricesV2,
+    );
+    return supportedChainIds.map((chainId: number) => toHex(chainId));
   }
 
   /**

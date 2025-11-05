@@ -59,6 +59,8 @@ export type Token = {
 
 const DEFAULT_INTERVAL = 180000;
 
+export const DEFAULT_CACHE_REFRESH_THRESHOLD = 1000 * 60 * 60 * 24; // 24 hours
+
 export type ContractExchangeRates = {
   [address: string]: number | undefined;
 };
@@ -120,13 +122,18 @@ export type AllowedEvents =
 export const controllerName = 'TokenRatesController';
 
 /**
- * @type TokenRatesState
+ * TokenRatesState
  *
  * Token rates controller state
- * @property marketData - Market data for tokens, keyed by chain ID and then token contract address.
+ * marketData - Market data for tokens, keyed by chain ID and then token contract address.
+ * supportedChainIds - Supported chain ids.
  */
 export type TokenRatesControllerState = {
   marketData: Record<Hex, Record<Hex, MarketDataDetails>>;
+  supportedChainIds: {
+    timestamp: number;
+    data: Hex[];
+  };
 };
 
 /**
@@ -208,6 +215,12 @@ const tokenRatesControllerMetadata: StateMetadata<TokenRatesControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  supportedChainIds: {
+    includeInStateLogs: false,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 /**
@@ -219,6 +232,10 @@ export const getDefaultTokenRatesControllerState =
   (): TokenRatesControllerState => {
     return {
       marketData: {},
+      supportedChainIds: {
+        timestamp: 0,
+        data: [],
+      },
     };
   };
 
@@ -488,6 +505,33 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   /**
+   * Checks if the price api supported chain ids cache is valid.
+   *
+   * @returns True if the cache is valid, false otherwise.
+   */
+  #isPriceApiSupportedChainIdsCacheValid(): boolean {
+    const { supportedChainIds }: TokenRatesControllerState = this.state;
+    const { timestamp } = supportedChainIds;
+    const now = Date.now();
+    return (
+      timestamp !== undefined &&
+      now - timestamp < DEFAULT_CACHE_REFRESH_THRESHOLD
+    );
+  }
+
+  async #updateSupportedChainIdsCache(): Promise<void> {
+    const supportedChainIds =
+      await this.#tokenPricesService.fetchSupportedChainIds();
+
+    this.update((state) => {
+      state.supportedChainIds = {
+        timestamp: Date.now(),
+        data: supportedChainIds,
+      };
+    });
+  }
+
+  /**
    * Updates exchange rates for all tokens.
    *
    * @param chainIdAndNativeCurrency - The chain ID and native currency.
@@ -521,11 +565,11 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     if (this.#disabled) {
       return;
     }
-
     // Create a promise for each chainId to fetch exchange rates.
     const updatePromises = chainIdAndNativeCurrency.map(
       async ({ chainId, nativeCurrency }) => {
         const tokenAddresses = this.#getTokenAddresses(chainId);
+
         // Build a unique key based on chainId, nativeCurrency, and the number of token addresses.
         const updateKey: `${Hex}:${string}` = `${chainId}:${nativeCurrency}:${tokenAddresses.length}`;
 
@@ -620,7 +664,12 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     chainId: Hex;
     nativeCurrency: string;
   }): Promise<ContractMarketData> {
-    if (!this.#tokenPricesService.validateChainIdSupported(chainId)) {
+    if (!this.#isPriceApiSupportedChainIdsCacheValid()) {
+      await this.#updateSupportedChainIdsCache();
+    }
+    const supportedChainIds = this.state.supportedChainIds.data;
+
+    if (!supportedChainIds.includes(chainId)) {
       return tokenAddresses.reduce((obj, tokenAddress) => {
         obj = {
           ...obj,
@@ -673,7 +722,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       });
       return acc;
     }, []);
-
     await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
   }
 

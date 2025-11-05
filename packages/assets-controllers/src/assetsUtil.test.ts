@@ -587,15 +587,12 @@ describe('assetsUtil', () => {
       const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
       const mockPriceService = createMockPriceService();
 
-      jest
-        .spyOn(mockPriceService, 'validateChainIdSupported')
-        .mockReturnValue(false);
-
       const result = await assetsUtil.fetchTokenContractExchangeRates({
         tokenPricesService: mockPriceService,
         nativeCurrency: 'ETH',
         tokenAddresses: [testTokenAddress],
         chainId: '0x0',
+        supportedChainIds: ['0x1'],
       });
 
       expect(result).toStrictEqual({});
@@ -613,6 +610,7 @@ describe('assetsUtil', () => {
         nativeCurrency: 'X',
         tokenAddresses: [testTokenAddress],
         chainId: '0x1',
+        supportedChainIds: ['0x1'],
       });
 
       expect(result).toStrictEqual({});
@@ -654,6 +652,7 @@ describe('assetsUtil', () => {
         nativeCurrency: testNativeCurrency,
         tokenAddresses: [testTokenAddress],
         chainId: testChainId,
+        supportedChainIds: [testChainId],
       });
 
       expect(result).toMatchObject({
@@ -680,6 +679,7 @@ describe('assetsUtil', () => {
         nativeCurrency: testNativeCurrency,
         tokenAddresses: tokenAddresses as Hex[],
         chainId: testChainId,
+        supportedChainIds: [testChainId],
       });
 
       const numBatches = Math.ceil(
@@ -721,6 +721,7 @@ describe('assetsUtil', () => {
         nativeCurrency: testNativeCurrency,
         tokenAddresses: tokenAddresses as Hex[],
         chainId: testChainId,
+        supportedChainIds: [testChainId],
       });
 
       // Expect batches in ascending order
@@ -774,8 +775,8 @@ function buildAddress(number: number) {
  */
 function createMockPriceService(): AbstractTokenPricesService {
   return {
-    validateChainIdSupported(_chainId: unknown): _chainId is Hex {
-      return true;
+    async fetchSupportedChainIds() {
+      return [];
     },
     validateCurrencySupported(_currency: unknown): _currency is string {
       return true;
