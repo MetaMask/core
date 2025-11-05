@@ -70,50 +70,38 @@ function getTokenSearchURL(chainIds: CaipChainId[], query: string, limit = 10) {
 /**
  * Get the trending tokens URL for the given networks and search query.
  *
- * @param chainIds - Array of CAIP format chain IDs (e.g., ['eip155:1', 'eip155:137', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp']).
- * @param sortBy - The sort by field.
- * @param minLiquidity - The minimum liquidity.
- * @param minVolume24hUsd - The minimum volume 24h in USD.
- * @param maxVolume24hUsd - The maximum volume 24h in USD.
- * @param minMarketCap - The minimum market cap.
- * @param maxMarketCap - The maximum market cap.
+ * @param options - Options for getting trending tokens.
+ * @param options.chainIds - Array of CAIP format chain IDs (e.g., ['eip155:1', 'eip155:137', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp']).
+ * @param options.sortBy - The sort by field.
+ * @param options.minLiquidity - The minimum liquidity.
+ * @param options.minVolume24hUsd - The minimum volume 24h in USD.
+ * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
+ * @param options.minMarketCap - The minimum market cap.
+ * @param options.maxMarketCap - The maximum market cap.
  * @returns The trending tokens URL.
  */
-function getTrendingTokensURL(
-  chainIds: CaipChainId[],
-  sortBy?: SortTrendingBy,
-  minLiquidity?: number,
-  minVolume24hUsd?: number,
-  maxVolume24hUsd?: number,
-  minMarketCap?: number,
-  maxMarketCap?: number,
-) {
-  const encodedChainIds = chainIds
+function getTrendingTokensURL(options: {
+  chainIds: CaipChainId[];
+  sortBy?: SortTrendingBy;
+  minLiquidity?: number;
+  minVolume24hUsd?: number;
+  maxVolume24hUsd?: number;
+  minMarketCap?: number;
+  maxMarketCap?: number;
+}): string {
+  const encodedChainIds = options.chainIds
     .map((id) => encodeURIComponent(id))
     .join(',');
   // Add the rest of query params if they are defined
   const queryParams = new URLSearchParams();
-  if (sortBy) {
-    queryParams.append('sortBy', sortBy);
-  }
-  if (minLiquidity !== undefined) {
-    queryParams.append('minLiquidity', minLiquidity.toString());
-  }
-  if (minVolume24hUsd !== undefined) {
-    queryParams.append('minVolume24hUsd', minVolume24hUsd.toString());
-  }
-  if (maxVolume24hUsd !== undefined) {
-    queryParams.append('maxVolume24hUsd', maxVolume24hUsd.toString());
-  }
-  if (minMarketCap !== undefined) {
-    queryParams.append('minMarketCap', minMarketCap.toString());
-  }
-  if (maxMarketCap !== undefined) {
-    queryParams.append('maxMarketCap', maxMarketCap.toString());
-  }
-  const additionalParams = queryParams.toString();
+  const { chainIds, ...rest } = options;
+  Object.entries(rest).forEach(([key, value]) => {
+    if (value !== undefined) {
+      queryParams.append(key, String(value));
+    }
+  });
 
-  return `${TOKEN_END_POINT_API}/v3/tokens/trending?chainIds=${encodedChainIds}${additionalParams ? `&${additionalParams}` : ''}`;
+  return `${TOKEN_END_POINT_API}/v3/tokens/trending?chainIds=${encodedChainIds}${queryParams.toString() ? `&${queryParams.toString()}` : ''}`;
 }
 
 const tenSecondsInMilliseconds = 10_000;
@@ -250,7 +238,7 @@ export async function getTrendingTokens({
     return [];
   }
 
-  const trendingTokensURL = getTrendingTokensURL(
+  const trendingTokensURL = getTrendingTokensURL({
     chainIds,
     sortBy,
     minLiquidity,
@@ -258,7 +246,7 @@ export async function getTrendingTokens({
     maxVolume24hUsd,
     minMarketCap,
     maxMarketCap,
-  );
+  });
 
   try {
     const result = await handleFetch(trendingTokensURL);
