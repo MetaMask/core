@@ -1,3 +1,4 @@
+import 'isomorphic-fetch';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   Messenger,
@@ -7,33 +8,19 @@ import {
   type MessengerEvents,
 } from '@metamask/messenger';
 import {
-  OnRampSdk,
-  Environment,
+  NativeRampsSdk,
   Context,
-  RegionsService,
-  OrdersService,
-} from '@consensys/on-ramp-sdk';
-import { RampsController, getSdkEnvironment } from './RampsController';
+  SdkEnvironment,
+  type NativeRampsSdkConfig,
+} from '@consensys/native-ramps-sdk';
+import { RampsController } from './RampsController';
 import type { RampsControllerMessenger } from './RampsController';
 
-import { flushPromises } from '../../../tests/helpers';
-
-// Mock the OnRampSdk
-jest.mock('@consensys/on-ramp-sdk', () => ({
-  OnRampSdk: {
-    create: jest.fn(),
-  },
-  Environment: {
-    Production: 'production',
-    Staging: 'staging',
-  },
-  Context: {
-    Browser: 'browser',
-    Mobile: 'mobile',
-  },
-  RegionsService: jest.fn(),
-  OrdersService: jest.fn(),
-}));
+// Ensure fetch is available
+if (typeof global.fetch === 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  global.fetch = require('isomorphic-fetch');
+}
 
 // Mock the NativeRampsSdk
 jest.mock('@consensys/native-ramps-sdk', () => {
@@ -43,32 +30,6 @@ jest.mock('@consensys/native-ramps-sdk', () => {
     clearAccessToken: jest.fn(),
     getVersion: jest.fn().mockReturnValue('1.0.0'),
     getContext: jest.fn().mockReturnValue('browser'),
-    sendUserOtp: jest.fn(),
-    verifyUserOtp: jest.fn(),
-    getUserDetails: jest.fn(),
-    getBuyQuote: jest.fn(),
-    getIdProofStatus: jest.fn(),
-    getKycRequirement: jest.fn(),
-    getAdditionalRequirements: jest.fn(),
-    patchUser: jest.fn(),
-    submitPurposeOfUsageForm: jest.fn(),
-    submitSsnDetails: jest.fn(),
-    cancelOrder: jest.fn(),
-    cancelAllActiveOrders: jest.fn(),
-    createOrder: jest.fn(),
-    confirmPayment: jest.fn(),
-    getOrder: jest.fn(),
-    getUserLimits: jest.fn(),
-    requestOtt: jest.fn(),
-    getGeolocation: jest.fn(),
-    generatePaymentWidgetUrl: jest.fn(),
-    getActiveOrders: jest.fn(),
-    getOrdersHistory: jest.fn(),
-    logout: jest.fn(),
-    getCountries: jest.fn(),
-    getCryptoCurrencies: jest.fn(),
-    getPaymentMethods: jest.fn(),
-    getTransalation: jest.fn(),
   };
   const NativeRampsSdk = jest.fn().mockImplementation(() => mockInstance);
   const Context = {
@@ -91,71 +52,17 @@ jest.mock('@consensys/native-ramps-sdk', () => {
 });
 
 describe('RampsController', () => {
-  let mockOnRampSdk: jest.Mocked<typeof OnRampSdk>;
-  let mockRegionsService: jest.Mocked<RegionsService>;
-  let mockOrdersService: jest.Mocked<OrdersService>;
+  let mockFetch: jest.MockedFunction<typeof fetch>;
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Create mock services
-    mockRegionsService = {
-      getCountries: jest.fn(),
-      getSellCountries: jest.fn(),
-      getPaymentMethods: jest.fn(),
-      getPaymentMethodsForCrypto: jest.fn(),
-      getSellPaymentMethods: jest.fn(),
-      getSellPaymentMethodsForCrypto: jest.fn(),
-      getCryptoCurrencies: jest.fn(),
-      getSellCryptoCurrencies: jest.fn(),
-      getCryptoCurrency: jest.fn(),
-      getFiatCurrencies: jest.fn(),
-      getSellFiatCurrencies: jest.fn(),
-      getFiatCurrency: jest.fn(),
-      getAllFiatCurrencies: jest.fn(),
-      getAllCryptoCurrencies: jest.fn(),
-      getNetworkDetails: jest.fn(),
-      getLimits: jest.fn(),
-      getSellLimits: jest.fn(),
-      getQuotes: jest.fn(),
-      getSellQuotes: jest.fn(),
-    } as any;
-
-    mockOrdersService = {
-      getOrderIdFromCallback: jest.fn(),
-      getOrderFromCallback: jest.fn(),
-      getSellOrderFromCallback: jest.fn(),
-      getOrder: jest.fn(),
-      getSellOrder: jest.fn(),
-      submitApplePayOrder: jest.fn(),
-      getProvider: jest.fn(),
-      getRecurringOrders: jest.fn(),
-      addRedirectionListener: jest.fn(),
-    } as any;
-
-    // Mock OnRampSdk.create to return a mock SDK
-    mockOnRampSdk = OnRampSdk as jest.Mocked<typeof OnRampSdk>;
-    const mockSdk = {
-      regions: jest.fn().mockResolvedValue(mockRegionsService),
-      orders: jest.fn().mockResolvedValue(mockOrdersService),
-    };
-    mockOnRampSdk.create.mockReturnValue(mockSdk as any);
+    mockFetch = jest.spyOn(global, 'fetch') as jest.MockedFunction<
+      typeof fetch
+    >;
   });
 
-  describe('getSdkEnvironment', () => {
-    it('returns Production environment for production, beta, rc', () => {
-      expect(getSdkEnvironment('production')).toBe(Environment.Production);
-      expect(getSdkEnvironment('beta')).toBe(Environment.Production);
-      expect(getSdkEnvironment('rc')).toBe(Environment.Production);
-    });
-
-    it('returns Staging environment for dev, exp, test, e2e, and default', () => {
-      expect(getSdkEnvironment('dev')).toBe(Environment.Staging);
-      expect(getSdkEnvironment('exp')).toBe(Environment.Staging);
-      expect(getSdkEnvironment('test')).toBe(Environment.Staging);
-      expect(getSdkEnvironment('e2e')).toBe(Environment.Staging);
-      expect(getSdkEnvironment('unknown')).toBe(Environment.Staging);
-    });
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('constructor', () => {
@@ -164,6 +71,7 @@ describe('RampsController', () => {
         expect(controller.state).toStrictEqual({
           metamaskEnvironment: 'staging',
           context: 'browser',
+          region: null,
         });
       });
     });
@@ -171,7 +79,13 @@ describe('RampsController', () => {
     it('initializes with custom state', async () => {
       const customState = {
         metamaskEnvironment: 'production',
-        context: 'mobile',
+        context: 'browser',
+        region: {
+          id: 'US',
+          deposit: true,
+          aggregator: false,
+          global: true,
+        },
       };
 
       await withController(
@@ -182,16 +96,16 @@ describe('RampsController', () => {
       );
     });
 
-    it('creates OnRampSdk with correct parameters', async () => {
+    it('creates NativeRampsSdk with correct parameters for staging environment', async () => {
       await withController(({ controller }) => {
-        expect(mockOnRampSdk.create).toHaveBeenCalledWith(
-          Environment.Staging,
-          Context.Browser,
+        expect(NativeRampsSdk).toHaveBeenCalledWith(
+          { context: Context.Browser },
+          SdkEnvironment.Staging,
         );
       });
     });
 
-    it('creates OnRampSdk with production environment when specified', async () => {
+    it('creates NativeRampsSdk with production environment when specified', async () => {
       const customState = {
         metamaskEnvironment: 'production',
         context: 'browser',
@@ -200,651 +114,317 @@ describe('RampsController', () => {
       await withController(
         { options: { state: customState } },
         ({ controller }) => {
-          expect(mockOnRampSdk.create).toHaveBeenCalledWith(
-            Environment.Production,
-            Context.Browser,
+          expect(NativeRampsSdk).toHaveBeenCalledWith(
+            { context: Context.Browser },
+            SdkEnvironment.Production,
           );
         },
       );
     });
 
-    it('creates OnRampSdk with mobile context when specified', async () => {
+    it('creates NativeRampsSdk with staging environment for dev, exp, test, e2e', async () => {
+      const environments = ['dev', 'exp', 'test', 'e2e'];
+
+      for (const env of environments) {
+        jest.clearAllMocks();
+        await withController(
+          { options: { state: { metamaskEnvironment: env } } },
+          ({ controller }) => {
+            expect(NativeRampsSdk).toHaveBeenCalledWith(
+              { context: Context.Browser },
+              SdkEnvironment.Staging,
+            );
+          },
+        );
+      }
+    });
+
+    it('creates NativeRampsSdk with production environment for beta and rc', async () => {
+      const environments = ['beta', 'rc'];
+
+      for (const env of environments) {
+        jest.clearAllMocks();
+        await withController(
+          { options: { state: { metamaskEnvironment: env } } },
+          ({ controller }) => {
+            expect(NativeRampsSdk).toHaveBeenCalledWith(
+              { context: Context.Browser },
+              SdkEnvironment.Production,
+            );
+          },
+        );
+      }
+    });
+
+    it('maps context string to Context enum correctly', async () => {
       const customState = {
         metamaskEnvironment: 'staging',
-        context: 'mobile',
+        context: 'browser',
       };
 
       await withController(
         { options: { state: customState } },
         ({ controller }) => {
-          expect(mockOnRampSdk.create).toHaveBeenCalledWith(
-            Environment.Staging,
-            Context.Mobile,
+          expect(NativeRampsSdk).toHaveBeenCalledWith(
+            { context: Context.Browser },
+            SdkEnvironment.Staging,
           );
         },
       );
     });
+
+    it('defaults to Browser context when context string does not match Context keys', async () => {
+      const customState = {
+        metamaskEnvironment: 'staging',
+        context: 'mobile-ios',
+      };
+
+      await withController(
+        { options: { state: customState } },
+        ({ controller }) => {
+          // The code uses context as a key, so 'mobile-ios' doesn't match any key
+          // and defaults to Browser
+          expect(NativeRampsSdk).toHaveBeenCalledWith(
+            { context: Context.Browser },
+            SdkEnvironment.Staging,
+          );
+        },
+      );
+    });
+
   });
 
-  describe('RegionsService wrapper methods', () => {
-    beforeEach(async () => {
-      await withController(({ controller }) => {
-        // Ensure services are initialized
-        expect(controller).toBeDefined();
-      });
-    });
+  describe('getCountries', () => {
+    it('fetches geolocation and countries, then updates state', async () => {
+      const mockGeolocation = 'US';
+      const mockCountriesData = {
+        deposit: true,
+        aggregator: false,
+        global: true,
+      };
 
-    describe('getCountries', () => {
-      it('calls regions service getCountries method', async () => {
-        const mockCountries = [
-          { id: 'US', name: 'United States', code: 'US' },
-          { id: 'CA', name: 'Canada', code: 'CA' },
-        ];
-        mockRegionsService.getCountries.mockResolvedValue(mockCountries as any);
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockGeolocation,
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockCountriesData,
+        } as Response);
 
-        await withController(async ({ controller }) => {
-          const result = await controller.getCountries();
-          expect(result).toStrictEqual(mockCountries);
-          expect(mockRegionsService.getCountries).toHaveBeenCalledTimes(1);
+      await withController(async ({ controller }) => {
+        await controller.getCountries();
+
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+        expect(mockFetch).toHaveBeenNthCalledWith(
+          1,
+          'http://localhost:3000//geolocation',
+        );
+        expect(mockFetch).toHaveBeenNthCalledWith(
+          2,
+          'http://localhost:3000/regions/US/countries',
+        );
+
+        expect(controller.state.region).toStrictEqual({
+          id: mockGeolocation,
+          deposit: mockCountriesData.deposit,
+          aggregator: mockCountriesData.aggregator,
+          global: mockCountriesData.global,
         });
       });
     });
 
-    describe('getSellCountries', () => {
-      it('calls regions service getSellCountries method', async () => {
-        const mockCountries = [
-          { id: 'US', name: 'United States', code: 'US' },
-        ];
-        mockRegionsService.getSellCountries.mockResolvedValue(mockCountries as any);
+    it('uses production API URL when metamaskEnvironment matches SdkEnvironment.Production', async () => {
+      const mockGeolocation = 'CA';
+      const mockCountriesData = {
+        deposit: true,
+        aggregator: true,
+        global: false,
+      };
 
-        await withController(async ({ controller }) => {
-          const result = await controller.getSellCountries();
-          expect(result).toStrictEqual(mockCountries);
-          expect(mockRegionsService.getSellCountries).toHaveBeenCalledTimes(1);
-        });
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockGeolocation,
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockCountriesData,
+        } as Response);
+
+      await withController(
+        {
+          options: {
+            state: { metamaskEnvironment: SdkEnvironment.Production, context: 'browser' },
+          },
+        },
+        async ({ controller }) => {
+          await controller.getCountries();
+
+          expect(mockFetch).toHaveBeenNthCalledWith(
+            1,
+            'https://on-ramp.api.cx.metamask.io//geolocation',
+          );
+          expect(mockFetch).toHaveBeenNthCalledWith(
+            2,
+            'https://on-ramp.api.cx.metamask.io/regions/CA/countries',
+          );
+        },
+      );
+    });
+
+    it('uses staging API URL when metamaskEnvironment matches SdkEnvironment.Staging', async () => {
+      const mockGeolocation = 'GB';
+      const mockCountriesData = {
+        deposit: false,
+        aggregator: true,
+        global: true,
+      };
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockGeolocation,
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockCountriesData,
+        } as Response);
+
+      await withController(
+        {
+          options: {
+            state: { metamaskEnvironment: SdkEnvironment.Staging, context: 'browser' },
+          },
+        },
+        async ({ controller }) => {
+          await controller.getCountries();
+
+          expect(mockFetch).toHaveBeenNthCalledWith(
+            1,
+            'https://on-ramp.uat-api.cx.metamask.io//geolocation',
+          );
+          expect(mockFetch).toHaveBeenNthCalledWith(
+            2,
+            'https://on-ramp.uat-api.cx.metamask.io/regions/GB/countries',
+          );
+        },
+      );
+    });
+
+    it('uses localhost API URL when metamaskEnvironment does not match enum values', async () => {
+      const mockGeolocation = 'DE';
+      const mockCountriesData = {
+        deposit: true,
+        aggregator: false,
+        global: false,
+      };
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockGeolocation,
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockCountriesData,
+        } as Response);
+
+      // Test with string values that don't match enum values
+      await withController(
+        {
+          options: {
+            state: { metamaskEnvironment: 'staging', context: 'browser' },
+          },
+        },
+        async ({ controller }) => {
+          await controller.getCountries();
+
+          expect(mockFetch).toHaveBeenNthCalledWith(
+            1,
+            'http://localhost:3000//geolocation',
+          );
+          expect(mockFetch).toHaveBeenNthCalledWith(
+            2,
+            'http://localhost:3000/regions/DE/countries',
+          );
+        },
+      );
+    });
+
+    it('handles geolocation fetch errors', async () => {
+      const error = new Error('Network error');
+      mockFetch.mockRejectedValueOnce(error);
+
+      await withController(async ({ controller }) => {
+        await expect(controller.getCountries()).rejects.toThrow('Network error');
       });
     });
 
-    describe('getPaymentMethods', () => {
-      it('calls regions service getPaymentMethods method', async () => {
-        const mockPaymentMethods = [
-          { id: 'card', name: 'Credit Card' },
-          { id: 'bank', name: 'Bank Transfer' },
-        ];
-        mockRegionsService.getPaymentMethods.mockResolvedValue(mockPaymentMethods as any);
+    it('handles countries fetch errors', async () => {
+      const mockGeolocation = 'US';
+      const error = new Error('Countries fetch failed');
 
-        await withController(async ({ controller }) => {
-          const result = await controller.getPaymentMethods('US');
-          expect(result).toStrictEqual(mockPaymentMethods);
-          expect(mockRegionsService.getPaymentMethods).toHaveBeenCalledWith('US', undefined);
-        });
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockGeolocation,
+        } as Response)
+        .mockRejectedValueOnce(error);
+
+      await withController(async ({ controller }) => {
+        await expect(controller.getCountries()).rejects.toThrow(
+          'Countries fetch failed',
+        );
       });
     });
 
-    describe('getPaymentMethodsForCrypto', () => {
-      it('calls regions service getPaymentMethodsForCrypto method', async () => {
-        const mockPaymentMethods = [
-          { id: 'card', name: 'Credit Card' },
-        ];
-        mockRegionsService.getPaymentMethodsForCrypto.mockResolvedValue(mockPaymentMethods as any);
+    it('handles non-ok geolocation response', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({}),
+      } as Response);
 
-        await withController(async ({ controller }) => {
-          const result = await controller.getPaymentMethodsForCrypto('US', 'ETH', 'USD');
-          expect(result).toStrictEqual(mockPaymentMethods);
-          expect(mockRegionsService.getPaymentMethodsForCrypto).toHaveBeenCalledWith('US', 'ETH', 'USD', undefined);
-        });
-      });
-    });
-
-    describe('getSellPaymentMethods', () => {
-      it('calls regions service getSellPaymentMethods method', async () => {
-        const mockPaymentMethods = [
-          { id: 'bank', name: 'Bank Transfer' },
-        ];
-        mockRegionsService.getSellPaymentMethods.mockResolvedValue(mockPaymentMethods as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getSellPaymentMethods('US');
-          expect(result).toStrictEqual(mockPaymentMethods);
-          expect(mockRegionsService.getSellPaymentMethods).toHaveBeenCalledWith('US', undefined);
-        });
-      });
-    });
-
-    describe('getSellPaymentMethodsForCrypto', () => {
-      it('calls regions service getSellPaymentMethodsForCrypto method', async () => {
-        const mockPaymentMethods = [
-          { id: 'bank', name: 'Bank Transfer' },
-        ];
-        mockRegionsService.getSellPaymentMethodsForCrypto.mockResolvedValue(mockPaymentMethods as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getSellPaymentMethodsForCrypto('US', 'ETH', 'USD');
-          expect(result).toStrictEqual(mockPaymentMethods);
-          expect(mockRegionsService.getSellPaymentMethodsForCrypto).toHaveBeenCalledWith('US', 'ETH', 'USD', undefined);
-        });
-      });
-    });
-
-    describe('getCryptoCurrencies', () => {
-      it('calls regions service getCryptoCurrencies method', async () => {
-        const mockCryptoCurrencies = [
-          { id: 'ETH', name: 'Ethereum', symbol: 'ETH' },
-          { id: 'BTC', name: 'Bitcoin', symbol: 'BTC' },
-        ];
-        mockRegionsService.getCryptoCurrencies.mockResolvedValue(mockCryptoCurrencies as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getCryptoCurrencies('US', ['card', 'bank']);
-          expect(result).toStrictEqual(mockCryptoCurrencies);
-          expect(mockRegionsService.getCryptoCurrencies).toHaveBeenCalledWith('US', ['card', 'bank'], undefined, undefined);
-        });
-      });
-    });
-
-    describe('getSellCryptoCurrencies', () => {
-      it('calls regions service getSellCryptoCurrencies method', async () => {
-        const mockCryptoCurrencies = [
-          { id: 'ETH', name: 'Ethereum', symbol: 'ETH' },
-        ];
-        mockRegionsService.getSellCryptoCurrencies.mockResolvedValue(mockCryptoCurrencies as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getSellCryptoCurrencies('US', ['bank']);
-          expect(result).toStrictEqual(mockCryptoCurrencies);
-          expect(mockRegionsService.getSellCryptoCurrencies).toHaveBeenCalledWith('US', ['bank'], undefined, undefined);
-        });
-      });
-    });
-
-    describe('getCryptoCurrency', () => {
-      it('calls regions service getCryptoCurrency method', async () => {
-        const mockCryptoCurrency = { id: 'ETH', name: 'Ethereum', symbol: 'ETH' };
-        mockRegionsService.getCryptoCurrency.mockResolvedValue(mockCryptoCurrency as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getCryptoCurrency('US', 'ETH');
-          expect(result).toStrictEqual(mockCryptoCurrency);
-          expect(mockRegionsService.getCryptoCurrency).toHaveBeenCalledWith('US', 'ETH');
-        });
-      });
-    });
-
-    describe('getFiatCurrencies', () => {
-      it('calls regions service getFiatCurrencies method', async () => {
-        const mockFiatCurrencies = [
-          { id: 'USD', name: 'US Dollar', symbol: 'USD' },
-          { id: 'EUR', name: 'Euro', symbol: 'EUR' },
-        ];
-        mockRegionsService.getFiatCurrencies.mockResolvedValue(mockFiatCurrencies as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getFiatCurrencies('US', ['card']);
-          expect(result).toStrictEqual(mockFiatCurrencies);
-          expect(mockRegionsService.getFiatCurrencies).toHaveBeenCalledWith('US', ['card'], undefined);
-        });
-      });
-    });
-
-    describe('getSellFiatCurrencies', () => {
-      it('calls regions service getSellFiatCurrencies method', async () => {
-        const mockFiatCurrencies = [
-          { id: 'USD', name: 'US Dollar', symbol: 'USD' },
-        ];
-        mockRegionsService.getSellFiatCurrencies.mockResolvedValue(mockFiatCurrencies as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getSellFiatCurrencies('US', ['bank']);
-          expect(result).toStrictEqual(mockFiatCurrencies);
-          expect(mockRegionsService.getSellFiatCurrencies).toHaveBeenCalledWith('US', ['bank'], undefined);
-        });
-      });
-    });
-
-    describe('getFiatCurrency', () => {
-      it('calls regions service getFiatCurrency method', async () => {
-        const mockFiatCurrency = { id: 'USD', name: 'US Dollar', symbol: 'USD' };
-        mockRegionsService.getFiatCurrency.mockResolvedValue(mockFiatCurrency as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getFiatCurrency('US', 'USD');
-          expect(result).toStrictEqual(mockFiatCurrency);
-          expect(mockRegionsService.getFiatCurrency).toHaveBeenCalledWith('US', 'USD');
-        });
-      });
-    });
-
-    describe('getAllFiatCurrencies', () => {
-      it('calls regions service getAllFiatCurrencies method', async () => {
-        const mockFiatCurrencies = [
-          { id: 'USD', name: 'US Dollar', symbol: 'USD' },
-          { id: 'EUR', name: 'Euro', symbol: 'EUR' },
-        ];
-        mockRegionsService.getAllFiatCurrencies.mockResolvedValue(mockFiatCurrencies as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getAllFiatCurrencies('US');
-          expect(result).toStrictEqual(mockFiatCurrencies);
-          expect(mockRegionsService.getAllFiatCurrencies).toHaveBeenCalledWith('US', undefined);
-        });
-      });
-    });
-
-    describe('getAllCryptoCurrencies', () => {
-      it('calls regions service getAllCryptoCurrencies method', async () => {
-        const mockCryptoCurrencies = [
-          { id: 'ETH', name: 'Ethereum', symbol: 'ETH' },
-          { id: 'BTC', name: 'Bitcoin', symbol: 'BTC' },
-        ];
-        mockRegionsService.getAllCryptoCurrencies.mockResolvedValue(mockCryptoCurrencies as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getAllCryptoCurrencies('US');
-          expect(result).toStrictEqual(mockCryptoCurrencies);
-          expect(mockRegionsService.getAllCryptoCurrencies).toHaveBeenCalledWith('US', undefined);
-        });
-      });
-    });
-
-    describe('getNetworkDetails', () => {
-      it('calls regions service getNetworkDetails method', async () => {
-        const mockNetworkDetails = [
-          { id: 'ethereum', name: 'Ethereum Mainnet' },
-        ];
-        mockRegionsService.getNetworkDetails.mockResolvedValue(mockNetworkDetails as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getNetworkDetails();
-          expect(result).toStrictEqual(mockNetworkDetails);
-          expect(mockRegionsService.getNetworkDetails).toHaveBeenCalledTimes(1);
-        });
-      });
-    });
-
-    describe('getLimits', () => {
-      it('calls regions service getLimits method', async () => {
-        const mockLimits = {
-          min: 10,
-          max: 10000,
-        };
-        mockRegionsService.getLimits.mockResolvedValue(mockLimits as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getLimits('US', ['card'], 'ETH', 'USD');
-          expect(result).toStrictEqual(mockLimits);
-          expect(mockRegionsService.getLimits).toHaveBeenCalledWith('US', ['card'], 'ETH', 'USD', undefined);
-        });
-      });
-    });
-
-    describe('getSellLimits', () => {
-      it('calls regions service getSellLimits method', async () => {
-        const mockLimits = {
-          min: 10,
-          max: 10000,
-        };
-        mockRegionsService.getSellLimits.mockResolvedValue(mockLimits as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getSellLimits('US', ['bank'], 'ETH', 'USD');
-          expect(result).toStrictEqual(mockLimits);
-          expect(mockRegionsService.getSellLimits).toHaveBeenCalledWith('US', ['bank'], 'ETH', 'USD');
-        });
-      });
-    });
-
-    describe('getQuotes', () => {
-      it('calls regions service getQuotes method', async () => {
-        const mockQuotes = {
-          quotes: [
-            { provider: 'provider1', amount: 100 },
-            { provider: 'provider2', amount: 95 },
-          ],
-        };
-        mockRegionsService.getQuotes.mockResolvedValue(mockQuotes as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getQuotes('US', ['card'], 'ETH', 'USD', 100);
-          expect(result).toStrictEqual(mockQuotes);
-          expect(mockRegionsService.getQuotes).toHaveBeenCalledWith('US', ['card'], 'ETH', 'USD', 100, undefined, undefined);
-        });
-      });
-    });
-
-    describe('getSellQuotes', () => {
-      it('calls regions service getSellQuotes method', async () => {
-        const mockQuotes = {
-          quotes: [
-            { provider: 'provider1', amount: 100 },
-            { provider: 'provider2', amount: 95 },
-          ],
-        };
-        mockRegionsService.getSellQuotes.mockResolvedValue(mockQuotes as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getSellQuotes('US', ['bank'], 'ETH', 'USD', 100);
-          expect(result).toStrictEqual(mockQuotes);
-          expect(mockRegionsService.getSellQuotes).toHaveBeenCalledWith('US', ['bank'], 'ETH', 'USD', 100, undefined, undefined);
-        });
-      });
-    });
-  });
-
-  describe('OrdersService wrapper methods', () => {
-    beforeEach(async () => {
-      await withController(({ controller }) => {
-        // Ensure services are initialized
-        expect(controller).toBeDefined();
-      });
-    });
-
-    describe('getOrderIdFromCallback', () => {
-      it('calls orders service getOrderIdFromCallback method', async () => {
-        const mockOrderId = 'order-123';
-        mockOrdersService.getOrderIdFromCallback.mockResolvedValue(mockOrderId);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getOrderIdFromCallback('provider1', 'https://callback.url');
-          expect(result).toBe(mockOrderId);
-          expect(mockOrdersService.getOrderIdFromCallback).toHaveBeenCalledWith('provider1', 'https://callback.url');
-        });
-      });
-    });
-
-    describe('getOrderFromCallback', () => {
-      it('calls orders service getOrderFromCallback method', async () => {
-        const mockOrder = { id: 'order-123', status: 'pending' };
-        mockOrdersService.getOrderFromCallback.mockResolvedValue(mockOrder as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getOrderFromCallback('provider1', 'https://callback.url', '0x123');
-          expect(result).toStrictEqual(mockOrder);
-          expect(mockOrdersService.getOrderFromCallback).toHaveBeenCalledWith('provider1', 'https://callback.url', '0x123');
-        });
-      });
-    });
-
-    describe('getSellOrderFromCallback', () => {
-      it('calls orders service getSellOrderFromCallback method', async () => {
-        const mockOrder = { id: 'order-123', status: 'pending' };
-        mockOrdersService.getSellOrderFromCallback.mockResolvedValue(mockOrder as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getSellOrderFromCallback('provider1', 'https://callback.url', '0x123');
-          expect(result).toStrictEqual(mockOrder);
-          expect(mockOrdersService.getSellOrderFromCallback).toHaveBeenCalledWith('provider1', 'https://callback.url', '0x123');
-        });
-      });
-    });
-
-    describe('getOrder', () => {
-      it('calls orders service getOrder method', async () => {
-        const mockOrder = { id: 'order-123', status: 'completed' };
-        mockOrdersService.getOrder.mockResolvedValue(mockOrder as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getOrder('order-123', '0x123');
-          expect(result).toStrictEqual(mockOrder);
-          expect(mockOrdersService.getOrder).toHaveBeenCalledWith('order-123', '0x123');
-        });
-      });
-    });
-
-    describe('getSellOrder', () => {
-      it('calls orders service getSellOrder method', async () => {
-        const mockOrder = { id: 'order-123', status: 'completed' };
-        mockOrdersService.getSellOrder.mockResolvedValue(mockOrder as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getSellOrder('order-123', '0x123');
-          expect(result).toStrictEqual(mockOrder);
-          expect(mockOrdersService.getSellOrder).toHaveBeenCalledWith('order-123', '0x123');
-        });
-      });
-    });
-
-    describe('submitApplePayOrder', () => {
-      it('calls orders service submitApplePayOrder method', async () => {
-        const mockResult = { success: true, orderId: 'order-123' };
-        mockOrdersService.submitApplePayOrder.mockResolvedValue(mockResult as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.submitApplePayOrder('0x123', 'provider1', { paymentData: 'test' });
-          expect(result).toStrictEqual(mockResult);
-          expect(mockOrdersService.submitApplePayOrder).toHaveBeenCalledWith('0x123', 'provider1', { paymentData: 'test' });
-        });
-      });
-    });
-
-    describe('getProvider', () => {
-      it('calls orders service getProvider method', async () => {
-        const mockProvider = { id: 'provider1', name: 'Test Provider' };
-        mockOrdersService.getProvider.mockResolvedValue(mockProvider as any);
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getProvider('provider1');
-          expect(result).toStrictEqual(mockProvider);
-          expect(mockOrdersService.getProvider).toHaveBeenCalledWith('provider1');
-        });
-      });
-    });
-
-    describe('getRecurringOrders', () => {
-      it('calls orders service getRecurringOrders method', async () => {
-        const mockOrders = [
-          { id: 'order-1', status: 'completed' },
-          { id: 'order-2', status: 'pending' },
-        ];
-        mockOrdersService.getRecurringOrders.mockResolvedValue(mockOrders as any);
-
-        const startDate = new Date('2024-01-01');
-        const endDate = new Date('2024-01-31');
-
-        await withController(async ({ controller }) => {
-          const result = await controller.getRecurringOrders('order-123', '0x123', startDate, endDate);
-          expect(result).toStrictEqual(mockOrders);
-          expect(mockOrdersService.getRecurringOrders).toHaveBeenCalledWith('order-123', '0x123', startDate, endDate);
-        });
-      });
-    });
-
-    describe('addRedirectionListener', () => {
-      it('calls orders service addRedirectionListener method', async () => {
-        const mockCallback = jest.fn();
-        mockOrdersService.addRedirectionListener.mockImplementation(mockCallback);
-
-        await withController(async ({ controller }) => {
-          controller.addRedirectionListener(mockCallback);
-          await flushPromises();
-          expect(mockOrdersService.addRedirectionListener).toHaveBeenCalledWith(mockCallback);
-        });
+      await withController(async ({ controller }) => {
+        // Note: fetch doesn't throw on non-ok responses by default,
+        // so we need to check if the implementation handles this
+        // For now, we'll test that it doesn't crash
+        await expect(controller.getCountries()).rejects.toThrow();
       });
     });
   });
 
   describe('messenger action handlers', () => {
-    it('registers all action handlers', async () => {
-      await withController(async ({ rootMessenger }) => {
-        // Test that the controller's action handlers are properly registered
-        // by calling them through the messenger
-        mockRegionsService.getCountries.mockResolvedValue([]);
-        mockRegionsService.getPaymentMethods.mockResolvedValue([]);
-        mockOrdersService.getOrder.mockResolvedValue({} as any);
+    it('registers getCountries action handler', async () => {
+      const mockGeolocation = 'US';
+      const mockCountriesData = {
+        deposit: true,
+        aggregator: false,
+        global: true,
+      };
 
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockGeolocation,
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockCountriesData,
+        } as Response);
+
+      await withController(async ({ rootMessenger, controller }) => {
         await rootMessenger.call('RampsController:getCountries');
-        await rootMessenger.call('RampsController:getPaymentMethods', 'US');
-        await rootMessenger.call('RampsController:getOrder', 'order-123', '0x123');
 
-        expect(mockRegionsService.getCountries).toHaveBeenCalledTimes(1);
-        expect(mockRegionsService.getPaymentMethods).toHaveBeenCalledWith('US', undefined);
-        expect(mockOrdersService.getOrder).toHaveBeenCalledWith('order-123', '0x123');
+        expect(controller.state.region).toStrictEqual({
+          id: mockGeolocation,
+          deposit: mockCountriesData.deposit,
+          aggregator: mockCountriesData.aggregator,
+          global: mockCountriesData.global,
+        });
       });
-    });
-  });
-
-  describe('NativeRampsSdk deposit wrappers', () => {
-    const getNative = () =>
-      (jest.requireMock('@consensys/native-ramps-sdk') as any).__getMockInstance();
-
-    it('calls deposit access token helpers', async () => {
-      await withController(async ({ controller }) => {
-        const native = getNative();
-        controller.depositSetAccessToken({ accessToken: 'tok', ttl: 1, created: new Date() } as any);
-        expect(native.setAccessToken).toHaveBeenCalled();
-        controller.depositSetAccessToken(null);
-        expect(native.clearAccessToken).toHaveBeenCalled();
-        controller.depositClearAccessToken();
-        expect(native.clearAccessToken).toHaveBeenCalledTimes(2);
-        controller.depositGetAccessToken();
-        expect(native.getAccessToken).toHaveBeenCalled();
-        controller.depositGetVersion();
-        expect(native.getVersion).toHaveBeenCalled();
-        controller.depositGetContext();
-        expect(native.getContext).toHaveBeenCalled();
-      });
-    });
-
-    it('calls deposit auth and user methods', async () => {
-      await withController(async ({ controller }) => {
-        const native = getNative();
-        native.sendUserOtp.mockResolvedValue({ isTncAccepted: false, stateToken: 'st', email: 'e', expiresIn: 1 });
-        await controller.depositSendUserOtp('a@b.com');
-        expect(native.sendUserOtp).toHaveBeenCalledWith('a@b.com');
-
-        native.verifyUserOtp.mockResolvedValue({ accessToken: 'x', ttl: 1, created: new Date() });
-        await controller.depositVerifyUserOtp('a@b.com', '123456', 'state');
-        expect(native.verifyUserOtp).toHaveBeenCalledWith('a@b.com', '123456', 'state');
-
-        native.getUserDetails.mockResolvedValue({ id: 'u' });
-        await controller.depositGetUserDetails();
-        expect(native.getUserDetails).toHaveBeenCalled();
-
-        native.patchUser.mockResolvedValue({ ok: true });
-        await controller.depositPatchUser({ personalDetails: { firstName: 'a' } });
-        expect(native.patchUser).toHaveBeenCalled();
-      });
-    });
-
-    it('calls deposit quote/order methods', async () => {
-      await withController(async ({ controller }) => {
-        const native = getNative();
-        native.getBuyQuote.mockResolvedValue({ quoteId: 'q' });
-        await controller.depositGetBuyQuote('USD', 'eth', '1', 'card', '10');
-        expect(native.getBuyQuote).toHaveBeenCalledWith('USD', 'eth', '1', 'card', '10');
-
-        native.createOrder.mockResolvedValue({ id: 'o' });
-        await controller.depositCreateOrder({ quoteId: 'q' } as any, '0xabc', 'card');
-        expect(native.createOrder).toHaveBeenCalled();
-
-        native.confirmPayment.mockResolvedValue({ success: true });
-        await controller.depositConfirmPayment('order', 'card');
-        expect(native.confirmPayment).toHaveBeenCalledWith('order', 'card');
-
-        native.getOrder.mockResolvedValue({ id: 'o' });
-        await controller.depositGetOrder('order', '0xabc');
-        expect(native.getOrder).toHaveBeenCalledWith('order', '0xabc', undefined, undefined);
-
-        await controller.depositCancelOrder('order');
-        expect(native.cancelOrder).toHaveBeenCalledWith('order');
-
-        await controller.depositCancelAllActiveOrders();
-        expect(native.cancelAllActiveOrders).toHaveBeenCalled();
-      });
-    });
-
-    it('calls deposit misc and regions methods', async () => {
-      await withController(async ({ controller }) => {
-        const native = getNative();
-        native.getUserLimits.mockResolvedValue({ limits: {} } as any);
-        await controller.depositGetUserLimits('USD', 'card', 'BASIC');
-        expect(native.getUserLimits).toHaveBeenCalledWith('USD', 'card', 'BASIC');
-
-        native.requestOtt.mockResolvedValue({ ott: 'ott' });
-        await controller.depositRequestOtt();
-        expect(native.requestOtt).toHaveBeenCalled();
-
-        native.getGeolocation.mockResolvedValue({ ipCountryCode: 'US' });
-        await controller.depositGetGeolocation();
-        expect(native.getGeolocation).toHaveBeenCalled();
-
-        native.generatePaymentWidgetUrl.mockReturnValue('https://widget');
-        controller.depositGeneratePaymentWidgetUrl('ott', { quoteId: 'q' } as any, '0xabc');
-        expect(native.generatePaymentWidgetUrl).toHaveBeenCalled();
-
-        native.getActiveOrders.mockResolvedValue([]);
-        await controller.depositGetActiveOrders();
-        expect(native.getActiveOrders).toHaveBeenCalled();
-
-        native.getOrdersHistory.mockResolvedValue([]);
-        await controller.depositGetOrdersHistory(10, 0);
-        expect(native.getOrdersHistory).toHaveBeenCalledWith(10, 0);
-
-        native.logout.mockResolvedValue('ok');
-        await controller.depositLogout();
-        expect(native.logout).toHaveBeenCalled();
-
-        native.getCountries.mockResolvedValue([]);
-        await controller.depositGetCountries();
-        expect(native.getCountries).toHaveBeenCalledWith(undefined);
-
-        native.getCryptoCurrencies.mockResolvedValue([]);
-        await controller.depositGetCryptoCurrencies('US');
-        expect(native.getCryptoCurrencies).toHaveBeenCalledWith('US', undefined);
-
-        native.getPaymentMethods.mockResolvedValue([]);
-        await controller.depositGetPaymentMethods('US', 'eth', 'usd');
-        expect(native.getPaymentMethods).toHaveBeenCalledWith('US', 'eth', 'usd', undefined);
-
-        native.getTransalation.mockResolvedValue({} as any);
-        await controller.depositGetTransalation({ regionId: 'US' } as any);
-        expect(native.getTransalation).toHaveBeenCalled();
-      });
-    });
-
-    it('registers and calls deposit methods via messenger', async () => {
-      await withController(async ({ rootMessenger }) => {
-        const native = getNative();
-        native.getCountries.mockResolvedValue([]);
-        await rootMessenger.call('RampsController:depositGetCountries');
-        expect(native.getCountries).toHaveBeenCalled();
-
-        native.sendUserOtp.mockResolvedValue({ isTncAccepted: false, stateToken: 'x', email: 'a', expiresIn: 1 });
-        await rootMessenger.call('RampsController:depositSendUserOtp', 'a@b.com');
-        expect(native.sendUserOtp).toHaveBeenCalledWith('a@b.com');
-      });
-    });
-  });
-
-  describe('error handling', () => {
-    it('handles regions service errors', async () => {
-      const error = new Error('Regions service error');
-      mockRegionsService.getCountries.mockRejectedValue(error);
-
-      await withController(async ({ controller }) => {
-        await expect(controller.getCountries()).rejects.toThrow('Regions service error');
-      });
-    });
-
-    it('handles orders service errors', async () => {
-      const error = new Error('Orders service error');
-      mockOrdersService.getOrder.mockRejectedValue(error);
-
-      await withController(async ({ controller }) => {
-        await expect(controller.getOrder('order-123', '0x123')).rejects.toThrow('Orders service error');
-      });
-    });
-
-    it('handles SDK initialization errors', async () => {
-      const error = new Error('SDK initialization error');
-      mockOnRampSdk.create.mockImplementation(() => {
-        throw error;
-      });
-
-      await expect(
-        withController(({ controller }) => {
-          expect(controller).toBeDefined();
-        }),
-      ).rejects.toThrow('SDK initialization error');
     });
   });
 
@@ -861,6 +441,7 @@ describe('RampsController', () => {
           Object {
             "context": "browser",
             "metamaskEnvironment": "staging",
+            "region": null,
           }
         `);
       });
@@ -878,6 +459,7 @@ describe('RampsController', () => {
           Object {
             "context": "browser",
             "metamaskEnvironment": "staging",
+            "region": null,
           }
         `);
       });
@@ -895,6 +477,7 @@ describe('RampsController', () => {
           Object {
             "context": "browser",
             "metamaskEnvironment": "staging",
+            "region": null,
           }
         `);
       });
@@ -912,9 +495,91 @@ describe('RampsController', () => {
           Object {
             "context": "browser",
             "metamaskEnvironment": "staging",
+            "region": null,
           }
         `);
       });
+    });
+  });
+
+  describe('state updates', () => {
+    it('updates region state when getCountries is called', async () => {
+      const mockGeolocation = 'FR';
+      const mockCountriesData = {
+        deposit: true,
+        aggregator: true,
+        global: true,
+      };
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockGeolocation,
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockCountriesData,
+        } as Response);
+
+      await withController(async ({ controller }) => {
+        expect(controller.state.region).toBeNull();
+
+        await controller.getCountries();
+
+        expect(controller.state.region).toStrictEqual({
+          id: mockGeolocation,
+          deposit: mockCountriesData.deposit,
+          aggregator: mockCountriesData.aggregator,
+          global: mockCountriesData.global,
+        });
+      });
+    });
+
+    it('overwrites existing region state when getCountries is called again', async () => {
+      const initialRegion = {
+        id: 'US',
+        deposit: false,
+        aggregator: false,
+        global: false,
+      };
+
+      const mockGeolocation = 'JP';
+      const mockCountriesData = {
+        deposit: true,
+        aggregator: true,
+        global: true,
+      };
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockGeolocation,
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockCountriesData,
+        } as Response);
+
+      await withController(
+        {
+          options: {
+            state: { region: initialRegion, context: 'browser' },
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.region).toStrictEqual(initialRegion);
+
+          await controller.getCountries();
+
+          expect(controller.state.region).toStrictEqual({
+            id: mockGeolocation,
+            deposit: mockCountriesData.deposit,
+            aggregator: mockCountriesData.aggregator,
+            global: mockCountriesData.global,
+          });
+          expect(controller.state.region).not.toStrictEqual(initialRegion);
+        },
+      );
     });
   });
 });
