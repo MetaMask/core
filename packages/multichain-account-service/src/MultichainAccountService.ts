@@ -6,7 +6,6 @@ import type {
   MultichainAccountWalletId,
   Bip44Account,
 } from '@metamask/account-api';
-import type { TraceCallback } from '@metamask/controller-utils';
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
@@ -74,8 +73,6 @@ export class MultichainAccountService {
     AccountContext<Bip44Account<KeyringAccount>>
   >;
 
-  readonly #trace: TraceCallback;
-
   /**
    * The name of the service.
    */
@@ -100,21 +97,24 @@ export class MultichainAccountService {
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
-    this.#trace = config?.trace ?? traceFallback;
+
+    // Pass trace callback directly to preserve original 'this' context
+    // This avoids binding the callback to the MultichainAccountService instance
+    const traceCallback = config?.trace ?? traceFallback;
 
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
       new EvmAccountProvider(
         this.#messenger,
         providerConfigs?.[EvmAccountProvider.NAME],
-        this.#trace.bind(this),
+        traceCallback,
       ),
       new AccountProviderWrapper(
         this.#messenger,
         new SolAccountProvider(
           this.#messenger,
           providerConfigs?.[SolAccountProvider.NAME],
-          this.#trace.bind(this),
+          traceCallback,
         ),
       ),
       // Custom account providers that can be provided by the MetaMask client.
