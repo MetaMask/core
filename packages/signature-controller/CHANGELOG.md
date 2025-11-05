@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [36.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/gator-permissions-controller` from `^0.3.0` to `^0.4.0` ([#7057](https://github.com/MetaMask/core/pull/7057))
+
 ## [35.0.0]
 
 ### Changed
@@ -604,7 +610,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@35.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@36.0.0...HEAD
+[36.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@35.0.0...@metamask/signature-controller@36.0.0
 [35.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@34.0.2...@metamask/signature-controller@35.0.0
 [34.0.2]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@34.0.1...@metamask/signature-controller@34.0.2
 [34.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@34.0.0...@metamask/signature-controller@34.0.1
