@@ -1,10 +1,17 @@
+import type EthQuery from '@metamask/eth-query';
+import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
+import { getNativeBalance } from './balance';
 import { doesChainSupportEIP7702 } from './eip7702';
 import { getEIP7702UpgradeContractAddress } from './feature-flags';
 import type { GetGasFeeTokensRequest } from './gas-fee-tokens';
-import { getGasFeeTokens } from './gas-fee-tokens';
+import {
+  getGasFeeTokens,
+  processGasFeeTokensNoApproval,
+} from './gas-fee-tokens';
 import type {
+  GasFeeToken,
   GetSimulationConfig,
   TransactionControllerMessenger,
   TransactionMeta,
@@ -14,10 +21,14 @@ import { simulateTransactions } from '../api/simulation-api';
 jest.mock('../api/simulation-api');
 jest.mock('./eip7702');
 jest.mock('./feature-flags');
+jest.mock('./balance');
 
+const ETH_QUERY_MOCK = {} as EthQuery;
 const CHAIN_ID_MOCK = '0x1';
 const TOKEN_ADDRESS_1_MOCK = '0x1234567890abcdef1234567890abcdef12345678';
 const TOKEN_ADDRESS_2_MOCK = '0xabcdef1234567890abcdef1234567890abcdef12';
+const GAS_FEE_TOKEN_MOCK = { amount: '0x123' as Hex } as GasFeeToken;
+
 const UPGRADE_CONTRACT_ADDRESS_MOCK =
   '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef';
 
@@ -36,6 +47,13 @@ const REQUEST_MOCK: GetGasFeeTokensRequest = {
     },
   } as TransactionMeta,
 };
+
+const TRANSACTION_META_MOCK = {
+  selectedGasFeeToken: '0x1234567890abcdef1234567890abcdef12345678' as Hex,
+  txParams: {
+    from: '0x456',
+  },
+} as TransactionMeta;
 
 describe('Gas Fee Tokens Utils', () => {
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
@@ -374,6 +392,79 @@ describe('Gas Fee Tokens Utils', () => {
           getSimulationConfig: getSimulationConfigMock,
         }),
       );
+    });
+  });
+
+  describe('processGasFeeTokensNoApproval', () => {
+    const fetchGasFeeTokensMock = jest.fn();
+    const updateTransactionMock = jest.fn();
+    const getNativeBalanceMock = jest.mocked(getNativeBalance);
+
+    let request: Parameters<typeof processGasFeeTokensNoApproval>[0];
+
+    beforeEach(() => {
+      fetchGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      getNativeBalanceMock.mockResolvedValue({
+        balanceRaw: '1000',
+        balanceHuman: '0',
+      });
+
+      request = {
+        ethQuery: ETH_QUERY_MOCK,
+        fetchGasFeeTokens: fetchGasFeeTokensMock,
+        transaction: cloneDeep(TRANSACTION_META_MOCK),
+        updateTransaction: updateTransactionMock,
+      };
+    });
+
+    it('updates gas fee tokens if selected gas fee token', async () => {
+      await processGasFeeTokensNoApproval(request);
+
+      const txDraft = {};
+      updateTransactionMock.mock.calls[0][1](txDraft);
+
+      expect(txDraft).toStrictEqual({
+        gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+      });
+    });
+
+    it('does nothing if no selected gas fee token', async () => {
+      request.transaction.selectedGasFeeToken = undefined;
+
+      await processGasFeeTokensNoApproval(request);
+
+      expect(updateTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('removes selected gas fee token if sufficient balance and isGasFeeTokenIgnoredIfBalance is true', async () => {
+      request.transaction.isGasFeeTokenIgnoredIfBalance = true;
+      request.transaction.txParams.gas = '0x2';
+      request.transaction.txParams.gasPrice = '0x1f4';
+
+      await processGasFeeTokensNoApproval(request);
+
+      const txDraft = {};
+      updateTransactionMock.mock.calls[0][1](txDraft);
+
+      expect(txDraft).toStrictEqual({
+        selectedGasFeeToken: undefined,
+      });
+    });
+
+    it('updates gas fee tokens if insufficient balance and isGasFeeTokenIgnoredIfBalance is true', async () => {
+      request.transaction.isGasFeeTokenIgnoredIfBalance = true;
+      request.transaction.txParams.gas = '0x1';
+      request.transaction.txParams.maxFeePerGas = '0x3e9';
+
+      await processGasFeeTokensNoApproval(request);
+
+      const txDraft = {};
+      updateTransactionMock.mock.calls[0][1](txDraft);
+
+      expect(txDraft).toStrictEqual({
+        gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+      });
     });
   });
 });
