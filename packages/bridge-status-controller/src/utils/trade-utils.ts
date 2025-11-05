@@ -14,7 +14,11 @@ export const isBitcoinTrade = (trade: Trade): trade is { unsignedPsbtBase64: str
  * @param trade - The trade object to check
  * @returns True if the trade is a Tron trade with raw_data_hex property
  */
-export const isTronTrade = (trade: Trade): trade is { raw_data_hex: string } =>
+export const isTronTrade = (trade: Trade): trade is { 
+  raw_data_hex: string;
+  visible?: boolean;
+  raw_data?: { contract?: Array<{ type?: string }> };
+} =>
   typeof trade === 'object' && trade !== null && 'raw_data_hex' in trade;
 
 /**

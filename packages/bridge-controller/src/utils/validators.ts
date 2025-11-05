@@ -262,21 +262,13 @@ export const BitcoinTradeDataSchema = type({
 });
 
 export const TronTradeDataSchema = type({
-  visible: boolean(),
-  txID: string(),
-  raw_data: nullable(type({})),
   raw_data_hex: string(),
-  payload: type({
-    owner_address: string(),
-    call_value: number(),
-    contract_address: string(),
-    fee_limit: number(),
-    function_selector: string(),
-    parameter: string(),
-    chainType: number(),
-  }),
-  energyPenalty: number(),
-  energyUsed: number(),
+  visible: optional(boolean()),
+  raw_data: optional(nullable(type({
+    contract: optional(array(type({
+      type: optional(string()),
+    }))),
+  }))),
 });
 
 export const QuoteResponseSchema = type({
