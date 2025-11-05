@@ -1,4 +1,7 @@
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import {
+  TransactionStatus,
+  type TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
@@ -48,6 +51,7 @@ const TRANSACTION_DATA_MOCK: TransactionData = {
 
 const TRANSACTION_META_MOCK = {
   id: TRANSACTION_ID_MOCK,
+  status: TransactionStatus.unapproved,
   txParams: { from: '0xabc' as Hex },
 } as TransactionMeta;
 
@@ -94,9 +98,10 @@ describe('Quotes Utils', () => {
    * Run the updateQuotes function.
    *
    * @param params - Partial params to override the defaults.
+   * @returns Return value from updateQuotes.
    */
   async function run(params?: Partial<UpdateQuotesRequest>) {
-    await updateQuotes({
+    return await updateQuotes({
       messenger,
       transactionData: cloneDeep(TRANSACTION_DATA_MOCK),
       transactionId: TRANSACTION_ID_MOCK,
@@ -187,7 +192,7 @@ describe('Quotes Utils', () => {
       });
     });
 
-    it('does nothing if no payment token', async () => {
+    it('clears state if no payment token', async () => {
       await run({
         transactionData: {
           ...TRANSACTION_DATA_MOCK,
@@ -195,7 +200,19 @@ describe('Quotes Utils', () => {
         },
       });
 
-      expect(updateTransactionDataMock).not.toHaveBeenCalled();
+      const transactionDataMock = {
+        quotes: [QUOTE_MOCK],
+        quotesLastUpdated: undefined,
+      };
+
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [],
+        quotesLastUpdated: expect.any(Number),
+      });
     });
 
     it('gets quotes from strategy', async () => {
@@ -287,6 +304,18 @@ describe('Quotes Utils', () => {
           totalFiat: TOTALS_MOCK.total.usd,
         },
       });
+    });
+
+    it('does nothing if transaction is not unapproved', async () => {
+      getTransactionMock.mockReturnValue({
+        ...TRANSACTION_META_MOCK,
+        status: TransactionStatus.confirmed,
+      });
+
+      const result = await run();
+
+      expect(updateTransactionDataMock).not.toHaveBeenCalled();
+      expect(result).toBe(false);
     });
   });
 

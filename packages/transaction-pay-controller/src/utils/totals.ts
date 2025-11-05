@@ -1,5 +1,7 @@
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
+import { calculateTransactionGasCost } from './gas';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
@@ -10,16 +12,24 @@ import type {
 /**
  * Calculate totals for a list of quotes and tokens.
  *
- * @param quotes - List of bridge quotes.
- * @param tokens - List of required transaction tokens.
- * @param _messenger - Controller messenger.
+ * @param request - Request parameters.
+ * @param request.quotes - List of bridge quotes.
+ * @param request.messenger - Controller messenger.
+ * @param request.tokens - List of required tokens.
+ * @param request.transaction - Transaction metadata.
  * @returns The calculated totals in USD and fiat currency.
  */
-export function calculateTotals(
-  quotes: TransactionPayQuote<unknown>[],
-  tokens: TransactionPayRequiredToken[],
-  _messenger: TransactionPayControllerMessenger,
-): TransactionPayTotals {
+export function calculateTotals({
+  quotes,
+  messenger,
+  tokens,
+  transaction,
+}: {
+  quotes: TransactionPayQuote<unknown>[];
+  messenger: TransactionPayControllerMessenger;
+  tokens: TransactionPayRequiredToken[];
+  transaction: TransactionMeta;
+}): TransactionPayTotals {
   const providerFeeFiat = sumProperty(
     quotes,
     (quote) => quote.fees.provider.fiat,
@@ -40,15 +50,18 @@ export function calculateTotals(
     (quote) => quote.fees.sourceNetwork.usd,
   );
 
-  const targetNetworkFeeFiat = sumProperty(
-    quotes,
-    (quote) => quote.fees.targetNetwork.fiat,
+  const transactionNetworkFee = calculateTransactionGasCost(
+    transaction,
+    messenger,
   );
 
-  const targetNetworkFeeUsd = sumProperty(
-    quotes,
-    (quote) => quote.fees.targetNetwork.usd,
-  );
+  const targetNetworkFeeFiat = quotes?.length
+    ? sumProperty(quotes, (quote) => quote.fees.targetNetwork.fiat)
+    : transactionNetworkFee.fiat;
+
+  const targetNetworkFeeUsd = quotes.length
+    ? sumProperty(quotes, (quote) => quote.fees.targetNetwork.usd)
+    : transactionNetworkFee.usd;
 
   const quoteTokens = tokens.filter(
     (t) =>

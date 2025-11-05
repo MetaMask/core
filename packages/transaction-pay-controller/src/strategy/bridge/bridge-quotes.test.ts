@@ -797,7 +797,7 @@ describe('Bridge Quotes Utils', () => {
       });
     });
 
-    it('throws if missing fiat rate', async () => {
+    it('throws if missing fiat source rate', async () => {
       getTokenFiatRateMock.mockReturnValue(undefined);
 
       await expect(
@@ -805,7 +805,24 @@ describe('Bridge Quotes Utils', () => {
           ...request,
           requests: [QUOTE_REQUEST_1_MOCK],
         }),
-      ).rejects.toThrow(`Fiat rate not found for source or target token`);
+      ).rejects.toThrow(
+        `Failed to fetch bridge quotes: Error: Fiat rate not found for source token - Chain ID: 0x1, Address: 0xabc`,
+      );
+    });
+
+    it('throws if missing fiat target rate', async () => {
+      getTokenFiatRateMock
+        .mockReturnValueOnce({ usdRate: '3', fiatRate: '2' })
+        .mockReturnValueOnce(undefined);
+
+      await expect(
+        getBridgeQuotes({
+          ...request,
+          requests: [QUOTE_REQUEST_1_MOCK],
+        }),
+      ).rejects.toThrow(
+        `Failed to fetch bridge quotes: Error: Fiat rate not found for target token - Chain ID: 0x2, Address: 0xdef`,
+      );
     });
 
     it('uses defaults if no feature flags', async () => {

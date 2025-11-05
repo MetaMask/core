@@ -11,6 +11,8 @@ export type {
   GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction,
   GatorPermissionsControllerEnableGatorPermissionsAction,
   GatorPermissionsControllerDisableGatorPermissionsAction,
+  GatorPermissionsControllerSubmitRevocationAction,
+  GatorPermissionsControllerAddPendingRevocationAction,
   GatorPermissionsControllerActions,
   GatorPermissionsControllerEvents,
   GatorPermissionsControllerStateChangeEvent,
@@ -31,6 +33,7 @@ export type {
   GatorPermissionsMapByPermissionType,
   GatorPermissionsListByPermissionTypeAndChainId,
   DelegationDetails,
+  RevocationParams,
 } from './types';
 
 export type {

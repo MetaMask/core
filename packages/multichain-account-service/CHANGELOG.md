@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional tracing configuration ([#7006](https://github.com/MetaMask/core/pull/7006))
   - For now, only the account discovery is being traced.
+- Limit Bitcoin and Tron providers to 3 concurrent account creations by default when creating multichain account groups ([#7052](https://github.com/MetaMask/core/pull/7052))
 
 ## [2.1.0]
 
