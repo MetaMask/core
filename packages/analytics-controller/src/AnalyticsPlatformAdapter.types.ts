@@ -6,6 +6,14 @@ import type { Json } from '@metamask/utils';
 export type AnalyticsEventProperties = Record<string, Json>;
 
 /**
+ * IMPORTANT: this type is work in progress and will be updated as we
+ * integrate with the new analytics system on mobile.
+ * We have this draft type to help us iterate on the implementation.
+ * It will be updated with proper types as we create the mobile adapter
+ * And the controller package will be released only when this is completed.
+ *
+ * TODO: finish this adapter type implementation
+ * 
  * Platform adapter interface for analytics tracking
  * Implementations should handle platform-specific details (Segment SDK, etc.)
  */

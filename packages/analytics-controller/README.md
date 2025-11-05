@@ -193,6 +193,16 @@ const defaultState = getDefaultAnalyticsControllerState();
 
 **Analytics ID:** The `analyticsId` is a UUIDv4 string. If not provided in the `state` parameter, the controller automatically generates one on initialization. This ID is persisted in state and remains consistent across restarts. If you provide an `analyticsId` in the `state` parameter, it will be used instead (useful for migrations).
 
+## Debugging
+
+To display analytics-controller logs in the mobile app, you can add the following to your `.js.env` file:
+
+```bash
+export DEBUG="metamask:analytics-controller"
+```
+
+This will enable debug logging for the analytics-controller, allowing you to see detailed logs of analytics events, state changes, and controller operations.
+
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
