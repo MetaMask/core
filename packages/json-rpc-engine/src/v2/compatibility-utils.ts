@@ -135,7 +135,7 @@ export function propagateToRequest(
  * @param thrown - The thrown value to unserialize.
  * @returns The unserialized error.
  */
-export function unserializeError(thrown: unknown): Error | JsonRpcError<Json> {
+export function deserializeError(thrown: unknown): Error | JsonRpcError<Json> {
   // @ts-expect-error - New, but preferred if available.
   // See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
   if (typeof Error.isError === 'function' && Error.isError(thrown)) {

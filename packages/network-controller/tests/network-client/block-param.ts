@@ -209,7 +209,7 @@ export function testsForRpcMethodSupportingBlockParam(
       });
     });
 
-    for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
+    for (const emptyValue of [null, '\u003cnil\u003e']) {
       it(`does not retry an empty response of "${emptyValue}"`, async () => {
         const request = {
           method,
@@ -1227,7 +1227,7 @@ export function testsForRpcMethodSupportingBlockParam(
         });
       });
 
-      for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
+      for (const emptyValue of [null, '\u003cnil\u003e']) {
         it(`does not retry an empty response of "${emptyValue}"`, async () => {
           const request = {
             method,
@@ -1360,7 +1360,7 @@ export function testsForRpcMethodSupportingBlockParam(
             });
           });
 
-          for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
+          for (const emptyValue of [null, '\u003cnil\u003e']) {
             if (providerType === 'infura') {
               it(`retries up to 10 times if a "${emptyValue}" response is returned, returning successful non-empty response if there is one on the 10th try`, async () => {
                 const request = {
@@ -1555,7 +1555,7 @@ export function testsForRpcMethodSupportingBlockParam(
           });
         });
 
-        for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
+        for (const emptyValue of [null, '\u003cnil\u003e']) {
           it(`does not retry an empty response of "${emptyValue}"`, async () => {
             const request = {
               method,

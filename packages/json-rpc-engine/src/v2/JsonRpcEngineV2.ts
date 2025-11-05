@@ -73,6 +73,9 @@ type ConstructorOptions<
   >;
 };
 
+/**
+ * The request type of a middleware.
+ */
 export type RequestOf<Middleware> =
   Middleware extends JsonRpcMiddleware<
     infer Request,
@@ -91,11 +94,23 @@ type ContextOf<Middleware> =
     ? C
     : never;
 
-export type MergedContextOf<
-  // Non-polluting `any` constraint.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Middleware extends JsonRpcMiddleware<any, any, any>,
-> = MergeContexts<ContextOf<Middleware>>;
+/**
+ * A constraint for {@link JsonRpcMiddleware} generic parameters.
+ */
+// Non-polluting `any` constraint.
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export type MiddlewareConstraint = JsonRpcMiddleware<
+  any,
+  ResultConstraint<any>,
+  MiddlewareContext<any>
+>;
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/**
+ * The context supertype of a middleware type.
+ */
+export type MergedContextOf<Middleware extends MiddlewareConstraint> =
+  MergeContexts<ContextOf<Middleware>>;
 
 const INVALID_ENGINE = Symbol('Invalid engine');
 

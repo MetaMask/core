@@ -171,6 +171,21 @@ describe('asV2Middleware', () => {
       );
     });
 
+    it('does not forward undefined errors from legacy middleware', async () => {
+      const legacyMiddleware = jest.fn((_req, res, _next, end) => {
+        res.error = undefined;
+        res.result = 42;
+        end();
+      });
+
+      const v2Engine = JsonRpcEngineV2.create({
+        middleware: [asV2Middleware(legacyMiddleware)],
+      });
+
+      const result = await v2Engine.handle(makeRequest());
+      expect(result).toBe(42);
+    });
+
     it('allows v2 engine to continue when legacy middleware does not end', async () => {
       const legacyMiddleware = jest.fn((_req, _res, next) => {
         next();
