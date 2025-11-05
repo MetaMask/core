@@ -48,7 +48,7 @@ export function stringify(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
-const JsonRpcEngineErrorSymbol = Symbol.for('JsonRpcEngineError');
+const JsonRpcEngineErrorSymbol = Symbol.for('json-rpc-engine#JsonRpcEngineError');
 
 export class JsonRpcEngineError extends Error {
   private readonly [JsonRpcEngineErrorSymbol] = true;
