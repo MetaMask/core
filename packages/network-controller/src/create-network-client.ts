@@ -18,7 +18,6 @@ import { asV2Middleware } from '@metamask/json-rpc-engine';
 import {
   createScaffoldMiddleware,
   JsonRpcEngineV2,
-  JsonRpcServer,
 } from '@metamask/json-rpc-engine/v2';
 import type {
   JsonRpcMiddleware,
