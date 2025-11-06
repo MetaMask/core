@@ -8,6 +8,7 @@ import {
   validateAndNormalizeKeyholder,
   validateParams,
 } from './validation';
+import type { WalletMiddlewareKeyValues } from '../wallet';
 
 jest.mock('@metamask/superstruct', () => ({
   ...jest.requireActual('@metamask/superstruct'),
@@ -16,7 +17,7 @@ jest.mock('@metamask/superstruct', () => ({
 
 const ADDRESS_MOCK = '0xABCDabcdABCDabcdABCDabcdABCDabcdABCDabcd';
 const createContext = () =>
-  new MiddlewareContext<{ origin: string }>([['origin', 'test']]);
+  new MiddlewareContext<WalletMiddlewareKeyValues>([['origin', 'test']]);
 
 const STRUCT_ERROR_MOCK = {
   failures: () => [

@@ -58,6 +58,7 @@ export type WalletMiddlewareOptions = {
   processTransaction?: (
     txParams: TransactionParams,
     req: JsonRpcRequest,
+    context: WalletMiddlewareContext,
   ) => Promise<string>;
   processSignTransaction?: (
     txParams: TransactionParams,
@@ -82,7 +83,16 @@ export type WalletMiddlewareOptions = {
   processRevokeExecutionPermission?: ProcessRevokeExecutionPermissionHook;
 };
 
-export type WalletMiddlewareContext = MiddlewareContext<{ origin: string }>;
+export type WalletMiddlewareKeyValues = {
+  networkClientId: string;
+  origin: string;
+  securityAlertResponse?: Record<string, Json>;
+  traceContext?: unknown;
+};
+
+export type WalletMiddlewareContext =
+  MiddlewareContext<WalletMiddlewareKeyValues>;
+
 export type WalletMiddlewareParams = MiddlewareParams<
   JsonRpcRequest,
   WalletMiddlewareContext
@@ -220,7 +230,7 @@ export function createWalletMiddleware({
       ...params,
       from: await validateAndNormalizeKeyholder(params?.from || '', context),
     };
-    return await processTransaction(txParams, request);
+    return await processTransaction(txParams, request, context);
   }
 
   /**

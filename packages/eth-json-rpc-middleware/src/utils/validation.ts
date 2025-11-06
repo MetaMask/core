@@ -1,8 +1,9 @@
-import type { MiddlewareContext } from '@metamask/json-rpc-engine/v2';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Struct, StructError } from '@metamask/superstruct';
 import { validate } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
+
+import type { WalletMiddlewareContext } from '../wallet';
 
 /**
  * Validates and normalizes a keyholder address for transaction- and
@@ -17,7 +18,7 @@ import type { Hex } from '@metamask/utils';
  */
 export async function validateAndNormalizeKeyholder(
   address: Hex,
-  context: MiddlewareContext<{ origin: string }>,
+  context: WalletMiddlewareContext,
   { getAccounts }: { getAccounts: (origin: string) => Promise<string[]> },
 ): Promise<Hex> {
   if (

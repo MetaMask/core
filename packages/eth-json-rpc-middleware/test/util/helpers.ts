@@ -10,6 +10,8 @@ import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
 
+import type { WalletMiddlewareKeyValues } from '../../src/wallet';
+
 export const createRequest = <
   Input extends Partial<JsonRpcRequest<Json[]>>,
   Output extends Input & JsonRpcRequest<Json[]>,
@@ -24,20 +26,25 @@ export const createRequest = <
   } as Output;
 };
 
-const createHandleOptions = () => ({
+const createHandleOptions = (
+  keyValues: Partial<WalletMiddlewareKeyValues> = {},
+): { context: WalletMiddlewareKeyValues } => ({
   context: {
-    origin: 'test',
+    networkClientId: 'test-client-id',
+    origin: 'test-origin',
+    ...keyValues,
   },
 });
 
 export const createHandleParams = <
-  Input extends Partial<JsonRpcRequest<Json[]>>,
-  Output extends Input & JsonRpcRequest<Json[]>,
+  InputReq extends Partial<JsonRpcRequest<Json[]>>,
+  OutputReq extends InputReq & JsonRpcRequest<Json[]>,
 >(
-  request: Input,
-): [Output, ReturnType<typeof createHandleOptions>] => [
+  request: InputReq,
+  keyValues: Partial<WalletMiddlewareKeyValues> = {},
+): [OutputReq, ReturnType<typeof createHandleOptions>] => [
   createRequest(request),
-  createHandleOptions(),
+  createHandleOptions(keyValues),
 ];
 
 /**
