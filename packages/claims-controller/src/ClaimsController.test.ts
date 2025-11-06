@@ -101,6 +101,8 @@ describe('ClaimsController', () => {
                 status: ClaimStatusEnum.SUBMITTED,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
+                id: 'mock-claim-1',
+                shortId: 'mock-claim-1',
               },
             ],
           },

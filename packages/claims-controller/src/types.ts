@@ -9,8 +9,8 @@ export type Attachment = {
 };
 
 export type Claim = {
-  id?: string;
-  shortId?: string;
+  id: string;
+  shortId: string;
   chainId: string;
   email: string;
   impactedWalletAddress: Hex;
