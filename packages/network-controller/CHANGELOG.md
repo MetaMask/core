@@ -11,7 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
   - Providers accessible either via network clients or global proxies no longer emit events (or inherit from EventEmitter, for that matter).
+- **BREAKING:** Stop retrying `undefined` results for methods that include a block tag parameter ([#7001](https://github.com/MetaMask/core/pull/7001))
+  - The network client middleware, via `@metamask/eth-json-rpc-middleware`, will now throw an error if it encounters an
+    `undefined` result when dispatching a request with a later block number than the originally requested block number.
+  - In practice, this should happen rarely if ever.
 - Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
+
+### Fixed
+
+- Ensure `networksMetadata` never references old network client IDs ([#7047](https://github.com/MetaMask/core/pull/7047))
+  - When removing a network configuration, ensure that metadata for all RPC endpoints in the network configuration are also removed from `networksMetadata`
+  - When initializing the controller, remove metadata for RPC endpoints in `networksMetadata` that are not present in a network configuration
 
 ## [25.0.0]
 

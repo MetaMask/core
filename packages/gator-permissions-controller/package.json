@@ -1,6 +1,6 @@
 {
   "name": "@metamask/gator-permissions-controller",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Controller for managing gator permissions with profile sync integration",
   "keywords": [
     "MetaMask",
@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/gator-permissions-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/gator-permissions-controller",
@@ -61,7 +62,8 @@
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/snaps-controllers": "^14.0.1",
-    "@ts-bridge/cli": "^0.6.1",
+    "@metamask/transaction-controller": "^61.1.0",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -71,7 +73,8 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/snaps-controllers": "^14.0.1"
+    "@metamask/snaps-controllers": "^14.0.1",
+    "@metamask/transaction-controller": "^61.1.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

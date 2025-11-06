@@ -122,6 +122,9 @@ export type MergeContexts<Contexts extends ContextConstraint> =
         ExcludeNever<Simplify<UnionToIntersection<InferKeyValues<Contexts>>>>
       >;
 
+/**
+ * A constraint for {@link MiddlewareContext} generic parameters.
+ */
 // Non-polluting `any` constraint.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ContextConstraint = MiddlewareContext<any>;

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "86.0.0",
+  "version": "87.1.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",
@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/assets-controllers",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/assets-controllers",
@@ -90,7 +91,7 @@
     "@metamask/keyring-controller": "^24.0.0",
     "@metamask/keyring-internal-api": "^9.0.0",
     "@metamask/keyring-snap-client": "^8.0.0",
-    "@metamask/multichain-account-service": "^2.0.1",
+    "@metamask/multichain-account-service": "^2.1.0",
     "@metamask/network-controller": "^25.0.0",
     "@metamask/permission-controller": "^12.1.0",
     "@metamask/phishing-controller": "^15.0.0",
@@ -98,6 +99,7 @@
     "@metamask/providers": "^22.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
     "@metamask/transaction-controller": "^61.1.0",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",

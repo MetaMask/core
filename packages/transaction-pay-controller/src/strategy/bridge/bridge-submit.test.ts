@@ -242,7 +242,7 @@ describe('Bridge Submit Utils', () => {
       expect(updateTransactionMock).not.toHaveBeenCalled();
     });
 
-    it('refreshes quotes after the first one', async () => {
+    it('refreshes quotes after the first', async () => {
       await submitBridgeQuotes(request);
 
       expect(refreshQuoteMock).toHaveBeenCalledTimes(1);
@@ -251,6 +251,14 @@ describe('Bridge Submit Utils', () => {
         messenger,
         request.transaction,
       );
+    });
+
+    it('does not throw if refresh fails', async () => {
+      refreshQuoteMock.mockRejectedValueOnce(new Error('Refresh failed'));
+
+      await submitBridgeQuotes(request);
+
+      expect(submitTransactionMock).toHaveBeenCalledTimes(2);
     });
 
     it('resolves immediately if bridge status already completed', async () => {
