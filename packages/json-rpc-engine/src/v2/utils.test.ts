@@ -3,6 +3,7 @@ import {
   isNotification,
   stringify,
   JsonRpcEngineError,
+  isInstance,
 } from './utils';
 
 const jsonrpc = '2.0' as const;
@@ -54,6 +55,30 @@ describe('utils', () => {
     });
   });
 
+  describe('isInstance', () => {
+    const TestClassSymbol = Symbol('TestClass');
+
+    class TestClass {
+      private readonly [TestClassSymbol] = true;
+    }
+
+    it('identifies class instances via the symbol property', () => {
+      const value = new TestClass();
+      expect(isInstance(value, TestClassSymbol)).toBe(true);
+    });
+
+    it('identifies plain objects via the symbol property', () => {
+      const value = { [TestClassSymbol]: true };
+      expect(isInstance(value, TestClassSymbol)).toBe(true);
+    });
+
+    it('identifies sub-classes of the class via the symbol property', () => {
+      class SubClass extends TestClass {}
+      const value = new SubClass();
+      expect(isInstance(value, TestClassSymbol)).toBe(true);
+    });
+  });
+
   describe('JsonRpcEngineError', () => {
     it('creates an error with the correct name', () => {
       const error = new JsonRpcEngineError('test');
@@ -62,8 +87,9 @@ describe('utils', () => {
       expect(error.message).toBe('test');
     });
 
-    it('isInstance checks if a value is a JsonRpcEngineError instance', () => {
+    it('identifies JsonRpcEngineError instances via isInstance', () => {
       const error = new JsonRpcEngineError('test');
+
       expect(JsonRpcEngineError.isInstance(error)).toBe(true);
       expect(JsonRpcEngineError.isInstance(new Error('test'))).toBe(false);
     });
