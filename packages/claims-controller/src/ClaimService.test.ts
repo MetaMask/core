@@ -1,5 +1,10 @@
 import { ClaimsService } from './ClaimsService';
-import { CLAIMS_API_URL, Env, HttpContentTypeHeader } from './constants';
+import {
+  CLAIMS_API_URL,
+  ClaimStatusEnum,
+  Env,
+  HttpContentTypeHeader,
+} from './constants';
 import type { Claim, GenerateSignatureMessageResponse } from './types';
 import { createMockClaimsServiceMessenger } from '../tests/mocks/messenger';
 
@@ -25,6 +30,11 @@ function createMockClaimsService(env: Env = Env.DEV) {
 
 describe('ClaimsService', () => {
   const MOCK_CLAIM_1: Claim = {
+    id: 'mock-claim-1',
+    shortId: 'mock-claim-1',
+    status: ClaimStatusEnum.CREATED,
+    createdAt: '2021-01-01',
+    updatedAt: '2021-01-01',
     chainId: 1,
     email: 'test@test.com',
     impactedWalletAddress: '0x123',
@@ -34,6 +44,11 @@ describe('ClaimsService', () => {
     signature: 'test-signature',
   };
   const MOCK_CLAIM_2: Claim = {
+    id: 'mock-claim-2',
+    shortId: 'mock-claim-2',
+    status: ClaimStatusEnum.CREATED,
+    createdAt: '2021-01-01',
+    updatedAt: '2021-01-01',
     chainId: 1,
     email: 'test2@test.com',
     impactedWalletAddress: '0x789',

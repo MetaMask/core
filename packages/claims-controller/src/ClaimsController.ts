@@ -19,7 +19,12 @@ import {
   HttpContentTypeHeader,
   SERVICE_NAME,
 } from './constants';
-import type { Claim, ClaimsControllerState, SubmitClaimConfig } from './types';
+import type {
+  Claim,
+  ClaimsControllerState,
+  CreateClaimRequest,
+  SubmitClaimConfig,
+} from './types';
 
 export type ClaimsControllerGetStateAction = ControllerGetStateAction<
   typeof CONTROLLER_NAME,
@@ -34,7 +39,8 @@ export type AllowedActions =
   | ClaimsServiceGetRequestHeadersAction
   | ClaimsServiceGetClaimsApiUrlAction
   | ClaimsServiceGenerateMessageForClaimSignatureAction
-  | ClaimsServiceVerifyClaimSignatureAction;
+  | ClaimsServiceVerifyClaimSignatureAction
+  | ClaimsServiceGetClaimsAction;
 
 export type ClaimsControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof CONTROLLER_NAME,
@@ -89,17 +95,14 @@ export class ClaimsController extends BaseController<
   /**
    * Get required config for submitting a claim.
    *
-   * @param claimRequest - The claim request to get the required config for.
+   * @param claim - The claim request to get the required config for.
    * @returns The required config for submitting the claim.
    */
-  async getSubmitClaimConfig(claimRequest: Claim): Promise<SubmitClaimConfig> {
-    // TODO: validate the claim
-    // TODO: get the claim signature
-    const claim = {
-      ...claimRequest,
-      signature:
-        '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12', // TODO: get the claim signature
-    };
+  async getSubmitClaimConfig(
+    claim: CreateClaimRequest,
+  ): Promise<SubmitClaimConfig> {
+    // Validate the claim before submitting it.
+    this.#validateSubmitClaimRequest(claim);
 
     const headers = await this.messenger.call(
       `${SERVICE_NAME}:getRequestHeaders`,
@@ -148,5 +151,36 @@ export class ClaimsController extends BaseController<
     }
 
     return signature;
+  }
+
+  /**
+   * Get the list of claims for the current user.
+   *
+   * @returns The list of claims for the current user.
+   */
+  async getClaims(): Promise<Claim[]> {
+    const claims = await this.messenger.call(`${SERVICE_NAME}:getClaims`);
+    this.update((state) => {
+      state.claims = claims;
+    });
+    return claims;
+  }
+
+  /**
+   * Validate the claim before submitting it.
+   *
+   * @param claim - The claim to validate.
+   */
+  #validateSubmitClaimRequest(claim: CreateClaimRequest): void {
+    const { claims: existingClaims } = this.state;
+    const isClaimAlreadySubmitted = existingClaims.some(
+      (existingClaim) =>
+        existingClaim.email === claim.email &&
+        existingClaim.impactedTxHash === claim.impactedTxHash,
+      // Question: should we allow users to submit the rejected claim again?
+    );
+    if (isClaimAlreadySubmitted) {
+      throw new Error('Claim already submitted');
+    }
   }
 }

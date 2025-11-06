@@ -1,4 +1,14 @@
+import type { ClaimStatusEnum } from './constants';
+
+export type Attachment = {
+  publicUrl: string;
+  contentType: string;
+  originalname: string;
+};
+
 export type Claim = {
+  id?: string;
+  shortId?: string;
   chainId: number;
   email: string;
   impactedWalletAddress: `0x${string}`;
@@ -6,7 +16,17 @@ export type Claim = {
   reimbursementWalletAddress: `0x${string}`;
   description: string;
   signature: string;
+  attachments?: Attachment[];
+  status: ClaimStatusEnum;
+  createdAt: string;
+  updatedAt: string;
+  intercomId?: string;
 };
+
+export type CreateClaimRequest = Omit<
+  Claim,
+  'id' | 'shortId' | 'createdAt' | 'updatedAt' | 'intercomId' | 'status'
+>;
 
 export type ClaimsControllerState = {
   claims: Claim[];
@@ -16,7 +36,7 @@ export type SubmitClaimConfig = {
   /**
    * The sanitized and validated data to be submitted.
    */
-  data: Claim;
+  data: CreateClaimRequest;
   /**
    * The headers to be used in the request.
    */

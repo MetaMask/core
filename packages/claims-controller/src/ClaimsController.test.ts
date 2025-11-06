@@ -1,6 +1,6 @@
 import { ClaimsController } from './ClaimsController';
 import { HttpContentTypeHeader } from './constants';
-import type { Claim } from './types';
+import type { CreateClaimRequest } from './types';
 import { createMockClaimsControllerMessenger } from '../tests/mocks/messenger';
 import type { WithControllerArgs } from '../tests/types';
 
@@ -46,7 +46,7 @@ describe('ClaimsController', () => {
   });
 
   describe('getSubmitClaimConfig', () => {
-    const MOCK_CLAIM: Claim = {
+    const MOCK_CLAIM: CreateClaimRequest = {
       chainId: 1,
       email: 'test@test.com',
       impactedWalletAddress: '0x123',
