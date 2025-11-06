@@ -1002,6 +1002,7 @@ describe('MultichainAccountService', () => {
       );
 
       // Spy on the provider methods
+      jest.spyOn(solProvider, 'resyncAccounts');
       jest.spyOn(solProvider, 'getAccounts');
       jest.spyOn(solProvider, 'getAccount');
       jest.spyOn(solProvider, 'createAccounts');
@@ -1012,6 +1013,20 @@ describe('MultichainAccountService', () => {
         getMultichainAccountServiceMessenger(rootMessenger),
         solProvider,
       );
+    });
+
+    it('forwards resyncAccounts() if provider is enabled', async () => {
+      const spy = jest.spyOn(solProvider, 'resyncAccounts');
+
+      // Enable first - should work normally
+      spy.mockResolvedValue(undefined);
+      await wrapper.resyncAccounts([]);
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      // Disable - should return empty array
+      wrapper.setEnabled(false);
+      await wrapper.resyncAccounts([]);
+      expect(spy).toHaveBeenCalledTimes(1); // No new call, still 1 call
     });
 
     it('returns empty array when getAccounts() is disabled', () => {
