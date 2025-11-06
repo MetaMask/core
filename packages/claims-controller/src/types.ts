@@ -1,11 +1,14 @@
 export type Claim = {
-  chainId: `0x${string}`;
+  chainId: number;
   email: string;
   impactedWalletAddress: `0x${string}`;
   impactedTxHash: `0x${string}`;
   reimbursementWalletAddress: `0x${string}`;
   description: string;
+  signature: string;
 };
+
+export type ClaimWithoutSignature = Omit<Claim, 'signature'>;
 
 export type ClaimsControllerState = {
   claims: Claim[];

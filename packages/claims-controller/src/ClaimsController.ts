@@ -17,7 +17,11 @@ import {
   HttpContentTypeHeader,
   SERVICE_NAME,
 } from './constants';
-import type { Claim, ClaimsControllerState, SubmitClaimConfig } from './types';
+import type {
+  ClaimsControllerState,
+  ClaimWithoutSignature,
+  SubmitClaimConfig,
+} from './types';
 
 export type ClaimsControllerGetStateAction = ControllerGetStateAction<
   typeof CONTROLLER_NAME,
@@ -85,12 +89,19 @@ export class ClaimsController extends BaseController<
   /**
    * Get required config for submitting a claim.
    *
-   * @param claim - The claim to get the required config for.
+   * @param claimRequest - The claim request to get the required config for.
    * @returns The required config for submitting the claim.
    */
-  async getSubmitClaimConfig(claim: Claim): Promise<SubmitClaimConfig> {
+  async getSubmitClaimConfig(
+    claimRequest: ClaimWithoutSignature,
+  ): Promise<SubmitClaimConfig> {
     // TODO: validate the claim
     // TODO: get the claim signature
+    const claim = {
+      ...claimRequest,
+      signature:
+        '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12', // TODO: get the claim signature
+    };
     // TODO: get the request headers
     // TODO: get the claims API URL
 
