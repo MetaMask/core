@@ -244,6 +244,10 @@ export const QuoteSchema = type({
       totalFeeAmountUsd: optional(string()),
     }),
   ),
+  /**
+   * A third party sponsors the gas. If true, then gasIncluded7702 is also true.
+   */
+  gasSponsored: optional(boolean()),
 });
 
 export const TxDataSchema = type({

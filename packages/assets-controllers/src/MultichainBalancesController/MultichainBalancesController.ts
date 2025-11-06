@@ -223,6 +223,8 @@ export class MultichainBalancesController extends BaseController<
       return;
     }
 
+    const accountsMap = new Map(accounts.map((acc) => [acc.accountId, acc]));
+
     this.update((state: Draft<MultichainBalancesControllerState>) => {
       for (const [accountId, accountBalances] of Object.entries(
         balancesToUpdate,
@@ -233,10 +235,20 @@ export class MultichainBalancesController extends BaseController<
         ) {
           state.balances[accountId] = accountBalances;
         } else {
+          const acc = accountsMap.get(accountId);
+
+          const assetsWithoutBalance = new Set(acc?.assets || []);
+
           for (const assetId in accountBalances) {
             if (!state.balances[accountId][assetId]) {
               state.balances[accountId][assetId] = accountBalances[assetId];
+              assetsWithoutBalance.delete(assetId as CaipAssetType);
             }
+          }
+
+          // Triggered when an asset is added to the accountAssets list manually
+          for (const assetId of assetsWithoutBalance) {
+            state.balances[accountId][assetId] = { amount: '0', unit: '' };
           }
         }
       }

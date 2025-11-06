@@ -110,6 +110,7 @@ const MOCK_PRICING_PAYMENT_METHOD: PricingPaymentMethod = {
     {
       chainId: '0x1',
       paymentAddress: '0xspender',
+      isSponsorshipSupported: true,
       tokens: [
         {
           address: '0xtoken',
@@ -1597,21 +1598,55 @@ describe('SubscriptionController', () => {
       await withController(
         {
           state: {
+            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
             subscriptions: [
               {
                 ...MOCK_SUBSCRIPTION,
                 status: SUBSCRIPTION_STATUSES.canceled,
               },
             ],
+            pricing: MOCK_PRICE_INFO_RESPONSE,
             trialedProducts: [PRODUCT_TYPES.SHIELD],
           },
         },
         async ({ controller, mockService }) => {
           mockService.submitSponsorshipIntents.mockResolvedValue(undefined);
 
-          await controller.submitSponsorshipIntents(
+          const isSponsored = await controller.submitSponsorshipIntents(
             MOCK_SUBMISSION_INTENTS_REQUEST,
           );
+          expect(isSponsored).toBe(false);
+          expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should not submit sponsorship intents if the chain does not support sponsorship', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+            pricing: {
+              ...MOCK_PRICE_INFO_RESPONSE,
+              paymentMethods: [
+                ...MOCK_PRICE_INFO_RESPONSE.paymentMethods.map(
+                  (paymentMethod) => ({
+                    ...paymentMethod,
+                    chains: paymentMethod.chains?.map((chain) => ({
+                      ...chain,
+                      isSponsorshipSupported: false, // <==== Sponsorship not supported
+                    })),
+                  }),
+                ),
+              ],
+            },
+          },
+        },
+        async ({ controller, mockService }) => {
+          const isSponsored = await controller.submitSponsorshipIntents(
+            MOCK_SUBMISSION_INTENTS_REQUEST,
+          );
+          expect(isSponsored).toBe(false);
           expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
         },
       );
@@ -1656,6 +1691,10 @@ describe('SubscriptionController', () => {
         {
           state: {
             lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+            pricing: {
+              products: [],
+              paymentMethods: [MOCK_PRICING_PAYMENT_METHOD],
+            },
           },
         },
         async ({ controller }) => {

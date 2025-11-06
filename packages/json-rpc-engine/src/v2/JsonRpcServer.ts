@@ -11,8 +11,8 @@ import { hasProperty, isObject } from '@metamask/utils';
 import type {
   JsonRpcMiddleware,
   MergedContextOf,
+  MiddlewareConstraint,
   RequestOf,
-  ResultConstraint,
 } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import type { JsonRpcCall } from './utils';
@@ -20,11 +20,11 @@ import { getUniqueId } from '../getUniqueId';
 
 type OnError = (error: unknown) => void;
 
-type Options<Middleware extends JsonRpcMiddleware> = {
+type Options<Middleware extends MiddlewareConstraint> = {
   onError?: OnError;
 } & (
   | {
-      engine: JsonRpcEngineV2;
+      engine: ReturnType<typeof JsonRpcEngineV2.create<Middleware>>;
     }
   | {
       middleware: NonEmptyArray<Middleware>;
@@ -58,14 +58,7 @@ const jsonrpc = '2.0' as const;
  * ```
  */
 export class JsonRpcServer<
-  Middleware extends JsonRpcMiddleware<
-    // Non-polluting `any` constraint.
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    any,
-    ResultConstraint<any>,
-    any
-    /* eslint-enable @typescript-eslint/no-explicit-any */
-  > = JsonRpcMiddleware,
+  Middleware extends MiddlewareConstraint = JsonRpcMiddleware,
 > {
   readonly #engine: JsonRpcEngineV2<
     RequestOf<Middleware>,

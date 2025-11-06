@@ -2925,6 +2925,68 @@ describe('TokensController', () => {
       );
     });
 
+    it('should clear nest allIgnoredTokens when re-adding tokens with different address case via addTokens', async () => {
+      const selectedAddress = '0x1';
+      const selectedAccount = createMockInternalAccount({
+        address: selectedAddress,
+      });
+
+      const tokenAddressFromAPI = '0x7DA14988E4F390C2E34ED41DF1814467D3ADE0C3';
+      const checksummedAddress = '0x7da14988E4f390C2E34ed41DF1814467D3aDe0c3';
+
+      const dummyTokens = [
+        {
+          address: tokenAddressFromAPI,
+          symbol: 'PEPE',
+          decimals: 18,
+          aggregators: [],
+          image: undefined,
+        },
+      ];
+
+      await withController(
+        {
+          options: {
+            chainId: ChainId.mainnet,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+          },
+        },
+        async ({ controller }) => {
+          await controller.addTokens(dummyTokens, 'mainnet');
+          expect(
+            controller.state.allTokens[ChainId.mainnet][selectedAddress][0]
+              .address,
+          ).toBe(checksummedAddress);
+
+          controller.ignoreTokens([tokenAddressFromAPI], 'mainnet');
+          expect(
+            controller.state.allIgnoredTokens[ChainId.mainnet][selectedAddress],
+          ).toStrictEqual([checksummedAddress]);
+
+          expect(
+            controller.state.allTokens[ChainId.mainnet][selectedAddress],
+          ).toStrictEqual([]);
+
+          await controller.addTokens(dummyTokens, 'mainnet');
+
+          // Should remove ignored token despite case difference
+          expect(
+            controller.state.allIgnoredTokens[ChainId.mainnet][selectedAddress],
+          ).toStrictEqual([]);
+
+          expect(
+            controller.state.allTokens[ChainId.mainnet][selectedAddress],
+          ).toHaveLength(1);
+          expect(
+            controller.state.allTokens[ChainId.mainnet][selectedAddress][0]
+              .address,
+          ).toBe(checksummedAddress);
+        },
+      );
+    });
+
     it('should clear nest allDetectedTokens under chain ID and selected address when an detected token is added to tokens list', async () => {
       const selectedAddress = '0x1';
       const selectedAccount = createMockInternalAccount({

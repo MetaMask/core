@@ -1,8 +1,5 @@
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
-import {
-  providerFromEngine,
-  type SafeEventEmitterProvider,
-} from '@metamask/eth-json-rpc-provider';
+import { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import {
   JsonRpcEngine,
   type JsonRpcMiddleware,
@@ -96,7 +93,7 @@ export function createFinalMiddlewareWithDefaultResult<
  */
 export function createProviderAndBlockTracker() {
   const engine = new JsonRpcEngine();
-  const provider = providerFromEngine(engine);
+  const provider = new InternalProvider({ engine });
 
   const blockTracker = new PollingBlockTracker({
     provider,
@@ -264,7 +261,7 @@ export function expectProviderRequestNotToHaveBeenMade(
  * you can make assertions on the method later, if you like).
  */
 export function stubProviderRequests(
-  provider: SafeEventEmitterProvider,
+  provider: InternalProvider,
   stubs: ProviderRequestStub<any, Json>[],
 ) {
   const remainingStubs = klona(stubs);
