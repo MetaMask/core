@@ -254,11 +254,17 @@ export type KeyringControllerMessenger = Messenger<
 export type KeyringControllerOptions<
   EncryptionKey = encryptorUtils.EncryptionKey | CryptoKey,
   SupportedKeyDerivationOptions = encryptorUtils.KeyDerivationOptions,
+  EncryptionResult extends
+    EncryptionResultConstraint<SupportedKeyDerivationOptions> = DefaultEncryptionResult<SupportedKeyDerivationOptions>,
 > = {
   keyringBuilders?: { (): EthKeyring; type: string }[];
   messenger: KeyringControllerMessenger;
   state?: { vault?: string; keyringsMetadata?: KeyringMetadata[] };
-  encryptor: Encryptor<EncryptionKey, SupportedKeyDerivationOptions>;
+  encryptor: Encryptor<
+    EncryptionKey,
+    SupportedKeyDerivationOptions,
+    EncryptionResult
+  >;
 };
 
 /**
@@ -343,6 +349,18 @@ type SessionState = {
   encryptionKey?: CachedEncryptionKey;
 };
 
+export type EncryptionResultConstraint<SupportedKeyMetadata> = {
+  salt?: string;
+  keyMetadata?: SupportedKeyMetadata;
+};
+
+export type DefaultEncryptionResult<SupportedKeyMetadata> = {
+  data: string;
+  iv: string;
+  salt?: string;
+  keyMetadata?: SupportedKeyMetadata;
+};
+
 /**
  * An encryptor interface that supports encrypting and decrypting
  * serializable data with a password, and exporting and importing keys.
@@ -350,6 +368,8 @@ type SessionState = {
 export type Encryptor<
   EncryptionKey = encryptorUtils.EncryptionKey | CryptoKey,
   SupportedKeyDerivationParams = encryptorUtils.KeyDerivationOptions,
+  EncryptionResult extends
+    EncryptionResultConstraint<SupportedKeyDerivationParams> = DefaultEncryptionResult<SupportedKeyDerivationParams>,
 > = {
   /**
    * Encrypts the given object with the given password.
@@ -389,7 +409,7 @@ export type Encryptor<
   encryptWithKey: (
     key: EncryptionKey,
     object: Json,
-  ) => Promise<encryptorUtils.EncryptionResult>;
+  ) => Promise<EncryptionResult>;
   /**
    * Encrypts the given object with the given password, and returns the
    * encryption result and the serialized key string.
@@ -413,7 +433,7 @@ export type Encryptor<
    */
   decryptWithKey: (
     key: EncryptionKey,
-    encryptedObject: encryptorUtils.EncryptionResult,
+    encryptedObject: EncryptionResult,
   ) => Promise<unknown>;
   /**
    * Decrypts the given encrypted string with the given password, and returns
@@ -655,6 +675,8 @@ function normalize(address: string): string | undefined {
 export class KeyringController<
   EncryptionKey = encryptorUtils.EncryptionKey | CryptoKey,
   SupportedKeyDerivationOptions = encryptorUtils.KeyDerivationOptions,
+  EncryptionResult extends
+    EncryptionResultConstraint<SupportedKeyDerivationOptions> = DefaultEncryptionResult<SupportedKeyDerivationOptions>,
 > extends BaseController<
   typeof name,
   KeyringControllerState,
@@ -666,7 +688,11 @@ export class KeyringController<
 
   readonly #keyringBuilders: { (): EthKeyring; type: string }[];
 
-  readonly #encryptor: Encryptor<EncryptionKey, SupportedKeyDerivationOptions>;
+  readonly #encryptor: Encryptor<
+    EncryptionKey,
+    SupportedKeyDerivationOptions,
+    EncryptionResult
+  >;
 
   #keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
 
@@ -686,7 +712,8 @@ export class KeyringController<
   constructor(
     options: KeyringControllerOptions<
       EncryptionKey,
-      SupportedKeyDerivationOptions
+      SupportedKeyDerivationOptions,
+      EncryptionResult
     >,
   ) {
     const { encryptor, keyringBuilders, messenger, state } = options;

@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added optional `EncryptionKey` and `SupportedKeyDerivationOptions` type parameters to the `KeyringController`, `ExportableKeyEncryptor` and `KeyringControllerOptions` types ([#5963](https://github.com/MetaMask/core/pull/5963))
-  - This type parameter allows specifying the key derivation options supported by the injected encryptor, defaulting to `@metamask/browser-passworder` types.
+- Added optional `EncryptionKey`, `SupportedKeyDerivationOptions` and `EncryptionResult` type parameters to the `KeyringController`, `ExportableKeyEncryptor` and `KeyringControllerOptions` types ([#5963](https://github.com/MetaMask/core/pull/5963))
+  - This type parameter allows specifying the encryption key, key derivation options and encryption result types supported by the injected encryptor, defaulting to `@metamask/browser-passworder` types.
 
 ### Changed
 
