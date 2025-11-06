@@ -1,6 +1,7 @@
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
 import { BtcAccountProvider } from './BtcAccountProvider';
@@ -32,6 +33,39 @@ jest.mock('../analytics', () => ({
 const THROTTLED_OPERATION_DELAY_MS = 10;
 const TEST_SNAP_ID = 'npm:@metamask/test-snap' as SnapId;
 const TEST_ENTROPY_SOURCE = 'test-entropy-source' as EntropySourceId;
+
+// Helper to create a test provider that exposes protected trace method
+class TestSnapAccountProvider extends SnapAccountProvider {
+  getName(): string {
+    return 'Test Provider';
+  }
+
+  isAccountCompatible(_account: Bip44Account<InternalAccount>): boolean {
+    return true;
+  }
+
+  async discoverAccounts(_options: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<Bip44Account<KeyringAccount>[]> {
+    return [];
+  }
+
+  async createAccounts(_options: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<Bip44Account<KeyringAccount>[]> {
+    return [];
+  }
+
+  // Expose protected trace method as public for testing
+  async trace<ReturnType>(
+    request: TraceRequest,
+    fn: () => Promise<ReturnType>,
+  ): Promise<ReturnType> {
+    return super.trace(request, fn);
+  }
+}
 
 // Helper to create a tracked provider that monitors concurrent execution
 const createTrackedProvider = (maxConcurrency?: number) => {
@@ -271,14 +305,26 @@ describe('SnapAccountProvider', () => {
       >;
       mockTraceCallback.mockImplementation(async (_request, fn) => fn?.());
 
-      // Test with only messenger parameter (uses default config and trace)
-      const solProvider = new SolAccountProvider(mockMessenger);
+      // Test with default config and trace
+      const defaultConfig = {
+        discovery: {
+          timeoutMs: 2000,
+          maxAttempts: 3,
+          backOffMs: 1000,
+        },
+        createAccounts: {
+          timeoutMs: 3000,
+        },
+      };
+      const testProvider = new TestSnapAccountProvider(
+        TEST_SNAP_ID,
+        mockMessenger,
+        defaultConfig,
+      );
       const request = { name: 'Test Request', data: {} };
       const fn = jest.fn().mockResolvedValue('defaultResult');
 
-      // Access protected trace method
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (solProvider as any).trace(request, fn);
+      await testProvider.trace(request, fn);
 
       expect(mockTraceCallback).toHaveBeenCalledTimes(1);
       expect(mockTraceCallback).toHaveBeenCalledWith(
@@ -294,7 +340,8 @@ describe('SnapAccountProvider', () => {
       });
 
       // Test with all parameters including custom trace
-      const solProvider = new SolAccountProvider(
+      const testProvider = new TestSnapAccountProvider(
+        TEST_SNAP_ID,
         mockMessenger,
         {
           discovery: {
@@ -311,9 +358,7 @@ describe('SnapAccountProvider', () => {
       const request = { name: 'Test Request', data: {} };
       const fn = jest.fn().mockResolvedValue('customResult');
 
-      // Access protected trace method
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await (solProvider as any).trace(request, fn);
+      const result = await testProvider.trace(request, fn);
 
       expect(result).toBe('customResult');
       expect(customTrace).toHaveBeenCalledTimes(1);
@@ -330,17 +375,26 @@ describe('SnapAccountProvider', () => {
         return await fn();
       });
 
-      const solProvider = new SolAccountProvider(
+      const defaultConfig = {
+        discovery: {
+          timeoutMs: 2000,
+          maxAttempts: 3,
+          backOffMs: 1000,
+        },
+        createAccounts: {
+          timeoutMs: 3000,
+        },
+      };
+      const testProvider = new TestSnapAccountProvider(
+        TEST_SNAP_ID,
         mockMessenger,
-        undefined,
+        defaultConfig,
         mockTrace,
       );
       const request = { name: 'Test Request', data: { test: 'data' } };
       const fn = jest.fn().mockResolvedValue('testResult');
 
-      // Access protected trace method
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await (solProvider as any).trace(request, fn);
+      const result = await testProvider.trace(request, fn);
 
       expect(result).toBe('testResult');
       expect(mockTrace).toHaveBeenCalledTimes(1);
@@ -353,19 +407,26 @@ describe('SnapAccountProvider', () => {
         return await fn();
       });
 
-      const solProvider = new SolAccountProvider(
+      const defaultConfig = {
+        discovery: {
+          timeoutMs: 2000,
+          maxAttempts: 3,
+          backOffMs: 1000,
+        },
+        createAccounts: {
+          timeoutMs: 3000,
+        },
+      };
+      const testProvider = new TestSnapAccountProvider(
+        TEST_SNAP_ID,
         mockMessenger,
-        undefined,
+        defaultConfig,
         mockTrace,
       );
       const request = { name: 'Test Request', data: {} };
       const fn = jest.fn().mockRejectedValue(mockError);
 
-      // Access protected trace method
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await expect((solProvider as any).trace(request, fn)).rejects.toThrow(
-        mockError,
-      );
+      await expect(testProvider.trace(request, fn)).rejects.toThrow(mockError);
 
       expect(mockTrace).toHaveBeenCalledTimes(1);
       expect(fn).toHaveBeenCalledTimes(1);
@@ -376,17 +437,26 @@ describe('SnapAccountProvider', () => {
         return await fn();
       });
 
-      const solProvider = new SolAccountProvider(
+      const defaultConfig = {
+        discovery: {
+          timeoutMs: 2000,
+          maxAttempts: 3,
+          backOffMs: 1000,
+        },
+        createAccounts: {
+          timeoutMs: 3000,
+        },
+      };
+      const testProvider = new TestSnapAccountProvider(
+        TEST_SNAP_ID,
         mockMessenger,
-        undefined,
+        defaultConfig,
         mockTrace,
       );
       const request = { name: 'Test Request', data: {} };
       const fn = jest.fn().mockResolvedValue(undefined);
 
-      // Access protected trace method
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await (solProvider as any).trace(request, fn);
+      const result = await testProvider.trace(request, fn);
 
       expect(result).toBeUndefined();
       expect(mockTrace).toHaveBeenCalledTimes(1);
