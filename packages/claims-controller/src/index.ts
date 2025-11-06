@@ -25,4 +25,8 @@ export type {
   ClaimsServiceMessenger,
 } from './ClaimsService';
 
-export { ClaimStatusEnum, Env } from './constants';
+export {
+  ClaimStatusEnum,
+  Env,
+  ClaimsControllerErrorMessages,
+} from './constants';

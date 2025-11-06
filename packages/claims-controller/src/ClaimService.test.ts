@@ -1,6 +1,7 @@
 import { ClaimsService } from './ClaimsService';
 import {
   CLAIMS_API_URL,
+  ClaimsServiceErrorMessages,
   ClaimStatusEnum,
   Env,
   HttpContentTypeHeader,
@@ -120,7 +121,9 @@ describe('ClaimsService', () => {
 
       const service = createMockClaimsService();
 
-      await expect(service.getClaims()).rejects.toThrow('Failed to get claims');
+      await expect(service.getClaims()).rejects.toThrow(
+        ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS,
+      );
     });
   });
 
@@ -170,7 +173,7 @@ describe('ClaimsService', () => {
       const service = createMockClaimsService();
 
       await expect(service.getClaimById('1')).rejects.toThrow(
-        'Failed to get claim by id',
+        ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID,
       );
     });
   });
@@ -238,7 +241,9 @@ describe('ClaimsService', () => {
 
       await expect(
         service.generateMessageForClaimSignature(1, '0x123'),
-      ).rejects.toThrow('Failed to generate message for claim signature');
+      ).rejects.toThrow(
+        ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
+      );
     });
   });
 
@@ -301,7 +306,9 @@ describe('ClaimsService', () => {
 
       await expect(
         service.verifyClaimSignature('0x123', '0x123', 'test message'),
-      ).rejects.toThrow('Failed to verify claim signature');
+      ).rejects.toThrow(
+        ClaimsServiceErrorMessages.CLAIM_SIGNATURE_VERIFICATION_REQUEST_FAILED,
+      );
     });
   });
 });

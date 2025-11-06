@@ -18,6 +18,7 @@ import type {
   ClaimsServiceVerifyClaimSignatureAction,
 } from './ClaimsService';
 import {
+  ClaimsControllerErrorMessages,
   CONTROLLER_NAME,
   HttpContentTypeHeader,
   SERVICE_NAME,
@@ -140,13 +141,12 @@ export class ClaimsController extends BaseController<
       chainId,
       walletAddress,
     );
-    console.log('message', message);
 
     // generate and parse the SIWE message
     const messageHex = textToHex(message);
     const siwe = detectSIWE({ data: messageHex });
     if (!siwe.isSIWEMessage) {
-      throw new Error('Invalid Signature message');
+      throw new Error(ClaimsControllerErrorMessages.INVALID_SIGNATURE_MESSAGE);
     }
 
     // sign the message
@@ -158,7 +158,6 @@ export class ClaimsController extends BaseController<
         siwe,
       },
     );
-    console.log('signature', signature);
 
     // verify the signature
     const isSignatureValid = await this.messenger.call(
@@ -169,7 +168,7 @@ export class ClaimsController extends BaseController<
     );
 
     if (!isSignatureValid) {
-      throw new Error('Invalid signature');
+      throw new Error(ClaimsControllerErrorMessages.INVALID_CLAIM_SIGNATURE);
     }
 
     return signature;
@@ -202,7 +201,7 @@ export class ClaimsController extends BaseController<
       // Question: should we allow users to submit the rejected claim again?
     );
     if (isClaimAlreadySubmitted) {
-      throw new Error('Claim already submitted');
+      throw new Error(ClaimsControllerErrorMessages.CLAIM_ALREADY_SUBMITTED);
     }
   }
 }

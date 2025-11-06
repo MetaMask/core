@@ -4,6 +4,7 @@ import type { Hex } from '@metamask/utils';
 
 import {
   CLAIMS_API_URL,
+  ClaimsServiceErrorMessages,
   type Env,
   HttpContentTypeHeader,
   SERVICE_NAME,
@@ -117,7 +118,7 @@ export class ClaimsService {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to get claims');
+      throw new Error(ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIMS);
     }
 
     const claims = await response.json();
@@ -138,7 +139,7 @@ export class ClaimsService {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to get claim by id');
+      throw new Error(ClaimsServiceErrorMessages.FAILED_TO_GET_CLAIM_BY_ID);
     }
 
     const claim = await response.json();
@@ -168,7 +169,9 @@ export class ClaimsService {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to generate message for claim signature');
+      throw new Error(
+        ClaimsServiceErrorMessages.SIGNATURE_MESSAGE_GENERATION_FAILED,
+      );
     }
 
     const message = await response.json();
@@ -201,7 +204,9 @@ export class ClaimsService {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to verify claim signature');
+      throw new Error(
+        ClaimsServiceErrorMessages.CLAIM_SIGNATURE_VERIFICATION_REQUEST_FAILED,
+      );
     }
 
     const result = await response.json();

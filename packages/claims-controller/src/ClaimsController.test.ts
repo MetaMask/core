@@ -1,5 +1,9 @@
 import { ClaimsController } from './ClaimsController';
-import { ClaimStatusEnum, HttpContentTypeHeader } from './constants';
+import {
+  ClaimsControllerErrorMessages,
+  ClaimStatusEnum,
+  HttpContentTypeHeader,
+} from './constants';
 import type { Claim, CreateClaimRequest } from './types';
 import { createMockClaimsControllerMessenger } from '../tests/mocks/messenger';
 import type { WithControllerArgs } from '../tests/types';
@@ -110,7 +114,9 @@ describe('ClaimsController', () => {
         async ({ controller }) => {
           await expect(
             controller.getSubmitClaimConfig(MOCK_CLAIM),
-          ).rejects.toThrow('Claim already submitted');
+          ).rejects.toThrow(
+            ClaimsControllerErrorMessages.CLAIM_ALREADY_SUBMITTED,
+          );
         },
       );
     });
@@ -162,7 +168,9 @@ describe('ClaimsController', () => {
         });
         await expect(
           controller.generateClaimSignature(1, MOCK_WALLET_ADDRESS),
-        ).rejects.toThrow('Invalid Signature message');
+        ).rejects.toThrow(
+          ClaimsControllerErrorMessages.INVALID_SIGNATURE_MESSAGE,
+        );
       });
     });
 
@@ -172,7 +180,9 @@ describe('ClaimsController', () => {
         mockClaimServiceVerifyClaimSignature.mockResolvedValueOnce(false);
         await expect(
           controller.generateClaimSignature(1, MOCK_WALLET_ADDRESS),
-        ).rejects.toThrow('Invalid signature');
+        ).rejects.toThrow(
+          ClaimsControllerErrorMessages.INVALID_CLAIM_SIGNATURE,
+        );
       });
     });
   });
