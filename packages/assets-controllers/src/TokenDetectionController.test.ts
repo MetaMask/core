@@ -1192,7 +1192,7 @@ describe('TokenDetectionController', () => {
                 '0xa',
                 '0x89',
                 '0x531',
-                "0x279f",
+                '0x279f',
               ],
               selectedAddress: secondSelectedAccount.address,
             });
