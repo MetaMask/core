@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add isGasFeeSponsored field in transaction batch params ([#6978](https://github.com/MetaMask/core/pull/6978))
+- Add isGasFeeSponsored field in transaction batch params ([#7064](https://github.com/MetaMask/core/pull/7064))
 
 ## [59.0.0]
 
