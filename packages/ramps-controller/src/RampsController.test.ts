@@ -217,13 +217,14 @@ describe('RampsController', () => {
         await controller.getCountries();
 
         expect(mockFetch).toHaveBeenCalledTimes(2);
+        // Default state is 'staging', which matches SdkEnvironment.Staging, so uses staging URL
         expect(mockFetch).toHaveBeenNthCalledWith(
           1,
-          'http://localhost:3000//geolocation',
+          'https://on-ramp.uat-api.cx.metamask.io//geolocation',
         );
         expect(mockFetch).toHaveBeenNthCalledWith(
           2,
-          'http://localhost:3000/regions/countries/US',
+          'https://on-ramp.uat-api.cx.metamask.io/regions/countries/US',
         );
 
         expect(controller.state.region).toStrictEqual({
@@ -331,11 +332,11 @@ describe('RampsController', () => {
           json: async () => mockCountriesData,
         } as Response);
 
-      // Test with string values that don't match enum values
+      // Test with string values that don't match enum values (use 'unknown' instead of 'staging')
       await withController(
         {
           options: {
-            state: { metamaskEnvironment: 'staging', context: 'browser' },
+            state: { metamaskEnvironment: 'unknown', context: 'browser' },
           },
         },
         async ({ controller }) => {
