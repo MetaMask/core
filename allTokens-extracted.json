@@ -1,0 +1,780 @@
+{
+  "0x1": {
+    "0x393a8d3f7710047324d369a7cb368c0570c335b8": [
+      {
+        "address": "0x111111111117dC0aa78b770fA6A738034120C302",
+        "symbol": "1INCH",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/1/0x111111111117dc0aa78b770fa6a738034120c302.png",
+        "aggregators": [
+          "Metamask",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap",
+          "PMM",
+          "Bancor"
+        ],
+        "name": "1INCH Token"
+      },
+      {
+        "address": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+        "symbol": "DAI",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/1/0x6b175474e89094c44da98b954eedeac495271d0f.png",
+        "aggregators": [
+          "Metamask",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap",
+          "PMM",
+          "Bancor"
+        ],
+        "name": "Dai Stablecoin"
+      },
+      {
+        "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "symbol": "USDC",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/1/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.png",
+        "aggregators": [
+          "Metamask",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap",
+          "PMM",
+          "Bancor"
+        ],
+        "name": "USDC"
+      },
+      {
+        "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+        "symbol": "USDT",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/1/0xdac17f958d2ee523a2206206994597c13d831ec7.png",
+        "aggregators": [
+          "Metamask",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap",
+          "PMM",
+          "Bancor"
+        ],
+        "name": "Tether USD"
+      },
+      {
+        "address": "0xD4419C2d3DAA986Dc30444Fa333a846be44Fd1eb",
+        "symbol": "ZIK",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/1/0xd4419c2d3daa986dc30444fa333a846be44fd1eb.png",
+        "aggregators": [
+          "CoinMarketCap",
+          "Socket",
+          "Rango",
+          "Sonarwatch"
+        ],
+        "name": "ZIK coin"
+      }
+    ],
+    "0xb1b7c2061d4288b5cd7b6a2ac989b5f7833ef4c7": [
+      {
+        "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        "symbol": "WETH",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png",
+        "aggregators": [
+          "Metamask",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap",
+          "PMM"
+        ],
+        "name": "Wrapped Ether"
+      },
+      {
+        "address": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+        "symbol": "DAI",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/1/0x6b175474e89094c44da98b954eedeac495271d0f.png",
+        "aggregators": [
+          "Metamask",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap",
+          "PMM",
+          "Bancor"
+        ],
+        "name": "Dai Stablecoin"
+      },
+      {
+        "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "symbol": "USDC",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/1/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.png",
+        "aggregators": [
+          "Metamask",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap",
+          "PMM",
+          "Bancor"
+        ],
+        "name": "USDC"
+      },
+      {
+        "address": "0xacA92E438df0B2401fF60dA7E4337B687a2435DA",
+        "symbol": "MUSD",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/1/0xaca92e438df0b2401ff60da7e4337b687a2435da.png",
+        "aggregators": [
+          "Metamask",
+          "LiFi",
+          "Socket",
+          "Rango"
+        ],
+        "name": "MetaMask USD"
+      }
+    ]
+  },
+  "0xe708": {
+    "0x393a8d3f7710047324d369a7cb368c0570c335b8": [
+      {
+        "address": "0x0D1E753a25eBda689453309112904807625bEFBe",
+        "symbol": "CAKE",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/59144/0x0d1e753a25ebda689453309112904807625befbe.png",
+        "aggregators": [
+          "CoinGecko",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch"
+        ],
+        "name": "PancakeSwap"
+      },
+      {
+        "address": "0x176211869cA2b568f2A7D4EE941E073a821EE1ff",
+        "symbol": "USDC",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/59144/0x176211869ca2b568f2a7d4ee941e073a821ee1ff.png",
+        "aggregators": [
+          "Metamask",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "USDC"
+      },
+      {
+        "address": "0x1789e0043623282D5DCc7F213d703C6D8BAfBB04",
+        "symbol": "LINEA",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/59144/0x1789e0043623282d5dcc7f213d703c6d8bafbb04.png",
+        "aggregators": [
+          "Metamask",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango"
+        ],
+        "name": "Linea"
+      },
+      {
+        "address": "0xacA92E438df0B2401fF60dA7E4337B687a2435DA",
+        "symbol": "MUSD",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/59144/0xaca92e438df0b2401ff60da7e4337b687a2435da.png",
+        "aggregators": [
+          "Metamask",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango"
+        ],
+        "name": "MetaMask USD"
+      },
+      {
+        "address": "0xe5D7C2a44FfDDf6b295A15c148167daaAf5Cf34f",
+        "symbol": "WETH",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/59144/0xe5d7c2a44ffddf6b295a15c148167daaaf5cf34f.png",
+        "aggregators": [
+          "CoinGecko",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "Wrapped Ether"
+      },
+      {
+        "address": "0x4AF15ec2A0BD43Db75dd04E62FAA3B8EF36b00d5",
+        "symbol": "DAI",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/59144/0x4af15ec2a0bd43db75dd04e62faa3b8ef36b00d5.png",
+        "aggregators": [
+          "CoinGecko",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch"
+        ],
+        "name": "Bridged Dai Stablecoin (Linea)"
+      }
+    ],
+    "0xb1b7c2061d4288b5cd7b6a2ac989b5f7833ef4c7": [
+      {
+        "address": "0x176211869cA2b568f2A7D4EE941E073a821EE1ff",
+        "symbol": "USDC",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/59144/0x176211869ca2b568f2a7d4ee941e073a821ee1ff.png",
+        "aggregators": [
+          "Metamask",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "USDC"
+      },
+      {
+        "address": "0x1789e0043623282D5DCc7F213d703C6D8BAfBB04",
+        "symbol": "LINEA",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/59144/0x1789e0043623282d5dcc7f213d703c6d8bafbb04.png",
+        "aggregators": [
+          "Metamask",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango"
+        ],
+        "name": "Linea"
+      },
+      {
+        "address": "0xA219439258ca9da29E9Cc4cE5596924745e12B93",
+        "symbol": "USDT",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/59144/0xa219439258ca9da29e9cc4ce5596924745e12b93.png",
+        "aggregators": [
+          "CoinGecko",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch"
+        ],
+        "name": "Bridged Tether (Linea)"
+      },
+      {
+        "address": "0xacA92E438df0B2401fF60dA7E4337B687a2435DA",
+        "symbol": "MUSD",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/59144/0xaca92e438df0b2401ff60da7e4337b687a2435da.png",
+        "aggregators": [
+          "Metamask",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango"
+        ],
+        "name": "MetaMask USD"
+      }
+    ]
+  },
+  "0x2105": {
+    "0x393a8d3f7710047324d369a7cb368c0570c335b8": [
+      {
+        "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "symbol": "USDC",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/8453/0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.png",
+        "aggregators": [
+          "CoinGecko",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "USD Coin"
+      },
+      {
+        "address": "0x88Fb150BDc53A65fe94Dea0c9BA0a6dAf8C6e196",
+        "symbol": "LINK",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/8453/0x88fb150bdc53a65fe94dea0c9ba0a6daf8c6e196.png",
+        "aggregators": [
+          "CoinGecko",
+          "LiFi",
+          "Rubic",
+          "Rango"
+        ],
+        "name": "ChainLink Token"
+      }
+    ]
+  },
+  "0xa4b1": {
+    "0x393a8d3f7710047324d369a7cb368c0570c335b8": [
+      {
+        "address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "symbol": "USDC",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/42161/0xaf88d065e77c8cc2239327c5edb3a432268e5831.png",
+        "aggregators": [
+          "TraderJoe",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "USD Coin (Native)"
+      },
+      {
+        "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+        "symbol": "USDT",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/42161/0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9.png",
+        "aggregators": [
+          "TraderJoe",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "Tether USD"
+      }
+    ],
+    "0xb1b7c2061d4288b5cd7b6a2ac989b5f7833ef4c7": [
+      {
+        "address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "symbol": "USDC",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/42161/0xaf88d065e77c8cc2239327c5edb3a432268e5831.png",
+        "aggregators": [
+          "TraderJoe",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "USD Coin (Native)"
+      }
+    ]
+  },
+  "0x38": {
+    "0x393a8d3f7710047324d369a7cb368c0570c335b8": [
+      {
+        "address": "0x55d398326f99059fF775485246999027B3197955",
+        "symbol": "USDT",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/56/0x55d398326f99059ff775485246999027b3197955.png",
+        "aggregators": [
+          "PancakeExtended",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "Tether USD"
+      },
+      {
+        "address": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+        "symbol": "USDC",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/56/0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d.png",
+        "aggregators": [
+          "PancakeExtended",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "Binance-Peg USD Coin"
+      },
+      {
+        "address": "0xc5f0f7b66764F6ec8C8Dff7BA683102295E16409",
+        "symbol": "FDUSD",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/56/0xc5f0f7b66764f6ec8c8dff7ba683102295e16409.png",
+        "aggregators": [
+          "PancakeExtended",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Squid",
+          "Rango",
+          "Sonarwatch"
+        ],
+        "name": "First Digital USD"
+      }
+    ],
+    "0xb1b7c2061d4288b5cd7b6a2ac989b5f7833ef4c7": [
+      {
+        "address": "0x55d398326f99059fF775485246999027B3197955",
+        "symbol": "USDT",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/56/0x55d398326f99059ff775485246999027b3197955.png",
+        "aggregators": [
+          "PancakeExtended",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "Tether USD"
+      },
+      {
+        "address": "0x25d887Ce7a35172C62FeBFD67a1856F20FaEbB00",
+        "symbol": "PEPE",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/56/0x25d887ce7a35172c62febfd67a1856f20faebb00.png",
+        "aggregators": [
+          "PancakeExtended",
+          "1inch",
+          "Socket",
+          "Rango",
+          "Sonarwatch"
+        ],
+        "name": "Pepe"
+      },
+      {
+        "address": "0xBf5140A22578168FD562DCcF235E5D43A02ce9B1",
+        "symbol": "UNI",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/56/0xbf5140a22578168fd562dccf235e5d43a02ce9b1.png",
+        "aggregators": [
+          "PancakeTop100",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "Uniswap"
+      }
+    ]
+  },
+  "0xa": {
+    "0x393a8d3f7710047324d369a7cb368c0570c335b8": [
+      {
+        "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+        "symbol": "USDC",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/10/0x0b2c639c533813f4aa9d7837caf62653d097ff85.png",
+        "aggregators": [
+          "Uniswap",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "SushiSwap"
+        ],
+        "name": "USD Coin"
+      },
+      {
+        "address": "0x4200000000000000000000000000000000000042",
+        "symbol": "OP",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/10/0x4200000000000000000000000000000000000042.png",
+        "aggregators": [
+          "Uniswap",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "Optimism"
+      },
+      {
+        "address": "0x350a791Bfc2C21F9Ed5d10980Dad2e2638ffa7f6",
+        "symbol": "LINK",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/10/0x350a791bfc2c21f9ed5d10980dad2e2638ffa7f6.png",
+        "aggregators": [
+          "Uniswap",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "Chainlink"
+      },
+      {
+        "address": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+        "symbol": "USDT",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/10/0x94b008aa00579c1307b0ef2c499ad98a8ce58e58.png",
+        "aggregators": [
+          "Uniswap",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "Tether USD"
+      }
+    ],
+    "0xb1b7c2061d4288b5cd7b6a2ac989b5f7833ef4c7": [
+      {
+        "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+        "symbol": "USDC",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/10/0x0b2c639c533813f4aa9d7837caf62653d097ff85.png",
+        "aggregators": [
+          "Uniswap",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "SushiSwap"
+        ],
+        "name": "USD Coin"
+      }
+    ]
+  },
+  "0x89": {
+    "0x393a8d3f7710047324d369a7cb368c0570c335b8": [
+      {
+        "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+        "symbol": "USDT",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/137/0xc2132d05d31c914a87c6611c10748aeb04b58e8f.png",
+        "aggregators": [
+          "QuickSwap",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "Tether USD"
+      },
+      {
+        "address": "0x172370d5Cd63279eFa6d502DAB29171933a610AF",
+        "symbol": "CRV",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/137/0x172370d5cd63279efa6d502dab29171933a610af.png",
+        "aggregators": [
+          "CoinGecko",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "Curve"
+      },
+      {
+        "address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+        "symbol": "USDC.E",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/137/0x2791bca1f2de4661ed88a30c99a7a9449aa84174.png",
+        "aggregators": [
+          "Metamask",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "USD Coin (PoS)"
+      },
+      {
+        "address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+        "symbol": "USDC",
+        "decimals": 6,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/137/0x3c499c542cef5e3811e1192ce70d8cc03d5c3359.png",
+        "aggregators": [
+          "CoinGecko",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "USD Coin"
+      },
+      {
+        "address": "0x50B728D8D964fd00C2d0AAD81718b71311feF68a",
+        "symbol": "SNX",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/137/0x50b728d8d964fd00c2d0aad81718b71311fef68a.png",
+        "aggregators": [
+          "CoinGecko",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "Synthetix Network Token"
+      },
+      {
+        "address": "0x53E0bca35eC356BD5ddDFebbD1Fc0fD03FaBad39",
+        "symbol": "LINK",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/137/0x53e0bca35ec356bd5dddfebbd1fc0fd03fabad39.png",
+        "aggregators": [
+          "QuickSwap",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "ChainLink Token"
+      },
+      {
+        "address": "0xb33EaAd8d922B1083446DC23f610c2567fB5180f",
+        "symbol": "UNI",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/137/0xb33eaad8d922b1083446dc23f610c2567fb5180f.png",
+        "aggregators": [
+          "QuickSwap",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "Uniswap"
+      },
+      {
+        "address": "0xD6DF932A45C0f255f85145f286eA0b292B21C90B",
+        "symbol": "AAVE",
+        "decimals": 18,
+        "image": "https://static.cx.metamask.io/api/v1/tokenIcons/137/0xd6df932a45c0f255f85145f286ea0b292b21c90b.png",
+        "aggregators": [
+          "QuickSwap",
+          "1inch",
+          "LiFi",
+          "Socket",
+          "Rubic",
+          "Squid",
+          "Rango",
+          "Sonarwatch",
+          "SushiSwap"
+        ],
+        "name": "Aave"
+      }
+    ]
+  }
+}
