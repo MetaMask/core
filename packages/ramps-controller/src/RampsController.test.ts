@@ -1,18 +1,19 @@
 import 'isomorphic-fetch';
+
+import {
+  Context,
+  NativeRampsSdk,
+  SdkEnvironment,
+} from '@consensys/native-ramps-sdk';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   Messenger,
   MOCK_ANY_NAMESPACE,
-  type MockAnyNamespace,
   type MessengerActions,
   type MessengerEvents,
+  type MockAnyNamespace,
 } from '@metamask/messenger';
-import {
-  NativeRampsSdk,
-  Context,
-  SdkEnvironment,
-  type NativeRampsSdkConfig,
-} from '@consensys/native-ramps-sdk';
+
 import { RampsController } from './RampsController';
 import type { RampsControllerMessenger } from './RampsController';
 
@@ -97,7 +98,7 @@ describe('RampsController', () => {
     });
 
     it('creates NativeRampsSdk with correct parameters for staging environment', async () => {
-      await withController(({ controller }) => {
+      await withController((_) => {
         expect(NativeRampsSdk).toHaveBeenCalledWith(
           { context: Context.Browser },
           SdkEnvironment.Staging,
@@ -111,15 +112,12 @@ describe('RampsController', () => {
         context: 'browser',
       };
 
-      await withController(
-        { options: { state: customState } },
-        ({ controller }) => {
-          expect(NativeRampsSdk).toHaveBeenCalledWith(
-            { context: Context.Browser },
-            SdkEnvironment.Production,
-          );
-        },
-      );
+      await withController({ options: { state: customState } }, (_) => {
+        expect(NativeRampsSdk).toHaveBeenCalledWith(
+          { context: Context.Browser },
+          SdkEnvironment.Production,
+        );
+      });
     });
 
     it('creates NativeRampsSdk with staging environment for dev, exp, test, e2e', async () => {
@@ -129,7 +127,7 @@ describe('RampsController', () => {
         jest.clearAllMocks();
         await withController(
           { options: { state: { metamaskEnvironment: env } } },
-          ({ controller }) => {
+          () => {
             expect(NativeRampsSdk).toHaveBeenCalledWith(
               { context: Context.Browser },
               SdkEnvironment.Staging,
@@ -146,7 +144,7 @@ describe('RampsController', () => {
         jest.clearAllMocks();
         await withController(
           { options: { state: { metamaskEnvironment: env } } },
-          ({ controller }) => {
+          () => {
             expect(NativeRampsSdk).toHaveBeenCalledWith(
               { context: Context.Browser },
               SdkEnvironment.Production,
@@ -162,15 +160,12 @@ describe('RampsController', () => {
         context: 'browser',
       };
 
-      await withController(
-        { options: { state: customState } },
-        ({ controller }) => {
-          expect(NativeRampsSdk).toHaveBeenCalledWith(
-            { context: Context.Browser },
-            SdkEnvironment.Staging,
-          );
-        },
-      );
+      await withController({ options: { state: customState } }, (_) => {
+        expect(NativeRampsSdk).toHaveBeenCalledWith(
+          { context: Context.Browser },
+          SdkEnvironment.Staging,
+        );
+      });
     });
 
     it('defaults to Browser context when context string does not match Context keys', async () => {
@@ -179,19 +174,15 @@ describe('RampsController', () => {
         context: 'mobile-ios',
       };
 
-      await withController(
-        { options: { state: customState } },
-        ({ controller }) => {
-          // The code uses context as a key, so 'mobile-ios' doesn't match any key
-          // and defaults to Browser
-          expect(NativeRampsSdk).toHaveBeenCalledWith(
-            { context: Context.Browser },
-            SdkEnvironment.Staging,
-          );
-        },
-      );
+      await withController({ options: { state: customState } }, () => {
+        // The code uses context as a key, so 'mobile-ios' doesn't match any key
+        // and defaults to Browser
+        expect(NativeRampsSdk).toHaveBeenCalledWith(
+          { context: Context.Browser },
+          SdkEnvironment.Staging,
+        );
+      });
     });
-
   });
 
   describe('getCountries', () => {
@@ -359,7 +350,9 @@ describe('RampsController', () => {
       mockFetch.mockRejectedValueOnce(error);
 
       await withController(async ({ controller }) => {
-        await expect(controller.getCountries()).rejects.toThrow('Network error');
+        await expect(controller.getCountries()).rejects.toThrow(
+          'Network error',
+        );
       });
     });
 
@@ -628,9 +621,7 @@ function getRootMessenger(): RootMessenger {
  * events required by the controller's messenger.
  * @returns The controller-specific messenger.
  */
-function getMessenger(
-  rootMessenger: RootMessenger,
-): RampsControllerMessenger {
+function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
   const messenger: RampsControllerMessenger = new Messenger({
     namespace: 'RampsController',
     parent: rootMessenger,

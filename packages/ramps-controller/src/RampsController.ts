@@ -1,15 +1,15 @@
+import {
+  Context,
+  NativeRampsSdk,
+  SdkEnvironment,
+  type NativeRampsSdkConfig,
+} from '@consensys/native-ramps-sdk';
+import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import {
-  NativeRampsSdk,
-  Context,
-  SdkEnvironment,
-  type NativeRampsSdkConfig,
-} from '@consensys/native-ramps-sdk';
 
 const controllerName = 'RampsController';
 
@@ -30,7 +30,7 @@ export type RampsControllerState = {
   context: string;
   // The region ID is the ID of the region to use for the purchase
   region: RegionState | null;
-}
+};
 
 export type RampsControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -44,7 +44,7 @@ export type RampsControllerGetCountriesAction = {
 
 export type RampsControllerActions =
   | RampsControllerGetStateAction
-  | RampsControllerGetCountriesAction
+  | RampsControllerGetCountriesAction;
 
 export type RampsControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -106,7 +106,6 @@ function getNativeSdkEnvironment(metamaskEnvironment: string) {
 }
 
 enum ApiService {
-  Orders = 'providers',
   Regions = 'regions',
 }
 
@@ -127,7 +126,7 @@ export class RampsController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.messenger - The messenger object.
-   * @param options.state - Initial state to set on this controller
+   * @param options.state - Initial state to set on this controller.
    */
   constructor({
     messenger,
@@ -150,7 +149,7 @@ export class RampsController extends BaseController<
     // Initialize the Native Ramps SDK
     const nativeEnv = getNativeSdkEnvironment(environment);
     // Map the shared context string into the native SDK enum
-    const nativeContext = (context as unknown as string) as keyof typeof Context;
+    const nativeContext = context as unknown as string as keyof typeof Context;
     const nativeConfig: NativeRampsSdkConfig = {
       context: Context[nativeContext] ?? Context.Browser,
     };
@@ -160,11 +159,12 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Gets the non-cached API URL based on the metamask environment
-   * @returns The non-cached API URL based on the metamask environment
+   * Gets the non-cached API URL based on the metamask environment.
+   *
+   * @returns The non-cached API URL based on the metamask environment.
    */
   #getApiUrl(service?: ApiService): string {
-    let url = 'http://localhost:3000'
+    let url = 'http://localhost:3000';
     if (this.state.metamaskEnvironment === SdkEnvironment.Production) {
       url = 'https://on-ramp.api.cx.metamask.io';
     } else if (this.state.metamaskEnvironment === SdkEnvironment.Staging) {
@@ -175,8 +175,7 @@ export class RampsController extends BaseController<
     return urlWithPath.toString();
   }
 
-
-  async #getGeolocation(): Promise<String> {
+  async #getGeolocation(): Promise<string> {
     const url = this.#getApiUrl();
     const response = await fetch(`${url}/geolocation`);
     const data = await response.json();
@@ -188,14 +187,14 @@ export class RampsController extends BaseController<
     const url = this.#getApiUrl(ApiService.Regions);
     const response = await fetch(`${url}/countries/${geolocation}`);
     const data = await response.json();
-   
+
     this.update((state) => {
       state.region = {
         id: geolocation as string,
         deposit: data.deposit,
         aggregator: data.aggregator,
         global: data.global,
-      }
+      };
     });
   }
 
@@ -212,4 +211,3 @@ export class RampsController extends BaseController<
 }
 
 export default RampsController;
-
