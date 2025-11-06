@@ -35,6 +35,7 @@ import type {
   PreferencesControllerGetStateAction,
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { hexToNumber } from '@metamask/utils';
@@ -58,7 +59,6 @@ import type {
   TokensControllerAddTokensAction,
   TokensControllerGetStateAction,
 } from './TokensController';
-import type { AuthenticationControllerGetBearerToken } from '../../profile-sync-controller/src/controllers/authentication';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -143,7 +143,7 @@ export type AllowedActions =
   | TokensControllerAddDetectedTokensAction
   | TokensControllerAddTokensAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | AuthenticationControllerGetBearerToken;
+  | AuthenticationController.AuthenticationControllerGetBearerToken;
 
 export type TokenDetectionControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
@@ -713,7 +713,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     const jwtToken = await this.messenger.call(
       'AuthenticationController:getBearerToken',
     );
-    console.log('jwtToken +++++++++++', jwtToken);
 
     let supportedNetworks;
     if (this.#accountsAPI.isAccountsAPIEnabled && this.#useExternalServices()) {

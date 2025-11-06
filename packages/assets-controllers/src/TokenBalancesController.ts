@@ -32,6 +32,7 @@ import type {
   PreferencesControllerGetStateAction,
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { Hex } from '@metamask/utils';
 import {
   isCaipAssetType,
@@ -61,7 +62,6 @@ import type {
   TokensControllerState,
   TokensControllerStateChangeEvent,
 } from './TokensController';
-import type { AuthenticationControllerGetBearerToken } from '../../profile-sync-controller/src/controllers/authentication';
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
@@ -132,7 +132,7 @@ export type AllowedActions =
   | AccountTrackerControllerGetStateAction
   | AccountTrackerUpdateNativeBalancesAction
   | AccountTrackerUpdateStakedBalancesAction
-  | AuthenticationControllerGetBearerToken;
+  | AuthenticationController.AuthenticationControllerGetBearerToken;
 
 export type AllowedEvents =
   | TokensControllerStateChangeEvent
@@ -645,8 +645,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     const jwtToken = await this.messenger.call(
       'AuthenticationController:getBearerToken',
     );
-
-    console.log('jwtToken ..........', jwtToken);
 
     const aggregated: ProcessedBalance[] = [];
     let remainingChains = [...targetChains];
