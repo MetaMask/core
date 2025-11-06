@@ -8,8 +8,6 @@ export type Claim = {
   signature: string;
 };
 
-export type ClaimWithoutSignature = Omit<Claim, 'signature'>;
-
 export type ClaimsControllerState = {
   claims: Claim[];
 };
@@ -31,4 +29,14 @@ export type SubmitClaimConfig = {
    * The URL to submit the claim to.
    */
   url: string;
+};
+
+export type GenerateSignatureMessageResponse = {
+  message: string;
+  nonce: string;
+};
+
+export type VerifyClaimSignatureResponse = {
+  message: string;
+  success: boolean;
 };

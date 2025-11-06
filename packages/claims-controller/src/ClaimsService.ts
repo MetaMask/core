@@ -7,7 +7,7 @@ import {
   HttpContentTypeHeader,
   SERVICE_NAME,
 } from './constants';
-import type { Claim } from './types';
+import type { Claim, GenerateSignatureMessageResponse } from './types';
 
 export type ClaimsServiceGetClaimsAction = {
   type: `${typeof SERVICE_NAME}:getClaims`;
@@ -29,11 +29,23 @@ export type ClaimsServiceGetClaimsApiUrlAction = {
   handler: ClaimsService['getClaimsApiUrl'];
 };
 
+export type ClaimsServiceGenerateMessageForClaimSignatureAction = {
+  type: `${typeof SERVICE_NAME}:generateMessageForClaimSignature`;
+  handler: ClaimsService['generateMessageForClaimSignature'];
+};
+
+export type ClaimsServiceVerifyClaimSignatureAction = {
+  type: `${typeof SERVICE_NAME}:verifyClaimSignature`;
+  handler: ClaimsService['verifyClaimSignature'];
+};
+
 export type ClaimsServiceActions =
   | ClaimsServiceGetClaimsAction
   | ClaimsServiceGetClaimByIdAction
   | ClaimsServiceGetRequestHeadersAction
-  | ClaimsServiceGetClaimsApiUrlAction;
+  | ClaimsServiceGetClaimsApiUrlAction
+  | ClaimsServiceGenerateMessageForClaimSignatureAction
+  | ClaimsServiceVerifyClaimSignatureAction;
 
 export type AllowedActions =
   AuthenticationController.AuthenticationControllerGetBearerToken;
@@ -81,6 +93,14 @@ export class ClaimsService {
       `${SERVICE_NAME}:getClaimsApiUrl`,
       this.getClaimsApiUrl.bind(this),
     );
+    this.#messenger.registerActionHandler(
+      `${SERVICE_NAME}:generateMessageForClaimSignature`,
+      this.generateMessageForClaimSignature.bind(this),
+    );
+    this.#messenger.registerActionHandler(
+      `${SERVICE_NAME}:verifyClaimSignature`,
+      this.verifyClaimSignature.bind(this),
+    );
   }
 
   /**
@@ -90,7 +110,7 @@ export class ClaimsService {
    */
   async getClaims(): Promise<Claim[]> {
     const headers = await this.getRequestHeaders();
-    const url = this.getClaimsApiUrl();
+    const url = `${this.getClaimsApiUrl()}/claims`;
     const response = await this.#fetch(url, {
       headers,
     });
@@ -111,7 +131,7 @@ export class ClaimsService {
    */
   async getClaimById(id: string): Promise<Claim> {
     const headers = await this.getRequestHeaders();
-    const url = `${this.getClaimsApiUrl()}/byId/${id}`;
+    const url = `${this.getClaimsApiUrl()}/claims/byId/${id}`;
     const response = await this.#fetch(url, {
       headers,
     });
@@ -122,6 +142,69 @@ export class ClaimsService {
 
     const claim = await response.json();
     return claim;
+  }
+
+  /**
+   * Generate a message to be signed by the user for the claim request.
+   *
+   * @param chainId - The chain id of the claim.
+   * @param walletAddress - The impacted wallet address of the claim.
+   * @returns The message for the claim signature.
+   */
+  async generateMessageForClaimSignature(
+    chainId: number,
+    walletAddress: `0x${string}`,
+  ): Promise<GenerateSignatureMessageResponse> {
+    const headers = await this.getRequestHeaders();
+    const url = `${this.getClaimsApiUrl()}/signature/generateMessage`;
+    const response = await this.#fetch(url, {
+      headers,
+      method: 'POST',
+      body: JSON.stringify({
+        chainId,
+        walletAddress,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to generate message for claim signature');
+    }
+
+    const message = await response.json();
+    return message;
+  }
+
+  /**
+   * Verify a claim signature.
+   *
+   * @param signature - The signature which is signed upon the message.
+   * @param walletAddress - The impacted wallet address of the claim.
+   * @param message - The message which was signed to generate the signature.
+   * @returns The result of the signature verification.
+   */
+  async verifyClaimSignature(
+    signature: `0x${string}`,
+    walletAddress: `0x${string}`,
+    message: string,
+  ): Promise<boolean> {
+    const headers = await this.getRequestHeaders();
+    const url = `${this.getClaimsApiUrl()}/signature/verify`;
+    const response = await this.#fetch(url, {
+      headers,
+      method: 'POST',
+      body: JSON.stringify({
+        signature,
+        walletAddress,
+        message,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to verify claim signature');
+    }
+
+    const result = await response.json();
+    return Boolean(result.success);
   }
 
   /**
@@ -148,6 +231,6 @@ export class ClaimsService {
    * @returns The URL for the claims API for the current environment.
    */
   getClaimsApiUrl(): string {
-    return `${CLAIMS_API_URL[this.#env]}/claims`;
+    return `${CLAIMS_API_URL[this.#env]}`;
   }
 }

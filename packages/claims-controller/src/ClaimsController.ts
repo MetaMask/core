@@ -7,21 +7,19 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
 import type {
+  ClaimsServiceGenerateMessageForClaimSignatureAction,
   ClaimsServiceGetClaimByIdAction,
   ClaimsServiceGetClaimsAction,
   ClaimsServiceGetClaimsApiUrlAction,
   ClaimsServiceGetRequestHeadersAction,
+  ClaimsServiceVerifyClaimSignatureAction,
 } from './ClaimsService';
 import {
   CONTROLLER_NAME,
   HttpContentTypeHeader,
   SERVICE_NAME,
 } from './constants';
-import type {
-  ClaimsControllerState,
-  ClaimWithoutSignature,
-  SubmitClaimConfig,
-} from './types';
+import type { Claim, ClaimsControllerState, SubmitClaimConfig } from './types';
 
 export type ClaimsControllerGetStateAction = ControllerGetStateAction<
   typeof CONTROLLER_NAME,
@@ -34,7 +32,9 @@ export type AllowedActions =
   | ClaimsServiceGetClaimsAction
   | ClaimsServiceGetClaimByIdAction
   | ClaimsServiceGetRequestHeadersAction
-  | ClaimsServiceGetClaimsApiUrlAction;
+  | ClaimsServiceGetClaimsApiUrlAction
+  | ClaimsServiceGenerateMessageForClaimSignatureAction
+  | ClaimsServiceVerifyClaimSignatureAction;
 
 export type ClaimsControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof CONTROLLER_NAME,
@@ -92,9 +92,7 @@ export class ClaimsController extends BaseController<
    * @param claimRequest - The claim request to get the required config for.
    * @returns The required config for submitting the claim.
    */
-  async getSubmitClaimConfig(
-    claimRequest: ClaimWithoutSignature,
-  ): Promise<SubmitClaimConfig> {
+  async getSubmitClaimConfig(claimRequest: Claim): Promise<SubmitClaimConfig> {
     // TODO: validate the claim
     // TODO: get the claim signature
     const claim = {
@@ -102,14 +100,13 @@ export class ClaimsController extends BaseController<
       signature:
         '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12', // TODO: get the claim signature
     };
-    // TODO: get the request headers
-    // TODO: get the claims API URL
 
     const headers = await this.messenger.call(
       `${SERVICE_NAME}:getRequestHeaders`,
       HttpContentTypeHeader.MULTIPART_FORM_DATA,
     );
-    const url = this.messenger.call(`${SERVICE_NAME}:getClaimsApiUrl`);
+    const baseUrl = this.messenger.call(`${SERVICE_NAME}:getClaimsApiUrl`);
+    const url = `${baseUrl}/claims`;
 
     return {
       data: claim,
@@ -117,5 +114,39 @@ export class ClaimsController extends BaseController<
       method: 'POST',
       url,
     };
+  }
+
+  /**
+   * Generate a signature for a claim.
+   *
+   * @param chainId - The chain id of the claim.
+   * @param walletAddress - The impacted wallet address of the claim.
+   * @returns The signature for the claim.
+   */
+  async generateClaimSignature(
+    chainId: number,
+    walletAddress: `0x${string}`,
+  ): Promise<string> {
+    const { message } = await this.messenger.call(
+      `${SERVICE_NAME}:generateMessageForClaimSignature`,
+      chainId,
+      walletAddress,
+    );
+
+    // TODO: sign the message
+    const signature = `0xdeadbeef`;
+
+    const isSignatureValid = await this.messenger.call(
+      `${SERVICE_NAME}:verifyClaimSignature`,
+      signature,
+      walletAddress,
+      message,
+    );
+
+    if (!isSignatureValid) {
+      throw new Error('Invalid signature');
+    }
+
+    return signature;
   }
 }

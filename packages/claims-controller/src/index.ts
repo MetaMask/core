@@ -10,7 +10,7 @@ export type {
   ClaimsControllerMessenger,
 } from './ClaimsController';
 
-export type { Claim, ClaimsControllerState, SubmitClaimConfig } from './types';
+export type { Claim, ClaimsControllerState } from './types';
 
 export { ClaimsService } from './ClaimsService';
 
@@ -19,6 +19,8 @@ export type {
   ClaimsServiceGetRequestHeadersAction,
   ClaimsServiceGetClaimsApiUrlAction,
   ClaimsServiceGetClaimByIdAction,
+  ClaimsServiceGenerateMessageForClaimSignatureAction,
+  ClaimsServiceVerifyClaimSignatureAction,
   ClaimsServiceActions,
   ClaimsServiceMessenger,
 } from './ClaimsService';

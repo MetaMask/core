@@ -1,6 +1,6 @@
 import { ClaimsService } from './ClaimsService';
 import { CLAIMS_API_URL, Env, HttpContentTypeHeader } from './constants';
-import type { Claim } from './types';
+import type { Claim, GenerateSignatureMessageResponse } from './types';
 import { createMockClaimsServiceMessenger } from '../tests/mocks/messenger';
 
 const mockAuthenticationControllerGetBearerToken = jest.fn();
@@ -157,6 +157,136 @@ describe('ClaimsService', () => {
       await expect(service.getClaimById('1')).rejects.toThrow(
         'Failed to get claim by id',
       );
+    });
+  });
+
+  describe('generateMessageForClaimSignature', () => {
+    const MOCK_MESSAGE: GenerateSignatureMessageResponse = {
+      message: 'test message',
+      nonce: 'test nonce',
+    };
+
+    beforeEach(() => {
+      jest.resetAllMocks();
+
+      mockAuthenticationControllerGetBearerToken.mockResolvedValueOnce(
+        'test-token',
+      );
+      mockFetchFunction.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValueOnce({
+          message: 'test message',
+          nonce: 'test nonce',
+        }),
+      });
+    });
+
+    it('should generate message for claim signature successfully', async () => {
+      const service = createMockClaimsService();
+
+      const message = await service.generateMessageForClaimSignature(
+        1,
+        '0x123',
+      );
+
+      expect(mockAuthenticationControllerGetBearerToken).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(mockFetchFunction).toHaveBeenCalledTimes(1);
+      expect(mockFetchFunction).toHaveBeenCalledWith(
+        `${CLAIMS_API_URL[Env.DEV]}/signature/generateMessage`,
+        {
+          headers: {
+            Authorization: 'Bearer test-token',
+            'Content-Type': HttpContentTypeHeader.APPLICATION_JSON,
+          },
+          method: 'POST',
+          body: JSON.stringify({
+            chainId: 1,
+            walletAddress: '0x123',
+          }),
+        },
+      );
+
+      expect(message).toStrictEqual(MOCK_MESSAGE);
+    });
+
+    it('should throw error if fetch fails', async () => {
+      mockFetchFunction.mockRestore();
+
+      mockFetchFunction.mockResolvedValueOnce({
+        ok: false,
+        json: jest.fn().mockResolvedValueOnce(null),
+      });
+
+      const service = createMockClaimsService();
+
+      await expect(
+        service.generateMessageForClaimSignature(1, '0x123'),
+      ).rejects.toThrow('Failed to generate message for claim signature');
+    });
+  });
+
+  describe('verifyClaimSignature', () => {
+    beforeEach(() => {
+      jest.resetAllMocks();
+
+      mockAuthenticationControllerGetBearerToken.mockResolvedValueOnce(
+        'test-token',
+      );
+    });
+
+    it('should verify claim signature successfully', async () => {
+      const service = createMockClaimsService();
+
+      mockFetchFunction.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValueOnce({
+          success: true,
+        }),
+      });
+
+      const result = await service.verifyClaimSignature(
+        '0x123',
+        '0x123',
+        'test message',
+      );
+      expect(mockAuthenticationControllerGetBearerToken).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(mockFetchFunction).toHaveBeenCalledTimes(1);
+      expect(mockFetchFunction).toHaveBeenCalledWith(
+        `${CLAIMS_API_URL[Env.DEV]}/signature/verify`,
+        {
+          headers: {
+            Authorization: 'Bearer test-token',
+            'Content-Type': HttpContentTypeHeader.APPLICATION_JSON,
+          },
+          method: 'POST',
+          body: JSON.stringify({
+            signature: '0x123',
+            walletAddress: '0x123',
+            message: 'test message',
+          }),
+        },
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it('should throw error if fetch fails', async () => {
+      mockFetchFunction.mockRestore();
+
+      mockFetchFunction.mockResolvedValueOnce({
+        ok: false,
+        json: jest.fn().mockResolvedValueOnce(null),
+      });
+
+      const service = createMockClaimsService();
+
+      await expect(
+        service.verifyClaimSignature('0x123', '0x123', 'test message'),
+      ).rejects.toThrow('Failed to verify claim signature');
     });
   });
 });
