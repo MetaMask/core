@@ -376,9 +376,8 @@ describe('MultichainAccountWallet', () => {
         accounts: [[MOCK_HD_ACCOUNT_1]],
       });
       const [provider] = providers;
-      provider.createAccounts.mockRejectedValueOnce(
-        new Error('Unable to create accounts'),
-      );
+      const providerError = new Error('Unable to create accounts');
+      provider.createAccounts.mockRejectedValueOnce(providerError);
       const callSpy = jest.spyOn(messenger, 'call');
       await expect(
         wallet.createMultichainAccountGroup(groupIndex),
@@ -389,6 +388,7 @@ describe('MultichainAccountWallet', () => {
         'ErrorReportingService:captureException',
         new Error('Unable to create account with provider "Mocked Provider 0"'),
       );
+      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
     });
 
     it('aggregates non-EVM failures when waiting for all providers', async () => {
@@ -735,9 +735,8 @@ describe('MultichainAccountWallet', () => {
       const { wallet, providers, messenger } = setup({
         accounts: [[], []],
       });
-      providers[0].discoverAccounts.mockRejectedValueOnce(
-        new Error('Unable to discover accounts'),
-      );
+      const providerError = new Error('Unable to discover accounts');
+      providers[0].discoverAccounts.mockRejectedValueOnce(providerError);
       const callSpy = jest.spyOn(messenger, 'call');
       // Ensure the other provider stops immediately to finish the Promise.all
       providers[1].discoverAccounts.mockResolvedValueOnce([]);
@@ -746,6 +745,7 @@ describe('MultichainAccountWallet', () => {
         'ErrorReportingService:captureException',
         new Error('Unable to discover accounts'),
       );
+      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
     });
   });
 });

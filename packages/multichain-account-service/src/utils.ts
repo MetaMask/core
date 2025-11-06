@@ -29,7 +29,7 @@ export const createSentryError = (
 ) => {
   const error = new Error(msg) as Error & {
     cause: Error;
-    context: Record<string, unknown>;
+    context: typeof context;
   };
   error.cause = innerError;
   error.context = context;

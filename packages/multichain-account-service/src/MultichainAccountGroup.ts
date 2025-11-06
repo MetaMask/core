@@ -262,8 +262,7 @@ export class MultichainAccountGroup<
             error as Error,
             {
               groupIndex: this.groupIndex,
-              providerName: provider.getName(),
-              entropySource: this.wallet.entropySource,
+              provider: provider.getName(),
             },
           );
           this.#messenger.call(

@@ -228,15 +228,15 @@ describe('MultichainAccount', () => {
         groupIndex,
         accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
       });
-      providers[1].createAccounts.mockRejectedValueOnce(
-        new Error('Unable to create accounts'),
-      );
+      const providerError = new Error('Unable to create accounts');
+      providers[1].createAccounts.mockRejectedValueOnce(providerError);
       const callSpy = jest.spyOn(messenger, 'call');
       await group.alignAccounts();
       expect(callSpy).toHaveBeenCalledWith(
         'ErrorReportingService:captureException',
         new Error('Unable to align accounts with provider "Mocked Provider"'),
       );
+      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
     });
   });
 });

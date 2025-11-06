@@ -255,8 +255,7 @@ export class MultichainAccountWallet<
               error,
               {
                 groupIndex,
-                providerName: provider.getName(),
-                entropySource: this.#entropySource,
+                provider: provider.getName(),
               },
             );
             this.#messenger.call(
@@ -298,8 +297,7 @@ export class MultichainAccountWallet<
             error,
             {
               groupIndex,
-              providerName: provider.getName(),
-              entropySource: this.#entropySource,
+              provider: provider.getName(),
             },
           );
           this.#messenger.call(
@@ -446,8 +444,7 @@ export class MultichainAccountWallet<
           error as Error,
           {
             groupIndex,
-            providerName: evmProvider.getName(),
-            entropySource: this.#entropySource,
+            provider: evmProvider.getName(),
           },
         );
         this.#messenger.call(
@@ -618,9 +615,17 @@ export class MultichainAccountWallet<
               ),
               error,
             );
+            const sentryError = createSentryError(
+              'Unable to discover accounts',
+              error as Error,
+              {
+                provider: providerName,
+                groupIndex: targetGroupIndex,
+              },
+            );
             this.#messenger.call(
               'ErrorReportingService:captureException',
-              error as Error,
+              sentryError,
             );
             break;
           }
