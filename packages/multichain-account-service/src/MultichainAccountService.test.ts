@@ -7,7 +7,7 @@ import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 
 import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
-import type { NamedAccountProvider } from './providers';
+import type { Bip44AccountProvider } from './providers';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
 import {
   EVM_ACCOUNT_PROVIDER_NAME,
@@ -68,7 +68,7 @@ type Mocks = {
   SolAccountProvider: MockAccountProvider;
 };
 
-function mockAccountProvider<Provider extends NamedAccountProvider>(
+function mockAccountProvider<Provider extends Bip44AccountProvider>(
   providerClass: new (messenger: MultichainAccountServiceMessenger) => Provider,
   mocks: MockAccountProvider,
   accounts: KeyringAccount[],

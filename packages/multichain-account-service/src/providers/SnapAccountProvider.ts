@@ -1,9 +1,12 @@
 import { type Bip44Account } from '@metamask/account-api';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type { KeyringMetadata } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { Json, SnapId } from '@metamask/snaps-sdk';
+import { KeyringClient } from '@metamask/keyring-snap-client';
+import type { Json, JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
+import { HandlerType } from '@metamask/snaps-utils';
 import { Semaphore } from 'async-mutex';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
@@ -30,6 +33,8 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
 
   protected readonly config: SnapAccountProviderConfig;
 
+  protected readonly client: KeyringClient;
+
   readonly #queue?: Semaphore;
 
   constructor(
@@ -40,6 +45,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     super(messenger);
 
     this.snapId = snapId;
+    this.client = this.#getKeyringClientFromSnapId(snapId);
 
     const maxConcurrency = config.maxConcurrency ?? Infinity;
     this.config = {
@@ -77,12 +83,9 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     // Also, creating account that way won't invalidate the Snap keyring state. The
     // account will get created and persisted properly with the Snap account creation
     // flow "asynchronously" (with `notify:accountCreated`).
-    const createAccount = await this.withKeyring<
-      SnapKeyring,
+    const createAccount = await this.#withSnapKeyring<
       SnapKeyring['createAccount']
-    >({ type: KeyringTypes.snap }, async ({ keyring }) =>
-      keyring.createAccount.bind(keyring),
-    );
+    >(async ({ keyring }) => keyring.createAccount.bind(keyring));
 
     return (options) =>
       createAccount(this.snapId, options, {
@@ -90,6 +93,90 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
         displayConfirmation: false,
         setSelectedAccount: false,
       });
+  }
+
+  #getKeyringClientFromSnapId(snapId: string): KeyringClient {
+    return new KeyringClient({
+      send: async (request: JsonRpcRequest) => {
+        const response = await this.messenger.call(
+          'SnapController:handleRequest',
+          {
+            snapId: snapId as SnapId,
+            origin: 'metamask',
+            handler: HandlerType.OnKeyringRequest,
+            request,
+          },
+        );
+        return response as Json;
+      },
+    });
+  }
+
+  async resyncAccounts(
+    accounts: Bip44Account<InternalAccount>[],
+  ): Promise<void> {
+    const localSnapAccounts = accounts.filter(
+      (account) =>
+        account.metadata.snap && account.metadata.snap.id === this.snapId,
+    );
+    const snapAccounts = new Set(
+      (await this.client.listAccounts()).map((account) => account.id),
+    );
+
+    // We want this part to be fast, so we only check for sizes, but we might need
+    // to make "diff" between the 2 states to not miss any de-sync.
+    if (snapAccounts.size !== localSnapAccounts.length) {
+      // TODO: Use reporting-error-service here.
+      console.error(
+        `Snap "${this.snapId}" had de-synced accounts, we'll attempt to re-sync them...`,
+      );
+
+      // We always use the MetaMask list as the main reference here.
+      await Promise.all(
+        localSnapAccounts.map(async (account) => {
+          const { id: entropySource, groupIndex } = account.options.entropy;
+
+          try {
+            if (!snapAccounts.has(account.id)) {
+              // We still need to remove the accounts from the Snap keyring since we're
+              // about to create the same account again, which will use a new ID, but will
+              // keep using the same address, and the Snap keyring does not allow this.
+              await this.#withSnapKeyring(
+                async ({ keyring }) =>
+                  await keyring.removeAccount(account.address),
+              );
+
+              // The Snap has no account in its state for this one, we re-create it.
+              const newAccounts = await this.createAccounts({
+                entropySource,
+                groupIndex,
+              });
+
+              console.log('NEW ACCOUNTS ARE', newAccounts);
+            }
+          } catch (error) {
+            console.error(`Unable to re-sync account: ${groupIndex}`, error);
+          }
+        }),
+      );
+    }
+  }
+
+  async #withSnapKeyring<CallbackResult = void>(
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: SnapKeyring;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
+  ): Promise<CallbackResult> {
+    return this.withKeyring<SnapKeyring, CallbackResult>(
+      { type: KeyringTypes.snap },
+      (args) => {
+        return operation(args);
+      },
+    );
   }
 
   abstract isAccountCompatible(account: Bip44Account<InternalAccount>): boolean;

@@ -17,7 +17,7 @@ import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import type {
   EvmAccountProviderConfig,
-  NamedAccountProvider,
+  Bip44AccountProvider,
 } from './providers';
 import {
   AccountProviderWrapper,
@@ -37,7 +37,7 @@ export const serviceName = 'MultichainAccountService';
  */
 export type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
-  providers?: NamedAccountProvider[];
+  providers?: Bip44AccountProvider[];
   providerConfigs?: {
     [EvmAccountProvider.NAME]?: EvmAccountProviderConfig;
     [SolAccountProvider.NAME]?: SolAccountProviderConfig;
@@ -56,7 +56,7 @@ type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  readonly #providers: NamedAccountProvider[];
+  readonly #providers: Bip44AccountProvider[];
 
   readonly #wallets: Map<
     MultichainAccountWalletId,
@@ -199,6 +199,43 @@ export class MultichainAccountService {
     }
 
     log('Initialized');
+  }
+
+  /**
+   * Re-synchronize MetaMask accounts and the providers accounts if needed.
+   *
+   * NOTE: This is mostly required if one of the providers (keyrings or Snaps)
+   * have different sets of accounts. This method would ensure that both are
+   * in-sync and use the same accounts (and same IDs).
+   *
+   * READ THIS CAREFULLY (State inconsistency bugs/de-sync)
+   * We've seen some problems were keyring accounts on some Snaps were not synchronized
+   * with the accounts on MM side. This causes problems where we cannot interact with
+   * those accounts because the Snap does know about them.
+   * To "workaround" this de-sync problem for now, we make sure that both parties are
+   * in-sync when the service boots up.
+   * ----------------------------------------------------------------------------------
+   */
+  async resyncAccounts(): Promise<void> {
+    log('Re-sync provider accounts if needed...');
+    const accounts = this.#messenger
+      .call('AccountsController:listMultichainAccounts')
+      .filter(isBip44Account);
+    // We use `Promise.all` + `try-catch` combo, since we don't wanna block the wallet
+    // from being used even if some accounts are not sync (best-effort).
+    await Promise.all(
+      this.#providers.map(async (provider) => {
+        try {
+          await provider.resyncAccounts(accounts);
+        } catch (error) {
+          console.error(
+            `Unable to re-sync provider "${provider.getName()}"`,
+            error,
+          );
+        }
+      }),
+    );
+    log('Providers got re-synced!');
   }
 
   #handleOnAccountAdded(account: KeyringAccount): void {
