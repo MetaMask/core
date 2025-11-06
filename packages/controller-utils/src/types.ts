@@ -26,7 +26,7 @@ export type InfuraNetworkType =
 export const CustomNetworkType = {
   'megaeth-testnet': 'megaeth-testnet',
   /**
-   * @deprecated `monad-testnet` is supported on InfuraNetworkType instead .
+   * @deprecated `monad-testnet` is supported on InfuraNetworkType instead.
    */
   'monad-testnet': 'monad-testnet',
 } as const;
