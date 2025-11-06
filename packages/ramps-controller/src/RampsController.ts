@@ -1,7 +1,3 @@
-import {
-  Context,
-  SdkEnvironment,
-} from '@consensys/native-ramps-sdk';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
@@ -17,6 +13,18 @@ type RegionState = {
   aggregator: boolean;
   global: boolean;
 };
+
+export enum SdkEnvironment {
+  Staging = 'stg',
+  Production = 'prd',
+}
+
+export enum Context {
+  Browser = 'browser',
+  Extension = 'extension',
+  MobileAndroid = 'mobile-android',
+  MobileIOS = 'mobile-ios',
+}
 
 /**
  * Ramps controller state
@@ -101,7 +109,6 @@ export class RampsController extends BaseController<
   RampsControllerState,
   RampsControllerMessenger
 > {
-
   /**
    * Constructor for RampsController.
    *

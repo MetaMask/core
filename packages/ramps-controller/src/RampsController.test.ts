@@ -1,9 +1,5 @@
 import 'isomorphic-fetch';
 
-import {
-  Context,
-  SdkEnvironment,
-} from '@consensys/native-ramps-sdk';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   Messenger,
@@ -13,7 +9,7 @@ import {
   type MockAnyNamespace,
 } from '@metamask/messenger';
 
-import { RampsController } from './RampsController';
+import { RampsController, SdkEnvironment, Context } from './RampsController';
 import type { RampsControllerMessenger } from './RampsController';
 
 // Ensure fetch is available
@@ -21,25 +17,6 @@ if (typeof global.fetch === 'undefined') {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   global.fetch = require('isomorphic-fetch');
 }
-
-// Mock the native-ramps-sdk
-jest.mock('@consensys/native-ramps-sdk', () => {
-  const Context = {
-    Browser: 'browser',
-    Extension: 'extension',
-    MobileAndroid: 'mobile-android',
-    MobileIOS: 'mobile-ios',
-  } as const;
-  const SdkEnvironment = {
-    Development: 'dev',
-    Staging: 'staging',
-    Production: 'production',
-  } as const;
-  return {
-    Context,
-    SdkEnvironment,
-  };
-});
 
 describe('RampsController', () => {
   let mockFetch: jest.MockedFunction<typeof fetch>;
@@ -85,7 +62,6 @@ describe('RampsController', () => {
         },
       );
     });
-
   });
 
   describe('getCountries', () => {
@@ -214,7 +190,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('uses localhost API URL when metamaskEnvironment is Development', async () => {
+    it('uses localhost API URL when metamaskEnvironment is not Production or Staging', async () => {
       const mockGeolocation = 'DE';
       const mockCountriesData = {
         deposit: true,
@@ -232,12 +208,13 @@ describe('RampsController', () => {
           json: async () => mockCountriesData,
         } as Response);
 
-      // Test with Development environment which should use localhost
+      // Test with a value that doesn't match Production or Staging, which should use localhost
       await withController(
         {
           options: {
             state: {
-              metamaskEnvironment: SdkEnvironment.Development,
+              // Use a string literal that doesn't match the enum values
+              metamaskEnvironment: 'unknown' as any,
               context: Context.Browser,
             },
           },
@@ -346,7 +323,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "context": "browser",
-            "metamaskEnvironment": "staging",
+            "metamaskEnvironment": "stg",
             "region": null,
           }
         `);
@@ -364,7 +341,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "context": "browser",
-            "metamaskEnvironment": "staging",
+            "metamaskEnvironment": "stg",
             "region": null,
           }
         `);
@@ -382,7 +359,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "context": "browser",
-            "metamaskEnvironment": "staging",
+            "metamaskEnvironment": "stg",
             "region": null,
           }
         `);
@@ -400,7 +377,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "context": "browser",
-            "metamaskEnvironment": "staging",
+            "metamaskEnvironment": "stg",
             "region": null,
           }
         `);
