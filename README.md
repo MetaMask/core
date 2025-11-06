@@ -69,6 +69,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
 - [`@metamask/profile-sync-controller`](packages/profile-sync-controller)
+- [`@metamask/ramps-controller`](packages/ramps-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
 - [`@metamask/remote-feature-flag-controller`](packages/remote-feature-flag-controller)
 - [`@metamask/sample-controllers`](packages/sample-controllers)
@@ -139,6 +140,7 @@ linkStyle default opacity:0.5
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
   profile_sync_controller(["@metamask/profile-sync-controller"]);
+  ramps_controller(["@metamask/ramps-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
   remote_feature_flag_controller(["@metamask/remote-feature-flag-controller"]);
   sample_controllers(["@metamask/sample-controllers"]);
@@ -165,6 +167,8 @@ linkStyle default opacity:0.5
   address_book_controller --> base_controller;
   address_book_controller --> controller_utils;
   address_book_controller --> messenger;
+  analytics_controller --> base_controller;
+  analytics_controller --> messenger;
   announcement_controller --> base_controller;
   announcement_controller --> messenger;
   app_metadata_controller --> base_controller;
@@ -257,6 +261,7 @@ linkStyle default opacity:0.5
   gas_fee_controller --> network_controller;
   gator_permissions_controller --> base_controller;
   gator_permissions_controller --> messenger;
+  gator_permissions_controller --> transaction_controller;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
   keyring_controller --> messenger;
@@ -381,6 +386,7 @@ linkStyle default opacity:0.5
   transaction_controller --> gas_fee_controller;
   transaction_controller --> network_controller;
   transaction_controller --> remote_feature_flag_controller;
+  transaction_pay_controller --> base_controller;
   transaction_pay_controller --> controller_utils;
   transaction_pay_controller --> messenger;
   transaction_pay_controller --> assets_controllers;
@@ -388,8 +394,8 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> bridge_status_controller;
   transaction_pay_controller --> gas_fee_controller;
   transaction_pay_controller --> network_controller;
-  transaction_pay_controller --> transaction_controller;
   transaction_pay_controller --> remote_feature_flag_controller;
+  transaction_pay_controller --> transaction_controller;
   user_operation_controller --> base_controller;
   user_operation_controller --> controller_utils;
   user_operation_controller --> messenger;
