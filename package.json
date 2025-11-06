@@ -101,7 +101,7 @@
     "semver": "^7.6.3",
     "simple-git-hooks": "^2.8.0",
     "tsx": "^4.20.5",
-    "typescript": "~5.2.2",
+    "typescript": "~5.3.3",
     "typescript-eslint": "^8.7.0",
     "yargs": "^17.7.2"
   },
