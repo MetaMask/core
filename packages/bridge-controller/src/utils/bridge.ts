@@ -192,9 +192,7 @@ export const isBitcoinChainId = (
   return chainId.toString() === ChainId.BTC.toString();
 };
 
-export const isTronChainId = (
-  chainId: Hex | number | CaipChainId | string,
-) => {
+export const isTronChainId = (chainId: Hex | number | CaipChainId | string) => {
   if (isCaipChainId(chainId)) {
     return chainId === TrxScope.Mainnet.toString();
   }

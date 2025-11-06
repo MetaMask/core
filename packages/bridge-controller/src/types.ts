@@ -262,12 +262,12 @@ export type TronTradeData = Infer<typeof TronTradeDataSchema>;
  */
 export type QuoteResponse<
   TxDataType = TxData | string | BitcoinTradeData | TronTradeData,
-  ApprovalType = TxData | TronTradeData
+  ApprovalType = TxData | TronTradeData,
 > = Infer<typeof QuoteResponseSchema> & {
-    trade: TxDataType;
-    approval?: ApprovalType;
-    featureId?: FeatureId;
-  };
+  trade: TxDataType;
+  approval?: ApprovalType;
+  featureId?: FeatureId;
+};
 
 export enum ChainId {
   ETH = 1,
@@ -281,7 +281,7 @@ export enum ChainId {
   LINEA = 59144,
   SOLANA = 1151111081099710,
   BTC = 20000000000001,
-  TRON = 728126428
+  TRON = 728126428,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;

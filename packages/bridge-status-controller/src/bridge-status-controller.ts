@@ -1172,10 +1172,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             const { tradeMeta, approvalMeta } =
               await this.#handleEvmTransactionBatch({
                 isBridgeTx,
-                resetApproval: await getUSDTAllowanceResetTx(
+                resetApproval: (await getUSDTAllowanceResetTx(
                   this.messenger,
                   quoteResponse,
-                ) as TxData,
+                )) as TxData,
                 approval: quoteResponse.approval as TxData,
                 trade: quoteResponse.trade as TxData,
                 quoteResponse,

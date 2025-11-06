@@ -196,7 +196,10 @@ export const appendFeesToQuotes = async (
   selectedAccount: InternalAccount,
 ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
   // Safe to cast: appendL1GasFees checks if all quotes are EVM and returns undefined otherwise
-  const quotesWithL1GasFees = await appendL1GasFees(quotes as QuoteResponse<TxData, TxData>[], getLayer1GasFee);
+  const quotesWithL1GasFees = await appendL1GasFees(
+    quotes as QuoteResponse<TxData, TxData>[],
+    getLayer1GasFee,
+  );
   const quotesWithNonEvmFees = await appendNonEvmFees(
     quotes,
     messenger,

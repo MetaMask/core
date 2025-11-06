@@ -10,6 +10,11 @@ import {
   type QuoteMetadata,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
+import {
+  extractTradeData,
+  isTronTrade,
+  type Trade,
+} from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import type {
   BatchTransactionParams,
@@ -23,8 +28,6 @@ import {
 import { createProjectLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { v4 as uuid } from 'uuid';
-
-import { extractTradeData, isTronTrade, type Trade } from '@metamask/bridge-controller';
 
 import { calculateGasFees } from './gas';
 import { createClientTransactionRequest } from './snaps';
@@ -125,11 +128,7 @@ export const handleNonEvmTxResponse = (
     | { transactionId: string } // New unified interface response
     | { result: Record<string, string> }
     | { signature: string },
-  quoteResponse: Omit<
-    QuoteResponse<Trade>,
-    'approval'
-  > &
-    QuoteMetadata,
+  quoteResponse: Omit<QuoteResponse<Trade>, 'approval'> & QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
 ): TransactionMeta & SolanaTransactionMeta => {
   const selectedAccountAddress = selectedAccount.address;
@@ -248,10 +247,12 @@ export const getClientRequest = (
   const transactionData = extractTradeData(trade);
 
   // Tron trades need the visible flag and contract type to be included in the request options
-  const options = isTronTrade(trade) ? { 
-    visible: trade.visible,
-    type: trade.raw_data?.contract?.[0]?.type 
-  } : undefined;
+  const options = isTronTrade(trade)
+    ? {
+        visible: trade.visible,
+        type: trade.raw_data?.contract?.[0]?.type,
+      }
+    : undefined;
 
   // Use the new unified interface
   return createClientTransactionRequest(

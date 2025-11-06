@@ -1,10 +1,10 @@
-import type { BitcoinTradeData, TronTradeData } from '../types';
 import {
   extractTradeData,
   isBitcoinTrade,
   isTronTrade,
   type Trade,
 } from './trade-utils';
+import type { BitcoinTradeData, TronTradeData } from '../types';
 
 describe('Trade utils', () => {
   describe('isBitcoinTrade', () => {
@@ -130,5 +130,3 @@ describe('Trade utils', () => {
     });
   });
 });
-
-
