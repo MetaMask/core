@@ -2115,3 +2115,11 @@ export type AddTransactionOptions = {
   /** Type of transaction to add, such as 'cancel' or 'swap'. */
   type?: TransactionType;
 };
+
+export type GetGasFeeTokensRequest = {
+  chainId: Hex;
+  data?: Hex;
+  from: Hex;
+  to: Hex;
+  value?: Hex;
+};

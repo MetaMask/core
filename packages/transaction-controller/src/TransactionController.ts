@@ -119,6 +119,7 @@ import type {
   GetSimulationConfig,
   AddTransactionOptions,
   PublishHookResult,
+  GetGasFeeTokensRequest,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -381,6 +382,11 @@ export type TransactionControllerEmulateTransactionUpdate = {
   handler: TransactionController['emulateTransactionUpdate'];
 };
 
+export type TransactionControllerGetGasFeeTokensAction = {
+  type: `${typeof controllerName}:getGasFeeTokens`;
+  handler: (request: GetGasFeeTokensRequest) => Promise<GasFeeToken[]>;
+};
+
 /**
  * The internal actions available to the TransactionController.
  */
@@ -389,6 +395,7 @@ export type TransactionControllerActions =
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerConfirmExternalTransactionAction
   | TransactionControllerEstimateGasAction
+  | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetNonceLockAction
   | TransactionControllerGetStateAction
   | TransactionControllerGetTransactionsAction
@@ -4486,6 +4493,11 @@ export class TransactionController extends BaseController<
       `${controllerName}:emulateTransactionUpdate`,
       this.emulateTransactionUpdate.bind(this),
     );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:getGasFeeTokens`,
+      this.#getGasFeeTokensAction.bind(this),
+    );
   }
 
   #deleteTransaction(transactionId: string) {
@@ -4658,5 +4670,22 @@ export class TransactionController extends BaseController<
       publicKeyEIP7702: this.#publicKeyEIP7702,
       transactionMeta: transaction,
     });
+  }
+
+  async #getGasFeeTokensAction(request: GetGasFeeTokensRequest) {
+    const { chainId, data, from, to, value } = request;
+
+    const ethQuery = this.#getEthQuery({ chainId });
+    const delegationAddress = await getDelegationAddress(from, ethQuery);
+
+    const transactionMeta = {
+      chainId,
+      delegationAddress,
+      txParams: { data, from, to, value },
+    } as TransactionMeta;
+
+    const result = await this.#getGasFeeTokens(transactionMeta);
+
+    return result.gasFeeTokens;
   }
 }
