@@ -743,7 +743,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     const tokenAmount = priceAmount
       .multipliedBy(tokenDecimal)
       .div(conversionRate);
-    return tokenAmount.toString();
+    return tokenAmount.toFixed(0);
   }
 
   /**
