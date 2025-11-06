@@ -1,8 +1,6 @@
 import {
   Context,
-  NativeRampsSdk,
   SdkEnvironment,
-  type NativeRampsSdkConfig,
 } from '@consensys/native-ramps-sdk';
 import { BaseController } from '@metamask/base-controller';
 import type {
@@ -25,9 +23,9 @@ type RegionState = {
  */
 export type RampsControllerState = {
   // Environment tells us which API urls to us
-  metamaskEnvironment: string;
+  metamaskEnvironment: SdkEnvironment;
   // Determines front end context (browser, mobile, etc)
-  context: string;
+  context: Context;
   // The region ID is the ID of the region to use for the purchase
   region: RegionState | null;
 };
@@ -84,26 +82,10 @@ const rampsControllerMetadata = {
 };
 
 const defaultState: RampsControllerState = {
-  metamaskEnvironment: 'staging',
+  metamaskEnvironment: SdkEnvironment.Staging,
   context: Context.Browser,
   region: null,
 };
-
-function getNativeSdkEnvironment(metamaskEnvironment: string) {
-  switch (metamaskEnvironment) {
-    case 'production':
-    case 'beta':
-    case 'rc':
-      return SdkEnvironment.Production;
-
-    case 'dev':
-    case 'exp':
-    case 'test':
-    case 'e2e':
-    default:
-      return SdkEnvironment.Staging;
-  }
-}
 
 enum ApiService {
   Regions = 'regions',
@@ -119,7 +101,6 @@ export class RampsController extends BaseController<
   RampsControllerState,
   RampsControllerMessenger
 > {
-  readonly #nativeSdk: NativeRampsSdk;
 
   /**
    * Constructor for RampsController.
@@ -133,7 +114,7 @@ export class RampsController extends BaseController<
     state,
   }: {
     messenger: RampsControllerMessenger;
-    state?: Partial<RampsControllerState>;
+    state: Partial<RampsControllerState>;
   }) {
     super({
       messenger,
@@ -141,19 +122,6 @@ export class RampsController extends BaseController<
       metadata: rampsControllerMetadata,
       state: { ...defaultState, ...state } as RampsControllerState,
     });
-
-    // Initialize the OnRampSDK
-    const environment = state?.metamaskEnvironment ?? SdkEnvironment.Staging;
-    const context = state?.context ?? Context.Browser;
-
-    // Initialize the Native Ramps SDK
-    const nativeEnv = getNativeSdkEnvironment(environment);
-    // Map the shared context string into the native SDK enum
-    const nativeContext = context as unknown as string as keyof typeof Context;
-    const nativeConfig: NativeRampsSdkConfig = {
-      context: Context[nativeContext] ?? Context.Browser,
-    };
-    this.#nativeSdk = new NativeRampsSdk(nativeConfig, nativeEnv);
 
     this.#registerMessageHandlers();
   }

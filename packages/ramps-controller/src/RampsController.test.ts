@@ -2,7 +2,6 @@ import 'isomorphic-fetch';
 
 import {
   Context,
-  NativeRampsSdk,
   SdkEnvironment,
 } from '@consensys/native-ramps-sdk';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
@@ -23,16 +22,8 @@ if (typeof global.fetch === 'undefined') {
   global.fetch = require('isomorphic-fetch');
 }
 
-// Mock the NativeRampsSdk
+// Mock the native-ramps-sdk
 jest.mock('@consensys/native-ramps-sdk', () => {
-  const mockInstance = {
-    setAccessToken: jest.fn(),
-    getAccessToken: jest.fn().mockReturnValue(null),
-    clearAccessToken: jest.fn(),
-    getVersion: jest.fn().mockReturnValue('1.0.0'),
-    getContext: jest.fn().mockReturnValue('browser'),
-  };
-  const NativeRampsSdk = jest.fn().mockImplementation(() => mockInstance);
   const Context = {
     Browser: 'browser',
     Extension: 'extension',
@@ -45,10 +36,8 @@ jest.mock('@consensys/native-ramps-sdk', () => {
     Production: 'production',
   } as const;
   return {
-    NativeRampsSdk,
     Context,
     SdkEnvironment,
-    __getMockInstance: () => mockInstance,
   };
 });
 
@@ -70,8 +59,8 @@ describe('RampsController', () => {
     it('initializes with default state', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toStrictEqual({
-          metamaskEnvironment: 'staging',
-          context: 'browser',
+          metamaskEnvironment: SdkEnvironment.Staging,
+          context: Context.Browser,
           region: null,
         });
       });
@@ -79,8 +68,8 @@ describe('RampsController', () => {
 
     it('initializes with custom state', async () => {
       const customState = {
-        metamaskEnvironment: 'production',
-        context: 'browser',
+        metamaskEnvironment: SdkEnvironment.Production,
+        context: Context.Browser,
         region: {
           id: 'US',
           deposit: true,
@@ -97,92 +86,6 @@ describe('RampsController', () => {
       );
     });
 
-    it('creates NativeRampsSdk with correct parameters for staging environment', async () => {
-      await withController((_) => {
-        expect(NativeRampsSdk).toHaveBeenCalledWith(
-          { context: Context.Browser },
-          SdkEnvironment.Staging,
-        );
-      });
-    });
-
-    it('creates NativeRampsSdk with production environment when specified', async () => {
-      const customState = {
-        metamaskEnvironment: 'production',
-        context: 'browser',
-      };
-
-      await withController({ options: { state: customState } }, (_) => {
-        expect(NativeRampsSdk).toHaveBeenCalledWith(
-          { context: Context.Browser },
-          SdkEnvironment.Production,
-        );
-      });
-    });
-
-    it('creates NativeRampsSdk with staging environment for dev, exp, test, e2e', async () => {
-      const environments = ['dev', 'exp', 'test', 'e2e'];
-
-      for (const env of environments) {
-        jest.clearAllMocks();
-        await withController(
-          { options: { state: { metamaskEnvironment: env } } },
-          () => {
-            expect(NativeRampsSdk).toHaveBeenCalledWith(
-              { context: Context.Browser },
-              SdkEnvironment.Staging,
-            );
-          },
-        );
-      }
-    });
-
-    it('creates NativeRampsSdk with production environment for beta and rc', async () => {
-      const environments = ['beta', 'rc'];
-
-      for (const env of environments) {
-        jest.clearAllMocks();
-        await withController(
-          { options: { state: { metamaskEnvironment: env } } },
-          () => {
-            expect(NativeRampsSdk).toHaveBeenCalledWith(
-              { context: Context.Browser },
-              SdkEnvironment.Production,
-            );
-          },
-        );
-      }
-    });
-
-    it('maps context string to Context enum correctly', async () => {
-      const customState = {
-        metamaskEnvironment: 'staging',
-        context: 'browser',
-      };
-
-      await withController({ options: { state: customState } }, (_) => {
-        expect(NativeRampsSdk).toHaveBeenCalledWith(
-          { context: Context.Browser },
-          SdkEnvironment.Staging,
-        );
-      });
-    });
-
-    it('defaults to Browser context when context string does not match Context keys', async () => {
-      const customState = {
-        metamaskEnvironment: 'staging',
-        context: 'mobile-ios',
-      };
-
-      await withController({ options: { state: customState } }, () => {
-        // The code uses context as a key, so 'mobile-ios' doesn't match any key
-        // and defaults to Browser
-        expect(NativeRampsSdk).toHaveBeenCalledWith(
-          { context: Context.Browser },
-          SdkEnvironment.Staging,
-        );
-      });
-    });
   });
 
   describe('getCountries', () => {
@@ -248,7 +151,10 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            state: { metamaskEnvironment: 'production', context: 'browser' },
+            state: {
+              metamaskEnvironment: SdkEnvironment.Production,
+              context: Context.Browser,
+            },
           },
         },
         async ({ controller }) => {
@@ -287,7 +193,10 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            state: { metamaskEnvironment: 'staging', context: 'browser' },
+            state: {
+              metamaskEnvironment: SdkEnvironment.Staging,
+              context: Context.Browser,
+            },
           },
         },
         async ({ controller }) => {
@@ -305,7 +214,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('uses localhost API URL when metamaskEnvironment does not match enum values', async () => {
+    it('uses localhost API URL when metamaskEnvironment is Development', async () => {
       const mockGeolocation = 'DE';
       const mockCountriesData = {
         deposit: true,
@@ -323,11 +232,14 @@ describe('RampsController', () => {
           json: async () => mockCountriesData,
         } as Response);
 
-      // Test with string values that don't match enum values (use 'unknown' instead of 'staging')
+      // Test with Development environment which should use localhost
       await withController(
         {
           options: {
-            state: { metamaskEnvironment: 'unknown', context: 'browser' },
+            state: {
+              metamaskEnvironment: SdkEnvironment.Development,
+              context: Context.Browser,
+            },
           },
         },
         async ({ controller }) => {
@@ -557,7 +469,10 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            state: { region: initialRegion, context: 'browser' },
+            state: {
+              region: initialRegion,
+              context: Context.Browser,
+            },
           },
         },
         async ({ controller }) => {
@@ -651,7 +566,7 @@ async function withController<ReturnValue>(
   const messenger = getMessenger(rootMessenger);
   const controller = new RampsController({
     messenger,
-    ...options,
+    state: options.state ?? {},
   });
   return await testFunction({ controller, rootMessenger, messenger });
 }
