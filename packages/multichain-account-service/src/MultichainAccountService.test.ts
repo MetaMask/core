@@ -86,7 +86,7 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
   });
 }
 
-function setup({
+async function setup({
   rootMessenger = getRootMessenger(),
   keyrings = [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
   accounts,
@@ -96,12 +96,12 @@ function setup({
   keyrings?: KeyringObject[];
   accounts?: KeyringAccount[];
   providerConfigs?: MultichainAccountServiceOptions['providerConfigs'];
-} = {}): {
+} = {}): Promise<{
   service: MultichainAccountService;
   rootMessenger: RootMessenger;
   messenger: MultichainAccountServiceMessenger;
   mocks: Mocks;
-} {
+}> {
   const mocks: Mocks = {
     KeyringController: {
       keyrings,
@@ -175,7 +175,7 @@ function setup({
     providerConfigs,
   });
 
-  service.init();
+  await service.init();
 
   return {
     service,
@@ -187,7 +187,7 @@ function setup({
 
 describe('MultichainAccountService', () => {
   describe('constructor', () => {
-    it('forwards configs to each provider', () => {
+    it('forwards configs to each provider', async() => {
       const providerConfigs: MultichainAccountServiceOptions['providerConfigs'] =
         {
           // NOTE: We use constants here, since `*AccountProvider` are mocked, thus, their `.NAME` will
@@ -212,7 +212,7 @@ describe('MultichainAccountService', () => {
           },
         };
 
-      const { mocks, messenger } = setup({
+      const { mocks, messenger } = await setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
         providerConfigs,
       });
@@ -227,7 +227,7 @@ describe('MultichainAccountService', () => {
       );
     });
 
-    it('allows optional configs for some providers', () => {
+    it('allows optional configs for some providers', async () => {
       const providerConfigs: MultichainAccountServiceOptions['providerConfigs'] =
         {
           // NOTE: We use constants here, since `*AccountProvider` are mocked, thus, their `.NAME` will
@@ -246,7 +246,7 @@ describe('MultichainAccountService', () => {
           // No `EVM_ACCOUNT_PROVIDER_NAME`, cause it's optional in this test.
         };
 
-      const { mocks, messenger } = setup({
+      const { mocks, messenger } = await setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
         providerConfigs,
       });
@@ -263,8 +263,8 @@ describe('MultichainAccountService', () => {
   });
 
   describe('getMultichainAccountGroups', () => {
-    it('gets multichain accounts', () => {
-      const { service } = setup({
+    it('gets multichain accounts', async () => {
+      const { service } = await setup({
         accounts: [
           // Wallet 1:
           MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
@@ -298,8 +298,8 @@ describe('MultichainAccountService', () => {
       ).toHaveLength(1);
     });
 
-    it('gets multichain accounts with multiple wallets', () => {
-      const { service } = setup({
+    it('gets multichain accounts with multiple wallets', async () => {
+      const { service } = await setup({
         accounts: [
           // Wallet 1:
           MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
@@ -327,8 +327,8 @@ describe('MultichainAccountService', () => {
       expect(internalAccounts1[0].type).toBe(SolAccountType.DataAccount);
     });
 
-    it('throws if trying to access an unknown wallet', () => {
-      const { service } = setup({
+    it('throws if trying to access an unknown wallet', async () => {
+      const { service } = await setup({
         keyrings: [MOCK_HD_KEYRING_1],
         accounts: [
           // Wallet 1:
@@ -350,7 +350,7 @@ describe('MultichainAccountService', () => {
   });
 
   describe('getMultichainAccountGroup', () => {
-    it('gets a specific multichain account', () => {
+    it('gets a specific multichain account', async () => {
       const accounts = [
         // Wallet 1:
         MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
@@ -362,7 +362,7 @@ describe('MultichainAccountService', () => {
           .withGroupIndex(1)
           .get(),
       ];
-      const { service } = setup({
+      const { service } = await setup({
         accounts,
       });
 
@@ -378,8 +378,8 @@ describe('MultichainAccountService', () => {
       expect(internalAccounts[0]).toStrictEqual(accounts[1]);
     });
 
-    it('throws if trying to access an out-of-bound group index', () => {
-      const { service } = setup({
+    it('throws if trying to access an out-of-bound group index', async () => {
+      const { service } = await setup({
         accounts: [
           // Wallet 1:
           MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
@@ -432,9 +432,9 @@ describe('MultichainAccountService', () => {
 
     const keyrings: KeyringObject[] = [keyring1, keyring2];
 
-    it('gets the wallet and multichain account for a given account ID', () => {
+    it('gets the wallet and multichain account for a given account ID', async () => {
       const accounts = [account1, account2, account3];
-      const { service } = setup({ accounts, keyrings });
+      const { service } = await setup({ accounts, keyrings });
 
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
@@ -469,9 +469,9 @@ describe('MultichainAccountService', () => {
       expect(walletAndMultichainAccount3?.group).toBe(multichainAccount3);
     });
 
-    it('syncs the appropriate wallet and update reverse mapping on AccountsController:accountAdded', () => {
+    it('syncs the appropriate wallet and update reverse mapping on AccountsController:accountAdded', async () => {
       const accounts = [account1, account3]; // No `account2` for now.
-      const { service, rootMessenger, mocks } = setup({ accounts, keyrings });
+      const { service, rootMessenger, mocks } = await setup({ accounts, keyrings });
 
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
@@ -505,13 +505,13 @@ describe('MultichainAccountService', () => {
       expect(walletAndMultichainAccount2?.group).toBe(multichainAccount2);
     });
 
-    it('syncs the appropriate multichain account and update reverse mapping on AccountsController:accountAdded', () => {
+    it('syncs the appropriate multichain account and update reverse mapping on AccountsController:accountAdded', async () => {
       const otherAccount1 = MockAccountBuilder.from(account2)
         .withGroupIndex(0)
         .get();
 
       const accounts = [account1]; // No `otherAccount1` for now.
-      const { service, rootMessenger, mocks } = setup({ accounts, keyrings });
+      const { service, rootMessenger, mocks } = await setup({ accounts, keyrings });
 
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
@@ -546,13 +546,13 @@ describe('MultichainAccountService', () => {
       expect(walletAndMultichainOtherAccount1?.group).toBe(multichainAccount1);
     });
 
-    it('emits multichainAccountGroupUpdated event when syncing existing group on account added', () => {
+    it('emits multichainAccountGroupUpdated event when syncing existing group on account added', async () => {
       const otherAccount1 = MockAccountBuilder.from(account2)
         .withGroupIndex(0)
         .get();
 
       const accounts = [account1]; // No `otherAccount1` for now.
-      const { rootMessenger, messenger, mocks } = setup({ accounts, keyrings });
+      const { rootMessenger, messenger, mocks } = await setup({ accounts, keyrings });
       const publishSpy = jest.spyOn(messenger, 'publish');
 
       // Now we're adding `otherAccount1` to an existing group.
@@ -569,9 +569,9 @@ describe('MultichainAccountService', () => {
       );
     });
 
-    it('creates new detected wallets and update reverse mapping on AccountsController:accountAdded', () => {
+    it('creates new detected wallets and update reverse mapping on AccountsController:accountAdded', async () => {
       const accounts = [account1, account2]; // No `account3` for now (associated with "Wallet 2").
-      const { service, rootMessenger, mocks } = setup({
+      const { service, rootMessenger, mocks } = await setup({
         accounts,
         keyrings: [keyring1],
       });
@@ -611,9 +611,9 @@ describe('MultichainAccountService', () => {
       expect(walletAndMultichainAccount3?.group).toBe(multichainAccount3);
     });
 
-    it('ignores non-BIP-44 accounts on AccountsController:accountAdded', () => {
+    it('ignores non-BIP-44 accounts on AccountsController:accountAdded', async () => {
       const accounts = [account1];
-      const { service, rootMessenger } = setup({
+      const { service, rootMessenger } = await setup({
         accounts,
         keyrings,
       });
@@ -636,9 +636,9 @@ describe('MultichainAccountService', () => {
       expect(newMultichainAccounts[0].getAccounts()).toHaveLength(1);
     });
 
-    it('syncs the appropriate wallet and update reverse mapping on AccountsController:accountRemoved', () => {
+    it('syncs the appropriate wallet and update reverse mapping on AccountsController:accountRemoved', async () => {
       const accounts = [account1, account2];
-      const { service, rootMessenger, mocks } = setup({ accounts, keyrings });
+      const { service, rootMessenger, mocks } = await setup({ accounts, keyrings });
 
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
@@ -665,7 +665,7 @@ describe('MultichainAccountService', () => {
         .withGroupIndex(0)
         .get();
 
-      const { service } = setup({ accounts: [mockEvmAccount] });
+      const { service } = await setup({ accounts: [mockEvmAccount] });
 
       const nextGroup = await service.createNextMultichainAccountGroup({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -681,7 +681,7 @@ describe('MultichainAccountService', () => {
         .withGroupIndex(0)
         .get();
 
-      const { service, messenger } = setup({
+      const { service, messenger } = await setup({
         accounts: [mockEvmAccount],
       });
       const publishSpy = jest.spyOn(messenger, 'publish');
@@ -708,7 +708,7 @@ describe('MultichainAccountService', () => {
         .withGroupIndex(1)
         .get();
 
-      const { service } = setup({
+      const { service } = await setup({
         accounts: [mockEvmAccount, mockSolAccount],
       });
 
@@ -737,7 +737,7 @@ describe('MultichainAccountService', () => {
         .withGroupIndex(0)
         .get();
 
-      const { service, messenger } = setup({
+      const { service, messenger } = await setup({
         accounts: [mockEvmAccount],
       });
       const publishSpy = jest.spyOn(messenger, 'publish');
@@ -764,7 +764,7 @@ describe('MultichainAccountService', () => {
         .withEntropySource(MOCK_HD_KEYRING_2.metadata.id)
         .withGroupIndex(0)
         .get();
-      const { service, mocks } = setup({
+      const { service, mocks } = await setup({
         accounts: [mockEvmAccount1, mockSolAccount1],
       });
 
@@ -791,7 +791,7 @@ describe('MultichainAccountService', () => {
         .withEntropySource(MOCK_HD_KEYRING_2.metadata.id)
         .withGroupIndex(0)
         .get();
-      const { service, mocks } = setup({
+      const { service, mocks } = await setup({
         accounts: [mockEvmAccount1, mockSolAccount1],
       });
 
@@ -806,9 +806,9 @@ describe('MultichainAccountService', () => {
   });
 
   describe('actions', () => {
-    it('gets a multichain account with MultichainAccountService:getMultichainAccount', () => {
+    it('gets a multichain account with MultichainAccountService:getMultichainAccount', async () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
-      const { messenger } = setup({ accounts });
+      const { messenger } = await setup({ accounts });
 
       const group = messenger.call(
         'MultichainAccountService:getMultichainAccountGroup',
@@ -817,9 +817,9 @@ describe('MultichainAccountService', () => {
       expect(group).toBeDefined();
     });
 
-    it('gets multichain accounts with MultichainAccountService:getMultichainAccounts', () => {
+    it('gets multichain accounts with MultichainAccountService:getMultichainAccounts', async () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
-      const { messenger } = setup({ accounts });
+      const { messenger } = await setup({ accounts });
 
       const groups = messenger.call(
         'MultichainAccountService:getMultichainAccountGroups',
@@ -828,9 +828,9 @@ describe('MultichainAccountService', () => {
       expect(groups.length).toBeGreaterThan(0);
     });
 
-    it('gets multichain account wallet with MultichainAccountService:getMultichainAccountWallet', () => {
+    it('gets multichain account wallet with MultichainAccountService:getMultichainAccountWallet', async () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
-      const { messenger } = setup({ accounts });
+      const { messenger } = await setup({ accounts });
 
       const wallet = messenger.call(
         'MultichainAccountService:getMultichainAccountWallet',
@@ -839,9 +839,9 @@ describe('MultichainAccountService', () => {
       expect(wallet).toBeDefined();
     });
 
-    it('gets multichain account wallet with MultichainAccountService:getMultichainAccountWallets', () => {
+    it('gets multichain account wallet with MultichainAccountService:getMultichainAccountWallets', async () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
-      const { messenger } = setup({ accounts });
+      const { messenger } = await setup({ accounts });
 
       const wallets = messenger.call(
         'MultichainAccountService:getMultichainAccountWallets',
@@ -851,7 +851,7 @@ describe('MultichainAccountService', () => {
 
     it('create the next multichain account group with MultichainAccountService:createNextMultichainAccountGroup', async () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
-      const { messenger } = setup({ accounts });
+      const { messenger } = await setup({ accounts });
 
       const nextGroup = await messenger.call(
         'MultichainAccountService:createNextMultichainAccountGroup',
@@ -864,7 +864,7 @@ describe('MultichainAccountService', () => {
 
     it('creates a multichain account group with MultichainAccountService:createMultichainAccountGroup', async () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
-      const { messenger } = setup({ accounts });
+      const { messenger } = await setup({ accounts });
 
       const firstGroup = await messenger.call(
         'MultichainAccountService:createMultichainAccountGroup',
@@ -888,7 +888,7 @@ describe('MultichainAccountService', () => {
         .withEntropySource(MOCK_HD_KEYRING_2.metadata.id)
         .withGroupIndex(0)
         .get();
-      const { messenger, mocks } = setup({
+      const { messenger, mocks } = await setup({
         accounts: [mockEvmAccount1, mockSolAccount1],
       });
 
@@ -913,7 +913,7 @@ describe('MultichainAccountService', () => {
         .withEntropySource(MOCK_HD_KEYRING_2.metadata.id)
         .withGroupIndex(0)
         .get();
-      const { messenger, mocks } = setup({
+      const { messenger, mocks } = await setup({
         accounts: [mockEvmAccount1, mockSolAccount1],
       });
 
@@ -930,7 +930,7 @@ describe('MultichainAccountService', () => {
     });
 
     it('sets basic functionality with MultichainAccountService:setBasicFunctionality', async () => {
-      const { messenger } = setup({
+      const { messenger } = await setup({
         accounts: [MOCK_HD_ACCOUNT_1],
       });
 
@@ -950,7 +950,7 @@ describe('MultichainAccountService', () => {
     });
 
     it('creates a multichain account wallet with MultichainAccountService:createMultichainAccountWallet', async () => {
-      const { messenger, mocks } = setup({ accounts: [], keyrings: [] });
+      const { messenger, mocks } = await setup({ accounts: [], keyrings: [] });
 
       mocks.KeyringController.getKeyringsByType.mockImplementationOnce(
         () => [],
@@ -973,14 +973,14 @@ describe('MultichainAccountService', () => {
 
   describe('setBasicFunctionality', () => {
     it('can be called with boolean true', async () => {
-      const { service } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
+      const { service } = await setup({ accounts: [MOCK_HD_ACCOUNT_1] });
 
       // This tests the simplified parameter signature
       expect(await service.setBasicFunctionality(true)).toBeUndefined();
     });
 
     it('can be called with boolean false', async () => {
-      const { service } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
+      const { service } = await setup({ accounts: [MOCK_HD_ACCOUNT_1] });
 
       // This tests the simplified parameter signature
       expect(await service.setBasicFunctionality(false)).toBeUndefined();
@@ -991,8 +991,8 @@ describe('MultichainAccountService', () => {
     let wrapper: AccountProviderWrapper;
     let solProvider: SolAccountProvider;
 
-    beforeEach(() => {
-      const { rootMessenger } = setup({
+    beforeEach(async () => {
+      const { rootMessenger } = await setup({
         accounts: [MOCK_HD_ACCOUNT_1],
       });
 
@@ -1096,7 +1096,7 @@ describe('MultichainAccountService', () => {
 
   describe('createMultichainAccountWallet', () => {
     it('creates a new multichain account wallet with the given mnemonic', async () => {
-      const { mocks, service } = setup({
+      const { mocks, service } = await setup({
         accounts: [],
         keyrings: [],
       });
@@ -1119,7 +1119,7 @@ describe('MultichainAccountService', () => {
     });
 
     it("throws an error if there's already an existing keyring from the same mnemonic", async () => {
-      const { service, mocks } = setup({ accounts: [], keyrings: [] });
+      const { service, mocks } = await setup({ accounts: [], keyrings: [] });
 
       const mnemonic = mnemonicPhraseToBytes(MOCK_MNEMONIC);
 

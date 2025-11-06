@@ -162,7 +162,7 @@ export class MultichainAccountService {
    * Initialize the service and constructs the internal reprensentation of
    * multichain accounts and wallets.
    */
-  init(): void {
+  async init(): Promise<void> {
     log('Initializing...');
 
     this.#wallets.clear();
