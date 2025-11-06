@@ -67,5 +67,5 @@
     { "path": "./packages/user-operation-controller" }
   ],
   "files": [],
-  "include": ["./types"]
+  "include": ["./types", "./scripts"]
 }
