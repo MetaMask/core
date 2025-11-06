@@ -1,5 +1,6 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
+import { isBip44Account } from '@metamask/account-api';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
@@ -187,7 +188,7 @@ async function setup({
 
 describe('MultichainAccountService', () => {
   describe('constructor', () => {
-    it('forwards configs to each provider', async() => {
+    it('forwards configs to each provider', async () => {
       const providerConfigs: MultichainAccountServiceOptions['providerConfigs'] =
         {
           // NOTE: We use constants here, since `*AccountProvider` are mocked, thus, their `.NAME` will
@@ -471,7 +472,10 @@ describe('MultichainAccountService', () => {
 
     it('syncs the appropriate wallet and update reverse mapping on AccountsController:accountAdded', async () => {
       const accounts = [account1, account3]; // No `account2` for now.
-      const { service, rootMessenger, mocks } = await setup({ accounts, keyrings });
+      const { service, rootMessenger, mocks } = await setup({
+        accounts,
+        keyrings,
+      });
 
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
@@ -511,7 +515,10 @@ describe('MultichainAccountService', () => {
         .get();
 
       const accounts = [account1]; // No `otherAccount1` for now.
-      const { service, rootMessenger, mocks } = await setup({ accounts, keyrings });
+      const { service, rootMessenger, mocks } = await setup({
+        accounts,
+        keyrings,
+      });
 
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
@@ -552,7 +559,10 @@ describe('MultichainAccountService', () => {
         .get();
 
       const accounts = [account1]; // No `otherAccount1` for now.
-      const { rootMessenger, messenger, mocks } = await setup({ accounts, keyrings });
+      const { rootMessenger, messenger, mocks } = await setup({
+        accounts,
+        keyrings,
+      });
       const publishSpy = jest.spyOn(messenger, 'publish');
 
       // Now we're adding `otherAccount1` to an existing group.
@@ -638,7 +648,10 @@ describe('MultichainAccountService', () => {
 
     it('syncs the appropriate wallet and update reverse mapping on AccountsController:accountRemoved', async () => {
       const accounts = [account1, account2];
-      const { service, rootMessenger, mocks } = await setup({ accounts, keyrings });
+      const { service, rootMessenger, mocks } = await setup({
+        accounts,
+        keyrings,
+      });
 
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
@@ -968,6 +981,55 @@ describe('MultichainAccountService', () => {
 
       expect(wallet).toBeDefined();
       expect(wallet.entropySource).toBe('abc');
+    });
+  });
+
+  describe('resyncAccounts', () => {
+    it('calls resyncAccounts on each providers', async () => {
+      const { service, mocks } = await setup({ accounts: [MOCK_HD_ACCOUNT_1] });
+
+      await service.resyncAccounts();
+
+      expect(mocks.EvmAccountProvider.resyncAccounts).toHaveBeenCalled();
+      expect(mocks.SolAccountProvider.resyncAccounts).toHaveBeenCalled();
+    });
+
+    it('filters BIP-44 accounts before calling providers', async () => {
+      const accounts = [
+        MOCK_HD_ACCOUNT_1,
+        MOCK_SNAP_ACCOUNT_1, // Not a BIP-44 accounts.
+        MOCK_HD_ACCOUNT_2,
+      ];
+
+      const { service, mocks } = await setup({
+        accounts,
+      });
+
+      await service.resyncAccounts();
+
+      const bip44Accounts = accounts.filter(isBip44Account);
+
+      expect(mocks.EvmAccountProvider.resyncAccounts).toHaveBeenCalledWith(
+        bip44Accounts,
+      );
+      expect(mocks.SolAccountProvider.resyncAccounts).toHaveBeenCalledWith(
+        bip44Accounts,
+      );
+    });
+
+    it('does not throw if any providers is throwing', async () => {
+      const { service, mocks } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      mocks.SolAccountProvider.resyncAccounts.mockRejectedValue(
+        new Error('Unable to resync accounts'),
+      );
+
+      await service.resyncAccounts(); // Should not throw.
+
+      expect(mocks.EvmAccountProvider.resyncAccounts).toHaveBeenCalled();
+      expect(mocks.SolAccountProvider.resyncAccounts).toHaveBeenCalled();
     });
   });
 
