@@ -1,49 +1,35 @@
-import type { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import { JsonRpcError } from '@metamask/rpc-errors';
+import { asV2Middleware, type JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type {
-  Json,
-  JsonRpcId,
-  JsonRpcParams,
-  JsonRpcRequest,
-  JsonRpcVersion2,
+  ContextConstraint,
+  MiddlewareContext,
+} from '@metamask/json-rpc-engine/v2';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import type { JsonRpcSuccess } from '@metamask/utils';
+import {
+  type Json,
+  type JsonRpcId,
+  type JsonRpcParams,
+  type JsonRpcRequest,
+  type JsonRpcVersion2,
 } from '@metamask/utils';
-import { v4 as uuidV4 } from 'uuid';
+import { nanoid } from 'nanoid';
 
 /**
  * A JSON-RPC request conforming to the EIP-1193 specification.
  */
-type Eip1193Request<Params extends JsonRpcParams> = {
+type Eip1193Request<Params extends JsonRpcParams = JsonRpcParams> = {
   id?: JsonRpcId;
   jsonrpc?: JsonRpcVersion2;
   method: string;
   params?: Params;
 };
 
-/**
- * Converts an EIP-1193 request to a JSON-RPC request.
- *
- * @param eip1193Request - The EIP-1193 request to convert.
- * @returns The corresponding JSON-RPC request.
- */
-export function convertEip1193RequestToJsonRpcRequest<
-  Params extends JsonRpcParams,
->(
-  eip1193Request: Eip1193Request<Params>,
-): JsonRpcRequest<Params | Record<never, never>> {
-  const { id = uuidV4(), jsonrpc = '2.0', method, params } = eip1193Request;
-  return params
-    ? {
-        id,
-        jsonrpc,
-        method,
-        params,
-      }
-    : {
-        id,
-        jsonrpc,
-        method,
-      };
-}
+type Options<
+  Request extends JsonRpcRequest = JsonRpcRequest,
+  Context extends ContextConstraint = MiddlewareContext,
+> = {
+  engine: JsonRpcEngine | JsonRpcEngineV2<Request, Context>;
+};
 
 /**
  * An Ethereum provider.
@@ -52,16 +38,21 @@ export function convertEip1193RequestToJsonRpcRequest<
  * It is not compliant with any Ethereum provider standard.
  */
 export class InternalProvider {
-  readonly #engine: JsonRpcEngine;
+  readonly #engine: JsonRpcEngineV2<JsonRpcRequest, MiddlewareContext>;
 
   /**
-   * Construct a InternalProvider from a JSON-RPC engine.
+   * Construct a InternalProvider from a JSON-RPC server or legacy engine.
    *
    * @param options - Options.
    * @param options.engine - The JSON-RPC engine used to process requests.
    */
-  constructor({ engine }: { engine: JsonRpcEngine }) {
-    this.#engine = engine;
+  constructor({ engine }: Options) {
+    this.#engine =
+      'push' in engine
+        ? JsonRpcEngineV2.create({
+            middleware: [asV2Middleware<JsonRpcParams, JsonRpcRequest>(engine)],
+          })
+        : engine;
   }
 
   /**
@@ -75,24 +66,7 @@ export class InternalProvider {
   ): Promise<Result> {
     const jsonRpcRequest =
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
-    const response = await this.#engine.handle<
-      Params | Record<never, never>,
-      Result
-    >(jsonRpcRequest);
-
-    if ('result' in response) {
-      return response.result;
-    }
-
-    const error = new JsonRpcError(
-      response.error.code,
-      response.error.message,
-      response.error.data,
-    );
-    if ('stack' in response.error) {
-      error.stack = response.error.stack;
-    }
-    throw error;
+    return (await this.#handle<Result>(jsonRpcRequest)).result;
   }
 
   /**
@@ -103,17 +77,18 @@ export class InternalProvider {
    *
    * @param eip1193Request - The request to send.
    * @param callback - A function that is called upon the success or failure of the request.
-   * @deprecated Please use `request` instead.
+   * @deprecated Use {@link request} instead. This method is retained solely for backwards
+   * compatibility with certain libraries.
    */
   sendAsync = <Params extends JsonRpcParams>(
     eip1193Request: Eip1193Request<Params>,
-    // TODO: Replace `any` with type
+    // Non-polluting `any` that acts like a constraint.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
   ) => {
     const jsonRpcRequest =
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
-    this.#engine.handle(jsonRpcRequest, callback);
+    this.#handleWithCallback(jsonRpcRequest, callback);
   };
 
   /**
@@ -124,7 +99,8 @@ export class InternalProvider {
    *
    * @param eip1193Request - The request to send.
    * @param callback - A function that is called upon the success or failure of the request.
-   * @deprecated Please use `request` instead.
+   * @deprecated Use {@link request} instead. This method is retained solely for backwards
+   * compatibility with certain libraries.
    */
   send = <Params extends JsonRpcParams>(
     eip1193Request: Eip1193Request<Params>,
@@ -137,6 +113,62 @@ export class InternalProvider {
     }
     const jsonRpcRequest =
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
-    this.#engine.handle(jsonRpcRequest, callback);
+    this.#handleWithCallback(jsonRpcRequest, callback);
   };
+
+  readonly #handle = async <Result extends Json>(
+    jsonRpcRequest: JsonRpcRequest,
+  ): Promise<JsonRpcSuccess<Result>> => {
+    const { id, jsonrpc } = jsonRpcRequest;
+    // This typecast is technicaly unsafe, but we need it to preserve the provider's
+    // public interface, which allows you to typecast results.
+    const result = (await this.#engine.handle(
+      jsonRpcRequest,
+    )) as unknown as Result;
+
+    return {
+      id,
+      jsonrpc,
+      result,
+    };
+  };
+
+  readonly #handleWithCallback = (
+    jsonRpcRequest: JsonRpcRequest,
+    callback: (error: unknown, providerRes?: unknown) => void,
+  ): void => {
+    /* eslint-disable promise/no-callback-in-promise */
+    this.#handle(jsonRpcRequest)
+      // A resolution will always be a successful response
+      .then((response) => callback(null, response))
+      .catch((error) => {
+        callback(error);
+      });
+    /* eslint-enable promise/no-callback-in-promise */
+  };
+}
+
+/**
+ * Convert an EIP-1193 request to a JSON-RPC request.
+ *
+ * @param eip1193Request - The EIP-1193 request to convert.
+ * @returns The JSON-RPC request.
+ */
+export function convertEip1193RequestToJsonRpcRequest(
+  eip1193Request: Eip1193Request,
+): JsonRpcRequest {
+  const { id = nanoid(), jsonrpc = '2.0', method, params } = eip1193Request;
+
+  return params
+    ? {
+        id,
+        jsonrpc,
+        method,
+        params,
+      }
+    : {
+        id,
+        jsonrpc,
+        method,
+      };
 }

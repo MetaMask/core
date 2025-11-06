@@ -9,6 +9,7 @@
     { "path": "./packages/account-tree-controller" },
     { "path": "./packages/accounts-controller" },
     { "path": "./packages/address-book-controller" },
+    { "path": "./packages/analytics-controller" },
     { "path": "./packages/announcement-controller" },
     { "path": "./packages/app-metadata-controller" },
     { "path": "./packages/approval-controller" },

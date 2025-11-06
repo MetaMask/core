@@ -270,7 +270,13 @@ async function getSufficientSingleBridgeQuote(
         sourceBalanceRaw,
       )
     ) {
-      log('Reached balance limit', targetTokenAddress);
+      log('Reached balance limit', {
+        targetTokenAddress,
+        sourceBalanceRaw,
+        currentSourceAmount,
+        attempt: i + 1,
+      });
+
       break;
     }
 
@@ -467,20 +473,28 @@ function normalizeQuote(
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
 ): TransactionPayQuote<TransactionPayBridgeQuote> {
-  const targetFiatRate = getTokenFiatRate(
-    messenger,
-    quote.quote.destAsset.address as Hex,
-    toHex(quote.quote.destChainId),
-  );
-
   const sourceFiatRate = getTokenFiatRate(
     messenger,
     request.sourceTokenAddress,
-    toHex(quote.quote.srcChainId),
+    request.sourceChainId,
   );
 
-  if (sourceFiatRate === undefined || targetFiatRate === undefined) {
-    throw new Error('Fiat rate not found for source or target token');
+  if (sourceFiatRate === undefined) {
+    throw new Error(
+      `Fiat rate not found for source token - Chain ID: ${request.sourceChainId}, Address: ${request.sourceTokenAddress}`,
+    );
+  }
+
+  const targetFiatRate = getTokenFiatRate(
+    messenger,
+    request.targetTokenAddress,
+    request.targetChainId,
+  );
+
+  if (targetFiatRate === undefined) {
+    throw new Error(
+      `Fiat rate not found for target token - Chain ID: ${request.targetChainId}, Address: ${request.targetTokenAddress}`,
+    );
   }
 
   const targetAmountMinimumFiat = calculateFiatValue(
