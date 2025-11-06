@@ -232,27 +232,25 @@ export const handleMobileHardwareWalletDelay = async (
  * Creates a request to sign and send a transaction for non-EVM chains
  * Uses the new unified ClientRequest:signAndSendTransaction interface
  *
- * @param quoteResponse - The quote response containing trade details and metadata
+ * @param trade - The trade data
+ * @param srcChainId - The source chain ID
  * @param selectedAccount - The selected account information
  * @returns The snap request object for signing and sending transaction
  */
 export const getClientRequest = (
-  quoteResponse: Omit<
-    QuoteResponse<Trade>,
-    'approval'
-  > &
-    QuoteMetadata,
+  trade: Trade,
+  srcChainId: number,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
 ) => {
-  const scope = formatChainIdToCaip(quoteResponse.quote.srcChainId);
+  const scope = formatChainIdToCaip(srcChainId);
 
   // Extract the transaction data - Bitcoin uses unsignedPsbtBase64, others use string
-  const transactionData = extractTradeData(quoteResponse.trade);
+  const transactionData = extractTradeData(trade);
 
   // Tron trades need the visible flag and contract type to be included in the request options
-  const options = isTronTrade(quoteResponse.trade) ? { 
-    visible: quoteResponse.trade.visible,
-    type: quoteResponse.trade.raw_data?.contract?.[0]?.type 
+  const options = isTronTrade(trade) ? { 
+    visible: trade.visible,
+    type: trade.raw_data?.contract?.[0]?.type 
   } : undefined;
 
   // Use the new unified interface

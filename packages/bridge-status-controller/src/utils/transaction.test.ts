@@ -1483,7 +1483,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       } as never;
 
-      const result = getClientRequest(mockQuoteResponse, mockAccount);
+      const result = getClientRequest(mockQuoteResponse.trade, mockQuoteResponse.quote.srcChainId, mockAccount);
 
       expect(result).toMatchObject({
         origin: 'metamask',

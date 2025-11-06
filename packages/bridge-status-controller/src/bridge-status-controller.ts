@@ -756,23 +756,27 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * This adds an approval tx to the ApprovalsController in the background
    * The client needs to handle the approval tx by redirecting to the confirmation page with the approvalTxId in the URL
    *
-   * @param quoteResponse - The quote response
-   * @param quoteResponse.quote - The quote
+   * @param trade - The trade data (can be approval or main trade)
+   * @param quoteResponse - The quote response containing metadata
    * @param selectedAccount - The account to submit the transaction for
    * @returns The transaction meta
    */
   readonly #handleNonEvmTx = async (
-    quoteResponse: QuoteResponse<string | { unsignedPsbtBase64: string }> &
-      QuoteMetadata,
+    trade: Trade,
+    quoteResponse: QuoteResponse<Trade, Trade> & Partial<QuoteMetadata>,
     selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
   ) => {
     if (!selectedAccount.metadata?.snap?.id) {
       throw new Error(
-        'Failed to submit cross-chain swap transaction: undefined snap id',
+        'Failed to submit non-EVM transaction: undefined snap id',
       );
     }
 
-    const request = getClientRequest(quoteResponse, selectedAccount);
+    const request = getClientRequest(
+      trade,
+      quoteResponse.quote.srcChainId,
+      selectedAccount,
+    );
     const requestResponse = (await this.messenger.call(
       'SnapController:handleRequest',
       request,
@@ -782,9 +786,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | { result: Record<string, string> }
       | { signature: string };
 
+    // Create quote response with the specified trade
+    // This allows the same method to handle both approvals and main trades
+    const txQuoteResponse = {
+      ...quoteResponse,
+      trade,
+    } as QuoteResponse<Trade> & QuoteMetadata;
+
     const txMeta = handleNonEvmTxResponse(
       requestResponse,
-      quoteResponse,
+      txQuoteResponse,
       selectedAccount,
     );
 
@@ -1067,6 +1078,46 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         isTronTrade(quoteResponse.trade));
 
     if (isNonEvmTrade) {
+      // Handle non-EVM approval if present (e.g., Tron token approvals)
+      if (quoteResponse.approval) {
+        const approvalTxMeta = await this.#trace(
+          {
+            name: isBridgeTx
+              ? TraceName.BridgeTransactionApprovalCompleted
+              : TraceName.SwapTransactionApprovalCompleted,
+            data: {
+              srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
+              stxEnabled: false,
+            },
+          },
+          async () => {
+            try {
+              return await this.#handleNonEvmTx(
+                quoteResponse.approval as Trade,
+                quoteResponse,
+                selectedAccount,
+              );
+            } catch (error) {
+              !quoteResponse.featureId &&
+                this.#trackUnifiedSwapBridgeEvent(
+                  UnifiedSwapBridgeEventName.Failed,
+                  undefined,
+                  {
+                    error_message: (error as Error)?.message,
+                    ...preConfirmationProperties,
+                  },
+                );
+              throw error;
+            }
+          },
+        );
+
+        approvalTxId = approvalTxMeta?.id;
+
+        // Add delay after approval similar to EVM flow
+        await handleApprovalDelay(quoteResponse);
+      }
+
       txMeta = await this.#trace(
         {
           name: isBridgeTx
@@ -1080,10 +1131,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         async () => {
           try {
             return await this.#handleNonEvmTx(
-              quoteResponse as QuoteResponse<
-                string | { unsignedPsbtBase64: string }
-              > &
-                QuoteMetadata,
+              quoteResponse.trade,
+              quoteResponse,
               selectedAccount,
             );
           } catch (error) {
