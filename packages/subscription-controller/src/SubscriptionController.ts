@@ -8,7 +8,7 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
-import { type Hex } from '@metamask/utils';
+import { toCaipChainId, type Hex } from '@metamask/utils';
 
 import {
   ACTIVE_SUBSCRIPTION_STATUSES,
