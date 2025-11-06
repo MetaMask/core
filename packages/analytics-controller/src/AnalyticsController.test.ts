@@ -40,9 +40,10 @@ function setupController(
   const adapter =
     platformAdapter ??
     ({
-      trackEvent: jest.fn(),
+      track: jest.fn(),
       identify: jest.fn(),
-      trackPage: jest.fn(),
+      view: jest.fn(),
+      onSetupCompleted: jest.fn(),
     } satisfies AnalyticsPlatformAdapter);
 
   const rootMessenger = new Messenger<
@@ -85,9 +86,10 @@ function isValidUUIDv4(value: string): boolean {
 
 describe('AnalyticsController', () => {
   const createMockAdapter = (): AnalyticsPlatformAdapter => ({
-    trackEvent: jest.fn(),
+    track: jest.fn(),
     identify: jest.fn(),
-    trackPage: jest.fn(),
+    view: jest.fn(),
+    onSetupCompleted: jest.fn(),
   });
 
   describe('constructor', () => {
@@ -231,6 +233,150 @@ describe('AnalyticsController', () => {
     });
   });
 
+  describe('onSetupCompleted lifecycle hook', () => {
+    it('calls onSetupCompleted after initialization when analyticsId is set', () => {
+      const mockAdapter = createMockAdapter();
+      const customId = '550e8400-e29b-41d4-a716-446655440000';
+
+      setupController({
+        state: { analyticsId: customId },
+        platformAdapter: mockAdapter,
+      });
+
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledWith(customId);
+    });
+
+    it('calls onSetupCompleted with auto-generated analyticsId when not provided', () => {
+      const mockAdapter = createMockAdapter();
+
+      const { controller } = setupController({
+        platformAdapter: mockAdapter,
+      });
+
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledWith(
+        controller.state.analyticsId,
+      );
+      expect(isValidUUIDv4(controller.state.analyticsId)).toBe(true);
+    });
+
+    it('throws error when analyticsId is empty string', () => {
+      const mockAdapter = createMockAdapter();
+
+      expect(() => {
+        setupController({
+          state: { analyticsId: '' },
+          platformAdapter: mockAdapter,
+        });
+      }).toThrow('Invalid analyticsId: expected a valid UUIDv4, but got ""');
+
+      expect(mockAdapter.onSetupCompleted).not.toHaveBeenCalled();
+    });
+
+    it('throws error when analyticsId is undefined', () => {
+      const mockAdapter = createMockAdapter();
+
+      expect(() => {
+        setupController({
+          state: { analyticsId: undefined as unknown as string },
+          platformAdapter: mockAdapter,
+        });
+      }).toThrow('Invalid analyticsId: expected a valid UUIDv4, but got undefined');
+
+      expect(mockAdapter.onSetupCompleted).not.toHaveBeenCalled();
+    });
+
+    it('throws error when analyticsId is null', () => {
+      const mockAdapter = createMockAdapter();
+
+      expect(() => {
+        setupController({
+          state: { analyticsId: null as unknown as string },
+          platformAdapter: mockAdapter,
+        });
+      }).toThrow('Invalid analyticsId: expected a valid UUIDv4, but got null');
+
+      expect(mockAdapter.onSetupCompleted).not.toHaveBeenCalled();
+    });
+
+    it('throws error when analyticsId is not a valid UUIDv4', () => {
+      const mockAdapter = createMockAdapter();
+
+      expect(() => {
+        setupController({
+          state: { analyticsId: 'not-a-uuid' },
+          platformAdapter: mockAdapter,
+        });
+      }).toThrow(
+        'Invalid analyticsId: expected a valid UUIDv4, but got "not-a-uuid"',
+      );
+
+      expect(mockAdapter.onSetupCompleted).not.toHaveBeenCalled();
+    });
+
+    it('throws error when analyticsId is a valid UUID but not v4', () => {
+      const mockAdapter = createMockAdapter();
+      // UUIDv1 example
+      const uuidV1 = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+
+      expect(() => {
+        setupController({
+          state: { analyticsId: uuidV1 },
+          platformAdapter: mockAdapter,
+        });
+      }).toThrow(
+        `Invalid analyticsId: expected a valid UUIDv4, but got "${uuidV1}"`,
+      );
+
+      expect(mockAdapter.onSetupCompleted).not.toHaveBeenCalled();
+    });
+
+    it('handles errors in onSetupCompleted without breaking controller initialization', () => {
+      const mockAdapter = createMockAdapter();
+      const error = new Error('Setup failed');
+      mockAdapter.onSetupCompleted = jest.fn(() => {
+        throw error;
+      });
+
+      const projectLoggerSpy = jest
+        .spyOn(require('./AnalyticsLogger'), 'projectLogger')
+        .mockImplementation();
+
+      const { controller } = setupController({
+        state: { analyticsId: '550e8400-e29b-41d4-a716-446655440000' },
+        platformAdapter: mockAdapter,
+      });
+
+      // Controller should still be initialized
+      expect(controller).toBeDefined();
+      expect(controller.state.analyticsId).toBe(
+        '550e8400-e29b-41d4-a716-446655440000',
+      );
+
+      // Error should be logged
+      expect(projectLoggerSpy).toHaveBeenCalledWith(
+        'Error calling platformAdapter.onSetupCompleted',
+        error,
+      );
+
+      projectLoggerSpy.mockRestore();
+    });
+
+    it('calls onSetupCompleted with the correct analyticsId from state', () => {
+      const mockAdapter = createMockAdapter();
+      const customId = '550e8400-e29b-41d4-a716-446655440000';
+
+      const { controller } = setupController({
+        state: { analyticsId: customId },
+        platformAdapter: mockAdapter,
+      });
+
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledWith(customId);
+      expect(controller.state.analyticsId).toBe(customId);
+    });
+  });
+
   describe('trackEvent', () => {
     it('tracks event when enabled', () => {
       const mockAdapter = createMockAdapter();
@@ -238,7 +384,7 @@ describe('AnalyticsController', () => {
 
       controller.trackEvent('test_event', { prop: 'value' });
 
-      expect(mockAdapter.trackEvent).toHaveBeenCalledWith('test_event', {
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
         prop: 'value',
       });
     });
@@ -249,7 +395,7 @@ describe('AnalyticsController', () => {
 
       controller.trackEvent('test_event');
 
-      expect(mockAdapter.trackEvent).toHaveBeenCalledWith('test_event', {});
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {});
     });
 
     it('does not track event when disabled', () => {
@@ -261,7 +407,7 @@ describe('AnalyticsController', () => {
 
       controller.trackEvent('test_event', { prop: 'value' });
 
-      expect(mockAdapter.trackEvent).not.toHaveBeenCalled();
+      expect(mockAdapter.track).not.toHaveBeenCalled();
     });
   });
 
@@ -291,14 +437,14 @@ describe('AnalyticsController', () => {
     });
   });
 
-  describe('trackPage', () => {
+  describe('trackView', () => {
     it('tracks page view', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({ platformAdapter: mockAdapter });
 
-      controller.trackPage('home', { referrer: 'test' });
+      controller.trackView('home', { referrer: 'test' });
 
-      expect(mockAdapter.trackPage).toHaveBeenCalledWith('home', {
+      expect(mockAdapter.view).toHaveBeenCalledWith('home', {
         referrer: 'test',
       });
     });
@@ -310,9 +456,9 @@ describe('AnalyticsController', () => {
         platformAdapter: mockAdapter,
       });
 
-      controller.trackPage('home');
+      controller.trackView('home');
 
-      expect(mockAdapter.trackPage).not.toHaveBeenCalled();
+      expect(mockAdapter.view).not.toHaveBeenCalled();
     });
   });
 
@@ -381,7 +527,7 @@ describe('AnalyticsController', () => {
         prop: 'value',
       });
 
-      expect(mockAdapter.trackEvent).toHaveBeenCalled();
+      expect(mockAdapter.track).toHaveBeenCalled();
     });
 
     it('handles identify action', () => {
@@ -398,13 +544,13 @@ describe('AnalyticsController', () => {
       expect(controller.state.analyticsId).toBe('user-123');
     });
 
-    it('handles trackPage action', () => {
+    it('handles trackView action', () => {
       const mockAdapter = createMockAdapter();
       const { messenger } = setupController({ platformAdapter: mockAdapter });
 
-      messenger.call('AnalyticsController:trackPage', 'home', {});
+      messenger.call('AnalyticsController:trackView', 'home', {});
 
-      expect(mockAdapter.trackPage).toHaveBeenCalled();
+      expect(mockAdapter.view).toHaveBeenCalled();
     });
 
     it('handles enable action', () => {

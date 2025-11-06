@@ -5,13 +5,14 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, validate as uuidValidate, version as uuidVersion } from 'uuid';
 
 import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types';
 import { projectLogger } from './AnalyticsLogger';
 import type {
   AnalyticsPlatformAdapter,
   AnalyticsEventProperties,
+  AnalyticsUserTraits,
 } from './AnalyticsPlatformAdapter.types';
 
 // === GENERAL ===
@@ -90,7 +91,7 @@ export function getDefaultAnalyticsControllerState(): AnalyticsControllerState {
 const MESSENGER_EXPOSED_METHODS = [
   'trackEvent',
   'identify',
-  'trackPage',
+  'trackView',
   'enable',
   'disable',
   'optIn',
@@ -211,6 +212,26 @@ export class AnalyticsController extends BaseController<
       optedIn: this.state.optedIn,
       analyticsId: this.state.analyticsId,
     });
+
+    // Call onSetupCompleted lifecycle hook after initialization
+    // Only call if analyticsId is set and is a valid UUIDv4 (this is the definition of "completed" setup)
+    if (
+      this.state.analyticsId &&
+      uuidValidate(this.state.analyticsId) &&
+      uuidVersion(this.state.analyticsId) === 4
+    ) {
+      try {
+        this.#platformAdapter.onSetupCompleted(this.state.analyticsId);
+      } catch (error) {
+        // Log error but don't throw - adapter setup failure shouldn't break controller
+        projectLogger('Error calling platformAdapter.onSetupCompleted', error);
+      }
+    } else {
+      // analyticsId is undefined, null, empty string, or not a valid UUIDv4
+      throw new Error(
+        `Invalid analyticsId: expected a valid UUIDv4, but got ${JSON.stringify(this.state.analyticsId)}`,
+      );
+    } 
   }
 
   /**
@@ -231,7 +252,7 @@ export class AnalyticsController extends BaseController<
     }
 
     // Delegate to platform adapter
-    this.#platformAdapter.trackEvent(eventName, properties);
+    this.#platformAdapter.track(eventName, properties);
   }
 
   /**
@@ -240,7 +261,7 @@ export class AnalyticsController extends BaseController<
    * @param userId - The user identifier (e.g., metametrics ID)
    * @param traits - User traits/properties
    */
-  identify(userId: string, traits?: AnalyticsEventProperties): void {
+  identify(userId: string, traits?: AnalyticsUserTraits): void {
     if (!this.state.enabled) {
       return;
     }
@@ -262,15 +283,13 @@ export class AnalyticsController extends BaseController<
    * @param pageName - The name of the page
    * @param properties - Page properties
    */
-  trackPage(pageName: string, properties?: AnalyticsEventProperties): void {
+  trackView(name: string, properties?: AnalyticsEventProperties): void {
     if (!this.state.enabled) {
       return;
     }
 
-    // Delegate to platform adapter if supported
-    if (this.#platformAdapter.trackPage) {
-      this.#platformAdapter.trackPage(pageName, properties);
-    }
+    // Delegate to platform adapter
+    this.#platformAdapter.view(name, properties);
   }
 
   /**

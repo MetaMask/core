@@ -32,12 +32,12 @@ export type AnalyticsControllerIdentifyAction = {
 /**
  * Track a page view.
  *
- * @param pageName - The name of the page
- * @param properties - Page properties
+ * @param name - The name of the UI item being viewed (pages for web, screen for mobile)
+ * @param properties - UI item properties 
  */
-export type AnalyticsControllerTrackPageAction = {
-  type: `AnalyticsController:trackPage`;
-  handler: AnalyticsController['trackPage'];
+export type AnalyticsControllerTrackViewAction = {
+  type: `AnalyticsController:trackView`;
+  handler: AnalyticsController['trackView'];
 };
 
 /**
@@ -78,7 +78,7 @@ export type AnalyticsControllerOptOutAction = {
 export type AnalyticsControllerMethodActions =
   | AnalyticsControllerTrackEventAction
   | AnalyticsControllerIdentifyAction
-  | AnalyticsControllerTrackPageAction
+  | AnalyticsControllerTrackViewAction
   | AnalyticsControllerEnableAction
   | AnalyticsControllerDisableAction
   | AnalyticsControllerOptInAction

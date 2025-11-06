@@ -5,6 +5,7 @@ export type { AnalyticsControllerOptions } from './AnalyticsController';
 // Export types
 export type {
   AnalyticsEventProperties,
+  AnalyticsUserTraits,
   AnalyticsPlatformAdapter,
 } from './AnalyticsPlatformAdapter.types';
 
@@ -26,7 +27,7 @@ export type {
 export type {
   AnalyticsControllerTrackEventAction,
   AnalyticsControllerIdentifyAction,
-  AnalyticsControllerTrackPageAction,
+  AnalyticsControllerTrackViewAction,
   AnalyticsControllerEnableAction,
   AnalyticsControllerDisableAction,
   AnalyticsControllerOptInAction,
