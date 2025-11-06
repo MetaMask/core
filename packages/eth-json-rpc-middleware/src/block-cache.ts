@@ -33,19 +33,19 @@ type BlockCacheMiddlewareOptions = {
 //
 
 class BlockCacheStrategy {
-  private cache: Cache;
+  #cache: Cache;
 
   constructor() {
-    this.cache = {};
+    this.#cache = {};
   }
 
   getBlockCache(blockNumberHex: string): BlockCache {
     const blockNumber: number = Number.parseInt(blockNumberHex, 16);
-    let blockCache: BlockCache = this.cache[blockNumber];
+    let blockCache: BlockCache = this.#cache[blockNumber];
     // create new cache if necesary
     if (!blockCache) {
       const newCache: BlockCache = {};
-      this.cache[blockNumber] = newCache;
+      this.#cache[blockNumber] = newCache;
       blockCache = newCache;
     }
     return blockCache;
@@ -126,10 +126,10 @@ class BlockCacheStrategy {
   clearBefore(oldBlockHex: string): void {
     const oldBlockNumber: number = Number.parseInt(oldBlockHex, 16);
     // clear old caches
-    Object.keys(this.cache)
+    Object.keys(this.#cache)
       .map(Number)
       .filter((num) => num < oldBlockNumber)
-      .forEach((num) => delete this.cache[num]);
+      .forEach((num) => delete this.#cache[num]);
   }
 }
 

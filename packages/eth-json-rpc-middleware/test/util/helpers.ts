@@ -2,7 +2,10 @@ import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
+import type {
+  JsonRpcMiddleware,
+  ResultConstraint,
+} from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
@@ -113,6 +116,10 @@ export function createProviderAndBlockTracker(): {
   return { provider, blockTracker };
 }
 
+// An expedient for use with createEngine below.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyMiddleware = JsonRpcMiddleware<any, ResultConstraint<any>, any>;
+
 /**
  * Creates a JSON-RPC engine with the middleware under test and any
  * additional middleware. If no other middleware is provided, a final middleware
@@ -123,8 +130,8 @@ export function createProviderAndBlockTracker(): {
  * @returns The created engine.
  */
 export function createEngine(
-  middlewareUnderTest: JsonRpcMiddleware<any, any>,
-  ...otherMiddleware: JsonRpcMiddleware<any, any>[]
+  middlewareUnderTest: AnyMiddleware,
+  ...otherMiddleware: AnyMiddleware[]
 ): JsonRpcEngineV2 {
   return JsonRpcEngineV2.create({
     middleware: [
@@ -258,10 +265,10 @@ export function expectProviderRequestNotToHaveBeenMade(
  * @returns The Jest spy object that represents `provider.request` (so that
  * you can make assertions on the method later, if you like).
  */
-export function stubProviderRequests(
-  provider: InternalProvider,
-  stubs: ProviderRequestStub<any, Json>[],
-) {
+export function stubProviderRequests<
+  Params extends JsonRpcParams = JsonRpcParams,
+  Result extends Json = Json,
+>(provider: InternalProvider, stubs: ProviderRequestStub<Params, Result>[]) {
   const remainingStubs = klona(stubs);
   const callNumbersByRequest = new Map<Partial<JsonRpcRequest>, number>();
   return jest.spyOn(provider, 'request').mockImplementation(async (request) => {
