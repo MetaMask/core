@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
 ## [3.3.0]
+
+### Changed
 
 - fix: `getTokenApproveAmount` precision by using bignumber.js ([#7070](https://github.com/MetaMask/core/pull/7070))
 
