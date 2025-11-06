@@ -204,6 +204,7 @@ function buildTokenDetectionControllerMessenger(
       'PreferencesController:getState',
       'TokensController:addTokens',
       'NetworkController:findNetworkClientIdByChainId',
+      'AuthenticationController:getBearerToken',
     ],
     events: [
       'AccountsController:selectedEvmAccountChange',
@@ -2953,6 +2954,70 @@ describe('TokenDetectionController', () => {
       actResult.assertAddedTokens(actResult.rpcToken);
     });
 
+    it('should pass JWT token to fetchMultiChainBalances when using Accounts API', async () => {
+      const mockJwtToken = 'test-jwt-token-12345';
+      const mockFetchMultiChainBalances = jest
+        .spyOn(MutliChainAccountsServiceModule, 'fetchMultiChainBalances')
+        .mockResolvedValue({
+          count: 1,
+          balances: [
+            {
+              object: 'token_balance',
+              address: sampleTokenB.address,
+              symbol: sampleTokenB.symbol,
+              name: sampleTokenB.name,
+              decimals: sampleTokenB.decimals,
+              chainId: 1,
+              balance: '1000000000000000000',
+            },
+          ],
+          unprocessedNetworks: [],
+        });
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useAccountsAPI: true,
+          },
+          mocks: {
+            getSelectedAccount: defaultSelectedAccount,
+            getBearerToken: mockJwtToken,
+          },
+        },
+        async ({ controller, mockTokenListGetState }) => {
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenB.address]: {
+                    name: sampleTokenB.name,
+                    symbol: sampleTokenB.symbol,
+                    decimals: sampleTokenB.decimals,
+                    address: sampleTokenB.address,
+                    aggregators: sampleTokenB.aggregators,
+                    iconUrl: sampleTokenB.image,
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          });
+
+          await controller.detectTokens();
+
+          expect(mockFetchMultiChainBalances).toHaveBeenCalledWith(
+            defaultSelectedAccount.address,
+            { networks: [1] },
+            'extension',
+            mockJwtToken,
+          );
+        },
+      );
+    });
+
     it('uses the Accounts API but does not add tokens that are already added', async () => {
       // Here we populate the token state with a token that exists in the tokenAPI.
       // So the token retrieved from the API should not be added
@@ -4115,6 +4180,14 @@ async function withController<ReturnValue>(
         Parameters<TokensController['addTokens']>
       >()
       .mockResolvedValue(undefined),
+  );
+
+  const mockGetBearerToken = jest.fn<Promise<string | undefined>, []>();
+  messenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    mockGetBearerToken.mockResolvedValue(
+      mocks?.getBearerToken ?? 'mock-jwt-token',
+    ),
   );
 
   const tokenDetectionControllerMessenger =

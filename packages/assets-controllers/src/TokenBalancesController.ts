@@ -61,6 +61,7 @@ import type {
   TokensControllerState,
   TokensControllerStateChangeEvent,
 } from './TokensController';
+import type { AuthenticationControllerGetBearerToken } from '../../profile-sync-controller/src/controllers/authentication';
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
@@ -130,7 +131,8 @@ export type AllowedActions =
   | AccountsControllerListAccountsAction
   | AccountTrackerControllerGetStateAction
   | AccountTrackerUpdateNativeBalancesAction
-  | AccountTrackerUpdateStakedBalancesAction;
+  | AccountTrackerUpdateStakedBalancesAction
+  | AuthenticationControllerGetBearerToken;
 
 export type AllowedEvents =
   | TokensControllerStateChangeEvent
@@ -640,6 +642,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
     const allAccounts = this.messenger.call('AccountsController:listAccounts');
 
+    const jwtToken = await this.messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
+
+    console.log('jwtToken ..........', jwtToken);
+
     const aggregated: ProcessedBalance[] = [];
     let remainingChains = [...targetChains];
 
@@ -658,6 +666,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           queryAllAccounts: queryAllAccounts ?? this.#queryAllAccounts,
           selectedAccount: selected as ChecksumAddress,
           allAccounts,
+          jwtToken,
         });
 
         if (balances && balances.length > 0) {

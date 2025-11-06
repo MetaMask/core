@@ -58,6 +58,7 @@ import type {
   TokensControllerAddTokensAction,
   TokensControllerGetStateAction,
 } from './TokensController';
+import type { AuthenticationControllerGetBearerToken } from '../../profile-sync-controller/src/controllers/authentication';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -141,7 +142,8 @@ export type AllowedActions =
   | TokensControllerGetStateAction
   | TokensControllerAddDetectedTokensAction
   | TokensControllerAddTokensAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction;
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | AuthenticationControllerGetBearerToken;
 
 export type TokenDetectionControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
@@ -244,6 +246,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       address: string,
       chainIds: Hex[],
       supportedNetworks: number[] | null,
+      jwtToken?: string,
     ) {
       const chainIdNumbers = chainIds.map((chainId) => hexToNumber(chainId));
 
@@ -263,6 +266,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           networks: chainIdNumbers,
         },
         this.platform,
+        jwtToken,
       );
 
       return result.balances;
@@ -602,11 +606,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     chainsToDetectUsingAccountAPI: Hex[],
     addressToDetect: string,
     supportedNetworks: number[] | null,
+    jwtToken?: string,
   ) {
     return await this.#addDetectedTokensViaAPI({
       chainIds: chainsToDetectUsingAccountAPI,
       selectedAddress: addressToDetect,
       supportedNetworks,
+      jwtToken,
     });
   }
 
@@ -704,6 +710,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     const addressToDetect = selectedAddress ?? this.#getSelectedAddress();
     const clientNetworks = this.#getCorrectNetworkClientIdByChainId(chainIds);
+    const jwtToken = await this.messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
+    console.log('jwtToken +++++++++++', jwtToken);
 
     let supportedNetworks;
     if (this.#accountsAPI.isAccountsAPIEnabled && this.#useExternalServices()) {
@@ -718,6 +728,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         chainsToDetectUsingAccountAPI,
         addressToDetect,
         supportedNetworks,
+        jwtToken,
       );
 
       // If the account API call failed, have those chains fall back to RPC detection
@@ -813,21 +824,29 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @param options.selectedAddress - address to check against
    * @param options.chainIds - array of chainIds to check tokens for
    * @param options.supportedNetworks - array of chainIds to check tokens for
+   * @param options.jwtToken - JWT token for authentication
    * @returns a success or failed object
    */
   async #addDetectedTokensViaAPI({
     selectedAddress,
     chainIds,
     supportedNetworks,
+    jwtToken,
   }: {
     selectedAddress: string;
     chainIds: Hex[];
     supportedNetworks: number[] | null;
+    jwtToken?: string;
   }) {
     return await safelyExecute(async () => {
       // Fetch balances for multiple chain IDs at once
       const tokenBalancesByChain = await this.#accountsAPI
-        .getMultiNetworksBalances(selectedAddress, chainIds, supportedNetworks)
+        .getMultiNetworksBalances(
+          selectedAddress,
+          chainIds,
+          supportedNetworks,
+          jwtToken,
+        )
         .catch(() => null);
 
       if (tokenBalancesByChain === null) {
