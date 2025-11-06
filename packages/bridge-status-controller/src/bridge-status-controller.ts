@@ -5,6 +5,7 @@ import type {
   RequiredEventContextFromClient,
   TxData,
   QuoteResponse,
+  Trade,
 } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
@@ -1023,7 +1024,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    */
   submitTx = async (
     accountAddress: string,
-    quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
+    quoteResponse: QuoteResponse<Trade, Trade> & Partial<QuoteMetadata>,
     isStxEnabledOnClient: boolean,
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     this.messenger.call('BridgeController:stopPollingForQuotes');

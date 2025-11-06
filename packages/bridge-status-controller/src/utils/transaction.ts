@@ -74,7 +74,7 @@ export const getStatusRequestParams = (quoteResponse: QuoteResponse) => {
 };
 
 export const getTxMetaFields = (
-  quoteResponse: Omit<QuoteResponse<string | TxData>, 'approval' | 'trade'> &
+  quoteResponse: Omit<QuoteResponse<Trade, Trade>, 'approval' | 'trade'> &
     QuoteMetadata,
   approvalTxId?: string,
 ): Omit<

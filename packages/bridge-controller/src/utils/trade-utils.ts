@@ -1,7 +1,7 @@
-import type { BitcoinTradeData, TronTradeData } from '../types';
+import type { BitcoinTradeData, TronTradeData, TxData } from '../types';
 
-// Union type representing all possible trade formats
-export type Trade = string | Record<string, unknown>;
+// Union type representing all possible trade formats (EVM, Solana, Bitcoin, Tron)
+export type Trade = TxData | string | BitcoinTradeData | TronTradeData;
 
 /**
  * Type guard to check if a trade is a Bitcoin trade with unsignedPsbtBase64
