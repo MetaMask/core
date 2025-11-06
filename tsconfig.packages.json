@@ -13,6 +13,7 @@
      * `jest.config.packages.js`.
      */
     "paths": {
+      "@metamask/json-rpc-engine/v2": ["../json-rpc-engine/src/v2/index.ts"],
       "@metamask/*": ["../*/src"]
     },
     "strict": true,

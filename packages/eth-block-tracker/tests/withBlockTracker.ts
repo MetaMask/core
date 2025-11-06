@@ -1,8 +1,4 @@
-import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
-import type {
-  // Eip1193Request,
-  InternalProvider,
-} from '@metamask/eth-json-rpc-provider';
+import { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { Json } from '@metamask/utils';
 import util from 'util';
@@ -98,7 +94,7 @@ function getFakeProvider({
     });
   }
 
-  const provider = providerFromEngine(new JsonRpcEngine());
+  const provider = new InternalProvider({ engine: new JsonRpcEngine() });
   jest
     .spyOn(provider, 'request')
     .mockImplementation(async (eip1193Request): Promise<Json> => {
