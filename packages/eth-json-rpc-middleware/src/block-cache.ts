@@ -133,6 +133,13 @@ class BlockCacheStrategy {
   }
 }
 
+/**
+ * Creates a middleware that caches block-related requests.
+ *
+ * @param options - The options for the middleware.
+ * @param options.blockTracker - The block tracker to use.
+ * @returns The block cache middleware.
+ */
 export function createBlockCacheMiddleware({
   blockTracker,
 }: BlockCacheMiddlewareOptions = {}): JsonRpcMiddleware<

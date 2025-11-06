@@ -20,7 +20,6 @@ export const createRequest = <
     jsonrpc: '2.0',
     id: request.id ?? '1',
     method: request.method ?? 'test_request',
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     params: request.params === undefined ? [] : request.params,
   } as Output;
 };

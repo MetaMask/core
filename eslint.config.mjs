@@ -232,13 +232,6 @@ const config = createConfig([
     },
   },
   {
-    files: ['packages/eth-json-rpc-middleware/**/*.ts'],
-    rules: {
-      // TODO: Re-enable this
-      'jsdoc/require-jsdoc': 'warn',
-    },
-  },
-  {
     files: ['packages/foundryup/**/*.{js,ts}'],
     rules: {
       'import-x/no-nodejs-modules': 'off',

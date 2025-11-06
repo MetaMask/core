@@ -88,6 +88,25 @@ export type WalletMiddlewareParams = MiddlewareParams<
   WalletMiddlewareContext
 >;
 
+/**
+ * Creates a JSON-RPC middleware that handles "wallet"-related JSON-RPC methods.
+ * "Wallet" may have had a specific meaning at some point in the distant past,
+ * but at this point it's just an arbitrary label.
+ *
+ * @param options - The options for the middleware.
+ * @param options.getAccounts - The function to get the accounts for the origin.
+ * @param options.processDecryptMessage - The function to process the decrypt message request.
+ * @param options.processEncryptionPublicKey - The function to process the encryption public key request.
+ * @param options.processPersonalMessage - The function to process the personal message request.
+ * @param options.processTransaction - The function to process the transaction request.
+ * @param options.processSignTransaction - The function to process the sign transaction request.
+ * @param options.processTypedMessage - The function to process the typed message request.
+ * @param options.processTypedMessageV3 - The function to process the typed message v3 request.
+ * @param options.processTypedMessageV4 - The function to process the typed message v4 request.
+ * @param options.processRequestExecutionPermissions - The function to process the request execution permissions request.
+ * @param options.processRevokeExecutionPermission - The function to process the revoke execution permission request.
+ * @returns A JSON-RPC middleware that handles wallet-related JSON-RPC methods.
+ */
 export function createWalletMiddleware({
   getAccounts,
   processDecryptMessage,
@@ -142,12 +161,26 @@ export function createWalletMiddleware({
   // account lookups
   //
 
+  /**
+   * Gets the accounts for the origin.
+   *
+   * @param options - Options bag.
+   * @param options.context - The context of the request.
+   * @returns The accounts for the origin.
+   */
   async function lookupAccounts({
     context,
   }: WalletMiddlewareParams): Promise<Json> {
     return await getAccounts(context.assertGet('origin'));
   }
 
+  /**
+   * Gets the default account (i.e. first in the list) for the origin.
+   *
+   * @param options - Options bag.
+   * @param options.context - The context of the request.
+   * @returns The default account for the origin.
+   */
   async function lookupDefaultAccount({
     context,
   }: WalletMiddlewareParams): Promise<Json> {
@@ -159,6 +192,14 @@ export function createWalletMiddleware({
   // transaction signatures
   //
 
+  /**
+   * Sends a transaction.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The transaction hash.
+   */
   async function sendTransaction({
     request,
     context,
@@ -182,6 +223,14 @@ export function createWalletMiddleware({
     return await processTransaction(txParams, request);
   }
 
+  /**
+   * Signs a transaction.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The signed transaction.
+   */
   async function signTransaction({
     request,
     context,
@@ -209,6 +258,14 @@ export function createWalletMiddleware({
   // message signatures
   //
 
+  /**
+   * Signs a `eth_signTypedData` message.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The signed message.
+   */
   async function signTypedData({
     request,
     context,
@@ -244,6 +301,14 @@ export function createWalletMiddleware({
     return await processTypedMessage(msgParams, request, version);
   }
 
+  /**
+   * Signs a `eth_signTypedData_v3` message.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The signed message.
+   */
   async function signTypedDataV3({
     request,
     context,
@@ -276,6 +341,14 @@ export function createWalletMiddleware({
     return await processTypedMessageV3(msgParams, request, version);
   }
 
+  /**
+   * Signs a `eth_signTypedData_v4` message.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The signed message.
+   */
   async function signTypedDataV4({
     request,
     context,
@@ -308,6 +381,14 @@ export function createWalletMiddleware({
     return await processTypedMessageV4(msgParams, request, version);
   }
 
+  /**
+   * Signs a `personal_sign` message.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The signed message.
+   */
   async function personalSign({
     request,
     context,
@@ -358,6 +439,13 @@ export function createWalletMiddleware({
     return await processPersonalMessage(msgParams, request);
   }
 
+  /**
+   * Recovers the signer address from a `personal_sign` message.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @returns The recovered signer address.
+   */
   async function personalRecover({
     request,
   }: WalletMiddlewareParams): Promise<Json> {
@@ -380,6 +468,14 @@ export function createWalletMiddleware({
     return signerAddress;
   }
 
+  /**
+   * Gets the encryption public key for an address.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The encryption public key.
+   */
   async function encryptionPublicKey({
     request,
     context,
@@ -402,6 +498,14 @@ export function createWalletMiddleware({
     return await processEncryptionPublicKey(address, request);
   }
 
+  /**
+   * Decrypts a message.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The decrypted message.
+   */
   async function decryptMessage({
     request,
     context,

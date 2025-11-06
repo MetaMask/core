@@ -67,6 +67,15 @@ export type ProcessRequestExecutionPermissionsHook = (
   req: JsonRpcRequest,
 ) => Promise<RequestExecutionPermissionsResult>;
 
+/**
+ * Creates a handler for the `wallet_requestExecutionPermissions` JSON-RPC method.
+ *
+ * @param options - The options for the handler.
+ * @param options.processRequestExecutionPermissions - The function to process the
+ * request execution permissions request.
+ * @returns A JSON-RPC middleware function that handles the
+ * `wallet_requestExecutionPermissions` JSON-RPC method.
+ */
 export function createWalletRequestExecutionPermissionsHandler({
   processRequestExecutionPermissions,
 }: {

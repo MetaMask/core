@@ -153,27 +153,6 @@
   "packages/eth-block-tracker/tests/withBlockTracker.ts": {
     "@typescript-eslint/no-explicit-any": 1
   },
-  "packages/eth-json-rpc-middleware/src/block-cache.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/methods/wallet-request-execution-permissions.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/methods/wallet-revoke-execution-permission.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/providerAsMiddleware.ts": {
-    "jsdoc/require-jsdoc": 2
-  },
-  "packages/eth-json-rpc-middleware/src/utils/error.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/utils/validation.ts": {
-    "jsdoc/require-jsdoc": 4
-  },
-  "packages/eth-json-rpc-middleware/src/wallet.ts": {
-    "jsdoc/require-jsdoc": 12
-  },
   "packages/gas-fee-controller/src/GasFeeController.test.ts": {
     "import-x/namespace": 2,
     "import-x/order": 1
