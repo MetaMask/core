@@ -1452,7 +1452,7 @@ export class KeyringController<
     return this.#persistOrRollback(async () => {
       assertIsValidPassword(password);
       await this.#deriveEncryptionKey(password, {
-        useVaultKeyMetadata: false,
+        ignoreExistingVault: true,
       });
     });
   }
@@ -1532,7 +1532,7 @@ export class KeyringController<
             // If the vault is being upgraded, we want to ignore the metadata
             // that is already in the vault, so we can effectively
             // re-encrypt the vault with the new encryption config.
-            useVaultKeyMetadata: false,
+            ignoreExistingVault: true,
           });
           await this.#updateVault();
         }
@@ -1877,7 +1877,9 @@ export class KeyringController<
       delete state.encryptionSalt;
     });
 
-    await this.#deriveEncryptionKey(password);
+    await this.#deriveEncryptionKey(password, {
+      ignoreExistingVault: true,
+    });
 
     await this.#clearKeyrings();
     await this.#createKeyringWithFirstAccount(keyring.type, keyring.opts);
@@ -1893,14 +1895,18 @@ export class KeyringController<
    * using the salt from the vault. If the vault is empty, a new salt
    * is generated and used to derive the key.
    *
+   * If `options.ignoreExistingVault` is set to `false`, the existing
+   * vault is completely ignored: the new key won't be able to decrypt
+   * the existing vault, and should be used to re-encrypt it.
+   *
    * @param password - The password to use for decryption or derivation.
    * @param options - Options for the key derivation.
-   * @param options.useVaultKeyMetadata - Whether to use the vault key metadata
+   * @param options.ignoreExistingVault - Whether to use the existing vault salt and key metadata
    */
   async #deriveEncryptionKey(
     password: string,
-    options: { useVaultKeyMetadata: boolean } = {
-      useVaultKeyMetadata: true,
+    options: { ignoreExistingVault: boolean } = {
+      ignoreExistingVault: false,
     },
   ): Promise<void> {
     this.#assertControllerMutexIsLocked();
@@ -1911,7 +1917,7 @@ export class KeyringController<
     }
 
     let serializedEncryptionKey: string, salt: string;
-    if (vault && options.useVaultKeyMetadata) {
+    if (vault && !options.ignoreExistingVault) {
       // The `decryptWithDetail` method is being used here instead of
       // `keyFromPassword` + `exportKey` to let the encryptor handle
       // any legacy encryption formats and metadata that might be
