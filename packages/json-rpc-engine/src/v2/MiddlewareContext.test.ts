@@ -11,6 +11,17 @@ describe('MiddlewareContext', () => {
     expect(context.get(symbol)).toBe('value');
   });
 
+  it('can be constructed with a KeyValues object', () => {
+    const symbol = Symbol('symbol');
+    const context = new MiddlewareContext<{ test: string; [symbol]: string }>({
+      test: 'string value',
+      [symbol]: 'symbol value',
+    });
+
+    expect(context.get('test')).toBe('string value');
+    expect(context.get(symbol)).toBe('symbol value');
+  });
+
   it('is frozen', () => {
     const context = new MiddlewareContext();
     expect(Object.isFrozen(context)).toBe(true);
@@ -62,5 +73,12 @@ describe('MiddlewareContext', () => {
     expect(() => context.set('test', 'value')).toThrow(
       `MiddlewareContext key "test" already exists`,
     );
+  });
+
+  it('identifies instances of MiddlewareContext via isInstance', () => {
+    const context = new MiddlewareContext();
+
+    expect(MiddlewareContext.isInstance(context)).toBe(true);
+    expect(MiddlewareContext.isInstance({ foo: 'bar' })).toBe(false);
   });
 });

@@ -2,7 +2,10 @@ import { Web3Provider } from '@ethersproject/providers';
 import EthQuery from '@metamask/eth-query';
 import EthJsQuery from '@metamask/ethjs-query';
 import { asV2Middleware, JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
+import type {
+  JsonRpcMiddleware,
+  MiddlewareContext,
+} from '@metamask/json-rpc-engine/v2';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import { type JsonRpcRequest, type Json } from '@metamask/utils';
@@ -16,7 +19,9 @@ import {
 
 jest.mock('uuid');
 
-type ResultParam = Json | ((req?: JsonRpcRequest) => Json);
+type ResultParam =
+  | Json
+  | ((req?: JsonRpcRequest, context?: MiddlewareContext) => Json);
 
 const createLegacyEngine = (method: string, result: ResultParam) => {
   const engine = new JsonRpcEngine();
@@ -33,9 +38,11 @@ const createLegacyEngine = (method: string, result: ResultParam) => {
 const createV2Engine = (method: string, result: ResultParam) => {
   return JsonRpcEngineV2.create<JsonRpcMiddleware<JsonRpcRequest>>({
     middleware: [
-      ({ request, next }) => {
+      ({ request, next, context }) => {
         if (request.method === method) {
-          return typeof result === 'function' ? result(request) : result;
+          return typeof result === 'function'
+            ? result(request as JsonRpcRequest, context)
+            : result;
         }
         return next();
       },
@@ -243,6 +250,29 @@ describe.each([
         },
       });
       expect(response.result).toBe(42);
+    });
+
+    it('forwards the context to the JSON-RPC handler', async () => {
+      const rpcHandler = createRpcHandler('test', (request, context) => {
+        // @ts-expect-error - Intentional type abuse.
+        // eslint-disable-next-line jest/no-conditional-in-test
+        return context?.assertGet('foo') ?? request.foo;
+      });
+      const provider = new InternalProvider({ engine: rpcHandler });
+
+      const request = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'test',
+      };
+
+      const result = await provider.request(request, {
+        context: {
+          foo: 'bar',
+        },
+      });
+
+      expect(result).toBe('bar');
     });
 
     it('handles a successful EIP-1193 object request', async () => {
