@@ -133,8 +133,7 @@ const config = createConfig([
         },
       ],
 
-      // TODO: This rule forces us to write code that we think is less readable
-      // Disable in `eslint-config-typescript`
+      // TODO: Disable in `eslint-config-typescript`, tracked here: https://github.com/MetaMask/eslint-config/issues/413
       '@typescript-eslint/no-unnecessary-type-arguments': 'off',
 
       // This rule does not detect multiple imports of the same file where types
