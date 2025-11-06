@@ -1451,7 +1451,9 @@ export class KeyringController<
 
     return this.#persistOrRollback(async () => {
       assertIsValidPassword(password);
-      await this.#deriveEncryptionKey(password);
+      await this.#deriveEncryptionKey(password, {
+        useVaultKeyMetadata: false,
+      });
     });
   }
 
