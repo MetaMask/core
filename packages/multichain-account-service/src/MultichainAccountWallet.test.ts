@@ -248,24 +248,24 @@ describe('MultichainAccountWallet', () => {
         accounts: [[mockEvmAccount], [mockSolAccount]], // 2 providers
       });
 
-      const [failingProvider, succeedingProvider] = providers;
+      const [succeedingProvider, failingProvider] = providers;
 
       // Arrange: first provider fails, second succeeds creating one account at index 1
       failingProvider.createAccounts.mockRejectedValueOnce(
         new Error('Unable to create accounts'),
       );
 
-      const mockNextSolAccount = MockAccountBuilder.from(mockSolAccount)
+      const mockNextEvmAccount = MockAccountBuilder.from(mockEvmAccount)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(groupIndex)
         .get();
 
       succeedingProvider.createAccounts.mockResolvedValueOnce([
-        mockNextSolAccount,
+        mockNextEvmAccount,
       ]);
 
-      succeedingProvider.getAccounts.mockReturnValueOnce([mockNextSolAccount]);
-      succeedingProvider.getAccount.mockReturnValueOnce(mockNextSolAccount);
+      succeedingProvider.getAccounts.mockReturnValueOnce([mockNextEvmAccount]);
+      succeedingProvider.getAccount.mockReturnValueOnce(mockNextEvmAccount);
 
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       const group = await wallet.createMultichainAccountGroup(groupIndex, {
@@ -274,12 +274,12 @@ describe('MultichainAccountWallet', () => {
 
       // Should warn about partial failure but still create the group
       expect(consoleSpy).toHaveBeenCalledWith(
-        `Unable to create some accounts for group index: ${groupIndex} with provider "Mocked Provider 0". Error: Unable to create accounts`,
+        `Unable to create some accounts for group index: ${groupIndex}. Providers threw the following errors:\n- Mocked Provider 1: Unable to create accounts`,
       );
       expect(group.groupIndex).toBe(groupIndex);
       const internalAccounts = group.getAccounts();
       expect(internalAccounts).toHaveLength(1);
-      expect(internalAccounts[0]).toStrictEqual(mockNextSolAccount);
+      expect(internalAccounts[0]).toStrictEqual(mockNextEvmAccount);
     });
 
     it('fails to create an account group if all providers fail to create their accounts (waitForAllProvidersToFinishCreatingAccounts = true)', async () => {
@@ -422,9 +422,6 @@ describe('MultichainAccountWallet', () => {
 
       await wallet.alignAccounts();
 
-      // EVM provider already has group 0 and 1; should not be called.
-      expect(providers[0].createAccounts).not.toHaveBeenCalled();
-
       // Sol provider is missing group 1; should be called to create it.
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
         entropySource: wallet.entropySource,
@@ -466,9 +463,6 @@ describe('MultichainAccountWallet', () => {
       );
 
       await wallet.alignAccountsOf(0);
-
-      // EVM provider already has group 0; should not be called.
-      expect(providers[0].createAccounts).not.toHaveBeenCalled();
 
       // Sol provider is missing group 0; should be called to create it.
       expect(providers[1].createAccounts).toHaveBeenCalledWith({

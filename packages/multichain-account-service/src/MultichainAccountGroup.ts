@@ -16,10 +16,7 @@ import {
 } from './logger';
 import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
-import {
-  isAccountProviderWrapper,
-  type Bip44AccountProvider,
-} from './providers';
+import { type Bip44AccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
 
 export type GroupState =
@@ -93,8 +90,6 @@ export class MultichainAccountGroup<
 
       if (accountIds) {
         this.#providerToAccounts.set(provider, accountIds);
-        // Add the accounts to the provider's internal list of account IDs
-        provider.addAccounts(accountIds);
 
         for (const accountId of accountIds) {
           this.#accountToProvider.set(accountId, provider);
@@ -244,22 +239,6 @@ export class MultichainAccountGroup<
   }
 
   /**
-   * Cleans the state of a disabled provider.
-   *
-   * @param accounts - The accounts to clean.
-   * @param provider - The provider to clean.
-   */
-  #removeAccountsFromDisabledProvider(
-    accounts: Account['id'][],
-    provider: Bip44AccountProvider<Account>,
-  ): void {
-    accounts.forEach((account) => {
-      this.#accountToProvider.delete(account);
-    });
-    this.#providerToAccounts.delete(provider);
-  }
-
-  /**
    * Align the multichain account group.
    *
    * This will create accounts for providers that don't have any accounts yet.
@@ -267,29 +246,31 @@ export class MultichainAccountGroup<
   async alignAccounts(): Promise<void> {
     this.#log('Aligning accounts...');
 
+    this.#providerToAccounts.clear();
+    this.#accountToProvider.clear();
+
     const results = await Promise.allSettled(
       this.#providers.map(async (provider) => {
-        const accounts = this.#providerToAccounts.get(provider);
-        const isDisabled =
-          isAccountProviderWrapper(provider) && provider.isDisabled();
-        if ((!accounts || accounts.length === 0) && !isDisabled) {
-          this.#log(
-            `Found missing accounts for account provider "${provider.getName()}", creating them now...`,
-          );
-          const created = await provider.createAccounts({
-            entropySource: this.wallet.entropySource,
-            groupIndex: this.groupIndex,
-          });
-          this.#log(`Created ${created.length} accounts`);
+        const [disabled, accounts] = await provider.alignAccounts({
+          entropySource: this.wallet.entropySource,
+          groupIndex: this.groupIndex,
+        });
 
-          return created;
-        } else if (isDisabled) {
+        if (disabled) {
           this.#log(
             `Account provider "${provider.getName()}" is disabled, skipping alignment...`,
           );
-          this.#removeAccountsFromDisabledProvider(accounts ?? [], provider);
+        } else if (accounts.length > 0) {
+          this.#log(
+            `Found missing accounts for account provider "${provider.getName()}", creating them now...`,
+          );
+          this.#providerToAccounts.set(provider, accounts);
+          for (const accountId of accounts) {
+            this.#accountToProvider.set(accountId, provider);
+          }
         }
-        return [];
+
+        return accounts;
       }),
     );
 
@@ -297,9 +278,7 @@ export class MultichainAccountGroup<
     let failureCount = 0;
     const groupState = results.reduce<GroupState>((state, result, idx) => {
       if (result.status === 'fulfilled' && result.value.length) {
-        state[this.#providers[idx].getName()] = result.value.map(
-          (account) => account.id,
-        );
+        state[this.#providers[idx].getName()] = result.value;
       } else if (result.status === 'rejected') {
         failureCount += 1;
         failureMessage += `\n- ${this.#providers[idx].getName()}: ${result.reason.message}`;

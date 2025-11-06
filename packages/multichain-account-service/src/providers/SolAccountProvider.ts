@@ -120,6 +120,7 @@ export class SolAccountProvider extends SnapAccountProvider {
         derivationPath,
       });
 
+      this.accountsList.add(account.id);
       return [account];
     });
   }
@@ -160,6 +161,10 @@ export class SolAccountProvider extends SnapAccountProvider {
         }),
       ),
     );
+
+    for (const account of createdAccounts) {
+      this.accountsList.add(account.id);
+    }
 
     return createdAccounts;
   }

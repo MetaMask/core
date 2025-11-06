@@ -41,9 +41,15 @@ export type Bip44AccountProvider<
   Account extends Bip44Account<KeyringAccount> = Bip44Account<KeyringAccount>,
 > = AccountProvider<Account> & {
   getName(): string;
-  addAccounts(accounts: Bip44Account<KeyringAccount>['id'][]): void;
-  clearAccountsList(): void;
+  init(accounts: Bip44Account<KeyringAccount>['id'][]): void;
   isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
+  alignAccounts({
+    entropySource,
+    groupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<[boolean, Account['id'][]]>;
 };
 
 export abstract class BaseBip44AccountProvider<
@@ -52,7 +58,7 @@ export abstract class BaseBip44AccountProvider<
 {
   protected readonly messenger: MultichainAccountServiceMessenger;
 
-  accounts: Bip44Account<KeyringAccount>['id'][] = [];
+  accountsList: Set<Bip44Account<KeyringAccount>['id']> = new Set();
 
   constructor(messenger: MultichainAccountServiceMessenger) {
     this.messenger = messenger;
@@ -63,8 +69,10 @@ export abstract class BaseBip44AccountProvider<
    *
    * @param accounts - The accounts to add.
    */
-  addAccounts(accounts: Account['id'][]): void {
-    this.accounts.push(...accounts);
+  init(accounts: Account['id'][]): void {
+    for (const account of accounts) {
+      this.accountsList.add(account);
+    }
   }
 
   /**
@@ -73,11 +81,7 @@ export abstract class BaseBip44AccountProvider<
    * @returns The accounts list.
    */
   #getAccountIds(): Account['id'][] {
-    return this.accounts;
-  }
-
-  clearAccountsList(): void {
-    this.accounts = [];
+    return [...this.accountsList];
   }
 
   /**
@@ -133,6 +137,21 @@ export abstract class BaseBip44AccountProvider<
     );
 
     return result as CallbackResult;
+  }
+
+  async alignAccounts({
+    entropySource,
+    groupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<[boolean, Account['id'][]]> {
+    const accounts = await this.createAccounts({
+      entropySource,
+      groupIndex,
+    });
+    const accountIds = accounts.map((account) => account.id);
+    return [true, accountIds];
   }
 
   abstract getName(): string;

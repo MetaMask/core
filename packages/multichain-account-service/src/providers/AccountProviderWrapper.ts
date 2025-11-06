@@ -32,9 +32,6 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
    */
   setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
-    if (!enabled) {
-      this.provider.clearAccountsList();
-    }
   }
 
   isDisabled(): boolean {
@@ -51,6 +48,16 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
       return [];
     }
     return this.provider.getAccounts();
+  }
+
+  override async alignAccounts(options: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<[boolean, Bip44Account<KeyringAccount>['id'][]]> {
+    if (this.isDisabled()) {
+      return [true, []];
+    }
+    return await this.provider.alignAccounts(options);
   }
 
   /**

@@ -571,7 +571,6 @@ describe('MultichainAccountService', () => {
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       });
-      expect(mocks.EvmAccountProvider.createAccounts).not.toHaveBeenCalled();
     });
   });
 
@@ -671,7 +670,6 @@ describe('MultichainAccountService', () => {
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       });
-      expect(mocks.EvmAccountProvider.createAccounts).not.toHaveBeenCalled();
     });
 
     it('aligns all multichain account wallets with MultichainAccountService:alignWallets', async () => {

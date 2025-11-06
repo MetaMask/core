@@ -207,9 +207,9 @@ export class MultichainAccountService {
   }
 
   /**
-   * Construct the service state.
+   * Construct the service and provider state.
    *
-   * @returns The service state.
+   * @returns The service and provider state.
    */
   #constructServiceState() {
     const accounts = this.#messenger.call(
@@ -226,6 +226,13 @@ export class MultichainAccountService {
       }
     }
 
+    const providerState = this.#providers.reduce<
+      Record<string, Bip44Account<KeyringAccount>['id'][]>
+    >((acc, provider) => {
+      acc[provider.getName()] = [];
+      return acc;
+    }, {});
+
     for (const account of accounts) {
       const keys = this.#getStateKeys(account);
       if (keys) {
@@ -233,10 +240,10 @@ export class MultichainAccountService {
         serviceState[entropySource][groupIndex] ??= {};
         serviceState[entropySource][groupIndex][providerName] ??= [];
         serviceState[entropySource][groupIndex][providerName].push(account.id);
+        providerState[providerName].push(account.id);
       }
     }
-
-    return serviceState;
+    return { serviceState, providerState };
   }
 
   /**
@@ -248,7 +255,15 @@ export class MultichainAccountService {
 
     this.#wallets.clear();
 
-    const serviceState = this.#constructServiceState();
+    const { serviceState, providerState } = this.#constructServiceState();
+
+    // Add the accounts to the providers' internal list of account IDs
+    for (const [providerName, accountIds] of Object.entries(providerState)) {
+      this.#providers
+        .find((p) => p.getName() === providerName)
+        ?.init(accountIds);
+    }
+
     for (const entropySource of Object.keys(serviceState)) {
       const wallet = new MultichainAccountWallet({
         entropySource,

@@ -95,6 +95,7 @@ export class TrxAccountProvider extends SnapAccountProvider {
       );
 
       assertIsBip44Account(account);
+      this.accountsList.add(account.id);
       return [account];
     });
   }

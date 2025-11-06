@@ -24,6 +24,7 @@ import {
   setupBip44AccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
+  mockCreateAccountsOnce,
   type RootMessenger,
 } from './tests';
 
@@ -182,40 +183,32 @@ describe('MultichainAccount', () => {
   });
 
   describe('alignAccounts', () => {
-    it('creates missing accounts only for providers with no accounts', async () => {
+    it('aligns accounts for all providers', async () => {
       const groupIndex = 0;
       const { group, providers, wallet } = setup({
         groupIndex,
-        accounts: [
-          [MOCK_WALLET_1_EVM_ACCOUNT], // provider[0] already has group 0
-          [], // provider[1] missing group 0
-        ],
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
       });
 
-      providers[1].createAccounts.mockResolvedValueOnce([
-        MOCK_WALLET_1_SOL_ACCOUNT,
-      ]);
+      mockCreateAccountsOnce(providers[0], [MOCK_WALLET_1_EVM_ACCOUNT]);
+      mockCreateAccountsOnce(providers[1], [MOCK_WALLET_1_SOL_ACCOUNT]);
 
       await group.alignAccounts();
 
-      expect(providers[0].createAccounts).not.toHaveBeenCalled();
+      expect(providers[0].createAccounts).toHaveBeenCalledWith({
+        entropySource: wallet.entropySource,
+        groupIndex,
+      });
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
         entropySource: wallet.entropySource,
         groupIndex,
       });
-    });
 
-    it('does nothing when already aligned', async () => {
-      const groupIndex = 0;
-      const { group, providers } = setup({
-        groupIndex,
-        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
-      });
-
-      await group.alignAccounts();
-
-      expect(providers[0].createAccounts).not.toHaveBeenCalled();
-      expect(providers[1].createAccounts).not.toHaveBeenCalled();
+      expect(group.getAccounts()).toHaveLength(2);
+      expect(group.getAccounts()).toStrictEqual([
+        MOCK_WALLET_1_EVM_ACCOUNT,
+        MOCK_WALLET_1_SOL_ACCOUNT,
+      ]);
     });
 
     it('warns if alignment fails for a single provider', async () => {
@@ -232,7 +225,6 @@ describe('MultichainAccount', () => {
 
       await group.alignAccounts();
 
-      expect(providers[0].createAccounts).not.toHaveBeenCalled();
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
         entropySource: wallet.entropySource,
         groupIndex,
@@ -260,7 +252,6 @@ describe('MultichainAccount', () => {
 
       await group.alignAccounts();
 
-      expect(providers[0].createAccounts).not.toHaveBeenCalled();
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
         entropySource: wallet.entropySource,
         groupIndex,

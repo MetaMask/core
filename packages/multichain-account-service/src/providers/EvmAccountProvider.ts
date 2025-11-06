@@ -179,6 +179,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     const accountsArray = [account];
     assertAreBip44Accounts(accountsArray);
 
+    this.accountsList.add(account.id);
     return accountsArray;
   }
 
@@ -289,6 +290,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
 
     assertInternalAccountExists(account);
     assertIsBip44Account(account);
+    this.accountsList.add(account.id);
     return [account];
   }
 }
