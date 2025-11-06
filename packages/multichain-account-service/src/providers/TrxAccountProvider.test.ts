@@ -7,7 +7,10 @@ import type {
 } from '@metamask/keyring-internal-api';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
-import { TrxAccountProvider } from './TrxAccountProvider';
+import {
+  TRX_ACCOUNT_PROVIDER_NAME,
+  TrxAccountProvider,
+} from './TrxAccountProvider';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -18,6 +21,7 @@ import {
   MockAccountBuilder,
   type RootMessenger,
 } from '../tests';
+import { TraceName } from 'src/constants/traces';
 
 class MockTronKeyring {
   readonly type = 'MockTronKeyring';
@@ -369,9 +373,9 @@ describe('TrxAccountProvider', () => {
 
     it('trace callback is called even when discovery returns empty results', async () => {
       const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-        expect(request.name).toBe('Snap Discover Accounts');
+        expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
         expect(request.data).toStrictEqual({
-          provider: 'Tron',
+          provider: TRX_ACCOUNT_PROVIDER_NAME,
         });
         return await fn();
       });

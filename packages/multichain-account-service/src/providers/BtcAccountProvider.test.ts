@@ -8,7 +8,10 @@ import type {
 } from '@metamask/keyring-internal-api';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
-import { BtcAccountProvider } from './BtcAccountProvider';
+import {
+  BTC_ACCOUNT_PROVIDER_NAME,
+  BtcAccountProvider,
+} from './BtcAccountProvider';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -20,6 +23,7 @@ import {
   MockAccountBuilder,
   type RootMessenger,
 } from '../tests';
+import { TraceName } from 'src/constants/traces';
 
 class MockBtcKeyring {
   readonly type = 'MockBtcKeyring';
@@ -328,9 +332,9 @@ describe('BtcAccountProvider', () => {
   describe('trace functionality', () => {
     it('calls trace callback during account discovery', async () => {
       const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-        expect(request.name).toBe('Snap Discover Accounts');
+        expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
         expect(request.data).toStrictEqual({
-          provider: 'Bitcoin',
+          provider: BTC_ACCOUNT_PROVIDER_NAME,
         });
         return await fn();
       });
@@ -381,9 +385,9 @@ describe('BtcAccountProvider', () => {
 
     it('trace callback is called even when discovery returns empty results', async () => {
       const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-        expect(request.name).toBe('Snap Discover Accounts');
+        expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
         expect(request.data).toStrictEqual({
-          provider: 'Bitcoin',
+          provider: BTC_ACCOUNT_PROVIDER_NAME,
         });
         return await fn();
       });

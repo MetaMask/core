@@ -26,6 +26,7 @@ import {
   MockAccountBuilder,
   type RootMessenger,
 } from '../tests';
+import { TraceName } from 'src/constants/traces';
 
 jest.mock('@ethereumjs/util', () => ({
   publicToAddress: jest.fn(),
@@ -414,7 +415,7 @@ describe('EvmAccountProvider', () => {
 
   it('calls trace callback during account discovery', async () => {
     const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-      expect(request.name).toBe('EVM Discover Accounts');
+      expect(request.name).toBe(TraceName.EvmDiscoverAccounts);
       expect(request.data).toStrictEqual({
         provider: EVM_ACCOUNT_PROVIDER_NAME,
       });
@@ -484,7 +485,7 @@ describe('EvmAccountProvider', () => {
 
   it('trace callback is called even when discovery returns empty results', async () => {
     const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-      expect(request.name).toBe('EVM Discover Accounts');
+      expect(request.name).toBe(TraceName.EvmDiscoverAccounts);
       expect(request.data).toStrictEqual({
         provider: EVM_ACCOUNT_PROVIDER_NAME,
       });

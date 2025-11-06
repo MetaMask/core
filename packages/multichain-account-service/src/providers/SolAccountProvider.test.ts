@@ -7,7 +7,10 @@ import type {
 } from '@metamask/keyring-internal-api';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
-import { SolAccountProvider } from './SolAccountProvider';
+import {
+  SOL_ACCOUNT_PROVIDER_NAME,
+  SolAccountProvider,
+} from './SolAccountProvider';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -18,6 +21,7 @@ import {
   MockAccountBuilder,
   type RootMessenger,
 } from '../tests';
+import { TraceName } from 'src/constants/traces';
 
 class MockSolanaKeyring {
   readonly type = 'MockSolanaKeyring';
@@ -116,9 +120,9 @@ function setup({
     );
 
   const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-    expect(request.name).toBe('Snap Discover Accounts');
+    expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
     expect(request.data).toStrictEqual({
-      provider: 'Solana',
+      provider: SOL_ACCOUNT_PROVIDER_NAME,
     });
     return await fn();
   });
