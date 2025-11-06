@@ -40,8 +40,8 @@ jest.mock('@consensys/native-ramps-sdk', () => {
   } as const;
   const SdkEnvironment = {
     Development: 'dev',
-    Staging: 'stg',
-    Production: 'prod',
+    Staging: 'staging',
+    Production: 'production',
   } as const;
   return {
     NativeRampsSdk,
@@ -223,7 +223,7 @@ describe('RampsController', () => {
         );
         expect(mockFetch).toHaveBeenNthCalledWith(
           2,
-          'http://localhost:3000/regions/US/countries',
+          'http://localhost:3000/regions/countries/US',
         );
 
         expect(controller.state.region).toStrictEqual({
@@ -256,7 +256,7 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            state: { metamaskEnvironment: SdkEnvironment.Production, context: 'browser' },
+            state: { metamaskEnvironment: 'production', context: 'browser' },
           },
         },
         async ({ controller }) => {
@@ -268,7 +268,7 @@ describe('RampsController', () => {
           );
           expect(mockFetch).toHaveBeenNthCalledWith(
             2,
-            'https://on-ramp.api.cx.metamask.io/regions/CA/countries',
+            'https://on-ramp.api.cx.metamask.io/regions/countries/CA',
           );
         },
       );
@@ -295,7 +295,7 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            state: { metamaskEnvironment: SdkEnvironment.Staging, context: 'browser' },
+            state: { metamaskEnvironment: 'staging', context: 'browser' },
           },
         },
         async ({ controller }) => {
@@ -307,7 +307,7 @@ describe('RampsController', () => {
           );
           expect(mockFetch).toHaveBeenNthCalledWith(
             2,
-            'https://on-ramp.uat-api.cx.metamask.io/regions/GB/countries',
+            'https://on-ramp.uat-api.cx.metamask.io/regions/countries/GB',
           );
         },
       );
@@ -347,7 +347,7 @@ describe('RampsController', () => {
           );
           expect(mockFetch).toHaveBeenNthCalledWith(
             2,
-            'http://localhost:3000/regions/DE/countries',
+            'http://localhost:3000/regions/countries/DE',
           );
         },
       );
