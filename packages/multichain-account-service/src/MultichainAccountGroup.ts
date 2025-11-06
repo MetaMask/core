@@ -17,6 +17,7 @@ import {
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { NamedAccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
+import { createSentryError } from './utils';
 
 /**
  * A multichain account group that holds multiple accounts.
@@ -236,20 +237,40 @@ export class MultichainAccountGroup<
 
     const results = await Promise.allSettled(
       this.#providers.map(async (provider) => {
-        const accounts = this.#providerToAccounts.get(provider);
-        if (!accounts || accounts.length === 0) {
-          this.#log(
-            `Found missing accounts for account provider "${provider.getName()}", creating them now...`,
-          );
-          const created = await provider.createAccounts({
-            entropySource: this.wallet.entropySource,
-            groupIndex: this.groupIndex,
-          });
-          this.#log(`Created ${created.length} accounts`);
+        try {
+          const accounts = this.#providerToAccounts.get(provider);
+          if (!accounts || accounts.length === 0) {
+            this.#log(
+              `Found missing accounts for account provider "${provider.getName()}", creating them now...`,
+            );
+            const created = await provider.createAccounts({
+              entropySource: this.wallet.entropySource,
+              groupIndex: this.groupIndex,
+            });
+            this.#log(`Created ${created.length} accounts`);
 
-          return created;
+            return created;
+          }
+          return Promise.resolve();
+        } catch (error) {
+          // istanbul ignore next
+          this.#log(
+            `${WARNING_PREFIX} ${error instanceof Error ? error.message : String(error)}`,
+          );
+          const sentryError = createSentryError(
+            `Unable to align accounts with provider "${provider.getName()}"`,
+            error as Error,
+            {
+              groupIndex: this.groupIndex,
+              provider: provider.getName(),
+            },
+          );
+          this.#messenger.call(
+            'ErrorReportingService:captureException',
+            sentryError,
+          );
+          throw error;
         }
-        return Promise.resolve();
       }),
     );
 
