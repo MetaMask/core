@@ -7,7 +7,7 @@ import {
   makeContext,
   propagateToContext,
   propagateToRequest,
-  unserializeError,
+  deserializeError,
 } from './compatibility-utils';
 import { MiddlewareContext } from './MiddlewareContext';
 import { stringify } from './utils';
@@ -348,7 +348,7 @@ describe('compatibility-utils', () => {
     });
   });
 
-  describe('unserializeError', () => {
+  describe('deserializeError', () => {
     // Requires some special handling due to the possible existence or
     // non-existence of Error.isError
     describe('Error.isError', () => {
@@ -382,7 +382,7 @@ describe('compatibility-utils', () => {
         isError.mockReturnValueOnce(true);
         const originalError = new Error('test error');
 
-        const result = unserializeError(originalError);
+        const result = deserializeError(originalError);
         expect(result).toBe(originalError);
       });
 
@@ -390,14 +390,14 @@ describe('compatibility-utils', () => {
         isError.mockReturnValueOnce(false);
         const originalError = new Error('test error');
 
-        const result = unserializeError(originalError);
+        const result = deserializeError(originalError);
         expect(result).toBe(originalError);
       });
     });
 
     it('creates a new Error when thrown value is a string', () => {
       const errorMessage = 'test error message';
-      const result = unserializeError(errorMessage);
+      const result = deserializeError(errorMessage);
 
       expect(result).toBeInstanceOf(Error);
       expect(result.message).toBe(errorMessage);
@@ -406,7 +406,7 @@ describe('compatibility-utils', () => {
     it.each([42, true, false, null, undefined, Symbol('test')])(
       'creates a new Error with stringified message for non-object values',
       (value) => {
-        const result = unserializeError(value);
+        const result = deserializeError(value);
 
         expect(result).toBeInstanceOf(Error);
         expect(result.message).toBe(`Unknown error: ${stringify(value)}`);
@@ -421,7 +421,7 @@ describe('compatibility-utils', () => {
         data: { foo: 'bar' },
       };
 
-      const result = unserializeError(thrownValue);
+      const result = deserializeError(thrownValue);
 
       expect(result).toBeInstanceOf(JsonRpcError);
       expect(result).toMatchObject({
@@ -439,7 +439,7 @@ describe('compatibility-utils', () => {
         data: { foo: 'bar' },
       };
 
-      const result = unserializeError(thrownValue);
+      const result = deserializeError(thrownValue);
 
       expect(result).toBeInstanceOf(Error);
       expect(result).not.toBeInstanceOf(JsonRpcError);
@@ -455,7 +455,7 @@ describe('compatibility-utils', () => {
         message: 'test error message',
       };
 
-      const result = unserializeError(thrownValue);
+      const result = deserializeError(thrownValue);
 
       expect(result).toBeInstanceOf(Error);
       expect(result).not.toBeInstanceOf(JsonRpcError);
@@ -469,7 +469,7 @@ describe('compatibility-utils', () => {
         stack: stackTrace,
       };
 
-      const result = unserializeError(thrownValue);
+      const result = deserializeError(thrownValue);
 
       expect(result).toBeInstanceOf(Error);
       expect(result.stack).toBe(stackTrace);
@@ -485,7 +485,7 @@ describe('compatibility-utils', () => {
         data,
       };
 
-      const result = unserializeError(thrownValue) as JsonRpcError<Json>;
+      const result = deserializeError(thrownValue) as JsonRpcError<Json>;
 
       expect(result.cause).toBe(cause);
       expect(result.data).toStrictEqual({
@@ -499,7 +499,7 @@ describe('compatibility-utils', () => {
         code: 1234,
       };
 
-      const result = unserializeError(thrownValue);
+      const result = deserializeError(thrownValue);
 
       expect(result.message).toBe('Unknown error');
     });
@@ -510,7 +510,7 @@ describe('compatibility-utils', () => {
         message: 42,
       };
 
-      const result = unserializeError(thrownValue);
+      const result = deserializeError(thrownValue);
 
       expect(result.message).toBe('Unknown error');
     });
@@ -521,7 +521,7 @@ describe('compatibility-utils', () => {
         message: 42,
       };
 
-      const result = unserializeError(thrownValue);
+      const result = deserializeError(thrownValue);
 
       expect(result.message).toBe('Internal JSON-RPC error.');
     });

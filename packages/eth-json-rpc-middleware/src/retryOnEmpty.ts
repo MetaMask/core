@@ -21,11 +21,7 @@ import { timeout } from './utils/timeout';
 const log = createModuleLogger(projectLogger, 'retry-on-empty');
 // empty values used to determine if a request should be retried
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
-const emptyValues: (string | null | undefined)[] = [
-  undefined,
-  null,
-  '\u003cnil\u003e',
-];
+const emptyValues = [null, '\u003cnil\u003e'];
 
 /**
  * Creates a middleware that retries requests with empty responses.

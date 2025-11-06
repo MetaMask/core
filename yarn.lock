@@ -2683,6 +2683,26 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/analytics-controller@workspace:packages/analytics-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/analytics-controller@workspace:packages/analytics-controller"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^9.0.0"
+    "@metamask/messenger": "npm:^0.3.0"
+    "@metamask/utils": "npm:^11.8.1"
+    "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+    uuid: "npm:^8.3.2"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/announcement-controller@workspace:packages/announcement-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/announcement-controller@workspace:packages/announcement-controller"
@@ -3612,10 +3632,10 @@ __metadata:
     ethers: "npm:^6.12.0"
     jest: "npm:^27.5.1"
     jest-it-up: "npm:^2.0.2"
+    nanoid: "npm:^3.3.8"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typescript: "npm:~5.2.2"
-    uuid: "npm:^8.3.2"
   languageName: unknown
   linkType: soft
 
@@ -5092,6 +5112,7 @@ __metadata:
     "@metamask/utils": "npm:^11.8.1"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^27.4.1"
+    bignumber.js: "npm:^9.1.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
     sinon: "npm:^9.2.4"
