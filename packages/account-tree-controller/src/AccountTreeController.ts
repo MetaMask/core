@@ -1,16 +1,23 @@
-import { AccountWalletType, select } from '@metamask/account-api';
+import {
+  AccountWalletType,
+  isBip44Account,
+  select,
+} from '@metamask/account-api';
 import type {
   AccountGroupId,
   AccountWalletId,
   AccountSelector,
   MultichainAccountWalletId,
   AccountGroupType,
+  Bip44Account,
 } from '@metamask/account-api';
 import type { MultichainAccountWalletStatus } from '@metamask/account-api';
+import type { MultichainAccountGroup } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
+import type { KeyringAccount } from '@metamask/keyring-api';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { assert } from '@metamask/utils';
@@ -247,6 +254,20 @@ export class AccountTreeController extends BaseController<
       },
     );
 
+    this.messenger.subscribe(
+      'MultichainAccountService:multichainAccountGroupCreated',
+      (group) => {
+        this.#handleMultichainAccountWalletGroupCreatedOrUpdated(group);
+      },
+    );
+
+    this.messenger.subscribe(
+      'MultichainAccountService:multichainAccountGroupUpdated',
+      (group) => {
+        this.#handleMultichainAccountWalletGroupCreatedOrUpdated(group);
+      },
+    );
+
     this.#registerMessageHandlers();
   }
 
@@ -292,8 +313,22 @@ export class AccountTreeController extends BaseController<
       (a, b) => a.metadata.importTime - b.metadata.importTime,
     );
 
+    // HACK: Since we're not consuming accounts directly from the service, we have to
+    // cross-check with its internal state before inserting initial BIP-44 accounts.
+    // Those accounts could be marked as "disabled" (using the
+    // `AccountProviderWrapper`) and if they are, we don't want to insert them in the tree.
+    // The real fix for this would be consume accounts from the service instead of the
+    // `AccountsController`, but this requires a bit more testing, for now we keep this
+    // simple.
+    const bip44Accounts = this.#getBip44AccountIds();
+
     // For now, we always re-compute all wallets, we do not re-use the existing state.
     for (const account of accounts) {
+      if (isBip44Account(account) && !bip44Accounts.has(account.id)) {
+        // We skip those, so they won't be part of the initial tree.
+        continue;
+      }
+
       this.#insert(wallets, account);
     }
 
@@ -846,43 +881,63 @@ export class AccountTreeController extends BaseController<
       return;
     }
 
-    const context = this.#accountIdToContext.get(accountId);
+    this.#removeAccounts([accountId]);
+  }
 
-    if (context) {
-      const { walletId, groupId } = context;
+  /**
+   * Removes an account from the tree if it exists. If not, this method does nothing.
+   *
+   * @param accountIds - Account IDs to remove from the tree.
+   */
+  #removeAccounts(accountIds: AccountId[]) {
+    const removedAccounts: AccountId[] = [];
 
-      const previousSelectedAccountGroup =
-        this.state.accountTree.selectedAccountGroup;
-      let selectedAccountGroupChanged = false;
+    const previousSelectedAccountGroup =
+      this.state.accountTree.selectedAccountGroup;
+    let selectedAccountGroupChanged = false;
 
-      this.update((state) => {
-        const accounts =
-          state.accountTree.wallets[walletId]?.groups[groupId]?.accounts;
+    this.update((state) => {
+      for (const accountId of accountIds) {
+        const context = this.#accountIdToContext.get(accountId);
 
-        if (accounts) {
-          const index = accounts.indexOf(accountId);
-          if (index !== -1) {
-            accounts.splice(index, 1);
+        if (context) {
+          const { walletId, groupId } = context;
 
-            // Check if we need to update selectedAccountGroup after removal
-            if (
-              state.accountTree.selectedAccountGroup === groupId &&
-              accounts.length === 0
-            ) {
-              // The currently selected group is now empty, find a new group to select
-              const newSelectedAccountGroup = this.#getDefaultAccountGroupId(
-                state.accountTree.wallets,
-              );
-              state.accountTree.selectedAccountGroup = newSelectedAccountGroup;
-              selectedAccountGroupChanged =
-                newSelectedAccountGroup !== previousSelectedAccountGroup;
+          const accounts =
+            state.accountTree.wallets[walletId]?.groups[groupId]?.accounts;
+
+          if (accounts) {
+            const index = accounts.indexOf(accountId);
+            if (index !== -1) {
+              accounts.splice(index, 1);
+
+              // Now we know this account got removed.
+              removedAccounts.push(accountId);
+
+              // Check if we need to update selectedAccountGroup after removal
+              if (
+                state.accountTree.selectedAccountGroup === groupId &&
+                accounts.length === 0
+              ) {
+                // The currently selected group is now empty, find a new group to select
+                const newSelectedAccountGroup = this.#getDefaultAccountGroupId(
+                  state.accountTree.wallets,
+                );
+                state.accountTree.selectedAccountGroup =
+                  newSelectedAccountGroup;
+                selectedAccountGroupChanged =
+                  newSelectedAccountGroup !== previousSelectedAccountGroup;
+              }
+            }
+            if (accounts.length === 0) {
+              this.#pruneEmptyGroupAndWallet(state, walletId, groupId);
             }
           }
-          if (accounts.length === 0) {
-            this.#pruneEmptyGroupAndWallet(state, walletId, groupId);
-          }
         }
-      });
+      }
+    });
+
+    if (removedAccounts.length) {
       this.messenger.publish(
         `${controllerName}:accountTreeChange`,
         this.state.accountTree,
@@ -898,7 +953,9 @@ export class AccountTreeController extends BaseController<
       }
 
       // Clear reverse-mapping for that account.
-      this.#accountIdToContext.delete(accountId);
+      removedAccounts.forEach((accountId) =>
+        this.#accountIdToContext.delete(accountId),
+      );
     }
   }
 
@@ -1217,6 +1274,72 @@ export class AccountTreeController extends BaseController<
         wallet.status = walletStatus;
       }
     });
+  }
+
+  /**
+   * Get account IDs from a multichain account group.
+   *
+   * @param group - Multichain account group to extract account IDs from.
+   * @returns Set of BIP-44 account IDs for the given group.
+   */
+  #getBip44AccountIdsFromMultichainAccountGroup(
+    group: MultichainAccountGroup<Bip44Account<KeyringAccount>>,
+  ): Set<Bip44Account<KeyringAccount>['id']> {
+    // FIXME: We should introduce a way to just get the account IDs since getting
+    // account object might be a bit more costly (at least with the current
+    // architecture).
+    return new Set(group.getAccounts().map((account) => account.id));
+  }
+
+  /**
+   * Get account IDs owned by the multichain account service.
+   *
+   * @returns Set of BIP-44 account IDs.
+   */
+  #getBip44AccountIds() {
+    const accounts = new Set();
+
+    // Since we're building the tree out of of the account list, we don't know if those
+    // accounts got disabled at the service level. To make sure both states are "in-sync"
+    // we check each multichain account groups and remove extra accounts if there's any!
+    for (const wallet of this.messenger.call(
+      'MultichainAccountService:getMultichainAccountWallets',
+    )) {
+      for (const group of wallet.getMultichainAccountGroups()) {
+        for (const account of this.#getBip44AccountIdsFromMultichainAccountGroup(
+          group,
+        )) {
+          accounts.add(account);
+        }
+      }
+    }
+
+    return accounts;
+  }
+
+  /**
+   * Handles multichain account group updates.
+   *
+   * @param multichainGroup - Multichain account group that got updated.
+   */
+  #handleMultichainAccountWalletGroupCreatedOrUpdated(
+    multichainGroup: MultichainAccountGroup<Bip44Account<KeyringAccount>>,
+  ): void {
+    const bip44GroupAccounts =
+      this.#getBip44AccountIdsFromMultichainAccountGroup(multichainGroup);
+
+    const group = this.#getAccountGroup(multichainGroup.id);
+    if (group) {
+      this.#removeAccounts(
+        group.accounts.filter(
+          // We only check if some accounts are no longer part of the multichain
+          // account group. This is required mainly with the `AccountProviderWrapper`s that
+          // can be disabled when "Basic functionality" is turned OFF or when the wrappers
+          // are controlled by remote feature flags.
+          (account) => !bip44GroupAccounts.has(account),
+        ),
+      );
+    }
   }
 
   /**
