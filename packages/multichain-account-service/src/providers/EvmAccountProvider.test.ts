@@ -11,6 +11,7 @@ import type {
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createBytes } from '@metamask/utils';
+import { TraceName } from 'src/constants/traces';
 
 import {
   EVM_ACCOUNT_PROVIDER_NAME,
@@ -26,7 +27,6 @@ import {
   MockAccountBuilder,
   type RootMessenger,
 } from '../tests';
-import { TraceName } from 'src/constants/traces';
 
 jest.mock('@ethereumjs/util', () => ({
   publicToAddress: jest.fn(),

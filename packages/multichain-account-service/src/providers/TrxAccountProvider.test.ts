@@ -5,6 +5,7 @@ import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
+import { TraceName } from 'src/constants/traces';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
 import {
@@ -21,7 +22,6 @@ import {
   MockAccountBuilder,
   type RootMessenger,
 } from '../tests';
-import { TraceName } from 'src/constants/traces';
 
 class MockTronKeyring {
   readonly type = 'MockTronKeyring';

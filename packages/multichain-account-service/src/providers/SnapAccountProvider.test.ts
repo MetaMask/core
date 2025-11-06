@@ -18,17 +18,13 @@ import {
 } from '../tests';
 import type { MultichainAccountServiceMessenger } from '../types';
 
-jest.mock('../analytics', () => ({
-  ...jest.requireActual('../analytics'),
-  traceFallback: jest
-    .fn()
-    .mockImplementation(async (_request: TraceRequest, fn?: () => unknown) => {
-      if (fn) {
-        return await fn();
-      }
-      return undefined;
-    }),
-}));
+jest.mock('../analytics', () => {
+  const actual = jest.requireActual('../analytics');
+  return {
+    ...actual,
+    traceFallback: jest.fn(),
+  };
+});
 
 const THROTTLED_OPERATION_DELAY_MS = 10;
 const TEST_SNAP_ID = 'npm:@metamask/test-snap' as SnapId;
@@ -147,7 +143,6 @@ describe('SnapAccountProvider', () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
-      (traceFallback as jest.Mock).mockClear();
     });
 
     it('creates SolAccountProvider with default trace using 1 parameter', () => {
@@ -294,16 +289,17 @@ describe('SnapAccountProvider', () => {
       clearEventSubscriptions: jest.fn(),
     } as unknown as MultichainAccountServiceMessenger;
 
+    const traceFallbackMock = traceFallback as jest.MockedFunction<
+      typeof traceFallback
+    >;
+
     beforeEach(() => {
       jest.clearAllMocks();
-      (traceFallback as jest.Mock).mockClear();
+      traceFallbackMock.mockClear();
     });
 
     it('uses default trace parameter when only messenger is provided', async () => {
-      const mockTraceCallback = traceFallback as jest.MockedFunction<
-        typeof traceFallback
-      >;
-      mockTraceCallback.mockImplementation(async (_request, fn) => fn?.());
+      traceFallbackMock.mockImplementation(async (_request, fn) => fn?.());
 
       // Test with default config and trace
       const defaultConfig = {
@@ -326,8 +322,8 @@ describe('SnapAccountProvider', () => {
 
       await testProvider.trace(request, fn);
 
-      expect(mockTraceCallback).toHaveBeenCalledTimes(1);
-      expect(mockTraceCallback).toHaveBeenCalledWith(
+      expect(traceFallbackMock).toHaveBeenCalledTimes(1);
+      expect(traceFallbackMock).toHaveBeenCalledWith(
         request,
         expect.any(Function),
       );
@@ -363,7 +359,7 @@ describe('SnapAccountProvider', () => {
       expect(result).toBe('customResult');
       expect(customTrace).toHaveBeenCalledTimes(1);
       expect(customTrace).toHaveBeenCalledWith(request, expect.any(Function));
-      expect(traceFallback).not.toHaveBeenCalled();
+      expect(traceFallbackMock).not.toHaveBeenCalled();
     });
 
     it('calls trace callback with the correct arguments', async () => {
