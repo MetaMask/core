@@ -9,6 +9,7 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import { type Hex } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import {
   ACTIVE_SUBSCRIPTION_STATUSES,
@@ -710,8 +711,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    */
   #getSubscriptionPriceAmount(price: ProductPrice) {
     // no need to use BigInt since max unitDecimals are always 2 for price
-    const amount =
-      (price.unitAmount / 10 ** price.unitDecimals) * price.minBillingCycles;
+    const amount = new BigNumber(price.unitAmount)
+      .div(10 ** price.unitDecimals)
+      .multipliedBy(price.minBillingCycles)
+      .toString();
     return amount;
   }
 
@@ -733,25 +736,14 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     if (!conversionRate) {
       throw new Error('Conversion rate not found');
     }
-    // conversion rate is a float string e.g: "1.0"
-    // We need to handle float conversion rates with integer math for BigInt.
-    // We'll scale the conversion rate to an integer by multiplying by 10^4.
-    // conversionRate is in usd decimal. In most currencies, we only care about 2 decimals (cents)
-    // So, scale must be max of 10 ** 4 (most exchanges trade with max 4 decimals of usd)
-    // This allows us to avoid floating point math and keep precision.
-    const SCALE = 10n ** 4n;
-    const conversionRateScaled =
-      BigInt(Math.round(Number(conversionRate) * Number(SCALE))) / SCALE;
     // price of the product
-    const priceAmount = this.#getSubscriptionPriceAmount(price);
-    const priceAmountScaled =
-      BigInt(Math.round(priceAmount * Number(SCALE))) / SCALE;
+    const priceAmount = new BigNumber(this.#getSubscriptionPriceAmount(price));
 
-    const tokenDecimal = BigInt(10) ** BigInt(tokenPaymentInfo.decimals);
-
-    const tokenAmount =
-      (priceAmountScaled * tokenDecimal) / conversionRateScaled;
-    return tokenAmount.toString();
+    const tokenDecimal = new BigNumber(10).pow(tokenPaymentInfo.decimals);
+    const tokenAmount = priceAmount
+      .multipliedBy(tokenDecimal)
+      .div(conversionRate);
+    return tokenAmount.toFixed(0);
   }
 
   /**
