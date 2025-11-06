@@ -4,7 +4,10 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { detectSIWE } from '@metamask/controller-utils';
+import type { KeyringControllerSignPersonalMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
+import type { Hex } from '@metamask/utils';
 
 import type {
   ClaimsServiceGenerateMessageForClaimSignatureAction,
@@ -40,7 +43,8 @@ export type AllowedActions =
   | ClaimsServiceGetClaimsApiUrlAction
   | ClaimsServiceGenerateMessageForClaimSignatureAction
   | ClaimsServiceVerifyClaimSignatureAction
-  | ClaimsServiceGetClaimsAction;
+  | ClaimsServiceGetClaimsAction
+  | KeyringControllerSignPersonalMessageAction;
 
 export type ClaimsControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof CONTROLLER_NAME,
@@ -130,18 +134,36 @@ export class ClaimsController extends BaseController<
     chainId: number,
     walletAddress: `0x${string}`,
   ): Promise<string> {
+    // generate the message to be signed
     const { message } = await this.messenger.call(
       `${SERVICE_NAME}:generateMessageForClaimSignature`,
       chainId,
       walletAddress,
     );
+    console.log('message', message);
 
-    // TODO: sign the message
-    const signature = `0xdeadbeef`;
+    // generate and parse the SIWE message
+    const messageHex = textToHex(message);
+    const siwe = detectSIWE({ data: messageHex });
+    if (!siwe.isSIWEMessage) {
+      throw new Error('Invalid Signature message');
+    }
 
+    // sign the message
+    const signature = await this.messenger.call(
+      'KeyringController:signPersonalMessage',
+      {
+        data: message,
+        from: walletAddress,
+        siwe,
+      },
+    );
+    console.log('signature', signature);
+
+    // verify the signature
     const isSignatureValid = await this.messenger.call(
       `${SERVICE_NAME}:verifyClaimSignature`,
-      signature,
+      signature as Hex,
       walletAddress,
       message,
     );
@@ -183,4 +205,28 @@ export class ClaimsController extends BaseController<
       throw new Error('Claim already submitted');
     }
   }
+}
+
+/**
+ * Converts a text string to its hexadecimal representation.
+ *
+ * @param text - The input string.
+ * @returns The hexadecimal representation of the string's UTF-8 bytes.
+ */
+function textToHex(text: string): Hex {
+  // 1. Encode the string into a Uint8Array (UTF-8 bytes)
+  const encoder = new TextEncoder();
+  const utf8Bytes = encoder.encode(text);
+
+  // 2. Convert bytes to hex string
+  let hexString = '';
+  for (const byte of utf8Bytes) {
+    // Convert the byte (a number 0-255) to a hexadecimal string
+    const hex = byte.toString(16);
+
+    // Ensure the hex value is always two characters long by padding with a leading zero
+    hexString += hex.padStart(2, '0');
+  }
+
+  return `0x${hexString}`;
 }

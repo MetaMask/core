@@ -25,18 +25,30 @@ export type RootControllerMessenger = Messenger<
 /**
  * Create a mock messenger.
  *
- * @param mockClaimServiceRequestHeaders - A mock function for the claim service request headers.
- * @param mockClaimServiceGetClaimsApiUrl - A mock function for the claim service get claims API URL.
- * @param mockClaimServiceGenerateMessageForClaimSignature - A mock function for the claim service generate message for claim signature.
- * @param mockClaimServiceVerifyClaimSignature - A mock function for the claim service verify claim signature.
+ * @param params - The parameters for the mock messenger.
+ * @param params.mockClaimServiceRequestHeaders - A mock function for the claim service request headers.
+ * @param params.mockClaimServiceGetClaimsApiUrl - A mock function for the claim service get claims API URL.
+ * @param params.mockClaimServiceGenerateMessageForClaimSignature - A mock function for the claim service generate message for claim signature.
+ * @param params.mockClaimServiceVerifyClaimSignature - A mock function for the claim service verify claim signature.
+ * @param params.mockKeyringControllerSignPersonalMessage - A mock function for the keyring controller sign personal message.
+ * @param params.mockClaimsServiceGetClaims - A mock function for the claim service get claims.
  * @returns A mock messenger.
  */
-export function createMockClaimsControllerMessenger(
-  mockClaimServiceRequestHeaders: jest.Mock,
-  mockClaimServiceGetClaimsApiUrl: jest.Mock,
-  mockClaimServiceGenerateMessageForClaimSignature: jest.Mock,
-  mockClaimServiceVerifyClaimSignature: jest.Mock,
-): {
+export function createMockClaimsControllerMessenger({
+  mockClaimServiceRequestHeaders,
+  mockClaimServiceGetClaimsApiUrl,
+  mockClaimServiceGenerateMessageForClaimSignature,
+  mockClaimServiceVerifyClaimSignature,
+  mockKeyringControllerSignPersonalMessage,
+  mockClaimsServiceGetClaims,
+}: {
+  mockClaimServiceRequestHeaders: jest.Mock;
+  mockClaimServiceGetClaimsApiUrl: jest.Mock;
+  mockClaimServiceGenerateMessageForClaimSignature: jest.Mock;
+  mockClaimServiceVerifyClaimSignature: jest.Mock;
+  mockKeyringControllerSignPersonalMessage: jest.Mock;
+  mockClaimsServiceGetClaims: jest.Mock;
+}): {
   rootMessenger: RootControllerMessenger;
   messenger: ClaimsControllerMessenger;
 } {
@@ -64,6 +76,14 @@ export function createMockClaimsControllerMessenger(
     `${SERVICE_NAME}:verifyClaimSignature`,
     mockClaimServiceVerifyClaimSignature,
   );
+  rootMessenger.registerActionHandler(
+    'KeyringController:signPersonalMessage',
+    mockKeyringControllerSignPersonalMessage,
+  );
+  rootMessenger.registerActionHandler(
+    `${SERVICE_NAME}:getClaims`,
+    mockClaimsServiceGetClaims,
+  );
 
   const messenger = new Messenger<
     typeof CONTROLLER_NAME,
@@ -82,6 +102,8 @@ export function createMockClaimsControllerMessenger(
       `${SERVICE_NAME}:getClaimsApiUrl`,
       `${SERVICE_NAME}:generateMessageForClaimSignature`,
       `${SERVICE_NAME}:verifyClaimSignature`,
+      `${SERVICE_NAME}:getClaims`,
+      'KeyringController:signPersonalMessage',
     ],
   });
 

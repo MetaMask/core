@@ -35,13 +35,13 @@ describe('ClaimsService', () => {
     status: ClaimStatusEnum.CREATED,
     createdAt: '2021-01-01',
     updatedAt: '2021-01-01',
-    chainId: 1,
+    chainId: '0x1',
     email: 'test@test.com',
     impactedWalletAddress: '0x123',
     impactedTxHash: '0x123',
     reimbursementWalletAddress: '0x456',
     description: 'test description',
-    signature: 'test-signature',
+    signature: '0xdeadbeef',
   };
   const MOCK_CLAIM_2: Claim = {
     id: 'mock-claim-2',
@@ -49,13 +49,13 @@ describe('ClaimsService', () => {
     status: ClaimStatusEnum.CREATED,
     createdAt: '2021-01-01',
     updatedAt: '2021-01-01',
-    chainId: 1,
+    chainId: '0x1',
     email: 'test2@test.com',
     impactedWalletAddress: '0x789',
     impactedTxHash: '0x789',
     reimbursementWalletAddress: '0x012',
     description: 'test description 2',
-    signature: 'test-signature-2',
+    signature: '0xdeadbeef',
   };
 
   describe('constructor', () => {

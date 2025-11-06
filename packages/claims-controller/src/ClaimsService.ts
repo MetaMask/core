@@ -1,5 +1,6 @@
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { Hex } from '@metamask/utils';
 
 import {
   CLAIMS_API_URL,
@@ -153,7 +154,7 @@ export class ClaimsService {
    */
   async generateMessageForClaimSignature(
     chainId: number,
-    walletAddress: `0x${string}`,
+    walletAddress: Hex,
   ): Promise<GenerateSignatureMessageResponse> {
     const headers = await this.getRequestHeaders();
     const url = `${this.getClaimsApiUrl()}/signature/generateMessage`;

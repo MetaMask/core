@@ -1,6 +1,6 @@
 import { ClaimsController } from './ClaimsController';
-import { HttpContentTypeHeader } from './constants';
-import type { CreateClaimRequest } from './types';
+import { ClaimStatusEnum, HttpContentTypeHeader } from './constants';
+import type { Claim, CreateClaimRequest } from './types';
 import { createMockClaimsControllerMessenger } from '../tests/mocks/messenger';
 import type { WithControllerArgs } from '../tests/types';
 
@@ -8,6 +8,9 @@ const mockClaimServiceRequestHeaders = jest.fn();
 const mockClaimServiceGetClaimsApiUrl = jest.fn();
 const mockClaimServiceGenerateMessageForClaimSignature = jest.fn();
 const mockClaimServiceVerifyClaimSignature = jest.fn();
+const mockKeyringControllerSignPersonalMessage = jest.fn();
+const mockClaimsServiceGetClaims = jest.fn();
+
 /**
  * Builds a controller based on the given options and calls the given function with that controller.
  *
@@ -18,12 +21,14 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ) {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { messenger, rootMessenger } = createMockClaimsControllerMessenger(
+  const { messenger, rootMessenger } = createMockClaimsControllerMessenger({
     mockClaimServiceRequestHeaders,
     mockClaimServiceGetClaimsApiUrl,
     mockClaimServiceGenerateMessageForClaimSignature,
     mockClaimServiceVerifyClaimSignature,
-  );
+    mockKeyringControllerSignPersonalMessage,
+    mockClaimsServiceGetClaims,
+  });
 
   const controller = new ClaimsController({
     messenger,
@@ -47,7 +52,7 @@ describe('ClaimsController', () => {
 
   describe('getSubmitClaimConfig', () => {
     const MOCK_CLAIM: CreateClaimRequest = {
-      chainId: 1,
+      chainId: '0x1',
       email: 'test@test.com',
       impactedWalletAddress: '0x123',
       impactedTxHash: '0x123',
@@ -69,7 +74,7 @@ describe('ClaimsController', () => {
       mockClaimServiceGetClaimsApiUrl.mockReturnValueOnce(MOCK_CLAIM_API);
     });
 
-    it('should be defined', async () => {
+    it('should be able to generate valid submit claim config', async () => {
       await withController(async ({ controller }) => {
         const submitClaimConfig =
           await controller.getSubmitClaimConfig(MOCK_CLAIM);
@@ -85,31 +90,77 @@ describe('ClaimsController', () => {
         expect(submitClaimConfig.url).toBe(`${MOCK_CLAIM_API}/claims`);
       });
     });
+
+    it('should throw an error if the claim is already submitted', async () => {
+      await withController(
+        {
+          state: {
+            claims: [
+              {
+                ...MOCK_CLAIM,
+                status: ClaimStatusEnum.SUBMITTED,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              },
+            ],
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getSubmitClaimConfig(MOCK_CLAIM),
+          ).rejects.toThrow('Claim already submitted');
+        },
+      );
+    });
   });
 
   describe('generateClaimSignature', () => {
+    const MOCK_WALLET_ADDRESS = '0x88069b650422308bf8b472bEaF790189f3f28309';
+    const MOCK_SIWE_MESSAGE =
+      'metamask.io wants you to sign in with your Ethereum account:\n0x88069b650422308bf8b472bEaF790189f3f28309\n\nSign in to MetaMask Shield Claims API\n\nURI: https://metamask.io\nVersion: 1\nChain ID: 1\nNonce: B4Y8k8lGdMml0nrqk\nIssued At: 2025-11-06T16:38:08.073Z\nExpiration Time: 2025-11-06T17:38:08.073Z';
+    const MOCK_CLAIM_SIGNATURE = '0xdeadbeef';
+
     beforeEach(() => {
       jest.resetAllMocks();
 
       mockClaimServiceGenerateMessageForClaimSignature.mockResolvedValueOnce({
-        message: 'test message',
-        nonce: 'test nonce',
+        message: MOCK_SIWE_MESSAGE,
+        nonce: 'B4Y8k8lGdMml0nrqk',
       });
       mockClaimServiceVerifyClaimSignature.mockResolvedValueOnce(true);
+      mockKeyringControllerSignPersonalMessage.mockResolvedValueOnce(
+        MOCK_CLAIM_SIGNATURE,
+      );
     });
 
     it('should generate a message and verify the signature', async () => {
       await withController(async ({ controller }) => {
-        const signature = await controller.generateClaimSignature(1, '0x123');
-        expect(signature).toBe('0xdeadbeef');
+        const signature = await controller.generateClaimSignature(
+          1,
+          MOCK_WALLET_ADDRESS,
+        );
+        expect(signature).toBe(MOCK_CLAIM_SIGNATURE);
         expect(
           mockClaimServiceGenerateMessageForClaimSignature,
-        ).toHaveBeenCalledWith(1, '0x123');
+        ).toHaveBeenCalledWith(1, MOCK_WALLET_ADDRESS);
         expect(mockClaimServiceVerifyClaimSignature).toHaveBeenCalledWith(
-          '0xdeadbeef',
-          '0x123',
-          'test message',
+          MOCK_CLAIM_SIGNATURE,
+          MOCK_WALLET_ADDRESS,
+          MOCK_SIWE_MESSAGE,
         );
+      });
+    });
+
+    it('should throw an error if claims API response with invalid SIWE message', async () => {
+      await withController(async ({ controller }) => {
+        mockClaimServiceGenerateMessageForClaimSignature.mockRestore();
+        mockClaimServiceGenerateMessageForClaimSignature.mockResolvedValueOnce({
+          message: 'invalid SIWE message',
+          nonce: 'B4Y8k8lGdMml0nrqk',
+        });
+        await expect(
+          controller.generateClaimSignature(1, MOCK_WALLET_ADDRESS),
+        ).rejects.toThrow('Invalid Signature message');
       });
     });
 
@@ -118,8 +169,56 @@ describe('ClaimsController', () => {
         mockClaimServiceVerifyClaimSignature.mockRestore();
         mockClaimServiceVerifyClaimSignature.mockResolvedValueOnce(false);
         await expect(
-          controller.generateClaimSignature(1, '0x123'),
+          controller.generateClaimSignature(1, MOCK_WALLET_ADDRESS),
         ).rejects.toThrow('Invalid signature');
+      });
+    });
+  });
+
+  describe('getClaims', () => {
+    const MOCK_CLAIM_1: Claim = {
+      id: 'mock-claim-1',
+      shortId: 'mock-claim-1',
+      status: ClaimStatusEnum.CREATED,
+      createdAt: '2021-01-01',
+      updatedAt: '2021-01-01',
+      chainId: '0x1',
+      email: 'test@test.com',
+      impactedWalletAddress: '0x123',
+      impactedTxHash: '0x123',
+      reimbursementWalletAddress: '0x456',
+      description: 'test description',
+      signature: '0xdeadbeef',
+    };
+    const MOCK_CLAIM_2: Claim = {
+      id: 'mock-claim-2',
+      shortId: 'mock-claim-2',
+      status: ClaimStatusEnum.CREATED,
+      createdAt: '2021-01-01',
+      updatedAt: '2021-01-01',
+      chainId: '0x1',
+      email: 'test2@test.com',
+      impactedWalletAddress: '0x789',
+      impactedTxHash: '0x789',
+      reimbursementWalletAddress: '0x012',
+      description: 'test description 2',
+      signature: '0xdeadbeef',
+    };
+
+    it('should be able to get the list of claims', async () => {
+      await withController(async ({ controller }) => {
+        mockClaimsServiceGetClaims.mockResolvedValueOnce([
+          MOCK_CLAIM_1,
+          MOCK_CLAIM_2,
+        ]);
+        const claims = await controller.getClaims();
+        expect(claims).toBeDefined();
+        expect(claims).toStrictEqual([MOCK_CLAIM_1, MOCK_CLAIM_2]);
+        expect(mockClaimsServiceGetClaims).toHaveBeenCalledTimes(1);
+        expect(controller.state.claims).toStrictEqual([
+          MOCK_CLAIM_1,
+          MOCK_CLAIM_2,
+        ]);
       });
     });
   });

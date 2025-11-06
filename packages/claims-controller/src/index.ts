@@ -10,7 +10,7 @@ export type {
   ClaimsControllerMessenger,
 } from './ClaimsController';
 
-export type { Claim, ClaimsControllerState } from './types';
+export type { Claim, ClaimsControllerState, Attachment } from './types';
 
 export { ClaimsService } from './ClaimsService';
 
@@ -24,3 +24,5 @@ export type {
   ClaimsServiceActions,
   ClaimsServiceMessenger,
 } from './ClaimsService';
+
+export { ClaimStatusEnum, Env } from './constants';

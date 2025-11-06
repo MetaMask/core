@@ -1,3 +1,5 @@
+import type { Hex } from '@metamask/utils';
+
 import type { ClaimStatusEnum } from './constants';
 
 export type Attachment = {
@@ -9,13 +11,13 @@ export type Attachment = {
 export type Claim = {
   id?: string;
   shortId?: string;
-  chainId: number;
+  chainId: string;
   email: string;
-  impactedWalletAddress: `0x${string}`;
-  impactedTxHash: `0x${string}`;
-  reimbursementWalletAddress: `0x${string}`;
+  impactedWalletAddress: Hex;
+  impactedTxHash: Hex;
+  reimbursementWalletAddress: Hex;
   description: string;
-  signature: string;
+  signature: Hex;
   attachments?: Attachment[];
   status: ClaimStatusEnum;
   createdAt: string;
