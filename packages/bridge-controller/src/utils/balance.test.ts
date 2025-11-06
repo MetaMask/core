@@ -2,8 +2,8 @@ import { BigNumber } from '@ethersproject/bignumber';
 import { AddressZero } from '@ethersproject/constants';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
+import type { Provider } from '@metamask/network-controller';
 
 import * as balanceUtils from './balance';
 import { fetchTokenBalance } from './balance';
@@ -11,7 +11,7 @@ import { FakeProvider } from '../../../../tests/fake-provider';
 
 declare global {
   // eslint-disable-next-line no-var
-  var ethereumProvider: InternalProvider;
+  var ethereumProvider: Provider;
 }
 
 jest.mock('@ethersproject/contracts', () => {

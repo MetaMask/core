@@ -4,6 +4,7 @@ export { createScaffoldMiddleware } from './createScaffoldMiddleware';
 export { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 export type {
   JsonRpcMiddleware,
+  HandleOptions,
   MergedContextOf,
   MiddlewareParams,
   MiddlewareConstraint,
