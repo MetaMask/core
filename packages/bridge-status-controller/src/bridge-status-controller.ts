@@ -15,6 +15,8 @@ import {
   isCrossChain,
   isHardwareWallet,
   MetricsActionType,
+  isBitcoinTrade,
+  isTronTrade,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
@@ -63,7 +65,6 @@ import {
   getTxStatusesFromHistory,
   getPreConfirmationPropertiesFromQuote,
 } from './utils/metrics';
-import { isBitcoinTrade, isTronTrade } from './utils/trade-utils';
 import {
   findAndUpdateTransactionsInBatch,
   getAddTransactionBatchParams,

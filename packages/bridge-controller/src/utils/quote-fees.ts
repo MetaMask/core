@@ -5,6 +5,7 @@ import { numberToHex } from '@metamask/utils';
 import { isNonEvmChainId, sumHexes } from './bridge';
 import { formatChainIdToCaip } from './caip-formatters';
 import { computeFeeRequest } from './snaps';
+import { extractTradeData } from './trade-utils';
 import { CHAIN_IDS } from '../constants/chains';
 import type {
   QuoteResponse,
@@ -12,7 +13,6 @@ import type {
   NonEvmFees,
   TxData,
   BridgeControllerMessenger,
-  BitcoinTradeData,
 } from '../types';
 
 /**
@@ -118,13 +118,9 @@ const appendNonEvmFees = async (
       try {
         const scope = formatChainIdToCaip(quote.srcChainId);
 
-        // Normalize trade data to string format expected by snap
-        // Solana: trade is already a base64 transaction string
-        // Bitcoin: extract unsignedPsbtBase64 from trade object
-        const transaction =
-          typeof trade === 'string'
-            ? trade
-            : (trade as BitcoinTradeData).unsignedPsbtBase64;
+        // Extract transaction data from different trade formats
+        // Handles EVM, Solana (string), Bitcoin (unsignedPsbtBase64), and Tron (raw_data_hex)
+        const transaction = extractTradeData(trade);
 
         const response = (await messenger.call(
           'SnapController:handleRequest',

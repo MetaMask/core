@@ -24,16 +24,16 @@ import { createProjectLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { v4 as uuid } from 'uuid';
 
+import { extractTradeData, isTronTrade, type Trade } from '@metamask/bridge-controller';
+
 import { calculateGasFees } from './gas';
 import { createClientTransactionRequest } from './snaps';
-import { extractTradeData, isTronTrade } from './trade-utils';
 import type { TransactionBatchSingleRequest } from '../../../transaction-controller/src/types';
 import { APPROVAL_DELAY_MS } from '../constants';
 import type {
   BridgeStatusControllerMessenger,
   SolanaTransactionMeta,
 } from '../types';
-import type { Trade } from './trade-utils';
 
 export const generateActionId = () => (Date.now() + Math.random()).toString();
 
