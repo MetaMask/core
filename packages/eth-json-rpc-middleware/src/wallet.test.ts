@@ -7,7 +7,7 @@ import type {
   TypedMessageV1Params,
 } from '.';
 import { createWalletMiddleware } from '.';
-import { createRequest } from '../test/util/helpers';
+import { createHandleParams, createRequest } from '../test/util/helpers';
 
 const testAddresses = [
   '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',
@@ -27,7 +27,7 @@ describe('wallet', () => {
         middleware: [createWalletMiddleware({ getAccounts })],
       });
       const coinbaseResult = await engine.handle(
-        createRequest({
+        ...createHandleParams({
           method: 'eth_coinbase',
         }),
       );
@@ -40,7 +40,7 @@ describe('wallet', () => {
         middleware: [createWalletMiddleware({ getAccounts })],
       });
       const coinbaseResult = await engine.handle(
-        createRequest({
+        ...createHandleParams({
           method: 'eth_coinbase',
         }),
       );
@@ -53,7 +53,7 @@ describe('wallet', () => {
         middleware: [createWalletMiddleware({ getAccounts })],
       });
       const coinbaseResult = await engine.handle(
-        createRequest({
+        ...createHandleParams({
           method: 'eth_coinbase',
         }),
       );
@@ -77,9 +77,9 @@ describe('wallet', () => {
       const txParams = {
         from: testAddresses[0],
       };
-
       const payload = { method: 'eth_sendTransaction', params: [txParams] };
-      const sendTxResult = await engine.handle(createRequest(payload));
+
+      const sendTxResult = await engine.handle(...createHandleParams(payload));
       expect(sendTxResult).toBeDefined();
       expect(sendTxResult).toStrictEqual(testTxHash);
       expect(witnessedTxParams).toHaveLength(1);
@@ -126,13 +126,14 @@ describe('wallet', () => {
       const txParams = {
         from: testUnkownAddress,
       };
-
-      const payload = createRequest({
+      const payload = {
         method: 'eth_sendTransaction',
         params: [txParams],
-      });
-      const promise = engine.handle(payload);
-      await expect(promise).rejects.toThrow(
+      };
+
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow(
         'The requested account and/or method has not been authorized by the user.',
       );
     });
@@ -153,12 +154,12 @@ describe('wallet', () => {
         from: testAddresses[0],
         to: testAddresses[1],
       };
-
-      const payload = createRequest({
+      const payload = {
         method: 'eth_sendTransaction',
         params: [txParams],
-      });
-      await engine.handle(payload);
+      };
+
+      await engine.handle(...createHandleParams(payload));
       expect(witnessedTxParams).toHaveLength(1);
       expect(witnessedTxParams[0]).toStrictEqual(txParams);
     });
@@ -180,11 +181,11 @@ describe('wallet', () => {
       const txParams = {
         from: testAddresses[0],
       };
-
       const payload = { method: 'eth_signTransaction', params: [txParams] };
-      const sendTxResult = await engine.handle(createRequest(payload));
-      expect(sendTxResult).toBeDefined();
-      expect(sendTxResult).toStrictEqual(testTxHash);
+
+      expect(await engine.handle(...createHandleParams(payload))).toStrictEqual(
+        testTxHash,
+      );
       expect(witnessedTxParams).toHaveLength(1);
       expect(witnessedTxParams[0]).toStrictEqual(txParams);
     });
@@ -205,9 +206,9 @@ describe('wallet', () => {
         from: testAddresses[0],
         to: testAddresses[1],
       };
-
       const payload = { method: 'eth_signTransaction', params: [txParams] };
-      await engine.handle(createRequest(payload));
+
+      await engine.handle(...createHandleParams(payload));
       expect(witnessedTxParams).toHaveLength(1);
       expect(witnessedTxParams[0]).toStrictEqual(txParams);
     });
@@ -227,9 +228,11 @@ describe('wallet', () => {
       const txParams = {
         from: '0x3',
       };
-
       const payload = { method: 'eth_signTransaction', params: [txParams] };
-      await expect(engine.handle(createRequest(payload))).rejects.toThrow(
+
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow(
         new Error('Invalid parameters: must provide an Ethereum address.'),
       );
     });
@@ -249,10 +252,11 @@ describe('wallet', () => {
       const txParams = {
         from: testUnkownAddress,
       };
-
       const payload = { method: 'eth_signTransaction', params: [txParams] };
-      const promise = engine.handle(createRequest(payload));
-      await expect(promise).rejects.toThrow(
+
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow(
         'The requested account and/or method has not been authorized by the user.',
       );
     });
@@ -283,7 +287,7 @@ describe('wallet', () => {
         method: 'eth_signTypedData',
         params: [message, testAddresses[0]],
       };
-      const signMsgResult = await engine.handle(createRequest(payload));
+      const signMsgResult = await engine.handle(...createHandleParams(payload));
 
       expect(signMsgResult).toBeDefined();
       expect(signMsgResult).toStrictEqual(testMsgSig);
@@ -320,7 +324,9 @@ describe('wallet', () => {
         method: 'eth_signTypedData',
         params: [message, '0x3d'],
       };
-      await expect(engine.handle(createRequest(payload))).rejects.toThrow(
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow(
         new Error('Invalid parameters: must provide an Ethereum address.'),
       );
     });
@@ -344,13 +350,14 @@ describe('wallet', () => {
           value: 'Hi, Alice!',
         },
       ];
-
       const payload = {
         method: 'eth_signTypedData',
         params: [message, testUnkownAddress],
       };
-      const promise = engine.handle(createRequest(payload));
-      await expect(promise).rejects.toThrow(
+
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow(
         'The requested account and/or method has not been authorized by the user.',
       );
     });
@@ -400,7 +407,9 @@ describe('wallet', () => {
         params: [testAddresses[0], stringifiedMessage], // Assuming testAddresses[0] is a valid address from your setup
       };
 
-      const signTypedDataV3Result = await engine.handle(createRequest(payload));
+      const signTypedDataV3Result = await engine.handle(
+        ...createHandleParams(payload),
+      );
 
       expect(signTypedDataV3Result).toBeDefined();
       expect(signTypedDataV3Result).toStrictEqual(testMsgSig);
@@ -450,8 +459,9 @@ describe('wallet', () => {
         params: [testAddresses[0], stringifiedMessage], // Assuming testAddresses[0] is a valid address from your setup
       };
 
-      const promise = engine.handle(createRequest(payload));
-      await expect(promise).rejects.toThrow('Invalid input.');
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow('Invalid input.');
     });
 
     it('should not throw if verifyingContract is undefined', async () => {
@@ -488,7 +498,7 @@ describe('wallet', () => {
         params: [testAddresses[0], stringifiedMessage], // Assuming testAddresses[0] is a valid address from your setup
       };
 
-      const result = await engine.handle(createRequest(payload));
+      const result = await engine.handle(...createHandleParams(payload));
       expect(result).toBe(
         '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
       );
@@ -548,7 +558,7 @@ describe('wallet', () => {
         params: [testAddresses[0], JSON.stringify(getMsgParams())],
       };
 
-      const result = await engine.handle(createRequest(payload));
+      const result = await engine.handle(...createHandleParams(payload));
       expect(result).toBe(
         '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
       );
@@ -578,8 +588,9 @@ describe('wallet', () => {
         ],
       };
 
-      const promise = engine.handle(createRequest(payload));
-      await expect(promise).rejects.toThrow('Invalid input.');
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow('Invalid input.');
     });
 
     it('should not throw if request is permit with undefined value for verifyingContract address', async () => {
@@ -601,7 +612,7 @@ describe('wallet', () => {
         params: [testAddresses[0], JSON.stringify(getMsgParams())],
       };
 
-      const result = await engine.handle(createRequest(payload));
+      const result = await engine.handle(...createHandleParams(payload));
       expect(result).toBe(
         '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
       );
@@ -626,7 +637,7 @@ describe('wallet', () => {
         params: [testAddresses[0], JSON.stringify(getMsgParams('cosmos'))],
       };
 
-      const result = await engine.handle(createRequest(payload));
+      const result = await engine.handle(...createHandleParams(payload));
       expect(result).toBe(
         '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
       );
@@ -655,8 +666,9 @@ describe('wallet', () => {
         ],
       };
 
-      const promise = engine.handle(createRequest(payload));
-      await expect(promise).rejects.toThrow('Invalid input.');
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow('Invalid input.');
     });
 
     it('should throw if type of primaryType is not defined', async () => {
@@ -685,8 +697,9 @@ describe('wallet', () => {
         ],
       };
 
-      const promise = engine.handle(createRequest(payload));
-      await expect(promise).rejects.toThrow('Invalid input.');
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow('Invalid input.');
     });
   });
 
@@ -709,7 +722,7 @@ describe('wallet', () => {
         method: 'personal_sign',
         params: [message, testAddresses[0]],
       };
-      const signMsgResult = await engine.handle(createRequest(payload));
+      const signMsgResult = await engine.handle(...createHandleParams(payload));
 
       expect(signMsgResult).toBeDefined();
       expect(signMsgResult).toStrictEqual(testMsgSig);
@@ -740,7 +753,9 @@ describe('wallet', () => {
         params: [message, '0x3d'],
       };
 
-      await expect(engine.handle(createRequest(payload))).rejects.toThrow(
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow(
         new Error('Invalid parameters: must provide an Ethereum address.'),
       );
     });
@@ -764,8 +779,9 @@ describe('wallet', () => {
         params: [message, testUnkownAddress],
       };
 
-      const promise = engine.handle(createRequest(payload));
-      await expect(promise).rejects.toThrow(
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow(
         'The requested account and/or method has not been authorized by the user.',
       );
     });
@@ -791,7 +807,9 @@ describe('wallet', () => {
         method: 'personal_ecRecover',
         params: [signParams.message, signParams.signature],
       };
-      const ecrecoverResult = await engine.handle(createRequest(payload));
+      const ecrecoverResult = await engine.handle(
+        ...createHandleParams(payload),
+      );
       expect(ecrecoverResult).toBeDefined();
       expect(ecrecoverResult).toStrictEqual(signParams.addressHex);
     });
@@ -817,7 +835,9 @@ describe('wallet', () => {
         method: 'personal_ecRecover',
         params: [signParams.message, signParams.signature],
       };
-      const ecrecoverResult = await engine.handle(createRequest(payload));
+      const ecrecoverResult = await engine.handle(
+        ...createHandleParams(payload),
+      );
       expect(ecrecoverResult).toBeDefined();
       expect(ecrecoverResult).toStrictEqual(signParams.addressHex);
     });

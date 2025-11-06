@@ -1,4 +1,3 @@
-import type { MiddlewareParams } from '@metamask/json-rpc-engine/v2';
 import type { JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona';
 
@@ -7,6 +6,7 @@ import type {
   RevokeExecutionPermissionRequestParams,
 } from './wallet-revoke-execution-permission';
 import { createWalletRevokeExecutionPermissionHandler } from './wallet-revoke-execution-permission';
+import type { WalletMiddlewareParams } from '../wallet';
 
 const HEX_MOCK = '0x123abc';
 
@@ -25,7 +25,7 @@ describe('wallet_revokeExecutionPermission', () => {
     const handler = createWalletRevokeExecutionPermissionHandler({
       processRevokeExecutionPermission: processRevokeExecutionPermissionMock,
     });
-    return handler({ request } as MiddlewareParams<JsonRpcRequest>);
+    return handler({ request } as WalletMiddlewareParams);
   };
 
   beforeEach(() => {
@@ -55,7 +55,7 @@ describe('wallet_revokeExecutionPermission', () => {
     await expect(
       createWalletRevokeExecutionPermissionHandler({})({
         request,
-      } as MiddlewareParams<JsonRpcRequest>),
+      } as WalletMiddlewareParams),
     ).rejects.toThrow(
       'wallet_revokeExecutionPermission - no middleware configured',
     );

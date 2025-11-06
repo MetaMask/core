@@ -1,12 +1,13 @@
+import type { MiddlewareContext } from '@metamask/json-rpc-engine/v2';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Struct, StructError } from '@metamask/superstruct';
 import { validate } from '@metamask/superstruct';
-import type { Hex, JsonRpcRequest } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 export async function validateAndNormalizeKeyholder(
   address: Hex,
-  req: JsonRpcRequest,
-  { getAccounts }: { getAccounts: (req: JsonRpcRequest) => Promise<string[]> },
+  context: MiddlewareContext<{ origin: string }>,
+  { getAccounts }: { getAccounts: (origin: string) => Promise<string[]> },
 ): Promise<Hex> {
   if (
     typeof address === 'string' &&
@@ -15,7 +16,7 @@ export async function validateAndNormalizeKeyholder(
   ) {
     // Ensure that an "unauthorized" error is thrown if the requester
     // does not have the `eth_accounts` permission.
-    const accounts = await getAccounts(req);
+    const accounts = await getAccounts(context.assertGet('origin'));
 
     const normalizedAccounts: string[] = accounts.map((_address) =>
       _address.toLowerCase(),

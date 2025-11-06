@@ -1,6 +1,7 @@
 import * as sigUtil from '@metamask/eth-sig-util';
 import type {
   JsonRpcMiddleware,
+  MiddlewareContext,
   MiddlewareParams,
 } from '@metamask/json-rpc-engine/v2';
 import { createScaffoldMiddleware } from '@metamask/json-rpc-engine/v2';
@@ -41,7 +42,7 @@ export type TypedMessageV1Params = Omit<TypedMessageParams, 'data'> & {
 };
 
 export type WalletMiddlewareOptions = {
-  getAccounts: (req: JsonRpcRequest) => Promise<string[]>;
+  getAccounts: (origin: string) => Promise<string[]>;
   processDecryptMessage?: (
     msgParams: MessageParams,
     req: JsonRpcRequest,
@@ -81,6 +82,12 @@ export type WalletMiddlewareOptions = {
   processRevokeExecutionPermission?: ProcessRevokeExecutionPermissionHook;
 };
 
+export type WalletMiddlewareContext = MiddlewareContext<{ origin: string }>;
+export type WalletMiddlewareParams = MiddlewareParams<
+  JsonRpcRequest,
+  WalletMiddlewareContext
+>;
+
 export function createWalletMiddleware({
   getAccounts,
   processDecryptMessage,
@@ -93,12 +100,16 @@ export function createWalletMiddleware({
   processTypedMessageV4,
   processRequestExecutionPermissions,
   processRevokeExecutionPermission,
-}: WalletMiddlewareOptions): JsonRpcMiddleware<JsonRpcRequest, Json> {
+}: WalletMiddlewareOptions): JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  WalletMiddlewareContext
+> {
   if (!getAccounts) {
     throw new Error('opts.getAccounts is required');
   }
 
-  return createScaffoldMiddleware({
+  return createScaffoldMiddleware<WalletMiddlewareContext>({
     // account lookups
     eth_accounts: lookupAccounts,
     eth_coinbase: lookupDefaultAccount,
@@ -132,15 +143,15 @@ export function createWalletMiddleware({
   //
 
   async function lookupAccounts({
-    request,
-  }: MiddlewareParams<JsonRpcRequest>): Promise<Json> {
-    return await getAccounts(request);
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
+    return await getAccounts(context.assertGet('origin'));
   }
 
   async function lookupDefaultAccount({
-    request,
-  }: MiddlewareParams<JsonRpcRequest>): Promise<Json> {
-    const accounts = await getAccounts(request);
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
+    const accounts = await getAccounts(context.assertGet('origin'));
     return accounts[0] || null;
   }
 
@@ -150,7 +161,8 @@ export function createWalletMiddleware({
 
   async function sendTransaction({
     request,
-  }: MiddlewareParams<JsonRpcRequest>): Promise<Json> {
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processTransaction) {
       throw rpcErrors.methodNotSupported();
     }
@@ -165,14 +177,15 @@ export function createWalletMiddleware({
     const params = request.params[0] as TransactionParams | undefined;
     const txParams: TransactionParams = {
       ...params,
-      from: await validateAndNormalizeKeyholder(params?.from || '', request),
+      from: await validateAndNormalizeKeyholder(params?.from || '', context),
     };
     return await processTransaction(txParams, request);
   }
 
   async function signTransaction({
     request,
-  }: MiddlewareParams<JsonRpcRequest>): Promise<Json> {
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processSignTransaction) {
       throw rpcErrors.methodNotSupported();
     }
@@ -187,7 +200,7 @@ export function createWalletMiddleware({
     const params = request.params[0] as TransactionParams | undefined;
     const txParams: TransactionParams = {
       ...params,
-      from: await validateAndNormalizeKeyholder(params?.from || '', request),
+      from: await validateAndNormalizeKeyholder(params?.from || '', context),
     };
     return await processSignTransaction(txParams, request);
   }
@@ -198,7 +211,8 @@ export function createWalletMiddleware({
 
   async function signTypedData({
     request,
-  }: MiddlewareParams<JsonRpcRequest>): Promise<Json> {
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processTypedMessage) {
       throw rpcErrors.methodNotSupported();
     }
@@ -216,7 +230,7 @@ export function createWalletMiddleware({
       Record<string, string>?,
     ];
     const message = params[0];
-    const address = await validateAndNormalizeKeyholder(params[1], request);
+    const address = await validateAndNormalizeKeyholder(params[1], context);
     const version = 'V1';
     const extraParams = params[2] || {};
     const msgParams: TypedMessageV1Params = {
@@ -232,7 +246,8 @@ export function createWalletMiddleware({
 
   async function signTypedDataV3({
     request,
-  }: MiddlewareParams<JsonRpcRequest>): Promise<Json> {
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processTypedMessageV3) {
       throw rpcErrors.methodNotSupported();
     }
@@ -246,7 +261,7 @@ export function createWalletMiddleware({
 
     const params = request.params as [string, string];
 
-    const address = await validateAndNormalizeKeyholder(params[0], request);
+    const address = await validateAndNormalizeKeyholder(params[0], context);
     const message = normalizeTypedMessage(params[1]);
     validatePrimaryType(message);
     validateVerifyingContract(message);
@@ -263,7 +278,8 @@ export function createWalletMiddleware({
 
   async function signTypedDataV4({
     request,
-  }: MiddlewareParams<JsonRpcRequest>): Promise<Json> {
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processTypedMessageV4) {
       throw rpcErrors.methodNotSupported();
     }
@@ -277,7 +293,7 @@ export function createWalletMiddleware({
 
     const params = request.params as [string, string];
 
-    const address = await validateAndNormalizeKeyholder(params[0], request);
+    const address = await validateAndNormalizeKeyholder(params[0], context);
     const message = normalizeTypedMessage(params[1]);
     validatePrimaryType(message);
     validateVerifyingContract(message);
@@ -294,7 +310,8 @@ export function createWalletMiddleware({
 
   async function personalSign({
     request,
-  }: MiddlewareParams<JsonRpcRequest>): Promise<Json> {
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processPersonalMessage) {
       throw rpcErrors.methodNotSupported();
     }
@@ -329,7 +346,7 @@ export function createWalletMiddleware({
       message = firstParam;
       address = secondParam;
     }
-    address = await validateAndNormalizeKeyholder(address, request);
+    address = await validateAndNormalizeKeyholder(address, context);
 
     const msgParams: MessageParams = {
       ...extraParams,
@@ -343,7 +360,7 @@ export function createWalletMiddleware({
 
   async function personalRecover({
     request,
-  }: MiddlewareParams<JsonRpcRequest>): Promise<Json> {
+  }: WalletMiddlewareParams): Promise<Json> {
     if (
       !request.params ||
       !Array.isArray(request.params) ||
@@ -365,7 +382,8 @@ export function createWalletMiddleware({
 
   async function encryptionPublicKey({
     request,
-  }: MiddlewareParams<JsonRpcRequest>): Promise<Json> {
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processEncryptionPublicKey) {
       throw rpcErrors.methodNotSupported();
     }
@@ -379,14 +397,15 @@ export function createWalletMiddleware({
 
     const params = request.params as [string];
 
-    const address = await validateAndNormalizeKeyholder(params[0], request);
+    const address = await validateAndNormalizeKeyholder(params[0], context);
 
     return await processEncryptionPublicKey(address, request);
   }
 
   async function decryptMessage({
     request,
-  }: MiddlewareParams<JsonRpcRequest>): Promise<Json> {
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processDecryptMessage) {
       throw rpcErrors.methodNotSupported();
     }
@@ -402,7 +421,7 @@ export function createWalletMiddleware({
     const ciphertext: string = params[0];
     const address: string = await validateAndNormalizeKeyholder(
       params[1],
-      request,
+      context,
     );
     const extraParams = params[2] || {};
     const msgParams: MessageParams = {
@@ -423,15 +442,15 @@ export function createWalletMiddleware({
    * copy of it.
    *
    * @param address - The address to validate and normalize.
-   * @param req - The request object.
+   * @param context - The context of the request.
    * @returns The normalized address, if valid. Otherwise, throws
    * an error
    */
   async function validateAndNormalizeKeyholder(
     address: string,
-    req: JsonRpcRequest,
+    context: WalletMiddlewareContext,
   ): Promise<string> {
-    return validateKeyholder(address as Hex, req, { getAccounts });
+    return validateKeyholder(address as Hex, context, { getAccounts });
   }
 }
 

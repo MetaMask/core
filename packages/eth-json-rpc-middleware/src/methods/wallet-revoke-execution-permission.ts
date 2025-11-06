@@ -6,6 +6,7 @@ import type { Json } from '@metamask/utils';
 import { type JsonRpcRequest, StrictHexStruct } from '@metamask/utils';
 
 import { validateParams } from '../utils/validation';
+import type { WalletMiddlewareContext } from '../wallet';
 
 export const RevokeExecutionPermissionResultStruct = object({});
 
@@ -30,7 +31,7 @@ export function createWalletRevokeExecutionPermissionHandler({
   processRevokeExecutionPermission,
 }: {
   processRevokeExecutionPermission?: ProcessRevokeExecutionPermissionHook;
-}): JsonRpcMiddleware<JsonRpcRequest, Json> {
+}): JsonRpcMiddleware<JsonRpcRequest, Json, WalletMiddlewareContext> {
   return async ({ request }) => {
     if (!processRevokeExecutionPermission) {
       throw rpcErrors.methodNotSupported(

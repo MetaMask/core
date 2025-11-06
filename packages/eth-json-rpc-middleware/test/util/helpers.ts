@@ -22,6 +22,22 @@ export const createRequest = <
   } as Output;
 };
 
+const createHandleOptions = () => ({
+  context: {
+    origin: 'test',
+  },
+});
+
+export const createHandleParams = <
+  Input extends Partial<JsonRpcRequest<Json[]>>,
+  Output extends Input & JsonRpcRequest<Json[]>,
+>(
+  request: Input,
+): [Output, ReturnType<typeof createHandleOptions>] => [
+  createRequest(request),
+  createHandleOptions(),
+];
+
 /**
  * An object that can be used to assign a canned result to a request made via
  * `provider.request`.

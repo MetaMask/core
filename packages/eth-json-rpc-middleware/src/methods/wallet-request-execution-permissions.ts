@@ -21,6 +21,7 @@ import {
 } from '@metamask/utils';
 
 import { validateParams } from '../utils/validation';
+import type { WalletMiddlewareContext } from '../wallet';
 
 const PermissionStruct = object({
   type: string(),
@@ -70,7 +71,7 @@ export function createWalletRequestExecutionPermissionsHandler({
   processRequestExecutionPermissions,
 }: {
   processRequestExecutionPermissions?: ProcessRequestExecutionPermissionsHook;
-}): JsonRpcMiddleware<JsonRpcRequest, Json> {
+}): JsonRpcMiddleware<JsonRpcRequest, Json, WalletMiddlewareContext> {
   return async ({ request }) => {
     if (!processRequestExecutionPermissions) {
       throw rpcErrors.methodNotSupported(
