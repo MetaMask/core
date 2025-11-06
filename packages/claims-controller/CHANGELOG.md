@@ -7,4 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added new `@metamask/claims-controller` package to handle shield subscription claims logics. ([#7072](https://github.com/MetaMask/core/pull/7072))
+- Implementation of `ClaimsController`. ([#7072](https://github.com/MetaMask/core/pull/7072))
+  - `getSubmitClaimConfig`: Generate configurations required for the claim submission.
+  - `generateClaimSignature`: Generate signature for the claim submission.
+- Implementation of Data-Service, `ClaimsService`. ([#7072](https://github.com/MetaMask/core/pull/7072))
+  - `getClaims`: fetch list of users' claims from the backend.
+  - `getClaimById`: fetch single claim by id.
+  - `generateMessageForClaimSignature`: generate message to sign for the claim signature.
+  - `verifyClaimSignature`: verify claim signature produced by user.
+
 [Unreleased]: https://github.com/MetaMask/core/
