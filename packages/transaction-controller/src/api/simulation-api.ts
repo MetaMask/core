@@ -13,7 +13,7 @@ import type { GetSimulationConfig } from '../types';
 const log = createModuleLogger(projectLogger, 'simulation-api');
 
 const RPC_METHOD = 'infura_simulateTransactions';
-const BASE_URL = 'https://tx-sentinel-{0}.api.cx.metamask.io/';
+const BASE_URL = 'https://tx-sentinel-{0}.dev-api.cx.metamask.io/';
 const ENDPOINT_NETWORKS = 'networks';
 
 /** Single transaction to simulate in a simulation API request.  */

@@ -121,7 +121,7 @@ describe('Simulation API Utils', () => {
       await simulateTransactions(CHAIN_IDS.MAINNET, REQUEST_MOCK);
 
       expect(fetchMock).toHaveBeenCalledWith(
-        'https://tx-sentinel-test-subdomain.api.cx.metamask.io/',
+        'https://tx-sentinel-test-subdomain.dev-api.cx.metamask.io/',
         expect.any(Object),
       );
     });
@@ -131,7 +131,8 @@ describe('Simulation API Utils', () => {
         .fn()
         .mockResolvedValue({
           authorization: 'Bearer test',
-          newUrl: 'https://tx-sentinel-new-test-subdomain.api.cx.metamask.io/',
+          newUrl:
+            'https://tx-sentinel-new-test-subdomain.dev-api.cx.metamask.io/',
         });
 
       const request = {
@@ -143,11 +144,11 @@ describe('Simulation API Utils', () => {
 
       expect(getSimulationConfigMock).toHaveBeenCalledTimes(1);
       expect(getSimulationConfigMock).toHaveBeenCalledWith(
-        'https://tx-sentinel-test-subdomain.api.cx.metamask.io/',
+        'https://tx-sentinel-test-subdomain.dev-api.cx.metamask.io/',
       );
 
       expect(fetchMock).toHaveBeenCalledWith(
-        'https://tx-sentinel-new-test-subdomain.api.cx.metamask.io/',
+        'https://tx-sentinel-new-test-subdomain.dev-api.cx.metamask.io/',
         expect.objectContaining({
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
