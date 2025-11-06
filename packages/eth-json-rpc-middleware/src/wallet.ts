@@ -5,6 +5,7 @@ import type {
   MiddlewareParams,
 } from '@metamask/json-rpc-engine/v2';
 import { createScaffoldMiddleware } from '@metamask/json-rpc-engine/v2';
+import type { MessageRequest } from '@metamask/message-manager';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { isValidHexAddress } from '@metamask/utils';
 import type { JsonRpcRequest, Json, Hex } from '@metamask/utils';
@@ -45,11 +46,11 @@ export type WalletMiddlewareOptions = {
   getAccounts: (origin: string) => Promise<string[]>;
   processDecryptMessage?: (
     msgParams: MessageParams,
-    req: JsonRpcRequest,
+    req: MessageRequest,
   ) => Promise<string>;
   processEncryptionPublicKey?: (
     address: string,
-    req: JsonRpcRequest,
+    req: MessageRequest,
   ) => Promise<string>;
   processPersonalMessage?: (
     msgParams: MessageParams,
@@ -505,7 +506,11 @@ export function createWalletMiddleware({
 
     const address = await validateAndNormalizeKeyholder(params[0], context);
 
-    return await processEncryptionPublicKey(address, request);
+    return await processEncryptionPublicKey(address, {
+      id: request.id as string | number,
+      origin: context.assertGet('origin'),
+      securityAlertResponse: context.assertGet('securityAlertResponse'),
+    });
   }
 
   /**
@@ -544,7 +549,11 @@ export function createWalletMiddleware({
       data: ciphertext,
     };
 
-    return await processDecryptMessage(msgParams, request);
+    return await processDecryptMessage(msgParams, {
+      id: request.id as string | number,
+      origin: context.assertGet('origin'),
+      securityAlertResponse: context.assertGet('securityAlertResponse'),
+    });
   }
 
   //

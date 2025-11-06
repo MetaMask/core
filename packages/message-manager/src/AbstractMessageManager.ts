@@ -37,13 +37,10 @@ const getDefaultState = () => ({
 });
 
 /**
- * @type OriginalRequest
- *
- * Represents the original request object for adding a message.
- * @property origin? - Is it is specified, represents the origin
+ * Represents the request adding a message.
  */
-export type OriginalRequest = {
-  id?: number;
+export type MessageRequest = {
+  id?: string | number;
   origin?: string;
   securityAlertResponse?: Record<string, Json>;
 };
@@ -83,7 +80,7 @@ export type AbstractMessage = {
 export type AbstractMessageParams = {
   from: string;
   origin?: string;
-  requestId?: number;
+  requestId?: string | number;
   deferSetAsSigned?: boolean;
 };
 
@@ -211,7 +208,7 @@ export abstract class AbstractMessageManager<
    */
   protected addRequestToMessageParams<
     MessageParams extends AbstractMessageParams,
-  >(messageParams: MessageParams, req?: OriginalRequest) {
+  >(messageParams: MessageParams, req?: MessageRequest) {
     const updatedMessageParams = {
       ...messageParams,
     };
@@ -233,7 +230,7 @@ export abstract class AbstractMessageManager<
    */
   protected createUnapprovedMessage<
     MessageParams extends AbstractMessageParams,
-  >(messageParams: MessageParams, type: ApprovalType, req?: OriginalRequest) {
+  >(messageParams: MessageParams, type: ApprovalType, req?: MessageRequest) {
     const messageId = random();
 
     return {
@@ -519,7 +516,7 @@ export abstract class AbstractMessageManager<
    */
   abstract addUnapprovedMessage(
     messageParams: ParamsMetamask,
-    request: OriginalRequest,
+    request: MessageRequest,
     version?: string,
   ): Promise<string>;
 

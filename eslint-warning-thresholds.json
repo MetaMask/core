@@ -194,7 +194,7 @@
     "jest/no-conditional-in-test": 7
   },
   "packages/message-manager/src/AbstractMessageManager.ts": {
-    "jsdoc/check-tag-names": 25,
+    "jsdoc/check-tag-names": 23,
     "jsdoc/tag-lines": 2
   },
   "packages/message-manager/src/DecryptMessageManager.test.ts": {
