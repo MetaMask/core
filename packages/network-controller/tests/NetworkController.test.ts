@@ -511,6 +511,21 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x279f": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x279f",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Testnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "monad-testnet",
+                    "type": "infura",
+                    "url": "https://monad-testnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0x38": Object {
                 "blockExplorerUrls": Array [],
                 "chainId": "0x38",
@@ -695,6 +710,21 @@ describe('NetworkController', () => {
                       "networkClientId": "base-mainnet",
                       "type": "infura",
                       "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x279f": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0x279f",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Monad Testnet",
+                  "nativeCurrency": "MON",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "monad-testnet",
+                      "type": "infura",
+                      "url": "https://monad-testnet.infura.io/v3/{infuraProjectId}",
                     },
                   ],
                 },
@@ -1998,6 +2028,21 @@ describe('NetworkController', () => {
                   chainId: '0x1',
                   ticker: 'ETH',
                   network: InfuraNetworkType.mainnet,
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
+              'monad-testnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0x279f',
+                  ticker: 'MON',
+                  network: InfuraNetworkType['monad-testnet'],
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
@@ -14796,6 +14841,21 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x279f": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x279f",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Testnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "monad-testnet",
+                    "type": "infura",
+                    "url": "https://monad-testnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0x38": Object {
                 "blockExplorerUrls": Array [],
                 "chainId": "0x38",
@@ -14965,6 +15025,21 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x279f": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x279f",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Testnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "monad-testnet",
+                    "type": "infura",
+                    "url": "https://monad-testnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0x38": Object {
                 "blockExplorerUrls": Array [],
                 "chainId": "0x38",
@@ -15131,6 +15206,21 @@ describe('NetworkController', () => {
                     "networkClientId": "base-mainnet",
                     "type": "infura",
                     "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x279f": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x279f",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Testnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "monad-testnet",
+                    "type": "infura",
+                    "url": "https://monad-testnet.infura.io/v3/{infuraProjectId}",
                   },
                 ],
               },
