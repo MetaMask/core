@@ -136,6 +136,7 @@ export class RampsController extends BaseController<
   /**
    * Gets the non-cached API URL based on the metamask environment.
    *
+   * @param service - The API service to append to the base URL.
    * @returns The non-cached API URL based on the metamask environment.
    */
   #getApiUrl(service?: ApiService): string {
@@ -157,6 +158,11 @@ export class RampsController extends BaseController<
     return data;
   }
 
+  /**
+   * Gets the countries for the given geolocation.
+   *
+   * @returns The countries for the given geolocation.
+   */
   async getCountries(): Promise<void> {
     const geolocation = await this.#getGeolocation();
     const url = this.#getApiUrl(ApiService.Regions);

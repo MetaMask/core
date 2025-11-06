@@ -1,5 +1,3 @@
-import 'isomorphic-fetch';
-
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   Messenger,
@@ -11,12 +9,6 @@ import {
 
 import { RampsController, SdkEnvironment, Context } from './RampsController';
 import type { RampsControllerMessenger } from './RampsController';
-
-// Ensure fetch is available
-if (typeof global.fetch === 'undefined') {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  global.fetch = require('isomorphic-fetch');
-}
 
 describe('RampsController', () => {
   let mockFetch: jest.MockedFunction<typeof fetch>;
@@ -214,7 +206,7 @@ describe('RampsController', () => {
           options: {
             state: {
               // Use a string literal that doesn't match the enum values
-              metamaskEnvironment: 'unknown' as any,
+              metamaskEnvironment: 'unknown' as unknown as SdkEnvironment,
               context: Context.Browser,
             },
           },
@@ -274,7 +266,9 @@ describe('RampsController', () => {
         // Note: fetch doesn't throw on non-ok responses by default,
         // so we need to check if the implementation handles this
         // For now, we'll test that it doesn't crash
-        await expect(controller.getCountries()).rejects.toThrow();
+        await expect(controller.getCountries()).rejects.toThrow(
+          expect.any(Error),
+        );
       });
     });
   });
