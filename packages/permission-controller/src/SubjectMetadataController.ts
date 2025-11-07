@@ -238,7 +238,7 @@ export class SubjectMetadataController extends BaseController<
    * Deletes all subjects without permissions from the controller's state.
    */
   trimMetadataState(): void {
-    this.update((_draft) => {
+    this.update(() => {
       return SubjectMetadataController.getTrimmedState(
         this.state,
         this.subjectHasPermissions,
