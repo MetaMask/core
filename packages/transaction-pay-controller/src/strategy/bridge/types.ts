@@ -1,8 +1,8 @@
-import type { QuoteResponse } from '@metamask/bridge-controller';
+import type { QuoteResponse, TxData } from '@metamask/bridge-controller';
 
 import type { QuoteRequest } from '../../types';
 
-export type TransactionPayBridgeQuote = QuoteResponse & {
+export type TransactionPayBridgeQuote = QuoteResponse<TxData, TxData> & {
   metrics?: {
     attempts: number;
     buffer: number;

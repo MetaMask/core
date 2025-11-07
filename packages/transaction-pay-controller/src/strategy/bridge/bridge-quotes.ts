@@ -101,13 +101,13 @@ export async function getBridgeBatchTransactions(
 
       if (quote.approval) {
         result.push({
-          ...getBatchTransaction(quote.approval as TxData),
+          ...getBatchTransaction(quote.approval),
           type: TransactionType.swapApproval,
         });
       }
 
       result.push({
-        ...getBatchTransaction(quote.trade as TxData),
+        ...getBatchTransaction(quote.trade),
         type: TransactionType.swap,
       });
 
@@ -345,7 +345,7 @@ async function getSingleBridgeQuote(
     throw new Error(ERROR_MESSAGE_NO_QUOTES);
   }
 
-  const result = getBestQuote(quotes, quoteRequest);
+  const result = getBestQuote(quotes as QuoteResponse<TxData, TxData>[], quoteRequest);
 
   return {
     ...result,
@@ -361,9 +361,9 @@ async function getSingleBridgeQuote(
  * @returns The best quote.
  */
 function getBestQuote(
-  quotes: QuoteResponse[],
+  quotes: QuoteResponse<TxData, TxData>[],
   request: BridgeQuoteRequest,
-): QuoteResponse {
+): QuoteResponse<TxData, TxData> {
   const fastestQuotes = orderBy(
     quotes,
     (quote) => quote.estimatedProcessingTimeInSeconds,
