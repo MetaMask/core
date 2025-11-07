@@ -1,4 +1,5 @@
 import { assertIsBip44Account, type Bip44Account } from '@metamask/account-api';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { SolScope } from '@metamask/keyring-api';
 import {
@@ -17,6 +18,8 @@ import {
   type SnapAccountProviderConfig,
 } from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
+import { traceFallback } from '../analytics';
+import { TraceName } from '../constants/traces';
 import type { MultichainAccountServiceMessenger } from '../types';
 
 export type SolAccountProviderConfig = SnapAccountProviderConfig;
@@ -43,8 +46,9 @@ export class SolAccountProvider extends SnapAccountProvider {
         timeoutMs: 3000,
       },
     },
+    trace: TraceCallback = traceFallback,
   ) {
-    super(SolAccountProvider.SOLANA_SNAP_ID, messenger, config);
+    super(SolAccountProvider.SOLANA_SNAP_ID, messenger, config, trace);
     this.#client = this.#getKeyringClientFromSnapId(
       SolAccountProvider.SOLANA_SNAP_ID,
     );
@@ -131,36 +135,46 @@ export class SolAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    const discoveredAccounts = await withRetry(
-      () =>
-        withTimeout(
-          this.#client.discoverAccounts(
-            [SolScope.Mainnet],
-            entropySource,
-            groupIndex,
-          ),
-          this.config.discovery.timeoutMs,
-        ),
+    return await super.trace(
       {
-        maxAttempts: this.config.discovery.maxAttempts,
-        backOffMs: this.config.discovery.backOffMs,
+        name: TraceName.SnapDiscoverAccounts,
+        data: {
+          provider: this.getName(),
+        },
+      },
+      async () => {
+        const discoveredAccounts = await withRetry(
+          () =>
+            withTimeout(
+              this.#client.discoverAccounts(
+                [SolScope.Mainnet],
+                entropySource,
+                groupIndex,
+              ),
+              this.config.discovery.timeoutMs,
+            ),
+          {
+            maxAttempts: this.config.discovery.maxAttempts,
+            backOffMs: this.config.discovery.backOffMs,
+          },
+        );
+
+        if (!discoveredAccounts.length) {
+          return [];
+        }
+
+        const createdAccounts = await Promise.all(
+          discoveredAccounts.map((d) =>
+            this.#createAccount({
+              entropySource,
+              groupIndex,
+              derivationPath: d.derivationPath,
+            }),
+          ),
+        );
+
+        return createdAccounts;
       },
     );
-
-    if (!discoveredAccounts.length) {
-      return [];
-    }
-
-    const createdAccounts = await Promise.all(
-      discoveredAccounts.map((d) =>
-        this.#createAccount({
-          entropySource,
-          groupIndex,
-          derivationPath: d.derivationPath,
-        }),
-      ),
-    );
-
-    return createdAccounts;
   }
 }

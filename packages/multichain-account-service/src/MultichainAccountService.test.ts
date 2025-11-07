@@ -220,10 +220,12 @@ describe('MultichainAccountService', () => {
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
         providerConfigs?.[EvmAccountProvider.NAME],
+        expect.any(Function), // TraceCallback
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
         providerConfigs?.[SolAccountProvider.NAME],
+        expect.any(Function), // TraceCallback
       );
     });
 
@@ -254,10 +256,12 @@ describe('MultichainAccountService', () => {
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
         undefined,
+        expect.any(Function), // TraceCallback
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
         providerConfigs?.[SolAccountProvider.NAME],
+        expect.any(Function), // TraceCallback
       );
     });
   });
@@ -563,10 +567,20 @@ describe('MultichainAccountService', () => {
       );
 
       // Should emit updated event for the existing group
+      expect(publishSpy).toHaveBeenCalled();
       expect(publishSpy).toHaveBeenCalledWith(
         'MultichainAccountService:multichainAccountGroupUpdated',
-        expect.any(Object),
+        expect.objectContaining({
+          groupIndex: 0,
+        }),
       );
+
+      const emittedGroup = publishSpy.mock.calls[0][1];
+      expect(emittedGroup).toBeDefined();
+      expect(emittedGroup).toHaveProperty('groupIndex', 0);
+      expect(emittedGroup).toHaveProperty('getAccounts');
+      expect(emittedGroup).toHaveProperty('select');
+      expect(emittedGroup).toHaveProperty('get');
     });
 
     it('creates new detected wallets and update reverse mapping on AccountsController:accountAdded', () => {
