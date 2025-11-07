@@ -209,6 +209,7 @@ const defaultState = getDefaultAnalyticsControllerState();
 The `onSetupCompleted` lifecycle hook is called once after the `AnalyticsController` is fully initialized. This hook allows platform-specific adapters to perform setup that requires access to the controller's state (e.g., `analyticsId`).
 
 **When it's called:**
+
 - After the controller is fully initialized
 - Only when `analyticsId` is set in controller state (the presence of `analyticsId` is the definition of "completed" setup)
 - The `analyticsId` parameter is guaranteed to be set and be a valid UUIDv4 when this method is called
@@ -233,9 +234,11 @@ const platformAdapter: AnalyticsPlatformAdapter = {
 ```
 
 **Error handling:**
+
 - Errors thrown in `onSetupCompleted` are caught and logged
 
 **Best practices:**
+
 - Use `onSetupCompleted` for setup that requires controller state
 - Keep setup logic minimal and focused
 - Handle errors gracefully within the hook

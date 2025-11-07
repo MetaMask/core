@@ -2,6 +2,9 @@
 export { AnalyticsController } from './AnalyticsController';
 export type { AnalyticsControllerOptions } from './AnalyticsController';
 
+// Export errors
+export { AnalyticsPlatformAdapterSetupError } from './AnalyticsPlatformAdapterSetupError';
+
 // Export types
 export type {
   AnalyticsEventProperties,

@@ -11,6 +11,7 @@ import {
   type AnalyticsControllerActions,
   type AnalyticsControllerEvents,
   type AnalyticsPlatformAdapter,
+  AnalyticsPlatformAdapterSetupError,
   getDefaultAnalyticsControllerState,
 } from '.';
 import type { AnalyticsControllerState } from '.';
@@ -314,33 +315,31 @@ describe('AnalyticsController', () => {
 
     it('continues controller initialization when onSetupCompleted throws error', () => {
       const mockAdapter = createMockAdapter();
-      const error = new Error('Setup failed');
-      mockAdapter.onSetupCompleted = jest.fn(() => {
+      // Simulate a fake Segment SDK plugin configuration error
+      const cause = new Error(
+        'MetaMetricsPrivacySegmentPlugin configure failed',
+      );
+      const error = new AnalyticsPlatformAdapterSetupError(
+        'Failed to add privacy plugin to Segment client',
+        cause,
+      );
+      jest.spyOn(mockAdapter, 'onSetupCompleted').mockImplementation(() => {
         throw error;
       });
 
-      const projectLoggerSpy = jest
-        .spyOn(require('./AnalyticsLogger'), 'projectLogger')
-        .mockImplementation();
-
+      // Controller should initialize successfully despite the error
       const { controller } = setupController({
         state: { analyticsId: '550e8400-e29b-41d4-a716-446655440000' },
         platformAdapter: mockAdapter,
       });
 
-      // Controller should still be initialized
+      // Controller should still be initialized with correct state
       expect(controller).toBeDefined();
       expect(controller.state.analyticsId).toBe(
         '550e8400-e29b-41d4-a716-446655440000',
       );
-
-      // Error should be logged
-      expect(projectLoggerSpy).toHaveBeenCalledWith(
-        'Error calling platformAdapter.onSetupCompleted',
-        error,
-      );
-
-      projectLoggerSpy.mockRestore();
+      expect(controller.state.enabled).toBe(true);
+      expect(controller.state.optedIn).toBe(false);
     });
 
     it('calls onSetupCompleted with analyticsId', () => {

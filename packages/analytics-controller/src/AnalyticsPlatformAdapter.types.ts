@@ -14,7 +14,7 @@ export type AnalyticsUserTraits = Record<string, Json>;
  * Platform adapter interface for analytics tracking
  * Implementations should handle platform-specific details (Segment SDK, etc.)
  */
-export interface AnalyticsPlatformAdapter {
+export type AnalyticsPlatformAdapter = {
   /**
    * Track an analytics event.
    *
@@ -56,6 +56,9 @@ export interface AnalyticsPlatformAdapter {
    * when this method is called - this is the definition of "completed" setup.
    *
    * @param analyticsId - The analytics ID from controller state. Always set (never empty).
+   * @throws {AnalyticsPlatformAdapterSetupError} May throw errors during setup (e.g., configuration errors, network failures).
+   * Errors thrown by this method are caught and logged by the controller, but do not prevent
+   * controller initialization from completing successfully.
    *
    * @example
    * ```typescript
@@ -68,4 +71,4 @@ export interface AnalyticsPlatformAdapter {
    * ```
    */
   onSetupCompleted(analyticsId: string): void;
-}
+};
