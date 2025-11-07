@@ -6,7 +6,7 @@ on:
 
 jobs:
   check_changelog:
-    uses: MetaMask/github-tools/.github/workflows/changelog-check.yml@fc6fe1a3fb591f6afa61f0dbbe7698bd50fab9c7
+    uses: MetaMask/github-tools/.github/workflows/changelog-check.yml@701a894f38883ab48560f948e98b76cc6b4d623f
     with:
       action-sha: fc6fe1a3fb591f6afa61f0dbbe7698bd50fab9c7
       base-branch: ${{ github.event.pull_request.base.ref }}
