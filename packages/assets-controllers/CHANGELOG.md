@@ -7,14 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove early return for empty `chainIds` in `searchTokens` function to allow API to handle empty chain IDs ([#7083](https://github.com/MetaMask/core/pull/7083))
+
+## [87.1.0]
+
 ### Added
 
-- **BREAKING:** Added constructor argument `tokenPricesService` in `currencyRateController` ([#6863](https://github.com/MetaMask/core/pull/6863))
+- Added `getTrendingTokens` function to fetch trending tokens for specific chains ([#7054]) (https://github.com/MetaMask/core/pull/7054)
+- Added new types `SortTrendingBy` and `TrendingAsset` ([#7054]) (https://github.com/MetaMask/core/pull/7054)
 
-- Added `fetchExchangeRates` function to fetch exchange rates from price-api ([#6863](https://github.com/MetaMask/core/pull/6863))
+## [87.0.0]
+
+### Added
+
+- Add `AssetsByAccountGroup` to list of exported types ([#6983](https://github.com/MetaMask/core/pull/6983))
+- Added `addAssets` to allow adding multiple assets for non-EVM chains ([#7016](https://github.com/MetaMask/core/pull/7016))
 
 ### Changed
 
+- `isNative` is inferred as `true` for all non-evm assets with slip44 as its asset namespace ([#6983](https://github.com/MetaMask/core/pull/6983))
+- **BREAKING:** Modify DeFi position fetching behaviour ([#6944](https://github.com/MetaMask/core/pull/6944))
+  - The fetch request to the API times out after 8 seconds and attempts a single retry
+  - Refresh only updates the selected evm address
+  - `KeyringController:unlock` no longer starts polling
+  - `AccountsController:accountAdded` no longer updates DeFi positions
+  - `AccountTreeController:selectedAccountGroupChange` updates DeFi positions for the selected address
+  - `TransactionController:transactionConfirmed` only updates DeFi positions if the transaction is for the selected address
+
+### Fixed
+
+- Fixed token is not removed from ignored tokens list when added back due to case insensiteivity ([#7016](https://github.com/MetaMask/core/pull/7016))
+
+## [86.0.0]
+
+### Changed
+
+- **BREAKING:** Modify AccountTrackerController events and actions ([#6938](https://github.com/MetaMask/core/pull/6938))
+  - `AccountsController:selectedAccountChange` is no longer part of the list of allowed events
+  - `NetworkController:getState` refetches balances
+  - `TransactionController:unapprovedTransactionAdded` refetches balances
+  - `TransactionController:unapprovedTransactionAdded'` refetches balances for the transaction from address and network
+  - `TransactionController:transactionConfirmed` refetches balances for the transaction from address and network
+- Add optional `fetchingEnabled` callback to `AccountTrackerController` constructor to stop it from fetching balances ([#6938](https://github.com/MetaMask/core/pull/6938))
+
+## [85.0.0]
+
+### Added
+
+- **BREAKING:** Added constructor argument `tokenPricesService` in `currencyRateController` ([#6863](https://github.com/MetaMask/core/pull/6863))
+- Added `fetchExchangeRates` function to fetch exchange rates from price-api ([#6863](https://github.com/MetaMask/core/pull/6863))
+- Added `ignoreAssets` to allow ignoring assets for non-EVM chains ([#6981](https://github.com/MetaMask/core/pull/6981))
+
+- Added `searchTokens` function to search for tokens across multiple networks using CAIP format chain IDs ([#7004](https://github.com/MetaMask/core/pull/7004))
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
 - `CurrencyRateController` now fetches exchange rates from price-api and fallback to cryptoCompare ([#6863](https://github.com/MetaMask/core/pull/6863))
 
 ## [84.0.0]
@@ -2200,7 +2250,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@84.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.0...HEAD
+[87.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.0.0...@metamask/assets-controllers@87.1.0
+[87.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@86.0.0...@metamask/assets-controllers@87.0.0
+[86.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@85.0.0...@metamask/assets-controllers@86.0.0
+[85.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@84.0.0...@metamask/assets-controllers@85.0.0
 [84.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@83.1.0...@metamask/assets-controllers@84.0.0
 [83.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@83.0.0...@metamask/assets-controllers@83.1.0
 [83.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@82.0.0...@metamask/assets-controllers@83.0.0

@@ -26,6 +26,7 @@ import {
   StatusTypes,
   type BridgeControllerMessenger,
   type QuoteResponse,
+  type GenericQuoteRequest,
 } from './types';
 import * as balanceUtils from './utils/balance';
 import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge';
@@ -318,7 +319,6 @@ describe('BridgeController', function () {
     messengerMock.call.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
-      selectedNetworkClientId: 'selectedNetworkClientId',
       currencyRates: {},
       marketData: {},
       conversionRates: {},
@@ -363,7 +363,6 @@ describe('BridgeController', function () {
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
     expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).toHaveBeenCalledWith({
-      networkClientId: 'selectedNetworkClientId',
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: false,
@@ -398,7 +397,6 @@ describe('BridgeController', function () {
     messengerMock.call.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
-      selectedNetworkClientId: 'selectedNetworkClientId',
       currencyRates: {},
       marketData: {},
       conversionRates: {},
@@ -485,7 +483,6 @@ describe('BridgeController', function () {
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
     expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).toHaveBeenCalledWith({
-      networkClientId: 'selectedNetworkClientId',
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: false,
@@ -720,7 +717,6 @@ describe('BridgeController', function () {
           }
           return {
             provider: jest.fn() as never,
-            selectedNetworkClientId: 'selectedNetworkClientId',
           } as never;
         },
       );
@@ -932,7 +928,6 @@ describe('BridgeController', function () {
     messengerMock.call.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
-      selectedNetworkClientId: 'selectedNetworkClientId',
       currentCurrency: 'usd',
       currencyRates: {},
       marketData: {},
@@ -990,7 +985,6 @@ describe('BridgeController', function () {
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
     expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).toHaveBeenCalledWith({
-      networkClientId: 'selectedNetworkClientId',
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: true,
@@ -1137,7 +1131,6 @@ describe('BridgeController', function () {
         }
         return {
           provider: jest.fn() as never,
-          selectedNetworkClientId: 'selectedNetworkClientId',
         } as never;
       },
     );
@@ -1190,7 +1183,6 @@ describe('BridgeController', function () {
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
     expect(hasSufficientBalanceSpy).not.toHaveBeenCalled();
     expect(startPollingSpy).toHaveBeenCalledWith({
-      networkClientId: 'selectedNetworkClientId',
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: true,
@@ -1306,27 +1298,70 @@ describe('BridgeController', function () {
         allowance: jest.fn(() => '100000000000000000000'),
       }));
 
-      messengerMock.call.mockReturnValue({
-        address: '0x123',
-        provider: jest.fn(),
-      } as never);
+      messengerMock.call
+        .mockReturnValueOnce('networkClientId-for-chain-0xa')
+        .mockReturnValueOnce({
+          // getNetworkClientById
+          address: '0x123',
+          provider: jest.fn(),
+        } as never);
 
       const allowance = await bridgeController.getBridgeERC20Allowance(
         '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
         '0xa',
       );
       expect(allowance).toBe('100000000000000000000');
+      expect(messengerMock.call).toHaveBeenCalledTimes(2);
+      expect(messengerMock.call).toHaveBeenNthCalledWith(
+        1,
+        'NetworkController:findNetworkClientIdByChainId',
+        '0xa',
+      );
+      expect(messengerMock.call).toHaveBeenNthCalledWith(
+        2,
+        'NetworkController:getNetworkClientById',
+        'networkClientId-for-chain-0xa',
+      );
+    });
+
+    it('should throw an error when no network client is found for chainId', async () => {
+      // Setup
+      const mockMessenger = {
+        call: jest.fn().mockImplementation((methodName) => {
+          if (methodName === 'NetworkController:findNetworkClientIdByChainId') {
+            return undefined; // No network client found
+          }
+          return undefined;
+        }),
+        registerActionHandler: jest.fn(),
+        publish: jest.fn(),
+        registerInitialEventPayload: jest.fn(),
+      } as unknown as jest.Mocked<BridgeControllerMessenger>;
+
+      const controller = new BridgeController({
+        messenger: mockMessenger,
+        clientId: BridgeClientId.EXTENSION,
+        clientVersion: '1.0.0',
+        getLayer1GasFee: jest.fn(),
+        fetchFn: mockFetchFn,
+        trackMetaMetricsFn,
+      });
+
+      // Test
+      await expect(
+        controller.getBridgeERC20Allowance('0xContractAddress', '0x1'),
+      ).rejects.toThrow('No network client found for chainId: 0x1');
     });
 
     it('should throw an error when no provider is found', async () => {
       // Setup
       const mockMessenger = {
         call: jest.fn().mockImplementation((methodName) => {
+          if (methodName === 'NetworkController:findNetworkClientIdByChainId') {
+            return 'networkClientId-for-chain-0x1';
+          }
           if (methodName === 'NetworkController:getNetworkClientById') {
             return { provider: null };
-          }
-          if (methodName === 'NetworkController:getState') {
-            return { selectedNetworkClientId: 'testNetworkClientId' };
           }
           return undefined;
         }),
@@ -1405,7 +1440,6 @@ describe('BridgeController', function () {
       messengerMock.call.mockReturnValue({
         address: '0x123',
         provider: jest.fn(),
-        selectedNetworkClientId: 'selectedNetworkClientId',
       } as never);
 
       for (const [index, quote] of quoteResponse.entries()) {
@@ -1463,7 +1497,6 @@ describe('BridgeController', function () {
       expect(startPollingSpy).toHaveBeenCalledTimes(1);
       expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
       expect(startPollingSpy).toHaveBeenCalledWith({
-        networkClientId: 'selectedNetworkClientId',
         updatedQuoteRequest: {
           ...quoteRequest,
           insufficientBal: true,
@@ -1674,7 +1707,6 @@ describe('BridgeController', function () {
     messengerMock.call.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
-      selectedNetworkClientId: 'selectedNetworkClientId',
       currencyRates: {},
       marketData: {},
       conversionRates: {},
@@ -1862,7 +1894,6 @@ describe('BridgeController', function () {
           }
           return {
             provider: jest.fn() as never,
-            selectedNetworkClientId: 'selectedNetworkClientId',
           } as never;
         },
       );
@@ -2024,7 +2055,6 @@ describe('BridgeController', function () {
 
         return {
           provider: jest.fn() as never,
-          selectedNetworkClientId: 'selectedNetworkClientId',
         } as never;
       },
     );
@@ -2094,7 +2124,6 @@ describe('BridgeController', function () {
         (): ReturnType<BridgeControllerMessenger['call']> => {
           return {
             provider: jest.fn() as never,
-            selectedNetworkClientId: 'selectedNetworkClientId',
             rpcUrl: 'https://mainnet.infura.io/v3/123',
             configuration: {
               chainId: 'eip155:1',
@@ -2106,7 +2135,6 @@ describe('BridgeController', function () {
         (): ReturnType<BridgeControllerMessenger['call']> => {
           return {
             provider: jest.fn() as never,
-            selectedNetworkClientId: 'selectedNetworkClientId',
             rpcUrl: 'https://mainnet.infura.io/v3/123',
             configuration: {
               chainId: 'eip155:1',
@@ -2283,7 +2311,6 @@ describe('BridgeController', function () {
       messengerMock.call.mockImplementation(() => {
         return {
           provider: jest.fn() as never,
-          selectedNetworkClientId: 'selectedNetworkClientId',
           rpcUrl: 'https://mainnet.infura.io/v3/123',
           configuration: {
             chainId: 'eip155:1',
@@ -2402,7 +2429,7 @@ describe('BridgeController', function () {
           security_warnings: [],
         },
       );
-      expect(messengerMock.call).toHaveBeenCalledTimes(2);
+      expect(messengerMock.call).toHaveBeenCalledTimes(0);
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
 
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
@@ -2516,7 +2543,6 @@ describe('BridgeController', function () {
           }
           return {
             provider: jest.fn() as never,
-            selectedNetworkClientId: 'selectedNetworkClientId',
             rpcUrl: 'https://mainnet.infura.io/v3/123',
             configuration: {
               chainId: 'eip155:1',
@@ -2590,6 +2616,21 @@ describe('BridgeController', function () {
     const quotesByDecreasingProcessingTime = [...mockBridgeQuotesSolErc20];
     quotesByDecreasingProcessingTime.reverse();
 
+    const makeQuoteRequest = (
+      overrides: Partial<GenericQuoteRequest> = {},
+    ): GenericQuoteRequest => ({
+      walletAddress: '0x123',
+      srcChainId: 1,
+      destChainId: 10,
+      srcTokenAddress: '0x0000000000000000000000000000000000000000',
+      destTokenAddress: '0x0000000000000000000000000000000000000000',
+      srcTokenAmount: '1000',
+      slippage: 0.5,
+      gasIncluded: false,
+      gasIncluded7702: false,
+      ...overrides,
+    });
+
     beforeEach(() => {
       jest.clearAllMocks();
       jest
@@ -2600,7 +2641,7 @@ describe('BridgeController', function () {
             [FeatureId.PERPS]: {
               aggIds: ['debridge', 'socket'],
               bridgeIds: ['bridge1', 'bridge2'],
-              noFee: true,
+              fee: 0,
             },
           },
         });
@@ -2609,7 +2650,7 @@ describe('BridgeController', function () {
       }));
     });
 
-    it('should override aggIds and noFee in perps request', async () => {
+    it('should override aggIds and fee in perps request', async () => {
       const fetchBridgeQuotesSpy = jest
         .spyOn(fetchUtils, 'fetchBridgeQuotes')
         .mockResolvedValueOnce({
@@ -2631,7 +2672,7 @@ describe('BridgeController', function () {
           bridgeIds: ['other', 'debridge'],
           gasIncluded: false,
           gasIncluded7702: false,
-          noFee: false,
+          fee: 0,
         },
         null,
         FeatureId.PERPS,
@@ -2652,9 +2693,9 @@ describe('BridgeController', function () {
               ],
               "destChainId": "1",
               "destTokenAddress": "0x1234",
+              "fee": 0,
               "gasIncluded": false,
               "gasIncluded7702": false,
-              "noFee": true,
               "slippage": 0.5,
               "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
               "srcTokenAddress": "NATIVE",
@@ -2697,7 +2738,6 @@ describe('BridgeController', function () {
             bridgeIds: ['other', 'debridge'],
             gasIncluded: false,
             gasIncluded7702: false,
-            noFee: false,
           } as never,
           null,
           FeatureId.PERPS,
@@ -2708,7 +2748,7 @@ describe('BridgeController', function () {
       expect(bridgeController.state).toStrictEqual(expectedControllerState);
     });
 
-    it('should add aggIds and noFee to perps request', async () => {
+    it('should add aggIds and fee to perps request', async () => {
       const fetchBridgeQuotesSpy = jest
         .spyOn(fetchUtils, 'fetchBridgeQuotes')
         .mockResolvedValueOnce({
@@ -2748,9 +2788,9 @@ describe('BridgeController', function () {
               ],
               "destChainId": "1",
               "destTokenAddress": "0x1234",
+              "fee": 0,
               "gasIncluded": false,
               "gasIncluded7702": false,
-              "noFee": true,
               "slippage": 0.5,
               "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
               "srcTokenAddress": "NATIVE",
@@ -2770,7 +2810,7 @@ describe('BridgeController', function () {
       expect(bridgeController.state).toStrictEqual(expectedControllerState);
     });
 
-    it('should not add aggIds and noFee if featureId is not specified', async () => {
+    it('should not add aggIds and fee if featureId is not specified', async () => {
       const fetchBridgeQuotesSpy = jest
         .spyOn(fetchUtils, 'fetchBridgeQuotes')
         .mockResolvedValueOnce({
@@ -2820,6 +2860,33 @@ describe('BridgeController', function () {
       `);
       expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
       expect(bridgeController.state).toStrictEqual(expectedControllerState);
+    });
+
+    it('should preserve gasSponsored flag on quotes', async () => {
+      const firstQuoteWithFlag: QuoteResponse = {
+        ...mockBridgeQuotesNativeErc20Eth[0],
+        quote: {
+          ...mockBridgeQuotesNativeErc20Eth[0].quote,
+          gasSponsored: true,
+        },
+      } as QuoteResponse;
+      const secondQuote: QuoteResponse =
+        mockBridgeQuotesNativeErc20Eth[1] as QuoteResponse;
+      const quotesWithFlag: QuoteResponse[] = [firstQuoteWithFlag, secondQuote];
+
+      const fetchBridgeQuotesSpy = jest
+        .spyOn(fetchUtils, 'fetchBridgeQuotes')
+        .mockResolvedValueOnce({
+          quotes: quotesWithFlag,
+          validationFailures: [],
+        });
+
+      const quotes = await bridgeController.fetchQuotes(makeQuoteRequest());
+
+      expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+      expect(quotes).toHaveLength(2);
+      expect(quotes[0].quote.gasSponsored).toBe(true);
+      expect(quotes[1].quote.gasSponsored).toBeUndefined();
     });
   });
 

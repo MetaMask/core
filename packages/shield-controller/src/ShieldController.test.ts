@@ -142,38 +142,6 @@ describe('ShieldController', () => {
       );
     });
 
-    it('should check coverage when a transaction is simulated', async () => {
-      const { rootMessenger, messenger, backend } = setup();
-      const txMeta = generateMockTxMeta();
-      const coverageResultReceived = setupCoverageResultReceived(messenger);
-
-      // Add transaction.
-      rootMessenger.publish(
-        'TransactionController:stateChange',
-        { transactions: [txMeta] } as TransactionControllerState,
-        undefined as never,
-      );
-      expect(await coverageResultReceived).toBeUndefined();
-      expect(backend.checkCoverage).toHaveBeenCalledWith({ txMeta });
-
-      // Simulate transaction.
-      const txMeta2 = { ...txMeta };
-      txMeta2.simulationData = {
-        tokenBalanceChanges: [],
-      };
-      const coverageResultReceived2 = setupCoverageResultReceived(messenger);
-      rootMessenger.publish(
-        'TransactionController:stateChange',
-        { transactions: [txMeta2] } as TransactionControllerState,
-        undefined as never,
-      );
-      expect(await coverageResultReceived2).toBeUndefined();
-      expect(backend.checkCoverage).toHaveBeenCalledWith({
-        coverageId: MOCK_COVERAGE_ID,
-        txMeta: txMeta2,
-      });
-    });
-
     TX_META_SIMULATION_DATA_MOCKS.forEach(
       ({ description, previousSimulationData, newSimulationData }) => {
         it(`should check coverage when ${description}`, async () => {

@@ -350,90 +350,111 @@ describe('NetworkController', () => {
       );
     });
 
-    describe('if selectedNetworkClientId does not match the networkClientId of an RPC endpoint in networkConfigurationsByChainId', () => {
-      it('corrects selectedNetworkClientId to the default RPC endpoint of the first chain', () => {
-        const messenger = buildRootMessenger();
-        messenger.registerActionHandler(
-          'ErrorReportingService:captureException',
-          jest.fn(),
-        );
-        const controllerMessenger = buildNetworkControllerMessenger(messenger);
-        const controller = new NetworkController({
-          messenger: controllerMessenger,
-          state: {
-            selectedNetworkClientId: 'nonexistent',
-            networkConfigurationsByChainId: {
-              '0x1': buildCustomNetworkConfiguration({
-                chainId: '0x1',
-                defaultRpcEndpointIndex: 1,
-                rpcEndpoints: [
-                  buildCustomRpcEndpoint({
-                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                  }),
-                  buildCustomRpcEndpoint({
-                    networkClientId: 'BBBB-BBBB-BBBB-BBBB',
-                  }),
-                ],
-              }),
-              '0x2': buildCustomNetworkConfiguration({ chainId: '0x2' }),
-              '0x3': buildCustomNetworkConfiguration({ chainId: '0x3' }),
-            },
-          },
-          infuraProjectId: 'infura-project-id',
-          getRpcServiceOptions: () => ({
-            fetch,
-            btoa,
-          }),
-        });
+    it('corrects an invalid selectedNetworkClientId to the default RPC endpoint of the first chain, logging this fact', () => {
+      const captureExceptionMock = jest.fn();
+      const messenger = buildRootMessenger({
+        actionHandlers: {
+          'ErrorReportingService:captureException': captureExceptionMock,
+        },
+      });
+      const controllerMessenger = buildNetworkControllerMessenger(messenger);
 
-        expect(controller.state.selectedNetworkClientId).toBe(
-          'BBBB-BBBB-BBBB-BBBB',
-        );
+      const controller = new NetworkController({
+        messenger: controllerMessenger,
+        state: {
+          selectedNetworkClientId: 'nonexistent',
+          networkConfigurationsByChainId: {
+            '0x1': buildCustomNetworkConfiguration({
+              chainId: '0x1',
+              defaultRpcEndpointIndex: 1,
+              rpcEndpoints: [
+                buildCustomRpcEndpoint({
+                  networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                }),
+                buildCustomRpcEndpoint({
+                  networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                }),
+              ],
+            }),
+            '0x2': buildCustomNetworkConfiguration({ chainId: '0x2' }),
+            '0x3': buildCustomNetworkConfiguration({ chainId: '0x3' }),
+          },
+        },
+        infuraProjectId: 'infura-project-id',
+        getRpcServiceOptions: () => ({
+          fetch,
+          btoa,
+        }),
       });
 
-      it('logs a Sentry error', () => {
-        const messenger = buildRootMessenger();
-        const captureExceptionMock = jest.fn();
-        messenger.registerActionHandler(
-          'ErrorReportingService:captureException',
-          captureExceptionMock,
-        );
-        const controllerMessenger = buildNetworkControllerMessenger(messenger);
+      expect(controller.state.selectedNetworkClientId).toBe(
+        'BBBB-BBBB-BBBB-BBBB',
+      );
+      expect(captureExceptionMock).toHaveBeenCalledWith(
+        new Error(
+          "`selectedNetworkClientId` 'nonexistent' does not refer to an RPC endpoint within a network configuration; correcting to 'BBBB-BBBB-BBBB-BBBB'",
+        ),
+      );
+    });
 
-        new NetworkController({
-          messenger: controllerMessenger,
-          state: {
-            selectedNetworkClientId: 'nonexistent',
-            networkConfigurationsByChainId: {
-              '0x1': buildCustomNetworkConfiguration({
-                chainId: '0x1',
-                defaultRpcEndpointIndex: 1,
-                rpcEndpoints: [
-                  buildCustomRpcEndpoint({
-                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                  }),
-                  buildCustomRpcEndpoint({
-                    networkClientId: 'BBBB-BBBB-BBBB-BBBB',
-                  }),
-                ],
-              }),
-              '0x2': buildCustomNetworkConfiguration({ chainId: '0x2' }),
-              '0x3': buildCustomNetworkConfiguration({ chainId: '0x3' }),
+    it('removes invalid network client IDs from networksMetadata, logging this fact', () => {
+      const captureExceptionMock = jest.fn();
+      const messenger = buildRootMessenger({
+        actionHandlers: {
+          'ErrorReportingService:captureException': captureExceptionMock,
+        },
+      });
+      const controllerMessenger = buildNetworkControllerMessenger(messenger);
+
+      const controller = new NetworkController({
+        messenger: controllerMessenger,
+        state: {
+          selectedNetworkClientId: InfuraNetworkType.sepolia,
+          networkConfigurationsByChainId: {
+            [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+              InfuraNetworkType.sepolia,
+            ),
+          },
+          networksMetadata: {
+            [InfuraNetworkType.sepolia]: {
+              status: NetworkStatus.Available,
+              EIPS: {},
+            },
+            'AAAA-AAAA-AAAA-AAAA': {
+              status: NetworkStatus.Available,
+              EIPS: {},
+            },
+            'BBBB-BBBB-BBBB-BBBB': {
+              status: NetworkStatus.Available,
+              EIPS: {},
+            },
+            'CCCC-CCCC-CCCC-CCCC': {
+              status: NetworkStatus.Available,
+              EIPS: {},
             },
           },
-          infuraProjectId: 'infura-project-id',
-          getRpcServiceOptions: () => ({
-            fetch,
-            btoa,
-          }),
-        });
-
-        expect(captureExceptionMock).toHaveBeenCalledWith(
-          new Error(
-            "`selectedNetworkClientId` 'nonexistent' does not refer to an RPC endpoint within a network configuration; correcting to 'BBBB-BBBB-BBBB-BBBB'",
-          ),
-        );
+        },
+        infuraProjectId: 'infura-project-id',
+        getRpcServiceOptions: () => ({
+          fetch,
+          btoa,
+        }),
       });
+
+      expect(controller.state.networksMetadata).not.toHaveProperty(
+        'AAAA-AAAA-AAAA-AAAA',
+      );
+      expect(controller.state.networksMetadata).not.toHaveProperty(
+        'BBBB-BBBB-BBBB-BBBB',
+      );
+      expect(controller.state.networksMetadata).not.toHaveProperty(
+        'CCCC-CCCC-CCCC-CCCC',
+      );
+      expect(captureExceptionMock).toHaveBeenCalledWith(
+        new Error(
+          '`networksMetadata` had invalid network client IDs, which have been removed',
+        ),
+      );
     });
 
     const invalidInfuraProjectIds = [undefined, null, {}, 1];
@@ -487,6 +508,81 @@ describe('NetworkController', () => {
                     "networkClientId": "base-mainnet",
                     "type": "infura",
                     "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x38": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x38",
+                "defaultRpcEndpointIndex": 0,
+                "name": "BSC Mainnet",
+                "nativeCurrency": "BNB",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "bsc-mainnet",
+                    "type": "infura",
+                    "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x531": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x531",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Sei Mainnet",
+                "nativeCurrency": "SEI",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "sei-mainnet",
+                    "type": "infura",
+                    "url": "https://sei-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x89": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x89",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Polygon Mainnet",
+                "nativeCurrency": "POL",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "polygon-mainnet",
+                    "type": "infura",
+                    "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Optimism Mainnet",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "optimism-mainnet",
+                    "type": "infura",
+                    "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa4b1": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa4b1",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Arbitrum One",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "arbitrum-mainnet",
+                    "type": "infura",
+                    "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
                   },
                 ],
               },
@@ -602,6 +698,81 @@ describe('NetworkController', () => {
                     },
                   ],
                 },
+                "0x38": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0x38",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "BSC Mainnet",
+                  "nativeCurrency": "BNB",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "bsc-mainnet",
+                      "type": "infura",
+                      "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x531": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0x531",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Sei Mainnet",
+                  "nativeCurrency": "SEI",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "sei-mainnet",
+                      "type": "infura",
+                      "url": "https://sei-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x89": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0x89",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Polygon Mainnet",
+                  "nativeCurrency": "POL",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "polygon-mainnet",
+                      "type": "infura",
+                      "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xa": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0xa",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Optimism Mainnet",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "optimism-mainnet",
+                      "type": "infura",
+                      "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xa4b1": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0xa4b1",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Arbitrum One",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "arbitrum-mainnet",
+                      "type": "infura",
+                      "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
                 "0xaa36a7": Object {
                   "blockExplorerUrls": Array [],
                   "chainId": "0xaa36a7",
@@ -681,7 +852,7 @@ describe('NetworkController', () => {
               },
             },
             networksMetadata: {
-              mainnet: {
+              [TESTNET.networkType]: {
                 EIPS: { 1559: true },
                 status: NetworkStatus.Unknown,
               },
@@ -715,7 +886,7 @@ describe('NetworkController', () => {
                 },
               },
               "networksMetadata": Object {
-                "mainnet": Object {
+                "sepolia": Object {
                   "EIPS": Object {
                     "1559": true,
                   },
@@ -1368,11 +1539,7 @@ describe('NetworkController', () => {
       const infuraChainId = ChainId[infuraNetworkType];
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
 
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`when the selectedNetworkClientId is changed to represent the Infura network "${infuraNetworkType}"`, () => {
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         it(`returns a provider object that was pointed to another network before the switch and is now pointed to ${infuraNetworkNickname} afterward`, async () => {
           const infuraProjectId = 'some-infura-project-id';
 
@@ -1747,6 +1914,51 @@ describe('NetworkController', () => {
             mockCreateNetworkClient().mockReturnValue(buildFakeClient());
 
             expect(controller.getNetworkClientRegistry()).toStrictEqual({
+              'arbitrum-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0xa4b1',
+                  ticker: 'ETH',
+                  network: InfuraNetworkType['arbitrum-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
+              'base-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0x2105',
+                  ticker: 'ETH',
+                  network: InfuraNetworkType['base-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
+              'bsc-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0x38',
+                  ticker: 'BNB',
+                  network: InfuraNetworkType['bsc-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
               'linea-mainnet': {
                 blockTracker: expect.anything(),
                 configuration: {
@@ -1792,6 +2004,51 @@ describe('NetworkController', () => {
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
               },
+              'optimism-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0xa',
+                  ticker: 'ETH',
+                  network: InfuraNetworkType['optimism-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
+              'polygon-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0x89',
+                  ticker: 'POL',
+                  network: InfuraNetworkType['polygon-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
+              'sei-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0x531',
+                  ticker: 'SEI',
+                  network: InfuraNetworkType['sei-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
               sepolia: {
                 blockTracker: expect.anything(),
                 configuration: {
@@ -1801,21 +2058,6 @@ describe('NetworkController', () => {
                   chainId: '0xaa36a7',
                   ticker: 'SepoliaETH',
                   network: InfuraNetworkType.sepolia,
-                },
-                provider: expect.anything(),
-                destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
-              },
-              'base-mainnet': {
-                blockTracker: expect.anything(),
-                configuration: {
-                  type: NetworkClientType.Infura,
-                  failoverRpcUrls: [],
-                  infuraProjectId,
-                  chainId: '0x2105',
-                  ticker: 'ETH',
-                  network: InfuraNetworkType['base-mainnet'],
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
@@ -2411,8 +2653,6 @@ describe('NetworkController', () => {
                   jest
                     .spyOn(networkControllerMessenger, 'unsubscribe')
                     .mockImplementation((eventType) => {
-                      // This is okay.
-                      // eslint-disable-next-line jest/no-conditional-in-test
                       if (eventType === 'NetworkController:networkDidChange') {
                         throw error;
                       }
@@ -2922,8 +3162,6 @@ describe('NetworkController', () => {
                 jest
                   .spyOn(networkControllerMessenger, 'unsubscribe')
                   .mockImplementation((eventType) => {
-                    // This is okay.
-                    // eslint-disable-next-line jest/no-conditional-in-test
                     if (eventType === 'NetworkController:networkDidChange') {
                       throw error;
                     }
@@ -2962,8 +3200,6 @@ describe('NetworkController', () => {
 
   describe('setProviderType', () => {
     for (const infuraNetworkType of INFURA_NETWORKS) {
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`given the Infura network "${infuraNetworkType}"`, () => {
         refreshNetworkTests({
           expectedNetworkClientConfiguration:
@@ -2975,8 +3211,6 @@ describe('NetworkController', () => {
         });
       });
 
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       it(`sets selectedNetworkClientId in state to "${infuraNetworkType}"`, async () => {
         await withController(async ({ controller }) => {
           mockCreateNetworkClient().mockReturnValue(buildFakeClient());
@@ -3118,8 +3352,6 @@ describe('NetworkController', () => {
     for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraChainId = ChainId[infuraNetworkType];
 
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`if the ID refers to a network client created for the Infura network "${infuraNetworkType}"`, () => {
         refreshNetworkTests({
           expectedNetworkClientConfiguration:
@@ -3145,8 +3377,6 @@ describe('NetworkController', () => {
           },
         });
 
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         it(`sets selectedNetworkClientId in state to "${infuraNetworkType}"`, async () => {
           await withController({}, async ({ controller }) => {
             mockCreateNetworkClient().mockReturnValue(buildFakeClient());
@@ -3625,7 +3855,7 @@ describe('NetworkController', () => {
               operation: async () => {
                 try {
                   await controller.getEIP1559Compatibility();
-                } catch (error) {
+                } catch {
                   // ignore error
                 }
               },
@@ -3640,8 +3870,6 @@ describe('NetworkController', () => {
 
   describe('resetConnection', () => {
     for (const infuraNetworkType of INFURA_NETWORKS) {
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
         refreshNetworkTests({
           expectedNetworkClientConfiguration:
@@ -3756,8 +3984,6 @@ describe('NetworkController', () => {
       for (const infuraNetworkType of INFURA_NETWORKS) {
         const infuraChainId = ChainId[infuraNetworkType];
 
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`given the ID of the Infura-supported chain "${infuraNetworkType}" that a network configuration is filed under`, () => {
           it('returns the network configuration', async () => {
             const registeredNetworkConfiguration =
@@ -3871,8 +4097,6 @@ describe('NetworkController', () => {
       for (const infuraNetworkType of INFURA_NETWORKS) {
         const infuraChainId = ChainId[infuraNetworkType];
 
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`given the ID of a network client that corresponds to an RPC endpoint for the Infura network "${infuraNetworkType}" in a network configuration`, () => {
           it('returns the network configuration', async () => {
             const registeredNetworkConfiguration =
@@ -3979,8 +4203,6 @@ describe('NetworkController', () => {
         expect(() =>
           controller.addNetwork(
             buildAddNetworkFields({
-              // False negative - this is a number.
-              // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
               chainId: toHex(MAX_SAFE_CHAIN_ID + 1),
             }),
           ),
@@ -4130,8 +4352,6 @@ describe('NetworkController', () => {
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraChainId = ChainId[infuraNetworkType];
 
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       it(`throws if rpcEndpoints contains an Infura RPC endpoint which is already present in the network configuration for the Infura-supported chain ${infuraChainId}`, async () => {
         const infuraRpcEndpoint = buildInfuraRpcEndpoint(infuraNetworkType);
 
@@ -4158,8 +4378,6 @@ describe('NetworkController', () => {
                 }),
               ),
             ).toThrow(
-              // This is a string.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `Could not add network that points to same RPC endpoint as existing network for chain ${infuraChainId} ('${infuraNetworkNickname}')`,
             );
           },
@@ -4281,8 +4499,6 @@ describe('NetworkController', () => {
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraChainId = ChainId[infuraNetworkType];
 
-      // This is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       it(`throws if a network configuration for the Infura network "${infuraNetworkNickname}" is already registered under the given chain ID`, async () => {
         await withController(
           {
@@ -4302,8 +4518,6 @@ describe('NetworkController', () => {
                 }),
               ),
             ).toThrow(
-              // This is a string.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `Could not add network for chain ${infuraChainId} as another network for that chain already exists ('${infuraNetworkNickname}')`,
             );
           },
@@ -4342,8 +4556,6 @@ describe('NetworkController', () => {
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraNativeTokenName = NetworksTicker[infuraNetworkType];
 
-      // This is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`given the ID of the Infura-supported chain ${infuraChainId}`, () => {
         it('creates a new network client for not only each custom RPC endpoint, but also the Infura RPC endpoint', async () => {
           uuidV4Mock
@@ -4398,8 +4610,6 @@ describe('NetworkController', () => {
                 name: infuraNetworkNickname,
                 networkClientId: infuraNetworkType,
                 type: RpcEndpointType.Infura as const,
-                // ESLint is mistaken here.
-                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                 url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const,
               };
 
@@ -4546,8 +4756,6 @@ describe('NetworkController', () => {
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
-                    // False negative - this is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const,
                   },
                   {
@@ -4577,8 +4785,6 @@ describe('NetworkController', () => {
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
-                    // False negative - this is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   },
                   {
@@ -4633,8 +4839,6 @@ describe('NetworkController', () => {
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
-                    // False negative - this is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const,
                   },
                 ],
@@ -4653,8 +4857,6 @@ describe('NetworkController', () => {
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
-                    // False negative - this is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   },
                 ],
@@ -4696,8 +4898,6 @@ describe('NetworkController', () => {
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
-                    // False negative - this is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const,
                   },
                 ],
@@ -4716,8 +4916,6 @@ describe('NetworkController', () => {
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
-                    // False negative - this is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   },
                 ],
@@ -5167,8 +5365,6 @@ describe('NetworkController', () => {
             controller.updateNetwork(
               '0x1337',
               buildCustomNetworkConfiguration({
-                // False negative - this is a number.
-                // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
                 chainId: toHex(MAX_SAFE_CHAIN_ID + 1),
               }),
             ),
@@ -5414,8 +5610,6 @@ describe('NetworkController', () => {
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraChainId = ChainId[infuraNetworkType];
 
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       it(`throws if an Infura RPC endpoint is being added which is already present in the network configuration for the Infura-supported chain ${infuraChainId}`, async () => {
         const networkConfigurationToUpdate = buildCustomNetworkConfiguration({
           chainId: '0x1337',
@@ -5444,8 +5638,6 @@ describe('NetworkController', () => {
                 rpcEndpoints: [infuraRpcEndpoint],
               }),
             ).rejects.toThrow(
-              // This is a string.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `Could not update network to point to same RPC endpoint as existing network for chain ${infuraChainId} ('${infuraNetworkNickname}')`,
             );
           },
@@ -5781,8 +5973,6 @@ describe('NetworkController', () => {
       const infuraChainId = ChainId[infuraNetworkType];
       const infuraNativeTokenName = NetworksTicker[infuraNetworkType];
 
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`if the existing chain ID is the Infura-supported chain ${infuraChainId} and is not being changed`, () => {
         describe('when a new Infura RPC endpoint is being added', () => {
           it('creates and registers a new network client for the RPC endpoint', async () => {
@@ -5844,8 +6034,6 @@ describe('NetworkController', () => {
                 const infuraRpcEndpoint: InfuraRpcEndpoint = {
                   failoverUrls: ['https://failover.endpoint'],
                   networkClientId: infuraNetworkType,
-                  // ESLint is mistaken here.
-                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                   url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   type: RpcEndpointType.Infura,
                 };
@@ -5929,8 +6117,6 @@ describe('NetworkController', () => {
                 const infuraRpcEndpoint: InfuraRpcEndpoint = {
                   failoverUrls: ['https://failover.endpoint'],
                   networkClientId: infuraNetworkType,
-                  // ESLint is mistaken here.
-                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                   url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   type: RpcEndpointType.Infura,
                 };
@@ -5994,8 +6180,6 @@ describe('NetworkController', () => {
                 const infuraRpcEndpoint: InfuraRpcEndpoint = {
                   failoverUrls: ['https://failover.endpoint'],
                   networkClientId: infuraNetworkType,
-                  // ESLint is mistaken here.
-                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                   url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   type: RpcEndpointType.Infura,
                 };
@@ -9761,11 +9945,7 @@ describe('NetworkController', () => {
         const anotherInfuraNetworkNickname =
           NetworkNickname[anotherInfuraNetworkType];
 
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`if the chain ID is being changed from a non-Infura-supported chain to the Infura-supported chain ${infuraChainId}`, () => {
-          // False negative - this is a string.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           it(`throws if a network configuration for the Infura network "${infuraNetworkNickname}" is already registered under the new chain ID`, async () => {
             const networkConfigurationToUpdate =
               buildCustomNetworkConfiguration({ chainId: '0x1337' });
@@ -9798,8 +9978,6 @@ describe('NetworkController', () => {
                     chainId: infuraChainId,
                   }),
                 ).rejects.toThrow(
-                  // This is a string.
-                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                   `Cannot move network from chain 0x1337 to ${infuraChainId} as another network for that chain already exists ('${infuraNetworkNickname}')`,
                 );
               },
@@ -9844,8 +10022,6 @@ describe('NetworkController', () => {
                   }),
                 ).rejects.toThrow(
                   new Error(
-                    // This is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     `Could not update network to point to same RPC endpoint as existing network for chain ${anotherInfuraChainId} ('${anotherInfuraNetworkNickname}')`,
                   ),
                 );
@@ -10453,8 +10629,6 @@ describe('NetworkController', () => {
           });
         });
 
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`if the chain ID is being changed from the Infura-supported chain ${infuraChainId} to a non-Infura-supported chain`, () => {
           it('throws if a network configuration for a custom network is already registered under the new chain ID', async () => {
             const networkConfigurationToUpdate =
@@ -10490,8 +10664,6 @@ describe('NetworkController', () => {
                     chainId: '0x1337',
                   }),
                 ).rejects.toThrow(
-                  // False negative - this is a string.
-                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                   `Cannot move network from chain ${infuraChainId} to 0x1337 as another network for that chain already exists ('Some Network')`,
                 );
               },
@@ -10529,8 +10701,6 @@ describe('NetworkController', () => {
                   }),
                 ).rejects.toThrow(
                   new Error(
-                    // This is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     `Could not update network with chain ID 0x1337 and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
                   ),
                 );
@@ -11186,11 +11356,7 @@ describe('NetworkController', () => {
           });
         });
 
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`if the chain ID is being changed from the Infura-supported chain ${infuraChainId} to a different Infura-supported chain ${anotherInfuraChainId}`, () => {
-          // False negative - this is a string.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           it(`throws if a network configuration for the Infura network "${infuraNetworkNickname}" is already registered under the new chain ID`, async () => {
             const networkConfigurationToUpdate =
               buildInfuraNetworkConfiguration(infuraNetworkType);
@@ -11224,8 +11390,6 @@ describe('NetworkController', () => {
                     chainId: anotherInfuraChainId,
                   }),
                 ).rejects.toThrow(
-                  // This is a string.
-                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                   `Cannot move network from chain ${infuraChainId} to ${anotherInfuraChainId} as another network for that chain already exists ('${anotherInfuraNetworkNickname}')`,
                 );
               },
@@ -11263,8 +11427,6 @@ describe('NetworkController', () => {
                   }),
                 ).rejects.toThrow(
                   new Error(
-                    // This is a string.
-                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     `Could not update network with chain ID ${anotherInfuraChainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
                   ),
                 );
@@ -12610,8 +12772,6 @@ describe('NetworkController', () => {
       for (const infuraNetworkType of INFURA_NETWORKS) {
         const infuraChainId = ChainId[infuraNetworkType];
 
-        // This is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`given the ID of the Infura-supported chain ${infuraChainId}`, () => {
           it('makes no updates to state', async () => {
             const existingNetworkConfiguration =
@@ -12957,8 +13117,6 @@ describe('NetworkController', () => {
     for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraChainId = ChainId[infuraNetworkType];
 
-      // This is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`given the ID of the Infura-supported chain ${infuraChainId}`, () => {
         it('removes the existing network configuration from state', async () => {
           await withController(
@@ -12989,6 +13147,41 @@ describe('NetworkController', () => {
               expect(
                 controller.state.networkConfigurationsByChainId,
               ).not.toHaveProperty(infuraChainId);
+            },
+          );
+        });
+
+        it('removes the existing metadata for the network from state', async () => {
+          await withController(
+            {
+              state: {
+                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                networkConfigurationsByChainId: {
+                  [infuraChainId]:
+                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  '0x1337': buildCustomNetworkConfiguration({
+                    chainId: '0x1337',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      }),
+                    ],
+                  }),
+                },
+                networksMetadata: {
+                  [infuraNetworkType]: {
+                    status: NetworkStatus.Available,
+                    EIPS: {},
+                  },
+                },
+              },
+            },
+            ({ controller }) => {
+              controller.removeNetwork(infuraChainId);
+
+              expect(controller.state.networksMetadata).not.toHaveProperty(
+                infuraNetworkType,
+              );
             },
           );
         });
@@ -13053,7 +13246,7 @@ describe('NetworkController', () => {
     }
 
     describe('given the ID of a non-Infura-supported chain', () => {
-      it('removes the existing network configuration', async () => {
+      it('removes the existing network configuration from state', async () => {
         await withController(
           {
             state: {
@@ -13076,6 +13269,61 @@ describe('NetworkController', () => {
             expect(
               controller.state.networkConfigurationsByChainId,
             ).not.toHaveProperty('0x1337');
+          },
+        );
+      });
+
+      it('removes the existing metadata for all RPC endpoints in the network from state', async () => {
+        await withController(
+          {
+            state: {
+              selectedNetworkClientId: TESTNET.networkType,
+              networkConfigurationsByChainId: {
+                '0x1337': buildCustomNetworkConfiguration({
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    }),
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                    }),
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'CCCC-CCCC-CCCC-CCCC',
+                    }),
+                  ],
+                }),
+                [TESTNET.chainId]: buildInfuraNetworkConfiguration(
+                  TESTNET.networkType,
+                ),
+              },
+              networksMetadata: {
+                'AAAA-AAAA-AAAA-AAAA': {
+                  status: NetworkStatus.Available,
+                  EIPS: {},
+                },
+                'BBBB-BBBB-BBBB-BBBB': {
+                  status: NetworkStatus.Available,
+                  EIPS: {},
+                },
+                'CCCC-CCCC-CCCC-CCCC': {
+                  status: NetworkStatus.Available,
+                  EIPS: {},
+                },
+              },
+            },
+          },
+          ({ controller }) => {
+            controller.removeNetwork('0x1337');
+
+            expect(controller.state.networksMetadata).not.toHaveProperty(
+              'AAAA-AAAA-AAAA-AAAA',
+            );
+            expect(controller.state.networksMetadata).not.toHaveProperty(
+              'BBBB-BBBB-BBBB-BBBB',
+            );
+            expect(controller.state.networksMetadata).not.toHaveProperty(
+              'CCCC-CCCC-CCCC-CCCC',
+            );
           },
         );
       });
@@ -13186,8 +13434,6 @@ describe('NetworkController', () => {
   describe('rollbackToPreviousProvider', () => {
     describe('when called not following any network switches', () => {
       for (const infuraNetworkType of INFURA_NETWORKS) {
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
           refreshNetworkTests({
             expectedNetworkClientConfiguration:
@@ -13237,8 +13483,6 @@ describe('NetworkController', () => {
     for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraChainId = ChainId[infuraNetworkType];
 
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`when called following a switch away from the Infura network "${infuraNetworkType}"`, () => {
         it('emits networkWillChange with state payload', async () => {
           await withController(
@@ -13460,8 +13704,6 @@ describe('NetworkController', () => {
           );
         });
 
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         it(`initializes a provider pointed to the "${infuraNetworkType}" Infura network`, async () => {
           const infuraProjectId = 'some-infura-project-id';
 
@@ -14554,6 +14796,81 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x38": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x38",
+                "defaultRpcEndpointIndex": 0,
+                "name": "BSC Mainnet",
+                "nativeCurrency": "BNB",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "bsc-mainnet",
+                    "type": "infura",
+                    "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x531": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x531",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Sei Mainnet",
+                "nativeCurrency": "SEI",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "sei-mainnet",
+                    "type": "infura",
+                    "url": "https://sei-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x89": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x89",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Polygon Mainnet",
+                "nativeCurrency": "POL",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "polygon-mainnet",
+                    "type": "infura",
+                    "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Optimism Mainnet",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "optimism-mainnet",
+                    "type": "infura",
+                    "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa4b1": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa4b1",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Arbitrum One",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "arbitrum-mainnet",
+                    "type": "infura",
+                    "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0xaa36a7": Object {
                 "blockExplorerUrls": Array [],
                 "chainId": "0xaa36a7",
@@ -14648,6 +14965,81 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x38": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x38",
+                "defaultRpcEndpointIndex": 0,
+                "name": "BSC Mainnet",
+                "nativeCurrency": "BNB",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "bsc-mainnet",
+                    "type": "infura",
+                    "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x531": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x531",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Sei Mainnet",
+                "nativeCurrency": "SEI",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "sei-mainnet",
+                    "type": "infura",
+                    "url": "https://sei-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x89": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x89",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Polygon Mainnet",
+                "nativeCurrency": "POL",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "polygon-mainnet",
+                    "type": "infura",
+                    "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Optimism Mainnet",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "optimism-mainnet",
+                    "type": "infura",
+                    "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa4b1": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa4b1",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Arbitrum One",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "arbitrum-mainnet",
+                    "type": "infura",
+                    "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0xaa36a7": Object {
                 "blockExplorerUrls": Array [],
                 "chainId": "0xaa36a7",
@@ -14739,6 +15131,81 @@ describe('NetworkController', () => {
                     "networkClientId": "base-mainnet",
                     "type": "infura",
                     "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x38": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x38",
+                "defaultRpcEndpointIndex": 0,
+                "name": "BSC Mainnet",
+                "nativeCurrency": "BNB",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "bsc-mainnet",
+                    "type": "infura",
+                    "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x531": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x531",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Sei Mainnet",
+                "nativeCurrency": "SEI",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "sei-mainnet",
+                    "type": "infura",
+                    "url": "https://sei-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x89": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x89",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Polygon Mainnet",
+                "nativeCurrency": "POL",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "polygon-mainnet",
+                    "type": "infura",
+                    "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Optimism Mainnet",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "optimism-mainnet",
+                    "type": "infura",
+                    "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa4b1": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xa4b1",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Arbitrum One",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "arbitrum-mainnet",
+                    "type": "infura",
+                    "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
                   },
                 ],
               },
@@ -15215,7 +15682,7 @@ function lookupNetworkTests({
             state: {
               ...initialState,
               networksMetadata: {
-                mainnet: {
+                [expectedNetworkClientId]: {
                   EIPS: { 1559: false },
                   status: NetworkStatus.Unknown,
                 },
@@ -15258,7 +15725,7 @@ function lookupNetworkTests({
             state: {
               ...initialState,
               networksMetadata: {
-                mainnet: {
+                [expectedNetworkClientId]: {
                   EIPS: { 1559: true },
                   status: NetworkStatus.Unknown,
                 },
@@ -16150,9 +16617,7 @@ async function withController<ReturnValue>(
     return await fn({ controller, messenger, networkControllerMessenger });
   } finally {
     const { blockTracker } = controller.getProviderAndBlockTracker();
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    blockTracker?.destroy();
+    await blockTracker?.destroy();
   }
 }
 
@@ -16174,7 +16639,9 @@ function buildFakeClient(
       rpcUrl: 'https://test.network',
     },
     provider,
-    blockTracker: new FakeBlockTracker({ provider }),
+    blockTracker: new FakeBlockTracker({
+      provider,
+    }),
     destroy: () => {
       // do nothing
     },
@@ -16275,8 +16742,6 @@ async function setFakeProvider(
  * @returns A promise that resolves to the list of payloads for the set of
  * events, optionally filtered, when a specific number of them have occurred.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 async function waitForPublishedEvents<E extends NetworkControllerEvents>({
   messenger,
   eventType,
@@ -16339,17 +16804,15 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
           if (interestingEventPayloads.length === expectedNumberOfEvents) {
             resolve(interestingEventPayloads);
           } else {
-            // Using a string instead of an Error leads to better backtraces.
-            /* eslint-disable-next-line prefer-promise-reject-errors */
             reject(
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-              `Expected to receive ${expectedNumberOfEvents} ${eventType} event(s), but received ${
-                interestingEventPayloads.length
-              } after ${timeBeforeAssumingNoMoreEvents}ms.\n\nAll payloads:\n\n${inspect(
-                allEventPayloads,
-                { depth: null },
-              )}`,
+              new Error(
+                `Expected to receive ${expectedNumberOfEvents} ${String(eventType)} event(s), but received ${
+                  interestingEventPayloads.length
+                } after ${timeBeforeAssumingNoMoreEvents}ms.\n\nAll payloads:\n\n${inspect(
+                  allEventPayloads,
+                  { depth: null },
+                )}`,
+              ),
             );
           }
           alreadyEnded = true;

@@ -180,6 +180,7 @@ const setupController = ({
             units: [{ symbol: 'USDC', name: 'USDC', decimals: 2 }],
           },
       },
+      allIgnoredAssets: {},
     }),
   );
 
@@ -994,6 +995,7 @@ describe('MultichainAssetsRatesController', () => {
               units: [{ symbol: 'SOL', name: 'Solana', decimals: 9 }],
             },
           },
+          allIgnoredAssets: {},
         }),
       );
 

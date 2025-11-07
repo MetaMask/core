@@ -117,4 +117,87 @@ describe('asV2Middleware', () => {
     await v2Engine.handle(makeRequest());
     expect(observedContextValues).toStrictEqual([1, 2]);
   });
+
+  describe('with legacy middleware', () => {
+    it('accepts a single legacy middleware', async () => {
+      const legacyMiddleware = jest.fn((_req, res, _next, end) => {
+        res.result = 'test-result';
+        end();
+      });
+
+      const v2Engine = JsonRpcEngineV2.create({
+        middleware: [asV2Middleware(legacyMiddleware)],
+      });
+
+      const result = await v2Engine.handle(makeRequest());
+      expect(result).toBe('test-result');
+      expect(legacyMiddleware).toHaveBeenCalledTimes(1);
+    });
+
+    it('accepts multiple legacy middlewares via rest params', async () => {
+      const middleware1 = jest.fn((req, _res, next) => {
+        req.visited1 = true;
+        next();
+      });
+
+      const middleware2 = jest.fn((req, res, _next, end) => {
+        expect(req.visited1).toBe(true);
+        res.result = 'composed-result';
+        end();
+      });
+
+      const v2Engine = JsonRpcEngineV2.create({
+        middleware: [asV2Middleware(middleware1, middleware2)],
+      });
+
+      const result = await v2Engine.handle(makeRequest());
+      expect(result).toBe('composed-result');
+      expect(middleware1).toHaveBeenCalledTimes(1);
+      expect(middleware2).toHaveBeenCalledTimes(1);
+    });
+
+    it('forwards errors from legacy middleware', async () => {
+      const legacyMiddleware = jest.fn((_req, res, _next, end) => {
+        res.error = rpcErrors.internal('legacy-error');
+        end();
+      });
+
+      const v2Engine = JsonRpcEngineV2.create({
+        middleware: [asV2Middleware(legacyMiddleware)],
+      });
+
+      await expect(v2Engine.handle(makeRequest())).rejects.toThrow(
+        rpcErrors.internal('legacy-error'),
+      );
+    });
+
+    it('does not forward undefined errors from legacy middleware', async () => {
+      const legacyMiddleware = jest.fn((_req, res, _next, end) => {
+        res.error = undefined;
+        res.result = 42;
+        end();
+      });
+
+      const v2Engine = JsonRpcEngineV2.create({
+        middleware: [asV2Middleware(legacyMiddleware)],
+      });
+
+      const result = await v2Engine.handle(makeRequest());
+      expect(result).toBe(42);
+    });
+
+    it('allows v2 engine to continue when legacy middleware does not end', async () => {
+      const legacyMiddleware = jest.fn((_req, _res, next) => {
+        next();
+      });
+
+      const v2Engine = JsonRpcEngineV2.create({
+        middleware: [asV2Middleware(legacyMiddleware), makeNullMiddleware()],
+      });
+
+      const result = await v2Engine.handle(makeRequest());
+      expect(result).toBeNull();
+      expect(legacyMiddleware).toHaveBeenCalledTimes(1);
+    });
+  });
 });

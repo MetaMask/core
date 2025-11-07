@@ -8,21 +8,27 @@ import type {
 } from '@metamask/utils';
 import { hasProperty, isObject } from '@metamask/utils';
 
-import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
+import type {
+  HandleOptions,
+  JsonRpcMiddleware,
+  MergedContextOf,
+  MiddlewareConstraint,
+  RequestOf,
+} from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import type { JsonRpcCall } from './utils';
 import { getUniqueId } from '../getUniqueId';
 
 type OnError = (error: unknown) => void;
 
-type Options = {
+type Options<Middleware extends MiddlewareConstraint> = {
   onError?: OnError;
 } & (
   | {
-      engine: JsonRpcEngineV2;
+      engine: ReturnType<typeof JsonRpcEngineV2.create<Middleware>>;
     }
   | {
-      middleware: NonEmptyArray<JsonRpcMiddleware>;
+      middleware: NonEmptyArray<Middleware>;
     }
 );
 
@@ -33,6 +39,9 @@ const jsonrpc = '2.0' as const;
  *
  * Essentially wraps a {@link JsonRpcEngineV2} in order to create a conformant
  * yet permissive JSON-RPC 2.0 server.
+ *
+ * Note that the server will accept both requests and notifications via {@link handle},
+ * even if the underlying engine is only able to handle one or the other.
  *
  * @example
  * ```ts
@@ -49,8 +58,13 @@ const jsonrpc = '2.0' as const;
  * }
  * ```
  */
-export class JsonRpcServer {
-  readonly #engine: JsonRpcEngineV2;
+export class JsonRpcServer<
+  Middleware extends MiddlewareConstraint = JsonRpcMiddleware,
+> {
+  readonly #engine: JsonRpcEngineV2<
+    RequestOf<Middleware>,
+    MergedContextOf<Middleware>
+  >;
 
   readonly #onError?: OnError | undefined;
 
@@ -67,13 +81,14 @@ export class JsonRpcServer {
    * @param options.middleware - The middleware to use. Mutually exclusive with
    * `engine`.
    */
-  constructor(options: Options) {
+  constructor(options: Options<Middleware>) {
     this.#onError = options.onError;
 
     if (hasProperty(options, 'engine')) {
       // @ts-expect-error - hasProperty fails to narrow the type.
       this.#engine = options.engine;
     } else {
+      // @ts-expect-error - TypeScript complains that engine is of the wrong type, but clearly it's not.
       this.#engine = JsonRpcEngineV2.create({ middleware: options.middleware });
     }
   }
@@ -84,10 +99,18 @@ export class JsonRpcServer {
    * This method never throws. For requests, a response is always returned.
    * All errors are passed to the engine's `onError` callback.
    *
+   * **WARNING**: This method is unaware of the request type of the underlying
+   * engine. The request will fail if the engine can only handle notifications.
+   *
    * @param request - The request to handle.
+   * @param options - The options for the handle operation.
+   * @param options.context - The context to pass to the middleware.
    * @returns The JSON-RPC response.
    */
-  async handle(request: JsonRpcRequest): Promise<JsonRpcResponse>;
+  async handle(
+    request: JsonRpcRequest,
+    options?: HandleOptions<MergedContextOf<Middleware>>,
+  ): Promise<JsonRpcResponse>;
 
   /**
    * Handle a JSON-RPC notification.
@@ -95,35 +118,56 @@ export class JsonRpcServer {
    * This method never throws. For notifications, `undefined` is always returned.
    * All errors are passed to the engine's `onError` callback.
    *
+   * **WARNING**: This method is unaware of the request type of the underlying
+   * engine. The request will fail if the engine cannot handle notifications.
+   *
    * @param notification - The notification to handle.
+   * @param options - The options for the handle operation.
+   * @param options.context - The context to pass to the middleware.
    */
-  async handle(notification: JsonRpcNotification): Promise<void>;
+  async handle(
+    notification: JsonRpcNotification,
+    options?: HandleOptions<MergedContextOf<Middleware>>,
+  ): Promise<void>;
 
   /**
    * Handle an alleged JSON-RPC request or notification. Permits any plain
    * object with `{ method: string }`, so long as any present JSON-RPC 2.0
-   * properties are valid. If the object has no `id`, it will be treated as
-   * a notification and vice versa.
+   * properties are valid. If the object has an `id` property, it will be
+   * treated as a request, otherwise it will be treated as a notification.
    *
    * This method never throws. All errors are passed to the engine's
    * `onError` callback. A JSON-RPC response is always returned for requests,
    * and `undefined` is returned for notifications.
    *
+   * **WARNING**: The request will fail if its coerced type (i.e. request or
+   * response) is not of the type expected by the underlying engine.
+   *
    * @param rawRequest - The raw request to handle.
+   * @param options - The options for the handle operation.
+   * @param options.context - The context to pass to the middleware.
    * @returns The JSON-RPC response, or `undefined` if the request is a
    * notification.
    */
-  async handle(rawRequest: unknown): Promise<JsonRpcResponse | void>;
+  async handle(
+    rawRequest: unknown,
+    options?: HandleOptions<MergedContextOf<Middleware>>,
+  ): Promise<JsonRpcResponse | void>;
 
-  async handle(rawRequest: unknown): Promise<JsonRpcResponse | void> {
+  async handle(
+    rawRequest: unknown,
+    options?: HandleOptions<MergedContextOf<Middleware>>,
+  ): Promise<JsonRpcResponse | void> {
     // If rawRequest is not a notification, the originalId will be attached
     // to the response. We attach our own, trusted id in #coerceRequest()
     // while the request is being handled.
     const [originalId, isRequest] = getOriginalId(rawRequest);
 
     try {
-      const request = this.#coerceRequest(rawRequest, isRequest);
-      const result = await this.#engine.handle(request);
+      const request = JsonRpcServer.#coerceRequest(rawRequest, isRequest);
+      // @ts-expect-error - The request may not be of the type expected by the engine,
+      // and we intentionally allow this to happen.
+      const result = await this.#engine.handle(request, options);
 
       if (result !== undefined) {
         return {
@@ -151,7 +195,7 @@ export class JsonRpcServer {
     return undefined;
   }
 
-  #coerceRequest(rawRequest: unknown, isRequest: boolean): JsonRpcCall {
+  static #coerceRequest(rawRequest: unknown, isRequest: boolean): JsonRpcCall {
     if (!isMinimalRequest(rawRequest)) {
       throw rpcErrors.invalidRequest({
         data: {
@@ -213,7 +257,6 @@ function hasValidParams(
   if (hasProperty(rawRequest, 'params')) {
     return Array.isArray(rawRequest.params) || isObject(rawRequest.params);
   }
-
   return true;
 }
 
@@ -228,6 +271,5 @@ function getOriginalId(rawRequest: unknown): [unknown, boolean] {
   if (isObject(rawRequest) && hasProperty(rawRequest, 'id')) {
     return [rawRequest.id, true];
   }
-
   return [undefined, false];
 }
