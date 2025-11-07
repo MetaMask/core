@@ -514,7 +514,7 @@ export function createWalletMiddleware({
     return await processEncryptionPublicKey(address, {
       id: request.id as string | number,
       origin: context.assertGet('origin'),
-      securityAlertResponse: context.assertGet('securityAlertResponse'),
+      securityAlertResponse: context.get('securityAlertResponse'),
     });
   }
 
@@ -557,7 +557,7 @@ export function createWalletMiddleware({
     return await processDecryptMessage(msgParams, {
       id: request.id as string | number,
       origin: context.assertGet('origin'),
-      securityAlertResponse: context.assertGet('securityAlertResponse'),
+      securityAlertResponse: context.get('securityAlertResponse'),
     });
   }
 
