@@ -996,6 +996,16 @@ describe('MultichainAccountService', () => {
       expect(wallet).toBeDefined();
       expect(wallet.entropySource).toBe('abc');
     });
+
+    it('resync accounts with MultichainAccountService:resyncAccounts', async () => {
+      const accounts = [MOCK_HD_ACCOUNT_1];
+      const { messenger } = await setup({ accounts });
+
+      // We only check that we can call the actions here:
+      expect(
+        await messenger.call('MultichainAccountService:resyncAccounts'),
+      ).toBeUndefined(); // Nothing to return (void).
+    });
   });
 
   describe('resyncAccounts', () => {
