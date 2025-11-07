@@ -15,6 +15,7 @@ export type {
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerStateChangeEvent,
+  SubscriptionControllerSubmitSponsorshipIntentsAction,
   AllowedActions,
   AllowedEvents,
 } from './SubscriptionController';
@@ -36,6 +37,7 @@ export type {
   SubscriptionCryptoPaymentMethod,
   SubscriptionPaymentMethod,
   SubmitUserEventRequest,
+  SubmitSponsorshipIntentsRequest,
   SubscriptionEligibility,
   SubscriptionUserEventType,
   RecurringInterval,
@@ -56,6 +58,8 @@ export type {
   UpdatePaymentMethodCryptoRequest,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCardResponse,
+  CachedLastSelectedPaymentMethod,
+  SubmitSponsorshipIntentsMethodParams,
 } from './types';
 export {
   CRYPTO_PAYMENT_METHOD_ERRORS,

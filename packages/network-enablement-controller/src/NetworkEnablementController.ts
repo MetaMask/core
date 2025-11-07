@@ -2,10 +2,10 @@ import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import type { Messenger } from '@metamask/messenger';
 import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
 import type {
   NetworkControllerGetStateAction,
@@ -94,12 +94,10 @@ export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | TransactionControllerTransactionSubmittedEvent;
 
-export type NetworkEnablementControllerMessenger = RestrictedMessenger<
+export type NetworkEnablementControllerMessenger = Messenger<
   typeof controllerName,
   NetworkEnablementControllerActions | AllowedActions,
-  NetworkEnablementControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  NetworkEnablementControllerEvents | AllowedEvents
 >;
 
 /**
@@ -114,6 +112,11 @@ const getDefaultNetworkEnablementControllerState =
         [ChainId[BuiltInNetworkName.Mainnet]]: true,
         [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
         [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
+        [ChainId[BuiltInNetworkName.ArbitrumOne]]: true,
+        [ChainId[BuiltInNetworkName.BscMainnet]]: true,
+        [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
+        [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
+        [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
       },
       [KnownCaipNamespace.Solana]: {
         [SolScope.Mainnet]: true,
@@ -138,7 +141,7 @@ const metadata = {
   enabledNetworkMap: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
 };
@@ -293,10 +296,10 @@ export class NetworkEnablementController extends BaseController<
       });
 
       // Get current network configurations to check if networks exist
-      const networkControllerState = this.messagingSystem.call(
+      const networkControllerState = this.messenger.call(
         'NetworkController:getState',
       );
-      const multichainState = this.messagingSystem.call(
+      const multichainState = this.messenger.call(
         'MultichainNetworkController:getState',
       );
 
@@ -371,12 +374,12 @@ export class NetworkEnablementController extends BaseController<
   init(): void {
     this.update((s) => {
       // Get network configurations from NetworkController (EVM networks)
-      const networkControllerState = this.messagingSystem.call(
+      const networkControllerState = this.messenger.call(
         'NetworkController:getState',
       );
 
       // Get network configurations from MultichainNetworkController (all networks)
-      const multichainState = this.messagingSystem.call(
+      const multichainState = this.messenger.call(
         'MultichainNetworkController:getState',
       );
 
@@ -475,7 +478,7 @@ export class NetworkEnablementController extends BaseController<
    */
   #isInPopularNetworksMode(): boolean {
     // Get current network configurations to check which popular networks exist
-    const networkControllerState = this.messagingSystem.call(
+    const networkControllerState = this.messenger.call(
       'NetworkController:getState',
     );
 

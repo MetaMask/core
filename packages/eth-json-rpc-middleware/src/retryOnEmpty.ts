@@ -1,5 +1,5 @@
 import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import type { Json, JsonRpcParams } from '@metamask/utils';
@@ -21,21 +21,23 @@ import { timeout } from './utils/timeout';
 const log = createModuleLogger(projectLogger, 'retry-on-empty');
 // empty values used to determine if a request should be retried
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
-const emptyValues: (string | null | undefined)[] = [
-  undefined,
-  null,
-  '\u003cnil\u003e',
-];
+const emptyValues = [null, '\u003cnil\u003e'];
 
-type RetryOnEmptyMiddlewareOptions = {
-  provider?: SafeEventEmitterProvider;
-  blockTracker?: PollingBlockTracker;
-};
-
+/**
+ * Creates a middleware that retries requests with empty responses.
+ *
+ * @param options - The options for the middleware.
+ * @param options.provider - The provider to use.
+ * @param options.blockTracker - The block tracker to use.
+ * @returns The middleware.
+ */
 export function createRetryOnEmptyMiddleware({
   provider,
   blockTracker,
-}: RetryOnEmptyMiddlewareOptions = {}): JsonRpcMiddleware<JsonRpcParams, Json> {
+}: {
+  provider?: InternalProvider;
+  blockTracker?: PollingBlockTracker;
+} = {}): JsonRpcMiddleware<JsonRpcParams, Json> {
   if (!provider) {
     throw Error(
       'RetryOnEmptyMiddleware - mandatory "provider" option is missing.',
@@ -122,6 +124,13 @@ export function createRetryOnEmptyMiddleware({
   });
 }
 
+/**
+ * Retries an asynchronous function up to a maximum number of times.
+ *
+ * @param maxRetries - The maximum number of retries.
+ * @param asyncFn - The asynchronous function to retry.
+ * @returns The result of the asynchronous function.
+ */
 async function retry<Result>(
   maxRetries: number,
   asyncFn: () => Promise<Result>,

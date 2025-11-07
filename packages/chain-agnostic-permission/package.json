@@ -1,6 +1,6 @@
 {
   "name": "@metamask/chain-agnostic-permission",
-  "version": "1.2.0",
+  "version": "1.2.2",
   "description": "Defines a CAIP-25 based endowment permission and helpers for interfacing with it",
   "keywords": [
     "MetaMask",
@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/chain-agnostic-permission",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/chain-agnostic-permission",
@@ -48,9 +49,9 @@
   },
   "dependencies": {
     "@metamask/api-specs": "^0.14.0",
-    "@metamask/controller-utils": "^11.14.1",
-    "@metamask/network-controller": "^24.3.0",
-    "@metamask/permission-controller": "^11.1.0",
+    "@metamask/controller-utils": "^11.15.0",
+    "@metamask/network-controller": "^25.0.0",
+    "@metamask/permission-controller": "^12.1.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.8.1",
     "lodash": "^4.17.21"
@@ -58,13 +59,14 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-internal-api": "^9.0.0",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "engines": {
     "node": "^18.18 || >=20"

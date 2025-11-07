@@ -1,4 +1,4 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { Balance, CaipAssetType } from '@metamask/keyring-api';
 import {
   BtcAccountType,
@@ -13,6 +13,13 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { v4 as uuidv4 } from 'uuid';
 
 import { MultichainBalancesController } from '.';
@@ -21,10 +28,6 @@ import type {
   MultichainBalancesControllerState,
 } from '.';
 import { getDefaultMultichainBalancesControllerState } from './MultichainBalancesController';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../../base-controller/tests/helpers';
 
 const mockBtcAccount = {
   address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',
@@ -103,21 +106,26 @@ const mockBalanceResult = {
 /**
  * The union of actions that the root messenger allows.
  */
-type RootAction = ExtractAvailableAction<MultichainBalancesControllerMessenger>;
+type RootAction = MessengerActions<MultichainBalancesControllerMessenger>;
 
 /**
  * The union of events that the root messenger allows.
  */
-type RootEvent = ExtractAvailableEvent<MultichainBalancesControllerMessenger>;
+type RootEvent = MessengerEvents<MultichainBalancesControllerMessenger>;
 
 /**
- * Constructs the unrestricted messenger. This can be used to call actions and
+ * The root messenger type
+ */
+type RootMessenger = Messenger<MockAnyNamespace, RootAction, RootEvent>;
+
+/**
+ * Constructs the root messenger. This can be used to call actions and
  * publish events within the tests for this controller.
  *
- * @returns The unrestricted messenger suited for MultichainBalancesController.
+ * @returns The root messenger suited for MultichainBalancesController.
  */
-function getRootMessenger(): Messenger<RootAction, RootEvent> {
-  return new Messenger<RootAction, RootEvent>();
+function getRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 /**
@@ -127,23 +135,33 @@ function getRootMessenger(): Messenger<RootAction, RootEvent> {
  * @returns The unrestricted messenger suited for MultichainBalancesController.
  */
 function getRestrictedMessenger(
-  messenger: Messenger<RootAction, RootEvent>,
+  messenger: RootMessenger,
 ): MultichainBalancesControllerMessenger {
-  return messenger.getRestricted({
-    name: 'MultichainBalancesController',
-    allowedActions: [
+  const multichainBalancesControllerMessenger = new Messenger<
+    'MultichainBalancesController',
+    RootAction,
+    RootEvent,
+    RootMessenger
+  >({
+    namespace: 'MultichainBalancesController',
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: multichainBalancesControllerMessenger,
+    actions: [
       'SnapController:handleRequest',
       'AccountsController:listMultichainAccounts',
       'MultichainAssetsController:getState',
       'KeyringController:getState',
     ],
-    allowedEvents: [
+    events: [
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
       'AccountsController:accountBalancesUpdated',
       'MultichainAssetsController:accountAssetListUpdated',
     ],
   });
+  return multichainBalancesControllerMessenger;
 }
 
 const setupController = ({
@@ -625,6 +643,96 @@ describe('MultichainBalancesController', () => {
         },
       });
     });
+
+    it('sets balance to zero for assets that were added but have no balance from snap', async () => {
+      const mockSolanaAccountId1 = mockListSolanaAccounts[0].id;
+
+      const existingBalancesState = {
+        [mockSolanaAccountId1]: {
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:existingToken': {
+            amount: '5.00000000',
+            unit: 'SOL',
+          },
+        },
+      };
+
+      const {
+        controller,
+        messenger,
+        mockSnapHandleRequest,
+        mockListMultichainAccounts,
+      } = setupController({
+        state: {
+          balances: existingBalancesState,
+        },
+        mocks: {
+          handleMockGetAssetsState: {
+            accountsAssets: {
+              [mockSolanaAccountId1]: [
+                'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:existingToken',
+              ],
+            },
+          },
+          handleRequestReturnValue: {
+            'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:existingToken': {
+              amount: '5.00000000',
+              unit: 'SOL',
+            },
+          },
+          listMultichainAccounts: [mockListSolanaAccounts[0]],
+        },
+      });
+
+      mockSnapHandleRequest.mockReset();
+      mockListMultichainAccounts.mockReset();
+
+      mockListMultichainAccounts.mockReturnValue(mockListSolanaAccounts);
+
+      // Mock snap returning balance for only one asset, not the newly added ones
+      mockSnapHandleRequest.mockResolvedValueOnce({
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newTokenWithBalance': {
+          amount: '1.00000000',
+          unit: 'SOL',
+        },
+        // Note: newTokenWithoutBalance is not returned by snap, so it should get 0 balance
+      });
+
+      // Simulate adding assets where some have balance and some don't
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          [mockSolanaAccountId1]: {
+            added: [
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newTokenWithBalance',
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newTokenWithoutBalance',
+            ],
+            removed: [],
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
+      expect(controller.state.balances).toStrictEqual({
+        [mockSolanaAccountId1]: {
+          // Existing balance should remain
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:existingToken': {
+            amount: '5.00000000',
+            unit: 'SOL',
+          },
+          // New asset with balance from snap
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newTokenWithBalance': {
+            amount: '1.00000000',
+            unit: 'SOL',
+          },
+          // New asset without balance from snap should get zero balance
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newTokenWithoutBalance':
+            {
+              amount: '0',
+              unit: '',
+            },
+        },
+      });
+    });
   });
 
   it('resumes updating balances after unlocking KeyringController', async () => {
@@ -651,7 +759,7 @@ describe('MultichainBalancesController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });

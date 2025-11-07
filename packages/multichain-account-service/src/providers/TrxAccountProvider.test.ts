@@ -1,5 +1,4 @@
 import { isBip44Account } from '@metamask/account-api';
-import type { Messenger } from '@metamask/base-controller';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type {
@@ -8,7 +7,11 @@ import type {
 } from '@metamask/keyring-internal-api';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
-import { TrxAccountProvider } from './TrxAccountProvider';
+import {
+  TRX_ACCOUNT_PROVIDER_NAME,
+  TrxAccountProvider,
+} from './TrxAccountProvider';
+import { TraceName } from '../constants/traces';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -17,13 +20,8 @@ import {
   MOCK_TRX_ACCOUNT_1,
   MOCK_TRX_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
+  type RootMessenger,
 } from '../tests';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  MultichainAccountServiceActions,
-  MultichainAccountServiceEvents,
-} from '../types';
 
 class MockTronKeyring {
   readonly type = 'MockTronKeyring';
@@ -39,51 +37,40 @@ class MockTronKeyring {
     this.accounts = accounts;
   }
 
-  #getIndexFromDerivationPath(derivationPath: string): number {
-    // eslint-disable-next-line prefer-regex-literals
-    const derivationPathIndexRegex = new RegExp(
-      "^m/44'/195'/0'/(?<index>[0-9]+)'$",
-      'u',
-    );
-
-    const matched = derivationPath.match(derivationPathIndexRegex);
-    if (matched?.groups?.index === undefined) {
-      throw new Error('Unable to extract index');
-    }
-
-    const { index } = matched.groups;
-    return Number(index);
-  }
-
   createAccount: SnapKeyring['createAccount'] = jest
     .fn()
-    .mockImplementation((_, { derivationPath }) => {
-      if (derivationPath !== undefined) {
-        const index = this.#getIndexFromDerivationPath(derivationPath);
-        const found = this.accounts.find(
-          (account) =>
-            isBip44Account(account) &&
-            account.options.entropy.groupIndex === index,
-        );
+    .mockImplementation((_, { index }) => {
+      // Use the provided index or fallback to accounts length
+      const groupIndex = index !== undefined ? index : this.accounts.length;
 
-        if (found) {
-          return found; // Idempotent.
-        }
+      // Check if an account already exists for this group index (idempotent behavior)
+      const found = this.accounts.find(
+        (account) =>
+          isBip44Account(account) &&
+          account.options.entropy.groupIndex === groupIndex,
+      );
+
+      if (found) {
+        return found; // Idempotent.
       }
 
+      // Create new account with the correct group index
       const account = MockAccountBuilder.from(MOCK_TRX_ACCOUNT_1)
         .withUuid()
         .withAddressSuffix(`${this.accounts.length}`)
-        .withGroupIndex(this.accounts.length)
+        .withGroupIndex(groupIndex)
         .get();
       this.accounts.push(account);
 
       return account;
     });
+
+  // Add discoverAccounts method to match the provider's usage
+  discoverAccounts = jest.fn().mockResolvedValue([]);
 }
 
 /**
- * Sets up a SolAccountProvider for testing.
+ * Sets up a TrxAccountProvider for testing.
  *
  * @param options - Configuration options for setup.
  * @param options.messenger - An optional messenger instance to use. Defaults to a new Messenger.
@@ -94,22 +81,17 @@ function setup({
   messenger = getRootMessenger(),
   accounts = [],
 }: {
-  messenger?: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  messenger?: RootMessenger;
   accounts?: InternalAccount[];
 } = {}): {
   provider: AccountProviderWrapper;
-  messenger: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  messenger: RootMessenger;
   keyring: MockTronKeyring;
   mocks: {
     handleRequest: jest.Mock;
     keyring: {
       createAccount: jest.Mock;
+      discoverAccounts: jest.Mock;
     };
   };
 } {
@@ -120,11 +102,17 @@ function setup({
     () => accounts,
   );
 
-  const mockHandleRequest = jest
-    .fn()
-    .mockImplementation((address: string) =>
-      keyring.accounts.find((account) => account.address === address),
+  const mockHandleRequest = jest.fn().mockImplementation((request) => {
+    // Handle KeyringClient discoverAccounts calls
+    if (request.request?.method === 'keyring_discoverAccounts') {
+      // Return the keyring's discoverAccounts result directly
+      return keyring.discoverAccounts();
+    }
+    // Handle other requests (fallback for legacy compatibility)
+    return keyring.accounts.find(
+      (account) => account.address === request.address,
     );
+  });
   messenger.registerActionHandler(
     'SnapController:handleRequest',
     mockHandleRequest,
@@ -155,6 +143,7 @@ function setup({
       handleRequest: mockHandleRequest,
       keyring: {
         createAccount: keyring.createAccount as jest.Mock,
+        discoverAccounts: keyring.discoverAccounts as jest.Mock,
       },
     },
   };
@@ -247,7 +236,7 @@ describe('TrxAccountProvider', () => {
   });
 
   // Skip this test for now, since we manually inject those options upon
-  // account creation, so it cannot fails (until the Solana Snap starts
+  // account creation, so it cannot fails (until the Tron Snap starts
   // using the new typed options).
   // eslint-disable-next-line jest/no-disabled-tests
   it.skip('throws if the created account is not BIP-44 compatible', async () => {
@@ -275,7 +264,9 @@ describe('TrxAccountProvider', () => {
     });
 
     // Simulate one discovered account at the requested index.
-    mocks.handleRequest.mockReturnValue([MOCK_TRX_DISCOVERED_ACCOUNT_1]);
+    mocks.keyring.discoverAccounts.mockResolvedValue([
+      MOCK_TRX_DISCOVERED_ACCOUNT_1,
+    ]);
 
     const discovered = await provider.discoverAccounts({
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -295,7 +286,9 @@ describe('TrxAccountProvider', () => {
     });
 
     // Simulate one discovered account — should resolve to the existing one
-    mocks.handleRequest.mockReturnValue([MOCK_TRX_DISCOVERED_ACCOUNT_1]);
+    mocks.keyring.discoverAccounts.mockResolvedValue([
+      MOCK_TRX_DISCOVERED_ACCOUNT_1,
+    ]);
 
     const discovered = await provider.discoverAccounts({
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -310,7 +303,7 @@ describe('TrxAccountProvider', () => {
       accounts: [],
     });
 
-    mocks.handleRequest.mockReturnValue([]);
+    mocks.keyring.discoverAccounts.mockResolvedValue([]);
 
     const discovered = await provider.discoverAccounts({
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -318,5 +311,134 @@ describe('TrxAccountProvider', () => {
     });
 
     expect(discovered).toStrictEqual([]);
+  });
+
+  describe('trace functionality', () => {
+    it('calls trace callback during account discovery', async () => {
+      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
+        expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
+        expect(request.data).toStrictEqual({
+          provider: TRX_ACCOUNT_PROVIDER_NAME,
+        });
+        return await fn();
+      });
+
+      const { messenger, mocks } = setup({
+        accounts: [],
+      });
+
+      // Simulate one discovered account at the requested index.
+      mocks.keyring.discoverAccounts.mockResolvedValue([
+        MOCK_TRX_DISCOVERED_ACCOUNT_1,
+      ]);
+
+      const multichainMessenger =
+        getMultichainAccountServiceMessenger(messenger);
+      const trxProvider = new TrxAccountProvider(
+        multichainMessenger,
+        undefined,
+        mockTrace,
+      );
+      const provider = new AccountProviderWrapper(
+        multichainMessenger,
+        trxProvider,
+      );
+
+      const discovered = await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+
+      expect(discovered).toHaveLength(1);
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses fallback trace when no trace callback is provided', async () => {
+      const { provider, mocks } = setup({
+        accounts: [],
+      });
+
+      mocks.keyring.discoverAccounts.mockResolvedValue([
+        MOCK_TRX_DISCOVERED_ACCOUNT_1,
+      ]);
+
+      const discovered = await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+
+      expect(discovered).toHaveLength(1);
+      // No trace errors, fallback trace should be used silently
+    });
+
+    it('trace callback is called even when discovery returns empty results', async () => {
+      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
+        expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
+        expect(request.data).toStrictEqual({
+          provider: TRX_ACCOUNT_PROVIDER_NAME,
+        });
+        return await fn();
+      });
+
+      const { messenger, mocks } = setup({
+        accounts: [],
+      });
+
+      mocks.keyring.discoverAccounts.mockResolvedValue([]);
+
+      const multichainMessenger =
+        getMultichainAccountServiceMessenger(messenger);
+      const trxProvider = new TrxAccountProvider(
+        multichainMessenger,
+        undefined,
+        mockTrace,
+      );
+      const provider = new AccountProviderWrapper(
+        multichainMessenger,
+        trxProvider,
+      );
+
+      const discovered = await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+
+      expect(discovered).toStrictEqual([]);
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+    });
+
+    it('trace callback receives error when discovery fails', async () => {
+      const mockError = new Error('Discovery failed');
+      const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
+        return await fn();
+      });
+
+      const { messenger, mocks } = setup({
+        accounts: [],
+      });
+
+      mocks.keyring.discoverAccounts.mockRejectedValue(mockError);
+
+      const multichainMessenger =
+        getMultichainAccountServiceMessenger(messenger);
+      const trxProvider = new TrxAccountProvider(
+        multichainMessenger,
+        undefined,
+        mockTrace,
+      );
+      const provider = new AccountProviderWrapper(
+        multichainMessenger,
+        trxProvider,
+      );
+
+      await expect(
+        provider.discoverAccounts({
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: 0,
+        }),
+      ).rejects.toThrow(mockError);
+
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+    });
   });
 });

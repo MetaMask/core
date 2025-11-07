@@ -1,8 +1,9 @@
-import { BaseController } from '@metamask/base-controller';
-import type {
-  ControllerStateChangeEvent,
-  RestrictedMessenger,
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
 } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import {
   SignatureRequestStatus,
   type SignatureRequest,
@@ -58,6 +59,11 @@ export function getDefaultShieldControllerState(): ShieldControllerState {
   };
 }
 
+export type ShieldControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  ShieldControllerState
+>;
+
 export type ShieldControllerCheckCoverageAction = {
   type: `${typeof controllerName}:checkCoverage`;
   handler: ShieldController['checkCoverage'];
@@ -66,7 +72,9 @@ export type ShieldControllerCheckCoverageAction = {
 /**
  * The internal actions available to the ShieldController.
  */
-export type ShieldControllerActions = ShieldControllerCheckCoverageAction;
+export type ShieldControllerActions =
+  | ShieldControllerGetStateAction
+  | ShieldControllerCheckCoverageAction;
 
 export type ShieldControllerCoverageResultReceivedEvent = {
   type: `${typeof controllerName}:coverageResultReceived`;
@@ -86,11 +94,6 @@ export type ShieldControllerEvents =
   | ShieldControllerStateChangeEvent;
 
 /**
- * The external actions available to the ShieldController.
- */
-type AllowedActions = never;
-
-/**
  * The external events available to the ShieldController.
  */
 type AllowedEvents =
@@ -100,12 +103,10 @@ type AllowedEvents =
 /**
  * The messenger of the {@link ShieldController}.
  */
-export type ShieldControllerMessenger = RestrictedMessenger<
+export type ShieldControllerMessenger = Messenger<
   typeof controllerName,
-  ShieldControllerActions | AllowedActions,
-  ShieldControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  ShieldControllerActions,
+  ShieldControllerEvents | AllowedEvents
 >;
 
 /**
@@ -116,13 +117,13 @@ const metadata = {
   coverageResults: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   orderedTransactionHistory: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
 };
@@ -206,13 +207,13 @@ export class ShieldController extends BaseController<
     }
     this.#started = true;
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
       (state) => state.transactions,
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'SignatureController:stateChange',
       this.#signatureControllerStateChangeHandler,
       (state) => state.signatureRequests,
@@ -225,12 +226,12 @@ export class ShieldController extends BaseController<
     }
     this.#started = false;
 
-    this.messagingSystem.unsubscribe(
+    this.messenger.unsubscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
     );
 
-    this.messagingSystem.unsubscribe(
+    this.messenger.unsubscribe(
       'SignatureController:stateChange',
       this.#signatureControllerStateChangeHandler,
     );
@@ -284,14 +285,19 @@ export class ShieldController extends BaseController<
       const previousTransaction = previousTransactionsById.get(transaction.id);
 
       // Check if the simulation data has changed.
-      const simulationDataNotChanged = isEqual(
-        transaction.simulationData,
-        previousTransaction?.simulationData,
-      );
+      const simulationDataChanged =
+        // only check if the previous transaction has simulation data and if it has changed
+        // this is to avoid checking coverage for the `TWICE` (once when it's added to the state and once when it's simulated for the first time).
+        // we only need to update the coverage result when the simulation data has changed.
+        Boolean(previousTransaction?.simulationData) &&
+        !isEqual(
+          transaction.simulationData,
+          previousTransaction?.simulationData,
+        );
 
       // Check coverage if the transaction is new or if the simulation data has
       // changed.
-      if (!previousTransaction || !simulationDataNotChanged) {
+      if (!previousTransaction || simulationDataChanged) {
         this.checkCoverage(transaction).catch(
           // istanbul ignore next
           (error) => log('Error checking coverage:', error),
@@ -326,7 +332,7 @@ export class ShieldController extends BaseController<
     });
 
     // Publish coverage result
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:coverageResultReceived`,
       coverageResult,
     );
@@ -361,7 +367,7 @@ export class ShieldController extends BaseController<
     });
 
     // Publish coverage result
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:coverageResultReceived`,
       coverageResult,
     );

@@ -27,6 +27,16 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./v2": {
+      "import": {
+        "types": "./dist/v2/index.d.mts",
+        "default": "./dist/v2/index.mjs"
+      },
+      "require": {
+        "types": "./dist/v2/index.d.cts",
+        "default": "./dist/v2/index.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.cjs",
@@ -35,17 +45,19 @@
     "test": "test"
   },
   "files": [
-    "dist/"
+    "dist/",
+    "v2.js"
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/json-rpc-engine --tag-prefix-before-package-rename json-rpc-engine@ --version-before-package-rename 6.1.0",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/json-rpc-engine --tag-prefix-before-package-rename json-rpc-engine@ --version-before-package-rename 6.1.0",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies && yarn lint:changelog",
     "lint:changelog": "auto-changelog validate",
     "lint:dependencies": "depcheck",
-    "lint:eslint": "eslint . --cache --ext js,ts",
+    "lint:eslint": "eslint .  --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies && yarn lint:changelog",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "publish:preview": "yarn npm publish --tag preview",
@@ -58,19 +70,23 @@
   "dependencies": {
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^11.8.1"
+    "@metamask/utils": "^11.8.1",
+    "@types/deep-freeze-strict": "^1.1.0",
+    "deep-freeze-strict": "^1.1.1",
+    "klona": "^2.0.6"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "jest-it-up": "^2.0.2",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "engines": {
     "node": "^18.18 || >=20"

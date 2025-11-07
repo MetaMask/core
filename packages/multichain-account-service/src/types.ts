@@ -11,7 +11,8 @@ import type {
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
-import type { RestrictedMessenger } from '@metamask/base-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
+import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import type {
   KeyringControllerAddNewKeyringAction,
@@ -20,6 +21,7 @@ import type {
   KeyringControllerStateChangeEvent,
   KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
@@ -125,7 +127,7 @@ export type MultichainAccountServiceEvents =
  * All actions registered by other modules that {@link MultichainAccountService}
  * calls.
  */
-export type AllowedActions =
+type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountByAddressAction
@@ -135,13 +137,14 @@ export type AllowedActions =
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerAddNewKeyringAction
   | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction;
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | ErrorReportingServiceCaptureExceptionAction;
 
 /**
  * All events published by other modules that {@link MultichainAccountService}
  * subscribes to.
  */
-export type AllowedEvents =
+type AllowedEvents =
   | KeyringControllerStateChangeEvent
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent;
@@ -150,10 +153,12 @@ export type AllowedEvents =
  * The messenger restricted to actions and events that
  * {@link MultichainAccountService} needs to access.
  */
-export type MultichainAccountServiceMessenger = RestrictedMessenger<
+export type MultichainAccountServiceMessenger = Messenger<
   'MultichainAccountService',
   MultichainAccountServiceActions | AllowedActions,
-  MultichainAccountServiceEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  MultichainAccountServiceEvents | AllowedEvents
 >;
+
+export type MultichainAccountServiceConfig = {
+  trace?: TraceCallback;
+};

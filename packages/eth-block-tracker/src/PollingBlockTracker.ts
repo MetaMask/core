@@ -1,4 +1,8 @@
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import type {
+  ContextConstraint,
+  MiddlewareContext,
+} from '@metamask/json-rpc-engine/v2';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
 import {
   createDeferredPromise,
@@ -17,8 +21,10 @@ const sec = 1000;
 
 const blockTrackerEvents: (string | symbol)[] = ['sync', 'latest'];
 
-export type PollingBlockTrackerOptions = {
-  provider?: SafeEventEmitterProvider;
+export type PollingBlockTrackerOptions<
+  Context extends ContextConstraint = MiddlewareContext,
+> = {
+  provider?: InternalProvider<Context>;
   pollingInterval?: number;
   retryTimeout?: number;
   keepEventLoopActive?: boolean;
@@ -33,7 +39,9 @@ type ExtendedJsonRpcRequest = {
 
 type InternalListener = (value: string) => void;
 
-export class PollingBlockTracker
+export class PollingBlockTracker<
+    Context extends ContextConstraint = MiddlewareContext,
+  >
   extends SafeEventEmitter
   implements BlockTracker
 {
@@ -49,7 +57,7 @@ export class PollingBlockTracker
 
   private _pollingTimeout?: ReturnType<typeof setTimeout>;
 
-  private readonly _provider: SafeEventEmitterProvider;
+  private readonly _provider: InternalProvider<Context>;
 
   private readonly _pollingInterval: number;
 
@@ -65,7 +73,7 @@ export class PollingBlockTracker
 
   #pendingFetch?: Omit<DeferredPromise<string>, 'resolve'>;
 
-  constructor(opts: PollingBlockTrackerOptions = {}) {
+  constructor(opts: PollingBlockTrackerOptions<Context> = {}) {
     // parse + validate args
     if (!opts.provider) {
       throw new Error('PollingBlockTracker - no provider specified.');

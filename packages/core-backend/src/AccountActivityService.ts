@@ -9,9 +9,9 @@ import type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
-import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { Messenger } from '@metamask/messenger';
 
 import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types';
 import type {
@@ -96,7 +96,7 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS = [
   'BackendWebSocketService:connectionStateChanged',
 ] as const;
 
-export type AccountActivityServiceAllowedActions =
+export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | BackendWebSocketServiceMethodActions;
 
@@ -134,16 +134,14 @@ export type AccountActivityServiceEvents =
   | AccountActivityServiceSubscriptionErrorEvent
   | AccountActivityServiceStatusChangedEvent;
 
-export type AccountActivityServiceAllowedEvents =
+export type AllowedEvents =
   | AccountsControllerSelectedAccountChangeEvent
   | BackendWebSocketServiceConnectionStateChangedEvent;
 
-export type AccountActivityServiceMessenger = RestrictedMessenger<
+export type AccountActivityServiceMessenger = Messenger<
   typeof SERVICE_NAME,
-  AccountActivityServiceActions | AccountActivityServiceAllowedActions,
-  AccountActivityServiceEvents | AccountActivityServiceAllowedEvents,
-  AccountActivityServiceAllowedActions['type'],
-  AccountActivityServiceAllowedEvents['type']
+  AccountActivityServiceActions | AllowedActions,
+  AccountActivityServiceEvents | AllowedEvents
 >;
 
 // =============================================================================
@@ -233,11 +231,15 @@ export class AccountActivityService {
     );
     this.#messenger.subscribe(
       'AccountsController:selectedAccountChange',
+      // Promise result intentionally not awaited
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (account: InternalAccount) =>
         await this.#handleSelectedAccountChange(account),
     );
     this.#messenger.subscribe(
       'BackendWebSocketService:connectionStateChanged',
+      // Promise result intentionally not awaited
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       (connectionInfo: WebSocketConnectionInfo) =>
         this.#handleWebSocketStateChange(connectionInfo),
     );
@@ -357,6 +359,8 @@ export class AccountActivityService {
     });
 
     // Trace message receipt with latency from transaction time to now
+    // Promise result intentionally not awaited
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#trace(
       {
         name: `${SERVICE_NAME} Transaction Message`,

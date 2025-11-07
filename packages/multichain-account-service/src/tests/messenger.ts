@@ -1,45 +1,61 @@
-import { Messenger } from '@metamask/base-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 
-import type {
-  AllowedActions,
-  AllowedEvents,
-  MultichainAccountServiceActions,
-  MultichainAccountServiceEvents,
-  MultichainAccountServiceMessenger,
-} from '../types';
+import type { MultichainAccountServiceMessenger } from '../types';
+
+type AllMultichainAccountServiceActions =
+  MessengerActions<MultichainAccountServiceMessenger>;
+
+type AllMultichainAccountServiceEvents =
+  MessengerEvents<MultichainAccountServiceMessenger>;
+
+export type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllMultichainAccountServiceActions,
+  AllMultichainAccountServiceEvents
+>;
 
 /**
- * Creates a new root messenger instance for testing.
+ * Creates and returns a root messenger for testing
  *
- * @returns A new Messenger instance.
+ * @returns A messenger instance
  */
-export function getRootMessenger() {
-  return new Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >();
+export function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 }
 
 /**
  * Retrieves a restricted messenger for the MultichainAccountService.
  *
- * @param messenger - The root messenger instance. Defaults to a new Messenger created by getRootMessenger().
+ * @param rootMessenger - The root messenger instance. Defaults to a new Messenger created by getRootMessenger().
  * @returns The restricted messenger for the MultichainAccountService.
  */
 export function getMultichainAccountServiceMessenger(
-  messenger: ReturnType<typeof getRootMessenger>,
+  rootMessenger: RootMessenger,
 ): MultichainAccountServiceMessenger {
-  return messenger.getRestricted({
-    name: 'MultichainAccountService',
-    allowedEvents: [
-      'KeyringController:stateChange',
-      'AccountsController:accountAdded',
-      'AccountsController:accountRemoved',
-    ],
-    allowedActions: [
+  const messenger = new Messenger<
+    'MultichainAccountService',
+    AllMultichainAccountServiceActions,
+    AllMultichainAccountServiceEvents,
+    RootMessenger
+  >({
+    namespace: 'MultichainAccountService',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger,
+    actions: [
       'AccountsController:getAccount',
       'AccountsController:getAccountByAddress',
       'AccountsController:listMultichainAccounts',
+      'ErrorReportingService:captureException',
       'SnapController:handleRequest',
       'KeyringController:withKeyring',
       'KeyringController:getState',
@@ -48,5 +64,11 @@ export function getMultichainAccountServiceMessenger(
       'NetworkController:findNetworkClientIdByChainId',
       'NetworkController:getNetworkClientById',
     ],
+    events: [
+      'KeyringController:stateChange',
+      'AccountsController:accountAdded',
+      'AccountsController:accountRemoved',
+    ],
   });
+  return messenger;
 }

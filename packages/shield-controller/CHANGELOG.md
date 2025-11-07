@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/signature-controller` from `^35.0.0` to `^36.0.0` ( [#4651](https://github.com/MetaMask/core/pull/4651))
+
+## [1.2.0]
+
+### Changed
+
+- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
+- chore(dev-deps): Bump `@ts-bridge/cli` from `^0.6.1` to `^0.6.4` ([#7039](https://github.com/MetaMask/core/pull/7039))
+- Bump `@metamask/transaction-controller` from `61.0.0` to `61.1.0`. ([#7007](https://github.com/MetaMask/core/pull/7007))
+- Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0`. ([#7003](https://github.com/MetaMask/core/pull/7003))
+
+### Fixed
+
+- Fixed and optimized initiating shield coverage result for transactions. ([#7036](https://github.com/MetaMask/core/pull/7036))
+
+## [1.1.0]
+
+### Fixed
+
+- Fixed and optimized shield-coverage-result polling with Cockatiel Policy from Controller-utils. ([#6847](https://github.com/MetaMask/core/pull/6847))
+
+## [1.0.0]
+
+### Added
+
+- Add new controller action `ShieldControllerGetStateAction` ([#6497](https://github.com/MetaMask/core/pull/6497))
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6497](https://github.com/MetaMask/core/pull/6497))
+  - Previously, `ShieldController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6497](https://github.com/MetaMask/core/pull/6497))
+- **BREAKING:** Bump `@metamask/signature-controller` from `^34.0.0` to `^35.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^60.0.0` to `^61.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
 ## [0.4.0]
 
 ### Added
@@ -84,7 +124,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@0.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@1.2.0...@metamask/shield-controller@2.0.0
+[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@1.1.0...@metamask/shield-controller@1.2.0
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@1.0.0...@metamask/shield-controller@1.1.0
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@0.4.0...@metamask/shield-controller@1.0.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@0.3.2...@metamask/shield-controller@0.4.0
 [0.3.2]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@0.3.1...@metamask/shield-controller@0.3.2
 [0.3.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@0.3.0...@metamask/shield-controller@0.3.1

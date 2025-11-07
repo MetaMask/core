@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6545](https://github.com/MetaMask/core/pull/6545))
+  - Previously, `AbstractMessageManager`, `DecryptMessageManager` and `EncryptionPublicKeyManager` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [13.0.2]
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
@@ -403,7 +413,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.2...@metamask/message-manager@14.0.0
+[13.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.1...@metamask/message-manager@13.0.2
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.0...@metamask/message-manager@13.0.1
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.2...@metamask/message-manager@13.0.0
 [12.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.1...@metamask/message-manager@12.0.2

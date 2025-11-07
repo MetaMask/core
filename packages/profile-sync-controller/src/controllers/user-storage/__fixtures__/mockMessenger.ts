@@ -1,5 +1,11 @@
-import type { NotNamespacedBy } from '@metamask/base-controller';
-import { Messenger } from '@metamask/base-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MockAnyNamespace,
+  type MessengerActions,
+  type MessengerEvents,
+  type NotNamespacedBy,
+} from '@metamask/messenger';
 
 import type {
   AllowedActions,
@@ -8,6 +14,8 @@ import type {
 } from '..';
 import { MOCK_LOGIN_RESPONSE } from '../../authentication/mocks';
 import { MOCK_STORAGE_KEY_SIGNATURE } from '../mocks';
+
+const controllerName = 'UserStorageController';
 
 type GetHandler<ActionType extends AllowedActions['type']> = Extract<
   AllowedActions,
@@ -33,8 +41,20 @@ const typedMockFn = <
 ) => jest.fn<ReturnType<Func>, Parameters<Func>>();
 
 type ExternalEvents = NotNamespacedBy<
-  'UserStorageController',
+  typeof controllerName,
   AllowedEvents['type']
+>;
+
+type AllUserStorageControllerActions =
+  MessengerActions<UserStorageControllerMessenger>;
+
+type AllUserStorageControllerEvents =
+  MessengerEvents<UserStorageControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllUserStorageControllerActions,
+  AllUserStorageControllerEvents
 >;
 
 /**
@@ -47,10 +67,21 @@ type ExternalEvents = NotNamespacedBy<
 export function createCustomUserStorageMessenger(props?: {
   overrideEvents?: ExternalEvents[];
 }) {
-  const baseMessenger = new Messenger<AllowedActions, AllowedEvents>();
-  const messenger = baseMessenger.getRestricted({
-    name: 'UserStorageController',
-    allowedActions: [
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+  const messenger = new Messenger<
+    typeof controllerName,
+    AllUserStorageControllerActions,
+    AllUserStorageControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger,
+    actions: [
       'KeyringController:getState',
       'SnapController:handleRequest',
       'AuthenticationController:getBearerToken',
@@ -58,7 +89,7 @@ export function createCustomUserStorageMessenger(props?: {
       'AuthenticationController:isSignedIn',
       'AuthenticationController:performSignIn',
     ],
-    allowedEvents: props?.overrideEvents ?? [
+    events: props?.overrideEvents ?? [
       'KeyringController:lock',
       'KeyringController:unlock',
       'AddressBookController:contactUpdated',
@@ -67,13 +98,13 @@ export function createCustomUserStorageMessenger(props?: {
   });
 
   return {
-    baseMessenger,
+    baseMessenger: rootMessenger,
     messenger,
   };
 }
 
 type OverrideMessengers = {
-  baseMessenger: Messenger<AllowedActions, AllowedEvents>;
+  baseMessenger: RootMessenger;
   messenger: UserStorageControllerMessenger;
 };
 
