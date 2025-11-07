@@ -1018,18 +1018,31 @@ describe('MultichainAccountService', () => {
     });
 
     it('does not throw if any providers is throwing', async () => {
+      const rootMessenger = getRootMessenger();
       const { service, mocks } = await setup({
+        rootMessenger,
         accounts: [MOCK_HD_ACCOUNT_1],
       });
 
-      mocks.SolAccountProvider.resyncAccounts.mockRejectedValue(
-        new Error('Unable to resync accounts'),
+      const providerError = new Error('Unable to resync accounts');
+      mocks.SolAccountProvider.resyncAccounts.mockRejectedValue(providerError);
+
+      const mockCaptureException = jest.fn();
+      rootMessenger.registerActionHandler(
+        'ErrorReportingService:captureException',
+        mockCaptureException,
       );
 
       await service.resyncAccounts(); // Should not throw.
 
       expect(mocks.EvmAccountProvider.resyncAccounts).toHaveBeenCalled();
       expect(mocks.SolAccountProvider.resyncAccounts).toHaveBeenCalled();
+
+      expect(mockCaptureException).toHaveBeenCalled();
+      expect(mockCaptureException.mock.lastCall[0]).toHaveProperty(
+        'cause',
+        providerError,
+      );
     });
   });
 

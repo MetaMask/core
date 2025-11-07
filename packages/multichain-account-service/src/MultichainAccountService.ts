@@ -29,6 +29,7 @@ import {
   type SolAccountProviderConfig,
 } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
+import { createSentryError } from './utils';
 
 export const serviceName = 'MultichainAccountService';
 
@@ -228,9 +229,16 @@ export class MultichainAccountService {
         try {
           await provider.resyncAccounts(accounts);
         } catch (error) {
-          console.error(
-            `Unable to re-sync provider "${provider.getName()}"`,
-            error,
+          const errorMessage = `Unable to re-sync provider "${provider.getName()}"`;
+          log(errorMessage);
+          console.error(errorMessage);
+
+          const sentryError = createSentryError(errorMessage, error as Error, {
+            provider: provider.getName(),
+          });
+          this.#messenger.call(
+            'ErrorReportingService:captureException',
+            sentryError,
           );
         }
       }),
