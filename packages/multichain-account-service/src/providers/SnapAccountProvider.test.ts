@@ -281,9 +281,21 @@ describe('SnapAccountProvider', () => {
         jest.fn().mockResolvedValue([mockAccounts[0]].map(asKeyringAccount)),
       );
 
+      const mockCaptureException = jest.fn();
+      messenger.registerActionHandler(
+        'ErrorReportingService:captureException',
+        mockCaptureException,
+      );
+
       const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
 
       await provider.resyncAccounts(mockAccounts);
+
+      expect(mockCaptureException).toHaveBeenCalledWith(
+        new Error(
+          `Snap "${TEST_SNAP_ID}" has de-synced accounts, we'll attempt to re-sync them...`,
+        ),
+      );
 
       const desyncedAccount = mockAccounts[1];
       expect(createAccountsSpy).toHaveBeenCalledWith({
@@ -300,6 +312,12 @@ describe('SnapAccountProvider', () => {
         jest.fn().mockResolvedValue([mockAccounts[0]].map(asKeyringAccount)),
       );
 
+      const mockCaptureException = jest.fn();
+      messenger.registerActionHandler(
+        'ErrorReportingService:captureException',
+        mockCaptureException,
+      );
+
       const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
 
       const providerError = new Error('Unable to create accounts');
@@ -308,6 +326,21 @@ describe('SnapAccountProvider', () => {
       await provider.resyncAccounts(mockAccounts);
 
       expect(createAccountsSpy).toHaveBeenCalled();
+
+      expect(mockCaptureException).toHaveBeenNthCalledWith(
+        1,
+        new Error(
+          `Snap "${TEST_SNAP_ID}" has de-synced accounts, we'll attempt to re-sync them...`,
+        ),
+      );
+      expect(mockCaptureException).toHaveBeenNthCalledWith(
+        2,
+        new Error('Unable to re-sync account: 0'),
+      );
+      expect(mockCaptureException.mock.lastCall[0]).toHaveProperty(
+        'cause',
+        providerError,
+      );
     });
   });
 });

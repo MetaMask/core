@@ -11,6 +11,7 @@ import { Semaphore } from 'async-mutex';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import type { MultichainAccountServiceMessenger } from '../types';
+import { createSentryError } from '../utils';
 
 export type RestrictedSnapKeyringCreateAccount = (
   options: Record<string, Json>,
@@ -126,9 +127,13 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     // We want this part to be fast, so we only check for sizes, but we might need
     // to make "diff" between the 2 states to not miss any de-sync.
     if (localSnapAccounts.length > snapAccounts.size) {
-      // TODO: Use reporting-error-service here.
-      console.error(
-        `Snap "${this.snapId}" has de-synced accounts, we'll attempt to re-sync them...`,
+      // Accounts should never really be de-synced, so we want to log this to see how often this
+      // happens, cause that means that something else is buggy elsewhere...
+      this.messenger.call(
+        'ErrorReportingService:captureException',
+        new Error(
+          `Snap "${this.snapId}" has de-synced accounts, we'll attempt to re-sync them...`,
+        ),
       );
 
       // We always use the MetaMask list as the main reference here.
@@ -153,7 +158,18 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
               });
             }
           } catch (error) {
-            console.error(`Unable to re-sync account: ${groupIndex}`, error);
+            const sentryError = createSentryError(
+              `Unable to re-sync account: ${groupIndex}`,
+              error as Error,
+              {
+                provider: this.getName(),
+                groupIndex,
+              },
+            );
+            this.messenger.call(
+              'ErrorReportingService:captureException',
+              sentryError,
+            );
           }
         }),
       );
