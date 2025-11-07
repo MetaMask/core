@@ -7,4 +7,4 @@ export type {
   RampsControllerState,
   RampsControllerStateChangeEvent,
 } from './RampsController';
-export { RampsController } from './RampsController';
+export { RampsController, SdkEnvironment, Context } from './RampsController';

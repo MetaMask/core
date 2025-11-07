@@ -153,7 +153,7 @@ export class RampsController extends BaseController<
 
   async #getGeolocation(): Promise<string> {
     const url = this.#getApiUrl();
-    const response = await fetch(`${url}/geolocation`);
+    const response = await fetch(new URL('geolocation', url).toString());
     const data = await response.json();
     return data;
   }
@@ -164,19 +164,46 @@ export class RampsController extends BaseController<
    * @returns The countries for the given geolocation.
    */
   async getCountries(): Promise<void> {
-    const geolocation = await this.#getGeolocation();
-    const url = this.#getApiUrl(ApiService.Regions);
-    const response = await fetch(`${url}/countries/${geolocation}`);
-    const data = await response.json();
+    try {
+      const geolocation = await this.#getGeolocation();
+      const url = this.#getApiUrl(ApiService.Regions);
+      const response = await fetch(new URL(`countries/${geolocation}`, `${url}/`).toString());
 
-    this.update((state) => {
-      state.region = {
-        id: geolocation as string,
-        deposit: data.deposit,
-        aggregator: data.aggregator,
-        global: data.global,
-      };
-    });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch country data: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // Validate expected data properties to handle invalid responses
+      if (
+        typeof data !== 'object' ||
+        data === null ||
+        typeof data.deposit !== 'boolean' ||
+        typeof data.aggregator !== 'boolean' ||
+        typeof data.global !== 'boolean'
+      ) {
+        throw new Error('Invalid country data format');
+      }
+
+      this.update((state) => {
+        state.region = {
+          id: geolocation as string,
+          deposit: data.deposit,
+          aggregator: data.aggregator,
+          global: data.global,
+        };
+      });
+    } catch (error) {
+      // Handle or re-throw as needed; here we simply log
+      console.error('Error in getCountries:', error);
+      // Optionally, clear region on error:
+      this.update((state) => {
+        state.region = null;
+      });
+      // Or rethrow if you want the caller to handle it:
+      // throw error;
+    }
   }
 
   /**

@@ -12,12 +12,14 @@ import type { RampsControllerMessenger } from './RampsController';
 
 describe('RampsController', () => {
   let mockFetch: jest.MockedFunction<typeof fetch>;
+  let mockConsoleError: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockFetch = jest.spyOn(global, 'fetch') as jest.MockedFunction<
       typeof fetch
     >;
+    mockConsoleError = jest.spyOn(console, 'error').mockImplementation();
   });
 
   afterEach(() => {
@@ -82,7 +84,7 @@ describe('RampsController', () => {
         // Default state is 'staging', which matches SdkEnvironment.Staging, so uses staging URL
         expect(mockFetch).toHaveBeenNthCalledWith(
           1,
-          'https://on-ramp.uat-api.cx.metamask.io//geolocation',
+          'https://on-ramp.uat-api.cx.metamask.io/geolocation',
         );
         expect(mockFetch).toHaveBeenNthCalledWith(
           2,
@@ -130,7 +132,7 @@ describe('RampsController', () => {
 
           expect(mockFetch).toHaveBeenNthCalledWith(
             1,
-            'https://on-ramp.api.cx.metamask.io//geolocation',
+            'https://on-ramp.api.cx.metamask.io/geolocation',
           );
           expect(mockFetch).toHaveBeenNthCalledWith(
             2,
@@ -172,7 +174,7 @@ describe('RampsController', () => {
 
           expect(mockFetch).toHaveBeenNthCalledWith(
             1,
-            'https://on-ramp.uat-api.cx.metamask.io//geolocation',
+            'https://on-ramp.uat-api.cx.metamask.io/geolocation',
           );
           expect(mockFetch).toHaveBeenNthCalledWith(
             2,
@@ -216,7 +218,7 @@ describe('RampsController', () => {
 
           expect(mockFetch).toHaveBeenNthCalledWith(
             1,
-            'http://localhost:3000//geolocation',
+            'http://localhost:3000/geolocation',
           );
           expect(mockFetch).toHaveBeenNthCalledWith(
             2,
@@ -231,9 +233,13 @@ describe('RampsController', () => {
       mockFetch.mockRejectedValueOnce(error);
 
       await withController(async ({ controller }) => {
-        await expect(controller.getCountries()).rejects.toThrow(
-          'Network error',
+        await controller.getCountries();
+
+        expect(mockConsoleError).toHaveBeenCalledWith(
+          'Error in getCountries:',
+          error,
         );
+        expect(controller.state.region).toBeNull();
       });
     });
 
@@ -249,9 +255,13 @@ describe('RampsController', () => {
         .mockRejectedValueOnce(error);
 
       await withController(async ({ controller }) => {
-        await expect(controller.getCountries()).rejects.toThrow(
-          'Countries fetch failed',
+        await controller.getCountries();
+
+        expect(mockConsoleError).toHaveBeenCalledWith(
+          'Error in getCountries:',
+          error,
         );
+        expect(controller.state.region).toBeNull();
       });
     });
 
@@ -259,17 +269,160 @@ describe('RampsController', () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
+        statusText: 'Internal Server Error',
         json: async () => ({}),
       } as Response);
 
       await withController(async ({ controller }) => {
-        // Note: fetch doesn't throw on non-ok responses by default,
-        // so we need to check if the implementation handles this
-        // For now, we'll test that it doesn't crash
-        await expect(controller.getCountries()).rejects.toThrow(
-          expect.any(Error),
-        );
+        await controller.getCountries();
+
+        expect(mockConsoleError).toHaveBeenCalled();
+        expect(controller.state.region).toBeNull();
       });
+    });
+
+    it('handles non-ok countries response', async () => {
+      const mockGeolocation = 'US';
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockGeolocation,
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          statusText: 'Not Found',
+          json: async () => ({}),
+        } as Response);
+
+      await withController(async ({ controller }) => {
+        await controller.getCountries();
+
+        expect(mockConsoleError).toHaveBeenCalledWith(
+          'Error in getCountries:',
+          expect.objectContaining({
+            message: 'Failed to fetch country data: Not Found',
+          }),
+        );
+        expect(controller.state.region).toBeNull();
+      });
+    });
+
+    it('handles invalid country data format - null data', async () => {
+      const mockGeolocation = 'US';
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockGeolocation,
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => null,
+        } as Response);
+
+      await withController(async ({ controller }) => {
+        await controller.getCountries();
+
+        expect(mockConsoleError).toHaveBeenCalledWith(
+          'Error in getCountries:',
+          expect.objectContaining({
+            message: 'Invalid country data format',
+          }),
+        );
+        expect(controller.state.region).toBeNull();
+      });
+    });
+
+    it('handles invalid country data format - missing properties', async () => {
+      const mockGeolocation = 'US';
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockGeolocation,
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            deposit: true,
+            // missing aggregator and global
+          }),
+        } as Response);
+
+      await withController(async ({ controller }) => {
+        await controller.getCountries();
+
+        expect(mockConsoleError).toHaveBeenCalledWith(
+          'Error in getCountries:',
+          expect.objectContaining({
+            message: 'Invalid country data format',
+          }),
+        );
+        expect(controller.state.region).toBeNull();
+      });
+    });
+
+    it('handles invalid country data format - wrong property types', async () => {
+      const mockGeolocation = 'US';
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockGeolocation,
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            deposit: 'true', // string instead of boolean
+            aggregator: false,
+            global: true,
+          }),
+        } as Response);
+
+      await withController(async ({ controller }) => {
+        await controller.getCountries();
+
+        expect(mockConsoleError).toHaveBeenCalledWith(
+          'Error in getCountries:',
+          expect.objectContaining({
+            message: 'Invalid country data format',
+          }),
+        );
+        expect(controller.state.region).toBeNull();
+      });
+    });
+
+    it('clears existing region state on error', async () => {
+      const initialRegion = {
+        id: 'US',
+        deposit: true,
+        aggregator: false,
+        global: true,
+      };
+      const error = new Error('Network error');
+
+      mockFetch.mockRejectedValueOnce(error);
+
+      await withController(
+        {
+          options: {
+            state: {
+              region: initialRegion,
+              context: Context.Browser,
+            },
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.region).toStrictEqual(initialRegion);
+
+          await controller.getCountries();
+
+          expect(mockConsoleError).toHaveBeenCalled();
+          expect(controller.state.region).toBeNull();
+        },
+      );
     });
   });
 
