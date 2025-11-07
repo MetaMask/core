@@ -27,18 +27,50 @@ jest.mock('./services', () => ({
   getUserProfileLineage: jest.fn(),
 }));
 
-describe('SRPJwtBearerAuth burst protection', () => {
+describe('SRPJwtBearerAuth rate limit handling', () => {
   const config: AuthConfig & { type: AuthType.SRP } = {
     type: AuthType.SRP,
     env: 'test' as any,
     platform: 'extension' as any,
   };
 
-  const createAuth = (overrides?: {
-    minIntervalMs?: number;
-    cooldownDefaultMs?: number;
-    maxRetries?: number;
-  }) => {
+  // Mock data constants
+  const MOCK_PROFILE = {
+    profileId: 'p1',
+    metametrics_id: 'm1',
+    identifier_id: 'i1',
+  } as any;
+
+  const MOCK_NONCE_RESPONSE = {
+    nonce: 'nonce-1',
+    identifier: 'identifier-1',
+    expiresIn: 60,
+  };
+
+  const MOCK_AUTH_RESPONSE = {
+    token: 'jwt-token',
+    expiresIn: 60,
+    profile: MOCK_PROFILE,
+  };
+
+  const MOCK_OIDC_RESPONSE = {
+    accessToken: 'access',
+    expiresIn: 60,
+    obtainedAt: Date.now(),
+  };
+
+  // Helper to create a rate limit error
+  const createRateLimitError = (retryAfterMs?: number) => {
+    const error: any = new Error('rate limited');
+    error.name = 'RateLimitedError';
+    error.status = 429;
+    if (retryAfterMs !== undefined) {
+      error.retryAfterMs = retryAfterMs;
+    }
+    return error;
+  };
+
+  const createAuth = (overrides?: { cooldownDefaultMs?: number }) => {
     const store: any = { value: null as any };
 
     const auth = new SRPJwtBearerAuth(config, {
@@ -52,6 +84,7 @@ describe('SRPJwtBearerAuth burst protection', () => {
         getIdentifier: async () => 'identifier-1',
         signMessage: async () => 'signature-1',
       },
+      rateLimitRetry: overrides,
     });
 
     return { auth, store };
@@ -59,25 +92,9 @@ describe('SRPJwtBearerAuth burst protection', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetNonce.mockResolvedValue({
-      nonce: 'nonce-1',
-      identifier: 'identifier-1',
-      expiresIn: 60,
-    });
-    mockAuthenticate.mockResolvedValue({
-      token: 'jwt-token',
-      expiresIn: 60,
-      profile: {
-        profileId: 'p1',
-        metametrics_id: 'm1',
-        identifier_id: 'i1',
-      } as any,
-    });
-    mockAuthorizeOIDC.mockResolvedValue({
-      accessToken: 'access',
-      expiresIn: 60,
-      obtainedAt: Date.now(),
-    });
+    mockGetNonce.mockResolvedValue(MOCK_NONCE_RESPONSE);
+    mockAuthenticate.mockResolvedValue(MOCK_AUTH_RESPONSE);
+    mockAuthorizeOIDC.mockResolvedValue(MOCK_OIDC_RESPONSE);
   });
 
   test('coalesces concurrent calls into a single login attempt', async () => {
@@ -99,44 +116,16 @@ describe('SRPJwtBearerAuth burst protection', () => {
     expect(mockAuthorizeOIDC).toHaveBeenCalledTimes(1);
   });
 
-  test('throttles sequential login attempts within min interval', async () => {
-    const { auth, store } = createAuth();
-
-    await auth.getAccessToken();
-
-    // Clear the store to force a new login
-    store.value = null;
-
-    await auth.getAccessToken();
-
-    expect(mockGetNonce).toHaveBeenCalledTimes(2);
-    expect(mockAuthenticate).toHaveBeenCalledTimes(2);
-
-    // Verify that throttling delay was applied
-    expect(mockDelay).toHaveBeenCalled();
-  });
   test('applies cooldown and retries once on 429 with Retry-After', async () => {
-    const { auth } = createAuth();
+    const { auth } = createAuth({ cooldownDefaultMs: 20 });
 
     let first = true;
     mockAuthenticate.mockImplementation(async () => {
       if (first) {
         first = false;
-        const e: any = new Error('rate limited');
-        e.name = 'RateLimitedError';
-        e.status = 429;
-        e.retryAfterMs = 20;
-        throw e;
+        throw createRateLimitError(20);
       }
-      return {
-        token: 'jwt-token',
-        expiresIn: 60,
-        profile: {
-          profileId: 'p1',
-          metametrics_id: 'm1',
-          identifier_id: 'i1',
-        } as any,
-      };
+      return MOCK_AUTH_RESPONSE;
     });
 
     const p1 = auth.getAccessToken();
@@ -149,14 +138,24 @@ describe('SRPJwtBearerAuth burst protection', () => {
     // Should retry after rate limit error
     expect(mockAuthenticate).toHaveBeenCalledTimes(2);
     // Should apply cooldown delay
-    expect(mockDelay).toHaveBeenCalled();
+    expect(mockDelay).toHaveBeenCalledWith(20);
+  });
+
+  test('throws 429 after exhausting one retry', async () => {
+    const { auth } = createAuth({ cooldownDefaultMs: 20 });
+
+    mockAuthenticate.mockRejectedValue(createRateLimitError(20));
+
+    await expect(auth.getAccessToken()).rejects.toThrow('rate limited');
+
+    // Should attempt initial + one retry = 2 attempts
+    expect(mockAuthenticate).toHaveBeenCalledTimes(2);
+    // Should apply cooldown delay once
+    expect(mockDelay).toHaveBeenCalledTimes(1);
   });
 
   test('throws transient errors immediately without retry', async () => {
-    const { auth, store } = createAuth({
-      maxRetries: 1,
-      minIntervalMs: 10,
-    });
+    const { auth, store } = createAuth();
 
     // Force a login by clearing session
     store.value = null;
@@ -170,5 +169,7 @@ describe('SRPJwtBearerAuth burst protection', () => {
 
     // Should NOT retry on transient errors
     expect(mockAuthenticate).toHaveBeenCalledTimes(1);
+    // Should NOT apply any delay
+    expect(mockDelay).not.toHaveBeenCalled();
   });
 });
