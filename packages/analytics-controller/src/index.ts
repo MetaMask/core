@@ -32,5 +32,7 @@ export type {
   AnalyticsControllerDisableAction,
   AnalyticsControllerOptInAction,
   AnalyticsControllerOptOutAction,
+  AnalyticsControllerGetAnalyticsIdAction,
+  AnalyticsControllerIsEnabledAction,
   AnalyticsControllerMethodActions,
 } from './AnalyticsController-method-action-types';

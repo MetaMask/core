@@ -17,7 +17,7 @@ export type AnalyticsUserTraits = Record<string, Json>;
 export interface AnalyticsPlatformAdapter {
   /**
    * Track an analytics event.
-   * 
+   *
    * This is the same as trackEvent in the old analytics system
    *
    * @param eventName - The name of the event
@@ -35,7 +35,7 @@ export interface AnalyticsPlatformAdapter {
 
   /**
    * Track a UI unit (page or screen) view depending on the platform
-   * 
+   *
    * This is the same as page in Segment web SDK and screen in Segment mobile SDK.
    * Each platform adapter should implement this method to track UI views
    * using the appropriate method for the platform: "pages" for web, "screen" for mobile.
@@ -47,16 +47,16 @@ export interface AnalyticsPlatformAdapter {
 
   /**
    * Lifecycle hook called after the AnalyticsController is fully initialized.
-   * 
+   *
    * This hook allows platform-specific adapters to perform setup that requires
    * access to the controller's state (e.g., analyticsId).
-   * 
+   *
    * The controller calls this method once after initialization, passing the
    * analyticsId from controller state. The analyticsId is guaranteed to be set
    * when this method is called - this is the definition of "completed" setup.
-   * 
+   *
    * @param analyticsId - The analytics ID from controller state. Always set (never empty).
-   * 
+   *
    * @example
    * ```typescript
    * onSetupCompleted(analyticsId: string): void {

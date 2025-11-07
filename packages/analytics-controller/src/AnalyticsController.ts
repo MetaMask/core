@@ -5,7 +5,11 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import { v4 as uuidv4, validate as uuidValidate, version as uuidVersion } from 'uuid';
+import {
+  v4 as uuidv4,
+  validate as uuidValidate,
+  version as uuidVersion,
+} from 'uuid';
 
 import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types';
 import { projectLogger } from './AnalyticsLogger';
@@ -96,6 +100,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'disable',
   'optIn',
   'optOut',
+  'getAnalyticsId',
+  'isEnabled',
+  'isOptedIn',
 ] as const;
 
 /**
@@ -181,7 +188,8 @@ export class AnalyticsController extends BaseController<
    * Constructs an AnalyticsController instance.
    *
    * @param options - Controller options
-   * @param options.state - Initial controller state (defaults from getDefaultAnalyticsControllerState)
+   * @param options.state - Initial controller state (defaults from getDefaultAnalyticsControllerState).
+   * For migration from a previous system, pass the existing analytics ID via state.analyticsId.
    * @param options.messenger - Messenger used to communicate with BaseController
    * @param options.platformAdapter - Platform adapter implementation for tracking
    */
@@ -231,7 +239,7 @@ export class AnalyticsController extends BaseController<
       throw new Error(
         `Invalid analyticsId: expected a valid UUIDv4, but got ${JSON.stringify(this.state.analyticsId)}`,
       );
-    } 
+    }
   }
 
   /**
@@ -258,30 +266,24 @@ export class AnalyticsController extends BaseController<
   /**
    * Identify a user for analytics.
    *
-   * @param userId - The user identifier (e.g., metametrics ID)
    * @param traits - User traits/properties
    */
-  identify(userId: string, traits?: AnalyticsUserTraits): void {
+  identify(traits?: AnalyticsUserTraits): void {
     if (!this.state.enabled) {
       return;
     }
 
-    // Update state with analytics ID
-    this.update((state) => {
-      state.analyticsId = userId;
-    });
-
-    // Delegate to platform adapter if supported
+    // Delegate to platform adapter if supported, using the current analytics ID
     if (this.#platformAdapter.identify) {
-      this.#platformAdapter.identify(userId, traits);
+      this.#platformAdapter.identify(this.state.analyticsId, traits);
     }
   }
 
   /**
    * Track a page view.
    *
-   * @param pageName - The name of the page
-   * @param properties - Page properties
+   * @param name - The name of the UI item being viewed (pages for web, screen for mobile)
+   * @param properties - UI item properties
    */
   trackView(name: string, properties?: AnalyticsEventProperties): void {
     if (!this.state.enabled) {
@@ -326,5 +328,32 @@ export class AnalyticsController extends BaseController<
     this.update((state) => {
       state.optedIn = false;
     });
+  }
+
+  /**
+   * Get the analytics ID from the controller state.
+   *
+   * @returns The current analytics ID.
+   */
+  getAnalyticsId(): string {
+    return this.state.analyticsId;
+  }
+
+  /**
+   * Get the enabled status from the controller state.
+   *
+   * @returns The current enabled status.
+   */
+  isEnabled(): boolean {
+    return this.state.enabled;
+  }
+
+  /**
+   * Get the opted in status from the controller state.
+   *
+   * @returns The current opted in status.
+   */
+  isOptedIn(): boolean {
+    return this.state.optedIn;
   }
 }
