@@ -4,10 +4,7 @@ import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { TrxAccountType, TrxScope } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { SnapId } from '@metamask/snaps-sdk';
-import { HandlerType } from '@metamask/snaps-utils';
-import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import {
   SnapAccountProvider,
@@ -27,8 +24,6 @@ export class TrxAccountProvider extends SnapAccountProvider {
 
   static TRX_SNAP_ID = 'npm:@metamask/tron-wallet-snap' as SnapId;
 
-  readonly #client: KeyringClient;
-
   constructor(
     messenger: MultichainAccountServiceMessenger,
     config: TrxAccountProviderConfig = {
@@ -45,30 +40,10 @@ export class TrxAccountProvider extends SnapAccountProvider {
     trace: TraceCallback = traceFallback,
   ) {
     super(TrxAccountProvider.TRX_SNAP_ID, messenger, config, trace);
-    this.#client = this.#getKeyringClientFromSnapId(
-      TrxAccountProvider.TRX_SNAP_ID,
-    );
   }
 
   getName(): string {
     return TrxAccountProvider.NAME;
-  }
-
-  #getKeyringClientFromSnapId(snapId: string): KeyringClient {
-    return new KeyringClient({
-      send: async (request: JsonRpcRequest) => {
-        const response = await this.messenger.call(
-          'SnapController:handleRequest',
-          {
-            snapId: snapId as SnapId,
-            origin: 'metamask',
-            handler: HandlerType.OnKeyringRequest,
-            request,
-          },
-        );
-        return response as Json;
-      },
-    });
   }
 
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
@@ -121,7 +96,7 @@ export class TrxAccountProvider extends SnapAccountProvider {
         const discoveredAccounts = await withRetry(
           () =>
             withTimeout(
-              this.#client.discoverAccounts(
+              this.client.discoverAccounts(
                 [TrxScope.Mainnet],
                 entropySource,
                 groupIndex,

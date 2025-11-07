@@ -264,4 +264,9 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
       },
     );
   }
+
+  async resyncAccounts(): Promise<void> {
+    // No-op for the EVM account provider, since keyring accounts are already on
+    // the MetaMask side.
+  }
 }

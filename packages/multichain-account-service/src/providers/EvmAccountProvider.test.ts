@@ -525,4 +525,12 @@ describe('EvmAccountProvider', () => {
     expect(result).toStrictEqual([]);
     expect(mockTrace).toHaveBeenCalledTimes(1);
   });
+
+  it('does nothing when re-syncing accounts', async () => {
+    const { provider } = setup({
+      accounts: [],
+    });
+
+    expect(await provider.resyncAccounts()).toBeUndefined();
+  });
 });
