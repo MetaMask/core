@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Permit string `id` values in `OriginalRequest` type ([#7065](https://github.com/MetaMask/core/pull/7065))
+  - Previously, only number values were permitted for the `id` property.
+
 ## [36.0.0]
 
 ### Changed
