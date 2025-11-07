@@ -345,7 +345,10 @@ async function getSingleBridgeQuote(
     throw new Error(ERROR_MESSAGE_NO_QUOTES);
   }
 
-  const result = getBestQuote(quotes as QuoteResponse<TxData, TxData>[], quoteRequest);
+  const result = getBestQuote(
+    quotes as QuoteResponse<TxData, TxData>[],
+    quoteRequest,
+  );
 
   return {
     ...result,
