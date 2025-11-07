@@ -20,7 +20,6 @@ export type {
   ClaimsServiceGetClaimsApiUrlAction,
   ClaimsServiceGetClaimByIdAction,
   ClaimsServiceGenerateMessageForClaimSignatureAction,
-  ClaimsServiceVerifyClaimSignatureAction,
   ClaimsServiceActions,
   ClaimsServiceMessenger,
 } from './ClaimsService';

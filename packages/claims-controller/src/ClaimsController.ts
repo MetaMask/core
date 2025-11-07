@@ -182,10 +182,7 @@ export class ClaimsController extends BaseController<
   #validateSubmitClaimRequest(claim: CreateClaimRequest): void {
     const { claims: existingClaims } = this.state;
     const isClaimAlreadySubmitted = existingClaims.some(
-      (existingClaim) =>
-        existingClaim.email === claim.email &&
-        existingClaim.impactedTxHash === claim.impactedTxHash,
-      // Question: should we allow users to submit the rejected claim again?
+      (existingClaim) => existingClaim.impactedTxHash === claim.impactedTxHash,
     );
     if (isClaimAlreadySubmitted) {
       throw new Error(ClaimsControllerErrorMessages.CLAIM_ALREADY_SUBMITTED);
