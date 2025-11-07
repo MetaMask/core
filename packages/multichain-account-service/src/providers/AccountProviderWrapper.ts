@@ -36,10 +36,9 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
   }
 
   /**
-   * Override getAccounts to return empty array when disabled.
+   * Override resyncAccounts to not execute it when disabled.
    *
    * @param accounts - List of local accounts.
-   * @returns Array of accounts, or empty array if disabled.
    */
   override async resyncAccounts(
     accounts: Bip44Account<InternalAccount>[],
