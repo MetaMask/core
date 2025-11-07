@@ -71,6 +71,9 @@ export const formatChainIdToDec = (
   if (chainId === BtcScope.Mainnet) {
     return ChainId.BTC;
   }
+  if (chainId === TrxScope.Mainnet) {
+    return ChainId.TRON;
+  }
   if (isCaipChainId(chainId)) {
     return Number(chainId.split(':').at(-1));
   }
