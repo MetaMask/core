@@ -1,4 +1,4 @@
-import type { QuoteResponse, TxData } from '@metamask/bridge-controller';
+import type { QuoteResponse } from '@metamask/bridge-controller';
 
 import type { QuoteRequest } from '../../types';
 
