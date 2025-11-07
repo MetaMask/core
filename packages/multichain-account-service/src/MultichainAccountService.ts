@@ -12,6 +12,7 @@ import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { areUint8ArraysEqual } from '@metamask/utils';
 
+import { traceFallback } from './analytics';
 import { projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
@@ -28,7 +29,10 @@ import {
   SolAccountProvider,
   type SolAccountProviderConfig,
 } from './providers/SolAccountProvider';
-import type { MultichainAccountServiceMessenger } from './types';
+import type {
+  MultichainAccountServiceConfig,
+  MultichainAccountServiceMessenger,
+} from './types';
 import { createSentryError } from './utils';
 
 export const serviceName = 'MultichainAccountService';
@@ -43,6 +47,7 @@ export type MultichainAccountServiceOptions = {
     [EvmAccountProvider.NAME]?: EvmAccountProviderConfig;
     [SolAccountProvider.NAME]?: SolAccountProviderConfig;
   };
+  config?: MultichainAccountServiceConfig;
 };
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
@@ -82,28 +87,35 @@ export class MultichainAccountService {
    * MultichainAccountService.
    * @param options.providers - Optional list of account
    * @param options.providerConfigs - Optional provider configs
-   * providers.
+   * @param options.config - Optional config.
    */
   constructor({
     messenger,
     providers = [],
     providerConfigs,
+    config,
   }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
+
+    // Pass trace callback directly to preserve original 'this' context
+    // This avoids binding the callback to the MultichainAccountService instance
+    const traceCallback = config?.trace ?? traceFallback;
 
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
       new EvmAccountProvider(
         this.#messenger,
         providerConfigs?.[EvmAccountProvider.NAME],
+        traceCallback,
       ),
       new AccountProviderWrapper(
         this.#messenger,
         new SolAccountProvider(
           this.#messenger,
           providerConfigs?.[SolAccountProvider.NAME],
+          traceCallback,
         ),
       ),
       // Custom account providers that can be provided by the MetaMask client.

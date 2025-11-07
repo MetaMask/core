@@ -1,4 +1,5 @@
 import { assertIsBip44Account, type Bip44Account } from '@metamask/account-api';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { BtcAccountType, BtcScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -9,6 +10,8 @@ import {
   type SnapAccountProviderConfig,
 } from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
+import { traceFallback } from '../analytics';
+import { TraceName } from '../constants/traces';
 import type { MultichainAccountServiceMessenger } from '../types';
 
 export type BtcAccountProviderConfig = SnapAccountProviderConfig;
@@ -33,8 +36,9 @@ export class BtcAccountProvider extends SnapAccountProvider {
         backOffMs: 1000,
       },
     },
+    trace: TraceCallback = traceFallback,
   ) {
-    super(BtcAccountProvider.BTC_SNAP_ID, messenger, config);
+    super(BtcAccountProvider.BTC_SNAP_ID, messenger, config, trace);
   }
 
   getName(): string {
@@ -79,32 +83,45 @@ export class BtcAccountProvider extends SnapAccountProvider {
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }) {
-    const discoveredAccounts = await withRetry(
-      () =>
-        withTimeout(
-          this.client.discoverAccounts(
-            [BtcScope.Mainnet],
-            entropySource,
-            groupIndex,
-          ),
-          this.config.discovery.timeoutMs,
-        ),
+  }): Promise<Bip44Account<KeyringAccount>[]> {
+    return await super.trace(
       {
-        maxAttempts: this.config.discovery.maxAttempts,
-        backOffMs: this.config.discovery.backOffMs,
+        name: TraceName.SnapDiscoverAccounts,
+        data: {
+          provider: this.getName(),
+        },
+      },
+      async () => {
+        const discoveredAccounts = await withRetry(
+          () =>
+            withTimeout(
+              this.client.discoverAccounts(
+                [BtcScope.Mainnet],
+                entropySource,
+                groupIndex,
+              ),
+              this.config.discovery.timeoutMs,
+            ),
+          {
+            maxAttempts: this.config.discovery.maxAttempts,
+            backOffMs: this.config.discovery.backOffMs,
+          },
+        );
+
+        if (
+          !Array.isArray(discoveredAccounts) ||
+          discoveredAccounts.length === 0
+        ) {
+          return [];
+        }
+
+        const createdAccounts = await this.createAccounts({
+          entropySource,
+          groupIndex,
+        });
+
+        return createdAccounts;
       },
     );
-
-    if (!Array.isArray(discoveredAccounts) || discoveredAccounts.length === 0) {
-      return [];
-    }
-
-    const createdAccounts = await this.createAccounts({
-      entropySource,
-      groupIndex,
-    });
-
-    return createdAccounts;
   }
 }

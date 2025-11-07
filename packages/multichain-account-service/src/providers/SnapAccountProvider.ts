@@ -1,4 +1,5 @@
 import { type Bip44Account } from '@metamask/account-api';
+import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
@@ -10,6 +11,7 @@ import { HandlerType } from '@metamask/snaps-utils';
 import { Semaphore } from 'async-mutex';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
+import { traceFallback } from '../analytics';
 import type { MultichainAccountServiceMessenger } from '../types';
 import { createSentryError } from '../utils';
 
@@ -38,10 +40,14 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
 
   readonly #queue?: Semaphore;
 
+  readonly #trace: TraceCallback;
+
   constructor(
     snapId: SnapId,
     messenger: MultichainAccountServiceMessenger,
     config: SnapAccountProviderConfig,
+    /* istanbul ignore next */
+    trace: TraceCallback = traceFallback,
   ) {
     super(messenger);
 
@@ -58,6 +64,8 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     if (isFinite(maxConcurrency)) {
       this.#queue = new Semaphore(maxConcurrency);
     }
+
+    this.#trace = trace;
   }
 
   /**
@@ -75,6 +83,13 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       return this.#queue.runExclusive(operation);
     }
     return operation();
+  }
+
+  protected async trace<ReturnType>(
+    request: TraceRequest,
+    fn: () => Promise<ReturnType>,
+  ): Promise<ReturnType> {
+    return this.#trace(request, fn);
   }
 
   protected async getRestrictedSnapAccountCreator(): Promise<RestrictedSnapKeyringCreateAccount> {
