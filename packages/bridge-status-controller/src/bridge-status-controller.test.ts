@@ -2601,7 +2601,7 @@ describe('BridgeStatusController', () => {
           false,
         ),
       ).rejects.toThrow(
-        'Failed to submit cross-chain swap transaction: unknown account in trade data',
+        'Failed to submit cross-chain swap batch transaction: unknown account in trade data',
       );
       controller.stopAllPolling();
 
