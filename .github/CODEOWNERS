@@ -84,7 +84,7 @@
 /packages/subscription-controller        @MetaMask/web3auth
 
 ## Ramps Team
-/packages/ramps-comtroller              @MetaMask/ramp
+/packages/ramps-controller              @MetaMask/ramp
 
 ## Joint team ownership
 /packages/announcement-controller               @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
