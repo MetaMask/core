@@ -1,4 +1,6 @@
-import type { UnionToIntersection } from './utils';
+import { isInstance, type UnionToIntersection } from './utils';
+
+const MiddlewareContextSymbol = Symbol.for('json-rpc-engine#MiddlewareContext');
 
 /**
  * An context object for middleware that attempts to protect against accidental
@@ -27,10 +29,29 @@ import type { UnionToIntersection } from './utils';
 export class MiddlewareContext<
   KeyValues extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
 > extends Map<keyof KeyValues, KeyValues[keyof KeyValues]> {
+  private readonly [MiddlewareContextSymbol] = true;
+
+  /**
+   * Check if a value is a {@link MiddlewareContext} instance.
+   * Works across different package versions in the same realm.
+   *
+   * @param value - The value to check.
+   * @returns Whether the value is a {@link MiddlewareContext} instance.
+   */
+  static isInstance(value: unknown): value is MiddlewareContext {
+    return isInstance(value, MiddlewareContextSymbol);
+  }
+
   constructor(
-    entries?: Iterable<readonly [keyof KeyValues, KeyValues[keyof KeyValues]]>,
+    entries?:
+      | Iterable<readonly [keyof KeyValues, KeyValues[keyof KeyValues]]>
+      | KeyValues,
   ) {
-    super(entries);
+    super(
+      entries && isIterable(entries)
+        ? entries
+        : entriesFromKeyValues(entries ?? {}),
+    );
     Object.freeze(this);
   }
 
@@ -70,9 +91,38 @@ export class MiddlewareContext<
 }
 
 /**
+ * {@link Iterable} type guard.
+ *
+ * @param value - The value to check.
+ * @returns Whether the value is an {@link Iterable}.
+ */
+function isIterable(
+  value: Iterable<unknown> | Record<PropertyKey, unknown>,
+): value is Iterable<unknown> {
+  return Symbol.iterator in value;
+}
+
+/**
+ * Like Object.entries(), but includes symbol-keyed properties.
+ *
+ * @template KeyValues - The type of the keys and values in the object.
+ * @param keyValues - The object to convert.
+ * @returns The array of entries, including symbol-keyed properties.
+ */
+function entriesFromKeyValues<KeyValues extends Record<PropertyKey, unknown>>(
+  keyValues: KeyValues,
+): [keyof KeyValues, KeyValues[keyof KeyValues]][] {
+  return Reflect.ownKeys(keyValues).map((key: keyof KeyValues) => [
+    key,
+    keyValues[key],
+  ]);
+}
+
+/**
  * Infer the KeyValues type from a {@link MiddlewareContext}.
  */
-type InferKeyValues<T> = T extends MiddlewareContext<infer U> ? U : never;
+export type InferKeyValues<T> =
+  T extends MiddlewareContext<infer U> ? U : never;
 
 /**
  * Simplifies an object type by "merging" its properties.

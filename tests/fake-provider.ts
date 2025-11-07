@@ -1,9 +1,16 @@
 import { InternalProvider } from '@metamask/eth-json-rpc-provider';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import {
+  JsonRpcEngineV2,
+  type JsonRpcMiddleware,
+  type MiddlewareContext,
+  type ResultConstraint,
+} from '@metamask/json-rpc-engine/v2';
+import type { Provider } from '@metamask/network-controller';
 import type {
   Json,
   JsonRpcId,
   JsonRpcParams,
+  JsonRpcRequest,
   JsonRpcResponse,
   JsonRpcVersion2,
 } from '@metamask/utils';
@@ -91,6 +98,15 @@ type FakeProviderEngineOptions = {
   stubs?: FakeProviderStub[];
 };
 
+type Context = MiddlewareContext<
+  { origin: string; skipCache: boolean } & Record<string, unknown>
+>;
+type Middleware = JsonRpcMiddleware<
+  JsonRpcRequest,
+  ResultConstraint<JsonRpcRequest>,
+  Context
+>;
+
 /**
  * An implementation of the provider that NetworkController exposes, which is
  * actually an instance of InternalProvider (from the
@@ -102,7 +118,10 @@ type FakeProviderEngineOptions = {
 // NOTE: We shouldn't need to extend from the "real" provider here, but
 // we'd need a `InternalProvider` _interface_ and that doesn't exist (at
 // least not yet).
-export class FakeProvider extends InternalProvider {
+export class FakeProvider
+  extends InternalProvider<Context>
+  implements Provider
+{
   calledStubs: FakeProviderStub[];
 
   #originalStubs: FakeProviderStub[];
@@ -117,7 +136,15 @@ export class FakeProvider extends InternalProvider {
    * of specific invocations of `request` matching a `method`.
    */
   constructor({ stubs = [] }: FakeProviderEngineOptions = {}) {
-    super({ engine: new JsonRpcEngine() });
+    super({
+      engine: JsonRpcEngineV2.create<Middleware>({
+        middleware: [
+          () => {
+            throw new Error('FakeProvider received unstubbed method call');
+          },
+        ],
+      }),
+    });
     this.#originalStubs = stubs;
     this.#stubs = this.#originalStubs.slice();
     this.calledStubs = [];

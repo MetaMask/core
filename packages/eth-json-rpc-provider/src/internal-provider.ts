@@ -1,9 +1,10 @@
 import { asV2Middleware, type JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type {
-  ContextConstraint,
-  MiddlewareContext,
+import {
+  type HandleOptions,
+  type ContextConstraint,
+  type MiddlewareContext,
+  JsonRpcEngineV2,
 } from '@metamask/json-rpc-engine/v2';
-import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import type { JsonRpcSuccess } from '@metamask/utils';
 import {
   type Json,
@@ -37,8 +38,10 @@ type Options<
  * This provider loosely follows conventions that pre-date EIP-1193.
  * It is not compliant with any Ethereum provider standard.
  */
-export class InternalProvider {
-  readonly #engine: JsonRpcEngineV2<JsonRpcRequest, MiddlewareContext>;
+export class InternalProvider<
+  Context extends ContextConstraint = MiddlewareContext,
+> {
+  readonly #engine: JsonRpcEngineV2<JsonRpcRequest, Context>;
 
   /**
    * Construct a InternalProvider from a JSON-RPC server or legacy engine.
@@ -46,7 +49,7 @@ export class InternalProvider {
    * @param options - Options.
    * @param options.engine - The JSON-RPC engine used to process requests.
    */
-  constructor({ engine }: Options) {
+  constructor({ engine }: Options<JsonRpcRequest, Context>) {
     this.#engine =
       'push' in engine
         ? JsonRpcEngineV2.create({
@@ -59,14 +62,17 @@ export class InternalProvider {
    * Send a provider request asynchronously.
    *
    * @param eip1193Request - The request to send.
+   * @param options - The options for the request operation.
+   * @param options.context - The context to include with the request.
    * @returns The JSON-RPC response.
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
     eip1193Request: Eip1193Request<Params>,
+    options?: HandleOptions<Context>,
   ): Promise<Result> {
     const jsonRpcRequest =
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
-    return (await this.#handle<Result>(jsonRpcRequest)).result;
+    return (await this.#handle<Result>(jsonRpcRequest, options)).result;
   }
 
   /**
@@ -118,12 +124,14 @@ export class InternalProvider {
 
   readonly #handle = async <Result extends Json>(
     jsonRpcRequest: JsonRpcRequest,
+    options?: HandleOptions<Context>,
   ): Promise<JsonRpcSuccess<Result>> => {
     const { id, jsonrpc } = jsonRpcRequest;
-    // This typecast is technicaly unsafe, but we need it to preserve the provider's
-    // public interface, which allows you to typecast results.
+    // The `result` typecast is unsafe, but we need it to preserve the provider's
+    // public interface, which allows you to unsafely typecast results.
     const result = (await this.#engine.handle(
       jsonRpcRequest,
+      options,
     )) as unknown as Result;
 
     return {

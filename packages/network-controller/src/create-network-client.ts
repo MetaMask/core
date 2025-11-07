@@ -173,7 +173,7 @@ export function createNetworkClient({
 
   engine.push(networkMiddleware);
 
-  const provider = new InternalProvider({ engine });
+  const provider: Provider = new InternalProvider({ engine });
 
   const destroy = () => {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
