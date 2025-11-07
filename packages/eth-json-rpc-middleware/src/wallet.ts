@@ -55,6 +55,7 @@ export type WalletMiddlewareOptions = {
   processPersonalMessage?: (
     msgParams: MessageParams,
     req: JsonRpcRequest,
+    context: WalletMiddlewareContext,
   ) => Promise<string>;
   processTransaction?: (
     txParams: TransactionParams,
@@ -64,20 +65,24 @@ export type WalletMiddlewareOptions = {
   processSignTransaction?: (
     txParams: TransactionParams,
     req: JsonRpcRequest,
+    context: WalletMiddlewareContext,
   ) => Promise<string>;
   processTypedMessage?: (
     msgParams: TypedMessageV1Params,
     req: JsonRpcRequest,
+    context: WalletMiddlewareContext,
     version: string,
   ) => Promise<string>;
   processTypedMessageV3?: (
     msgParams: TypedMessageParams,
     req: JsonRpcRequest,
+    context: WalletMiddlewareContext,
     version: string,
   ) => Promise<string>;
   processTypedMessageV4?: (
     msgParams: TypedMessageParams,
     req: JsonRpcRequest,
+    context: WalletMiddlewareContext,
     version: string,
   ) => Promise<string>;
   processRequestExecutionPermissions?: ProcessRequestExecutionPermissionsHook;
@@ -262,7 +267,7 @@ export function createWalletMiddleware({
       ...params,
       from: await validateAndNormalizeKeyholder(params?.from || '', context),
     };
-    return await processSignTransaction(txParams, request);
+    return await processSignTransaction(txParams, request, context);
   }
 
   //
@@ -309,7 +314,7 @@ export function createWalletMiddleware({
       version,
     };
 
-    return await processTypedMessage(msgParams, request, version);
+    return await processTypedMessage(msgParams, request, context, version);
   }
 
   /**
@@ -349,7 +354,7 @@ export function createWalletMiddleware({
       signatureMethod: 'eth_signTypedData_v3',
     };
 
-    return await processTypedMessageV3(msgParams, request, version);
+    return await processTypedMessageV3(msgParams, request, context, version);
   }
 
   /**
@@ -389,7 +394,7 @@ export function createWalletMiddleware({
       signatureMethod: 'eth_signTypedData_v4',
     };
 
-    return await processTypedMessageV4(msgParams, request, version);
+    return await processTypedMessageV4(msgParams, request, context, version);
   }
 
   /**
@@ -447,7 +452,7 @@ export function createWalletMiddleware({
       signatureMethod: 'personal_sign',
     };
 
-    return await processPersonalMessage(msgParams, request);
+    return await processPersonalMessage(msgParams, request, context);
   }
 
   /**

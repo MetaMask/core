@@ -16804,7 +16804,6 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
           if (interestingEventPayloads.length === expectedNumberOfEvents) {
             resolve(interestingEventPayloads);
           } else {
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(
               new Error(
                 `Expected to receive ${expectedNumberOfEvents} ${String(eventType)} event(s), but received ${
