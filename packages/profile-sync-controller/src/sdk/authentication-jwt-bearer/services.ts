@@ -34,7 +34,7 @@ function parseRetryAfter(retryAfterHeader: string | null): number | null {
   const date = Date.parse(retryAfterHeader);
   if (!Number.isNaN(date)) {
     const diff = date - Date.now();
-    return diff > 0 ? diff : 0;
+    return diff > 0 ? diff : null;
   }
   return null;
 }
