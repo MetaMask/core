@@ -124,8 +124,22 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       (await this.client.listAccounts()).map((account) => account.id),
     );
 
+    // NOTE: This should never happen, but we want to report that kind of errors still
+    // in case states are de-sync.
+    if (localSnapAccounts.length < snapAccounts.size) {
+      this.messenger.call(
+        'ErrorReportingService:captureException',
+        new Error(
+          `Snap "${this.snapId}" has de-synced accounts, Snap has more accounts than MetaMask!`,
+        ),
+      );
+
+      // We don't recover from this case yet.
+      return;
+    }
+
     // We want this part to be fast, so we only check for sizes, but we might need
-    // to make "diff" between the 2 states to not miss any de-sync.
+    // to make a real "diff" between the 2 states to not miss any de-sync.
     if (localSnapAccounts.length > snapAccounts.size) {
       // Accounts should never really be de-synced, so we want to log this to see how often this
       // happens, cause that means that something else is buggy elsewhere...

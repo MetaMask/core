@@ -304,6 +304,29 @@ describe('SnapAccountProvider', () => {
       });
     });
 
+    it('reports an error if a Snap has more accounts than MetaMask', async () => {
+      const { provider, messenger } = setup();
+
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        jest.fn().mockResolvedValue(mockAccounts.map(asKeyringAccount)),
+      );
+
+      const mockCaptureException = jest.fn();
+      messenger.registerActionHandler(
+        'ErrorReportingService:captureException',
+        mockCaptureException,
+      );
+
+      await provider.resyncAccounts([mockAccounts[0]]); // Less accounts than the Snap
+
+      expect(mockCaptureException).toHaveBeenCalledWith(
+        new Error(
+          `Snap "${TEST_SNAP_ID}" has de-synced accounts, Snap has more accounts than MetaMask!`,
+        ),
+      );
+    });
+
     it('does not throw errors if any provider is not able to re-sync', async () => {
       const { provider, messenger } = setup();
 
