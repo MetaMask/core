@@ -316,9 +316,9 @@ describe('TrxAccountProvider', () => {
   describe('trace functionality', () => {
     it('calls trace callback during account discovery', async () => {
       const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-        expect(request.name).toBe('Snap Discover Accounts');
+        expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
         expect(request.data).toStrictEqual({
-          provider: 'Tron',
+          provider: TRX_ACCOUNT_PROVIDER_NAME,
         });
         return await fn();
       });
