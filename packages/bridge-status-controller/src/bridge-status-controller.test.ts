@@ -3142,12 +3142,8 @@ describe('BridgeStatusController', () => {
       const result = await controller.submitTx(
         (mockEvmQuoteResponse.trade as TxData).from,
         {
-          quote: mockEvmQuoteResponse.quote,
+          ...mockEvmQuoteResponse,
           featureId: FeatureId.PERPS,
-          trade: mockEvmQuoteResponse.trade,
-          approval: mockEvmQuoteResponse.approval,
-          estimatedProcessingTimeInSeconds:
-            mockEvmQuoteResponse.estimatedProcessingTimeInSeconds,
         },
         false,
       );

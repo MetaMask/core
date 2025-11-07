@@ -763,7 +763,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    */
   readonly #handleNonEvmTx = async (
     trade: Trade,
-    quoteResponse: QuoteResponse<Trade, Trade> & Partial<QuoteMetadata>,
+    quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
     selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
   ) => {
     if (!selectedAccount.metadata?.snap?.id) {
@@ -788,10 +788,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     // Create quote response with the specified trade
     // This allows the same method to handle both approvals and main trades
-    const txQuoteResponse = {
+    const txQuoteResponse: QuoteResponse<Trade> & QuoteMetadata = {
       ...quoteResponse,
       trade,
-    } as QuoteResponse<Trade> & QuoteMetadata;
+    };
 
     const txMeta = handleNonEvmTxResponse(
       requestResponse,
@@ -1035,7 +1035,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    */
   submitTx = async (
     accountAddress: string,
-    quoteResponse: QuoteResponse<Trade, Trade> & Partial<QuoteMetadata>,
+    quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     this.messenger.call('BridgeController:stopPollingForQuotes');
