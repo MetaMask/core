@@ -999,12 +999,11 @@ describe('MultichainAccountService', () => {
 
     it('resync accounts with MultichainAccountService:resyncAccounts', async () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
-      const { messenger } = await setup({ accounts });
+      const { messenger, service } = await setup({ accounts });
 
-      // We only check that we can call the actions here:
-      expect(
-        await messenger.call('MultichainAccountService:resyncAccounts'),
-      ).toBeUndefined(); // Nothing to return (void).
+      const resyncAccountsSpy = jest.spyOn(service, 'resyncAccounts');
+      await messenger.call('MultichainAccountService:resyncAccounts');
+      expect(resyncAccountsSpy).toHaveBeenCalled();
     });
   });
 
