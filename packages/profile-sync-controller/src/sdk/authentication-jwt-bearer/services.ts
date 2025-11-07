@@ -345,10 +345,7 @@ export async function getUserProfileLineage(
     });
 
     if (!response.ok) {
-      const responseBody = (await response.json()) as ErrorMessage;
-      throw new Error(
-        `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
-      );
+      await handleErrorResponse(response, 'profile lineage');
     }
 
     const profileJson: UserProfileLineage = await response.json();
