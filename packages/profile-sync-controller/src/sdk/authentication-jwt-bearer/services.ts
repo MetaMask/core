@@ -19,6 +19,9 @@ import {
 /**
  * Parse Retry-After header into milliseconds if possible.
  * Supports seconds or HTTP-date formats.
+ *
+ * @param retryAfterHeader - The Retry-After header value (seconds or HTTP-date)
+ * @returns The retry delay in milliseconds, or null if parsing fails
  */
 function parseRetryAfter(retryAfterHeader: string | null): number | null {
   if (!retryAfterHeader) {
@@ -37,13 +40,18 @@ function parseRetryAfter(retryAfterHeader: string | null): number | null {
 }
 
 /**
- * Handle HTTP error responses with rate limiting support
+ * Handle HTTP error responses with rate limiting support.
+ *
+ * @param response - The HTTP response object
+ * @param errorPrefix - Optional prefix for the error message
+ * @throws RateLimitedError for 429 responses
+ * @throws Error for other error responses
  */
 async function handleErrorResponse(
   response: Response,
   errorPrefix?: string,
 ): Promise<never> {
-  const status = response.status;
+  const { status } = response;
   const retryAfterHeader = response.headers.get('Retry-After');
   const retryAfterMs = parseRetryAfter(retryAfterHeader);
 
@@ -55,7 +63,7 @@ async function handleErrorResponse(
     'message' in responseBody
       ? responseBody.message
       : responseBody.error_description;
-  const error = responseBody.error;
+  const { error } = responseBody;
 
   if (status === 429) {
     throw new RateLimitedError(

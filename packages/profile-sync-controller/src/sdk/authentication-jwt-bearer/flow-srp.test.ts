@@ -1,6 +1,6 @@
 import { SRPJwtBearerAuth } from './flow-srp';
-import type { AuthConfig } from './types';
-import { AuthType } from './types';
+import { AuthType, type AuthConfig } from './types';
+import * as timeUtils from './utils/time';
 
 jest.setTimeout(15000);
 
@@ -9,8 +9,6 @@ jest.mock('./utils/time', () => ({
   delay: jest.fn(),
 }));
 
-// Import after mocking to get the mocked version
-import * as timeUtils from './utils/time';
 const mockDelay = timeUtils.delay as jest.MockedFunction<
   typeof timeUtils.delay
 >;
@@ -21,8 +19,11 @@ const mockAuthenticate = jest.fn();
 const mockAuthorizeOIDC = jest.fn();
 
 jest.mock('./services', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   authenticate: (...args: any[]) => mockAuthenticate(...args),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   authorizeOIDC: (...args: any[]) => mockAuthorizeOIDC(...args),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getNonce: (...args: any[]) => mockGetNonce(...args),
   getUserProfileLineage: jest.fn(),
 }));
@@ -30,7 +31,9 @@ jest.mock('./services', () => ({
 describe('SRPJwtBearerAuth rate limit handling', () => {
   const config: AuthConfig & { type: AuthType.SRP } = {
     type: AuthType.SRP,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     env: 'test' as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     platform: 'extension' as any,
   };
 
@@ -39,6 +42,7 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
     profileId: 'p1',
     metametrics_id: 'm1',
     identifier_id: 'i1',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 
   const MOCK_NONCE_RESPONSE = {
@@ -61,6 +65,7 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
 
   // Helper to create a rate limit error
   const createRateLimitError = (retryAfterMs?: number) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const error: any = new Error('rate limited');
     error.name = 'RateLimitedError';
     error.status = 429;
@@ -71,6 +76,7 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
   };
 
   const createAuth = (overrides?: { cooldownDefaultMs?: number }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const store: any = { value: null as any };
 
     const auth = new SRPJwtBearerAuth(config, {
@@ -97,7 +103,7 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
     mockAuthorizeOIDC.mockResolvedValue(MOCK_OIDC_RESPONSE);
   });
 
-  test('coalesces concurrent calls into a single login attempt', async () => {
+  it('coalesces concurrent calls into a single login attempt', async () => {
     const { auth } = createAuth();
 
     const p1 = auth.getAccessToken();
@@ -116,11 +122,12 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
     expect(mockAuthorizeOIDC).toHaveBeenCalledTimes(1);
   });
 
-  test('applies cooldown and retries once on 429 with Retry-After', async () => {
+  it('applies cooldown and retries once on 429 with Retry-After', async () => {
     const { auth } = createAuth({ cooldownDefaultMs: 20 });
 
     let first = true;
     mockAuthenticate.mockImplementation(async () => {
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (first) {
         first = false;
         throw createRateLimitError(20);
@@ -141,7 +148,7 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
     expect(mockDelay).toHaveBeenCalledWith(20);
   });
 
-  test('throws 429 after exhausting one retry', async () => {
+  it('throws 429 after exhausting one retry', async () => {
     const { auth } = createAuth({ cooldownDefaultMs: 20 });
 
     mockAuthenticate.mockRejectedValue(createRateLimitError(20));
@@ -154,7 +161,7 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
     expect(mockDelay).toHaveBeenCalledTimes(1);
   });
 
-  test('throws transient errors immediately without retry', async () => {
+  it('throws transient errors immediately without retry', async () => {
     const { auth, store } = createAuth();
 
     // Force a login by clearing session

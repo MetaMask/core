@@ -16,6 +16,7 @@ import type {
   UserProfile,
   UserProfileLineage,
 } from './types';
+import * as timeUtils from './utils/time';
 import type { MetaMetricsAuth } from '../../shared/types/services';
 import { ValidationError, RateLimitedError } from '../errors';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
@@ -26,7 +27,6 @@ import {
   isSnapConnected,
 } from '../utils/messaging-signing-snap-requests';
 import { validateLoginResponse } from '../utils/validate-login-response';
-import * as timeUtils from './utils/time';
 
 type JwtBearerAuth_SRP_Options = {
   storage: AuthStorageOptions;
@@ -79,7 +79,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   readonly #ongoingLogins = new Map<string, Promise<LoginResponse>>();
 
   // Default cooldown when 429 has no Retry-After header
-  #cooldownDefaultMs = 10000;
+  readonly #cooldownDefaultMs: number;
 
   #customProvider?: Eip1193Provider;
 
@@ -101,9 +101,8 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     this.#metametrics = options.metametrics;
 
     // Apply rate limit retry config if provided
-    if (options.rateLimitRetry?.cooldownDefaultMs !== undefined) {
-      this.#cooldownDefaultMs = options.rateLimitRetry.cooldownDefaultMs;
-    }
+    this.#cooldownDefaultMs =
+      options.rateLimitRetry?.cooldownDefaultMs ?? 10000;
   }
 
   setCustomProvider(provider: Eip1193Provider) {
@@ -240,7 +239,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     }
 
     // Create a new login promise
-    const loginPromise = this.#loginWithRetry(loginKey, entropySourceId);
+    const loginPromise = this.#loginWithRetry(entropySourceId);
 
     // Store the promise in the map
     this.#ongoingLogins.set(loginKey, loginPromise);
@@ -255,10 +254,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     }
   }
 
-  async #loginWithRetry(
-    loginKey: string,
-    entropySourceId?: string,
-  ): Promise<LoginResponse> {
+  async #loginWithRetry(entropySourceId?: string): Promise<LoginResponse> {
     // Allow max 2 attempts: initial + one retry on 429
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
