@@ -5,13 +5,13 @@ import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
-import { TraceName } from 'src/constants/traces';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
 import {
   TRX_ACCOUNT_PROVIDER_NAME,
   TrxAccountProvider,
 } from './TrxAccountProvider';
+import { TraceName } from '../constants/traces';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,

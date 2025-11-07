@@ -6,13 +6,13 @@ import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
-import { TraceName } from 'src/constants/traces';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
 import {
   BTC_ACCOUNT_PROVIDER_NAME,
   BtcAccountProvider,
 } from './BtcAccountProvider';
+import { TraceName } from '../constants/traces';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,

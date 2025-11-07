@@ -11,13 +11,13 @@ import type {
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createBytes } from '@metamask/utils';
-import { TraceName } from 'src/constants/traces';
 
 import {
   EVM_ACCOUNT_PROVIDER_NAME,
   EvmAccountProvider,
 } from './EvmAccountProvider';
 import { TimeoutError } from './utils';
+import { TraceName } from '../constants/traces';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
