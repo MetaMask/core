@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
   - Providers accessible either via network clients or global proxies no longer emit events (or inherit from EventEmitter, for that matter).
+- **BREAKING:** Make `Provider` type more specific ([#7061](https://github.com/MetaMask/core/pull/7061))
+  - The `Provider` type is now an `InternalProvider` with a context type of `{ origin: string; skipCache: boolean } & Record<string, unknown>`.
 - **BREAKING:** Stop retrying `undefined` results for methods that include a block tag parameter ([#7001](https://github.com/MetaMask/core/pull/7001))
   - The network client middleware, via `@metamask/eth-json-rpc-middleware`, will now throw an error if it encounters an
     `undefined` result when dispatching a request with a later block number than the originally requested block number.

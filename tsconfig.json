@@ -19,6 +19,7 @@
     { "path": "./packages/bridge-status-controller" },
     { "path": "./packages/build-utils" },
     { "path": "./packages/chain-agnostic-permission" },
+    { "path": "./packages/claims-controller" },
     { "path": "./packages/composable-controller" },
     { "path": "./packages/controller-utils" },
     { "path": "./packages/core-backend" },
