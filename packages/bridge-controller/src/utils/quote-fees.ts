@@ -118,8 +118,6 @@ const appendNonEvmFees = async (
       try {
         const scope = formatChainIdToCaip(quote.srcChainId);
 
-        // Extract transaction data from different trade formats
-        // Handles Solana (string), Bitcoin (unsignedPsbtBase64), and Tron (raw_data_hex)
         const transaction = extractTradeData(trade);
 
         const response = (await messenger.call(

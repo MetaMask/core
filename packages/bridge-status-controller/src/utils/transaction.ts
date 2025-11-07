@@ -243,7 +243,6 @@ export const getClientRequest = (
 ) => {
   const scope = formatChainIdToCaip(srcChainId);
 
-  // Extract the transaction data - Bitcoin uses unsignedPsbtBase64, others use string
   const transactionData = extractTradeData(trade);
 
   // Tron trades need the visible flag and contract type to be included in the request options

@@ -4,6 +4,22 @@ import type { BitcoinTradeData, TronTradeData, TxData } from '../types';
 export type Trade = TxData | string | BitcoinTradeData | TronTradeData;
 
 /**
+ * Type guard to check if a trade is an EVM TxData object
+ *
+ * @param trade - The trade object to check
+ * @returns True if the trade is a TxData object with data property
+ */
+export const isEvmTxData = (trade: Trade): trade is TxData => {
+  return (
+    typeof trade === 'object' &&
+    trade !== null &&
+    'data' in trade &&
+    'chainId' in trade &&
+    'to' in trade
+  );
+};
+
+/**
  * Type guard to check if a trade is a Bitcoin trade with unsignedPsbtBase64
  *
  * @param trade - The trade object to check
@@ -28,12 +44,17 @@ export const isTronTrade = (trade: Trade): trade is TronTradeData => {
 /**
  * Extracts the transaction data from different trade formats
  *
- * @param trade - The trade object which can be a string, Bitcoin trade, or Tron trade
+ * @param trade - The trade object which can be a TxData, string, Bitcoin trade, or Tron trade
  * @returns The extracted transaction data as a base64 string for SnapController
  */
 export const extractTradeData = (trade: Trade): string => {
+  if (isEvmTxData(trade)) {
+    // EVM TxData object - return the data property
+    return trade.data;
+  }
+  
   if (typeof trade === 'string') {
-    // EVM and Solana txs - assuming already in correct format
+    // Solana txs - assuming already in correct format
     return trade;
   }
 
