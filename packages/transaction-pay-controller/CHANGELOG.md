@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated TransactionPayBridgeQuote types to account for multichain quotes ([#6862](https://github.com/MetaMask/core/pull/6862))
+
 ## [3.1.0]
 
 ### Added
