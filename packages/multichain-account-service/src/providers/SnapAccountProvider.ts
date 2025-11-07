@@ -125,10 +125,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
 
     // We want this part to be fast, so we only check for sizes, but we might need
     // to make "diff" between the 2 states to not miss any de-sync.
-    if (snapAccounts.size !== localSnapAccounts.length) {
+    if (localSnapAccounts.length > snapAccounts.size) {
       // TODO: Use reporting-error-service here.
       console.error(
-        `Snap "${this.snapId}" had de-synced accounts, we'll attempt to re-sync them...`,
+        `Snap "${this.snapId}" has de-synced accounts, we'll attempt to re-sync them...`,
       );
 
       // We always use the MetaMask list as the main reference here.
@@ -147,12 +147,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
               );
 
               // The Snap has no account in its state for this one, we re-create it.
-              const newAccounts = await this.createAccounts({
+              await this.createAccounts({
                 entropySource,
                 groupIndex,
               });
-
-              console.log('NEW ACCOUNTS ARE', newAccounts);
             }
           } catch (error) {
             console.error(`Unable to re-sync account: ${groupIndex}`, error);
