@@ -81,7 +81,7 @@
 /packages/seedless-onboarding-controller @MetaMask/web3auth
 /packages/shield-controller              @MetaMask/web3auth
 /packages/subscription-controller        @MetaMask/web3auth
-/packages/claims-controller              @Metamask/web3auth
+/packages/claims-controller              @MetaMask/web3auth
 
 ## Joint team ownership
 /packages/announcement-controller               @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
