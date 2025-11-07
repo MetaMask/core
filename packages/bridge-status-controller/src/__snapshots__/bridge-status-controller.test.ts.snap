@@ -4193,7 +4193,7 @@ Object {
     "bridges": Array [],
     "destAsset": Object {
       "address": "native",
-      "assetId": "bip122:000000000019d6689c085ae165831e93/slip44:195",
+      "assetId": "tron:728126428/slip44:195",
       "chainId": 728126428,
       "decimals": 6,
       "name": "Tron",
@@ -4206,7 +4206,7 @@ Object {
         "amount": "10000",
         "asset": Object {
           "address": "native",
-          "assetId": "bip122:000000000019d6689c085ae165831e93/slip44:195",
+          "assetId": "tron:728126428/slip44:195",
           "chainId": 728126428,
           "decimals": 6,
           "name": "Tron",
@@ -4218,7 +4218,7 @@ Object {
     "requestId": "123",
     "srcAsset": Object {
       "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-      "assetId": "bip122:000000000019d6689c085ae165831e93/slip44:195",
+      "assetId": "tron:728126428/slip44:195",
       "chainId": 728126428,
       "decimals": 6,
       "name": "Tether USD",
@@ -4232,7 +4232,7 @@ Object {
         "destAmount": "500000000",
         "destAsset": Object {
           "address": "native",
-          "assetId": "bip122:000000000019d6689c085ae165831e93/slip44:195",
+          "assetId": "tron:728126428/slip44:195",
           "chainId": 728126428,
           "decimals": 6,
           "name": "Tron",
@@ -4247,7 +4247,7 @@ Object {
         "srcAmount": "1000000",
         "srcAsset": Object {
           "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-          "assetId": "bip122:000000000019d6689c085ae165831e93/slip44:195",
+          "assetId": "tron:728126428/slip44:195",
           "chainId": 728126428,
           "decimals": 6,
           "name": "Tether USD",
@@ -4409,7 +4409,7 @@ Object {
     "bridges": Array [],
     "destAsset": Object {
       "address": "native",
-      "assetId": "bip122:000000000019d6689c085ae165831e93/slip44:195",
+      "assetId": "tron:728126428/slip44:195",
       "chainId": 728126428,
       "decimals": 6,
       "name": "Tron",
@@ -4422,7 +4422,7 @@ Object {
         "amount": "10000",
         "asset": Object {
           "address": "native",
-          "assetId": "bip122:000000000019d6689c085ae165831e93/slip44:195",
+          "assetId": "tron:728126428/slip44:195",
           "chainId": 728126428,
           "decimals": 6,
           "name": "Tron",
@@ -4434,7 +4434,7 @@ Object {
     "requestId": "123",
     "srcAsset": Object {
       "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-      "assetId": "bip122:000000000019d6689c085ae165831e93/slip44:195",
+      "assetId": "tron:728126428/slip44:195",
       "chainId": 728126428,
       "decimals": 6,
       "name": "Tether USD",
@@ -4448,7 +4448,7 @@ Object {
         "destAmount": "500000000",
         "destAsset": Object {
           "address": "native",
-          "assetId": "bip122:000000000019d6689c085ae165831e93/slip44:195",
+          "assetId": "tron:728126428/slip44:195",
           "chainId": 728126428,
           "decimals": 6,
           "name": "Tron",
@@ -4463,7 +4463,7 @@ Object {
         "srcAmount": "1000000",
         "srcAsset": Object {
           "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-          "assetId": "bip122:000000000019d6689c085ae165831e93/slip44:195",
+          "assetId": "tron:728126428/slip44:195",
           "chainId": 728126428,
           "decimals": 6,
           "name": "Tether USD",
