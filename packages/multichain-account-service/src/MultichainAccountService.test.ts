@@ -998,8 +998,9 @@ describe('MultichainAccountService', () => {
     });
 
     it('resync accounts with MultichainAccountService:resyncAccounts', async () => {
-      const accounts = [MOCK_HD_ACCOUNT_1];
-      const { messenger, service } = await setup({ accounts });
+      const { messenger, service } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
 
       const resyncAccountsSpy = jest.spyOn(service, 'resyncAccounts');
       await messenger.call('MultichainAccountService:resyncAccounts');
