@@ -408,4 +408,12 @@ describe('EvmAccountProvider', () => {
       }),
     ).toStrictEqual([MOCK_HD_ACCOUNT_1]);
   });
+
+  it('does nothing when re-syncing accounts', async () => {
+    const { provider } = setup({
+      accounts: [],
+    });
+
+    expect(await provider.resyncAccounts()).toBeUndefined();
+  });
 });
