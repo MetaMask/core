@@ -1018,7 +1018,7 @@ export class BackendWebSocketService {
         const connectionLatency = Date.now() - connectionStartTime;
 
         // Trace successful connection with latency
-        // TODO: Address lint error
+        // Promise result intentionally not awaited
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.#trace(
           {
@@ -1208,7 +1208,7 @@ export class BackendWebSocketService {
     const latency = receivedAt - message.timestamp;
 
     // Trace channel message processing with latency data
-    // TODO: Address lint error
+    // Promise result intentionally not awaited
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#trace(
       {
@@ -1250,7 +1250,7 @@ export class BackendWebSocketService {
 
       // Trace notification processing wi th latency data
       // Use stored channelType instead of parsing each time
-      // TODO: Address lint error
+      // Promise result intentionally not awaited
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.#trace(
         {
@@ -1327,7 +1327,7 @@ export class BackendWebSocketService {
     }
 
     // Trace unexpected disconnect with details
-    // TODO: Address lint error
+    // Promise result intentionally not awaited
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#trace(
       {

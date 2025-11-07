@@ -231,14 +231,14 @@ export class AccountActivityService {
     );
     this.#messenger.subscribe(
       'AccountsController:selectedAccountChange',
-      // Async function used here for improved stack traces and ease of testing
+      // Promise result intentionally not awaited
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (account: InternalAccount) =>
         await this.#handleSelectedAccountChange(account),
     );
     this.#messenger.subscribe(
       'BackendWebSocketService:connectionStateChanged',
-      // Async function used here for improved stack traces and ease of testing
+      // Promise result intentionally not awaited
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       (connectionInfo: WebSocketConnectionInfo) =>
         this.#handleWebSocketStateChange(connectionInfo),
@@ -359,7 +359,7 @@ export class AccountActivityService {
     });
 
     // Trace message receipt with latency from transaction time to now
-    // TODO: Fix lint errors from TypeScript 5.3 upgrade
+    // Promise result intentionally not awaited
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#trace(
       {
