@@ -151,7 +151,6 @@ export class RampsController extends BaseController<
     return urlWithPath.toString();
   }
 
-  
   async #getGeolocation(): Promise<string> {
     try {
       const url = this.#getApiUrl();
@@ -173,7 +172,9 @@ export class RampsController extends BaseController<
     try {
       const geolocation = await this.#getGeolocation();
       const url = this.#getApiUrl(ApiService.Regions);
-      const response = await fetch(new URL(`countries/${geolocation}`, `${url}/`).toString());
+      const response = await fetch(
+        new URL(`countries/${geolocation}`, `${url}/`).toString(),
+      );
 
       if (!response.ok) {
         throw new Error(`Failed to fetch country data: ${response.statusText}`);
