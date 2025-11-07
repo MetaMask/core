@@ -325,7 +325,7 @@ export const getAddTransactionBatchParams = async ({
   );
   if (!selectedAccount) {
     throw new Error(
-      'Failed to submit non-EVM batch transaction: unknown account in trade data',
+      'Failed to submit cross-chain swap batch transaction: unknown account in trade data',
     );
   }
   const hexChainId = formatChainIdToHex(trade.chainId);
