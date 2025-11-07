@@ -1,6 +1,13 @@
 import { SRPJwtBearerAuth } from './flow-srp';
-import { AuthType, type AuthConfig } from './types';
+import {
+  AuthType,
+  type AuthConfig,
+  type LoginResponse,
+  type UserProfile,
+} from './types';
 import * as timeUtils from './utils/time';
+import { Env, Platform } from '../../shared/env';
+import { RateLimitedError } from '../errors';
 
 jest.setTimeout(15000);
 
@@ -19,31 +26,25 @@ const mockAuthenticate = jest.fn();
 const mockAuthorizeOIDC = jest.fn();
 
 jest.mock('./services', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  authenticate: (...args: any[]) => mockAuthenticate(...args),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  authorizeOIDC: (...args: any[]) => mockAuthorizeOIDC(...args),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getNonce: (...args: any[]) => mockGetNonce(...args),
+  authenticate: (...args: unknown[]) => mockAuthenticate(...args),
+  authorizeOIDC: (...args: unknown[]) => mockAuthorizeOIDC(...args),
+  getNonce: (...args: unknown[]) => mockGetNonce(...args),
   getUserProfileLineage: jest.fn(),
 }));
 
 describe('SRPJwtBearerAuth rate limit handling', () => {
   const config: AuthConfig & { type: AuthType.SRP } = {
     type: AuthType.SRP,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    env: 'test' as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    platform: 'extension' as any,
+    env: Env.DEV,
+    platform: Platform.EXTENSION,
   };
 
   // Mock data constants
-  const MOCK_PROFILE = {
+  const MOCK_PROFILE: UserProfile = {
     profileId: 'p1',
-    metametrics_id: 'm1',
-    identifier_id: 'i1',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
+    metaMetricsId: 'm1',
+    identifierId: 'i1',
+  };
 
   const MOCK_NONCE_RESPONSE = {
     nonce: 'nonce-1',
@@ -64,20 +65,11 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
   };
 
   // Helper to create a rate limit error
-  const createRateLimitError = (retryAfterMs?: number) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const error: any = new Error('rate limited');
-    error.name = 'RateLimitedError';
-    error.status = 429;
-    if (retryAfterMs !== undefined) {
-      error.retryAfterMs = retryAfterMs;
-    }
-    return error;
-  };
+  const createRateLimitError = (retryAfterMs?: number) =>
+    new RateLimitedError('rate limited', retryAfterMs);
 
   const createAuth = (overrides?: { cooldownDefaultMs?: number }) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const store: any = { value: null as any };
+    const store: { value: LoginResponse | null } = { value: null };
 
     const auth = new SRPJwtBearerAuth(config, {
       storage: {
