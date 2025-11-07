@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove early return for empty `chainIds` in `searchTokens` function to allow API to handle empty chain IDs ([#7083](https://github.com/MetaMask/core/pull/7083))
 
+### Fixed
+
+- Add 30-second timeout protection for Accounts API calls in `TokenDetectionController` to prevent hanging requests ([#7084](https://github.com/MetaMask/core/pull/7084))
+  - Prevents token detection from hanging indefinitely on slow or unresponsive API requests
+  - Automatically falls back to RPC-based token detection when API call times out or fails
+  - Includes error logging for debugging timeout and failure events
+
 ## [87.1.0]
 
 ### Added
