@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(account-tree-controller): bump coverage back to 100% ([#6924](https://github.com/MetaMask/core/pull/6924))
+- Release/657.0.0 ([#7041](https://github.com/MetaMask/core/pull/7041))
+- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
+- Release/655.0.0 ([#7019](https://github.com/MetaMask/core/pull/7019))
+
 ## [2.0.0]
 
 ### Changed
