@@ -117,11 +117,6 @@ const config = createConfig([
     languageOptions: {
       parserOptions: {
         tsconfigRootDir: import.meta.dirname,
-        project: './tsconfig.packages.json',
-        // Disable `projectService` because we run into out-of-memory issues.
-        // See this ticket for inspiration out how to solve this:
-        // <https://github.com/typescript-eslint/typescript-eslint/issues/1192>
-        projectService: false,
       },
     },
     rules: {
