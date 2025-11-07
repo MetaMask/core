@@ -3300,7 +3300,7 @@ describe('BridgeStatusController', () => {
           true,
         ),
       ).rejects.toThrow(
-        'Failed to submit non-EVM batch transaction: unknown account in trade data',
+        'Failed to submit cross-chain swap transaction: unknown account in trade data',
       );
       controller.stopAllPolling();
 
