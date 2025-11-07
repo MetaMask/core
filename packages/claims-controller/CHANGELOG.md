@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- ci: Fix `claims-controller` errors in `tsconfig.json` ([#7092](https://github.com/MetaMask/core/pull/7092))
-
 ## [0.1.0]
 
 ### Added
