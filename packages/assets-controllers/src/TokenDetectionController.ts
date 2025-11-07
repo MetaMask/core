@@ -61,6 +61,7 @@ import type {
 } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
+const ACCOUNTS_API_TIMEOUT_MS = 30000; // 30 seconds
 
 type LegacyToken = {
   name: string;
@@ -608,12 +609,32 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     supportedNetworks: number[] | null,
     jwtToken?: string,
   ) {
-    return await this.#addDetectedTokensViaAPI({
-      chainIds: chainsToDetectUsingAccountAPI,
-      selectedAddress: addressToDetect,
-      supportedNetworks,
-      jwtToken,
-    });
+    try {
+      // Create a timeout promise that rejects after 30 seconds
+      const timeoutPromise = new Promise<{ result: 'failed' }>(
+        (_resolve, reject) => {
+          setTimeout(() => {
+            reject(new Error('Accounts API call timeout after 30 seconds'));
+          }, ACCOUNTS_API_TIMEOUT_MS);
+        },
+      );
+
+      // Race between the API call and the timeout
+      const apiCallPromise = this.#addDetectedTokensViaAPI({
+        chainIds: chainsToDetectUsingAccountAPI,
+        selectedAddress: addressToDetect,
+        supportedNetworks,
+        jwtToken,
+      });
+
+      return await Promise.race([apiCallPromise, timeoutPromise]);
+    } catch (error) {
+      console.warn(
+        `Accounts API detection failed for chains ${chainsToDetectUsingAccountAPI.join(', ')}: ${String(error)}`,
+      );
+      // Return failed result to trigger RPC fallback
+      return { result: 'failed' } as const;
+    }
   }
 
   #addChainsToRpcDetection(

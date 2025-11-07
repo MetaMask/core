@@ -2961,6 +2961,45 @@ describe('TokenDetectionController', () => {
       actResult.assertAddedTokens(actResult.rpcToken);
     });
 
+    it('should timeout and fallback to RPC when Accounts API call takes longer than 30 seconds', async () => {
+      // Use fake timers to simulate the 30-second timeout
+      const clock = sinon.useFakeTimers();
+
+      try {
+        // Mock a hanging API call that never resolves (simulates network timeout)
+        const mockAPI = mockMultiChainAccountsService();
+        mockAPI.mockFetchMultiChainBalances.mockImplementation(
+          () =>
+            new Promise(() => {
+              // Promise that never resolves (simulating a hanging request)
+            }),
+        );
+
+        // Start the detection process (don't await yet so we can advance time)
+        const detectPromise = arrangeActTestDetectTokensWithAccountsAPI({
+          mockMultiChainAPI: mockAPI,
+        });
+
+        // Fast-forward time by 30 seconds to trigger the timeout
+        // This simulates the API call taking longer than the ACCOUNTS_API_TIMEOUT_MS (30000ms)
+        await advanceTime({ clock, duration: 30000 });
+
+        // Now await the result after the timeout has been triggered
+        const actResult = await detectPromise;
+
+        // Verify that the API was initially called
+        expect(actResult.mockFetchMultiChainBalances).toHaveBeenCalled();
+
+        // Verify that after timeout, RPC fallback was triggered
+        expect(actResult.mockGetBalancesInSingleCall).toHaveBeenCalled();
+
+        // Verify that tokens were added via RPC fallback method
+        actResult.assertAddedTokens(actResult.rpcToken);
+      } finally {
+        clock.restore();
+      }
+    });
+
     it('should pass JWT token to fetchMultiChainBalances when using Accounts API', async () => {
       const mockJwtToken = 'test-jwt-token-12345';
 
