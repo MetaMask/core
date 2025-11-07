@@ -284,9 +284,22 @@ describe('RampsController', () => {
       await withController(async ({ controller }) => {
         await controller.getCountries();
 
-        // The error occurs when trying to parse the response, which will be caught
-        // by #getGeolocation and then re-thrown to be caught by getCountries
-        expect(mockConsoleError).toHaveBeenCalled();
+        // Verify both console.error calls: one from #getGeolocation and one from getCountries
+        expect(mockConsoleError).toHaveBeenCalledTimes(2);
+        expect(mockConsoleError).toHaveBeenNthCalledWith(
+          1,
+          'Error fetching geolocation:',
+          expect.objectContaining({
+            message: 'Failed to fetch geolocation: Internal Server Error',
+          }),
+        );
+        expect(mockConsoleError).toHaveBeenNthCalledWith(
+          2,
+          'Error in getCountries:',
+          expect.objectContaining({
+            message: 'Failed to fetch geolocation: Internal Server Error',
+          }),
+        );
         expect(controller.state.region).toBeNull();
       });
     });

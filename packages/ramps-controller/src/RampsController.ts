@@ -155,6 +155,13 @@ export class RampsController extends BaseController<
     try {
       const url = this.#getApiUrl();
       const response = await fetch(new URL('geolocation', url).toString());
+
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch geolocation: ${response.statusText}`,
+        );
+      }
+
       const data = await response.json();
       return data;
     } catch (error) {
