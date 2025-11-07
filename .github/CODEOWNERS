@@ -82,6 +82,7 @@
 /packages/seedless-onboarding-controller @MetaMask/web3auth
 /packages/shield-controller              @MetaMask/web3auth
 /packages/subscription-controller        @MetaMask/web3auth
+/packages/claims-controller              @MetaMask/web3auth
 
 ## Ramps Team
 /packages/ramps-controller              @MetaMask/ramp
@@ -188,3 +189,5 @@
 /packages/core-backend/CHANGELOG.md           @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/ramps-controller/package.json       @MetaMask/core-platform @MetaMask/ramp
 /packages/ramps-controller/CHANGELOG.md       @MetaMask/core-platform @MetaMask/ramp
+/packages/claims-controller/package.json @MetaMask/web3auth @MetaMask/core-platform
+/packages/claims-controller/CHANGELOG.md @MetaMask/web3auth @MetaMask/core-platform

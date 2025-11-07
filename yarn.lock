@@ -2594,7 +2594,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
     "@metamask/account-api": ^0.12.0
@@ -2640,7 +2640,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
@@ -2679,7 +2679,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -2698,7 +2698,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   languageName: unknown
   linkType: soft
@@ -2717,7 +2717,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -2743,7 +2743,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -2777,7 +2777,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -2845,7 +2845,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
@@ -2959,7 +2959,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -3002,7 +3002,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^34.0.0
@@ -3041,7 +3041,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^34.0.0
@@ -3076,7 +3076,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -3100,7 +3100,29 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
+  languageName: unknown
+  linkType: soft
+
+"@metamask/claims-controller@workspace:packages/claims-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/claims-controller@workspace:packages/claims-controller"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^9.0.0"
+    "@metamask/controller-utils": "npm:^11.15.0"
+    "@metamask/keyring-controller": "npm:^24.0.0"
+    "@metamask/messenger": "npm:^0.3.0"
+    "@metamask/profile-sync-controller": "npm:^26.0.0"
+    "@metamask/utils": "npm:^11.8.1"
+    "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -3121,7 +3143,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -3160,7 +3182,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   peerDependencies:
     "@babel/runtime": ^7.0.0
   languageName: unknown
@@ -3185,7 +3207,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^34.0.0
@@ -3248,7 +3270,7 @@ __metadata:
     semver: "npm:^7.6.3"
     simple-git-hooks: "npm:^2.8.0"
     tsx: "npm:^4.20.5"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     typescript-eslint: "npm:^8.7.0"
     yargs: "npm:^17.7.2"
   languageName: unknown
@@ -3296,7 +3318,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   peerDependencies:
     "@metamask/accounts-controller": ^34.0.0
     "@metamask/keyring-controller": ^24.0.0
@@ -3344,7 +3366,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   peerDependencies:
     "@metamask/account-tree-controller": ^2.0.0
     "@metamask/network-controller": ^25.0.0
@@ -3371,7 +3393,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   languageName: unknown
   linkType: soft
@@ -3392,7 +3414,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -3415,7 +3437,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -3438,7 +3460,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   peerDependencies:
     "@metamask/network-controller": ^25.0.0
   languageName: unknown
@@ -3459,7 +3481,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -3544,7 +3566,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -3612,7 +3634,7 @@ __metadata:
     safe-stable-stringify: "npm:^2.4.3"
     tsd: "npm:^0.31.2"
     typedoc: "npm:^0.24.8"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -3636,7 +3658,7 @@ __metadata:
     nanoid: "npm:^3.3.8"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -3862,7 +3884,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     unzipper: "npm:^0.12.3"
     yaml: "npm:^2.3.4"
     yargs: "npm:^17.7.2"
@@ -3899,7 +3921,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@babel/runtime": ^7.0.0
@@ -3931,7 +3953,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   peerDependencies:
     "@metamask/snaps-controllers": ^14.0.1
     "@metamask/transaction-controller": ^61.1.0
@@ -3958,7 +3980,7 @@ __metadata:
     klona: "npm:^2.0.6"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -3981,7 +4003,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     webextension-polyfill-ts: "npm:^0.26.0"
   languageName: unknown
   linkType: soft
@@ -4045,7 +4067,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     ulid: "npm:^2.3.0"
     uuid: "npm:^8.3.2"
   languageName: unknown
@@ -4134,7 +4156,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   languageName: unknown
   linkType: soft
@@ -4158,7 +4180,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   languageName: unknown
   linkType: soft
@@ -4177,7 +4199,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -4222,7 +4244,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
@@ -4262,7 +4284,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -4294,7 +4316,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   peerDependencies:
     "@metamask/accounts-controller": ^34.0.0
     "@metamask/network-controller": ^25.0.0
@@ -4327,7 +4349,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^34.0.0
@@ -4352,7 +4374,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -4395,7 +4417,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uri-js: "npm:^4.4.1"
     uuid: "npm:^8.3.2"
   peerDependencies:
@@ -4425,7 +4447,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   peerDependencies:
     "@metamask/multichain-network-controller": ^2.0.0
     "@metamask/network-controller": ^25.0.0
@@ -4475,7 +4497,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/keyring-controller": ^24.0.0
@@ -4545,7 +4567,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   peerDependencies:
     "@metamask/approval-controller": ^8.0.0
   languageName: unknown
@@ -4570,7 +4592,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -4612,7 +4634,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   peerDependencies:
     "@metamask/transaction-controller": ^61.0.0
   languageName: unknown
@@ -4637,7 +4659,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/network-controller": ^25.0.0
@@ -4672,7 +4694,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   peerDependencies:
     "@metamask/keyring-controller": ^24.0.0
   languageName: unknown
@@ -4711,7 +4733,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
     "@metamask/address-book-controller": ^7.0.0
@@ -4776,7 +4798,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -4798,7 +4820,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   languageName: unknown
   linkType: soft
@@ -4839,7 +4861,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   peerDependencies:
     "@metamask/network-controller": ^25.0.0
   languageName: unknown
@@ -4884,7 +4906,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   peerDependencies:
     "@metamask/keyring-controller": ^24.0.0
   languageName: unknown
@@ -4913,7 +4935,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   peerDependencies:
     "@metamask/network-controller": ^25.0.0
     "@metamask/permission-controller": ^12.0.0
@@ -4943,7 +4965,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/signature-controller": ^36.0.0
@@ -4976,7 +4998,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^34.0.0
@@ -5137,7 +5159,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   peerDependencies:
     "@metamask/profile-sync-controller": ^26.0.0
   languageName: unknown
@@ -5173,7 +5195,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 
@@ -5241,7 +5263,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@babel/runtime": ^7.0.0
@@ -5284,7 +5306,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
   peerDependencies:
     "@metamask/assets-controllers": ^87.0.0
     "@metamask/bridge-controller": ^59.0.0
@@ -5325,7 +5347,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
+    typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/approval-controller": ^8.0.0
@@ -15301,23 +15323,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:~5.2.2":
-  version: 5.2.2
-  resolution: "typescript@npm:5.2.2"
+"typescript@npm:~5.3.3":
+  version: 5.3.3
+  resolution: "typescript@npm:5.3.3"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10/d65e50eb849bd21ff8677e5b9447f9c6e74777e346afd67754934264dcbf4bd59e7d2473f6062d9a015d66bd573311166357e3eb07fea0b52859cf9bb2b58555
+  checksum: 10/6e4e6a14a50c222b3d14d4ea2f729e79f972fa536ac1522b91202a9a65af3605c2928c4a790a4a50aa13694d461c479ba92cedaeb1e7b190aadaa4e4b96b8e18
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@npm%3A~5.2.2#optional!builtin<compat/typescript>":
-  version: 5.2.2
-  resolution: "typescript@patch:typescript@npm%3A5.2.2#optional!builtin<compat/typescript>::version=5.2.2&hash=f3b441"
+"typescript@patch:typescript@npm%3A~5.3.3#optional!builtin<compat/typescript>":
+  version: 5.3.3
+  resolution: "typescript@patch:typescript@npm%3A5.3.3#optional!builtin<compat/typescript>::version=5.3.3&hash=e012d7"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10/f79cc2ba802c94c2b78dbb00d767a10adb67368ae764709737dc277273ec148aa4558033a03ce901406b35fddf4eac46dabc94a1e1d12d2587e2b9cfe5707b4a
+  checksum: 10/c93786fcc9a70718ba1e3819bab56064ead5817004d1b8186f8ca66165f3a2d0100fee91fa64c840dcd45f994ca5d615d8e1f566d39a7470fc1e014dbb4cf15d
   languageName: node
   linkType: hard
 
