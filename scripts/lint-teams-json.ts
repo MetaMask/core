@@ -8,7 +8,10 @@ type Workspace = {
 };
 
 // Run the script immediately.
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
 
 /**
  * The entrypoint to this script.
