@@ -29,7 +29,6 @@ export type RootControllerMessenger = Messenger<
  * @param params.mockClaimServiceRequestHeaders - A mock function for the claim service request headers.
  * @param params.mockClaimServiceGetClaimsApiUrl - A mock function for the claim service get claims API URL.
  * @param params.mockClaimServiceGenerateMessageForClaimSignature - A mock function for the claim service generate message for claim signature.
- * @param params.mockClaimServiceVerifyClaimSignature - A mock function for the claim service verify claim signature.
  * @param params.mockKeyringControllerSignPersonalMessage - A mock function for the keyring controller sign personal message.
  * @param params.mockClaimsServiceGetClaims - A mock function for the claim service get claims.
  * @returns A mock messenger.
@@ -38,14 +37,12 @@ export function createMockClaimsControllerMessenger({
   mockClaimServiceRequestHeaders,
   mockClaimServiceGetClaimsApiUrl,
   mockClaimServiceGenerateMessageForClaimSignature,
-  mockClaimServiceVerifyClaimSignature,
   mockKeyringControllerSignPersonalMessage,
   mockClaimsServiceGetClaims,
 }: {
   mockClaimServiceRequestHeaders: jest.Mock;
   mockClaimServiceGetClaimsApiUrl: jest.Mock;
   mockClaimServiceGenerateMessageForClaimSignature: jest.Mock;
-  mockClaimServiceVerifyClaimSignature: jest.Mock;
   mockKeyringControllerSignPersonalMessage: jest.Mock;
   mockClaimsServiceGetClaims: jest.Mock;
 }): {
@@ -73,10 +70,6 @@ export function createMockClaimsControllerMessenger({
     mockClaimServiceGenerateMessageForClaimSignature,
   );
   rootMessenger.registerActionHandler(
-    `${SERVICE_NAME}:verifyClaimSignature`,
-    mockClaimServiceVerifyClaimSignature,
-  );
-  rootMessenger.registerActionHandler(
     'KeyringController:signPersonalMessage',
     mockKeyringControllerSignPersonalMessage,
   );
@@ -101,7 +94,6 @@ export function createMockClaimsControllerMessenger({
       `${SERVICE_NAME}:getRequestHeaders`,
       `${SERVICE_NAME}:getClaimsApiUrl`,
       `${SERVICE_NAME}:generateMessageForClaimSignature`,
-      `${SERVICE_NAME}:verifyClaimSignature`,
       `${SERVICE_NAME}:getClaims`,
       'KeyringController:signPersonalMessage',
     ],

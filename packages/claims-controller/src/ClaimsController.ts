@@ -7,7 +7,7 @@ import { BaseController } from '@metamask/base-controller';
 import { detectSIWE } from '@metamask/controller-utils';
 import type { KeyringControllerSignPersonalMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { Hex } from '@metamask/utils';
+import { bytesToHex, stringToBytes } from '@metamask/utils';
 
 import type {
   ClaimsServiceGenerateMessageForClaimSignatureAction,
@@ -15,7 +15,6 @@ import type {
   ClaimsServiceGetClaimsAction,
   ClaimsServiceGetClaimsApiUrlAction,
   ClaimsServiceGetRequestHeadersAction,
-  ClaimsServiceVerifyClaimSignatureAction,
 } from './ClaimsService';
 import {
   ClaimsControllerErrorMessages,
@@ -43,7 +42,6 @@ export type AllowedActions =
   | ClaimsServiceGetRequestHeadersAction
   | ClaimsServiceGetClaimsApiUrlAction
   | ClaimsServiceGenerateMessageForClaimSignatureAction
-  | ClaimsServiceVerifyClaimSignatureAction
   | ClaimsServiceGetClaimsAction
   | KeyringControllerSignPersonalMessageAction;
 
@@ -143,7 +141,8 @@ export class ClaimsController extends BaseController<
     );
 
     // generate and parse the SIWE message
-    const messageHex = textToHex(message);
+    const messageBytes = stringToBytes(message);
+    const messageHex = bytesToHex(messageBytes);
     const siwe = detectSIWE({ data: messageHex });
     if (!siwe.isSIWEMessage) {
       throw new Error(ClaimsControllerErrorMessages.INVALID_SIGNATURE_MESSAGE);
@@ -158,18 +157,6 @@ export class ClaimsController extends BaseController<
         siwe,
       },
     );
-
-    // verify the signature
-    const isSignatureValid = await this.messenger.call(
-      `${SERVICE_NAME}:verifyClaimSignature`,
-      signature as Hex,
-      walletAddress,
-      message,
-    );
-
-    if (!isSignatureValid) {
-      throw new Error(ClaimsControllerErrorMessages.INVALID_CLAIM_SIGNATURE);
-    }
 
     return signature;
   }
@@ -204,28 +191,4 @@ export class ClaimsController extends BaseController<
       throw new Error(ClaimsControllerErrorMessages.CLAIM_ALREADY_SUBMITTED);
     }
   }
-}
-
-/**
- * Converts a text string to its hexadecimal representation.
- *
- * @param text - The input string.
- * @returns The hexadecimal representation of the string's UTF-8 bytes.
- */
-function textToHex(text: string): Hex {
-  // 1. Encode the string into a Uint8Array (UTF-8 bytes)
-  const encoder = new TextEncoder();
-  const utf8Bytes = encoder.encode(text);
-
-  // 2. Convert bytes to hex string
-  let hexString = '';
-  for (const byte of utf8Bytes) {
-    // Convert the byte (a number 0-255) to a hexadecimal string
-    const hex = byte.toString(16);
-
-    // Ensure the hex value is always two characters long by padding with a leading zero
-    hexString += hex.padStart(2, '0');
-  }
-
-  return `0x${hexString}`;
 }

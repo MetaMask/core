@@ -11,7 +11,6 @@ import type { WithControllerArgs } from '../tests/types';
 const mockClaimServiceRequestHeaders = jest.fn();
 const mockClaimServiceGetClaimsApiUrl = jest.fn();
 const mockClaimServiceGenerateMessageForClaimSignature = jest.fn();
-const mockClaimServiceVerifyClaimSignature = jest.fn();
 const mockKeyringControllerSignPersonalMessage = jest.fn();
 const mockClaimsServiceGetClaims = jest.fn();
 
@@ -29,7 +28,6 @@ async function withController<ReturnValue>(
     mockClaimServiceRequestHeaders,
     mockClaimServiceGetClaimsApiUrl,
     mockClaimServiceGenerateMessageForClaimSignature,
-    mockClaimServiceVerifyClaimSignature,
     mockKeyringControllerSignPersonalMessage,
     mockClaimsServiceGetClaims,
   });
@@ -135,13 +133,12 @@ describe('ClaimsController', () => {
         message: MOCK_SIWE_MESSAGE,
         nonce: 'B4Y8k8lGdMml0nrqk',
       });
-      mockClaimServiceVerifyClaimSignature.mockResolvedValueOnce(true);
       mockKeyringControllerSignPersonalMessage.mockResolvedValueOnce(
         MOCK_CLAIM_SIGNATURE,
       );
     });
 
-    it('should generate a message and verify the signature', async () => {
+    it('should generate a message and signature successfully', async () => {
       await withController(async ({ controller }) => {
         const signature = await controller.generateClaimSignature(
           1,
@@ -151,11 +148,6 @@ describe('ClaimsController', () => {
         expect(
           mockClaimServiceGenerateMessageForClaimSignature,
         ).toHaveBeenCalledWith(1, MOCK_WALLET_ADDRESS);
-        expect(mockClaimServiceVerifyClaimSignature).toHaveBeenCalledWith(
-          MOCK_CLAIM_SIGNATURE,
-          MOCK_WALLET_ADDRESS,
-          MOCK_SIWE_MESSAGE,
-        );
       });
     });
 
@@ -170,18 +162,6 @@ describe('ClaimsController', () => {
           controller.generateClaimSignature(1, MOCK_WALLET_ADDRESS),
         ).rejects.toThrow(
           ClaimsControllerErrorMessages.INVALID_SIGNATURE_MESSAGE,
-        );
-      });
-    });
-
-    it('should throw an error if the signature is invalid', async () => {
-      await withController(async ({ controller }) => {
-        mockClaimServiceVerifyClaimSignature.mockRestore();
-        mockClaimServiceVerifyClaimSignature.mockResolvedValueOnce(false);
-        await expect(
-          controller.generateClaimSignature(1, MOCK_WALLET_ADDRESS),
-        ).rejects.toThrow(
-          ClaimsControllerErrorMessages.INVALID_CLAIM_SIGNATURE,
         );
       });
     });
