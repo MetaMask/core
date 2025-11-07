@@ -23,6 +23,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/account-tree-controller`](packages/account-tree-controller)
 - [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
+- [`@metamask/analytics-controller`](packages/analytics-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
 - [`@metamask/app-metadata-controller`](packages/app-metadata-controller)
 - [`@metamask/approval-controller`](packages/approval-controller)
@@ -32,6 +33,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/bridge-status-controller`](packages/bridge-status-controller)
 - [`@metamask/build-utils`](packages/build-utils)
 - [`@metamask/chain-agnostic-permission`](packages/chain-agnostic-permission)
+- [`@metamask/claims-controller`](packages/claims-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/core-backend`](packages/core-backend)
@@ -92,6 +94,7 @@ linkStyle default opacity:0.5
   account_tree_controller(["@metamask/account-tree-controller"]);
   accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
+  analytics_controller(["@metamask/analytics-controller"]);
   announcement_controller(["@metamask/announcement-controller"]);
   app_metadata_controller(["@metamask/app-metadata-controller"]);
   approval_controller(["@metamask/approval-controller"]);
@@ -101,6 +104,7 @@ linkStyle default opacity:0.5
   bridge_status_controller(["@metamask/bridge-status-controller"]);
   build_utils(["@metamask/build-utils"]);
   chain_agnostic_permission(["@metamask/chain-agnostic-permission"]);
+  claims_controller(["@metamask/claims-controller"]);
   composable_controller(["@metamask/composable-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   core_backend(["@metamask/core-backend"]);
@@ -209,6 +213,9 @@ linkStyle default opacity:0.5
   chain_agnostic_permission --> controller_utils;
   chain_agnostic_permission --> network_controller;
   chain_agnostic_permission --> permission_controller;
+  claims_controller --> base_controller;
+  claims_controller --> controller_utils;
+  claims_controller --> messenger;
   composable_controller --> base_controller;
   composable_controller --> messenger;
   composable_controller --> json_rpc_engine;
@@ -379,6 +386,7 @@ linkStyle default opacity:0.5
   transaction_controller --> gas_fee_controller;
   transaction_controller --> network_controller;
   transaction_controller --> remote_feature_flag_controller;
+  transaction_pay_controller --> base_controller;
   transaction_pay_controller --> controller_utils;
   transaction_pay_controller --> messenger;
   transaction_pay_controller --> assets_controllers;
@@ -386,8 +394,8 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> bridge_status_controller;
   transaction_pay_controller --> gas_fee_controller;
   transaction_pay_controller --> network_controller;
-  transaction_pay_controller --> transaction_controller;
   transaction_pay_controller --> remote_feature_flag_controller;
+  transaction_pay_controller --> transaction_controller;
   user_operation_controller --> base_controller;
   user_operation_controller --> controller_utils;
   user_operation_controller --> messenger;

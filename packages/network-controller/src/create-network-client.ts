@@ -12,9 +12,8 @@ import {
   createFetchMiddleware,
   createRetryOnEmptyMiddleware,
 } from '@metamask/eth-json-rpc-middleware';
-import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import {
-  providerFromEngine,
+  InternalProvider,
   providerFromMiddleware,
 } from '@metamask/eth-json-rpc-provider';
 import {
@@ -174,7 +173,7 @@ export function createNetworkClient({
 
   engine.push(networkMiddleware);
 
-  const provider = providerFromEngine(engine);
+  const provider: Provider = new InternalProvider({ engine });
 
   const destroy = () => {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.

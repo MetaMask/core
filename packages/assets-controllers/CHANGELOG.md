@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove early return for empty `chainIds` in `searchTokens` function to allow API to handle empty chain IDs ([#7083](https://github.com/MetaMask/core/pull/7083))
+
 ## [87.1.0]
 
 ### Added

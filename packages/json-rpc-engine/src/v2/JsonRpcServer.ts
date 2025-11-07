@@ -9,10 +9,11 @@ import type {
 import { hasProperty, isObject } from '@metamask/utils';
 
 import type {
+  HandleOptions,
   JsonRpcMiddleware,
   MergedContextOf,
+  MiddlewareConstraint,
   RequestOf,
-  ResultConstraint,
 } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import type { JsonRpcCall } from './utils';
@@ -20,7 +21,7 @@ import { getUniqueId } from '../getUniqueId';
 
 type OnError = (error: unknown) => void;
 
-type Options<Middleware extends JsonRpcMiddleware> = {
+type Options<Middleware extends MiddlewareConstraint> = {
   onError?: OnError;
 } & (
   | {
@@ -58,14 +59,7 @@ const jsonrpc = '2.0' as const;
  * ```
  */
 export class JsonRpcServer<
-  Middleware extends JsonRpcMiddleware<
-    // Non-polluting `any` constraint.
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    any,
-    ResultConstraint<any>,
-    any
-    /* eslint-enable @typescript-eslint/no-explicit-any */
-  > = JsonRpcMiddleware,
+  Middleware extends MiddlewareConstraint = JsonRpcMiddleware,
 > {
   readonly #engine: JsonRpcEngineV2<
     RequestOf<Middleware>,
@@ -109,9 +103,14 @@ export class JsonRpcServer<
    * engine. The request will fail if the engine can only handle notifications.
    *
    * @param request - The request to handle.
+   * @param options - The options for the handle operation.
+   * @param options.context - The context to pass to the middleware.
    * @returns The JSON-RPC response.
    */
-  async handle(request: JsonRpcRequest): Promise<JsonRpcResponse>;
+  async handle(
+    request: JsonRpcRequest,
+    options?: HandleOptions<MergedContextOf<Middleware>>,
+  ): Promise<JsonRpcResponse>;
 
   /**
    * Handle a JSON-RPC notification.
@@ -123,8 +122,13 @@ export class JsonRpcServer<
    * engine. The request will fail if the engine cannot handle notifications.
    *
    * @param notification - The notification to handle.
+   * @param options - The options for the handle operation.
+   * @param options.context - The context to pass to the middleware.
    */
-  async handle(notification: JsonRpcNotification): Promise<void>;
+  async handle(
+    notification: JsonRpcNotification,
+    options?: HandleOptions<MergedContextOf<Middleware>>,
+  ): Promise<void>;
 
   /**
    * Handle an alleged JSON-RPC request or notification. Permits any plain
@@ -140,22 +144,30 @@ export class JsonRpcServer<
    * response) is not of the type expected by the underlying engine.
    *
    * @param rawRequest - The raw request to handle.
+   * @param options - The options for the handle operation.
+   * @param options.context - The context to pass to the middleware.
    * @returns The JSON-RPC response, or `undefined` if the request is a
    * notification.
    */
-  async handle(rawRequest: unknown): Promise<JsonRpcResponse | void>;
+  async handle(
+    rawRequest: unknown,
+    options?: HandleOptions<MergedContextOf<Middleware>>,
+  ): Promise<JsonRpcResponse | void>;
 
-  async handle(rawRequest: unknown): Promise<JsonRpcResponse | void> {
+  async handle(
+    rawRequest: unknown,
+    options?: HandleOptions<MergedContextOf<Middleware>>,
+  ): Promise<JsonRpcResponse | void> {
     // If rawRequest is not a notification, the originalId will be attached
     // to the response. We attach our own, trusted id in #coerceRequest()
     // while the request is being handled.
     const [originalId, isRequest] = getOriginalId(rawRequest);
 
     try {
-      const request = this.#coerceRequest(rawRequest, isRequest);
+      const request = JsonRpcServer.#coerceRequest(rawRequest, isRequest);
       // @ts-expect-error - The request may not be of the type expected by the engine,
       // and we intentionally allow this to happen.
-      const result = await this.#engine.handle(request);
+      const result = await this.#engine.handle(request, options);
 
       if (result !== undefined) {
         return {
@@ -183,7 +195,7 @@ export class JsonRpcServer<
     return undefined;
   }
 
-  #coerceRequest(rawRequest: unknown, isRequest: boolean): JsonRpcCall {
+  static #coerceRequest(rawRequest: unknown, isRequest: boolean): JsonRpcCall {
     if (!isMinimalRequest(rawRequest)) {
       throw rpcErrors.invalidRequest({
         data: {

@@ -7,7 +7,11 @@ import {
 } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
-import type { ContextConstraint, MergeContexts } from './MiddlewareContext';
+import type {
+  ContextConstraint,
+  InferKeyValues,
+  MergeContexts,
+} from './MiddlewareContext';
 import { MiddlewareContext } from './MiddlewareContext';
 import {
   isNotification,
@@ -60,8 +64,11 @@ type RequestState<Request extends JsonRpcCall> = {
   result: Readonly<ResultConstraint<Request>> | undefined;
 };
 
-type HandleOptions<Context extends MiddlewareContext> = {
-  context?: Context;
+/**
+ * The options for the JSON-RPC request/notification handling operation.
+ */
+export type HandleOptions<Context extends ContextConstraint> = {
+  context?: Context | InferKeyValues<Context>;
 };
 
 type ConstructorOptions<
@@ -73,6 +80,9 @@ type ConstructorOptions<
   >;
 };
 
+/**
+ * The request type of a middleware.
+ */
 export type RequestOf<Middleware> =
   Middleware extends JsonRpcMiddleware<
     infer Request,
@@ -91,11 +101,23 @@ type ContextOf<Middleware> =
     ? C
     : never;
 
-export type MergedContextOf<
-  // Non-polluting `any` constraint.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Middleware extends JsonRpcMiddleware<any, any, any>,
-> = MergeContexts<ContextOf<Middleware>>;
+/**
+ * A constraint for {@link JsonRpcMiddleware} generic parameters.
+ */
+// Non-polluting `any` constraint.
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export type MiddlewareConstraint = JsonRpcMiddleware<
+  any,
+  ResultConstraint<any>,
+  MiddlewareContext<any>
+>;
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/**
+ * The context supertype of a middleware type.
+ */
+export type MergedContextOf<Middleware extends MiddlewareConstraint> =
+  MergeContexts<ContextOf<Middleware>>;
 
 const INVALID_ENGINE = Symbol('Invalid engine');
 
@@ -271,12 +293,14 @@ export class JsonRpcEngineV2<
    * operation. Permits returning an `undefined` result.
    *
    * @param originalRequest - The JSON-RPC request to handle.
-   * @param context - The context to pass to the middleware.
+   * @param rawContext - The context to pass to the middleware.
    * @returns The result from the middleware.
    */
   async #handle(
     originalRequest: Request,
-    context: Context = new MiddlewareContext() as Context,
+    rawContext:
+      | Context
+      | InferKeyValues<Context> = new MiddlewareContext() as Context,
   ): Promise<RequestState<Request>> {
     this.#assertIsNotDestroyed();
 
@@ -288,6 +312,9 @@ export class JsonRpcEngineV2<
     };
     const middlewareIterator = this.#makeMiddlewareIterator();
     const firstMiddleware = middlewareIterator.next().value;
+    const context = MiddlewareContext.isInstance(rawContext)
+      ? rawContext
+      : (new MiddlewareContext(rawContext) as Context);
 
     const makeNext = this.#makeNextFactory(middlewareIterator, state, context);
 
