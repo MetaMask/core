@@ -151,7 +151,7 @@ export function createNetworkClient({
           source: 'metamask',
         },
       }),
-    ) as unknown as RpcApiMiddleware;
+    );
   } else {
     rpcApiMiddleware = createFetchMiddleware({ rpcService: rpcServiceChain });
   }
