@@ -63,9 +63,9 @@ export type ClaimsControllerOptions = {
 
 const ClaimsControllerStateMetadata: StateMetadata<ClaimsControllerState> = {
   claims: {
-    includeInStateLogs: true,
+    includeInStateLogs: false,
     persist: true,
-    includeInDebugSnapshot: true,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
