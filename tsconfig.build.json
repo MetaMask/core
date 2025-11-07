@@ -17,7 +17,6 @@
     { "path": "./packages/claims-controller/tsconfig.build.json" },
     { "path": "./packages/composable-controller/tsconfig.build.json" },
     { "path": "./packages/controller-utils/tsconfig.build.json" },
-    { "path": "./packages/core-backend/tsconfig.build.json" },
     { "path": "./packages/delegation-controller/tsconfig.build.json" },
     { "path": "./packages/earn-controller/tsconfig.build.json" },
     { "path": "./packages/eip-5792-middleware/tsconfig.build.json" },
