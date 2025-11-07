@@ -151,11 +151,17 @@ export class RampsController extends BaseController<
     return urlWithPath.toString();
   }
 
+  
   async #getGeolocation(): Promise<string> {
-    const url = this.#getApiUrl();
-    const response = await fetch(new URL('geolocation', url).toString());
-    const data = await response.json();
-    return data;
+    try {
+      const url = this.#getApiUrl();
+      const response = await fetch(new URL('geolocation', url).toString());
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching geolocation:', error);
+      throw error;
+    }
   }
 
   /**
