@@ -2520,7 +2520,7 @@ describe('BridgeStatusController', () => {
           false,
         ),
       ).rejects.toThrow(
-        'Failed to submit non-EVM tx: txMeta for txHash was not found',
+        'Failed to submit cross-chain swap tx: txMeta for txHash was not found',
       );
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
