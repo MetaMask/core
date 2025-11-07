@@ -151,10 +151,6 @@ export async function searchTokens(
   query: string,
   { limit = 10 } = {},
 ): Promise<{ count: number; data: unknown[] }> {
-  if (chainIds.length === 0) {
-    return { count: 0, data: [] };
-  }
-
   const tokenSearchURL = getTokenSearchURL(chainIds, query, limit);
 
   try {
