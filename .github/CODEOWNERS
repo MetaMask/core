@@ -55,7 +55,7 @@
 /packages/token-search-discovery-controller      @MetaMask/portfolio
 
 ## Ramp Team
-/packages/ramp-controller         @MetaMask/ramp
+/packages/ramps-controller         @MetaMask/ramp
 
 ## Vault Team
 /packages/delegation-controller           @MetaMask/vault
@@ -188,5 +188,5 @@
 /packages/core-backend/CHANGELOG.md           @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/claims-controller/package.json @MetaMask/web3auth @MetaMask/core-platform
 /packages/claims-controller/CHANGELOG.md @MetaMask/web3auth @MetaMask/core-platform
-/packages/ramp-controller/package.json           @MetaMask/core-platform @MetaMask/ramp
-/packages/ramp-controller/CHANGELOG.md           @MetaMask/core-platform @MetaMask/ramp
+/packages/ramps-controller/package.json           @MetaMask/core-platform @MetaMask/ramp
+/packages/ramps-controller/CHANGELOG.md           @MetaMask/core-platform @MetaMask/ramp
