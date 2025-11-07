@@ -3,10 +3,7 @@ import type { TraceCallback } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { BtcAccountType, BtcScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { SnapId } from '@metamask/snaps-sdk';
-import { HandlerType } from '@metamask/snaps-utils';
-import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import {
   SnapAccountProvider,
@@ -26,8 +23,6 @@ export class BtcAccountProvider extends SnapAccountProvider {
 
   static BTC_SNAP_ID = 'npm:@metamask/bitcoin-wallet-snap' as SnapId;
 
-  readonly #client: KeyringClient;
-
   constructor(
     messenger: MultichainAccountServiceMessenger,
     config: BtcAccountProviderConfig = {
@@ -44,30 +39,10 @@ export class BtcAccountProvider extends SnapAccountProvider {
     trace: TraceCallback = traceFallback,
   ) {
     super(BtcAccountProvider.BTC_SNAP_ID, messenger, config, trace);
-    this.#client = this.#getKeyringClientFromSnapId(
-      BtcAccountProvider.BTC_SNAP_ID,
-    );
   }
 
   getName(): string {
     return BtcAccountProvider.NAME;
-  }
-
-  #getKeyringClientFromSnapId(snapId: string): KeyringClient {
-    return new KeyringClient({
-      send: async (request: JsonRpcRequest) => {
-        const response = await this.messenger.call(
-          'SnapController:handleRequest',
-          {
-            snapId: snapId as SnapId,
-            origin: 'metamask',
-            handler: HandlerType.OnKeyringRequest,
-            request,
-          },
-        );
-        return response as Json;
-      },
-    });
   }
 
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
@@ -120,7 +95,7 @@ export class BtcAccountProvider extends SnapAccountProvider {
         const discoveredAccounts = await withRetry(
           () =>
             withTimeout(
-              this.#client.discoverAccounts(
+              this.client.discoverAccounts(
                 [BtcScope.Mainnet],
                 entropySource,
                 groupIndex,

@@ -1,4 +1,4 @@
-import type { Bip44Account } from '@metamask/account-api';
+import { isBip44Account, type Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -12,9 +12,14 @@ import {
 import { SolAccountProvider } from './SolAccountProvider';
 import { TrxAccountProvider } from './TrxAccountProvider';
 import { traceFallback } from '../analytics';
+import type { RootMessenger } from '../tests';
 import {
+  asKeyringAccount,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
+  MOCK_HD_ACCOUNT_1,
+  MOCK_HD_ACCOUNT_2,
+  MockAccountBuilder,
 } from '../tests';
 import type { MultichainAccountServiceMessenger } from '../types';
 
@@ -64,7 +69,10 @@ class TestSnapAccountProvider extends SnapAccountProvider {
 }
 
 // Helper to create a tracked provider that monitors concurrent execution
-const createTrackedProvider = (maxConcurrency?: number) => {
+const setup = ({
+  maxConcurrency,
+  messenger = getRootMessenger(),
+}: { maxConcurrency?: number; messenger?: RootMessenger } = {}) => {
   const tracker: {
     startLog: number[];
     endLog: number[];
@@ -77,7 +85,7 @@ const createTrackedProvider = (maxConcurrency?: number) => {
     maxActiveCount: 0,
   };
 
-  class TrackedProvider extends SnapAccountProvider {
+  class MockSnapAccountProvider extends SnapAccountProvider {
     getName(): string {
       return 'Test Provider';
     }
@@ -111,7 +119,21 @@ const createTrackedProvider = (maxConcurrency?: number) => {
     }
   }
 
-  const messenger = getMultichainAccountServiceMessenger(getRootMessenger());
+  const keyring = {
+    createAccount: jest.fn(),
+    removeAccount: jest.fn(),
+  };
+
+  messenger.registerActionHandler(
+    'KeyringController:withKeyring',
+    jest
+      .fn()
+      .mockImplementation(
+        async (_ /* selector */, operation) => await operation({ keyring }),
+      ),
+  );
+
+  const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
   const config = {
     ...(maxConcurrency !== undefined && { maxConcurrency }),
     createAccounts: {
@@ -123,9 +145,13 @@ const createTrackedProvider = (maxConcurrency?: number) => {
       backOffMs: 1000,
     },
   };
-  const provider = new TrackedProvider(TEST_SNAP_ID, messenger, config);
+  const provider = new MockSnapAccountProvider(
+    TEST_SNAP_ID,
+    serviceMessenger,
+    config,
+  );
 
-  return { provider, tracker };
+  return { messenger, provider, tracker, keyring };
 };
 
 describe('SnapAccountProvider', () => {
@@ -467,7 +493,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('throttles createAccounts when maxConcurrency is finite', async () => {
-      const { provider, tracker } = createTrackedProvider(2); // Allow only 2 concurrent operations
+      const { provider, tracker } = setup({ maxConcurrency: 2 }); // Allow only 2 concurrent operations
 
       // Start 4 concurrent calls
       const promises = [0, 1, 2, 3].map((index) =>
@@ -491,7 +517,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('does not throttle when maxConcurrency is Infinity', async () => {
-      const { provider, tracker } = createTrackedProvider(Infinity); // No throttling
+      const { provider, tracker } = setup({ maxConcurrency: Infinity }); // No throttling
 
       // Start 4 concurrent calls
       const promises = [0, 1, 2, 3].map((index) =>
@@ -511,7 +537,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('respects concurrency limit across multiple calls', async () => {
-      const { provider, tracker } = createTrackedProvider(1); // Only 1 concurrent operation
+      const { provider, tracker } = setup({ maxConcurrency: 1 }); // Only 1 concurrent operation
 
       // Start 3 concurrent calls
       const promises = [0, 1, 2].map((index) =>
@@ -531,7 +557,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('defaults to Infinity when maxConcurrency is not provided', async () => {
-      const { provider, tracker } = createTrackedProvider();
+      const { provider, tracker } = setup();
 
       // Start 4 concurrent calls
       const promises = [0, 1, 2, 3].map((index) =>
@@ -549,6 +575,127 @@ describe('SnapAccountProvider', () => {
       // Without maxConcurrency specified, should default to Infinity (no throttling)
       // So all 4 should have been able to run concurrently
       expect(tracker.maxActiveCount).toBe(4);
+    });
+  });
+
+  describe('resyncAccounts', () => {
+    const mockAccounts = [
+      MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withUuid()
+        .withSnapId(TEST_SNAP_ID)
+        .get(),
+      MockAccountBuilder.from(MOCK_HD_ACCOUNT_2)
+        .withUuid()
+        .withSnapId(TEST_SNAP_ID)
+        .get(),
+    ].filter(isBip44Account);
+
+    it('does not create any accounts if already in-sync', async () => {
+      const { provider, messenger } = setup();
+
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        jest.fn().mockResolvedValue(mockAccounts.map(asKeyringAccount)),
+      );
+
+      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+
+      await provider.resyncAccounts(mockAccounts);
+
+      expect(createAccountsSpy).not.toHaveBeenCalled();
+    });
+
+    it('creates new accounts if de-synced', async () => {
+      const { provider, messenger } = setup();
+
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        jest.fn().mockResolvedValue([mockAccounts[0]].map(asKeyringAccount)),
+      );
+
+      const mockCaptureException = jest.fn();
+      messenger.registerActionHandler(
+        'ErrorReportingService:captureException',
+        mockCaptureException,
+      );
+
+      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+
+      await provider.resyncAccounts(mockAccounts);
+
+      expect(mockCaptureException).toHaveBeenCalledWith(
+        new Error(
+          `Snap "${TEST_SNAP_ID}" has de-synced accounts, we'll attempt to re-sync them...`,
+        ),
+      );
+
+      const desyncedAccount = mockAccounts[1];
+      expect(createAccountsSpy).toHaveBeenCalledWith({
+        entropySource: desyncedAccount.options.entropy.id,
+        groupIndex: desyncedAccount.options.entropy.groupIndex,
+      });
+    });
+
+    it('reports an error if a Snap has more accounts than MetaMask', async () => {
+      const { provider, messenger } = setup();
+
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        jest.fn().mockResolvedValue(mockAccounts.map(asKeyringAccount)),
+      );
+
+      const mockCaptureException = jest.fn();
+      messenger.registerActionHandler(
+        'ErrorReportingService:captureException',
+        mockCaptureException,
+      );
+
+      await provider.resyncAccounts([mockAccounts[0]]); // Less accounts than the Snap
+
+      expect(mockCaptureException).toHaveBeenCalledWith(
+        new Error(
+          `Snap "${TEST_SNAP_ID}" has de-synced accounts, Snap has more accounts than MetaMask!`,
+        ),
+      );
+    });
+
+    it('does not throw errors if any provider is not able to re-sync', async () => {
+      const { provider, messenger } = setup();
+
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        jest.fn().mockResolvedValue([mockAccounts[0]].map(asKeyringAccount)),
+      );
+
+      const mockCaptureException = jest.fn();
+      messenger.registerActionHandler(
+        'ErrorReportingService:captureException',
+        mockCaptureException,
+      );
+
+      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+
+      const providerError = new Error('Unable to create accounts');
+      createAccountsSpy.mockRejectedValue(providerError);
+
+      await provider.resyncAccounts(mockAccounts);
+
+      expect(createAccountsSpy).toHaveBeenCalled();
+
+      expect(mockCaptureException).toHaveBeenNthCalledWith(
+        1,
+        new Error(
+          `Snap "${TEST_SNAP_ID}" has de-synced accounts, we'll attempt to re-sync them...`,
+        ),
+      );
+      expect(mockCaptureException).toHaveBeenNthCalledWith(
+        2,
+        new Error('Unable to re-sync account: 0'),
+      );
+      expect(mockCaptureException.mock.lastCall[0]).toHaveProperty(
+        'cause',
+        providerError,
+      );
     });
   });
 });
