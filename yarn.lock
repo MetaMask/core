@@ -4199,6 +4199,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^34.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
+    "@metamask/error-reporting-service": "npm:^3.0.0"
     "@metamask/eth-hd-keyring": "npm:^13.0.0"
     "@metamask/eth-snap-keyring": "npm:^18.0.0"
     "@metamask/key-tree": "npm:^10.1.1"
@@ -4229,6 +4230,7 @@ __metadata:
   peerDependencies:
     "@metamask/account-api": ^0.12.0
     "@metamask/accounts-controller": ^34.0.0
+    "@metamask/error-reporting-service": ^3.0.0
     "@metamask/keyring-controller": ^24.0.0
     "@metamask/providers": ^22.0.0
     "@metamask/snaps-controllers": ^14.0.0
