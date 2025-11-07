@@ -1852,7 +1852,7 @@ describe('BridgeStatusController', () => {
       await expect(
         controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
       ).rejects.toThrow(
-        'Failed to submit non-EVM transaction: undefined snap id',
+        'Failed to submit cross-chain swap transaction: undefined snap id',
       );
       expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
@@ -1867,7 +1867,7 @@ describe('BridgeStatusController', () => {
       await expect(
         controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
       ).rejects.toThrow(
-        'Failed to submit non-EVM transaction: undefined multichain account',
+        'Failed to submit cross-chain swap transaction: undefined multichain account',
       );
       expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
     });
@@ -2065,7 +2065,7 @@ describe('BridgeStatusController', () => {
       await expect(
         controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
       ).rejects.toThrow(
-        'Failed to submit non-EVM transaction: undefined snap id',
+        'Failed to submit cross-chain swap transaction: undefined snap id',
       );
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
@@ -2080,7 +2080,7 @@ describe('BridgeStatusController', () => {
       await expect(
         controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
       ).rejects.toThrow(
-        'Failed to submit non-EVM transaction: undefined multichain account',
+        'Failed to submit cross-chain swap transaction: undefined multichain account',
       );
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
@@ -2379,7 +2379,7 @@ describe('BridgeStatusController', () => {
           false,
         ),
       ).rejects.toThrow(
-        'Failed to submit non-EVM transaction: unknown account in trade data',
+        'Failed to submit cross-chain swap transaction: unknown account in trade data',
       );
       controller.stopAllPolling();
 
@@ -3119,7 +3119,7 @@ describe('BridgeStatusController', () => {
           true,
         ),
       ).rejects.toThrow(
-        'Failed to update non-EVM transaction batch: tradeMeta not found',
+        'Failed to update cross-chain swap transaction batch: tradeMeta not found',
       );
       controller.stopAllPolling();
 

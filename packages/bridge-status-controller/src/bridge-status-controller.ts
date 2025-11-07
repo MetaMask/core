@@ -768,7 +768,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   ) => {
     if (!selectedAccount.metadata?.snap?.id) {
       throw new Error(
-        'Failed to submit non-EVM transaction: undefined snap id',
+        'Failed to submit cross-chain swap transaction: undefined snap id',
       );
     }
 
