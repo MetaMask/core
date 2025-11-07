@@ -133,6 +133,9 @@ const config = createConfig([
         },
       ],
 
+      // TODO: Disable in `eslint-config-typescript`, tracked here: https://github.com/MetaMask/eslint-config/issues/413
+      '@typescript-eslint/no-unnecessary-type-arguments': 'off',
+
       // This rule does not detect multiple imports of the same file where types
       // are being imported in one case and runtime values are being imported in
       // another
