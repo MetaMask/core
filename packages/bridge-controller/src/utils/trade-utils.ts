@@ -52,7 +52,7 @@ export const extractTradeData = (trade: Trade): string => {
     // EVM TxData object - return the data property
     return trade.data;
   }
-  
+
   if (typeof trade === 'string') {
     // Solana txs - assuming already in correct format
     return trade;

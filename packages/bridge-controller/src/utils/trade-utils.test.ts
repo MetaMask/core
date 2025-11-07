@@ -68,9 +68,9 @@ describe('Trade utils', () => {
     });
 
     it('returns false for object with only chainId and to', () => {
-      expect(
-        isEvmTxData({ chainId: 1, to: '0x123' } as unknown as Trade),
-      ).toBe(false);
+      expect(isEvmTxData({ chainId: 1, to: '0x123' } as unknown as Trade)).toBe(
+        false,
+      );
     });
   });
 
