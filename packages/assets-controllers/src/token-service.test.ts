@@ -655,6 +655,17 @@ describe('Token service', () => {
 
     it('should return empty array when no chainIds are provided', async () => {
       const searchQuery = 'USD';
+      const mockResponse = {
+        count: 0,
+        data: [],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(`/tokens/search?chainIds=&query=${searchQuery}&limit=10`)
+        .reply(200, mockResponse)
+        .persist();
+
       const results = await searchTokens([], searchQuery);
 
       expect(results).toStrictEqual({ count: 0, data: [] });
