@@ -155,6 +155,10 @@ export async function pairIdentifiers(
       await handleErrorResponse(response);
     }
   } catch (e) {
+    // Re-throw RateLimitedError to preserve 429 status and retry metadata
+    if (RateLimitedError.isRateLimitError(e)) {
+      throw e;
+    }
     /* istanbul ignore next */
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
@@ -186,6 +190,10 @@ export async function getNonce(id: string, env: Env): Promise<NonceResponse> {
       expiresIn: nonceJson.expires_in,
     };
   } catch (e) {
+    // Re-throw RateLimitedError to preserve 429 status and retry metadata
+    if (RateLimitedError.isRateLimitError(e)) {
+      throw e;
+    }
     /* istanbul ignore next */
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
@@ -234,6 +242,10 @@ export async function authorizeOIDC(
       obtainedAt: Date.now(),
     };
   } catch (e) {
+    // Re-throw RateLimitedError to preserve 429 status and retry metadata
+    if (RateLimitedError.isRateLimitError(e)) {
+      throw e;
+    }
     /* istanbul ignore next */
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
@@ -300,6 +312,10 @@ export async function authenticate(
       },
     };
   } catch (e) {
+    // Re-throw RateLimitedError to preserve 429 status and retry metadata
+    if (RateLimitedError.isRateLimitError(e)) {
+      throw e;
+    }
     /* istanbul ignore next */
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
@@ -339,6 +355,10 @@ export async function getUserProfileLineage(
 
     return profileJson;
   } catch (e) {
+    // Re-throw RateLimitedError to preserve 429 status and retry metadata
+    if (RateLimitedError.isRateLimitError(e)) {
+      throw e;
+    }
     /* istanbul ignore next */
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
