@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Disable ESLint cache by default ([#7082](https://github.com/MetaMask/core/pull/7082))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-
 ### Added
 
 - Add `providerFromMiddlewareV2` ([#7001](https://github.com/MetaMask/core/pull/7001))
