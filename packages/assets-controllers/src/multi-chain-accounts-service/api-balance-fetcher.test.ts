@@ -358,6 +358,7 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'extension',
+        undefined,
       );
 
       expect(result).toHaveLength(2);
@@ -395,6 +396,7 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'extension',
+        undefined,
       );
 
       expect(result).toHaveLength(3);
@@ -598,6 +600,7 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'extension',
+        undefined,
       );
     });
 
@@ -619,6 +622,7 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'mobile',
+        undefined,
       );
     });
   });

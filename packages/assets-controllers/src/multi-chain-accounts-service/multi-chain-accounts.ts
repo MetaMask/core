@@ -69,11 +69,17 @@ export async function fetchMultiChainBalances(
   const url = getBalancesUrl(address, {
     networks: options?.networks?.join(),
   });
+
+  const headers: Record<string, string> = {
+    'x-metamask-clientproduct': `metamask-${platform}`,
+  };
+
+  if (jwtToken) {
+    headers.Authorization = `Bearer ${jwtToken}`;
+  }
+
   const response: GetBalancesResponse = await handleFetch(url, {
-    headers: {
-      'x-metamask-clientproduct': `metamask-${platform}`,
-      Authorization: `Bearer ${jwtToken}`,
-    },
+    headers,
   });
   return response;
 }

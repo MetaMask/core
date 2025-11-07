@@ -60,12 +60,18 @@ const { safelyExecuteWithTimeout } = jest.requireMock(
 );
 const mockedSafelyExecuteWithTimeout = safelyExecuteWithTimeout as jest.Mock;
 
+type SetupControllerConfig = Partial<
+  ConstructorParameters<typeof TokenBalancesController>[0]
+> & {
+  mockBearerToken?: string;
+};
+
 const setupController = ({
   config,
   tokens = { allTokens: {}, allDetectedTokens: {}, allIgnoredTokens: {} },
   listAccounts = [],
 }: {
-  config?: Partial<ConstructorParameters<typeof TokenBalancesController>[0]>;
+  config?: SetupControllerConfig;
   tokens?: Partial<TokensControllerState>;
   listAccounts?: InternalAccount[];
 } = {}) => {
@@ -199,9 +205,12 @@ const setupController = ({
     jest.fn().mockResolvedValue(config?.mockBearerToken ?? 'mock-jwt-token'),
   );
 
+  // Extract mockBearerToken from config before passing to controller
+  const { mockBearerToken, ...controllerConfig } = config || {};
+
   const controller = new TokenBalancesController({
     messenger: tokenBalancesControllerMessenger,
-    ...config,
+    ...controllerConfig,
   });
   const updateSpy = jest.spyOn(controller, 'update' as never);
 
@@ -4358,7 +4367,10 @@ describe('TokenBalancesController', () => {
         listAccounts: [account],
       });
 
-      await controller.updateBalances({ chainIds: [chainId1] });
+      await controller.updateBalances({
+        chainIds: [chainId1],
+        queryAllAccounts: true,
+      });
 
       // Verify fetch was called with JWT token
       expect(mockApiFetch).toHaveBeenCalledWith(
