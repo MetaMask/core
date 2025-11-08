@@ -287,9 +287,6 @@
   "packages/name-controller/src/util.ts": {
     "jsdoc/require-returns": 1
   },
-  "packages/network-controller/src/NetworkController.ts": {
-    "@typescript-eslint/no-misused-promises": 1
-  },
   "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.ts": {
     "@typescript-eslint/no-misused-promises": 1
   },
