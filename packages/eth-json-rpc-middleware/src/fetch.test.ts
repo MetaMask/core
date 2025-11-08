@@ -10,81 +10,59 @@ import type { AbstractRpcServiceLike } from './types';
 import { createRequest } from '../test/util/helpers';
 
 describe('createFetchMiddleware', () => {
-  it('calls the RPC service with the correct request headers and body when no `originHttpHeaderKey` option given', async () => {
-    const rpcService = createRpcService();
-    const requestSpy = jest.spyOn(rpcService, 'request');
+  it.each([
+    [undefined, undefined],
+    [undefined, 'somedapp.com'],
+    ['X-Dapp-Origin', undefined],
+    ['X-Dapp-Origin', 'somedapp.com'],
+  ])(
+    'calls the RPC service with the correct request headers and body with originHttpHeaderKey="%s" and origin="%s"',
+    async (originHttpHeaderKey, origin) => {
+      const rpcService = createRpcService();
+      const requestSpy = jest.spyOn(rpcService, 'request');
 
-    const engine = JsonRpcEngineV2.create({
-      middleware: [
-        createFetchMiddleware({
-          rpcService,
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createFetchMiddleware({
+            rpcService,
+            options: {
+              originHttpHeaderKey,
+            },
+          }),
+        ],
+      });
+
+      const context = new MiddlewareContext<{ origin: string }>(
+        // eslint-disable-next-line jest/no-conditional-in-test
+        origin ? { origin } : [],
+      );
+      const expectedHeaders =
+        // eslint-disable-next-line jest/no-conditional-in-test
+        originHttpHeaderKey && origin ? { [originHttpHeaderKey]: origin } : {};
+
+      await engine.handle(
+        createRequest({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
         }),
-      ],
-    });
-    await engine.handle(
-      createRequest({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'eth_chainId',
-        params: [],
-      }),
-    );
+        { context },
+      );
 
-    expect(requestSpy).toHaveBeenCalledWith(
-      {
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'eth_chainId',
-        params: [],
-      },
-      {
-        headers: {},
-      },
-    );
-  });
-
-  it('includes the `origin` from the given request in the request headers under the given `originHttpHeaderKey`', async () => {
-    const rpcService = createRpcService();
-    const requestSpy = jest.spyOn(rpcService, 'request');
-
-    const engine = JsonRpcEngineV2.create({
-      middleware: [
-        createFetchMiddleware({
-          rpcService,
-          options: {
-            originHttpHeaderKey: 'X-Dapp-Origin',
-          },
-        }),
-      ],
-    });
-    const context = new MiddlewareContext<{ origin: string }>([
-      ['origin', 'somedapp.com'],
-    ]);
-
-    await engine.handle(
-      createRequest({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'eth_chainId',
-        params: [],
-      }),
-      { context },
-    );
-
-    expect(requestSpy).toHaveBeenCalledWith(
-      {
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'eth_chainId',
-        params: [],
-      },
-      {
-        headers: {
-          'X-Dapp-Origin': 'somedapp.com',
+      expect(requestSpy).toHaveBeenCalledWith(
+        {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
         },
-      },
-    );
-  });
+        {
+          headers: expectedHeaders,
+        },
+      );
+    },
+  );
 
   describe('if the response from the service does not contain an `error` field', () => {
     it('returns a successful JSON-RPC response containing the value of the `result` field', async () => {

@@ -54,9 +54,6 @@ export function createFetchMiddleware({
         data: jsonRpcResponse.error,
       });
     }
-
-    // Discard the `id` and `jsonrpc` fields in the response body
-    // (the JSON-RPC engine will fill those in)
     return jsonRpcResponse.result;
   };
 }
