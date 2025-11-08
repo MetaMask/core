@@ -11,10 +11,8 @@ import {
 import { projectLogger, createModuleLogger } from './logging-utils';
 import { cacheIdentifierForRequest } from './utils/cache';
 
-type RequestHandler = {
-  onSuccess: (result: Json) => void;
-  onError: (error: Error) => void;
-};
+type RequestHandler = [(result: Json) => void, (error: Error) => void];
+
 type InflightRequest = {
   [cacheId: string]: RequestHandler[];
 };
@@ -72,7 +70,7 @@ export function createInflightCacheMiddleware(): JsonRpcMiddleware<
         activeRequestHandlers.length,
         request,
       );
-      handleSuccess(result, activeRequestHandlers);
+      runRequestHandlers({ result }, activeRequestHandlers);
       return result;
     } catch (error) {
       log(
@@ -80,60 +78,49 @@ export function createInflightCacheMiddleware(): JsonRpcMiddleware<
         activeRequestHandlers.length,
         request,
       );
-      handleError(error as Error, activeRequestHandlers);
+      runRequestHandlers({ error: error as Error }, activeRequestHandlers);
       throw error;
     } finally {
       delete inflightRequests[cacheId];
     }
   };
+}
 
-  /**
-   * Creates a new request handler for the active request.
-   *
-   * @param activeRequestHandlers - The active request handlers.
-   * @returns A promise that resolves to the result of the request.
-   */
-  function createActiveRequestHandler(
-    activeRequestHandlers: RequestHandler[],
-  ): Promise<Json> {
-    const { resolve, promise, reject } = createDeferredPromise<Json>();
-    activeRequestHandlers.push({
-      onSuccess: (result: Json) => resolve(result),
-      onError: (error: Error) => reject(error),
-    });
-    return promise;
-  }
+/**
+ * Creates a new request handler for the active request.
+ *
+ * @param activeRequestHandlers - The active request handlers.
+ * @returns A promise that resolves to the result of the request.
+ */
+function createActiveRequestHandler(
+  activeRequestHandlers: RequestHandler[],
+): Promise<Json> {
+  const { resolve, promise, reject } = createDeferredPromise<Json>();
+  activeRequestHandlers.push([
+    (result: Json) => resolve(result),
+    (error: Error) => reject(error),
+  ]);
+  return promise;
+}
 
-  /**
-   * Handles successful requests.
-   *
-   * @param result - The result of the request.
-   * @param activeRequestHandlers - The active request handlers.
-   */
-  function handleSuccess(
-    result: Json,
-    activeRequestHandlers: RequestHandler[],
-  ): void {
-    // use setTimeout so we can resolve our original request first
-    setTimeout(() => {
-      activeRequestHandlers.forEach(({ onSuccess }) => {
-        onSuccess(result);
-      });
+/**
+ * Runs the request handlers for the given result or error.
+ *
+ * @param resultOrError - The result or error of the request.
+ * @param activeRequestHandlers - The active request handlers.
+ */
+function runRequestHandlers(
+  resultOrError: { result: Json } | { error: Error },
+  activeRequestHandlers: RequestHandler[],
+): void {
+  // use setTimeout so we can handle the original request first
+  setTimeout(() => {
+    activeRequestHandlers.forEach(([onSuccess, onError]) => {
+      if ('result' in resultOrError) {
+        onSuccess(resultOrError.result);
+      } else {
+        onError(resultOrError.error);
+      }
     });
-  }
-
-  /**
-   * Handles failed requests.
-   *
-   * @param error - The error of the request.
-   * @param activeRequestHandlers - The active request handlers.
-   */
-  function handleError(
-    error: Error,
-    activeRequestHandlers: RequestHandler[],
-  ): void {
-    activeRequestHandlers.forEach(({ onError }) => {
-      onError(error);
-    });
-  }
+  });
 }
