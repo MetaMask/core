@@ -4,7 +4,6 @@ import type {
 } from '@metamask/json-rpc-engine/v2';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
-import { klona } from 'klona';
 
 import type { AbstractRpcServiceLike } from './types';
 
@@ -42,7 +41,7 @@ export function createFetchMiddleware({
         ? { [options.originHttpHeaderKey]: origin }
         : {};
 
-    const jsonRpcResponse = await rpcService.request(klona(request), {
+    const jsonRpcResponse = await rpcService.request(request, {
       headers,
     });
 
