@@ -35,9 +35,7 @@ export function createFetchMiddleware({
   return async ({ request, context }) => {
     const origin = context.get('origin');
     const headers =
-      'originHttpHeaderKey' in options &&
-      options.originHttpHeaderKey !== undefined &&
-      origin !== undefined
+      options.originHttpHeaderKey !== undefined && origin !== undefined
         ? { [options.originHttpHeaderKey]: origin }
         : {};
 
