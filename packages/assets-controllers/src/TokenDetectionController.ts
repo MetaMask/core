@@ -609,11 +609,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     supportedNetworks: number[] | null,
     jwtToken?: string,
   ) {
+    let timeoutId: NodeJS.Timeout | undefined;
+
     try {
       // Create a timeout promise that rejects after 30 seconds
       const timeoutPromise = new Promise<{ result: 'failed' }>(
         (_resolve, reject) => {
-          setTimeout(() => {
+          timeoutId = setTimeout(() => {
             reject(new Error('Accounts API call timeout after 30 seconds'));
           }, ACCOUNTS_API_TIMEOUT_MS);
         },
@@ -634,6 +636,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       );
       // Return failed result to trigger RPC fallback
       return { result: 'failed' } as const;
+    } finally {
+      // Clear the timeout to prevent memory leak
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
     }
   }
 
