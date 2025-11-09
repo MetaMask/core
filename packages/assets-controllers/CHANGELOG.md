@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add 30-second timeout protection for Accounts API calls in `TokenDetectionController` to prevent hanging requests ([#7084](https://github.com/MetaMask/core/pull/7084))
   - Prevents token detection from hanging indefinitely on slow or unresponsive API requests
   - Automatically falls back to RPC-based token detection when API call times out or fails
-  - # Includes error logging for debugging timeout and failure events
+  - Includes error logging for debugging timeout and failure events
 - Importing a non-evm asset with positive balance sets balance to 0 after import ([#7094](https://github.com/MetaMask/core/pull/7094))
 
 ## [87.1.1]
