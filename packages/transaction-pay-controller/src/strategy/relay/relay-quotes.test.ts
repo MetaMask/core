@@ -37,9 +37,6 @@ const QUOTE_REQUEST_MOCK: QuoteRequest = {
 
 const QUOTE_MOCK = {
   details: {
-    currencyIn: {
-      amountUsd: '2.34',
-    },
     currencyOut: {
       amountFormatted: '1.0',
       amountUsd: '1.23',
@@ -51,8 +48,8 @@ const QUOTE_MOCK = {
     timeEstimate: 300,
   },
   fees: {
-    gas: {
-      amountUsd: '3.45',
+    relayer: {
+      amountUsd: '1.11',
     },
   },
   steps: [
