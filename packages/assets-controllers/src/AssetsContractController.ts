@@ -16,14 +16,16 @@ import type {
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { getKnownPropertyNames, type Hex } from '@metamask/utils';
 import type BN from 'bn.js';
-import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
 import {
   SupportedStakedBalanceNetworks,
   SupportedTokenDetectionNetworks,
 } from './assetsUtil';
 import type { Call } from './multicall';
-import { multicallOrFallback } from './multicall';
+import {
+  multicallOrFallback,
+  getTokenBalancesForMultipleAddresses,
+} from './multicall';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
@@ -661,6 +663,9 @@ export class AssetsContractController {
    * Get the token balance for a list of token addresses in a single call. Only non-zero balances
    * are returned.
    *
+   * This method now uses Multicall3 which is deployed on 200+ networks, providing much broader
+   * network support than the legacy single-call balances contract.
+   *
    * @param selectedAddress - The address to check token balances for.
    * @param tokensToDetect - The token addresses to detect balances for.
    * @param networkClientId - Network Client ID to fetch the provider with.
@@ -673,32 +678,33 @@ export class AssetsContractController {
   ) {
     const chainId = this.#getCorrectChainId(networkClientId);
     const provider = this.#getCorrectProvider(networkClientId);
-    if (
-      !((id): id is keyof typeof SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID =>
-        id in SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID)(chainId)
-    ) {
-      // Only fetch balance if contract address exists
-      return {};
-    }
-    const contractAddress = SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID[chainId];
 
-    const contract = new Contract(
-      contractAddress,
-      abiSingleCallBalancesContract,
+    // Use getTokenBalancesForMultipleAddresses which supports 200+ networks via Multicall3
+    const { tokenBalances } = await getTokenBalancesForMultipleAddresses(
+      [
+        {
+          accountAddress: selectedAddress as Hex,
+          tokenAddresses: tokensToDetect as Hex[],
+        },
+      ],
+      chainId,
       provider,
+      false, // includeNative
+      false, // includeStaked
     );
-    const result = await contract.balances([selectedAddress], tokensToDetect);
+
+    // Convert the result format to match the original method's return type
+    // tokenBalances is a map of tokenAddress -> { userAddress -> balance }
     const nonZeroBalances: BalanceMap = {};
-    /* istanbul ignore else */
-    if (result.length > 0) {
-      tokensToDetect.forEach((tokenAddress, index) => {
-        const balance: BN = result[index];
-        /* istanbul ignore else */
-        if (String(balance) !== '0') {
-          nonZeroBalances[tokenAddress] = balance;
-        }
-      });
+    for (const [tokenAddress, addressBalances] of Object.entries(
+      tokenBalances,
+    )) {
+      const balance = addressBalances[selectedAddress];
+      if (balance && String(balance) !== '0') {
+        nonZeroBalances[tokenAddress] = balance;
+      }
     }
+
     return nonZeroBalances;
   }
 
