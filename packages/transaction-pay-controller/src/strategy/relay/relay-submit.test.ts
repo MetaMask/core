@@ -6,7 +6,7 @@ import {
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { FALLBACK_GAS_LIMIT, RELAY_URL_BASE } from './constants';
+import { RELAY_URL_BASE } from './constants';
 import { submitRelayQuotes } from './relay-submit';
 import type { RelayQuote } from './types';
 import { getMessengerMock } from '../../tests/messenger-mock';
@@ -197,7 +197,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionMock).toHaveBeenCalledTimes(1);
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          gas: '0x7a120',
+          gas: '0xdbba0',
           value: '0x0',
         }),
         expect.anything(),

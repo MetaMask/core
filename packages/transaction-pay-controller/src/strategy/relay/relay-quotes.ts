@@ -6,7 +6,7 @@ import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_POLYGON,
-  FALLBACK_GAS_LIMIT,
+  RELAY_FALLBACK_GAS_LIMIT,
   RELAY_URL_QUOTE,
 } from './constants';
 import type { RelayQuote } from './types';
@@ -342,7 +342,8 @@ function calculateSourceNetworkGasLimit(
   // or `TransactionController:estimateGasBatch` based on params length.
 
   return params.reduce(
-    (total, p) => total + new BigNumber(p.gas ?? FALLBACK_GAS_LIMIT).toNumber(),
+    (total, p) =>
+      total + new BigNumber(p.gas ?? RELAY_FALLBACK_GAS_LIMIT).toNumber(),
     0,
   );
 }

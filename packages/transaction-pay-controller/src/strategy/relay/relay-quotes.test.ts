@@ -289,7 +289,7 @@ describe('Relay Quotes Utils', () => {
       });
 
       expect(calculateGasCostMock).toHaveBeenCalledWith(
-        expect.objectContaining({ gas: 500000 }),
+        expect.objectContaining({ gas: 900000 }),
       );
     });
 

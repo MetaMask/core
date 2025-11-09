@@ -11,7 +11,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { FALLBACK_GAS_LIMIT, RELAY_URL_BASE } from './constants';
+import { RELAY_FALLBACK_GAS_LIMIT, RELAY_URL_BASE } from './constants';
 import type { RelayQuote, RelayStatus } from './types';
 import { projectLogger } from '../../logger';
 import type {
@@ -171,7 +171,7 @@ function normalizeParams(
   return {
     data: params.data,
     from: params.from,
-    gas: toHex(params.gas ?? FALLBACK_GAS_LIMIT),
+    gas: toHex(params.gas ?? RELAY_FALLBACK_GAS_LIMIT),
     maxFeePerGas: toHex(params.maxFeePerGas),
     maxPriorityFeePerGas: toHex(params.maxPriorityFeePerGas),
     to: params.to,
