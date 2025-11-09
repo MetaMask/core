@@ -964,6 +964,7 @@ describe('AssetsContractController', () => {
 
     const sendAsyncSpy = jest
       .spyOn(provider, 'sendAsync')
+      // eslint-disable-next-line jest/no-conditional-in-test
       .mockImplementation((req, callback) => {
         if (req.method === 'eth_call') {
           return callback(null, { result: mockResponse });
@@ -1008,6 +1009,7 @@ describe('AssetsContractController', () => {
     // Mock provider's sendAsync
     const sendAsyncSpy = jest
       .spyOn(provider, 'sendAsync')
+      // eslint-disable-next-line jest/no-conditional-in-test
       .mockImplementation((req, callback) => {
         if (req.method === 'eth_call') {
           const mockResponse = defaultAbiCoder.encode(

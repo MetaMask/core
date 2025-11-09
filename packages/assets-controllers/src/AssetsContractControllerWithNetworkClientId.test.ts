@@ -1,6 +1,4 @@
 import { BigNumber } from '@ethersproject/bignumber';
-import { BUILT_IN_NETWORKS } from '@metamask/controller-utils';
-import { NetworkClientType } from '@metamask/network-controller';
 
 import {
   setupAssetContractControllers,
