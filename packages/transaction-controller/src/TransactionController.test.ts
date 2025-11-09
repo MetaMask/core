@@ -1692,6 +1692,7 @@ describe('TransactionController', () => {
         id: expect.any(String),
         isFirstTimeInteraction: undefined,
         isGasFeeIncluded: undefined,
+        isGasFeeSponsored: undefined,
         nestedTransactions: undefined,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: undefined,

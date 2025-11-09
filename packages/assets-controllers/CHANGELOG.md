@@ -16,16 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - JWT token is included in `Authorization: Bearer <token>` header when provided
   - Backward compatible: token parameter is optional and APIs work without authentication
 
+## [87.1.1]
+
 ### Changed
 
 - Remove early return for empty `chainIds` in `searchTokens` function to allow API to handle empty chain IDs ([#7083](https://github.com/MetaMask/core/pull/7083))
 
 ### Fixed
 
+<<<<<<< HEAD
+
 - Add 30-second timeout protection for Accounts API calls in `TokenDetectionController` to prevent hanging requests ([#7084](https://github.com/MetaMask/core/pull/7084))
   - Prevents token detection from hanging indefinitely on slow or unresponsive API requests
   - Automatically falls back to RPC-based token detection when API call times out or fails
-  - Includes error logging for debugging timeout and failure events
+  - # Includes error logging for debugging timeout and failure events
+- Importing a non-evm asset with positive balance sets balance to 0 after import ([#7094](https://github.com/MetaMask/core/pull/7094))
+  > > > > > > > main
 
 ## [87.1.0]
 
@@ -2266,7 +2272,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.1...HEAD
+[87.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.0...@metamask/assets-controllers@87.1.1
 [87.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.0.0...@metamask/assets-controllers@87.1.0
 [87.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@86.0.0...@metamask/assets-controllers@87.0.0
 [86.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@85.0.0...@metamask/assets-controllers@86.0.0

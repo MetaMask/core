@@ -24,7 +24,7 @@ import {
   WARNING_PREFIX,
 } from './logger';
 import { MultichainAccountGroup } from './MultichainAccountGroup';
-import { EvmAccountProvider, type NamedAccountProvider } from './providers';
+import { EvmAccountProvider, type Bip44AccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
 import { createSentryError, toRejectedErrorMessage } from './utils';
 
@@ -34,7 +34,7 @@ import { createSentryError, toRejectedErrorMessage } from './utils';
 type AccountProviderDiscoveryContext<
   Account extends Bip44Account<KeyringAccount>,
 > = {
-  provider: NamedAccountProvider<Account>;
+  provider: Bip44AccountProvider<Account>;
   stopped: boolean;
   groupIndex: number;
   accounts: Account[];
@@ -52,7 +52,7 @@ export class MultichainAccountWallet<
 
   readonly #id: MultichainAccountWalletId;
 
-  readonly #providers: NamedAccountProvider<Account>[];
+  readonly #providers: Bip44AccountProvider<Account>[];
 
   readonly #entropySource: EntropySourceId;
 
@@ -72,7 +72,7 @@ export class MultichainAccountWallet<
     entropySource,
     messenger,
   }: {
-    providers: NamedAccountProvider<Account>[];
+    providers: Bip44AccountProvider<Account>[];
     entropySource: EntropySourceId;
     messenger: MultichainAccountServiceMessenger;
   }) {
@@ -239,7 +239,7 @@ export class MultichainAccountWallet<
     awaitAll,
   }: {
     groupIndex: number;
-    providers: NamedAccountProvider<Account>[];
+    providers: Bip44AccountProvider<Account>[];
     awaitAll: boolean;
   }): Promise<void> {
     if (awaitAll) {
