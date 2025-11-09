@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Migrate to `JsonRpcEngineV2` ([#7065](https://github.com/MetaMask/core/pull/7065))
   - Migrates all middleware from `JsonRpcEngine` to `JsonRpcEngineV2`.
+  - Signatures of various middleware dependencies, e.g. `processTransaction` of `createWalletMiddleware`, have changed
+    and must be updated by consumers.
+    - Be advised that request objects are now deeply frozen, and cannot be mutated.
   - To continue using this package with the legacy `JsonRpcEngine`, use the `asLegacyMiddleware` backwards compatibility function.
 - **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
   - Wherever a `SafeEventEmitterProvider` was expected, an `InternalProvider` is now expected instead.
