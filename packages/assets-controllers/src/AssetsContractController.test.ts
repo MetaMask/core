@@ -964,8 +964,8 @@ describe('AssetsContractController', () => {
 
     const sendAsyncSpy = jest
       .spyOn(provider, 'sendAsync')
-      // eslint-disable-next-line jest/no-conditional-in-test
       .mockImplementation((req, callback) => {
+        /* eslint-disable jest/no-conditional-in-test */
         if (req.method === 'eth_call') {
           return callback(null, { result: mockResponse });
         }
@@ -974,6 +974,7 @@ describe('AssetsContractController', () => {
         }
         // For unexpected methods, return an empty result
         return callback(null, { result: null });
+        /* eslint-enable jest/no-conditional-in-test */
       });
 
     const balances = await messenger.call(
@@ -1009,8 +1010,8 @@ describe('AssetsContractController', () => {
     // Mock provider's sendAsync
     const sendAsyncSpy = jest
       .spyOn(provider, 'sendAsync')
-      // eslint-disable-next-line jest/no-conditional-in-test
       .mockImplementation((req, callback) => {
+        /* eslint-disable jest/no-conditional-in-test */
         if (req.method === 'eth_call') {
           const mockResponse = defaultAbiCoder.encode(
             ['tuple(bool success, bytes returnData)[]'],
@@ -1026,6 +1027,7 @@ describe('AssetsContractController', () => {
         }
         // For unexpected methods, return an empty result
         return callback(null, { result: null });
+        /* eslint-enable jest/no-conditional-in-test */
       });
 
     const balancesOnMainnet = await messenger.call(
@@ -1070,6 +1072,7 @@ describe('AssetsContractController', () => {
     const sendAsyncSpy = jest
       .spyOn(provider, 'sendAsync')
       .mockImplementation((req, callback) => {
+        /* eslint-disable jest/no-conditional-in-test */
         if (req.method === 'eth_call') {
           const mockResponse = defaultAbiCoder.encode(
             ['tuple(bool success, bytes returnData)[]'],
@@ -1085,6 +1088,7 @@ describe('AssetsContractController', () => {
         }
         // For unexpected methods, return an empty result
         return callback(null, { result: null });
+        /* eslint-enable jest/no-conditional-in-test */
       });
 
     const balances = await messenger.call(
