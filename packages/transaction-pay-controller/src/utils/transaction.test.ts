@@ -323,12 +323,7 @@ describe('Transaction Utils', () => {
     it('collects transaction IDs from unapproved events matching from and chain ID', () => {
       const mockCallback = jest.fn();
 
-      const { end } = collectTransactionIds(
-        CHAIN_ID_MOCK,
-        FROM_MOCK,
-        messenger,
-        mockCallback,
-      );
+      collectTransactionIds(CHAIN_ID_MOCK, FROM_MOCK, messenger, mockCallback);
 
       publish('TransactionController:unapprovedTransactionAdded', {
         id: 'tx1',
