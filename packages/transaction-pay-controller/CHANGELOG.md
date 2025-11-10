@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/666.0.0 ([#7096](https://github.com/MetaMask/core/pull/7096))
+- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
+
 ### Added
 
 - Support Relay quotes with multiple transactions ([#7089](https://github.com/MetaMask/core/pull/7089))
