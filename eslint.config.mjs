@@ -253,6 +253,17 @@ const config = createConfig([
       'n/no-deprecated-api': 'off',
     },
   },
+  {
+    files: [
+      'packages/notification-services-controller/src/NotificationServicesPushController/services/push/*-web.ts',
+      'packages/notification-services-controller/src/NotificationServicesPushController/web/**/*.ts',
+    ],
+    rules: {
+      // These files use `self` because they're written for a service worker context.
+      // TODO: Move these files to the extension repository, `core` is just for platform-agnostic code.
+      'consistent-this': 'off',
+    },
+  },
 ]);
 
 export default config;
