@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Added error reporting around account creation with the `ErrorReportingService` ([#7044](https://github.com/MetaMask/core/pull/7044))
   - The `@metamask/error-reporting-service` is now a peer dependency.
-- Add `MultichainAccountService.resyncAccounts` method and action ([#7087](https://github.com/MetaMask/core/pull/7087))
+- Add `MultichainAccountService.resyncAccounts` method and action ([#7087](https://github.com/MetaMask/core/pull/7087)), ([#7093](https://github.com/MetaMask/core/pull/7093))
 - Add `*AccountProvider.resyncAccounts` method ([#7087](https://github.com/MetaMask/core/pull/7087))
 
 ### Changed

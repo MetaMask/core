@@ -30,7 +30,7 @@ export type RelayQuote = {
         chainId: number;
         data: Hex;
         from: Hex;
-        gas: string;
+        gas?: string;
         maxFeePerGas: string;
         maxPriorityFeePerGas: string;
         to: Hex;

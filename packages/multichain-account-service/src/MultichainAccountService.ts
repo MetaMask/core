@@ -162,6 +162,10 @@ export class MultichainAccountService {
       'MultichainAccountService:createMultichainAccountWallet',
       (...args) => this.createMultichainAccountWallet(...args),
     );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:resyncAccounts',
+      (...args) => this.resyncAccounts(...args),
+    );
 
     this.#messenger.subscribe('AccountsController:accountAdded', (account) =>
       this.#handleOnAccountAdded(account),
