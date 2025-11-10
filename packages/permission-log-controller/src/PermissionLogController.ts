@@ -57,11 +57,10 @@ export type PermissionHistory = Record<string, PermissionEntry>;
 
 /**
  *
- *Permission log controller state
+ * Permission log controller state
  *
- *permissionHistory - permission history
- *
- * permissionActivityLog - permission activity logs
+ * @property permissionHistory - permission history
+ * @property permissionActivityLog - permission activity logs
  */
 export type PermissionLogControllerState = {
   permissionHistory: PermissionHistory;
@@ -153,8 +152,6 @@ export class PermissionLogController extends BaseController<
       return;
     }
     const newEntries = {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       eth_accounts: {
         accounts: this.#getAccountToTimeMap(accounts, Date.now()),
       },
@@ -321,8 +318,6 @@ export class PermissionLogController extends BaseController<
       // a set of accounts if the RPC method is "eth_requestAccounts".
       const accounts = result as string[];
       newEntries = {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
         eth_accounts: {
           accounts: this.#getAccountToTimeMap(accounts, time),
           lastApproved: time,

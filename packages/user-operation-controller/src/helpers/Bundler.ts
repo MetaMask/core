@@ -98,8 +98,6 @@ export class Bundler {
     return hash;
   }
 
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   async #query<T>(method: string, params: unknown[]): Promise<T> {
     const request = {
       method: 'POST',

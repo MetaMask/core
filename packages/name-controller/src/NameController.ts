@@ -22,12 +22,8 @@ export const PROPOSED_NAME_EXPIRE_DURATION = 60 * 60 * 24; // 24 hours
  */
 export enum NameOrigin {
   // Originated from an account identity.
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   ACCOUNT_IDENTITY = 'account-identity',
   // Originated from an address book entry.
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   ADDRESS_BOOK = 'address-book',
   // Originated from the API (NameController.setName). This is the default.
   API = 'api',

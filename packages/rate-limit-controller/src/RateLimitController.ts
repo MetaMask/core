@@ -10,11 +10,9 @@ import { getKnownPropertyNames } from '@metamask/utils';
 /**
  * A rate-limited API endpoint.
  *
- * method - The method that is rate-limited.
- *
- * rateLimitTimeout - The time window in which the rate limit is applied (in ms).
- *
- * rateLimitCount - The amount of calls an origin can make in the rate limit time window.
+ * @property method - The method that is rate-limited.
+ * @property rateLimitTimeout - The time window in which the rate limit is applied (in ms).
+ * @property rateLimitCount - The amount of calls an origin can make in the rate limit time window.
  */
 export type RateLimitedApi = {
   method: ActionConstraint['handler'];
@@ -219,8 +217,6 @@ export class RateLimitController<
       Object.assign(state, {
         requests: {
           ...(state.requests as RateLimitedRequests<RateLimitedApis>),
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
           [api]: { [origin]: previous + 1 },
         },
       });

@@ -23,41 +23,17 @@ type EtherscanGetSourceCodeResponse = {
   message: string;
   result: [
     {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       SourceCode: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       ABI: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       ContractName: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       CompilerVersion: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       OptimizationUsed: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       Runs: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       ConstructorArguments: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       Library: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       LicenseType: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       Proxy: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       Implementation: string;
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       SwarmSource: string;
     },
   ];
@@ -192,8 +168,6 @@ export class EtherscanNameProvider implements NameProvider {
 
     Object.keys(params).forEach((key, index) => {
       const value = params[key];
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
       url += `${index === 0 ? '?' : '&'}${key}=${value}`;
     });
 

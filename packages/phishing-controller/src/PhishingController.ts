@@ -96,14 +96,10 @@ export type ListTypes =
  * Configuration response from the eth-phishing-detect package
  * consisting of approved and unapproved website origins
  *
- * blacklist - List of unapproved origins
- *
- * fuzzylist - List of fuzzy-matched unapproved origins
- *
- * tolerance - Fuzzy match tolerance level
- *
- * version - Version number of this configuration
- *
+ * @property blacklist - List of unapproved origins
+ * @property fuzzylist - List of fuzzy-matched unapproved origins
+ * @property tolerance - Fuzzy match tolerance level
+ * @property version - Version number of this configuration
  * @property whitelist - List of approved origins
  */
 export type EthPhishingResponse = {
@@ -119,11 +115,9 @@ export type EthPhishingResponse = {
  *
  * Response for blocklist update requests
  *
- * recentlyAdded - List of c2 domains recently added to the blocklist
- *
- * recentlyRemoved - List of c2 domains recently removed from the blocklist
- *
- * lastFetchedAt - Timestamp of the last fetch request
+ * @property recentlyAdded - List of c2 domains recently added to the blocklist
+ * @property recentlyRemoved - List of c2 domains recently removed from the blocklist
+ * @property lastFetchedAt - Timestamp of the last fetch request
  */
 export type C2DomainBlocklistResponse = {
   recentlyAdded: string[];
@@ -157,14 +151,10 @@ export type PhishingStalelist = {
  *
  * type defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
  *
- * allowlist - List of approved origins (legacy naming "whitelist")
- *
- * blocklist - List of unapproved origins (legacy naming "blacklist")
- *
- * blocklistPaths - Trie of unapproved origins with paths (hostname + path, no query params).
- *
- * c2DomainBlocklist - List of hashed hostnames that C2 requests are blocked against.
- *
+ * @property allowlist - List of approved origins (legacy naming "whitelist")
+ * @property blocklist - List of unapproved origins (legacy naming "blacklist")
+ * @property blocklistPaths - Trie of unapproved origins with paths (hostname + path, no query params).
+ * @property c2DomainBlocklist - List of hashed hostnames that C2 requests are blocked against.
  * @property fuzzylist - List of fuzzy-matched unapproved origins
  * @property tolerance - Fuzzy match tolerance level
  * @property lastUpdated - Timestamp of last update.
@@ -188,13 +178,10 @@ export type PhishingListState = {
  *
  * type defining the expected type of the diffs in hotlist.json file.
  *
- * url - Url of the diff entry.
- *
- * timestamp - Timestamp at which the diff was identified.
- *
- * targetList - The list name where the diff was identified.
- *
- * isRemoval - Was the diff identified a removal type.
+ * @property url - Url of the diff entry.
+ * @property timestamp - Timestamp at which the diff was identified.
+ * @property targetList - The list name where the diff was identified.
+ * @property isRemoval - Was the diff identified a removal type.
  */
 export type HotlistDiff = {
   url: string;
@@ -212,13 +199,10 @@ export type DataResultWrapper<T> = {
  *
  * Type defining expected hotlist.json file.
  *
- * url - Url of the diff entry.
- *
- * timestamp - Timestamp at which the diff was identified.
- *
- * targetList - The list name where the diff was identified.
- *
- * isRemoval - Was the diff identified a removal type.
+ * @property url - Url of the diff entry.
+ * @property timestamp - Timestamp at which the diff was identified.
+ * @property targetList - The list name where the diff was identified.
+ * @property isRemoval - Was the diff identified a removal type.
  */
 export type Hotlist = HotlistDiff[];
 

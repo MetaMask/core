@@ -25,8 +25,6 @@ function getMockArgv(...args: string[]) {
  */
 function getParsedArgv(name: string, description: string) {
   return {
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
     _: [],
     $0: 'create-package',
     name: `@metamask/${name}`,

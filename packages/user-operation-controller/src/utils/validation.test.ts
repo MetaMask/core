@@ -71,8 +71,6 @@ const SIGN_USER_OPERATION_RESPONSE_MOCK: SignUserOperationResponse = {
  * @param value - The value to set.
  * @returns The copied object with the property path set to the given value.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
 function setPropertyPath<T>(object: T, pathString: string, value: unknown): T {
   const copy = cloneDeep(object);
   const path = pathString.split('.');
@@ -99,8 +97,6 @@ function setPropertyPath<T>(object: T, pathString: string, value: unknown): T {
  * @param expectedInternalError - The specific validation error.
  * @param rootPropertyName - The name of the root input.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
 function expectValidationError<T>(
   validateFunction: (request: T) => void,
   input: T,

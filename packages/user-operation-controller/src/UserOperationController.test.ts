@@ -241,8 +241,6 @@ describe('UserOperationController', () => {
           return approvalControllerAddRequestMock();
         }
 
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
         throw new Error(`Unexpected mock messenger action: ${action}`);
       },
     );

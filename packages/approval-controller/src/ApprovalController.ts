@@ -615,7 +615,6 @@ export class ApprovalController extends BaseController<
     if (origin) {
       return Array.from(
         (this.#origins.get(origin) || new Map()).values(),
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       ).reduce((total, value) => total + value, 0);
     }
 

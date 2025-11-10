@@ -26,21 +26,15 @@ type Events = {
 };
 
 export type PendingUserOperationTrackerEventEmitter = EventEmitter & {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   on<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): PendingUserOperationTrackerEventEmitter;
 
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   once<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): PendingUserOperationTrackerEventEmitter;
-
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 
   emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 };

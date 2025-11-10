@@ -1099,14 +1099,10 @@ describe('GasFeeController', () => {
           isEIP1559Compatible: true,
           isLegacyGasAPICompatible: false,
           fetchGasEstimates,
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId.sepolia,
           )}`,
           fetchLegacyGasPriceEstimates,
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
           fetchLegacyGasPriceEstimatesUrl: `https://some-legacy-endpoint/${convertHexToDecimal(
             ChainId.sepolia,
           )}`,
@@ -1210,8 +1206,6 @@ describe('GasFeeController', () => {
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
           expect.objectContaining({
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
             fetchGasEstimatesUrl: `http://eip-1559.endpoint/${convertHexToDecimal(
               ChainId.sepolia,
             )}`,
@@ -1258,8 +1252,6 @@ describe('GasFeeController', () => {
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId['linea-sepolia'],
           )}`,
@@ -1271,8 +1263,6 @@ describe('GasFeeController', () => {
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId['linea-sepolia'],
           )}`,
@@ -1290,8 +1280,6 @@ describe('GasFeeController', () => {
       await clock.tickAsync(pollingInterval);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
         expect.objectContaining({
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId.sepolia,
           )}`,

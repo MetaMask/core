@@ -50,11 +50,9 @@ export const DEFAULT_ENS_NETWORK_MAP: Record<number, Hex> = {
  *
  * ENS entry representation
  *
- * chainId - Id of the associated chain
- *
- * ensName - The ENS name
- *
- * address - Hex address with the ENS name, or null
+ * @property chainId - Id of the associated chain
+ * @property ensName - The ENS name
+ * @property address - Hex address with the ENS name, or null
  */
 export type EnsEntry = {
   chainId: Hex;
@@ -267,8 +265,6 @@ export class EnsController extends BaseController<
       (address && !isValidHexAddress(address))
     ) {
       throw new Error(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
         `Invalid ENS entry: { chainId:${chainId}, ensName:${ensName}, address:${address}}`,
       );
     }

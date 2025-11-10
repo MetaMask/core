@@ -1620,8 +1620,6 @@ describe('TokensController', () => {
           const fullErrorMessage = `TokenService Error: ${error}`;
           nock(TOKEN_END_POINT_API)
             .get(
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
               `/token/${convertHexToDecimal(
                 chainId,
               )}?address=${dummyTokenAddress}`,

@@ -37,11 +37,11 @@ const getDefaultState = () => ({
 });
 
 /**
- * OriginalRequest
+ * @type OriginalRequest
  *
  * Represents the original request object for adding a message.
  *
- * origin? - Is it is specified, represents the origin
+ * @property origin? - Is it is specified, represents the origin
  */
 export type OriginalRequest = {
   id?: number;
@@ -50,19 +50,15 @@ export type OriginalRequest = {
 };
 
 /**
- * AbstractMessage
+ * @type AbstractMessage
  *
  * Represents and contains data about a signing type signature request.
  *
- * id - An id to track and identify the message object
- *
- * type - The json-prc signing method for which a signature request has been made.
+ * @property id - An id to track and identify the message object
+ * @property type - The json-prc signing method for which a signature request has been made.
  * A 'Message' which always has a signing type
- *
- * rawSig - Raw data of the signature request
- *
- * securityProviderResponse - Response from a security provider, whether it is malicious or not
- *
+ * @property rawSig - Raw data of the signature request
+ * @property securityProviderResponse - Response from a security provider, whether it is malicious or not
  * @property metadata - Additional data for the message, for example external identifiers
  */
 export type AbstractMessage = {
@@ -78,17 +74,14 @@ export type AbstractMessage = {
 };
 
 /**
- * AbstractMessageParams
+ * @type AbstractMessageParams
  *
  * Represents the parameters to pass to the signing method once the signature request is approved.
+ * @property from - Address from which the message is processed
+ * @property origin? - Added for request origin identification
+ * @property requestId? - Original request id
+ * @property deferSetAsSigned? - Whether to defer setting the message as signed immediately after the keyring is told to sign it
  *
- * from - Address from which the message is processed
- *
- * origin? - Added for request origin identification
- *
- * requestId? - Original request id
- *
- * deferSetAsSigned? - Whether to defer setting the message as signed immediately after the keyring is told to sign it
  */
 export type AbstractMessageParams = {
   from: string;
@@ -98,29 +91,27 @@ export type AbstractMessageParams = {
 };
 
 /**
- * MessageParamsMetamask
+ * @type MessageParamsMetamask
  *
  * Represents the parameters to pass to the signing method once the signature request is approved
  * plus data added by MetaMask.
  *
- * metamaskId - Added for tracking and identification within MetaMask
+ * @property metamaskId - Added for tracking and identification within MetaMask
+ * @property from - Address from which the message is processed
+ * @property origin? - Added for request origin identification
  *
- * from - Address from which the message is processed
- *
- * origin? - Added for request origin identification
  */
 export type AbstractMessageParamsMetamask = AbstractMessageParams & {
   metamaskId?: string;
 };
 
 /**
- * MessageManagerState
+ * @type MessageManagerState
  *
  * Message Manager state
  *
- * unapprovedMessages - A collection of all Messages in the 'unapproved' state
- *
- * unapprovedMessagesCount - The count of all Messages in this.unapprovedMessages
+ * @property unapprovedMessages - A collection of all Messages in the 'unapproved' state
+ * @property unapprovedMessagesCount - The count of all Messages in this.unapprovedMessages
  */
 export type MessageManagerState<Message extends AbstractMessage> = {
   unapprovedMessages: Record<string, Message>;
@@ -143,15 +134,11 @@ export type SecurityProviderRequest = (
 /**
  * AbstractMessageManager constructor options.
  *
- * additionalFinishStatuses - Optional list of statuses that are accepted to emit a finished event.
- *
- * messenger - Controller messaging system.
- *
- * name - The name of the manager.
- *
- * securityProviderRequest - A function for verifying a message, whether it is malicious or not.
- *
- * state - Initial state to set on this controller.
+ * @property additionalFinishStatuses - Optional list of statuses that are accepted to emit a finished event.
+ * @property messenger - Controller messaging system.
+ * @property name - The name of the manager.
+ * @property securityProviderRequest - A function for verifying a message, whether it is malicious or not.
+ * @property state - Initial state to set on this controller.
  */
 export type AbstractMessageManagerOptions<
   Name extends string,

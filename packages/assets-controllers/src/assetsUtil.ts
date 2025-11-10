@@ -130,8 +130,6 @@ export const formatIconUrlWithProxy = ({
   tokenAddress: string;
 }) => {
   const chainIdDecimal = convertHexToDecimal(chainId).toString();
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   return `https://static.cx.metamask.io/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
 };
 
@@ -139,65 +137,25 @@ export const formatIconUrlWithProxy = ({
  * Networks where token detection is supported - Values are in hex format
  */
 export enum SupportedTokenDetectionNetworks {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   mainnet = '0x1', // decimal: 1
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   bsc = '0x38', // decimal: 56
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   polygon = '0x89', // decimal: 137
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   avax = '0xa86a', // decimal: 43114
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   aurora = '0x4e454152', // decimal: 1313161554
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   linea_goerli = '0xe704', // decimal: 59140
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   linea_mainnet = '0xe708', // decimal: 59144
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   arbitrum = '0xa4b1', // decimal: 42161
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   optimism = '0xa', // decimal: 10
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   base = '0x2105', // decimal: 8453
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   zksync = '0x144', // decimal: 324
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   cronos = '0x19', // decimal: 25
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   celo = '0xa4ec', // decimal: 42220
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   gnosis = '0x64', // decimal: 100
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   fantom = '0xfa', // decimal: 250
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   polygon_zkevm = '0x44d', // decimal: 1101
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   moonbeam = '0x504', // decimal: 1284
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   moonriver = '0x505', // decimal: 1285
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   sei = '0x531', // decimal: 1329
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   monad_mainnet = '0x8f', // decimal: 143
 }
 
@@ -205,11 +163,7 @@ export enum SupportedTokenDetectionNetworks {
  * Networks where staked balance is supported - Values are in hex format
  */
 export enum SupportedStakedBalanceNetworks {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   mainnet = '0x1', // decimal: 1
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
   hoodi = '0x88bb0', // decimal: 560048
 }
 

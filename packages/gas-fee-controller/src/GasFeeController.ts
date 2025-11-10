@@ -33,8 +33,6 @@ import {
 
 export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
 
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
 export type unknownString = 'unknown';
 
 // Fee Market describes the way gas is set after the london hardfork, and was
@@ -98,11 +96,9 @@ export type EthGasPriceEstimate = {
  * These estimates include low, medium and high all as strings representing gwei in
  * decimal format.
  *
- * high - gasPrice, in decimal gwei string format, suggested for fast inclusion
- *
- * medium - gasPrice, in decimal gwei string format, suggested for avg inclusion
- *
- * low - gasPrice, in decimal gwei string format, suggested for slow inclusion
+ * @property high - gasPrice, in decimal gwei string format, suggested for fast inclusion
+ * @property medium - gasPrice, in decimal gwei string format, suggested for avg inclusion
+ * @property low - gasPrice, in decimal gwei string format, suggested for slow inclusion
  */
 export type LegacyGasPriceEstimate = {
   high: string;
@@ -115,13 +111,10 @@ export type LegacyGasPriceEstimate = {
  *
  * Data necessary to provide an estimate of a gas fee with a specific tip
  *
- * minWaitTimeEstimate - The fastest the transaction will take, in milliseconds
- *
- * maxWaitTimeEstimate - The slowest the transaction will take, in milliseconds
- *
- * suggestedMaxPriorityFeePerGas - A suggested "tip", a GWEI hex number
- *
- * suggestedMaxFeePerGas - A suggested max fee, the most a user will pay. a GWEI hex number
+ * @property minWaitTimeEstimate - The fastest the transaction will take, in milliseconds
+ * @property maxWaitTimeEstimate - The slowest the transaction will take, in milliseconds
+ * @property suggestedMaxPriorityFeePerGas - A suggested "tip", a GWEI hex number
+ * @property suggestedMaxFeePerGas - A suggested max fee, the most a user will pay. a GWEI hex number
  */
 export type Eip1559GasFee = {
   minWaitTimeEstimate: number; // a time duration in milliseconds
@@ -135,14 +128,10 @@ export type Eip1559GasFee = {
  *
  * Data necessary to provide multiple GasFee estimates, and supporting information, to the user
  *
- * low - A GasFee for a minimum necessary combination of tip and maxFee
- *
- * medium - A GasFee for a recommended combination of tip and maxFee
- *
- * high - A GasFee for a high combination of tip and maxFee
- *
- * estimatedBaseFee - An estimate of what the base fee will be for the pending/next block. A GWEI dec number
- *
+ * @property low - A GasFee for a minimum necessary combination of tip and maxFee
+ * @property medium - A GasFee for a recommended combination of tip and maxFee
+ * @property high - A GasFee for a high combination of tip and maxFee
+ * @property estimatedBaseFee - An estimate of what the base fee will be for the pending/next block. A GWEI dec number
  * @property networkCongestion - A normalized number that can be used to gauge the congestion
  * level of the network, with 0 meaning not congested and 1 meaning extremely congested
  */
@@ -241,9 +230,8 @@ export type FetchGasFeeEstimateOptions = {
  *
  * Gas Fee controller state
  *
- * gasFeeEstimates - Gas fee estimate data based on new EIP-1559 properties
- *
- * estimatedGasFeeTimeBounds - Estimates representing the minimum and maximum
+ * @property gasFeeEstimates - Gas fee estimate data based on new EIP-1559 properties
+ * @property estimatedGasFeeTimeBounds - Estimates representing the minimum and maximum
  */
 export type SingleChainGasFeeState =
   | GasFeeStateEthGasPrice
@@ -312,8 +300,6 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
   private readonly pollTokens: Set<string>;
 
   private readonly legacyAPIEndpoint: string;
-
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 
   private readonly EIP1559APIEndpoint: string;
 

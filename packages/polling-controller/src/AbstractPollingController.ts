@@ -17,8 +17,6 @@ export const getKey = <PollingInput>(input: PollingInput): PollingTokenSetId =>
  * @param Base - The base class to mix onto.
  * @returns The composed class.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
 export function AbstractPollingControllerBaseMixin<
   TBase extends Constructor,
   PollingInput extends Json,
