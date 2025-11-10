@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support Relay quotes with multiple transactions ([#7089](https://github.com/MetaMask/core/pull/7089))
+
 ## [3.1.0]
 
 ### Added
