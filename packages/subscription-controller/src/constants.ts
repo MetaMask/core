@@ -14,7 +14,7 @@ type EnvUrlsEntry = {
 
 const ENV_URLS: Record<Env, EnvUrlsEntry> = {
   dev: {
-    subscriptionApiUrl: 'https://subscription.dev-api.cx.metamask.io',
+    subscriptionApiUrl: 'http://localhost:3000',
   },
   uat: {
     subscriptionApiUrl: 'https://subscription.uat-api.cx.metamask.io',

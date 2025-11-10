@@ -109,7 +109,7 @@ export class SubscriptionService implements ISubscriptionService {
   /**
    * Get the eligibility for a shield subscription.
    *
-   * @param request - Optional request object containing user balance to check cohort eligibility
+   * @param request - Optional request object containing user balance category to check cohort eligibility
    * @returns The eligibility for a shield subscription
    */
   async getSubscriptionsEligibilities(
@@ -117,8 +117,8 @@ export class SubscriptionService implements ISubscriptionService {
   ): Promise<SubscriptionEligibility[]> {
     const path = 'subscriptions/eligibility';
     let query: Record<string, string> | undefined;
-    if (request?.balanceUsd !== undefined) {
-      query = { balanceUsd: String(request.balanceUsd) };
+    if (request?.balanceCategory !== undefined) {
+      query = { balanceCategory: request.balanceCategory };
     }
     const results = await this.#makeRequest<SubscriptionEligibility[]>(
       path,

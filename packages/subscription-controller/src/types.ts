@@ -234,6 +234,18 @@ export const COHORT_NAMES = {
 
 export type CohortName = (typeof COHORT_NAMES)[keyof typeof COHORT_NAMES];
 
+export const BALANCE_CATEGORIES = {
+  RANGE_0_99: '0-99',
+  RANGE_100_999: '100-999',
+  RANGE_1K_9_9K: '1k-9.9k',
+  RANGE_10K_99_9K: '10k-99.9k',
+  RANGE_100K_999_9K: '100k-999.9k',
+  RANGE_1M_PLUS: '1M+',
+} as const;
+
+export type BalanceCategory =
+  (typeof BALANCE_CATEGORIES)[keyof typeof BALANCE_CATEGORIES];
+
 export type Cohort = {
   cohort: string;
   eligibilityRate: number; // 0-1 probability of being assigned to this cohort
@@ -269,7 +281,7 @@ export type AssignCohortRequest = {
 };
 
 export type GetSubscriptionsEligibilitiesRequest = {
-  balanceUsd?: number;
+  balanceCategory?: BalanceCategory;
 };
 
 /**

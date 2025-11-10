@@ -1418,7 +1418,7 @@ describe('SubscriptionController', () => {
       });
     });
 
-    it('should get the subscriptions eligibilities with balanceUsd parameter', async () => {
+    it('should get the subscriptions eligibilities with balanceCategory parameter', async () => {
       await withController(async ({ controller, mockService }) => {
         const mockEligibilityWithCohorts: SubscriptionEligibility = {
           ...MOCK_SUBSCRIPTION_ELIGIBILITY,
@@ -1430,13 +1430,13 @@ describe('SubscriptionController', () => {
           mockEligibilityWithCohorts,
         ]);
 
-        const balanceUsd = 1500;
+        const balanceCategory = '1k-9.9k';
         const result = await controller.getSubscriptionsEligibilities({
-          balanceUsd,
+          balanceCategory,
         });
         expect(result).toStrictEqual([mockEligibilityWithCohorts]);
         expect(mockService.getSubscriptionsEligibilities).toHaveBeenCalledWith({
-          balanceUsd,
+          balanceCategory,
         });
       });
     });

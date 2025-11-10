@@ -461,7 +461,7 @@ describe('SubscriptionService', () => {
         handleFetchMock.mockResolvedValue([mockResponse]);
 
         const results = await service.getSubscriptionsEligibilities({
-          balanceUsd: 1500,
+          balanceCategory: '1k-9.9k',
         });
 
         expect(results).toStrictEqual([mockResponse]);
@@ -489,15 +489,17 @@ describe('SubscriptionService', () => {
       });
     });
 
-    it('should pass balanceUsd as query parameter when provided', async () => {
+    it('should pass balanceCategory as query parameter when provided', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
         const mockResponse = createMockEligibilityResponse();
         handleFetchMock.mockResolvedValue([mockResponse]);
 
-        await service.getSubscriptionsEligibilities({ balanceUsd: 100 });
+        await service.getSubscriptionsEligibilities({
+          balanceCategory: '100-999',
+        });
 
         expect(handleFetchMock).toHaveBeenCalledWith(
-          expect.stringContaining('balanceUsd=100'),
+          expect.stringContaining('balanceCategory=100-999'),
           expect.objectContaining({
             method: 'GET',
             headers: MOCK_HEADERS,
@@ -507,7 +509,7 @@ describe('SubscriptionService', () => {
       });
     });
 
-    it('should not pass balanceUsd query parameter when not provided', async () => {
+    it('should not pass balanceCategory query parameter when not provided', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
         const mockResponse = createMockEligibilityResponse();
         handleFetchMock.mockResolvedValue([mockResponse]);
@@ -515,7 +517,7 @@ describe('SubscriptionService', () => {
         await service.getSubscriptionsEligibilities();
 
         expect(handleFetchMock).toHaveBeenCalledWith(
-          expect.not.stringContaining('balanceUsd'),
+          expect.not.stringContaining('balanceCategory'),
           expect.objectContaining({
             method: 'GET',
             headers: MOCK_HEADERS,
