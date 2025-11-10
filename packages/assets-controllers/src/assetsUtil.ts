@@ -213,6 +213,16 @@ export enum SupportedStakedBalanceNetworks {
 }
 
 /**
+ * Staking contract addresses by chain ID
+ */
+export const STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
+  [SupportedStakedBalanceNetworks.mainnet]:
+    '0x4fef9d741011476750a243ac70b9789a63dd47df',
+  [SupportedStakedBalanceNetworks.hoodi]:
+    '0xe96ac18cfe5a7af8fe1fe7bc37ff110d88bc67ff',
+} as Record<Hex, string>;
+
+/**
  * Check if token detection is enabled for certain networks.
  *
  * @param chainId - ChainID of network

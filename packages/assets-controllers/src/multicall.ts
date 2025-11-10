@@ -3,8 +3,10 @@ import type { Web3Provider } from '@ethersproject/providers';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
-import { reduceInBatchesSerially } from './assetsUtil';
+import {
+  reduceInBatchesSerially,
+  STAKING_CONTRACT_ADDRESS_BY_CHAINID,
+} from './assetsUtil';
 
 // https://github.com/mds1/multicall/blob/main/deployments.json
 const MULTICALL_CONTRACT_BY_CHAINID = {

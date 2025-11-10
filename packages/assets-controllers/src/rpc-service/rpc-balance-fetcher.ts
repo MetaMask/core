@@ -8,7 +8,7 @@ import type { NetworkClient } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from '../AssetsContractController';
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from '../assetsUtil';
 import { getTokenBalancesForMultipleAddresses } from '../multicall';
 import type { TokensControllerState } from '../TokensController';
 

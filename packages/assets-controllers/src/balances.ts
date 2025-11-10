@@ -15,7 +15,7 @@ import {
   isStrictHexString,
 } from '@metamask/utils';
 
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './assetsUtil';
 import type { CurrencyRateState } from './CurrencyRateController';
 import type { MultichainAssetsControllerState } from './MultichainAssetsController';
 import type { MultichainAssetsRatesControllerState } from './MultichainAssetsRatesController';

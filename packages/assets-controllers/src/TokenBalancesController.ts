@@ -49,7 +49,7 @@ import type {
   AccountTrackerUpdateNativeBalancesAction,
   AccountTrackerUpdateStakedBalancesAction,
 } from './AccountTrackerController';
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './assetsUtil';
 import {
   AccountsApiBalanceFetcher,
   type BalanceFetcher,

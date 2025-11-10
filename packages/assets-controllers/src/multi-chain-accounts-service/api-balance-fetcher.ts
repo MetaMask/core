@@ -11,10 +11,10 @@ import type { CaipAccountAddress, Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
 import { fetchMultiChainBalancesV4 } from './multi-chain-accounts';
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from '../AssetsContractController';
 import {
   accountAddressToCaipReference,
   reduceInBatchesSerially,
+  STAKING_CONTRACT_ADDRESS_BY_CHAINID,
   SupportedStakedBalanceNetworks,
 } from '../assetsUtil';
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants';
