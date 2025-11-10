@@ -29,6 +29,13 @@ import {
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { Source } from './constants';
+import { getDefaultNftControllerState } from './NftController';
+import {
+  NftDetectionController,
+  BlockaidResultType,
+  type NftDetectionControllerMessenger,
+} from './NftDetectionController';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';
@@ -37,13 +44,6 @@ import {
   buildMockFindNetworkClientIdByChainId,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
-import { Source } from './constants';
-import { getDefaultNftControllerState } from './NftController';
-import {
-  NftDetectionController,
-  BlockaidResultType,
-  type NftDetectionControllerMessenger,
-} from './NftDetectionController';
 
 type AllActions = MessengerActions<NftDetectionControllerMessenger>;
 
@@ -223,7 +223,7 @@ describe('NftDetectionController', () => {
             },
             blockaidResult: {
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
+
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -248,7 +248,7 @@ describe('NftDetectionController', () => {
             },
             blockaidResult: {
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
+
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -280,7 +280,7 @@ describe('NftDetectionController', () => {
             },
             blockaidResult: {
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
+
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -322,7 +322,7 @@ describe('NftDetectionController', () => {
             },
             blockaidResult: {
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
+
               result_type: BlockaidResultType.Malicious,
             },
           },
@@ -344,7 +344,7 @@ describe('NftDetectionController', () => {
             },
             blockaidResult: {
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
+
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -366,7 +366,7 @@ describe('NftDetectionController', () => {
             },
             blockaidResult: {
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
+
               result_type: BlockaidResultType.Malicious,
             },
           },
@@ -846,7 +846,7 @@ describe('NftDetectionController', () => {
     const selectedAccount = createMockInternalAccount({ address: '0x3' });
     nock(NFT_API_BASE_URL)
       // ESLint is confused; this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
       .get(`/users/${selectedAccount.address}/tokens`)
       .query({
         continuation: '',

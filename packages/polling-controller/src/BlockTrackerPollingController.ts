@@ -27,7 +27,7 @@ export type BlockTrackerPollingInput = {
  * @returns The composed class.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 function BlockTrackerPollingControllerMixin<
   TBase extends Constructor,
   PollingInput extends BlockTrackerPollingInput,
@@ -59,7 +59,7 @@ function BlockTrackerPollingControllerMixin<
       } else {
         throw new Error(
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
           `Unable to retrieve blockTracker for networkClientId ${input.networkClientId}`,
         );
       }

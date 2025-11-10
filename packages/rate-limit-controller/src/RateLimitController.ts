@@ -10,9 +10,11 @@ import { getKnownPropertyNames } from '@metamask/utils';
 /**
  * A rate-limited API endpoint.
  *
- * @property method - The method that is rate-limited.
- * @property rateLimitTimeout - The time window in which the rate limit is applied (in ms).
- * @property rateLimitCount - The amount of calls an origin can make in the rate limit time window.
+ * method - The method that is rate-limited.
+ *
+ * rateLimitTimeout - The time window in which the rate limit is applied (in ms).
+ *
+ * rateLimitCount - The amount of calls an origin can make in the rate limit time window.
  */
 export type RateLimitedApi = {
   method: ActionConstraint['handler'];
@@ -37,7 +39,7 @@ export type RateLimitedRequests<RateLimitedApis extends RateLimitedApiMap> =
  * The state of the {@link RateLimitController}.
  *
  * @template RateLimitedApis - A {@link RateLimitedApiMap} containing the rate-limited API endpoints that is used by the {@link RateLimitController}.
- * @property requests - An object containing the number of requests made in a given interval for each origin and api type combination.
+ * requests - An object containing the number of requests made in a given interval for each origin and api type combination.
  */
 export type RateLimitState<RateLimitedApis extends RateLimitedApiMap> = {
   requests: RateLimitedRequests<RateLimitedApis>;
@@ -218,7 +220,7 @@ export class RateLimitController<
         requests: {
           ...(state.requests as RateLimitedRequests<RateLimitedApis>),
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
+
           [api]: { [origin]: previous + 1 },
         },
       });

@@ -41,7 +41,7 @@ export type StateChangeListener<T> = (state: T, patches: Patch[]) => void;
  * @returns Something derived from controller state.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export type StateDeriver<T extends Json> = (value: T) => Json;
 
 /**
@@ -51,7 +51,7 @@ export type StateDeriver<T extends Json> = (value: T) => Json;
  * get an anonymized representation of the state.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export type StateMetadata<T extends StateConstraint> = {
   [P in keyof T]-?: StatePropertyMetadata<T[P]>;
 };

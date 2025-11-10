@@ -122,7 +122,7 @@ export default function createStreamMiddleware(options: Options = {}) {
     // run callback on empty stack,
     // prevent internal stream-handler from catching errors
     // TODO: remove eslint-disable once issue #1989 is resolved.
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+
     setTimeout(context.end);
   }
 

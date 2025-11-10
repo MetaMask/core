@@ -235,7 +235,6 @@ export enum StatusTypes {
 export type GenericQuoteRequest = QuoteRequest<
   Hex | CaipChainId | string | number, // chainIds
   Hex | CaipAssetId | string, // assetIds/addresses
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-arguments
   Hex | CaipAccountId | string // accountIds/addresses
 >;
 
