@@ -603,7 +603,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     chainsToDetectUsingAccountAPI: Hex[],
     addressToDetect: string,
     supportedNetworks: number[] | null,
-    jwtToken?: string,
   ) {
     let timeoutId: NodeJS.Timeout | undefined;
 
