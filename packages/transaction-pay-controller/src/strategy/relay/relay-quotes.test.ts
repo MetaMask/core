@@ -1,5 +1,6 @@
 import { successfulFetch } from '@metamask/controller-utils';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { cloneDeep } from 'lodash';
 
 import {
   ARBITRUM_USDC_ADDRESS,
@@ -85,11 +86,13 @@ const TRANSACTION_META_MOCK = {} as TransactionMeta;
 describe('Relay Quotes Utils', () => {
   const successfulFetchMock = jest.mocked(successfulFetch);
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
+  const calculateGasCostMock = jest.mocked(calculateGasCost);
+  const getNativeTokenMock = jest.mocked(getNativeToken);
+
   const calculateTransactionGasCostMock = jest.mocked(
     calculateTransactionGasCost,
   );
-  const calculateGasCostMock = jest.mocked(calculateGasCost);
-  const getNativeTokenMock = jest.mocked(getNativeToken);
+
   const { messenger, getRemoteFeatureFlagControllerStateMock } =
     getMessengerMock();
 
@@ -269,6 +272,48 @@ describe('Relay Quotes Utils', () => {
         usd: '3.45',
         fiat: '4.56',
       });
+    });
+
+    it('includes source network fee in quote using fallback if gas missing', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      delete quoteMock.steps[0].items[0].data.gas;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(calculateGasCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ gas: 900000 }),
+      );
+    });
+
+    it('includes source network fee using gas total from multiple transactions', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.steps[0].items.push({
+        data: {
+          gas: '480000',
+        },
+      } as never);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(calculateGasCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ gas: 501000 }),
+      );
     });
 
     it('includes target network fee in quote', async () => {
