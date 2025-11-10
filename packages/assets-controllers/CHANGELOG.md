@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [87.1.1]
+
+### Changed
+
+- Remove early return for empty `chainIds` in `searchTokens` function to allow API to handle empty chain IDs ([#7083](https://github.com/MetaMask/core/pull/7083))
+
+### Fixed
+
+- Importing a non-evm asset with positive balance sets balance to 0 after import ([#7094](https://github.com/MetaMask/core/pull/7094))
+
 ## [87.1.0]
 
 ### Added
@@ -2246,7 +2256,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.1...HEAD
+[87.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.0...@metamask/assets-controllers@87.1.1
 [87.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.0.0...@metamask/assets-controllers@87.1.0
 [87.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@86.0.0...@metamask/assets-controllers@87.0.0
 [86.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@85.0.0...@metamask/assets-controllers@86.0.0

@@ -444,6 +444,33 @@ const engine = JsonRpcEngineV2.create({
 });
 ```
 
+#### Passing the context to `handle()`
+
+You can pass a `MiddlewareContext` instance directly to `handle()`:
+
+```ts
+const context = new MiddlewareContext();
+context.set('foo', 'bar');
+const result = await engine.handle(
+  { id: '1', jsonrpc: '2.0', method: 'hello' },
+  { context },
+);
+console.log(result); // 'bar'
+```
+
+You can also pass a plain object as a shorthand for a `MiddlewareContext` instance:
+
+```ts
+const context = { foo: 'bar' };
+const result = await engine.handle(
+  { id: '1', jsonrpc: '2.0', method: 'hello' },
+  { context },
+);
+console.log(result); // 'bar'
+```
+
+This works the same way for `JsonRpcServer.handle()`.
+
 #### Constraining context keys and values
 
 The context exposes a generic parameter `KeyValues`, which determines the keys and values

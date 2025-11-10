@@ -1,5 +1,6 @@
 import {
   hasProperty,
+  isObject,
   type JsonRpcNotification,
   type JsonRpcParams,
   type JsonRpcRequest,
@@ -48,7 +49,22 @@ export function stringify(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
-const JsonRpcEngineErrorSymbol = Symbol.for('JsonRpcEngineError');
+/**
+ * The implementation of static `isInstance` methods for classes that have them.
+ *
+ * @param value - The value to check.
+ * @param symbol - The symbol property to check for.
+ * @returns Whether the value has `{ [symbol]: true }` in its prototype chain.
+ */
+export const isInstance = (
+  value: unknown,
+  symbol: symbol,
+): value is { [key: symbol]: true } =>
+  isObject(value) && symbol in value && value[symbol] === true;
+
+const JsonRpcEngineErrorSymbol = Symbol.for(
+  'json-rpc-engine#JsonRpcEngineError',
+);
 
 export class JsonRpcEngineError extends Error {
   private readonly [JsonRpcEngineErrorSymbol] = true;
@@ -65,12 +81,7 @@ export class JsonRpcEngineError extends Error {
    * @param value - The value to check.
    * @returns Whether the value is a {@link JsonRpcEngineError} instance.
    */
-  static isInstance<Value extends Error>(
-    value: Value,
-  ): value is Value & JsonRpcEngineError {
-    return (
-      hasProperty(value, JsonRpcEngineErrorSymbol) &&
-      value[JsonRpcEngineErrorSymbol] === true
-    );
+  static isInstance(value: unknown): value is JsonRpcEngineError {
+    return isInstance(value, JsonRpcEngineErrorSymbol);
   }
 }

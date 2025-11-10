@@ -15,8 +15,9 @@ import {
   WARNING_PREFIX,
 } from './logger';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { NamedAccountProvider } from './providers';
+import type { Bip44AccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
+import { createSentryError } from './utils';
 
 /**
  * A multichain account group that holds multiple accounts.
@@ -31,16 +32,16 @@ export class MultichainAccountGroup<
 
   readonly #groupIndex: number;
 
-  readonly #providers: NamedAccountProvider<Account>[];
+  readonly #providers: Bip44AccountProvider<Account>[];
 
   readonly #providerToAccounts: Map<
-    NamedAccountProvider<Account>,
+    Bip44AccountProvider<Account>,
     Account['id'][]
   >;
 
   readonly #accountToProvider: Map<
     Account['id'],
-    NamedAccountProvider<Account>
+    Bip44AccountProvider<Account>
   >;
 
   readonly #messenger: MultichainAccountServiceMessenger;
@@ -58,7 +59,7 @@ export class MultichainAccountGroup<
   }: {
     groupIndex: number;
     wallet: MultichainAccountWallet<Account>;
-    providers: NamedAccountProvider<Account>[];
+    providers: Bip44AccountProvider<Account>[];
     messenger: MultichainAccountServiceMessenger;
   }) {
     this.#id = toMultichainAccountGroupId(wallet.id, groupIndex);
@@ -236,20 +237,40 @@ export class MultichainAccountGroup<
 
     const results = await Promise.allSettled(
       this.#providers.map(async (provider) => {
-        const accounts = this.#providerToAccounts.get(provider);
-        if (!accounts || accounts.length === 0) {
-          this.#log(
-            `Found missing accounts for account provider "${provider.getName()}", creating them now...`,
-          );
-          const created = await provider.createAccounts({
-            entropySource: this.wallet.entropySource,
-            groupIndex: this.groupIndex,
-          });
-          this.#log(`Created ${created.length} accounts`);
+        try {
+          const accounts = this.#providerToAccounts.get(provider);
+          if (!accounts || accounts.length === 0) {
+            this.#log(
+              `Found missing accounts for account provider "${provider.getName()}", creating them now...`,
+            );
+            const created = await provider.createAccounts({
+              entropySource: this.wallet.entropySource,
+              groupIndex: this.groupIndex,
+            });
+            this.#log(`Created ${created.length} accounts`);
 
-          return created;
+            return created;
+          }
+          return Promise.resolve();
+        } catch (error) {
+          // istanbul ignore next
+          this.#log(
+            `${WARNING_PREFIX} ${error instanceof Error ? error.message : String(error)}`,
+          );
+          const sentryError = createSentryError(
+            `Unable to align accounts with provider "${provider.getName()}"`,
+            error as Error,
+            {
+              groupIndex: this.groupIndex,
+              provider: provider.getName(),
+            },
+          );
+          this.#messenger.call(
+            'ErrorReportingService:captureException',
+            sentryError,
+          );
+          throw error;
         }
-        return Promise.resolve();
       }),
     );
 

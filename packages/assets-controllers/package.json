@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "87.1.0",
+  "version": "87.1.1",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",
@@ -111,7 +111,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2",
+    "typescript": "~5.3.3",
     "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {

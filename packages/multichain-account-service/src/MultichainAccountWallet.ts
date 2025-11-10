@@ -24,9 +24,9 @@ import {
   WARNING_PREFIX,
 } from './logger';
 import { MultichainAccountGroup } from './MultichainAccountGroup';
-import { EvmAccountProvider, type NamedAccountProvider } from './providers';
+import { EvmAccountProvider, type Bip44AccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
-import { toRejectedErrorMessage } from './utils';
+import { createSentryError, toRejectedErrorMessage } from './utils';
 
 /**
  * The context for a provider discovery.
@@ -34,7 +34,7 @@ import { toRejectedErrorMessage } from './utils';
 type AccountProviderDiscoveryContext<
   Account extends Bip44Account<KeyringAccount>,
 > = {
-  provider: NamedAccountProvider<Account>;
+  provider: Bip44AccountProvider<Account>;
   stopped: boolean;
   groupIndex: number;
   accounts: Account[];
@@ -52,7 +52,7 @@ export class MultichainAccountWallet<
 
   readonly #id: MultichainAccountWalletId;
 
-  readonly #providers: NamedAccountProvider<Account>[];
+  readonly #providers: Bip44AccountProvider<Account>[];
 
   readonly #entropySource: EntropySourceId;
 
@@ -72,7 +72,7 @@ export class MultichainAccountWallet<
     entropySource,
     messenger,
   }: {
-    providers: NamedAccountProvider<Account>[];
+    providers: Bip44AccountProvider<Account>[];
     entropySource: EntropySourceId;
     messenger: MultichainAccountServiceMessenger;
   }) {
@@ -239,15 +239,31 @@ export class MultichainAccountWallet<
     awaitAll,
   }: {
     groupIndex: number;
-    providers: NamedAccountProvider<Account>[];
+    providers: Bip44AccountProvider<Account>[];
     awaitAll: boolean;
   }): Promise<void> {
     if (awaitAll) {
       const tasks = providers.map((provider) =>
-        provider.createAccounts({
-          entropySource: this.#entropySource,
-          groupIndex,
-        }),
+        provider
+          .createAccounts({
+            entropySource: this.#entropySource,
+            groupIndex,
+          })
+          .catch((error) => {
+            const sentryError = createSentryError(
+              `Unable to create account with provider "${provider.getName()}"`,
+              error,
+              {
+                groupIndex,
+                provider: provider.getName(),
+              },
+            );
+            this.#messenger.call(
+              'ErrorReportingService:captureException',
+              sentryError,
+            );
+            throw error;
+          }),
       );
 
       const results = await Promise.allSettled(tasks);
@@ -276,6 +292,18 @@ export class MultichainAccountWallet<
         .catch((error) => {
           const errorMessage = `Unable to create multichain account group for index: ${groupIndex} (background mode with provider "${provider.getName()}")`;
           this.#log(`${WARNING_PREFIX} ${errorMessage}:`, error);
+          const sentryError = createSentryError(
+            `Unable to create account with provider "${provider.getName()}"`,
+            error,
+            {
+              groupIndex,
+              provider: provider.getName(),
+            },
+          );
+          this.#messenger.call(
+            'ErrorReportingService:captureException',
+            sentryError,
+          );
         });
     });
   }
@@ -411,6 +439,18 @@ export class MultichainAccountWallet<
       } catch (error) {
         const errorMessage = `Unable to create multichain account group for index: ${groupIndex} with provider "${evmProvider.getName()}". Error: ${(error as Error).message}`;
         this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
+        const sentryError = createSentryError(
+          `Unable to create account with provider "${evmProvider.getName()}"`,
+          error as Error,
+          {
+            groupIndex,
+            provider: evmProvider.getName(),
+          },
+        );
+        this.#messenger.call(
+          'ErrorReportingService:captureException',
+          sentryError,
+        );
         throw new Error(errorMessage);
       }
 
@@ -574,6 +614,18 @@ export class MultichainAccountWallet<
                 targetGroupIndex,
               ),
               error,
+            );
+            const sentryError = createSentryError(
+              'Unable to discover accounts',
+              error as Error,
+              {
+                provider: providerName,
+                groupIndex: targetGroupIndex,
+              },
+            );
+            this.#messenger.call(
+              'ErrorReportingService:captureException',
+              sentryError,
             );
             break;
           }
