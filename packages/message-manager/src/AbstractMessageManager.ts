@@ -81,7 +81,6 @@ export type AbstractMessage = {
  * @property origin? - Added for request origin identification
  * @property requestId? - Original request id
  * @property deferSetAsSigned? - Whether to defer setting the message as signed immediately after the keyring is told to sign it
- *
  */
 export type AbstractMessageParams = {
   from: string;
@@ -99,7 +98,6 @@ export type AbstractMessageParams = {
  * @property metamaskId - Added for tracking and identification within MetaMask
  * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
- *
  */
 export type AbstractMessageParamsMetamask = AbstractMessageParams & {
   metamaskId?: string;
