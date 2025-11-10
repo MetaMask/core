@@ -400,6 +400,44 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(result.balances).toHaveLength(3);
     });
 
+    it('should convert unprocessedNetworks from decimal to hex chain IDs (line 294)', async () => {
+      const responseWithUnprocessed = {
+        count: 1,
+        balances: [
+          {
+            object: 'token',
+            address: '0x0000000000000000000000000000000000000000',
+            symbol: 'ETH',
+            name: 'Ether',
+            decimals: 18,
+            chainId: 1,
+            balance: '1.0',
+            accountAddress:
+              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+          },
+        ],
+        unprocessedNetworks: [137, 42161, 10, 8453], // Polygon, Arbitrum, Optimism, Base (in decimal)
+      };
+
+      mockFetchMultiChainBalancesV4.mockResolvedValue(responseWithUnprocessed);
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      // Verify conversion from decimal to hex (line 294)
+      expect(result.unprocessedChainIds).toBeDefined();
+      expect(result.unprocessedChainIds).toStrictEqual([
+        '0x89', // 137 -> 0x89 (Polygon)
+        '0xa4b1', // 42161 -> 0xa4b1 (Arbitrum)
+        '0xa', // 10 -> 0xa (Optimism)
+        '0x2105', // 8453 -> 0x2105 (Base)
+      ]);
+    });
+
     it('should handle large batch requests using reduceInBatchesSerially', async () => {
       // Create a large number of CAIP addresses to exceed ACCOUNTS_API_BATCH_SIZE (50)
       const largeAccountList: InternalAccount[] = [];
@@ -469,6 +507,86 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(mockFetchMultiChainBalancesV4).toHaveBeenCalledTimes(2);
       // Should have more results due to native token guarantees for all 60 accounts
       expect(result.balances.length).toBeGreaterThan(3);
+    });
+
+    it('should collect unprocessedNetworks from multiple batches (line 241)', async () => {
+      // Create a large number of CAIP addresses to exceed ACCOUNTS_API_BATCH_SIZE (50)
+      const largeAccountList: InternalAccount[] = [];
+      const caipAddresses: string[] = [];
+
+      for (let i = 0; i < 60; i++) {
+        const address =
+          `0x${'0'.repeat(39)}${i.toString().padStart(1, '0')}` as ChecksumAddress;
+        largeAccountList.push({
+          id: i.toString(),
+          address,
+          type: 'eip155:eoa',
+          options: {},
+          methods: [],
+          scopes: [],
+          metadata: {
+            name: `Account ${i}`,
+            importTime: Date.now(),
+            keyring: { type: 'HD Key Tree' },
+          },
+        });
+        caipAddresses.push(`eip155:1:${address}`);
+      }
+
+      // Mock reduceInBatchesSerially to simulate batching behavior
+      mockReduceInBatchesSerially.mockImplementation(
+        async ({
+          eachBatch,
+          initialResult,
+        }: {
+          eachBatch: (
+            result: unknown,
+            batch: unknown,
+            index: number,
+          ) => Promise<unknown>;
+          initialResult: unknown;
+        }) => {
+          const batch1 = caipAddresses.slice(0, 50);
+          const batch2 = caipAddresses.slice(50);
+
+          let result = initialResult;
+          result = await eachBatch(result, batch1, 0);
+          result = await eachBatch(result, batch2, 1);
+
+          return result;
+        },
+      );
+
+      // Mock the API to return different unprocessedNetworks for each batch
+      mockFetchMultiChainBalancesV4
+        .mockResolvedValueOnce({
+          count: 0,
+          balances: [],
+          unprocessedNetworks: [137, 42161], // Batch 1: Polygon and Arbitrum
+        })
+        .mockResolvedValueOnce({
+          count: 0,
+          balances: [],
+          unprocessedNetworks: [10, 137], // Batch 2: Optimism and Polygon (duplicate)
+        });
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: true,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: largeAccountList,
+      });
+
+      // Should have been called twice (2 batches)
+      expect(mockFetchMultiChainBalancesV4).toHaveBeenCalledTimes(2);
+
+      // Line 241 should have collected all unique networks from both batches
+      // The Set deduplicates 137 (Polygon) which appears in both batches
+      expect(result.unprocessedChainIds).toBeDefined();
+      expect(result.unprocessedChainIds).toStrictEqual(
+        expect.arrayContaining(['0x89', '0xa4b1', '0xa']),
+      );
+      expect(result.unprocessedChainIds).toHaveLength(3); // No duplicates
     });
 
     it('should handle missing account address in response', async () => {
