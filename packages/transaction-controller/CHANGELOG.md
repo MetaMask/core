@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Calculate operator fee for OP stack networks and include it in `layer1GasFee` ([#6979](https://github.com/MetaMask/core/pull/6979))
 - Add support for `isGasFeeSponsored` field in transaction batch and add transaction options ([#7064](https://github.com/MetaMask/core/pull/7064))
 
+### Fixed
+
+- Prevent transactions marked as `dropped` if nonce matches incoming transaction ([#7097](https://github.com/MetaMask/core/pull/7097))
+
 ## [61.1.0]
 
 ### Added
