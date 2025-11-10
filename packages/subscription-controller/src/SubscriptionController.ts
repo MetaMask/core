@@ -110,11 +110,6 @@ export type SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction =
     handler: SubscriptionController['submitShieldSubscriptionCryptoApproval'];
   };
 
-export type SubscriptionControllerAssignUserToCohortAction = {
-  type: `${typeof controllerName}:assignUserToCohort`;
-  handler: SubscriptionController['assignUserToCohort'];
-};
-
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   SubscriptionControllerState
@@ -131,8 +126,7 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerUpdatePaymentMethodAction
   | SubscriptionControllerGetBillingPortalUrlAction
   | SubscriptionControllerSubmitSponsorshipIntentsAction
-  | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction
-  | SubscriptionControllerAssignUserToCohortAction;
+  | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -330,11 +324,6 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.messenger.registerActionHandler(
       `${controllerName}:submitShieldSubscriptionCryptoApproval`,
       this.submitShieldSubscriptionCryptoApproval.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:assignUserToCohort`,
-      this.assignUserToCohort.bind(this),
     );
   }
 
