@@ -742,7 +742,7 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
   return {
     [ChainId['megaeth-testnet']]: getCustomNetworkConfiguration(
       CustomNetworkType['megaeth-testnet'],
-      ),
+    ),
     [ChainId['monad-testnet']]: getCustomNetworkConfiguration(
       CustomNetworkType['monad-testnet'],
     ),
