@@ -785,7 +785,9 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(daiBalance?.success).toBe(true);
 
       // Should include native token with zero balance
-      const nativeBalance = result.balances.find((r) => r.token === ZERO_ADDRESS);
+      const nativeBalance = result.balances.find(
+        (r) => r.token === ZERO_ADDRESS,
+      );
       expect(nativeBalance).toBeDefined();
       expect(nativeBalance?.success).toBe(true);
       expect(nativeBalance?.value).toStrictEqual(new BN('0'));
@@ -839,7 +841,9 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(result.balances).toHaveLength(3);
 
       // Verify native balances for both addresses
-      const nativeBalances = result.balances.filter((r) => r.token === ZERO_ADDRESS);
+      const nativeBalances = result.balances.filter(
+        (r) => r.token === ZERO_ADDRESS,
+      );
       expect(nativeBalances).toHaveLength(2);
 
       const nativeAddr1 = nativeBalances.find(
@@ -1045,7 +1049,9 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(stakedBalance).toBeUndefined(); // No staked balance for unsupported staking chain
 
       // Should have native token balance
-      const nativeBalance = result.balances.find((r) => r.token === ZERO_ADDRESS);
+      const nativeBalance = result.balances.find(
+        (r) => r.token === ZERO_ADDRESS,
+      );
       expect(nativeBalance).toBeDefined();
     });
 
@@ -1116,7 +1122,9 @@ describe('AccountsApiBalanceFetcher', () => {
         expect(stakedBalance).toBeUndefined(); // No staked balance due to missing contract address
 
         // Should have native token balance
-        const nativeBalance = result.balances.find((r) => r.token === ZERO_ADDRESS);
+        const nativeBalance = result.balances.find(
+          (r) => r.token === ZERO_ADDRESS,
+        );
         expect(nativeBalance).toBeDefined();
       } finally {
         // Restore original mocks
@@ -1381,7 +1389,9 @@ describe('AccountsApiBalanceFetcher', () => {
       });
 
       // Should have guaranteed native balances for both addresses
-      const nativeBalances = result.balances.filter((r) => r.token === ZERO_ADDRESS);
+      const nativeBalances = result.balances.filter(
+        (r) => r.token === ZERO_ADDRESS,
+      );
       expect(nativeBalances).toHaveLength(2);
 
       const addr1Native = nativeBalances.find(
@@ -1660,7 +1670,9 @@ describe('AccountsApiBalanceFetcher', () => {
         const stakedEntries = result.balances.filter(
           (r) => r.token === STAKING_CONTRACT_ADDRESS,
         );
-        const nativeEntries = result.balances.filter((r) => r.token === ZERO_ADDRESS);
+        const nativeEntries = result.balances.filter(
+          (r) => r.token === ZERO_ADDRESS,
+        );
 
         expect(successfulEntries.length).toBeGreaterThan(0); // Staked balance + native token succeeded
         expect(stakedEntries).toHaveLength(1); // Should have staked balance entry

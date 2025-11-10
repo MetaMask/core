@@ -663,14 +663,19 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         if (result.balances && result.balances.length > 0) {
           aggregated.push(...result.balances);
           // Remove chains that were successfully processed
-          const processedChains = new Set(result.balances.map((b) => b.chainId));
+          const processedChains = new Set(
+            result.balances.map((b) => b.chainId),
+          );
           remainingChains = remainingChains.filter(
             (chain) => !processedChains.has(chain),
           );
         }
 
         // Add unprocessed chains back to remainingChains for next fetcher
-        if (result.unprocessedChainIds && result.unprocessedChainIds.length > 0) {
+        if (
+          result.unprocessedChainIds &&
+          result.unprocessedChainIds.length > 0
+        ) {
           const currentRemainingChains = remainingChains;
           const chainsToAdd = result.unprocessedChainIds.filter(
             (chainId) =>
