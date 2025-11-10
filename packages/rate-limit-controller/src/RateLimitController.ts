@@ -37,7 +37,7 @@ export type RateLimitedRequests<RateLimitedApis extends RateLimitedApiMap> =
  * The state of the {@link RateLimitController}.
  *
  * @template RateLimitedApis - A {@link RateLimitedApiMap} containing the rate-limited API endpoints that is used by the {@link RateLimitController}.
- * requests - An object containing the number of requests made in a given interval for each origin and api type combination.
+ * @property requests - An object containing the number of requests made in a given interval for each origin and api type combination.
  */
 export type RateLimitState<RateLimitedApis extends RateLimitedApiMap> = {
   requests: RateLimitedRequests<RateLimitedApis>;

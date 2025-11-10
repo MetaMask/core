@@ -37,7 +37,7 @@ function msgHexToText(hex: string): string {
 }
 
 /**
- * WrappedSIWERequest
+ * @type WrappedSIWERequest
  *
  * Sign-In With Ethereum (SIWE)(EIP-4361) message with request metadata
  *

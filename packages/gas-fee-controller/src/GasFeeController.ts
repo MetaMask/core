@@ -76,13 +76,13 @@ export type EstimatedGasFeeTimeBounds = {
 };
 
 /**
- * EthGasPriceEstimate
+ * @type EthGasPriceEstimate
  *
  * A single gas price estimate for networks and accounts that don't support EIP-1559
  * This estimate comes from eth_gasPrice but is converted to dec gwei to match other
  * return values
  *
- * gasPrice - A GWEI dec string
+ * @property gasPrice - A GWEI dec string
  */
 
 export type EthGasPriceEstimate = {
@@ -90,7 +90,7 @@ export type EthGasPriceEstimate = {
 };
 
 /**
- * LegacyGasPriceEstimate
+ * @type LegacyGasPriceEstimate
  *
  * A set of gas price estimates for networks and accounts that don't support EIP-1559
  * These estimates include low, medium and high all as strings representing gwei in
@@ -107,7 +107,7 @@ export type LegacyGasPriceEstimate = {
 };
 
 /**
- * Eip1559GasFee
+ * @type Eip1559GasFee
  *
  * Data necessary to provide an estimate of a gas fee with a specific tip
  *
@@ -124,7 +124,7 @@ export type Eip1559GasFee = {
 };
 
 /**
- * GasFeeEstimates
+ * @type GasFeeEstimates
  *
  * Data necessary to provide multiple GasFee estimates, and supporting information, to the user
  *
@@ -226,7 +226,7 @@ export type FetchGasFeeEstimateOptions = {
 };
 
 /**
- * GasFeeState
+ * @type GasFeeState
  *
  * Gas Fee controller state
  *
@@ -364,7 +364,6 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
     getProvider: () => ProviderProxy;
     onNetworkDidChange?: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
-
     EIP1559APIEndpoint: string;
     clientId?: string;
   }) {

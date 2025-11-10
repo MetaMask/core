@@ -34,7 +34,7 @@ import type {
 } from './TokensController';
 
 /**
- * Token
+ * @type Token
  *
  * Token representation
  *

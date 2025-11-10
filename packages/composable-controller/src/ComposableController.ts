@@ -195,8 +195,6 @@ export class ComposableController<
         });
       });
     } catch (error: unknown) {
-      // False negative. `name` is a string type.
-
       console.error(`${name} - ${String(error)}`);
     }
   }

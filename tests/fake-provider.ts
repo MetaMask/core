@@ -47,6 +47,7 @@ export type FakeProviderResponse = { result: any } | { error: string };
  * @property request.method - The RPC method to which this stub will be matched.
  * @property request.params - The params to which this stub will be matched.
  * @property response - Instructs `request` to return a promise that resolves
+ * with a response object.
  * @property response.result - Specifies a successful response, with this as the
  * `result`.
  * @property response.error - Specifies an error response, with this as the

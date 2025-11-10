@@ -705,8 +705,6 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
     }
 
     const rpcEndpointUrl =
-      // False positive - this is a string.
-
       `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const;
 
     const networkConfiguration: NetworkConfiguration = {

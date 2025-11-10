@@ -6207,8 +6207,6 @@ describe('PermissionController', () => {
           'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
       });
 
-      // ESLint is confused; this signature is async.
-
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       expect(response.error).toMatchObject(
@@ -6230,8 +6228,6 @@ describe('PermissionController', () => {
       };
 
       const expectedError = errors.methodNotFound('wallet_foo', { origin });
-
-      // ESLint is confused; this signature is async.
 
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
@@ -6281,8 +6277,6 @@ describe('PermissionController', () => {
         `Request for method "${PermissionNames.wallet_doubleNumber}" returned undefined result.`,
         { request: { ...request } },
       );
-
-      // ESLint is confused; this signature is async.
 
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);

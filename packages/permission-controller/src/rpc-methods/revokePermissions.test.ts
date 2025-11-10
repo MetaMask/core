@@ -83,8 +83,6 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // ESLint is confused; this signature is async.
-
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);
     delete response.error.stack;
@@ -120,8 +118,6 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // ESLint is confused; this signature is async.
-
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);
     delete response.error.stack;
@@ -155,8 +151,6 @@ describe('revokePermissions RPC method', () => {
       })
       .serialize();
     delete expectedError.stack;
-
-    // ESLint is confused; this signature is async.
 
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);
@@ -192,8 +186,6 @@ describe('revokePermissions RPC method', () => {
       })
       .serialize();
     delete expectedError.stack;
-
-    // ESLint is confused; this signature is async.
 
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);

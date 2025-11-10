@@ -79,7 +79,7 @@ export const METAMASK_HOTLIST_DIFF_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_
 export const C2_DOMAIN_BLOCKLIST_URL = `${CLIENT_SIDE_DETECION_BASE_URL}${C2_DOMAIN_BLOCKLIST_ENDPOINT}`;
 
 /**
- * ListTypes
+ * @type ListTypes
  *
  * Type outlining the types of lists provided by aggregating different source lists
  */
@@ -91,7 +91,7 @@ export type ListTypes =
   | 'c2DomainBlocklist';
 
 /**
- * EthPhishingResponse
+ * @type EthPhishingResponse
  *
  * Configuration response from the eth-phishing-detect package
  * consisting of approved and unapproved website origins
@@ -111,7 +111,7 @@ export type EthPhishingResponse = {
 };
 
 /**
- * C2DomainBlocklistResponse
+ * @type C2DomainBlocklistResponse
  *
  * Response for blocklist update requests
  *
@@ -147,7 +147,7 @@ export type PhishingStalelist = {
 };
 
 /**
- * PhishingListState
+ * @type PhishingListState
  *
  * type defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
  *
@@ -174,7 +174,7 @@ export type PhishingListState = {
 };
 
 /**
- * HotlistDiff
+ * @type HotlistDiff
  *
  * type defining the expected type of the diffs in hotlist.json file.
  *
@@ -195,7 +195,7 @@ export type DataResultWrapper<T> = {
 };
 
 /**
- * Hotlist
+ * @type Hotlist
  *
  * Type defining expected hotlist.json file.
  *
@@ -309,7 +309,7 @@ const getDefaultState = (): PhishingControllerState => {
 };
 
 /**
- * PhishingControllerState
+ * @type PhishingControllerState
  *
  * Phishing controller state
  * phishingLists - array of phishing lists

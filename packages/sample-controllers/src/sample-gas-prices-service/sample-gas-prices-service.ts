@@ -52,8 +52,6 @@ type AllowedEvents = never;
 export type SampleGasPricesServiceMessenger = Messenger<
   typeof serviceName,
   SampleGasPricesServiceActions | AllowedActions,
-  // TODO: Disable this lint rule
-
   SampleGasPricesServiceEvents | AllowedEvents
 >;
 

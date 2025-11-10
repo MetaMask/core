@@ -71,12 +71,10 @@ describe('multicall', () => {
       expect(results).toMatchObject([
         {
           success: true,
-
           value: { _hex: '0x01' },
         },
         {
           success: true,
-
           value: { _hex: '0x02' },
         },
       ]);
@@ -126,12 +124,10 @@ describe('multicall', () => {
       expect(results).toMatchObject([
         {
           success: true,
-
           value: { _hex: '0x01' },
         },
         {
           success: true,
-
           value: { _hex: '0x02' },
         },
       ]);
@@ -166,7 +162,6 @@ describe('multicall', () => {
       expect(results).toMatchObject([
         {
           success: true,
-
           value: { _hex: '0x01' },
         },
       ]);

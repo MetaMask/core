@@ -35,7 +35,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           mockNext,
           (error) => {
             // This is okay; we'll get what we get.
-
             reject(error);
           },
         );
@@ -46,7 +45,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             resolve();
           } catch (error) {
             // This is okay; we'll get what we get.
-
             reject(error);
           }
         });
@@ -93,7 +91,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
               resolve();
             } catch (e) {
               // This is okay; we'll get what we get.
-
               reject(e);
             }
           },
@@ -105,7 +102,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             resolve();
           } catch (error) {
             // This is okay; we'll get what we get.
-
             reject(error);
           }
         });
@@ -152,7 +148,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
               resolve();
             } catch (e) {
               // This is okay; we'll get what we get.
-
               reject(e);
             }
           },
@@ -164,7 +159,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             resolve();
           } catch (error) {
             // This is okay; we'll get what we get.
-
             reject(error);
           }
         });
@@ -216,7 +210,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
               resolve();
             } catch (e) {
               // This is okay; we'll get what we get.
-
               reject(e);
             }
           },
@@ -228,7 +221,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             resolve();
           } catch (error) {
             // This is okay; we'll get what we get.
-
             reject(error);
           }
         });
@@ -263,7 +255,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           mockNext,
           (error) => {
             // This is okay; we'll get what we get.
-
             reject(error);
           },
         );
@@ -274,7 +265,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             resolve();
           } catch (error) {
             // This is okay; we'll get what we get.
-
             reject(error);
           }
         });
@@ -325,7 +315,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
               resolve();
             } catch (e) {
               // This is okay; we'll get what we get.
-
               reject(e);
             }
           },
@@ -337,7 +326,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             resolve();
           } catch (error) {
             // This is okay; we'll get what we get.
-
             reject(error);
           }
         });
@@ -361,7 +349,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           mockNext,
           (error) => {
             // This is okay; we'll get what we get.
-
             reject(error);
           },
         );
@@ -372,7 +359,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             resolve();
           } catch (error) {
             // This is okay; we'll get what we get.
-
             reject(error);
           }
         });
@@ -397,7 +383,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           mockNext,
           (error) => {
             // This is okay; we'll get what we get.
-
             reject(error);
           },
         );
@@ -408,7 +393,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             resolve();
           } catch (error) {
             // This is okay; we'll get what we get.
-
             reject(error);
           }
         });
@@ -440,7 +424,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             resolve();
           } catch (e) {
             // This is okay; we'll get what we get.
-
             reject(e);
           }
         },
@@ -452,7 +435,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           resolve();
         } catch (error) {
           // This is okay; we'll get what we get.
-
           reject(error);
         }
       });
@@ -494,7 +476,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             resolve();
           } catch (e) {
             // This is okay; we'll get what we get.
-
             reject(e);
           }
         },
@@ -506,7 +487,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           resolve();
         } catch (error) {
           // This is okay; we'll get what we get.
-
           reject(error);
         }
       });

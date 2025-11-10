@@ -46,7 +46,7 @@ export const DEFAULT_ENS_NETWORK_MAP: Record<number, Hex> = {
 };
 
 /**
- * EnsEntry
+ * @type EnsEntry
  *
  * ENS entry representation
  *
@@ -61,11 +61,11 @@ export type EnsEntry = {
 };
 
 /**
- * EnsControllerState
+ * @type EnsControllerState
  *
  * ENS controller state
  *
- * ensEntries - Object of ENS entry objects
+ * @property ensEntries - Object of ENS entry objects
  */
 export type EnsControllerState = {
   ensEntries: {
