@@ -16,6 +16,7 @@ export type {
   SubscriptionControllerOptions,
   SubscriptionControllerStateChangeEvent,
   SubscriptionControllerSubmitSponsorshipIntentsAction,
+  SubscriptionControllerAssignUserToCohortAction,
   AllowedActions,
   AllowedEvents,
 } from './SubscriptionController';
@@ -60,6 +61,10 @@ export type {
   UpdatePaymentMethodCardResponse,
   CachedLastSelectedPaymentMethod,
   SubmitSponsorshipIntentsMethodParams,
+  Cohort,
+  CohortName,
+  AssignCohortRequest,
+  GetSubscriptionsEligibilitiesRequest,
 } from './types';
 export {
   CRYPTO_PAYMENT_METHOD_ERRORS,
@@ -68,6 +73,7 @@ export {
   RECURRING_INTERVALS,
   PAYMENT_TYPES,
   SubscriptionUserEvent,
+  COHORT_NAMES,
 } from './types';
 export { SubscriptionServiceError } from './errors';
 export { Env, SubscriptionControllerErrorMessage } from './constants';

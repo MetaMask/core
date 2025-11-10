@@ -227,15 +227,33 @@ export type GetCryptoApproveTransactionResponse = {
   chainId: Hex;
 };
 
+export const COHORT_NAMES = {
+  POST_TX: 'post_tx',
+  WALLET_HOME: 'wallet_home',
+} as const;
+
+export type CohortName = (typeof COHORT_NAMES)[keyof typeof COHORT_NAMES];
+
+export type Cohort = {
+  cohort: string;
+  eligibilityRate: number; // 0-1 probability of being assigned to this cohort
+  priority: number; // lower number = higher priority
+  eligible: boolean;
+};
+
 export type SubscriptionEligibility = {
   product: ProductType;
   canSubscribe: boolean;
   minBalanceUSD: number;
   canViewEntryModal: boolean;
+  cohorts: Cohort[];
+  assignedCohort: string | null;
+  hasAssignedCohortExpired: boolean;
 };
 
 export const SubscriptionUserEvent = {
   ShieldEntryModalViewed: 'shield_entry_modal_viewed',
+  ShieldCohortAssigned: 'shield_cohort_assigned',
 } as const;
 
 export type SubscriptionUserEventType =
@@ -243,6 +261,15 @@ export type SubscriptionUserEventType =
 
 export type SubmitUserEventRequest = {
   event: SubscriptionUserEventType;
+  cohort?: string;
+};
+
+export type AssignCohortRequest = {
+  cohort: string;
+};
+
+export type GetSubscriptionsEligibilitiesRequest = {
+  balanceUsd?: number;
 };
 
 /**
@@ -284,8 +311,11 @@ export type ISubscriptionService = {
   updatePaymentMethodCrypto(
     request: UpdatePaymentMethodCryptoRequest,
   ): Promise<void>;
-  getSubscriptionsEligibilities(): Promise<SubscriptionEligibility[]>;
+  getSubscriptionsEligibilities(
+    request?: GetSubscriptionsEligibilitiesRequest,
+  ): Promise<SubscriptionEligibility[]>;
   submitUserEvent(request: SubmitUserEventRequest): Promise<void>;
+  assignUserToCohort(request: AssignCohortRequest): Promise<void>;
 
   /**
    * Submit sponsorship intents to the Subscription Service backend.
