@@ -164,8 +164,7 @@ function normalizeQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): TransactionPayQuote<RelayQuote> {
   const { messenger, transaction } = fullRequest;
-  const { details } = quote;
-  const { currencyIn, currencyOut } = details;
+  const { details, fees } = quote;
 
   const { usdToFiatRate } = getFiatRates(messenger, request);
 
@@ -175,7 +174,7 @@ function normalizeQuote(
   );
 
   const provider = getFiatValueFromUsd(
-    new BigNumber(currencyIn.amountUsd).minus(currencyOut.amountUsd),
+    new BigNumber(fees.relayer.amountUsd),
     usdToFiatRate,
   );
 

@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Updated getBridgeBatchTransactions types to account for multichain approvals ([#6862](https://github.com/MetaMask/core/pull/6862))
 
+### Fixed
+
+- Read Relay provider fees directly from response ([#7098](https://github.com/MetaMask/core/pull/7098))
+
 ## [4.0.0]
 
 ### Added
