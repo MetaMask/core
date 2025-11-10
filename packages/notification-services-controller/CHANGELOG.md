@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Moved Notification API from v2 to v3
+- **BREAKING:** Moved Notification API from v2 to v3 ([#7102](https://github.com/MetaMask/core/pull/7102))
   - API Endpoint Changes: Updated from `/api/v2/notifications` to `/api/v3/notifications` for listing notifications and marking as read
   - Request Format: The list notifications endpoint now expects `{ addresses: string[], locale?: string }` instead of `{ address: string }[]`
   - Response Structure: Notifications now include a `notification_type` field ('on-chain' or 'platform') and nested payload structure
