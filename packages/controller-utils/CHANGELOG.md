@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Change Monad Testnet as infura network ([#7067](https://github.com/MetaMask/core/pull/7067))
+  - Add `monad-testnet` to `InfuraNetworkType`
+
 ## [11.15.0]
 
 ### Added
