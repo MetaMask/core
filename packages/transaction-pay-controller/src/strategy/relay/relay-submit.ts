@@ -3,12 +3,15 @@ import {
   successfulFetch,
   toHex,
 } from '@metamask/controller-utils';
-import type { TransactionParams } from '@metamask/transaction-controller';
+import {
+  TransactionType,
+  type TransactionParams,
+} from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { RELAY_URL_BASE } from './constants';
+import { RELAY_FALLBACK_GAS_LIMIT, RELAY_URL_BASE } from './constants';
 import type { RelayQuote, RelayStatus } from './types';
 import { projectLogger } from '../../logger';
 import type {
@@ -16,6 +19,8 @@ import type {
   TransactionPayControllerMessenger,
 } from '../../types';
 import {
+  collectTransactionIds,
+  getTransaction,
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
@@ -78,18 +83,7 @@ async function executeSingleQuote(
 
   const transactionParams = quote.steps[0].items[0].data;
   const chainId = toHex(transactionParams.chainId);
-  const normalizedParams = normalizeParams(transactionParams);
-
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    chainId,
-  );
-
-  log('Adding transaction', {
-    chainId,
-    normalizedParams,
-    networkClientId,
-  });
+  const from = transactionParams.from as Hex;
 
   if (quote.skipTransaction) {
     updateTransaction(
@@ -104,42 +98,13 @@ async function executeSingleQuote(
     );
   }
 
-  const result = await messenger.call(
-    'TransactionController:addTransaction',
-    normalizedParams,
-    {
-      networkClientId,
-      origin: ORIGIN_METAMASK,
-      requireApproval: false,
-    },
+  const transactionHash = await submitTransactions(
+    quote,
+    chainId,
+    from,
+    transaction.id,
+    messenger,
   );
-
-  const { transactionMeta, result: transactionHashPromise } = result;
-
-  updateTransaction(
-    {
-      transactionId: transaction.id,
-      messenger,
-      note: 'Add required transaction ID',
-    },
-    (tx) => {
-      if (!tx.requiredTransactionIds) {
-        tx.requiredTransactionIds = [];
-      }
-
-      tx.requiredTransactionIds.push(transactionMeta.id);
-    },
-  );
-
-  log('Added transaction', transactionMeta);
-
-  const transactionHash = (await transactionHashPromise) as Hex;
-
-  log('Submitted transaction', transactionHash);
-
-  await waitForTransactionConfirmed(transactionMeta.id, messenger);
-
-  log('Transaction confirmed', transactionMeta.id);
 
   await waitForRelayCompletion(quote);
 
@@ -170,7 +135,10 @@ async function executeSingleQuote(
  * @returns A promise that resolves when the Relay request is complete.
  */
 async function waitForRelayCompletion(quote: RelayQuote) {
-  const { endpoint, method } = quote.steps[0].items[0].check;
+  const { endpoint, method } = quote.steps
+    .slice(-1)[0]
+    .items.slice(-1)[0].check;
+
   const url = `${RELAY_URL_BASE}${endpoint}`;
 
   while (true) {
@@ -203,10 +171,117 @@ function normalizeParams(
   return {
     data: params.data,
     from: params.from,
-    gas: toHex(params.gas),
+    gas: toHex(params.gas ?? RELAY_FALLBACK_GAS_LIMIT),
     maxFeePerGas: toHex(params.maxFeePerGas),
     maxPriorityFeePerGas: toHex(params.maxPriorityFeePerGas),
     to: params.to,
     value: toHex(params.value ?? '0'),
   };
+}
+
+/**
+ * Submit transactions for a relay quote.
+ *
+ * @param quote - Relay quote.
+ * @param chainId - ID of the chain.
+ * @param from - Address of the sender.
+ * @param parentTransactionId - ID of the parent transaction.
+ * @param messenger - Controller messenger.
+ * @returns Hash of the last submitted transaction.
+ */
+async function submitTransactions(
+  quote: RelayQuote,
+  chainId: Hex,
+  from: Hex,
+  parentTransactionId: string,
+  messenger: TransactionPayControllerMessenger,
+): Promise<Hex> {
+  const params = quote.steps.flatMap((s) => s.items).map((i) => i.data);
+  const normalizedParams = params.map(normalizeParams);
+  const transactionIds: string[] = [];
+
+  const networkClientId = messenger.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    chainId,
+  );
+
+  log('Adding transactions', {
+    normalizedParams,
+    chainId,
+    from,
+    networkClientId,
+  });
+
+  const { end } = collectTransactionIds(
+    chainId,
+    from,
+    messenger,
+    (transactionId) => {
+      transactionIds.push(transactionId);
+
+      updateTransaction(
+        {
+          transactionId: parentTransactionId,
+          messenger,
+          note: 'Add required transaction ID from Relay submission',
+        },
+        (tx) => {
+          if (!tx.requiredTransactionIds) {
+            tx.requiredTransactionIds = [];
+          }
+
+          tx.requiredTransactionIds.push(transactionId);
+        },
+      );
+    },
+  );
+
+  let result: { result: Promise<string> } | undefined;
+
+  if (params.length === 1) {
+    result = await messenger.call(
+      'TransactionController:addTransaction',
+      normalizedParams[0],
+      {
+        networkClientId,
+        origin: ORIGIN_METAMASK,
+        requireApproval: false,
+      },
+    );
+  } else {
+    await messenger.call('TransactionController:addTransactionBatch', {
+      from,
+      networkClientId,
+      origin: ORIGIN_METAMASK,
+      requireApproval: false,
+      transactions: normalizedParams.map((p, i) => ({
+        params: {
+          data: p.data as Hex,
+          gas: p.gas as Hex,
+          to: p.to as Hex,
+          value: p.value as Hex,
+        },
+        type: i === 0 ? TransactionType.tokenMethodApprove : undefined,
+      })),
+    });
+  }
+
+  end();
+
+  log('Added transactions', transactionIds);
+
+  if (result) {
+    const txHash = await result.result;
+    log('Submitted transaction', txHash);
+  }
+
+  await Promise.all(
+    transactionIds.map((txId) => waitForTransactionConfirmed(txId, messenger)),
+  );
+
+  log('All transactions confirmed', transactionIds);
+
+  const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
+
+  return hash as Hex;
 }

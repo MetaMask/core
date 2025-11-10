@@ -2,9 +2,6 @@ import type { Hex } from '@metamask/utils';
 
 export type RelayQuote = {
   details: {
-    currencyIn: {
-      amountUsd: string;
-    };
     currencyOut: {
       amountFormatted: string;
       amountUsd: string;
@@ -16,7 +13,7 @@ export type RelayQuote = {
     timeEstimate: number;
   };
   fees: {
-    gas: {
+    relayer: {
       amountUsd: string;
     };
   };
@@ -30,7 +27,7 @@ export type RelayQuote = {
         chainId: number;
         data: Hex;
         from: Hex;
-        gas: string;
+        gas?: string;
         maxFeePerGas: string;
         maxPriorityFeePerGas: string;
         to: Hex;
