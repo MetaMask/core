@@ -26,3 +26,8 @@ export type RefreshLendingPositionsOptions = {
 export type RefreshLendingEligibilityOptions = {
   address?: string;
 };
+
+export type RefreshTronStakingWitnessesOptions = {
+  chainId?: number;
+  witnessType?: number;
+};
