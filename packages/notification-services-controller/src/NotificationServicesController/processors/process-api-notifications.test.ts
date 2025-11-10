@@ -1,4 +1,4 @@
-import { processOnChainNotification } from './process-onchain-notifications';
+import { processAPINotifications } from './process-api-notifications';
 import {
   createMockNotificationEthSent,
   createMockNotificationEthReceived,
@@ -15,8 +15,8 @@ import {
   createMockNotificationLidoWithdrawalRequested,
   createMockNotificationLidoWithdrawalCompleted,
   createMockNotificationLidoReadyToBeWithdrawn,
+  createMockPlatformNotification,
 } from '../mocks/mock-raw-notifications';
-import type { OnChainRawNotification } from '../types/on-chain-notification/on-chain-notification';
 
 const rawNotifications = [
   createMockNotificationEthSent(),
@@ -34,17 +34,18 @@ const rawNotifications = [
   createMockNotificationLidoWithdrawalRequested(),
   createMockNotificationLidoWithdrawalCompleted(),
   createMockNotificationLidoReadyToBeWithdrawn(),
+  createMockPlatformNotification(),
 ];
 
 const rawNotificationTestSuite = rawNotifications.map(
-  (n): [string, OnChainRawNotification] => [n.type, n],
+  (n) => [n.type, n] as const,
 );
 
 describe('process-onchain-notifications - processOnChainNotification()', () => {
   it.each(rawNotificationTestSuite)(
     'converts Raw On-Chain Notification (%s) to a shared Notification Type',
-    (_: string, rawNotification: OnChainRawNotification) => {
-      const result = processOnChainNotification(rawNotification);
+    (_, rawNotification) => {
+      const result = processAPINotifications(rawNotification);
       expect(result.id).toBe(rawNotification.id);
       expect(result.type).toBe(rawNotification.type);
     },

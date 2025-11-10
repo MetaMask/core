@@ -1,7 +1,9 @@
 import type {
+  UnprocessedRawNotification,
+  NormalisedAPINotification,
   OnChainRawNotification,
-  UnprocessedOnChainRawNotification,
-} from 'src/NotificationServicesController/types';
+  PlatformRawNotification,
+} from 'src/NotificationServicesController/types/notification-api';
 
 /**
  * A true "raw notification" does not have some fields that exist on this type. E.g. the `type` field.
@@ -11,11 +13,27 @@ import type {
  * @param data - raw onchain notification
  * @returns a complete raw onchain notification
  */
-export function toRawOnChainNotification(
-  data: UnprocessedOnChainRawNotification,
-): OnChainRawNotification {
-  return {
-    ...data,
-    type: data?.data?.kind,
-  } as OnChainRawNotification;
+export function toRawAPINotification(
+  data: UnprocessedRawNotification,
+): NormalisedAPINotification {
+  const exhaustedAllCases = (_: never) => {
+    const type: string = data?.notification_type;
+    throw new Error(`No processor found for notification kind ${type}`);
+  };
+
+  if (data.notification_type === 'on-chain') {
+    return {
+      ...data,
+      type: data?.payload?.data?.kind,
+    } as OnChainRawNotification;
+  }
+
+  if (data.notification_type === 'platform') {
+    return {
+      ...data,
+      type: data.notification_type,
+    } as PlatformRawNotification;
+  }
+
+  return exhaustedAllCases(data);
 }

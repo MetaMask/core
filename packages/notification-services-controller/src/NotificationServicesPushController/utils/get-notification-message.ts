@@ -83,9 +83,9 @@ export const createOnChainPushNotificationMessages = (
         'pushPlatformNotificationsFundsSentDescriptionDefault',
       ),
       getDescription: (n) => {
-        const symbol = n?.data?.token?.symbol;
-        const tokenAmount = n?.data?.token?.amount;
-        const tokenDecimals = n?.data?.token?.decimals;
+        const symbol = n?.payload?.data?.token?.symbol;
+        const tokenAmount = n?.payload?.data?.token?.amount;
+        const tokenDecimals = n?.payload?.data?.token?.decimals;
         if (!symbol || !tokenAmount || !tokenDecimals) {
           return null;
         }
@@ -106,8 +106,8 @@ export const createOnChainPushNotificationMessages = (
         'pushPlatformNotificationsFundsSentDescriptionDefault',
       ),
       getDescription: (n) => {
-        const symbol = getChainSymbol(n?.chain_id);
-        const tokenAmount = n?.data?.amount?.eth;
+        const symbol = getChainSymbol(n?.payload?.chain_id);
+        const tokenAmount = n?.payload?.data?.amount?.eth;
         if (!symbol || !tokenAmount) {
           return null;
         }
@@ -128,9 +128,9 @@ export const createOnChainPushNotificationMessages = (
         'pushPlatformNotificationsFundsReceivedDescriptionDefault',
       ),
       getDescription: (n) => {
-        const symbol = n?.data?.token?.symbol;
-        const tokenAmount = n?.data?.token?.amount;
-        const tokenDecimals = n?.data?.token?.decimals;
+        const symbol = n?.payload?.data?.token?.symbol;
+        const tokenAmount = n?.payload?.data?.token?.amount;
+        const tokenDecimals = n?.payload?.data?.token?.decimals;
         if (!symbol || !tokenAmount || !tokenDecimals) {
           return null;
         }
@@ -151,8 +151,8 @@ export const createOnChainPushNotificationMessages = (
         'pushPlatformNotificationsFundsReceivedDescriptionDefault',
       ),
       getDescription: (n) => {
-        const symbol = getChainSymbol(n?.chain_id);
-        const tokenAmount = n?.data?.amount?.eth;
+        const symbol = getChainSymbol(n?.payload?.chain_id);
+        const tokenAmount = n?.payload?.data?.amount?.eth;
         if (!symbol || !tokenAmount) {
           return null;
         }

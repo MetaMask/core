@@ -20,7 +20,7 @@ import { ADDRESS_1, ADDRESS_2 } from './__fixtures__/mockAddresses';
 import {
   mockGetOnChainNotificationsConfig,
   mockUpdateOnChainNotifications,
-  mockGetOnChainNotifications,
+  mockGetAPINotifications,
   mockFetchFeatureAnnouncementNotifications,
   mockMarkNotificationsAsRead,
   mockCreatePerpNotification,
@@ -594,7 +594,7 @@ describe('NotificationServicesController', () => {
       const mockOnChainNotificationsAPIResult = [
         createMockNotificationEthSent(),
       ];
-      const mockOnChainNotificationsAPI = mockGetOnChainNotifications({
+      const mockOnChainNotificationsAPI = mockGetAPINotifications({
         status: 200,
         body: mockOnChainNotificationsAPIResult,
       });
@@ -705,7 +705,7 @@ describe('NotificationServicesController', () => {
 
       // Mock APIs to fail
       mockFetchFeatureAnnouncementNotifications({ status: 500 });
-      mockGetOnChainNotifications({ status: 500 });
+      mockGetAPINotifications({ status: 500 });
 
       const controller = arrangeController(messenger);
 
