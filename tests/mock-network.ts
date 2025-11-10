@@ -82,11 +82,11 @@ function getErrorMessage(error: unknown): string {
  * JSON-RPC requests that are sent to a network.
  */
 class MockedNetwork {
-  #networkClientConfiguration: NetworkClientConfiguration;
+  readonly #networkClientConfiguration: NetworkClientConfiguration;
 
-  #requestMocks: JsonRpcRequestMock[];
+  readonly #requestMocks: JsonRpcRequestMock[];
 
-  #nockScope: nock.Scope;
+  readonly #nockScope: nock.Scope;
 
   readonly #rpcUrl: string;
 
@@ -110,9 +110,7 @@ class MockedNetwork {
     this.#requestMocks = mocks;
     const rpcUrl =
       networkClientConfiguration.type === 'infura'
-        ? // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-          `https://${networkClientConfiguration.network}.infura.io`
+        ? `https://${networkClientConfiguration.network}.infura.io`
         : networkClientConfiguration.rpcUrl;
     this.#nockScope = nock(rpcUrl);
     this.#rpcUrl = rpcUrl;

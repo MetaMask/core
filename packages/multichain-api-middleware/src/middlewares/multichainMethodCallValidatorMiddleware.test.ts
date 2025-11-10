@@ -34,8 +34,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           response,
           mockNext,
           (error) => {
-            // This is okay; we'll get what we get.
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(error);
           },
         );
@@ -45,8 +43,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             expect(mockNext).toHaveBeenCalled();
             resolve();
           } catch (error) {
-            // This is okay; we'll get what we get.
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(error);
           }
         });
@@ -92,8 +88,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
               );
               resolve();
             } catch (e) {
-              // This is okay; we'll get what we get.
-              // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
               reject(e);
             }
           },
@@ -104,8 +98,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             expect(mockNext).not.toHaveBeenCalled();
             resolve();
           } catch (error) {
-            // This is okay; we'll get what we get.
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(error);
           }
         });
@@ -151,8 +143,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
               );
               resolve();
             } catch (e) {
-              // This is okay; we'll get what we get.
-              // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
               reject(e);
             }
           },
@@ -163,8 +153,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             expect(mockNext).not.toHaveBeenCalled();
             resolve();
           } catch (error) {
-            // This is okay; we'll get what we get.
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(error);
           }
         });
@@ -215,8 +203,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
               );
               resolve();
             } catch (e) {
-              // This is okay; we'll get what we get.
-              // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
               reject(e);
             }
           },
@@ -227,8 +213,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             expect(mockNext).not.toHaveBeenCalled();
             resolve();
           } catch (error) {
-            // This is okay; we'll get what we get.
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(error);
           }
         });
@@ -262,8 +246,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           response,
           mockNext,
           (error) => {
-            // This is okay; we'll get what we get.
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(error);
           },
         );
@@ -273,8 +255,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             expect(mockNext).toHaveBeenCalled();
             resolve();
           } catch (error) {
-            // This is okay; we'll get what we get.
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(error);
           }
         });
@@ -324,8 +304,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
               );
               resolve();
             } catch (e) {
-              // This is okay; we'll get what we get.
-              // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
               reject(e);
             }
           },
@@ -336,8 +314,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             expect(mockNext).not.toHaveBeenCalled();
             resolve();
           } catch (error) {
-            // This is okay; we'll get what we get.
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(error);
           }
         });
@@ -360,8 +336,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           response,
           mockNext,
           (error) => {
-            // This is okay; we'll get what we get.
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(error);
           },
         );
@@ -371,8 +345,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             expect(mockNext).toHaveBeenCalled();
             resolve();
           } catch (error) {
-            // This is okay; we'll get what we get.
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(error);
           }
         });
@@ -396,8 +368,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           response,
           mockNext,
           (error) => {
-            // This is okay; we'll get what we get.
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(error);
           },
         );
@@ -407,8 +377,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             expect(mockNext).toHaveBeenCalled();
             resolve();
           } catch (error) {
-            // This is okay; we'll get what we get.
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(error);
           }
         });
@@ -439,8 +407,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             );
             resolve();
           } catch (e) {
-            // This is okay; we'll get what we get.
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(e);
           }
         },
@@ -451,8 +417,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           expect(mockNext).not.toHaveBeenCalled();
           resolve();
         } catch (error) {
-          // This is okay; we'll get what we get.
-          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
           reject(error);
         }
       });
@@ -493,8 +457,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
             );
             resolve();
           } catch (e) {
-            // This is okay; we'll get what we get.
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(e);
           }
         },
@@ -505,8 +467,6 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           expect(mockNext).not.toHaveBeenCalled();
           resolve();
         } catch (error) {
-          // This is okay; we'll get what we get.
-          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
           reject(error);
         }
       });

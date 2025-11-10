@@ -430,8 +430,6 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
   let hasPromiseBeenFulfilled = false;
   let numTimesClockHasBeenAdvanced = 0;
 
-  // This is a mistake, we are catching this promise.
-  // eslint-disable-next-line promise/catch-or-return
   promise
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

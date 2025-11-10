@@ -49,6 +49,7 @@ export type MessageRequest = {
  * @type AbstractMessage
  *
  * Represents and contains data about a signing type signature request.
+ *
  * @property id - An id to track and identify the message object
  * @property type - The json-prc signing method for which a signature request has been made.
  * A 'Message' which always has a signing type
@@ -89,6 +90,7 @@ export type AbstractMessageParams = {
  *
  * Represents the parameters to pass to the signing method once the signature request is approved
  * plus data added by MetaMask.
+ *
  * @property metamaskId - Added for tracking and identification within MetaMask
  * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
@@ -101,6 +103,7 @@ export type AbstractMessageParamsMetamask = AbstractMessageParams & {
  * @type MessageManagerState
  *
  * Message Manager state
+ *
  * @property unapprovedMessages - A collection of all Messages in the 'unapproved' state
  * @property unapprovedMessagesCount - The count of all Messages in this.unapprovedMessages
  */
@@ -202,6 +205,7 @@ export abstract class AbstractMessageManager<
 
   /**
    * Adds request props to the message params and returns a new messageParams object.
+   *
    * @param messageParams - The messageParams to add the request props to.
    * @param req - The original request object.
    * @returns The messageParams with the request props added.
@@ -223,6 +227,7 @@ export abstract class AbstractMessageManager<
 
   /**
    * Creates a new Message with a random id and an 'unapproved' status.
+   *
    * @param messageParams - The messageParams to add the request props to.
    * @param type - The approval type of the message.
    * @param req - The original request object.
