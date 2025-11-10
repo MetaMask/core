@@ -23,7 +23,6 @@ describe('PollingWithCockatielPolicy', () => {
           setTimeout(() => {
             // eslint-disable-next-line jest/no-conditional-in-test
             if (invocationCount < 3) {
-              // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- HttpError is a valid error which extends Error class
               reject(new HttpError(412, 'Results are not available yet'));
             }
             resolve('test');
@@ -41,7 +40,6 @@ describe('PollingWithCockatielPolicy', () => {
       .fn()
       .mockImplementation(async (_abortSignal: AbortSignal) => {
         return new Promise((_resolve, reject) => {
-          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- HttpError is a valid error which extends Error class
           reject(new HttpError(500, 'Internal server error'));
         });
       });
@@ -61,7 +59,6 @@ describe('PollingWithCockatielPolicy', () => {
       .mockImplementation(async (_abortSignal: AbortSignal) => {
         return new Promise((_resolve, reject) => {
           setTimeout(() => {
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- HttpError is a valid error which extends Error class
             reject(new HttpError(412, 'Results are not available yet'));
           }, 100);
         });
@@ -86,7 +83,7 @@ describe('PollingWithCockatielPolicy', () => {
             if (abortSignal.aborted) {
               reject(new Error('test error'));
             }
-            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- HttpError is a valid error which extends Error class
+
             reject(new HttpError(412, 'Results are not available yet'));
           }, 100);
         });
