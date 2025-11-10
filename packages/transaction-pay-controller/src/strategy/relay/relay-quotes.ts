@@ -6,6 +6,7 @@ import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_POLYGON,
+  RELAY_FALLBACK_GAS_LIMIT,
   RELAY_URL_QUOTE,
 } from './constants';
 import type { RelayQuote } from './types';
@@ -163,8 +164,7 @@ function normalizeQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): TransactionPayQuote<RelayQuote> {
   const { messenger, transaction } = fullRequest;
-  const { details } = quote;
-  const { currencyIn, currencyOut } = details;
+  const { details, fees } = quote;
 
   const { usdToFiatRate } = getFiatRates(messenger, request);
 
@@ -174,7 +174,7 @@ function normalizeQuote(
   );
 
   const provider = getFiatValueFromUsd(
-    new BigNumber(currencyIn.amountUsd).minus(currencyOut.amountUsd),
+    new BigNumber(fees.relayer.amountUsd),
     usdToFiatRate,
   );
 
@@ -309,27 +309,40 @@ function calculateSourceNetworkCost(
   quote: RelayQuote,
   messenger: TransactionPayControllerMessenger,
 ) {
-  const allParams = quote.steps.flatMap((s) => s.items.map((i) => i.data));
+  const allParams = quote.steps[0].items.map((i) => i.data);
+  const totalGasLimit = calculateSourceNetworkGasLimit(allParams);
 
-  const result = allParams.reduce(
-    (total, params) => {
-      const gasCost = calculateGasCost({
-        ...params,
-        maxFeePerGas: undefined,
-        maxPriorityFeePerGas: undefined,
-        messenger,
-      });
+  return calculateGasCost({
+    chainId: allParams[0].chainId,
+    gas: totalGasLimit,
+    messenger,
+  });
+}
 
-      return {
-        usd: new BigNumber(total.usd).plus(gasCost.usd),
-        fiat: new BigNumber(total.fiat).plus(gasCost.fiat),
-      };
-    },
-    { usd: new BigNumber(0), fiat: new BigNumber(0) },
+/**
+ * Calculate the total gas limit for the source network transactions.
+ *
+ * @param params - Array of transaction parameters.
+ * @returns - Total gas limit.
+ */
+function calculateSourceNetworkGasLimit(
+  params: RelayQuote['steps'][0]['items'][0]['data'][],
+): number {
+  const allParamsHasGas = params.every((p) => p.gas !== undefined);
+
+  if (allParamsHasGas) {
+    return params.reduce(
+      (total, p) => total + new BigNumber(p.gas as string).toNumber(),
+      0,
+    );
+  }
+
+  // In future, call `TransactionController:estimateGas`
+  // or `TransactionController:estimateGasBatch` based on params length.
+
+  return params.reduce(
+    (total, p) =>
+      total + new BigNumber(p.gas ?? RELAY_FALLBACK_GAS_LIMIT).toNumber(),
+    0,
   );
-
-  return {
-    usd: result.usd.toString(10),
-    fiat: result.fiat.toString(10),
-  };
 }

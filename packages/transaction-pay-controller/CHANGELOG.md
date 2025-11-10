@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Read Relay provider fees directly from response ([#7098](https://github.com/MetaMask/core/pull/7098))
+
+## [4.0.0]
+
+### Added
+
+- Support Relay quotes with multiple transactions ([#7089](https://github.com/MetaMask/core/pull/7089))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` from `^87.0.0` to `^88.0.0` ([#7100](https://github.com/MetaMask/core/pull/7100))
+- **BREAKING:** Bump `@metamask/bridge-controller` from `^59.0.0` to `^60.0.0` ([#7100](https://github.com/MetaMask/core/pull/7100))
+- **BREAKING:** Bump `@metamask/bridge-status-controller` from `^59.0.0` to `^60.0.0` ([#7100](https://github.com/MetaMask/core/pull/7100))
+
 ## [3.1.0]
 
 ### Added
@@ -56,7 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@3.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@3.1.0...@metamask/transaction-pay-controller@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@3.0.0...@metamask/transaction-pay-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@2.0.2...@metamask/transaction-pay-controller@3.0.0
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@2.0.1...@metamask/transaction-pay-controller@2.0.2

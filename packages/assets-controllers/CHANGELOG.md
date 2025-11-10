@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Includes error logging for debugging timeout and failure events
 - Importing a non-evm asset with positive balance sets balance to 0 after import ([#7094](https://github.com/MetaMask/core/pull/7094))
 
+## [88.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/account-tree-controller` from `^2.0.0` to `^3.0.0` ([#7100](https://github.com/MetaMask/core/pull/7100))
+- **BREAKING:** Bump `@metamask/multichain-account-service` from `^2.0.0` to `^3.0.0` ([#7100](https://github.com/MetaMask/core/pull/7100))
+
 ## [87.1.1]
 
 ### Changed
@@ -2273,7 +2280,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@88.0.0...HEAD
+[88.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.1...@metamask/assets-controllers@88.0.0
 [87.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.0...@metamask/assets-controllers@87.1.1
 [87.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.0.0...@metamask/assets-controllers@87.1.0
 [87.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@86.0.0...@metamask/assets-controllers@87.0.0
