@@ -82,7 +82,6 @@ const config = createConfig([
     rules: {
       // TODO: These rules created more errors after the upgrade to ESLint 9.
       // Re-enable these rules and address any lint violations.
-      'jest/no-conditional-in-test': 'warn',
       'jest/prefer-lowercase-title': 'warn',
       'jest/prefer-strict-equal': 'warn',
 
@@ -163,7 +162,6 @@ const config = createConfig([
       '@typescript-eslint/no-base-to-string': 'warn',
       '@typescript-eslint/no-duplicate-enum-values': 'warn',
       '@typescript-eslint/no-misused-promises': 'warn',
-      '@typescript-eslint/no-unsafe-enum-comparison': 'warn',
       '@typescript-eslint/no-unused-vars': 'warn',
       '@typescript-eslint/only-throw-error': 'warn',
       '@typescript-eslint/prefer-promise-reject-errors': 'warn',
