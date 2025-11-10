@@ -85,6 +85,9 @@ const config = createConfig([
       'jest/no-conditional-in-test': 'warn',
       'jest/prefer-lowercase-title': 'warn',
       'jest/prefer-strict-equal': 'warn',
+
+      // TODO: Re-enable this rule
+      'jest/unbound-method': 'off',
     },
     settings: {
       node: {
