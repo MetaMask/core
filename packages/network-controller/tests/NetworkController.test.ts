@@ -1,5 +1,4 @@
 // A lot of the tests in this file have conditionals.
-/* eslint-disable jest/no-conditional-in-test */
 
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
