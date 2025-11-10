@@ -15,6 +15,7 @@ import {
   safelyExecute,
   isEqualCaseInsensitive,
   toChecksumHexAddress,
+  toHex,
 } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
@@ -266,7 +267,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         this.platform,
       );
 
-      return result.balances;
+      // Return the full response including unprocessedNetworks
+      return result;
     },
   };
 
@@ -755,6 +757,20 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           chainsToDetectUsingAccountAPI,
           clientNetworks,
         );
+      } else if (
+        apiResult?.result === 'success' &&
+        apiResult.unprocessedNetworks &&
+        apiResult.unprocessedNetworks.length > 0
+      ) {
+        // Handle unprocessed networks by adding them to RPC detection
+        const unprocessedChainIds = apiResult.unprocessedNetworks.map(
+          (chainId: number) => toHex(chainId),
+        ) as Hex[];
+        this.#addChainsToRpcDetection(
+          chainsToDetectUsingRpc,
+          unprocessedChainIds,
+          clientNetworks,
+        );
       }
     }
 
@@ -854,13 +870,15 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }) {
     return await safelyExecute(async () => {
       // Fetch balances for multiple chain IDs at once
-      const tokenBalancesByChain = await this.#accountsAPI
+      const apiResponse = await this.#accountsAPI
         .getMultiNetworksBalances(selectedAddress, chainIds, supportedNetworks)
         .catch(() => null);
 
-      if (tokenBalancesByChain === null) {
+      if (apiResponse === null) {
         return { result: 'failed' } as const;
       }
+
+      const tokenBalancesByChain = apiResponse.balances;
 
       // Process each chain ID individually
       for (const chainId of chainIds) {
@@ -921,7 +939,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         }
       }
 
-      return { result: 'success' } as const;
+      return {
+        result: 'success',
+        unprocessedNetworks: apiResponse.unprocessedNetworks,
+      } as const;
     });
   }
 

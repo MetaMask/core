@@ -653,20 +653,31 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
 
       try {
-        const balances = await fetcher.fetch({
+        const result = await fetcher.fetch({
           chainIds: supportedChains,
           queryAllAccounts: queryAllAccounts ?? this.#queryAllAccounts,
           selectedAccount: selected as ChecksumAddress,
           allAccounts,
         });
 
-        if (balances && balances.length > 0) {
-          aggregated.push(...balances);
+        if (result.balances && result.balances.length > 0) {
+          aggregated.push(...result.balances);
           // Remove chains that were successfully processed
-          const processedChains = new Set(balances.map((b) => b.chainId));
+          const processedChains = new Set(result.balances.map((b) => b.chainId));
           remainingChains = remainingChains.filter(
             (chain) => !processedChains.has(chain),
           );
+        }
+
+        // Add unprocessed chains back to remainingChains for next fetcher
+        if (result.unprocessedChainIds && result.unprocessedChainIds.length > 0) {
+          const currentRemainingChains = remainingChains;
+          const chainsToAdd = result.unprocessedChainIds.filter(
+            (chainId) =>
+              supportedChains.includes(chainId) &&
+              !currentRemainingChains.includes(chainId),
+          );
+          remainingChains.push(...chainsToAdd);
         }
       } catch (error) {
         console.warn(

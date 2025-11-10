@@ -25,6 +25,11 @@ export type ProcessedBalance = {
   chainId: ChainIdHex;
 };
 
+export type BalanceFetchResult = {
+  balances: ProcessedBalance[];
+  unprocessedChainIds?: ChainIdHex[];
+};
+
 export type BalanceFetcher = {
   supports(chainId: ChainIdHex): boolean;
   fetch(input: {
@@ -32,7 +37,7 @@ export type BalanceFetcher = {
     queryAllAccounts: boolean;
     selectedAccount: ChecksumAddress;
     allAccounts: InternalAccount[];
-  }): Promise<ProcessedBalance[]>;
+  }): Promise<BalanceFetchResult>;
 };
 
 const ZERO_ADDRESS =
@@ -79,7 +84,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
     queryAllAccounts,
     selectedAccount,
     allAccounts,
-  }: Parameters<BalanceFetcher['fetch']>[0]): Promise<ProcessedBalance[]> {
+  }: Parameters<BalanceFetcher['fetch']>[0]): Promise<BalanceFetchResult> {
     // Process all chains in parallel for better performance
     const chainProcessingPromises = chainIds.map(async (chainId) => {
       const tokensState = this.#getTokensState();
@@ -194,7 +199,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
       }
     });
 
-    return results;
+    return { balances: results };
   }
 
   /**
