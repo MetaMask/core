@@ -4,3 +4,4 @@ export const CHAIN_ID_ARBITRUM = '0xa4b1';
 export const CHAIN_ID_POLYGON = '0x89';
 export const RELAY_URL_BASE = 'https://api.relay.link';
 export const RELAY_URL_QUOTE = `${RELAY_URL_BASE}/quote`;
+export const RELAY_FALLBACK_GAS_LIMIT = 900000;

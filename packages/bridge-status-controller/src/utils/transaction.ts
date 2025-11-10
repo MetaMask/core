@@ -301,6 +301,7 @@ export const getAddTransactionBatchParams = async ({
       feeData: { txFee },
       gasIncluded,
       gasIncluded7702,
+      gasSponsored,
     },
     sentAmount,
     toTokenAmount,
@@ -394,6 +395,7 @@ export const getAddTransactionBatchParams = async ({
   >[0] = {
     disable7702,
     isGasFeeIncluded: Boolean(gasIncluded7702),
+    isGasFeeSponsored: Boolean(gasSponsored),
     networkClientId,
     requireApproval,
     origin: 'metamask',

@@ -15,7 +15,7 @@ import {
   WARNING_PREFIX,
 } from './logger';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { NamedAccountProvider } from './providers';
+import type { Bip44AccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
 import { createSentryError } from './utils';
 
@@ -32,16 +32,16 @@ export class MultichainAccountGroup<
 
   readonly #groupIndex: number;
 
-  readonly #providers: NamedAccountProvider<Account>[];
+  readonly #providers: Bip44AccountProvider<Account>[];
 
   readonly #providerToAccounts: Map<
-    NamedAccountProvider<Account>,
+    Bip44AccountProvider<Account>,
     Account['id'][]
   >;
 
   readonly #accountToProvider: Map<
     Account['id'],
-    NamedAccountProvider<Account>
+    Bip44AccountProvider<Account>
   >;
 
   readonly #messenger: MultichainAccountServiceMessenger;
@@ -59,7 +59,7 @@ export class MultichainAccountGroup<
   }: {
     groupIndex: number;
     wallet: MultichainAccountWallet<Account>;
-    providers: NamedAccountProvider<Account>[];
+    providers: Bip44AccountProvider<Account>[];
     messenger: MultichainAccountServiceMessenger;
   }) {
     this.#id = toMultichainAccountGroupId(wallet.id, groupIndex);

@@ -543,7 +543,8 @@ export class PendingTransactionTracker {
         tx.status === TransactionStatus.confirmed &&
         tx.txParams.nonce &&
         tx.txParams.nonce === txParams.nonce &&
-        tx.type !== TransactionType.incoming,
+        tx.type !== TransactionType.incoming &&
+        tx.isTransfer === undefined,
     );
   }
 

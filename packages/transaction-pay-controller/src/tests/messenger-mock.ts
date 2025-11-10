@@ -14,6 +14,7 @@ import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metam
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
   TransactionControllerAddTransactionAction,
+  TransactionControllerAddTransactionBatchAction,
   TransactionControllerGetStateAction,
 } from '@metamask/transaction-controller';
 import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
@@ -51,6 +52,10 @@ export function getMessengerMock({
 
   const addTransactionMock: jest.MockedFn<
     TransactionControllerAddTransactionAction['handler']
+  > = jest.fn();
+
+  const addTransactionBatchMock: jest.MockedFn<
+    TransactionControllerAddTransactionBatchAction['handler']
   > = jest.fn();
 
   const findNetworkClientIdByChainIdMock: jest.MockedFn<
@@ -125,6 +130,11 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'TransactionController:addTransactionBatch',
+      addTransactionBatchMock,
+    );
+
+    messenger.registerActionHandler(
       'NetworkController:findNetworkClientIdByChainId',
       findNetworkClientIdByChainIdMock,
     );
@@ -194,6 +204,7 @@ export function getMessengerMock({
 
   return {
     addTransactionMock,
+    addTransactionBatchMock,
     fetchQuotesMock,
     findNetworkClientIdByChainIdMock,
     getAccountTrackerControllerStateMock,
