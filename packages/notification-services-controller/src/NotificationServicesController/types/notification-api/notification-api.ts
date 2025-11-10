@@ -92,5 +92,5 @@ export type NormalisedAPINotification =
 
 export type OnChainRawNotificationsWithNetworkFields = Extract<
   OnChainRawNotification,
-  { data: { network_fee: unknown } }
+  { payload: { data: { network_fee: unknown } } }
 >;
