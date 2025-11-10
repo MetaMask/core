@@ -9,12 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [60.0.0]
 
-### Uncategorized
+### Changed
 
-- Release/666.0.0 ([#7096](https://github.com/MetaMask/core/pull/7096))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- feat: Add context parameter to `InternalProvider` and `JsonRpcServer` methods ([#7061](https://github.com/MetaMask/core/pull/7061))
-- Release/662.0.0 ([#7062](https://github.com/MetaMask/core/pull/7062))
+- **BREAKING:** Bump `@metamask/assets-controller` from `^87.0.0` to `^88.0.0` ([#7100](https://github.com/MetaMask/core/pull/7100))
 
 ## [59.0.0]
 

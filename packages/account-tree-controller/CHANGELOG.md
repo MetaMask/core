@@ -9,13 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0]
 
-### Uncategorized
+### Changed
 
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- chore(account-tree-controller): bump coverage back to 100% ([#6924](https://github.com/MetaMask/core/pull/6924))
-- Release/657.0.0 ([#7041](https://github.com/MetaMask/core/pull/7041))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- Release/655.0.0 ([#7019](https://github.com/MetaMask/core/pull/7019))
+- **BREAKING:** Bump `@metamask/multichain-account-service` from `^2.0.0` to `^3.0.0` ([#7100](https://github.com/MetaMask/core/pull/7100))
 
 ## [2.0.0]
 

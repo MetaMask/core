@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [60.0.0]
 
-### Uncategorized
-
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-
 ### Added
 
 - Add isGasFeeSponsored field in transaction batch params ([#7064](https://github.com/MetaMask/core/pull/7064))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/bridge-controller` from `^59.0.0` to `^60.0.0` ([#7100](https://github.com/MetaMask/core/pull/7100))
 
 ## [59.0.0]
 

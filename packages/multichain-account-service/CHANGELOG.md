@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0]
 
-### Uncategorized
-
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-
 ### Added
 
 - **BREAKING:** Added error reporting around account creation with the `ErrorReportingService` ([#7044](https://github.com/MetaMask/core/pull/7044))
