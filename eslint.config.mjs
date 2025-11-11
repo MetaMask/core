@@ -82,9 +82,11 @@ const config = createConfig([
     rules: {
       // TODO: These rules created more errors after the upgrade to ESLint 9.
       // Re-enable these rules and address any lint violations.
-      'jest/no-conditional-in-test': 'warn',
       'jest/prefer-lowercase-title': 'warn',
       'jest/prefer-strict-equal': 'warn',
+
+      // TODO: Re-enable this rule
+      'jest/unbound-method': 'off',
     },
     settings: {
       node: {
@@ -160,7 +162,6 @@ const config = createConfig([
       '@typescript-eslint/no-base-to-string': 'warn',
       '@typescript-eslint/no-duplicate-enum-values': 'warn',
       '@typescript-eslint/no-misused-promises': 'warn',
-      '@typescript-eslint/no-unsafe-enum-comparison': 'warn',
       '@typescript-eslint/no-unused-vars': 'warn',
       '@typescript-eslint/only-throw-error': 'warn',
       '@typescript-eslint/prefer-promise-reject-errors': 'warn',
@@ -248,6 +249,17 @@ const config = createConfig([
       'n/no-missing-import': 'off',
       'n/no-restricted-import': 'off',
       'n/no-deprecated-api': 'off',
+    },
+  },
+  {
+    files: [
+      'packages/notification-services-controller/src/NotificationServicesPushController/services/push/*-web.ts',
+      'packages/notification-services-controller/src/NotificationServicesPushController/web/**/*.ts',
+    ],
+    rules: {
+      // These files use `self` because they're written for a service worker context.
+      // TODO: Move these files to the extension repository, `core` is just for platform-agnostic code.
+      'consistent-this': 'off',
     },
   },
 ]);

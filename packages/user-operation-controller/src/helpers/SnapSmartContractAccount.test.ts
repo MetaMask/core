@@ -1,5 +1,6 @@
 import type { KeyringController } from '@metamask/keyring-controller';
 
+import { SnapSmartContractAccount } from './SnapSmartContractAccount';
 import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from '../constants';
 import type {
   PrepareUserOperationResponse,
@@ -11,7 +12,6 @@ import type {
 import { type PrepareUserOperationRequest } from '../types';
 import type { UserOperationControllerMessenger } from '../UserOperationController';
 import { toEip155ChainId } from '../utils/chain-id';
-import { SnapSmartContractAccount } from './SnapSmartContractAccount';
 
 const PREPARE_USER_OPERATION_REQUEST_MOCK: PrepareUserOperationRequest = {
   chainId: '0x1',
@@ -74,6 +74,7 @@ const SIGN_USER_OPERATION_RESPONSE_MOCK: Awaited<
 
 /**
  * Creates a mock of the UserOperationControllerMessenger.
+ *
  * @returns The mock instance.
  */
 function createMessengerMock() {

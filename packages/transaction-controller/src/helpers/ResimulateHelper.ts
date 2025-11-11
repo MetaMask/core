@@ -88,7 +88,6 @@ export class ResimulateHelper {
     }
 
     const listener = () => {
-      // eslint-disable-next-line promise/catch-or-return
       this.#simulateTransaction(transactionMeta)
         .catch((error) => {
           /* istanbul ignore next */

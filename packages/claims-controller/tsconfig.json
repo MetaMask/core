@@ -1,9 +1,7 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./",
-    "outDir": "./dist",
-    "rootDir": "./src"
+    "baseUrl": "./"
   },
   "references": [
     {
@@ -14,6 +12,9 @@
     },
     {
       "path": "../profile-sync-controller/tsconfig.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.json"
     }
   ],
   "include": ["../../types", "./src", "./tests"]
