@@ -16,15 +16,16 @@ jobs:
       - name: Check commits for changes in released packages
         shell: bash
         run: |
+          set -euo pipefail
           git fetch origin main:origin/main
 
-          PACKAGES=$(echo packages/*/package.json)
+          mapfile -t PACKAGES < <(find packages -maxdepth 2 -name "package.json" -not -path "*/node_modules/*")
           RELEASED_PACKAGES=()
 
           # Get all packages being released in this PR
-          for package in $PACKAGES; do
-            MAIN_VERSION=$(git show origin/main:$package | jq -r .version)
-            HEAD_VERSION=$(jq -r .version $package)
+          for package in "${PACKAGES[@]}"; do
+            MAIN_VERSION=$(git show "origin/main:$package" | jq -r .version)
+            HEAD_VERSION=$(jq -r .version "$package")
 
             if [ "$HEAD_VERSION" != "$MAIN_VERSION" ]; then
               echo "📦 Package $package is being released (version $MAIN_VERSION -> $HEAD_VERSION)"
@@ -32,17 +33,18 @@ jobs:
             fi
           done
 
-          # Get all files changed by other queued PRs (exclude release PR commit)
-          git diff --name-only origin/main..HEAD^ > group-files.txt
+          # Get all files changed ahead of this PR.
+          git diff --name-only HEAD^..$(git merge-base HEAD origin/main) > changed-files.txt
 
           CONFLICTS=()
           for pkg in "${RELEASED_PACKAGES[@]}"; do
-            pkg_dir=$(dirname $pkg)
-            if grep -q "^$pkg_dir/" group-files.txt; then
+            pkg_dir=$(dirname "$pkg")
+            if grep -q "^$pkg_dir/" changed-files.txt; then
               CONFLICTS+=("$pkg_dir")
             fi
           done
 
+          CONFLICTS=($(printf "%s\n" "${CONFLICTS[@]}" | sort -u))
           if [ ${#CONFLICTS[@]} -ne 0 ]; then
             for conflict in "${CONFLICTS[@]}"; do
               echo "::error:: Release conflict detected in $conflict."
