@@ -29,6 +29,7 @@ import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 import type {
   BitcoinTradeDataSchema,
   BridgeAssetSchema,
+  BridgeAssetV2Schema,
   ChainConfigurationSchema,
   FeatureId,
   FeeDataSchema,
@@ -155,6 +156,24 @@ export enum SortOrder {
  * This type is used in the QuoteResponse and in the fetchBridgeTokens response
  */
 export type BridgeAsset = Infer<typeof BridgeAssetSchema>;
+
+export type TokenBalance = {
+  /**
+   * The users balance displayed in decimal-normalized form
+   * i.e. 1100000000000000000 is shown as `1.1`
+   */
+  balance?: string;
+  /**
+   * The users balance in the user's selected currency
+   */
+  tokenFiatAmount?: number | null;
+};
+
+/**
+ * This is the interface for the asset object returned by the bridge-api popular and search token endpoings
+ * This type is used in the fetchPopularTokens and fetchSearchTokens responses
+ */
+export type BridgeAssetV2 = Infer<typeof BridgeAssetV2Schema>;
 
 /**
  * This is the interface for the token object used in the extension client

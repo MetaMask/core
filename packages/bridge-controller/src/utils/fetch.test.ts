@@ -5,6 +5,8 @@ import {
   fetchBridgeQuotes,
   fetchBridgeTokens,
   fetchAssetPrices,
+  fetchPopularTokens,
+  fetchTokensBySearchQuery,
 } from './fetch';
 import { FeatureId } from './validators';
 import mockBridgeQuotesErc20Erc20 from '../../tests/mock-quotes-erc20-erc20.json';
@@ -144,6 +146,479 @@ describe('fetch', () => {
           BRIDGE_PROD_API_BASE_URL,
           '1.0.0',
         ),
+      ).rejects.toThrow(mockError);
+    });
+  });
+
+  describe('fetchPopularTokens', () => {
+    const mockResponse = [
+      {
+        assetId: 'eip155:10/slip44:614',
+        symbol: 'ETH',
+        decimals: 18,
+        name: 'Ether',
+        image:
+          'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png',
+        chainId: 'eip155:10',
+      },
+      {
+        assetId: 'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+        symbol: 'ABC',
+        name: 'ABC',
+        decimals: 16,
+        chainId: 'eip155:10',
+      },
+      {
+        assetId: 'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f985',
+        symbol: 'XYZ',
+        name: 'XYZ',
+        decimals: 6,
+        chainId: 'eip155:10',
+      },
+      {
+        assetId: 'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f986',
+        decimals: 8,
+        symbol: 'DEF',
+        name: 'DEF',
+        chainId: 'eip155:10',
+      },
+      {
+        assetId: 'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f987',
+        decimals: 9,
+        symbol: 'GHI',
+        name: 'GHI',
+        chainId: 'eip155:10',
+      },
+      {
+        symbol: 'JKL',
+        decimals: 16,
+        chainId: 10,
+      },
+    ];
+
+    it('should fetch popular tokens successfully', async () => {
+      mockFetchFn.mockResolvedValue(mockResponse);
+      const { signal } = new AbortController();
+      const result = await fetchPopularTokens({
+        signal,
+        chainIds: ['eip155:10'],
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: mockFetchFn,
+        bridgeApiBaseUrl: BRIDGE_PROD_API_BASE_URL,
+        clientVersion: '1.0.0',
+      });
+
+      expect(mockFetchFn).toHaveBeenCalledWith(
+        'https://bridge.api.cx.metamask.io/getTokens/popular',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            chainIds: ['eip155:10'],
+          }),
+          signal,
+          headers: {
+            'X-Client-Id': 'extension',
+            'Client-Version': '1.0.0',
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      expect(result).toStrictEqual(mockResponse.slice(0, -1));
+    });
+
+    it('should fetch popular tokens with balances successfully', async () => {
+      mockFetchFn.mockResolvedValue(mockResponse);
+      const { signal } = new AbortController();
+      const result = await fetchPopularTokens({
+        signal,
+        chainIds: ['eip155:10'],
+        assetsWithBalances: [
+          {
+            assetId:
+              'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201F986',
+            decimals: 8,
+            symbol: 'DEF',
+            name: 'DEF',
+            chainId: 'eip155:10',
+            balance: '1000000000000000000',
+            tokenFiatAmount: '5',
+          },
+          {
+            assetId: 'eip155:10/slip44:614',
+            symbol: 'ETH',
+            decimals: 18,
+            name: 'Ether',
+            image:
+              'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png',
+            chainId: 'eip155:10',
+            balance: '0',
+            tokenFiatAmount: '0',
+          },
+        ],
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: mockFetchFn,
+        bridgeApiBaseUrl: BRIDGE_PROD_API_BASE_URL,
+        clientVersion: '1.0.0',
+      });
+
+      expect(mockFetchFn).toHaveBeenCalledWith(
+        'https://bridge.api.cx.metamask.io/getTokens/popular',
+        {
+          method: 'POST',
+          body: '{"chainIds":["eip155:10"],"includeAssets":[{"assetId":"eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201F986","decimals":8,"symbol":"DEF","name":"DEF","chainId":"eip155:10","balance":"1000000000000000000","tokenFiatAmount":"5"},{"assetId":"eip155:10/slip44:614","symbol":"ETH","decimals":18,"name":"Ether","image":"https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png","chainId":"eip155:10","balance":"0","tokenFiatAmount":"0"}]}',
+          headers: {
+            'Client-Version': '1.0.0',
+            'Content-Type': 'application/json',
+            'X-Client-Id': 'extension',
+          },
+          signal,
+        },
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Array [
+          Object {
+            "assetId": "eip155:10/slip44:614",
+            "balance": "0",
+            "chainId": "eip155:10",
+            "decimals": 18,
+            "image": "https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png",
+            "name": "Ether",
+            "symbol": "ETH",
+            "tokenFiatAmount": "0",
+          },
+          Object {
+            "assetId": "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
+            "chainId": "eip155:10",
+            "decimals": 16,
+            "name": "ABC",
+            "symbol": "ABC",
+          },
+          Object {
+            "assetId": "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f985",
+            "chainId": "eip155:10",
+            "decimals": 6,
+            "name": "XYZ",
+            "symbol": "XYZ",
+          },
+          Object {
+            "assetId": "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f986",
+            "balance": "1000000000000000000",
+            "chainId": "eip155:10",
+            "decimals": 8,
+            "name": "DEF",
+            "symbol": "DEF",
+            "tokenFiatAmount": "5",
+          },
+          Object {
+            "assetId": "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f987",
+            "chainId": "eip155:10",
+            "decimals": 9,
+            "name": "GHI",
+            "symbol": "GHI",
+          },
+        ]
+      `);
+    });
+
+    it('should handle fetch error', async () => {
+      const mockError = new Error('Failed to fetch');
+
+      mockFetchFn.mockRejectedValue(mockError);
+
+      await expect(
+        fetchPopularTokens({
+          signal: new AbortController().signal,
+          chainIds: ['eip155:10'],
+          clientId: BridgeClientId.EXTENSION,
+          fetchFn: mockFetchFn,
+          bridgeApiBaseUrl: BRIDGE_PROD_API_BASE_URL,
+          clientVersion: '1.0.0',
+        }),
+      ).rejects.toThrow(mockError);
+    });
+  });
+
+  describe('fetchTokensBySearchQuery', () => {
+    const mockResponse = [
+      {
+        assetId: 'eip155:10/slip44:614',
+        symbol: 'ETH',
+        decimals: 18,
+        name: 'Ether',
+        image:
+          'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png',
+        chainId: 'eip155:10',
+      },
+      {
+        assetId: 'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+        symbol: 'ABC',
+        name: 'ABC',
+        decimals: 16,
+        chainId: 'eip155:10',
+      },
+      {
+        assetId: 'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f985',
+        symbol: 'XYZ',
+        name: 'XYZ',
+        decimals: 6,
+        chainId: 'eip155:10',
+      },
+      {
+        assetId: 'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f986',
+        decimals: 8,
+        symbol: 'DEF',
+        name: 'DEF',
+        chainId: 'eip155:10',
+      },
+      {
+        assetId: 'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f987',
+        decimals: 9,
+        symbol: 'GHI',
+        name: 'GHI',
+        chainId: 'eip155:10',
+      },
+      {
+        symbol: 'JKL',
+        decimals: 16,
+        chainId: 10,
+      },
+    ];
+
+    it('should fetch popular tokens successfully', async () => {
+      mockFetchFn.mockResolvedValueOnce({
+        data: mockResponse.slice(0, 2),
+        pageInfo: { hasNextPage: true, endCursor: '123' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        status: 200,
+      });
+      mockFetchFn.mockResolvedValueOnce({
+        data: mockResponse.slice(2, 4),
+        pageInfo: { hasNextPage: true, endCursor: 'BA==' },
+      });
+      mockFetchFn.mockResolvedValueOnce({
+        data: mockResponse.slice(4),
+        pageInfo: { hasNextPage: false, endCursor: 'CB==' },
+      });
+
+      let result: unknown[] = [];
+      const request = fetchTokensBySearchQuery({
+        signal: new AbortController().signal,
+        query: 'ABC',
+        chainIds: ['eip155:10'],
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: mockFetchFn,
+        bridgeApiBaseUrl: BRIDGE_PROD_API_BASE_URL,
+        clientVersion: '1.0.0',
+      });
+      for await (const tokens of request) {
+        result = result.concat(tokens);
+      }
+
+      expect(mockFetchFn.mock.calls).toMatchInlineSnapshot(`
+        Array [
+          Array [
+            "https://bridge.api.cx.metamask.io/getTokens/search",
+            Object {
+              "body": "{\\"chainIds\\":[\\"eip155:10\\"],\\"query\\":\\"ABC\\"}",
+              "headers": Object {
+                "Client-Version": "1.0.0",
+                "Content-Type": "application/json",
+                "X-Client-Id": "extension",
+              },
+              "method": "POST",
+              "signal": AbortSignal {
+                Symbol(kEvents): Map {},
+                Symbol(events.maxEventTargetListeners): 0,
+                Symbol(events.maxEventTargetListenersWarned): false,
+                Symbol(kHandlers): Map {},
+                Symbol(kAborted): false,
+                Symbol(kReason): undefined,
+                Symbol(kComposite): false,
+              },
+            },
+          ],
+          Array [
+            "https://bridge.api.cx.metamask.io/getTokens/search",
+            Object {
+              "body": "{\\"chainIds\\":[\\"eip155:10\\"],\\"after\\":\\"123\\",\\"query\\":\\"ABC\\"}",
+              "headers": Object {
+                "Client-Version": "1.0.0",
+                "Content-Type": "application/json",
+                "X-Client-Id": "extension",
+              },
+              "method": "POST",
+              "signal": AbortSignal {
+                Symbol(kEvents): Map {},
+                Symbol(events.maxEventTargetListeners): 0,
+                Symbol(events.maxEventTargetListenersWarned): false,
+                Symbol(kHandlers): Map {},
+                Symbol(kAborted): false,
+                Symbol(kReason): undefined,
+                Symbol(kComposite): false,
+              },
+            },
+          ],
+          Array [
+            "https://bridge.api.cx.metamask.io/getTokens/search",
+            Object {
+              "body": "{\\"chainIds\\":[\\"eip155:10\\"],\\"after\\":\\"BA==\\",\\"query\\":\\"ABC\\"}",
+              "headers": Object {
+                "Client-Version": "1.0.0",
+                "Content-Type": "application/json",
+                "X-Client-Id": "extension",
+              },
+              "method": "POST",
+              "signal": AbortSignal {
+                Symbol(kEvents): Map {},
+                Symbol(events.maxEventTargetListeners): 0,
+                Symbol(events.maxEventTargetListenersWarned): false,
+                Symbol(kHandlers): Map {},
+                Symbol(kAborted): false,
+                Symbol(kReason): undefined,
+                Symbol(kComposite): false,
+              },
+            },
+          ],
+        ]
+      `);
+      expect(result).toStrictEqual(mockResponse.slice(0, -1));
+    });
+
+    it('should fetch popular tokens with balances successfully', async () => {
+      mockFetchFn.mockResolvedValueOnce({
+        data: mockResponse.slice(0, 2),
+        pageInfo: { hasNextPage: true, endCursor: '123' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        status: 200,
+      });
+      mockFetchFn.mockResolvedValueOnce({
+        data: mockResponse.slice(2, 4),
+        pageInfo: { hasNextPage: true, endCursor: 'BA==' },
+      });
+      mockFetchFn.mockResolvedValueOnce({
+        data: mockResponse.slice(4),
+        pageInfo: { hasNextPage: false, endCursor: 'CB==' },
+      });
+
+      let result: unknown[] = [];
+      const request = fetchTokensBySearchQuery({
+        signal: new AbortController().signal,
+        query: 'ABC',
+        chainIds: ['eip155:10'],
+        assetsWithBalances: [
+          {
+            assetId:
+              'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201F986',
+            decimals: 8,
+            symbol: 'DEF',
+            name: 'DEF',
+            chainId: 'eip155:10',
+            balance: '1000000000000000000',
+            tokenFiatAmount: '5',
+          },
+          {
+            assetId: 'eip155:10/slip44:614',
+            symbol: 'ETH',
+            decimals: 18,
+            name: 'Ether',
+            image:
+              'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png',
+            chainId: 'eip155:10',
+            balance: '0',
+            tokenFiatAmount: '0',
+          },
+        ],
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: mockFetchFn,
+        bridgeApiBaseUrl: BRIDGE_PROD_API_BASE_URL,
+        clientVersion: '1.0.0',
+      });
+      for await (const tokens of request) {
+        result = result.concat(tokens);
+      }
+
+      expect(mockFetchFn.mock.calls).toHaveLength(3);
+      expect(mockFetchFn).toHaveBeenCalledWith(
+        'https://bridge.api.cx.metamask.io/getTokens/search',
+        {
+          method: 'POST',
+          body: '{"chainIds":["eip155:10"],"includeAssets":[{"assetId":"eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201F986","decimals":8,"symbol":"DEF","name":"DEF","chainId":"eip155:10","balance":"1000000000000000000","tokenFiatAmount":"5"},{"assetId":"eip155:10/slip44:614","symbol":"ETH","decimals":18,"name":"Ether","image":"https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png","chainId":"eip155:10","balance":"0","tokenFiatAmount":"0"}],"query":"ABC"}',
+          headers: {
+            'Client-Version': '1.0.0',
+            'Content-Type': 'application/json',
+            'X-Client-Id': 'extension',
+          },
+          signal: expect.anything(),
+        },
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Array [
+          Object {
+            "assetId": "eip155:10/slip44:614",
+            "balance": "0",
+            "chainId": "eip155:10",
+            "decimals": 18,
+            "image": "https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png",
+            "name": "Ether",
+            "symbol": "ETH",
+            "tokenFiatAmount": "0",
+          },
+          Object {
+            "assetId": "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
+            "chainId": "eip155:10",
+            "decimals": 16,
+            "name": "ABC",
+            "symbol": "ABC",
+          },
+          Object {
+            "assetId": "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f985",
+            "chainId": "eip155:10",
+            "decimals": 6,
+            "name": "XYZ",
+            "symbol": "XYZ",
+          },
+          Object {
+            "assetId": "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f986",
+            "balance": "1000000000000000000",
+            "chainId": "eip155:10",
+            "decimals": 8,
+            "name": "DEF",
+            "symbol": "DEF",
+            "tokenFiatAmount": "5",
+          },
+          Object {
+            "assetId": "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f987",
+            "chainId": "eip155:10",
+            "decimals": 9,
+            "name": "GHI",
+            "symbol": "GHI",
+          },
+        ]
+      `);
+    });
+
+    it('should handle fetch error', async () => {
+      const mockError = new Error('Failed to fetch');
+
+      mockFetchFn.mockRejectedValue(mockError);
+
+      await expect(
+        fetchTokensBySearchQuery({
+          signal: new AbortController().signal,
+          chainIds: ['eip155:10'],
+          query: '',
+          clientId: BridgeClientId.EXTENSION,
+          fetchFn: mockFetchFn,
+          bridgeApiBaseUrl: BRIDGE_PROD_API_BASE_URL,
+          clientVersion: '1.0.0',
+        }).next(),
       ).rejects.toThrow(mockError);
     });
   });

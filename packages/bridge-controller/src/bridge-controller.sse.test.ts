@@ -115,6 +115,13 @@ describe('BridgeController SSE', function () {
           isActiveDest: true,
         },
       },
+      chainRanking: [
+        { chainId: 'eip155:10' },
+        { chainId: 'eip155:534352' },
+        { chainId: 'eip155:137' },
+        { chainId: 'eip155:42161' },
+        { chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' },
+      ],
     });
 
     bridgeController = new BridgeController({
