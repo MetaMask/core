@@ -34,7 +34,7 @@ jobs:
           done
 
           # Get all files changed ahead of this PR.
-          git diff --name-only HEAD^..$(git merge-base HEAD origin/main) > changed-files.txt
+          git diff --name-only "HEAD^..$(git merge-base HEAD origin/main)" > changed-files.txt
 
           CONFLICTS=()
           for pkg in "${RELEASED_PACKAGES[@]}"; do
@@ -44,7 +44,7 @@ jobs:
             fi
           done
 
-          CONFLICTS=($(printf "%s\n" "${CONFLICTS[@]}" | sort -u))
+          mapfile -t CONFLICTS < <(printf "%s\n" "${CONFLICTS[@]}" | sort -u)
           if [ ${#CONFLICTS[@]} -ne 0 ]; then
             for conflict in "${CONFLICTS[@]}"; do
               echo "::error:: Release conflict detected in $conflict."
@@ -53,5 +53,3 @@ jobs:
           else
             echo "✅ No release conflicts detected."
           fi
-
-
