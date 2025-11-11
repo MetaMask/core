@@ -195,13 +195,13 @@ export function getDefaultSubscriptionControllerState(): SubscriptionControllerS
 const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState> =
   {
     subscriptions: {
-      includeInStateLogs: true,
+      includeInStateLogs: false,
       persist: true,
       includeInDebugSnapshot: false,
       usedInUi: true,
     },
     lastSubscription: {
-      includeInStateLogs: true,
+      includeInStateLogs: false,
       persist: true,
       includeInDebugSnapshot: false,
       usedInUi: true,
