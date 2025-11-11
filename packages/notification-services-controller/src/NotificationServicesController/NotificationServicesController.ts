@@ -505,7 +505,7 @@ export default class NotificationServicesController extends BaseController<
     },
   };
 
-  readonly #locale?: () => string;
+  readonly #locale: () => string;
 
   readonly #featureAnnouncementEnv: FeatureAnnouncementEnv;
 
@@ -539,7 +539,7 @@ export default class NotificationServicesController extends BaseController<
     });
 
     this.#featureAnnouncementEnv = env.featureAnnouncements;
-    this.#locale = env.locale;
+    this.#locale = env.locale ?? (() => 'en');
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
   }
@@ -995,7 +995,8 @@ export default class NotificationServicesController extends BaseController<
           const notifications = await getAPINotifications(
             bearerToken,
             addressesWithNotifications,
-            this.#locale?.(),
+            this.#locale(),
+            this.#featureAnnouncementEnv.platform,
           ).catch(() => []);
           rawOnChainNotifications.push(...notifications);
         } catch {

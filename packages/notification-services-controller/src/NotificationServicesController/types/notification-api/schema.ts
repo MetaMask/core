@@ -109,6 +109,7 @@ export type components = {
       /** @example en-US */
       locale: string;
       addresses: string[];
+      platform: 'extension' | 'mobile';
     };
     NotificationOutputV3: (
       | components['schemas']['PlatformNotification']

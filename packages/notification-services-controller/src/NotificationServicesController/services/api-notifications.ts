@@ -113,13 +113,15 @@ export async function updateOnChainNotifications(
  *
  * @param bearerToken - The JSON Web Token used for authentication in the API call.
  * @param addresses - List of addresses
- * @param locale - locale notifications to fetch should be in
+ * @param locale - to generate translated notifications
+ * @param platform - filter notifications for specific platforms ('extension' | 'mobile')
  * @returns A promise that resolves to an array of NormalisedAPINotification objects. If no notifications are enabled or an error occurs, it may return an empty array.
  */
 export async function getAPINotifications(
   bearerToken: string,
   addresses: string[],
-  locale?: string,
+  locale: string,
+  platform: 'extension' | 'mobile',
 ): Promise<NormalisedAPINotification[]> {
   if (addresses.length === 0) {
     return [];
@@ -132,7 +134,8 @@ export async function getAPINotifications(
 
   const body: RequestBody = {
     addresses: addresses.map((a) => a.toLowerCase()),
-    locale: locale ?? 'en',
+    locale,
+    platform,
   };
   const notifications = await makeApiCall(
     bearerToken,

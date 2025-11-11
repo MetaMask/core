@@ -120,6 +120,8 @@ describe('On Chain Notifications - getAPINotifications()', () => {
     const result = await OnChainNotifications.getAPINotifications(
       MOCK_BEARER_TOKEN,
       MOCK_ADDRESSES,
+      'en',
+      'extension',
     );
 
     expect(mockEndpoint.isDone()).toBe(true);
@@ -131,6 +133,8 @@ describe('On Chain Notifications - getAPINotifications()', () => {
     const result = await OnChainNotifications.getAPINotifications(
       MOCK_BEARER_TOKEN,
       [],
+      'en',
+      'extension',
     );
 
     expect(mockEndpoint.isDone()).toBe(false); // API was not called
@@ -146,6 +150,8 @@ describe('On Chain Notifications - getAPINotifications()', () => {
     const result = await OnChainNotifications.getAPINotifications(
       MOCK_BEARER_TOKEN,
       MOCK_ADDRESSES,
+      'en',
+      'extension',
     );
 
     expect(mockBadEndpoint.isDone()).toBe(true);
@@ -159,6 +165,8 @@ describe('On Chain Notifications - getAPINotifications()', () => {
     const result = await OnChainNotifications.getAPINotifications(
       MOCK_BEARER_TOKEN,
       MOCK_ADDRESSES,
+      'en',
+      'extension',
     );
 
     expect(mockEndpoint.isDone()).toBe(true);
@@ -181,6 +189,8 @@ describe('On Chain Notifications - getAPINotifications()', () => {
     const result = await OnChainNotifications.getAPINotifications(
       MOCK_BEARER_TOKEN,
       MOCK_ADDRESSES,
+      'en',
+      'extension',
     );
 
     expect(mockEndpoint.isDone()).toBe(true);
