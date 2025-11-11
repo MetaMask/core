@@ -1,5 +1,8 @@
 import { ORIGIN_METAMASK, successfulFetch } from '@metamask/controller-utils';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import {
+  TransactionType,
+  type TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
@@ -13,6 +16,8 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import {
+  collectTransactionIds,
+  getTransaction,
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
@@ -28,9 +33,11 @@ const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const TRANSACTION_HASH_MOCK = '0x1234';
 const ENDPOINT_MOCK = '/test123';
 const ORIGINAL_TRANSACTION_ID_MOCK = '456-789';
+const FROM_MOCK = '0xabcde' as Hex;
 
 const TRANSACTION_META_MOCK = {
   id: '123-456',
+  hash: TRANSACTION_HASH_MOCK,
 } as TransactionMeta;
 
 const ORIGINAL_QUOTE_MOCK = {
@@ -46,7 +53,7 @@ const ORIGINAL_QUOTE_MOCK = {
           data: {
             chainId: 1,
             data: '0x1234' as Hex,
-            from: '0xabcde' as Hex,
+            from: FROM_MOCK,
             gas: '21000',
             maxFeePerGas: '25000000000',
             maxPriorityFeePerGas: '1000000000',
@@ -76,9 +83,15 @@ const REQUEST_MOCK: PayStrategyExecuteRequest<RelayQuote> = {
 describe('Relay Submit Utils', () => {
   const updateTransactionMock = jest.mocked(updateTransaction);
   const successfulFetchMock = jest.mocked(successfulFetch);
+  const getTransactionMock = jest.mocked(getTransaction);
+  const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
 
-  const { addTransactionMock, findNetworkClientIdByChainIdMock, messenger } =
-    getMessengerMock();
+  const {
+    addTransactionMock,
+    addTransactionBatchMock,
+    findNetworkClientIdByChainIdMock,
+    messenger,
+  } = getMessengerMock();
 
   let request: PayStrategyExecuteRequest<RelayQuote>;
 
@@ -97,6 +110,14 @@ describe('Relay Submit Utils', () => {
     });
 
     waitForTransactionConfirmedMock.mockResolvedValue();
+    getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
+
+    collectTransactionIdsMock.mockImplementation(
+      (_chainId, _from, _messenger, fn) => {
+        fn(TRANSACTION_META_MOCK.id);
+        return { end: jest.fn() };
+      },
+    );
 
     successfulFetchMock.mockResolvedValue({
       json: async () => ({ status: 'success' }),
@@ -129,8 +150,46 @@ describe('Relay Submit Utils', () => {
       );
     });
 
+    it('adds batch transaction if multiple params', async () => {
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith({
+        from: FROM_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        origin: ORIGIN_METAMASK,
+        requireApproval: false,
+        transactions: [
+          {
+            params: {
+              data: '0x1234',
+              gas: '0x5208',
+              to: '0xfedcb',
+              value: '0x4d2',
+            },
+            type: TransactionType.tokenMethodApprove,
+          },
+          {
+            params: {
+              data: '0x1234',
+              gas: '0x5208',
+              to: '0xfedcb',
+              value: '0x4d2',
+            },
+          },
+        ],
+      });
+    });
+
     it('adds transaction if params missing', async () => {
       request.quotes[0].original.steps[0].items[0].data.value =
+        undefined as never;
+
+      request.quotes[0].original.steps[0].items[0].data.gas =
         undefined as never;
 
       await submitRelayQuotes(request);
@@ -138,6 +197,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionMock).toHaveBeenCalledTimes(1);
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.objectContaining({
+          gas: '0xdbba0',
           value: '0x0',
         }),
         expect.anything(),

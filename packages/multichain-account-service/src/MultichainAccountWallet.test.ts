@@ -73,6 +73,11 @@ function setup({
 
   const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
 
+  messenger.registerActionHandler(
+    'ErrorReportingService:captureException',
+    jest.fn(),
+  );
+
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
     entropySource,
     providers: providersList,
@@ -308,7 +313,28 @@ describe('MultichainAccountWallet', () => {
       expect(wallet.getAccountGroups()).toHaveLength(0);
     });
 
-    it('logs an error if a non-EVM provider fails to create its account (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
+    it('captures an error when a provider fails to create its account', async () => {
+      const groupIndex = 1;
+      const { wallet, providers, messenger } = setup({
+        accounts: [[MOCK_HD_ACCOUNT_1]],
+      });
+      const [provider] = providers;
+      const providerError = new Error('Unable to create accounts');
+      provider.createAccounts.mockRejectedValueOnce(providerError);
+      const callSpy = jest.spyOn(messenger, 'call');
+      await expect(
+        wallet.createMultichainAccountGroup(groupIndex),
+      ).rejects.toThrow(
+        'Unable to create some accounts for group index: 1 with provider "Mocked Provider 0". Error: Unable to create accounts',
+      );
+      expect(callSpy).toHaveBeenCalledWith(
+        'ErrorReportingService:captureException',
+        new Error('Unable to create account with provider "Mocked Provider 0"'),
+      );
+      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
+    });
+
+    it('aggregates non-EVM failures when waiting for all providers', async () => {
       const { wallet, providers } = setup({
         accounts: [[], []],
       });
@@ -617,6 +643,23 @@ describe('MultichainAccountWallet', () => {
 
       // Other provider proceeds normally
       expect(providers[1].discoverAccounts).toHaveBeenCalledTimes(1);
+    });
+
+    it('captures an error when a provider fails to discover its accounts', async () => {
+      const { wallet, providers, messenger } = setup({
+        accounts: [[], []],
+      });
+      const providerError = new Error('Unable to discover accounts');
+      providers[0].discoverAccounts.mockRejectedValueOnce(providerError);
+      const callSpy = jest.spyOn(messenger, 'call');
+      // Ensure the other provider stops immediately to finish the Promise.all
+      providers[1].discoverAccounts.mockResolvedValueOnce([]);
+      await wallet.discoverAccounts();
+      expect(callSpy).toHaveBeenCalledWith(
+        'ErrorReportingService:captureException',
+        new Error('Unable to discover accounts'),
+      );
+      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
     });
   });
 });

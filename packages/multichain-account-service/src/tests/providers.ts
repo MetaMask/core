@@ -15,6 +15,7 @@ export type MockAccountProvider = {
   constructor: jest.Mock;
   alignAccounts: jest.Mock;
   init: jest.Mock;
+  resyncAccounts: jest.Mock;
   getAccount: jest.Mock;
   getAccounts: jest.Mock;
   createAccounts: jest.Mock;
@@ -35,6 +36,7 @@ export function makeMockAccountProvider(
     constructor: jest.fn(),
     alignAccounts: jest.fn(),
     init: jest.fn(),
+    resyncAccounts: jest.fn(),
     getAccount: jest.fn(),
     getAccounts: jest.fn(),
     createAccounts: jest.fn(),

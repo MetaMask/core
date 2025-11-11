@@ -30,6 +30,7 @@ import {
 import type { ServiceState, StateKeys } from './MultichainAccountService';
 import { type Bip44AccountProvider, EvmAccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
+import { createSentryError } from './utils';
 
 /**
  * The context for a provider discovery.
@@ -225,10 +226,26 @@ export class MultichainAccountWallet<
   }): Promise<void> {
     if (awaitAll) {
       const tasks = providers.map((provider) =>
-        provider.createAccounts({
-          entropySource: this.#entropySource,
-          groupIndex,
-        }),
+        provider
+          .createAccounts({
+            entropySource: this.#entropySource,
+            groupIndex,
+          })
+          .catch((error) => {
+            const sentryError = createSentryError(
+              `Unable to create account with provider "${provider.getName()}"`,
+              error,
+              {
+                groupIndex,
+                provider: provider.getName(),
+              },
+            );
+            this.#messenger.call(
+              'ErrorReportingService:captureException',
+              sentryError,
+            );
+            throw error;
+          }),
       );
 
       const results = await Promise.allSettled(tasks);
@@ -283,6 +300,18 @@ export class MultichainAccountWallet<
             const errorMessage = `Unable to create some accounts for group index: ${groupIndex} with provider "${provider.getName()}". Error: ${(error as Error).message}`;
             console.warn(errorMessage);
             this.#log(`${WARNING_PREFIX} ${errorMessage}:`, error);
+            const sentryError = createSentryError(
+              `Unable to create account with provider "${provider.getName()}"`,
+              error,
+              {
+                groupIndex,
+                provider: provider.getName(),
+              },
+            );
+            this.#messenger.call(
+              'ErrorReportingService:captureException',
+              sentryError,
+            );
           });
       });
     }
@@ -434,6 +463,18 @@ export class MultichainAccountWallet<
           console.warn(errorMessage);
           this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
           evmError = `\n- ${evmProvider.getName()}: ${(error as Error).message}`;
+          const sentryError = createSentryError(
+            `Unable to create account with provider "${evmProvider.getName()}"`,
+            error as Error,
+            {
+              groupIndex,
+              provider: evmProvider.getName(),
+            },
+          );
+          this.#messenger.call(
+            'ErrorReportingService:captureException',
+            sentryError,
+          );
         });
 
       // We then create accounts with other providers (some being throttled if configured).
@@ -576,6 +617,18 @@ export class MultichainAccountWallet<
                 targetGroupIndex,
               ),
               error,
+            );
+            const sentryError = createSentryError(
+              'Unable to discover accounts',
+              error as Error,
+              {
+                provider: providerName,
+                groupIndex: targetGroupIndex,
+              },
+            );
+            this.#messenger.call(
+              'ErrorReportingService:captureException',
+              sentryError,
             );
             break;
           }

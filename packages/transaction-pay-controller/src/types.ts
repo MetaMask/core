@@ -16,7 +16,10 @@ import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
-import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@metamask/transaction-controller';
+import type {
+  TransactionControllerAddTransactionBatchAction,
+  TransactionControllerUnapprovedTransactionAddedEvent,
+} from '@metamask/transaction-controller';
 import type { TransactionControllerGetStateAction } from '@metamask/transaction-controller';
 import type { TransactionControllerStateChangeEvent } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
@@ -42,6 +45,7 @@ export type AllowedActions =
   | TokenRatesControllerGetStateAction
   | TokensControllerGetStateAction
   | TransactionControllerAddTransactionAction
+  | TransactionControllerAddTransactionBatchAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction;
 

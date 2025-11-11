@@ -45,6 +45,7 @@
   "metamask/seedless-onboarding-controller": "team-web3auth",
   "metamask/shield-controller": "team-web3auth",
   "metamask/subscription-controller": "team-web3auth",
+  "metamask/claims-controller": "team-web3auth",
   "metamask/announcement-controller": "team-core-extension-ux,team-mobile-ux",
   "metamask/core-backend": "team-core-platform,team-assets",
   "metamask/eth-block-tracker": "team-wallet-integrations,team-core-platform",
@@ -58,5 +59,6 @@
   "metamask/network-controller": "team-core-platform,team-assets",
   "metamask/permission-controller": "team-wallet-integrations,team-core-platform",
   "metamask/permission-log-controller": "team-wallet-integrations,team-core-platform",
+  "metamask/analytics-controller": "team-extension-platform,team-mobile-platform",
   "metamask/remote-feature-flag-controller": "team-extension-platform,team-mobile-platform"
 }

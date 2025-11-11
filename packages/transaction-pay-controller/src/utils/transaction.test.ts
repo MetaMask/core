@@ -10,6 +10,7 @@ import { noop } from 'lodash';
 import { parseRequiredTokens } from './required-tokens';
 import {
   FINALIZED_STATUSES,
+  collectTransactionIds,
   getTransaction,
   pollTransactionChanges,
   updateTransaction,
@@ -22,11 +23,13 @@ jest.mock('./required-tokens');
 
 const TRANSACTION_ID_MOCK = '123-456';
 const ERROR_MESSAGE_MOCK = 'Test error';
+const CHAIN_ID_MOCK = '0x1234' as Hex;
+const FROM_MOCK = '0x123';
 
 const TRANSACTION_META_MOCK = {
   id: TRANSACTION_ID_MOCK,
   txParams: {
-    from: '0x123',
+    from: FROM_MOCK,
   },
 } as TransactionMeta;
 
@@ -313,6 +316,70 @@ describe('Transaction Utils', () => {
       ).rejects.toThrow(
         `Transaction failed - ${TransactionType.bridge} - ${ERROR_MESSAGE_MOCK}`,
       );
+    });
+  });
+
+  describe('collectTransactionIds', () => {
+    it('collects transaction IDs from unapproved events matching from and chain ID', () => {
+      const mockCallback = jest.fn();
+
+      collectTransactionIds(CHAIN_ID_MOCK, FROM_MOCK, messenger, mockCallback);
+
+      publish('TransactionController:unapprovedTransactionAdded', {
+        id: 'tx1',
+        chainId: CHAIN_ID_MOCK,
+        txParams: { from: FROM_MOCK },
+      } as TransactionMeta);
+
+      publish('TransactionController:unapprovedTransactionAdded', {
+        id: 'tx2',
+        chainId: '0x1' as Hex,
+        txParams: { from: FROM_MOCK },
+      } as TransactionMeta);
+
+      publish('TransactionController:unapprovedTransactionAdded', {
+        id: 'tx3',
+        chainId: CHAIN_ID_MOCK,
+        txParams: { from: '0xabc' },
+      } as TransactionMeta);
+
+      publish('TransactionController:unapprovedTransactionAdded', {
+        id: 'tx4',
+        chainId: CHAIN_ID_MOCK,
+        txParams: { from: FROM_MOCK },
+      } as TransactionMeta);
+
+      expect(mockCallback).toHaveBeenCalledTimes(2);
+      expect(mockCallback).toHaveBeenNthCalledWith(1, 'tx1');
+      expect(mockCallback).toHaveBeenNthCalledWith(2, 'tx4');
+    });
+
+    it('stops collecting transaction IDs after end is called', () => {
+      const mockCallback = jest.fn();
+
+      const { end } = collectTransactionIds(
+        CHAIN_ID_MOCK,
+        FROM_MOCK,
+        messenger,
+        mockCallback,
+      );
+
+      publish('TransactionController:unapprovedTransactionAdded', {
+        id: 'tx1',
+        chainId: CHAIN_ID_MOCK,
+        txParams: { from: FROM_MOCK },
+      } as TransactionMeta);
+
+      end();
+
+      publish('TransactionController:unapprovedTransactionAdded', {
+        id: 'tx2',
+        chainId: CHAIN_ID_MOCK,
+        txParams: { from: FROM_MOCK },
+      } as TransactionMeta);
+
+      expect(mockCallback).toHaveBeenCalledTimes(1);
+      expect(mockCallback).toHaveBeenCalledWith('tx1');
     });
   });
 });

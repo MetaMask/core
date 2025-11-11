@@ -2,6 +2,9 @@
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "import-x/namespace": 1
   },
+  "packages/accounts-controller/src/utils.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 8
+  },
   "packages/approval-controller/src/ApprovalController.test.ts": {
     "import-x/order": 1,
     "jest/no-conditional-in-test": 16
@@ -14,12 +17,33 @@
     "n/prefer-global/text-decoder": 1,
     "no-shadow": 2
   },
+  "packages/assets-controllers/src/AccountTrackerController.ts": {
+    "@typescript-eslint/no-misused-promises": 4
+  },
   "packages/assets-controllers/src/CurrencyRateController.test.ts": {
     "jest/no-conditional-in-test": 1
+  },
+  "packages/assets-controllers/src/DeFiPositionsController/DeFiPositionsController.ts": {
+    "@typescript-eslint/no-misused-promises": 2
+  },
+  "packages/assets-controllers/src/MultichainAssetsController/MultichainAssetsController.ts": {
+    "@typescript-eslint/no-misused-promises": 3
+  },
+  "packages/assets-controllers/src/MultichainAssetsController/utils.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 1
+  },
+  "packages/assets-controllers/src/MultichainAssetsRatesController/MultichainAssetsRatesController.ts": {
+    "@typescript-eslint/no-misused-promises": 2
+  },
+  "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.ts": {
+    "@typescript-eslint/no-misused-promises": 2
   },
   "packages/assets-controllers/src/NftController.test.ts": {
     "import-x/namespace": 9,
     "jest/no-conditional-in-test": 6
+  },
+  "packages/assets-controllers/src/NftController.ts": {
+    "@typescript-eslint/no-misused-promises": 2
   },
   "packages/assets-controllers/src/NftDetectionController.test.ts": {
     "import-x/namespace": 6,
@@ -49,6 +73,12 @@
   },
   "packages/assets-controllers/src/Standards/NftStandards/ERC721/ERC721Standard.ts": {
     "prettier/prettier": 1
+  },
+  "packages/assets-controllers/src/TokenBalancesController.ts": {
+    "@typescript-eslint/no-misused-promises": 1
+  },
+  "packages/assets-controllers/src/TokenDetectionController.ts": {
+    "@typescript-eslint/no-misused-promises": 5
   },
   "packages/assets-controllers/src/TokenListController.test.ts": {
     "import-x/namespace": 7,
@@ -84,6 +114,9 @@
   },
   "packages/base-controller/src/BaseController.test.ts": {
     "import-x/namespace": 13
+  },
+  "packages/bridge-status-controller/src/utils/transaction.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 2
   },
   "packages/build-utils/src/transforms/remove-fenced-code.test.ts": {
     "import-x/order": 1
@@ -130,7 +163,8 @@
     "@typescript-eslint/naming-convention": 1
   },
   "packages/eth-block-tracker/src/PollingBlockTracker.test.ts": {
-    "@typescript-eslint/naming-convention": 1
+    "@typescript-eslint/naming-convention": 1,
+    "@typescript-eslint/unbound-method": 4
   },
   "packages/eth-block-tracker/src/PollingBlockTracker.ts": {
     "@typescript-eslint/naming-convention": 1,
@@ -157,6 +191,9 @@
     "@typescript-eslint/no-explicit-any": 1,
     "jsdoc/require-jsdoc": 1,
     "no-restricted-syntax": 1
+  },
+  "packages/eth-json-rpc-middleware/src/block-ref-rewrite.test.ts": {
+    "@typescript-eslint/no-misused-promises": 3
   },
   "packages/eth-json-rpc-middleware/src/block-ref-rewrite.ts": {
     "jsdoc/match-description": 1
@@ -247,6 +284,7 @@
     "n/no-unsupported-features/node-builtins": 1
   },
   "packages/keyring-controller/src/KeyringController.test.ts": {
+    "@typescript-eslint/no-misused-promises": 1,
     "jest/no-conditional-in-test": 2
   },
   "packages/keyring-controller/src/KeyringController.ts": {
@@ -290,6 +328,12 @@
   "packages/message-manager/src/utils.ts": {
     "@typescript-eslint/no-unused-vars": 1
   },
+  "packages/multichain-api-middleware/src/handlers/wallet-invokeMethod.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 1
+  },
+  "packages/multichain-transactions-controller/src/MultichainTransactionsController.ts": {
+    "@typescript-eslint/no-misused-promises": 2
+  },
   "packages/name-controller/src/NameController.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 1,
     "@typescript-eslint/prefer-readonly": 2
@@ -320,6 +364,12 @@
   },
   "packages/name-controller/src/util.ts": {
     "jsdoc/require-returns": 1
+  },
+  "packages/network-controller/src/NetworkController.ts": {
+    "@typescript-eslint/no-misused-promises": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.ts": {
+    "@typescript-eslint/no-misused-promises": 1
   },
   "packages/permission-controller/src/PermissionController.test.ts": {
     "jest/no-conditional-in-test": 4
@@ -366,6 +416,12 @@
   "packages/remote-feature-flag-controller/src/utils/user-segmentation-utils.ts": {
     "jsdoc/tag-lines": 2
   },
+  "packages/sample-controllers/src/sample-gas-prices-controller.ts": {
+    "@typescript-eslint/no-misused-promises": 1
+  },
+  "packages/sample-controllers/src/sample-gas-prices-service/sample-gas-prices-service.test.ts": {
+    "@typescript-eslint/no-misused-promises": 4
+  },
   "packages/seedless-onboarding-controller/jest.environment.js": {
     "n/no-unsupported-features/node-builtins": 1
   },
@@ -375,8 +431,14 @@
   "packages/selected-network-controller/tests/SelectedNetworkController.test.ts": {
     "jest/no-conditional-in-test": 1
   },
-  "packages/signature-controller/src/SignatureController.ts": {
+  "packages/shield-controller/src/ShieldController.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 1
+  },
+  "packages/shield-controller/src/backend.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 3
+  },
+  "packages/signature-controller/src/SignatureController.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 4
   },
   "packages/signature-controller/src/utils/normalize.ts": {
     "@typescript-eslint/no-unused-vars": 1

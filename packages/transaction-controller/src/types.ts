@@ -1726,6 +1726,9 @@ export type TransactionBatchRequest = {
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
 
+  /** Whether MetaMask will sponsor the gas fee for the transaction. */
+  isGasFeeSponsored?: boolean;
+
   /** ID of the network client to submit the transaction. */
   networkClientId: NetworkClientId;
 
@@ -2060,6 +2063,9 @@ export type AddTransactionOptions = {
 
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
+
+  /** Whether MetaMask will sponsor the gas fee for the transaction. */
+  isGasFeeSponsored?: boolean;
 
   /** RPC method that requested the transaction. */
   method?: string;

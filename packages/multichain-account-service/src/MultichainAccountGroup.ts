@@ -16,8 +16,9 @@ import {
 } from './logger';
 import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
-import { type Bip44AccountProvider } from './providers';
+import type { Bip44AccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
+import { createSentryError } from './utils';
 
 export type GroupState =
   ServiceState[StateKeys['entropySource']][StateKeys['groupIndex']];
@@ -251,26 +252,46 @@ export class MultichainAccountGroup<
 
     const results = await Promise.allSettled(
       this.#providers.map(async (provider) => {
-        const [disabled, accounts] = await provider.alignAccounts({
-          entropySource: this.wallet.entropySource,
-          groupIndex: this.groupIndex,
-        });
+        try {
+          const [disabled, accounts] = await provider.alignAccounts({
+            entropySource: this.wallet.entropySource,
+            groupIndex: this.groupIndex,
+          });
 
-        if (disabled) {
-          this.#log(
-            `Account provider "${provider.getName()}" is disabled, skipping alignment...`,
-          );
-        } else if (accounts.length > 0) {
-          this.#log(
-            `Found missing accounts for account provider "${provider.getName()}", creating them now...`,
-          );
-          this.#providerToAccounts.set(provider, accounts);
-          for (const accountId of accounts) {
-            this.#accountToProvider.set(accountId, provider);
+          if (disabled) {
+            this.#log(
+              `Account provider "${provider.getName()}" is disabled, skipping alignment...`,
+            );
+          } else if (accounts.length > 0) {
+            this.#log(
+              `Found missing accounts for account provider "${provider.getName()}", creating them now...`,
+            );
+            this.#providerToAccounts.set(provider, accounts);
+            for (const accountId of accounts) {
+              this.#accountToProvider.set(accountId, provider);
+            }
           }
-        }
 
-        return accounts;
+          return accounts;
+        } catch (error) {
+          // istanbul ignore next
+          this.#log(
+            `${WARNING_PREFIX} ${error instanceof Error ? error.message : String(error)}`,
+          );
+          const sentryError = createSentryError(
+            `Unable to align accounts with provider "${provider.getName()}"`,
+            error as Error,
+            {
+              groupIndex: this.groupIndex,
+              provider: provider.getName(),
+            },
+          );
+          this.#messenger.call(
+            'ErrorReportingService:captureException',
+            sentryError,
+          );
+          throw error;
+        }
       }),
     );
 

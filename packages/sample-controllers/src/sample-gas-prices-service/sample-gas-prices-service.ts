@@ -230,7 +230,10 @@ export class SampleGasPricesService {
   async fetchGasPrices(chainId: Hex): Promise<GasPricesResponse['data']> {
     const response = await this.#policy.execute(async () => {
       const url = new URL('https://api.example.com/gas-prices');
-      url.searchParams.append('chainId', `eip155:${fromHex(chainId)}`);
+      url.searchParams.append(
+        'chainId',
+        `eip155:${fromHex(chainId).toString()}`,
+      );
       const localResponse = await this.#fetch(url);
       if (!localResponse.ok) {
         throw new HttpError(
