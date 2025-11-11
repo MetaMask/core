@@ -1,5 +1,4 @@
 import {
-  ChainId,
   createServicePolicy,
   DEFAULT_CIRCUIT_BREAK_DURATION,
   DEFAULT_DEGRADED_THRESHOLD,
@@ -8,29 +7,23 @@ import {
   handleFetch,
 } from '@metamask/controller-utils';
 import type { ServicePolicy } from '@metamask/controller-utils';
-import type {
-  CaipAssetReference,
-  CaipAssetType,
-  CaipChainId,
-  Hex,
-} from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import {
   hexToNumber,
-  isCaipAssetId,
-  isCaipAssetType,
-  isHexString,
-  isStrictHexString,
   KnownCaipNamespace,
   toCaipChainId,
 } from '@metamask/utils';
 
 import type {
   AbstractTokenPricesService,
+  EvmAssetAddressWithChain,
+  EvmAssetWithId,
+  EvmAssetWithMarketData,
   ExchangeRatesByCurrency,
+  MarketData,
   TokenPrice,
   TokenPricesByTokenAddress,
 } from './abstract-token-prices-service';
-import { accountAddressToCaipReference } from 'src/assetsUtil';
 
 /**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to
@@ -332,16 +325,6 @@ export const SUPPORTED_CHAIN_IDS = [
  */
 type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
 
-const SLIP44_CHAIN_MAP: Record<string, CaipAssetReference> = {
-  ETH: 'slip44:60',
-  POL: 'slip44:966',
-  BNB: 'slip44:714',
-  AVAX: 'slip44:9000',
-  TESTETH: 'slip44:60',
-  SEI: 'slip44:19000118',
-  MON: 'slip44:268435779',
-};
-
 /**
  * All requests to V2 of the Price API start with this.
  */
@@ -351,92 +334,13 @@ const BASE_URL_V1 = 'https://price.api.cx.metamask.io/v1';
 
 const BASE_URL_V3 = 'https://price.api.cx.metamask.io/v3';
 
-/**
- * The shape of the data that the /spot-prices endpoint returns.
- */
-type MarketData = {
-  /**
-   * The all-time highest price of the token.
-   */
-  allTimeHigh: number;
-  /**
-   * The all-time lowest price of the token.
-   */
-  allTimeLow: number;
-  /**
-   * The number of tokens currently in circulation.
-   */
-  circulatingSupply: number;
-  /**
-   * The market cap calculated using the diluted supply.
-   */
-  dilutedMarketCap: number;
-  /**
-   * The highest price of the token in the last 24 hours.
-   */
-  high1d: number;
-  /**
-   * The lowest price of the token in the last 24 hours.
-   */
-  low1d: number;
-  /**
-   * The current market capitalization of the token.
-   */
-  marketCap: number;
-  /**
-   * The percentage change in market capitalization over the last 24 hours.
-   */
-  marketCapPercentChange1d: number;
-  /**
-   * The current price of the token.
-   */
-  price: number;
-  /**
-   * The absolute change in price over the last 24 hours.
-   */
-  priceChange1d: number;
-  /**
-   * The percentage change in price over the last 24 hours.
-   */
-  pricePercentChange1d: number;
-  /**
-   * The percentage change in price over the last hour.
-   */
-  pricePercentChange1h: number;
-  /**
-   * The percentage change in price over the last year.
-   */
-  pricePercentChange1y: number;
-  /**
-   * The percentage change in price over the last 7 days.
-   */
-  pricePercentChange7d: number;
-  /**
-   * The percentage change in price over the last 14 days.
-   */
-  pricePercentChange14d: number;
-  /**
-   * The percentage change in price over the last 30 days.
-   */
-  pricePercentChange30d: number;
-  /**
-   * The percentage change in price over the last 200 days.
-   */
-  pricePercentChange200d: number;
-  /**
-   * The total trading volume of the token in the last 24 hours.
-   */
-  totalVolume: number;
-};
-
 type MarketDataByTokenAddress = { [address: Hex]: MarketData };
 /**
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
  */
 export class CodefiTokenPricesServiceV2
-  implements
-    AbstractTokenPricesService<SupportedChainId, Hex, SupportedCurrency>
+  implements AbstractTokenPricesService<SupportedChainId, SupportedCurrency>
 {
   readonly #policy: ServicePolicy;
 
@@ -558,7 +462,7 @@ export class CodefiTokenPricesServiceV2
     chainId: SupportedChainId;
     tokenAddresses: Hex[];
     currency: SupportedCurrency;
-  }): Promise<Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>> {
+  }): Promise<Partial<TokenPricesByTokenAddress<SupportedCurrency>>> {
     const chainIdAsNumber = hexToNumber(chainId);
 
     const url = new URL(`${BASE_URL}/chains/${chainIdAsNumber}/spot-prices`);
@@ -576,7 +480,7 @@ export class CodefiTokenPricesServiceV2
 
     return [getNativeTokenAddress(chainId), ...tokenAddresses].reduce(
       (
-        obj: Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>,
+        obj: Partial<TokenPricesByTokenAddress<SupportedCurrency>>,
         tokenAddress,
       ) => {
         // The Price API lowercases both currency and token addresses, so we have
@@ -590,7 +494,7 @@ export class CodefiTokenPricesServiceV2
           return obj;
         }
 
-        const token: TokenPrice<Hex, SupportedCurrency> = {
+        const token: TokenPrice<SupportedCurrency> = {
           tokenAddress,
           currency,
           ...marketData,
@@ -602,45 +506,33 @@ export class CodefiTokenPricesServiceV2
         };
       },
       {},
-    ) as Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>;
+    ) as Partial<TokenPricesByTokenAddress<SupportedCurrency>>;
   }
 
   async fetchTokenPricesV3({
     assets,
     currency,
   }: {
-    assets: (
-      | { address: Hex; chainId: Hex }
-      | { address: CaipAssetType; chainId: CaipChainId }
-    )[];
+    assets: EvmAssetAddressWithChain<SupportedChainId>[];
     currency: SupportedCurrency;
-  }) {
-    const assetsWithIds: ({ assetId: CaipAssetType } & (
-      | { address: Hex; chainId: Hex }
-      | { address: CaipAssetType; chainId: CaipChainId }
-    ))[] = assets.map((asset) => {
-      if (isStrictHexString(asset.address)) {
+  }): Promise<EvmAssetWithMarketData<SupportedChainId, SupportedCurrency>[]> {
+    const assetsWithIds: EvmAssetWithId<SupportedChainId>[] = assets.map(
+      (asset) => {
         const caipChainId = toCaipChainId(
           KnownCaipNamespace.Eip155,
           hexToNumber(asset.chainId).toString(),
         );
 
         const nativeAsset =
-          HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP[asset.chainId as Hex];
+          HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP[asset.chainId];
 
         return {
           assetId: nativeAsset ?? `${caipChainId}/erc20:${asset.address}`,
           address: asset.address,
-          chainId: asset.chainId as Hex,
+          chainId: asset.chainId,
         };
-      }
-
-      return {
-        assetId: asset.address,
-        address: asset.address,
-        chainId: asset.chainId as CaipChainId,
-      };
-    });
+      },
+    );
 
     const url = new URL(`${BASE_URL_V3}/spot-prices`);
     url.searchParams.append(
@@ -669,19 +561,7 @@ export class CodefiTokenPricesServiceV2
           ...marketData,
         };
       })
-      .filter(Boolean) as (MarketData & {
-      assetId: CaipAssetType;
-      currency: SupportedCurrency;
-    } & (
-        | {
-            address: Hex;
-            chainId: Hex;
-          }
-        | {
-            address: CaipAssetType;
-            chainId: CaipChainId;
-          }
-      ))[];
+      .filter((x) => x !== undefined);
   }
 
   /**

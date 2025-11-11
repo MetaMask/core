@@ -1,11 +1,11 @@
 import type { ServicePolicy } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 
 /**
  * Represents the price of a token in a currency.
  */
-export type TokenPrice<TokenAddress extends Hex, Currency extends string> = {
-  tokenAddress: TokenAddress;
+export type TokenPrice<Currency extends string> = {
+  tokenAddress: Hex;
   currency: Currency;
   allTimeHigh: number;
   allTimeLow: number;
@@ -41,11 +41,8 @@ export type ExchangeRate = {
 /**
  * A map of token address to its price.
  */
-export type TokenPricesByTokenAddress<
-  TokenAddress extends Hex,
-  Currency extends string,
-> = {
-  [A in TokenAddress]: TokenPrice<A, Currency>;
+export type TokenPricesByTokenAddress<Currency extends string> = {
+  [A in Hex]: TokenPrice<Currency>;
 };
 
 /**
@@ -55,22 +52,110 @@ export type ExchangeRatesByCurrency<Currency extends string> = {
   [C in Currency]: ExchangeRate;
 };
 
+export type EvmAssetAddressWithChain<ChainId extends Hex> = {
+  address: Hex;
+  chainId: ChainId;
+};
+
+export type EvmAssetWithId<ChainId extends Hex> =
+  EvmAssetAddressWithChain<ChainId> & {
+    assetId: CaipAssetType;
+  };
+
+export type EvmAssetWithMarketData<
+  ChainId extends Hex,
+  Currency extends string,
+> = EvmAssetWithId<ChainId> & MarketData & { currency: Currency };
+
+/**
+ * The shape of the data that the /spot-prices endpoint returns.
+ */
+export type MarketData = {
+  /**
+   * The all-time highest price of the token.
+   */
+  allTimeHigh: number;
+  /**
+   * The all-time lowest price of the token.
+   */
+  allTimeLow: number;
+  /**
+   * The number of tokens currently in circulation.
+   */
+  circulatingSupply: number;
+  /**
+   * The market cap calculated using the diluted supply.
+   */
+  dilutedMarketCap: number;
+  /**
+   * The highest price of the token in the last 24 hours.
+   */
+  high1d: number;
+  /**
+   * The lowest price of the token in the last 24 hours.
+   */
+  low1d: number;
+  /**
+   * The current market capitalization of the token.
+   */
+  marketCap: number;
+  /**
+   * The percentage change in market capitalization over the last 24 hours.
+   */
+  marketCapPercentChange1d: number;
+  /**
+   * The current price of the token.
+   */
+  price: number;
+  /**
+   * The absolute change in price over the last 24 hours.
+   */
+  priceChange1d: number;
+  /**
+   * The percentage change in price over the last 24 hours.
+   */
+  pricePercentChange1d: number;
+  /**
+   * The percentage change in price over the last hour.
+   */
+  pricePercentChange1h: number;
+  /**
+   * The percentage change in price over the last year.
+   */
+  pricePercentChange1y: number;
+  /**
+   * The percentage change in price over the last 7 days.
+   */
+  pricePercentChange7d: number;
+  /**
+   * The percentage change in price over the last 14 days.
+   */
+  pricePercentChange14d: number;
+  /**
+   * The percentage change in price over the last 30 days.
+   */
+  pricePercentChange30d: number;
+  /**
+   * The percentage change in price over the last 200 days.
+   */
+  pricePercentChange200d: number;
+  /**
+   * The total trading volume of the token in the last 24 hours.
+   */
+  totalVolume: number;
+};
+
 /**
  * An ideal token prices service. All implementations must confirm to this
  * interface.
  *
  * @template ChainId - A type union of valid arguments for the `chainId`
  * argument to `fetchTokenPrices`.
- * @template TokenAddress - A type union of all token addresses. The reason this
- * type parameter exists is so that we can guarantee that same addresses that
- * `fetchTokenPrices` receives are the same addresses that shown up in the
- * return value.
  * @template Currency - A type union of valid arguments for the `currency`
  * argument to `fetchTokenPrices`.
  */
 export type AbstractTokenPricesService<
   ChainId extends Hex = Hex,
-  TokenAddress extends Hex = Hex,
   Currency extends string = string,
 > = Partial<Pick<ServicePolicy, 'onBreak' | 'onDegraded'>> & {
   /**
@@ -78,43 +163,17 @@ export type AbstractTokenPricesService<
    * given addresses which are expected to live on the given chain.
    *
    * @param args - The arguments to this function.
-   * @param args.chainId - An EIP-155 chain ID.
-   * @param args.tokenAddresses - Addresses for tokens that live on the chain.
+   * @param args.assets - The assets to get prices for.
    * @param args.currency - The desired currency of the token prices.
    * @returns The prices for the requested tokens.
    */
-  fetchTokenPrices({
-    chainId,
-    tokenAddresses,
+  fetchTokenPricesV3({
+    assets,
     currency,
   }: {
-    chainId: ChainId;
-    tokenAddresses: TokenAddress[];
+    assets: EvmAssetAddressWithChain<ChainId>[];
     currency: Currency;
-  }): Promise<Partial<TokenPricesByTokenAddress<TokenAddress, Currency>>>;
-
-  // fetchTokenPricesV3({
-  //   assets,
-  //   currency,
-  // }: {
-  //   assets: (
-  //     | { address: Hex; chainId: Hex }
-  //     | { address: CaipAssetType; chainId: CaipChainId }
-  //   )[];
-  //   currency: SupportedCurrency;
-  // }): (MarketData & {
-  //   assetId: CaipAssetType;
-  //   currency: SupportedCurrency;
-  // } & (
-  //     | {
-  //         address: Hex;
-  //         chainId: Hex;
-  //       }
-  //     | {
-  //         address: CaipAssetType;
-  //         chainId: CaipChainId;
-  //       }
-  //   ))[];
+  }): Promise<EvmAssetWithMarketData<ChainId, Currency>[]>;
 
   /**
    * Retrieves exchange rates in the given currency.
