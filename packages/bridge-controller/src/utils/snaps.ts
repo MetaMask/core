@@ -69,6 +69,7 @@ export const computeFeeRequest = (
   transaction: string,
   accountId: string,
   scope: CaipChainId,
+  options?: Record<string, unknown>,
 ) => {
   return {
     // TODO: remove 'as never' typing.
@@ -84,6 +85,7 @@ export const computeFeeRequest = (
         accountId,
         scope,
       },
+      ...(options && { options }),
     },
   };
 };

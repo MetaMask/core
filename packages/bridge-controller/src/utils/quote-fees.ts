@@ -5,7 +5,7 @@ import { numberToHex } from '@metamask/utils';
 import { isNonEvmChainId, sumHexes } from './bridge';
 import { formatChainIdToCaip } from './caip-formatters';
 import { computeFeeRequest } from './snaps';
-import { extractTradeData } from './trade-utils';
+import { extractTradeData, isTronTrade } from './trade-utils';
 import { CHAIN_IDS } from '../constants/chains';
 import type {
   QuoteResponse,
@@ -120,6 +120,14 @@ const appendNonEvmFees = async (
 
         const transaction = extractTradeData(trade);
 
+        // Tron trades need the visible flag and contract type to be included in the request options
+        const options = isTronTrade(trade)
+          ? {
+              visible: trade.visible,
+              type: trade.raw_data?.contract?.[0]?.type,
+            }
+          : undefined;
+
         const response = (await messenger.call(
           'SnapController:handleRequest',
           computeFeeRequest(
@@ -127,6 +135,7 @@ const appendNonEvmFees = async (
             transaction,
             selectedAccount.id,
             scope,
+            options
           ),
         )) as {
           type: 'base' | 'priority';
