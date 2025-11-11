@@ -185,8 +185,11 @@ export class ClaimsService {
     const headers = await this.getRequestHeaders();
     const url = `${this.getClaimsApiUrl()}/signature/generateMessage`;
     const response = await this.#fetch(url, {
-      headers,
       method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         chainId,
         walletAddress,
