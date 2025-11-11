@@ -6,7 +6,6 @@ import {
   CLAIMS_API_URL,
   ClaimsServiceErrorMessages,
   type Env,
-  HttpContentTypeHeader,
   SERVICE_NAME,
 } from './constants';
 import type { Claim, GenerateSignatureMessageResponse } from './types';
@@ -171,18 +170,14 @@ export class ClaimsService {
   /**
    * Create the headers for the current request.
    *
-   * @param contentType - The content type of the request. Defaults to 'application/json'.
    * @returns The headers for the current request.
    */
-  async getRequestHeaders(
-    contentType: HttpContentTypeHeader = HttpContentTypeHeader.APPLICATION_JSON,
-  ): Promise<Record<string, string>> {
+  async getRequestHeaders(): Promise<Record<string, string>> {
     const bearerToken = await this.#messenger.call(
       'AuthenticationController:getBearerToken',
     );
     return {
       Authorization: `Bearer ${bearerToken}`,
-      'Content-Type': contentType,
     };
   }
 

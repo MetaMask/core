@@ -4,7 +4,6 @@ import {
   ClaimsServiceErrorMessages,
   ClaimStatusEnum,
   Env,
-  HttpContentTypeHeader,
 } from './constants';
 import type { Claim, GenerateSignatureMessageResponse } from './types';
 import { createMockClaimsServiceMessenger } from '../tests/mocks/messenger';
@@ -103,7 +102,6 @@ describe('ClaimsService', () => {
         {
           headers: {
             Authorization: 'Bearer test-token',
-            'Content-Type': HttpContentTypeHeader.APPLICATION_JSON,
           },
         },
       );
@@ -154,7 +152,6 @@ describe('ClaimsService', () => {
         {
           headers: {
             Authorization: 'Bearer test-token',
-            'Content-Type': HttpContentTypeHeader.APPLICATION_JSON,
           },
         },
       );
@@ -216,7 +213,6 @@ describe('ClaimsService', () => {
         {
           headers: {
             Authorization: 'Bearer test-token',
-            'Content-Type': HttpContentTypeHeader.APPLICATION_JSON,
           },
           method: 'POST',
           body: JSON.stringify({

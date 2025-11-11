@@ -19,7 +19,6 @@ import type {
 import {
   ClaimsControllerErrorMessages,
   CONTROLLER_NAME,
-  HttpContentTypeHeader,
   SERVICE_NAME,
 } from './constants';
 import type {
@@ -109,7 +108,6 @@ export class ClaimsController extends BaseController<
 
     const headers = await this.messenger.call(
       `${SERVICE_NAME}:getRequestHeaders`,
-      HttpContentTypeHeader.MULTIPART_FORM_DATA,
     );
     const baseUrl = this.messenger.call(`${SERVICE_NAME}:getClaimsApiUrl`);
     const url = `${baseUrl}/claims`;

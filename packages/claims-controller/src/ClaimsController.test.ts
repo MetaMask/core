@@ -1,9 +1,5 @@
 import { ClaimsController } from './ClaimsController';
-import {
-  ClaimsControllerErrorMessages,
-  ClaimStatusEnum,
-  HttpContentTypeHeader,
-} from './constants';
+import { ClaimsControllerErrorMessages, ClaimStatusEnum } from './constants';
 import type { Claim, CreateClaimRequest } from './types';
 import { createMockClaimsControllerMessenger } from '../tests/mocks/messenger';
 import type { WithControllerArgs } from '../tests/types';
@@ -65,7 +61,6 @@ describe('ClaimsController', () => {
     };
     const MOCK_CLAIM_API = 'https://claims-api.test.com';
     const MOCK_HEADERS = {
-      'Content-Type': HttpContentTypeHeader.MULTIPART_FORM_DATA,
       Authorization: 'Bearer test-token',
     };
 
@@ -81,9 +76,7 @@ describe('ClaimsController', () => {
         const submitClaimConfig =
           await controller.getSubmitClaimConfig(MOCK_CLAIM);
 
-        expect(mockClaimServiceRequestHeaders).toHaveBeenCalledWith(
-          HttpContentTypeHeader.MULTIPART_FORM_DATA,
-        );
+        expect(mockClaimServiceRequestHeaders).toHaveBeenCalledTimes(1);
         expect(mockClaimServiceGetClaimsApiUrl).toHaveBeenCalledTimes(1);
 
         expect(submitClaimConfig).toBeDefined();

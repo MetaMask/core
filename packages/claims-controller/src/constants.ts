@@ -31,11 +31,6 @@ export const CLAIMS_API_URL: Record<Env, string> = {
   [Env.PRD]: 'https://claims.api.cx.metamask.io',
 };
 
-export enum HttpContentTypeHeader {
-  APPLICATION_JSON = 'application/json',
-  MULTIPART_FORM_DATA = 'multipart/form-data',
-}
-
 export const ClaimsControllerErrorMessages = {
   CLAIM_ALREADY_SUBMITTED: 'Claim already submitted',
   INVALID_CLAIM_SIGNATURE: 'Invalid claim signature',
