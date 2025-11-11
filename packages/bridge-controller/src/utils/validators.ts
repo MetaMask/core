@@ -17,7 +17,11 @@ import {
   pattern,
   intersection,
 } from '@metamask/superstruct';
-import { CaipAssetTypeStruct, isStrictHexString } from '@metamask/utils';
+import {
+  CaipAssetTypeStruct,
+  CaipChainIdStruct,
+  isStrictHexString,
+} from '@metamask/utils';
 
 export enum FeeType {
   METABRIDGE = 'metabridge',
@@ -86,6 +90,36 @@ export const BridgeAssetSchema = type({
    * URL for token icon
    */
   iconUrl: optional(nullable(string())),
+});
+
+export const BridgeAssetV2Schema = type({
+  /**
+   * The chainId of the token
+   */
+  chainId: CaipChainIdStruct,
+  /**
+   * The assetId of the token
+   */
+  assetId: CaipAssetTypeStruct,
+  /**
+   * The symbol of token object
+   */
+  symbol: string(),
+  /**
+   * The name for the network
+   */
+  name: string(),
+  decimals: number(),
+  /**
+   * URL for token icon
+   */
+  image: optional(nullable(string())),
+  noFee: optional(
+    type({
+      isDestination: optional(boolean()),
+      isSource: optional(boolean()),
+    }),
+  ),
 });
 
 const DefaultPairSchema = type({
@@ -171,6 +205,12 @@ export const validateSwapsTokenObject = (
   data: unknown,
 ): data is Infer<typeof BridgeAssetSchema> => {
   return is(data, BridgeAssetSchema);
+};
+
+export const validateSwapsAssetV2Object = (
+  data: unknown,
+): data is Infer<typeof BridgeAssetV2Schema> => {
+  return is(data, BridgeAssetV2Schema);
 };
 
 export const FeeDataSchema = type({
