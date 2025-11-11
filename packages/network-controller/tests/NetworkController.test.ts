@@ -3602,6 +3602,84 @@ describe('NetworkController', () => {
           },
         );
       });
+
+      it('determines EIP-1559 compatibility if metadata exists but EIPS[1559] is undefined', async () => {
+        await withController(
+          {
+            state: {
+              networksMetadata: {
+                'linea-mainnet': {
+                  EIPS: {},
+                  status: NetworkStatus.Available,
+                },
+              },
+            },
+            infuraProjectId: 'some-infura-project-id',
+          },
+          async ({ controller }) => {
+            const fakeProvider = buildFakeProvider([
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: POST_1559_BLOCK,
+                },
+              },
+            ]);
+            const fakeNetworkClient = buildFakeClient(fakeProvider);
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            const isEIP1559Compatible =
+              await controller.getEIP1559Compatibility('linea-mainnet');
+
+            expect(isEIP1559Compatible).toBe(true);
+            expect(
+              controller.state.networksMetadata['linea-mainnet'].EIPS[1559],
+            ).toBe(true);
+          },
+        );
+      });
+
+      it('returns false if network does not support EIP-1559 when EIPS[1559] is undefined', async () => {
+        await withController(
+          {
+            state: {
+              networksMetadata: {
+                'linea-mainnet': {
+                  EIPS: {},
+                  status: NetworkStatus.Available,
+                },
+              },
+            },
+            infuraProjectId: 'some-infura-project-id',
+          },
+          async ({ controller }) => {
+            const fakeProvider = buildFakeProvider([
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: PRE_1559_BLOCK,
+                },
+              },
+            ]);
+            const fakeNetworkClient = buildFakeClient(fakeProvider);
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            const isEIP1559Compatible =
+              await controller.getEIP1559Compatibility('linea-mainnet');
+
+            expect(isEIP1559Compatible).toBe(false);
+            expect(
+              controller.state.networksMetadata['linea-mainnet'].EIPS[1559],
+            ).toBe(false);
+          },
+        );
+      });
     });
 
     describe('if a provider has been set but networksMetadata[selectedNetworkClientId].EIPS in state already has a "1559" property', () => {
