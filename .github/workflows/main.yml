@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  merge_group:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
@@ -65,7 +66,7 @@ jobs:
   is-release:
     name: Determine whether this is a release merge commit
     needs: lint-build-test
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     outputs:
       IS_RELEASE: ${{ steps.is-release.outputs.IS_RELEASE }}
@@ -75,10 +76,16 @@ jobs:
         with:
           commit-starts-with: 'Release [version],Release v[version],Release/[version],Release/v[version],Release `[version]`'
 
+  check-release:
+    name: Check release
+    needs: is-release
+    if: needs.is-release.outputs.IS_RELEASE == 'true' && github.event_name == 'merge_group'
+    uses: ./.github/workflows/check-release.yml
+
   publish-release:
     name: Publish release
     needs: is-release
-    if: needs.is-release.outputs.IS_RELEASE == 'true'
+    if: needs.is-release.outputs.IS_RELEASE == 'true' && github.event_name == 'push'
     permissions:
       contents: write
     uses: ./.github/workflows/publish-release.yml
