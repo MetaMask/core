@@ -166,6 +166,15 @@ function setup({
     mockGetAccount,
   );
 
+  const mockGetAccountByAddress = jest.fn().mockImplementation((address) => {
+    return keyring.accounts.find((account) => account.address === address);
+  });
+
+  messenger.registerActionHandler(
+    'AccountsController:getAccountByAddress',
+    mockGetAccountByAddress,
+  );
+
   const mockProviderRequest = jest.fn().mockImplementation(({ method }) => {
     if (method === 'eth_getTransactionCount') {
       return discovery?.transactionCount ?? '0x2';

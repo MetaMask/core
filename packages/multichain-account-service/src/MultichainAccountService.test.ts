@@ -68,6 +68,9 @@ type Mocks = {
   AccountsController: {
     listMultichainAccounts: jest.Mock;
   };
+  ErrorReportingService: {
+    captureException: jest.Mock;
+  };
   EvmAccountProvider: MockAccountProvider;
   SolAccountProvider: MockAccountProvider;
 };
@@ -132,6 +135,9 @@ async function setup({
     AccountsController: {
       listMultichainAccounts: jest.fn(),
     },
+    ErrorReportingService: {
+      captureException: jest.fn(),
+    },
     EvmAccountProvider: makeMockAccountProvider(),
     SolAccountProvider: makeMockAccountProvider(),
   };
@@ -167,6 +173,11 @@ async function setup({
   rootMessenger.registerActionHandler(
     'KeyringController:createNewVaultAndRestore',
     mocks.KeyringController.createNewVaultAndRestore,
+  );
+
+  rootMessenger.registerActionHandler(
+    'ErrorReportingService:captureException',
+    mocks.ErrorReportingService.captureException,
   );
 
   if (accounts) {
@@ -799,22 +810,15 @@ describe('MultichainAccountService', () => {
       const providerError = new Error('Unable to resync accounts');
       mocks.SolAccountProvider.resyncAccounts.mockRejectedValue(providerError);
 
-      const mockCaptureException = jest.fn();
-      rootMessenger.registerActionHandler(
-        'ErrorReportingService:captureException',
-        mockCaptureException,
-      );
-
       await service.resyncAccounts(); // Should not throw.
 
       expect(mocks.EvmAccountProvider.resyncAccounts).toHaveBeenCalled();
       expect(mocks.SolAccountProvider.resyncAccounts).toHaveBeenCalled();
 
-      expect(mockCaptureException).toHaveBeenCalled();
-      expect(mockCaptureException.mock.lastCall[0]).toHaveProperty(
-        'cause',
-        providerError,
-      );
+      expect(mocks.ErrorReportingService.captureException).toHaveBeenCalled();
+      expect(
+        mocks.ErrorReportingService.captureException.mock.lastCall[0],
+      ).toHaveProperty('cause', providerError);
     });
   });
 
