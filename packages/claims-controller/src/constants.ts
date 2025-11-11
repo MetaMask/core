@@ -1,3 +1,5 @@
+import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
+
 export const CONTROLLER_NAME = 'ClaimsController';
 
 export const SERVICE_NAME = 'ClaimsService';
@@ -25,16 +27,11 @@ export enum ClaimStatusEnum {
   UNKNOWN = 'unknown',
 }
 
-export const CLAIMS_API_URL: Record<Env, string> = {
+export const CLAIMS_API_URL_MAP: Record<Env, string> = {
   [Env.DEV]: 'https://claims.dev-api.cx.metamask.io',
   [Env.UAT]: 'https://claims.uat-api.cx.metamask.io',
   [Env.PRD]: 'https://claims.api.cx.metamask.io',
 };
-
-export enum HttpContentTypeHeader {
-  APPLICATION_JSON = 'application/json',
-  MULTIPART_FORM_DATA = 'multipart/form-data',
-}
 
 export const ClaimsControllerErrorMessages = {
   CLAIM_ALREADY_SUBMITTED: 'Claim already submitted',
@@ -43,10 +40,22 @@ export const ClaimsControllerErrorMessages = {
 };
 
 export const ClaimsServiceErrorMessages = {
+  FAILED_TO_FETCH_CONFIGURATIONS: 'Failed to fetch claims configurations',
   FAILED_TO_GET_CLAIMS: 'Failed to get claims',
   FAILED_TO_GET_CLAIM_BY_ID: 'Failed to get claim by id',
   SIGNATURE_MESSAGE_GENERATION_FAILED:
     'Failed to generate message for claim signature',
   CLAIM_SIGNATURE_VERIFICATION_REQUEST_FAILED:
     'Failed to verify claim signature',
+};
+
+/**
+ * Default claims configurations.
+ */
+export const DEFAULT_CLAIMS_CONFIGURATIONS = {
+  validSubmissionWindowDays: 21,
+  supportedNetworks: [
+    ChainId[BuiltInNetworkName.Mainnet],
+    ChainId[BuiltInNetworkName.LineaMainnet],
+  ],
 };

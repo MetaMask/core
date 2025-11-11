@@ -8,6 +8,29 @@ export type Attachment = {
   originalname: string;
 };
 
+export type ClaimsConfigurations = {
+  /**
+   * The number of days the claim is valid for submission.
+   */
+  validSubmissionWindowDays: number;
+
+  /**
+   * List of supported chain IDs in hexadecimal format.
+   */
+  supportedNetworks: `0x${string}`[];
+};
+
+export type ClaimsConfigurationsResponse = Omit<
+  ClaimsConfigurations,
+  'supportedNetworks'
+> & {
+  /**
+   * List of supported chain IDs.
+   * Claims API response for `supportedNetworks` field (in decimal format).
+   */
+  networks: number[];
+};
+
 export type Claim = {
   id: string;
   shortId: string;
@@ -31,7 +54,16 @@ export type CreateClaimRequest = Omit<
 >;
 
 export type ClaimsControllerState = {
+  /**
+   * List of claims.
+   */
   claims: Claim[];
+
+  /**
+   * The claims configurations.
+   * This is used to store the claims configurations fetched from the backend.
+   */
+  claimsConfigurations: ClaimsConfigurations;
 };
 
 export type SubmitClaimConfig = {
@@ -56,9 +88,4 @@ export type SubmitClaimConfig = {
 export type GenerateSignatureMessageResponse = {
   message: string;
   nonce: string;
-};
-
-export type VerifyClaimSignatureResponse = {
-  message: string;
-  success: boolean;
 };
