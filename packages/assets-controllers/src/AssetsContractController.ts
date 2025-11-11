@@ -16,14 +16,17 @@ import type {
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { getKnownPropertyNames, type Hex } from '@metamask/utils';
 import type BN from 'bn.js';
-import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
 import {
   SupportedStakedBalanceNetworks,
   SupportedTokenDetectionNetworks,
 } from './assetsUtil';
 import type { Call } from './multicall';
-import { multicallOrFallback } from './multicall';
+import {
+  multicallOrFallback,
+  getTokenBalancesForMultipleAddresses,
+  MULTICALL_CONTRACT_BY_CHAINID,
+} from './multicall';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
@@ -673,33 +676,41 @@ export class AssetsContractController {
   ) {
     const chainId = this.#getCorrectChainId(networkClientId);
     const provider = this.#getCorrectProvider(networkClientId);
+
+    // Check if Multicall3 is supported on this chain
+    // Only fetch balance if contract address exists
     if (
-      !((id): id is keyof typeof SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID =>
-        id in SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID)(chainId)
+      !MULTICALL_CONTRACT_BY_CHAINID[
+        chainId as keyof typeof MULTICALL_CONTRACT_BY_CHAINID
+      ]
     ) {
-      // Only fetch balance if contract address exists
       return {};
     }
-    const contractAddress = SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID[chainId];
 
-    const contract = new Contract(
-      contractAddress,
-      abiSingleCallBalancesContract,
+    // Use getTokenBalancesForMultipleAddresses for better chain coverage
+    const { tokenBalances } = await getTokenBalancesForMultipleAddresses(
+      [
+        {
+          accountAddress: selectedAddress as Hex,
+          tokenAddresses: tokensToDetect as Hex[],
+        },
+      ],
+      chainId,
       provider,
+      false, // includeNative
+      false, // includeStaked
     );
-    const result = await contract.balances([selectedAddress], tokensToDetect);
-    const nonZeroBalances: BalanceMap = {};
-    /* istanbul ignore else */
-    if (result.length > 0) {
-      tokensToDetect.forEach((tokenAddress, index) => {
-        const balance: BN = result[index];
-        /* istanbul ignore else */
-        if (String(balance) !== '0') {
-          nonZeroBalances[tokenAddress] = balance;
-        }
-      });
-    }
-    return nonZeroBalances;
+
+    // Extract balances for the selected address
+    // tokenBalances structure is: tokenAddress -> userAddress -> BN
+    // We need to flip it to: tokenAddress -> BN
+    const result: BalanceMap = {};
+    Object.entries(tokenBalances).forEach(([tokenAddress, userBalances]) => {
+      if (userBalances[selectedAddress]) {
+        result[tokenAddress] = userBalances[selectedAddress];
+      }
+    });
+    return result;
   }
 
   /**

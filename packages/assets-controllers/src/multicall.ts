@@ -7,7 +7,7 @@ import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController'
 import { reduceInBatchesSerially } from './assetsUtil';
 
 // https://github.com/mds1/multicall/blob/main/deployments.json
-const MULTICALL_CONTRACT_BY_CHAINID = {
+export const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x1': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x2a': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x4': '0xcA11bde05977b3631167028862bE2a173976CA11',
