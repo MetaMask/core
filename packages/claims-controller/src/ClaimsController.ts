@@ -71,13 +71,7 @@ const ClaimsControllerStateMetadata: StateMetadata<ClaimsControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
-  validSubmissionWindowDays: {
-    includeInStateLogs: true,
-    persist: true,
-    includeInDebugSnapshot: true,
-    usedInUi: true,
-  },
-  supportedNetworks: {
+  claimsConfigurations: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
@@ -92,7 +86,7 @@ const ClaimsControllerStateMetadata: StateMetadata<ClaimsControllerState> = {
  */
 export function getDefaultClaimsControllerState(): ClaimsControllerState {
   return {
-    ...DEFAULT_CLAIMS_CONFIGURATIONS,
+    claimsConfigurations: DEFAULT_CLAIMS_CONFIGURATIONS,
     claims: [],
   };
 }
@@ -124,16 +118,15 @@ export class ClaimsController extends BaseController<
     const supportedNetworks = configurations.networks.map((network) =>
       toHex(network),
     );
-
-    this.update((state) => {
-      state.validSubmissionWindowDays =
-        configurations.validSubmissionWindowDays;
-      state.supportedNetworks = supportedNetworks;
-    });
-    return {
+    const claimsConfigurations = {
       validSubmissionWindowDays: configurations.validSubmissionWindowDays,
       supportedNetworks,
     };
+
+    this.update((state) => {
+      state.claimsConfigurations = claimsConfigurations;
+    });
+    return claimsConfigurations;
   }
 
   /**

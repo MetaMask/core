@@ -53,11 +53,17 @@ export type CreateClaimRequest = Omit<
   'id' | 'shortId' | 'createdAt' | 'updatedAt' | 'intercomId' | 'status'
 >;
 
-export type ClaimsControllerState = ClaimsConfigurations & {
+export type ClaimsControllerState = {
   /**
    * List of claims.
    */
   claims: Claim[];
+
+  /**
+   * The claims configurations.
+   * This is used to store the claims configurations fetched from the backend.
+   */
+  claimsConfigurations: ClaimsConfigurations;
 };
 
 export type SubmitClaimConfig = {

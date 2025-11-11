@@ -86,12 +86,12 @@ describe('ClaimsController', () => {
 
         expect(configurations).toStrictEqual(expectedConfigurations);
         expect(controller.state).not.toBe(initialState);
-        expect(controller.state.validSubmissionWindowDays).toBe(
-          MOCK_CONFIGURATIONS_RESPONSE.validSubmissionWindowDays,
-        );
-        expect(controller.state.supportedNetworks).toStrictEqual(
-          expectedConfigurations.supportedNetworks,
-        );
+        expect(
+          controller.state.claimsConfigurations.validSubmissionWindowDays,
+        ).toBe(MOCK_CONFIGURATIONS_RESPONSE.validSubmissionWindowDays);
+        expect(
+          controller.state.claimsConfigurations.supportedNetworks,
+        ).toStrictEqual(expectedConfigurations.supportedNetworks);
       });
     });
   });
