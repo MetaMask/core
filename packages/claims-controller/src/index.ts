@@ -10,11 +10,19 @@ export type {
   ClaimsControllerMessenger,
 } from './ClaimsController';
 
-export type { Claim, ClaimsControllerState, Attachment } from './types';
+export type {
+  Claim,
+  ClaimsControllerState,
+  Attachment,
+  ClaimsConfigurations,
+  CreateClaimRequest,
+  SubmitClaimConfig,
+} from './types';
 
 export { ClaimsService } from './ClaimsService';
 
 export type {
+  ClaimsServiceFetchClaimsConfigurationsAction,
   ClaimsServiceGetClaimsAction,
   ClaimsServiceGetRequestHeadersAction,
   ClaimsServiceGetClaimsApiUrlAction,
@@ -28,4 +36,7 @@ export {
   ClaimStatusEnum,
   Env,
   ClaimsControllerErrorMessages,
+  DEFAULT_CLAIMS_CONFIGURATIONS,
+  ClaimsServiceErrorMessages,
+  CLAIMS_API_URL_MAP,
 } from './constants';

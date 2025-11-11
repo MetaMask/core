@@ -53,6 +53,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
       last4: '1234',
     },
   },
+  isEligibleForSupport: true,
 };
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token-12345';

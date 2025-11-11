@@ -80,6 +80,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
       last4: '1234',
     },
   },
+  isEligibleForSupport: true,
 };
 
 const MOCK_PRODUCT_PRICE: ProductPricing = {
@@ -560,6 +561,30 @@ describe('SubscriptionController', () => {
           expect(controller.state.trialedProducts).toStrictEqual([
             PRODUCT_TYPES.SHIELD,
           ]);
+        },
+      );
+    });
+
+    it('should update state when lastSubscription changes from undefined to defined', async () => {
+      await withController(
+        {
+          state: {
+            lastSubscription: undefined,
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [],
+            lastSubscription: MOCK_SUBSCRIPTION,
+          });
+
+          await controller.getSubscriptions();
+
+          expect(controller.state.lastSubscription).toStrictEqual(
+            MOCK_SUBSCRIPTION,
+          );
         },
       );
     });
@@ -1269,7 +1294,6 @@ describe('SubscriptionController', () => {
           ),
         ).toMatchInlineSnapshot(`
         Object {
-          "subscriptions": Array [],
           "trialedProducts": Array [],
         }
       `);

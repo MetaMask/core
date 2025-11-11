@@ -583,8 +583,6 @@ describe('NftController', () => {
         'mainnet',
       );
       await expect(erc721Result).rejects.toThrow(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Suggested NFT of type ${ERC721} does not match received type ${ERC1155}`,
       );
     });
@@ -2485,12 +2483,8 @@ describe('NftController', () => {
         .reply(200, {
           name: 'name (directly from tokenURI)',
           description: 'description (directly from tokenURI)',
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           external_link: null,
           image: 'image (directly from tokenURI)',
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           animation_url: null,
         });
 
