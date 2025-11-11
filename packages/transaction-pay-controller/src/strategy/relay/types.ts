@@ -37,7 +37,6 @@ export type RelayQuote = {
     }[];
     kind: 'transaction';
   }[];
-  skipTransaction?: boolean;
 };
 
 export type RelayStatus = {
