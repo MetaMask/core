@@ -79,6 +79,12 @@ export type Subscription = {
   trialEnd?: string; // ISO 8601
   /** Crypto payment only: next billing cycle date (e.g after 12 months) */
   endDate?: string; // ISO 8601
+  /** The date the subscription was canceled. */
+  canceledAt?: string; // ISO 8601
+  /** The date the subscription was marked as inactive (paused/past_due/canceled). */
+  inactiveAt?: string; // ISO 8601
+  /** Whether the user is eligible for support features (priority support and filing claims). True for active subscriptions and inactive subscriptions within grace period. */
+  isEligibleForSupport: boolean;
   billingCycles?: number;
 };
 
@@ -110,6 +116,8 @@ export type GetSubscriptionsResponse = {
   customerId?: string;
   subscriptions: Subscription[];
   trialedProducts: ProductType[];
+  /** The last subscription that user has subscribed to if any. */
+  lastSubscription?: Subscription;
 };
 
 export type StartSubscriptionRequest = {
