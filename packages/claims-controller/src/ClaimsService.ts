@@ -3,12 +3,21 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import type { Hex } from '@metamask/utils';
 
 import {
-  CLAIMS_API_URL,
+  CLAIMS_API_URL_MAP,
   ClaimsServiceErrorMessages,
   type Env,
   SERVICE_NAME,
 } from './constants';
-import type { Claim, GenerateSignatureMessageResponse } from './types';
+import type {
+  Claim,
+  ClaimsConfigurationsResponse,
+  GenerateSignatureMessageResponse,
+} from './types';
+
+export type ClaimsServiceFetchClaimsConfigurationsAction = {
+  type: `${typeof SERVICE_NAME}:fetchClaimsConfigurations`;
+  handler: ClaimsService['fetchClaimsConfigurations'];
+};
 
 export type ClaimsServiceGetClaimsAction = {
   type: `${typeof SERVICE_NAME}:getClaims`;
@@ -36,6 +45,7 @@ export type ClaimsServiceGenerateMessageForClaimSignatureAction = {
 };
 
 export type ClaimsServiceActions =
+  | ClaimsServiceFetchClaimsConfigurationsAction
   | ClaimsServiceGetClaimsAction
   | ClaimsServiceGetClaimByIdAction
   | ClaimsServiceGetRequestHeadersAction
@@ -73,6 +83,10 @@ export class ClaimsService {
     this.#fetch = fetchFunction;
 
     this.#messenger.registerActionHandler(
+      `${SERVICE_NAME}:fetchClaimsConfigurations`,
+      this.fetchClaimsConfigurations.bind(this),
+    );
+    this.#messenger.registerActionHandler(
       `${SERVICE_NAME}:getClaims`,
       this.getClaims.bind(this),
     );
@@ -92,6 +106,28 @@ export class ClaimsService {
       `${SERVICE_NAME}:generateMessageForClaimSignature`,
       this.generateMessageForClaimSignature.bind(this),
     );
+  }
+
+  /**
+   * Fetch required configurations for the claims service.
+   *
+   * @returns The required configurations for the claims service.
+   */
+  async fetchClaimsConfigurations(): Promise<ClaimsConfigurationsResponse> {
+    const headers = await this.getRequestHeaders();
+    const url = `${this.getClaimsApiUrl()}/configurations`;
+    const response = await this.#fetch(url, {
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        ClaimsServiceErrorMessages.FAILED_TO_FETCH_CONFIGURATIONS,
+      );
+    }
+
+    const configurations = await response.json();
+    return configurations;
   }
 
   /**
@@ -187,6 +223,6 @@ export class ClaimsService {
    * @returns The URL for the claims API for the current environment.
    */
   getClaimsApiUrl(): string {
-    return `${CLAIMS_API_URL[this.#env]}`;
+    return `${CLAIMS_API_URL_MAP[this.#env]}`;
   }
 }

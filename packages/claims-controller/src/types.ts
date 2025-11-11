@@ -8,6 +8,29 @@ export type Attachment = {
   originalname: string;
 };
 
+export type ClaimsConfigurations = {
+  /**
+   * The number of days the claim is valid for submission.
+   */
+  validSubmissionWindowDays: number;
+
+  /**
+   * List of supported chain IDs in hexadecimal format.
+   */
+  supportedNetworks: `0x${string}`[];
+};
+
+export type ClaimsConfigurationsResponse = Omit<
+  ClaimsConfigurations,
+  'supportedNetworks'
+> & {
+  /**
+   * List of supported chain IDs.
+   * Claims API response for `supportedNetworks` field (in decimal format).
+   */
+  networks: number[];
+};
+
 export type Claim = {
   id: string;
   shortId: string;
@@ -30,7 +53,10 @@ export type CreateClaimRequest = Omit<
   'id' | 'shortId' | 'createdAt' | 'updatedAt' | 'intercomId' | 'status'
 >;
 
-export type ClaimsControllerState = {
+export type ClaimsControllerState = ClaimsConfigurations & {
+  /**
+   * List of claims.
+   */
   claims: Claim[];
 };
 

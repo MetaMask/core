@@ -1,11 +1,15 @@
 import { ClaimsService } from './ClaimsService';
 import {
-  CLAIMS_API_URL,
+  CLAIMS_API_URL_MAP,
   ClaimsServiceErrorMessages,
   ClaimStatusEnum,
   Env,
 } from './constants';
-import type { Claim, GenerateSignatureMessageResponse } from './types';
+import type {
+  Claim,
+  ClaimsConfigurationsResponse,
+  GenerateSignatureMessageResponse,
+} from './types';
 import { createMockClaimsServiceMessenger } from '../tests/mocks/messenger';
 
 const mockAuthenticationControllerGetBearerToken = jest.fn();
@@ -75,6 +79,60 @@ describe('ClaimsService', () => {
     });
   });
 
+  describe('fetchClaimsConfigurations', () => {
+    const MOCK_CONFIGURATIONS: ClaimsConfigurationsResponse = {
+      validSubmissionWindowDays: 21,
+      networks: [1, 5, 11155111],
+    };
+
+    beforeEach(() => {
+      jest.resetAllMocks();
+
+      mockAuthenticationControllerGetBearerToken.mockResolvedValueOnce(
+        'test-token',
+      );
+      mockFetchFunction.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValueOnce(MOCK_CONFIGURATIONS),
+      });
+    });
+
+    it('should fetch claims configurations successfully', async () => {
+      const service = createMockClaimsService();
+
+      const configurations = await service.fetchClaimsConfigurations();
+
+      expect(mockAuthenticationControllerGetBearerToken).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(mockFetchFunction).toHaveBeenCalledTimes(1);
+      expect(mockFetchFunction).toHaveBeenCalledWith(
+        `${CLAIMS_API_URL_MAP[Env.DEV]}/configurations`,
+        {
+          headers: {
+            Authorization: 'Bearer test-token',
+          },
+        },
+      );
+      expect(configurations).toStrictEqual(MOCK_CONFIGURATIONS);
+    });
+
+    it('should throw error if fetch fails', async () => {
+      mockFetchFunction.mockRestore();
+
+      mockFetchFunction.mockResolvedValueOnce({
+        ok: false,
+        json: jest.fn().mockResolvedValueOnce(null),
+      });
+
+      const service = createMockClaimsService();
+
+      await expect(service.fetchClaimsConfigurations()).rejects.toThrow(
+        ClaimsServiceErrorMessages.FAILED_TO_FETCH_CONFIGURATIONS,
+      );
+    });
+  });
+
   describe('getClaims', () => {
     beforeEach(() => {
       jest.resetAllMocks();
@@ -98,7 +156,7 @@ describe('ClaimsService', () => {
       );
       expect(mockFetchFunction).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledWith(
-        `${CLAIMS_API_URL[Env.DEV]}/claims`,
+        `${CLAIMS_API_URL_MAP[Env.DEV]}/claims`,
         {
           headers: {
             Authorization: 'Bearer test-token',
@@ -148,7 +206,7 @@ describe('ClaimsService', () => {
       );
       expect(mockFetchFunction).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledWith(
-        `${CLAIMS_API_URL[Env.DEV]}/claims/byId/1`,
+        `${CLAIMS_API_URL_MAP[Env.DEV]}/claims/byId/1`,
         {
           headers: {
             Authorization: 'Bearer test-token',
@@ -209,7 +267,7 @@ describe('ClaimsService', () => {
       );
       expect(mockFetchFunction).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledWith(
-        `${CLAIMS_API_URL[Env.DEV]}/signature/generateMessage`,
+        `${CLAIMS_API_URL_MAP[Env.DEV]}/signature/generateMessage`,
         {
           headers: {
             Authorization: 'Bearer test-token',

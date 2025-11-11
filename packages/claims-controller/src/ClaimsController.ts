@@ -4,12 +4,13 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { detectSIWE } from '@metamask/controller-utils';
+import { detectSIWE, toHex } from '@metamask/controller-utils';
 import type { KeyringControllerSignPersonalMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import { bytesToHex, stringToBytes } from '@metamask/utils';
 
 import type {
+  ClaimsServiceFetchClaimsConfigurationsAction,
   ClaimsServiceGenerateMessageForClaimSignatureAction,
   ClaimsServiceGetClaimByIdAction,
   ClaimsServiceGetClaimsAction,
@@ -19,10 +20,12 @@ import type {
 import {
   ClaimsControllerErrorMessages,
   CONTROLLER_NAME,
+  DEFAULT_CLAIMS_CONFIGURATIONS,
   SERVICE_NAME,
 } from './constants';
 import type {
   Claim,
+  ClaimsConfigurations,
   ClaimsControllerState,
   CreateClaimRequest,
   SubmitClaimConfig,
@@ -36,6 +39,7 @@ export type ClaimsControllerGetStateAction = ControllerGetStateAction<
 export type ClaimsControllerActions = ClaimsControllerGetStateAction;
 
 export type AllowedActions =
+  | ClaimsServiceFetchClaimsConfigurationsAction
   | ClaimsServiceGetClaimsAction
   | ClaimsServiceGetClaimByIdAction
   | ClaimsServiceGetRequestHeadersAction
@@ -67,6 +71,18 @@ const ClaimsControllerStateMetadata: StateMetadata<ClaimsControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  validSubmissionWindowDays: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  supportedNetworks: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
 };
 
 /**
@@ -76,6 +92,7 @@ const ClaimsControllerStateMetadata: StateMetadata<ClaimsControllerState> = {
  */
 export function getDefaultClaimsControllerState(): ClaimsControllerState {
   return {
+    ...DEFAULT_CLAIMS_CONFIGURATIONS,
     claims: [],
   };
 }
@@ -92,6 +109,31 @@ export class ClaimsController extends BaseController<
       name: CONTROLLER_NAME,
       state: { ...getDefaultClaimsControllerState(), ...state },
     });
+  }
+
+  /**
+   * Fetch the required configurations for the claims service.
+   *
+   * @returns The required configurations for the claims service.
+   */
+  async fetchClaimsConfigurations(): Promise<ClaimsConfigurations> {
+    const configurations = await this.messenger.call(
+      `${SERVICE_NAME}:fetchClaimsConfigurations`,
+    );
+
+    const supportedNetworks = configurations.networks.map((network) =>
+      toHex(network),
+    );
+
+    this.update((state) => {
+      state.validSubmissionWindowDays =
+        configurations.validSubmissionWindowDays;
+      state.supportedNetworks = supportedNetworks;
+    });
+    return {
+      validSubmissionWindowDays: configurations.validSubmissionWindowDays,
+      supportedNetworks,
+    };
   }
 
   /**

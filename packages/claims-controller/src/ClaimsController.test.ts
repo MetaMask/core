@@ -1,6 +1,12 @@
+import { toHex } from '@metamask/controller-utils';
+
 import { ClaimsController } from './ClaimsController';
 import { ClaimsControllerErrorMessages, ClaimStatusEnum } from './constants';
-import type { Claim, CreateClaimRequest } from './types';
+import type {
+  Claim,
+  ClaimsConfigurationsResponse,
+  CreateClaimRequest,
+} from './types';
 import { createMockClaimsControllerMessenger } from '../tests/mocks/messenger';
 import type { WithControllerArgs } from '../tests/types';
 
@@ -9,6 +15,7 @@ const mockClaimServiceGetClaimsApiUrl = jest.fn();
 const mockClaimServiceGenerateMessageForClaimSignature = jest.fn();
 const mockKeyringControllerSignPersonalMessage = jest.fn();
 const mockClaimsServiceGetClaims = jest.fn();
+const mockClaimsServiceFetchClaimsConfigurations = jest.fn();
 
 /**
  * Builds a controller based on the given options and calls the given function with that controller.
@@ -26,6 +33,7 @@ async function withController<ReturnValue>(
     mockClaimServiceGenerateMessageForClaimSignature,
     mockKeyringControllerSignPersonalMessage,
     mockClaimsServiceGetClaims,
+    mockClaimsServiceFetchClaimsConfigurations,
   });
 
   const controller = new ClaimsController({
@@ -45,6 +53,46 @@ describe('ClaimsController', () => {
   describe('constructor', () => {
     it('should be defined', () => {
       expect(ClaimsController).toBeDefined();
+    });
+  });
+
+  describe('fetchClaimsConfigurations', () => {
+    const MOCK_CONFIGURATIONS_RESPONSE: ClaimsConfigurationsResponse = {
+      validSubmissionWindowDays: 21,
+      networks: [1, 5, 11155111],
+    };
+
+    beforeEach(() => {
+      jest.resetAllMocks();
+
+      mockClaimsServiceFetchClaimsConfigurations.mockResolvedValueOnce(
+        MOCK_CONFIGURATIONS_RESPONSE,
+      );
+    });
+
+    it('should fetch claims configurations successfully', async () => {
+      await withController(async ({ controller }) => {
+        const initialState = controller.state;
+        const configurations = await controller.fetchClaimsConfigurations();
+        expect(configurations).toBeDefined();
+
+        const expectedConfigurations = {
+          validSubmissionWindowDays:
+            MOCK_CONFIGURATIONS_RESPONSE.validSubmissionWindowDays,
+          supportedNetworks: MOCK_CONFIGURATIONS_RESPONSE.networks.map(
+            (network) => toHex(network),
+          ),
+        };
+
+        expect(configurations).toStrictEqual(expectedConfigurations);
+        expect(controller.state).not.toBe(initialState);
+        expect(controller.state.validSubmissionWindowDays).toBe(
+          MOCK_CONFIGURATIONS_RESPONSE.validSubmissionWindowDays,
+        );
+        expect(controller.state.supportedNetworks).toStrictEqual(
+          expectedConfigurations.supportedNetworks,
+        );
+      });
     });
   });
 
