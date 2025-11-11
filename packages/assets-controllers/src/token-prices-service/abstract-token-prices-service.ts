@@ -93,6 +93,29 @@ export type AbstractTokenPricesService<
     currency: Currency;
   }): Promise<Partial<TokenPricesByTokenAddress<TokenAddress, Currency>>>;
 
+  // fetchTokenPricesV3({
+  //   assets,
+  //   currency,
+  // }: {
+  //   assets: (
+  //     | { address: Hex; chainId: Hex }
+  //     | { address: CaipAssetType; chainId: CaipChainId }
+  //   )[];
+  //   currency: SupportedCurrency;
+  // }): (MarketData & {
+  //   assetId: CaipAssetType;
+  //   currency: SupportedCurrency;
+  // } & (
+  //     | {
+  //         address: Hex;
+  //         chainId: Hex;
+  //       }
+  //     | {
+  //         address: CaipAssetType;
+  //         chainId: CaipChainId;
+  //       }
+  //   ))[];
+
   /**
    * Retrieves exchange rates in the given currency.
    *

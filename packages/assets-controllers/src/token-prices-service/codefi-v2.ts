@@ -1,4 +1,5 @@
 import {
+  ChainId,
   createServicePolicy,
   DEFAULT_CIRCUIT_BREAK_DURATION,
   DEFAULT_DEGRADED_THRESHOLD,
@@ -7,8 +8,21 @@ import {
   handleFetch,
 } from '@metamask/controller-utils';
 import type { ServicePolicy } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
-import { hexToNumber } from '@metamask/utils';
+import type {
+  CaipAssetReference,
+  CaipAssetType,
+  CaipChainId,
+  Hex,
+} from '@metamask/utils';
+import {
+  hexToNumber,
+  isCaipAssetId,
+  isCaipAssetType,
+  isHexString,
+  isStrictHexString,
+  KnownCaipNamespace,
+  toCaipChainId,
+} from '@metamask/utils';
 
 import type {
   AbstractTokenPricesService,
@@ -16,6 +30,7 @@ import type {
   TokenPrice,
   TokenPricesByTokenAddress,
 } from './abstract-token-prices-service';
+import { accountAddressToCaipReference } from 'src/assetsUtil';
 
 /**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to
@@ -174,6 +189,50 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
 export const getNativeTokenAddress = (chainId: Hex): Hex =>
   chainIdToNativeTokenAddress[chainId] ?? ZERO_ADDRESS;
 
+// We can only support PricesAPI V3 for EVM chains that have a CAIP-19 native asset mapping.
+export const HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP: Record<
+  Hex,
+  CaipAssetType
+> = {
+  '0x1': 'eip155:1/slip44:60', // Ethereum Mainnet
+  '0xa': 'eip155:10/slip44:60', // OP Mainnet
+  '0x19': 'eip155:25/slip44:394', // Cronos Mainnet
+  '0x38': 'eip155:56/slip44:714', // BNB Smart Chain Mainnet
+  '0x39': 'eip155:57/slip44:57', // Syscoin Mainnet
+  //   '0x42': 'eip155:1/slip44:60', // OKXChain Mainnet
+  //   '0x46': 'eip155:1/slip44:60', // Hoo Smart Chain
+  //   '0x52': 'eip155:1/slip44:60', // Meter Mainnet
+  //   '0x58': 'eip155:1/slip44:60', // TomoChain
+  //   '0x64': 'eip155:1/slip44:60', // Gnosis
+  //   '0x6a': 'eip155:1/slip44:60', // Velas EVM Mainnet
+  //   '0x7a': 'eip155:1/slip44:60', // Fuse Mainnet
+  //   '0x80': 'eip155:1/slip44:60', // Huobi ECO Chain Mainnet
+  '0x89': 'eip155:137/slip44:966', // Polygon Mainnet
+  '0x8f': 'eip155:143/slip44:268435779', // Monad Mainnet
+  //   '0x92': 'eip155:1/slip44:60', // Sonic Mainnet
+  //   '0xfa': 'eip155:1/slip44:60', // Fantom Opera
+  //   '0x120': 'eip155:1/slip44:60', // Boba Network
+  //   '0x141': 'eip155:1/slip44:60', // KCC Mainnet
+  //   '0x144': 'eip155:1/slip44:60', // zkSync Era Mainnet
+  //   '0x150': 'eip155:1/slip44:60', // Shiden
+  //   '0x169': 'eip155:1/slip44:60', // Theta Mainnet
+  //   '0x440': 'eip155:1/slip44:60', // Metis Andromeda Mainnet
+  //   '0x504': 'eip155:1/slip44:60', // Moonbeam
+  //   '0x505': 'eip155:1/slip44:60', // Moonriver
+  '0x531': 'eip155:1329/slip44:19000118', // Sei Mainnet
+  //   '0x1388': 'eip155:1/slip44:60', // Mantle
+  '0x2105': 'eip155:8453/slip44:60', // Base
+  //   '0x2710': 'eip155:1/slip44:60', // Smart Bitcoin Cash
+  '0xa4b1': 'eip155:42161/slip44:60', // Arbitrum One
+  //   '0xa4ec': 'eip155:1/slip44:60', // Celo Mainnet
+  //   '0xa516': 'eip155:1/slip44:60', // Oasis Emerald
+  '0xa86a': 'eip155:43114/slip44:9000', // Avalanche C-Chain
+  '0xe708': 'eip155:59144/slip44:60', // Linea Mainnet
+  //   '0x518af': 'eip155:1/slip44:60', // Polis Mainnet
+  //   '0x4e454152': 'eip155:1/slip44:60', // Aurora Mainnet
+  //   '0x63564c40': 'eip155:1/slip44:60', // Harmony Mainnet Shard 0
+};
+
 /**
  * A currency that can be supplied as the `vsCurrency` parameter to
  * the `/spot-prices` endpoint. Covers both uppercase and lowercase versions.
@@ -273,12 +332,24 @@ export const SUPPORTED_CHAIN_IDS = [
  */
 type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
 
+const SLIP44_CHAIN_MAP: Record<string, CaipAssetReference> = {
+  ETH: 'slip44:60',
+  POL: 'slip44:966',
+  BNB: 'slip44:714',
+  AVAX: 'slip44:9000',
+  TESTETH: 'slip44:60',
+  SEI: 'slip44:19000118',
+  MON: 'slip44:268435779',
+};
+
 /**
  * All requests to V2 of the Price API start with this.
  */
 const BASE_URL = 'https://price.api.cx.metamask.io/v2';
 
 const BASE_URL_V1 = 'https://price.api.cx.metamask.io/v1';
+
+const BASE_URL_V3 = 'https://price.api.cx.metamask.io/v3';
 
 /**
  * The shape of the data that the /spot-prices endpoint returns.
@@ -532,6 +603,85 @@ export class CodefiTokenPricesServiceV2
       },
       {},
     ) as Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>;
+  }
+
+  async fetchTokenPricesV3({
+    assets,
+    currency,
+  }: {
+    assets: (
+      | { address: Hex; chainId: Hex }
+      | { address: CaipAssetType; chainId: CaipChainId }
+    )[];
+    currency: SupportedCurrency;
+  }) {
+    const assetsWithIds: ({ assetId: CaipAssetType } & (
+      | { address: Hex; chainId: Hex }
+      | { address: CaipAssetType; chainId: CaipChainId }
+    ))[] = assets.map((asset) => {
+      if (isStrictHexString(asset.address)) {
+        const caipChainId = toCaipChainId(
+          KnownCaipNamespace.Eip155,
+          hexToNumber(asset.chainId).toString(),
+        );
+
+        const nativeAsset =
+          HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP[asset.chainId as Hex];
+
+        return {
+          assetId: nativeAsset ?? `${caipChainId}/erc20:${asset.address}`,
+          address: asset.address,
+          chainId: asset.chainId as Hex,
+        };
+      }
+
+      return {
+        assetId: asset.address,
+        address: asset.address,
+        chainId: asset.chainId as CaipChainId,
+      };
+    });
+
+    const url = new URL(`${BASE_URL_V3}/spot-prices`);
+    url.searchParams.append(
+      'assetIds',
+      assetsWithIds.map((asset) => asset.assetId).join(','),
+    );
+    url.searchParams.append('vsCurrency', currency);
+    url.searchParams.append('includeMarketData', 'true');
+
+    const addressCryptoDataMap: { [assetId: CaipAssetType]: MarketData } =
+      await this.#policy.execute(() =>
+        handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
+      );
+
+    return assetsWithIds
+      .map((assetWithId) => {
+        const marketData = addressCryptoDataMap[assetWithId.assetId];
+
+        if (!marketData) {
+          return undefined;
+        }
+
+        return {
+          ...assetWithId,
+          currency,
+          ...marketData,
+        };
+      })
+      .filter(Boolean) as (MarketData & {
+      assetId: CaipAssetType;
+      currency: SupportedCurrency;
+    } & (
+        | {
+            address: Hex;
+            chainId: Hex;
+          }
+        | {
+            address: CaipAssetType;
+            chainId: CaipChainId;
+          }
+      ))[];
   }
 
   /**
