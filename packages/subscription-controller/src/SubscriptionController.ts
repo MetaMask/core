@@ -18,9 +18,11 @@ import {
   SubscriptionControllerErrorMessage,
 } from './constants';
 import type {
+  AssignCohortRequest,
   BillingPortalResponse,
   GetCryptoApproveTransactionRequest,
   GetCryptoApproveTransactionResponse,
+  GetSubscriptionsEligibilitiesRequest,
   ProductPrice,
   SubscriptionEligibility,
   StartCryptoSubscriptionRequest,
@@ -410,10 +412,15 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   /**
    * Get the subscriptions eligibilities.
    *
+   * @param request - Optional request object containing user balance to check cohort eligibility.
    * @returns The subscriptions eligibilities.
    */
-  async getSubscriptionsEligibilities(): Promise<SubscriptionEligibility[]> {
-    return await this.#subscriptionService.getSubscriptionsEligibilities();
+  async getSubscriptionsEligibilities(
+    request?: GetSubscriptionsEligibilitiesRequest,
+  ): Promise<SubscriptionEligibility[]> {
+    return await this.#subscriptionService.getSubscriptionsEligibilities(
+      request,
+    );
   }
 
   async cancelSubscription(request: { subscriptionId: string }) {
@@ -704,10 +711,20 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * Submit a user event from the UI. (e.g. shield modal viewed)
    *
    * @param request - Request object containing the event to submit.
-   * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed }
+   * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed, cohort: 'post_tx' }
    */
   async submitUserEvent(request: SubmitUserEventRequest) {
     await this.#subscriptionService.submitUserEvent(request);
+  }
+
+  /**
+   * Assign user to a cohort.
+   *
+   * @param request - Request object containing the cohort to assign the user to.
+   * @example { cohort: 'post_tx' }
+   */
+  async assignUserToCohort(request: AssignCohortRequest): Promise<void> {
+    await this.#subscriptionService.assignUserToCohort(request);
   }
 
   async _executePoll(): Promise<void> {

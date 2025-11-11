@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added `lastSubscription` in state returned from `getSubscriptions` method ([#7110](https://github.com/MetaMask/core/pull/7110))
+- Add `assignUserToCohort` method to assign users to cohorts via backend API ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add cohort-related types: `Cohort`, `CohortName`, `BalanceCategory`, `AssignCohortRequest`, `GetSubscriptionsEligibilitiesRequest` ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add cohort-related constants: `COHORT_NAMES`, `BALANCE_CATEGORIES`, `SubscriptionUserEvent` ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add cohort fields to `SubscriptionEligibility` type: `cohorts`, `assignedCohort`, `hasAssignedCohortExpired` ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add `ShieldCohortAssigned` event to `SubscriptionUserEvent` ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add optional `balanceCategory` parameter to `getSubscriptionsEligibilities` for privacy-preserving balance evaluation ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add optional `cohort` field to `SubmitUserEventRequest` for event tracking ([#7099](https://github.com/MetaMask/core/pull/7099))
+
+### Changed
+
+- Refactor `SubscriptionService.makeRequest` to accept query parameters for cleaner URL construction ([#7099](https://github.com/MetaMask/core/pull/7099))
 
 ## [3.3.0]
 
