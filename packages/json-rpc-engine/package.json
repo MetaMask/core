@@ -57,7 +57,7 @@
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies && yarn lint:changelog",
     "lint:changelog": "auto-changelog validate",
     "lint:dependencies": "depcheck",
-    "lint:eslint": "eslint . --cache --ext js,ts",
+    "lint:eslint": "eslint .  --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies && yarn lint:changelog",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "publish:preview": "yarn npm publish --tag preview",
@@ -86,7 +86,7 @@
     "jest-it-up": "^2.0.2",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "engines": {
     "node": "^18.18 || >=20"

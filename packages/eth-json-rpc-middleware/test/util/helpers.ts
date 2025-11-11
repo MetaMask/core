@@ -1,8 +1,5 @@
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
-import {
-  providerFromEngine,
-  type InternalProvider,
-} from '@metamask/eth-json-rpc-provider';
+import { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import {
   JsonRpcEngine,
   type JsonRpcMiddleware,
@@ -96,7 +93,7 @@ export function createFinalMiddlewareWithDefaultResult<
  */
 export function createProviderAndBlockTracker() {
   const engine = new JsonRpcEngine();
-  const provider = providerFromEngine(engine);
+  const provider = new InternalProvider({ engine });
 
   const blockTracker = new PollingBlockTracker({
     provider,

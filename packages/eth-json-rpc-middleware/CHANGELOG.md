@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
   - Wherever a `SafeEventEmitterProvider` was expected, an `InternalProvider` is now expected instead.
+- **BREAKING:** Stop retrying `undefined` results for methods that include a block tag parameter ([#7001](https://github.com/MetaMask/core/pull/7001))
+  - The `retryOnEmpty` middleware will now throw an error if it encounters an `undefined` result when dispatching
+    a request with a later block number than the originally requested block number.
+  - In practice, this should happen rarely if ever.
 - Migrate all uses of `interface` to `type` ([#6885](https://github.com/MetaMask/core/pull/6885))
 
 ## [21.0.0]

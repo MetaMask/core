@@ -231,11 +231,15 @@ export class AccountActivityService {
     );
     this.#messenger.subscribe(
       'AccountsController:selectedAccountChange',
+      // Promise result intentionally not awaited
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (account: InternalAccount) =>
         await this.#handleSelectedAccountChange(account),
     );
     this.#messenger.subscribe(
       'BackendWebSocketService:connectionStateChanged',
+      // Promise result intentionally not awaited
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       (connectionInfo: WebSocketConnectionInfo) =>
         this.#handleWebSocketStateChange(connectionInfo),
     );
@@ -355,6 +359,8 @@ export class AccountActivityService {
     });
 
     // Trace message receipt with latency from transaction time to now
+    // Promise result intentionally not awaited
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#trace(
       {
         name: `${SERVICE_NAME} Transaction Message`,

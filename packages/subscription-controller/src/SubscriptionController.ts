@@ -9,6 +9,7 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import { type Hex } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import {
   ACTIVE_SUBSCRIPTION_STATUSES,
@@ -17,9 +18,11 @@ import {
   SubscriptionControllerErrorMessage,
 } from './constants';
 import type {
+  AssignCohortRequest,
   BillingPortalResponse,
   GetCryptoApproveTransactionRequest,
   GetCryptoApproveTransactionResponse,
+  GetSubscriptionsEligibilitiesRequest,
   ProductPrice,
   SubscriptionEligibility,
   StartCryptoSubscriptionRequest,
@@ -46,7 +49,8 @@ export type SubscriptionControllerState = {
   trialedProducts: ProductType[];
   subscriptions: Subscription[];
   pricing?: PricingResponse;
-
+  /** The last subscription that user has subscribed to if any. */
+  lastSubscription?: Subscription;
   /**
    * The last selected payment method for the user.
    * This is used to display the last selected payment method in the UI.
@@ -193,7 +197,13 @@ export function getDefaultSubscriptionControllerState(): SubscriptionControllerS
 const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState> =
   {
     subscriptions: {
-      includeInStateLogs: true,
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
+    lastSubscription: {
+      includeInStateLogs: false,
       persist: true,
       includeInDebugSnapshot: false,
       usedInUi: true,
@@ -341,10 +351,12 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     const currentSubscriptions = this.state.subscriptions;
     const currentTrialedProducts = this.state.trialedProducts;
     const currentCustomerId = this.state.customerId;
+    const currentLastSubscription = this.state.lastSubscription;
     const {
       customerId: newCustomerId,
       subscriptions: newSubscriptions,
       trialedProducts: newTrialedProducts,
+      lastSubscription: newLastSubscription,
     } = await this.#subscriptionService.getSubscriptions();
 
     // check if the new subscriptions are different from the current subscriptions
@@ -357,6 +369,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       currentTrialedProducts,
       newTrialedProducts,
     );
+    // check if the new last subscription is different from the current last subscription
+    const isLastSubscriptionEqual = this.#isSubscriptionEqual(
+      currentLastSubscription,
+      newLastSubscription,
+    );
 
     const areCustomerIdsEqual = currentCustomerId === newCustomerId;
 
@@ -364,6 +381,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     // this prevents unnecessary state updates events, easier for the clients to handle
     if (
       !areSubscriptionsEqual ||
+      !isLastSubscriptionEqual ||
       !areTrialedProductsEqual ||
       !areCustomerIdsEqual
     ) {
@@ -371,6 +389,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         state.subscriptions = newSubscriptions;
         state.customerId = newCustomerId;
         state.trialedProducts = newTrialedProducts;
+        state.lastSubscription = newLastSubscription;
       });
       this.#shouldCallRefreshAuthToken = true;
     }
@@ -393,10 +412,15 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   /**
    * Get the subscriptions eligibilities.
    *
+   * @param request - Optional request object containing user balance to check cohort eligibility.
    * @returns The subscriptions eligibilities.
    */
-  async getSubscriptionsEligibilities(): Promise<SubscriptionEligibility[]> {
-    return await this.#subscriptionService.getSubscriptionsEligibilities();
+  async getSubscriptionsEligibilities(
+    request?: GetSubscriptionsEligibilitiesRequest,
+  ): Promise<SubscriptionEligibility[]> {
+    return await this.#subscriptionService.getSubscriptionsEligibilities(
+      request,
+    );
   }
 
   async cancelSubscription(request: { subscriptionId: string }) {
@@ -687,10 +711,20 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * Submit a user event from the UI. (e.g. shield modal viewed)
    *
    * @param request - Request object containing the event to submit.
-   * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed }
+   * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed, cohort: 'post_tx' }
    */
   async submitUserEvent(request: SubmitUserEventRequest) {
     await this.#subscriptionService.submitUserEvent(request);
+  }
+
+  /**
+   * Assign user to a cohort.
+   *
+   * @param request - Request object containing the cohort to assign the user to.
+   * @example { cohort: 'post_tx' }
+   */
+  async assignUserToCohort(request: AssignCohortRequest): Promise<void> {
+    await this.#subscriptionService.assignUserToCohort(request);
   }
 
   async _executePoll(): Promise<void> {
@@ -710,8 +744,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    */
   #getSubscriptionPriceAmount(price: ProductPrice) {
     // no need to use BigInt since max unitDecimals are always 2 for price
-    const amount =
-      (price.unitAmount / 10 ** price.unitDecimals) * price.minBillingCycles;
+    const amount = new BigNumber(price.unitAmount)
+      .div(10 ** price.unitDecimals)
+      .multipliedBy(price.minBillingCycles)
+      .toString();
     return amount;
   }
 
@@ -733,25 +769,14 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     if (!conversionRate) {
       throw new Error('Conversion rate not found');
     }
-    // conversion rate is a float string e.g: "1.0"
-    // We need to handle float conversion rates with integer math for BigInt.
-    // We'll scale the conversion rate to an integer by multiplying by 10^4.
-    // conversionRate is in usd decimal. In most currencies, we only care about 2 decimals (cents)
-    // So, scale must be max of 10 ** 4 (most exchanges trade with max 4 decimals of usd)
-    // This allows us to avoid floating point math and keep precision.
-    const SCALE = 10n ** 4n;
-    const conversionRateScaled =
-      BigInt(Math.round(Number(conversionRate) * Number(SCALE))) / SCALE;
     // price of the product
-    const priceAmount = this.#getSubscriptionPriceAmount(price);
-    const priceAmountScaled =
-      BigInt(Math.round(priceAmount * Number(SCALE))) / SCALE;
+    const priceAmount = new BigNumber(this.#getSubscriptionPriceAmount(price));
 
-    const tokenDecimal = BigInt(10) ** BigInt(tokenPaymentInfo.decimals);
-
-    const tokenAmount =
-      (priceAmountScaled * tokenDecimal) / conversionRateScaled;
-    return tokenAmount.toString();
+    const tokenDecimal = new BigNumber(10).pow(tokenPaymentInfo.decimals);
+    const tokenAmount = priceAmount
+      .multipliedBy(tokenDecimal)
+      .div(conversionRate);
+    return tokenAmount.toFixed(0);
   }
 
   /**
@@ -899,11 +924,23 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     // Check if all subscriptions are equal
     return sortedOldSubs.every((oldSub, index) => {
       const newSub = sortedNewSubs[index];
-      return (
-        this.#stringifySubscription(oldSub) ===
-        this.#stringifySubscription(newSub)
-      );
+      return this.#isSubscriptionEqual(oldSub, newSub);
     });
+  }
+
+  #isSubscriptionEqual(oldSub?: Subscription, newSub?: Subscription): boolean {
+    // not equal if one is undefined and the other is defined
+    if (!oldSub || !newSub) {
+      if (!oldSub && !newSub) {
+        return true;
+      }
+      return false;
+    }
+
+    return (
+      this.#stringifySubscription(oldSub) ===
+      this.#stringifySubscription(newSub)
+    );
   }
 
   #stringifySubscription(subscription: Subscription): string {

@@ -16,8 +16,13 @@ import {
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
 
-jest.mock('../../utils/transaction');
 jest.mock('./bridge-quotes');
+
+jest.mock('../../utils/transaction', () => ({
+  ...jest.requireActual('../../utils/transaction'),
+  updateTransaction: jest.fn(),
+  waitForTransactionConfirmed: jest.fn(),
+}));
 
 const FROM_MOCK = '0x123';
 const CHAIN_ID_MOCK = toHex(123);

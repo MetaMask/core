@@ -234,8 +234,6 @@ describe('Validation Utils', () => {
               version,
             }),
           ).toThrow(
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
             `Provided chainId "${convertHexToDecimal(
               CHAIN_ID_MOCK,
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.

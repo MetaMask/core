@@ -82,9 +82,11 @@ const config = createConfig([
     rules: {
       // TODO: These rules created more errors after the upgrade to ESLint 9.
       // Re-enable these rules and address any lint violations.
-      'jest/no-conditional-in-test': 'warn',
       'jest/prefer-lowercase-title': 'warn',
       'jest/prefer-strict-equal': 'warn',
+
+      // TODO: Re-enable this rule
+      'jest/unbound-method': 'off',
     },
     settings: {
       node: {
@@ -117,11 +119,6 @@ const config = createConfig([
     languageOptions: {
       parserOptions: {
         tsconfigRootDir: import.meta.dirname,
-        project: './tsconfig.packages.json',
-        // Disable `projectService` because we run into out-of-memory issues.
-        // See this ticket for inspiration out how to solve this:
-        // <https://github.com/typescript-eslint/typescript-eslint/issues/1192>
-        projectService: false,
       },
     },
     rules: {
@@ -132,6 +129,9 @@ const config = createConfig([
           considerDefaultExhaustiveForUnions: true,
         },
       ],
+
+      // TODO: Disable in `eslint-config-typescript`, tracked here: https://github.com/MetaMask/eslint-config/issues/413
+      '@typescript-eslint/no-unnecessary-type-arguments': 'off',
 
       // This rule does not detect multiple imports of the same file where types
       // are being imported in one case and runtime values are being imported in
@@ -162,7 +162,6 @@ const config = createConfig([
       '@typescript-eslint/no-base-to-string': 'warn',
       '@typescript-eslint/no-duplicate-enum-values': 'warn',
       '@typescript-eslint/no-misused-promises': 'warn',
-      '@typescript-eslint/no-unsafe-enum-comparison': 'warn',
       '@typescript-eslint/no-unused-vars': 'warn',
       '@typescript-eslint/only-throw-error': 'warn',
       '@typescript-eslint/prefer-promise-reject-errors': 'warn',
@@ -250,6 +249,17 @@ const config = createConfig([
       'n/no-missing-import': 'off',
       'n/no-restricted-import': 'off',
       'n/no-deprecated-api': 'off',
+    },
+  },
+  {
+    files: [
+      'packages/notification-services-controller/src/NotificationServicesPushController/services/push/*-web.ts',
+      'packages/notification-services-controller/src/NotificationServicesPushController/web/**/*.ts',
+    ],
+    rules: {
+      // These files use `self` because they're written for a service worker context.
+      // TODO: Move these files to the extension repository, `core` is just for platform-agnostic code.
+      'consistent-this': 'off',
     },
   },
 ]);

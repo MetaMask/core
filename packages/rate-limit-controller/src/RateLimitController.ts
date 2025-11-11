@@ -217,8 +217,6 @@ export class RateLimitController<
       Object.assign(state, {
         requests: {
           ...(state.requests as RateLimitedRequests<RateLimitedApis>),
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
           [api]: { [origin]: previous + 1 },
         },
       });

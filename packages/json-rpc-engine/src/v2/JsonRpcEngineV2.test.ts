@@ -371,6 +371,24 @@ describe('JsonRpcEngineV2', () => {
         expect(result).toBe('bar');
       });
 
+      it('accepts an initial context as a KeyValues object', async () => {
+        const initialContext = { foo: 'bar' } as const;
+        const middleware: JsonRpcMiddleware<
+          JsonRpcRequest,
+          string,
+          MiddlewareContext<Record<string, string>>
+        > = ({ context }) => context.assertGet('foo');
+        const engine = JsonRpcEngineV2.create({
+          middleware: [middleware],
+        });
+
+        const result = await engine.handle(makeRequest(), {
+          context: initialContext,
+        });
+
+        expect(result).toBe('bar');
+      });
+
       it('accepts middleware with different context types', async () => {
         const middleware1: JsonRpcMiddleware<
           JsonRpcCall,
