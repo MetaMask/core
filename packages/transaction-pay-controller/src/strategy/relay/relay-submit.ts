@@ -151,7 +151,7 @@ async function waitForRelayCompletion(quote: RelayQuote) {
       return;
     }
 
-    if (['failure', 'refund'].includes(status.status)) {
+    if (['failure', 'refund', 'fallback'].includes(status.status)) {
       throw new Error(`Relay request failed with status: ${status.status}`);
     }
 
