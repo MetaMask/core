@@ -15,6 +15,8 @@ export type {
   ClaimsControllerState,
   Attachment,
   ClaimsConfigurations,
+  CreateClaimRequest,
+  SubmitClaimConfig,
 } from './types';
 
 export { ClaimsService } from './ClaimsService';

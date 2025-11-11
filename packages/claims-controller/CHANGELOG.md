@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added new states fields, `validSubmissionWindowDays` and `supportedNetworks` to the controller state. ([#7109](https://github.com/MetaMask/core/pull/7109))
   - `validSubmissionWindowDays` - number of days the claim is valid for submission.
   - `supportedNetworks` - supported networks for the claim submission.
+- Exported `CreateClaimRequest` and `SubmitClaimConfig` types from the controller. ([#7109](https://github.com/MetaMask/core/pull/7109))
 
 ## [0.1.0]
 

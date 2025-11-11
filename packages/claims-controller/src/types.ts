@@ -83,8 +83,3 @@ export type GenerateSignatureMessageResponse = {
   message: string;
   nonce: string;
 };
-
-export type VerifyClaimSignatureResponse = {
-  message: string;
-  success: boolean;
-};
