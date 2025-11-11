@@ -256,6 +256,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     subscriptionService,
     pollingInterval = DEFAULT_POLLING_INTERVAL,
   }: SubscriptionControllerOptions) {
+    // TODO: test preview comment, remove this
     super({
       name: controllerName,
       metadata: subscriptionControllerMetadata,
