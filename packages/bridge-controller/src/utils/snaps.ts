@@ -84,8 +84,8 @@ export const computeFeeRequest = (
         transaction,
         accountId,
         scope,
+        ...(options && { options }),
       },
-      ...(options && { options }),
     },
   };
 };
