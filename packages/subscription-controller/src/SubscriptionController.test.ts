@@ -1276,7 +1276,6 @@ describe('SubscriptionController', () => {
           ),
         ).toMatchInlineSnapshot(`
         Object {
-          "subscriptions": Array [],
           "trialedProducts": Array [],
         }
       `);
