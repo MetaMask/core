@@ -55,6 +55,7 @@
     { "path": "./packages/profile-sync-controller" },
     { "path": "./packages/rate-limit-controller" },
     { "path": "./packages/remote-feature-flag-controller" },
+    { "path": "./packages/ramps-controller" },
     { "path": "./packages/sample-controllers" },
     { "path": "./packages/seedless-onboarding-controller" },
     { "path": "./packages/selected-network-controller" },
