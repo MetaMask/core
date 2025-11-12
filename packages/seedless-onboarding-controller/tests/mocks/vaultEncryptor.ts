@@ -9,7 +9,8 @@ import { webcrypto } from 'node:crypto';
 import type { VaultEncryptor } from '../../src/types';
 
 export default class MockVaultEncryptor
-  implements VaultEncryptor<EncryptionKey | webcrypto.CryptoKey>
+  implements
+    VaultEncryptor<EncryptionKey | webcrypto.CryptoKey, KeyDerivationOptions>
 {
   DEFAULT_DERIVATION_PARAMS: KeyDerivationOptions = {
     algorithm: 'PBKDF2',
@@ -151,7 +152,7 @@ export default class MockVaultEncryptor
 
   async decryptWithKey(
     encryptionKey: EncryptionKey | webcrypto.CryptoKey,
-    payload: string,
+    payload: EncryptionResult,
   ) {
     let encData: EncryptionResult;
     if (typeof payload === 'string') {

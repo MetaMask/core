@@ -663,6 +663,7 @@ describe('BridgeController SSE', function () {
           "lifi|trade.gasLimit",
           "lifi|trade.unsignedPsbtBase64",
           "lifi|trade.inputsToSign",
+          "lifi|trade.raw_data_hex",
         ],
       ]
     `);

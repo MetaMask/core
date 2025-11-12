@@ -41,6 +41,18 @@ const TRANSACTION_META_MOCK = {
 } as TransactionMeta;
 
 const ORIGINAL_QUOTE_MOCK = {
+  details: {
+    currencyIn: {
+      currency: {
+        chainId: 1,
+      },
+    },
+    currencyOut: {
+      currency: {
+        chainId: 2,
+      },
+    },
+  },
   steps: [
     {
       kind: 'transaction',
@@ -66,6 +78,11 @@ const ORIGINAL_QUOTE_MOCK = {
     },
   ],
 } as RelayQuote;
+
+const STATUS_RESPONSE_MOCK = {
+  status: 'success',
+  txHashes: [TRANSACTION_HASH_MOCK],
+};
 
 const REQUEST_MOCK: PayStrategyExecuteRequest<RelayQuote> = {
   quotes: [
@@ -120,7 +137,7 @@ describe('Relay Submit Utils', () => {
     );
 
     successfulFetchMock.mockResolvedValue({
-      json: async () => ({ status: 'success' }),
+      json: async () => STATUS_RESPONSE_MOCK,
     } as Response);
 
     request = cloneDeep(REQUEST_MOCK);
@@ -228,6 +245,14 @@ describe('Relay Submit Utils', () => {
       );
     });
 
+    it('does not wait for relay status if same chain', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+
+      await submitRelayQuotes(request);
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(0);
+    });
+
     it('throws if transaction fails to confirm', async () => {
       waitForTransactionConfirmedMock.mockRejectedValue(
         new Error('Transaction failed'),
@@ -251,9 +276,7 @@ describe('Relay Submit Utils', () => {
       },
     );
 
-    it('updates transaction if skipTransaction is true', async () => {
-      request.quotes[0].original.skipTransaction = true;
-
+    it('updates transaction', async () => {
       await submitRelayQuotes(request);
 
       expect(updateTransactionMock).toHaveBeenCalledWith(
@@ -277,23 +300,28 @@ describe('Relay Submit Utils', () => {
       });
     });
 
-    it('returns hash if skipTransaction is true', async () => {
-      request.quotes[0].original.skipTransaction = true;
+    it('returns target hash', async () => {
       const result = await submitRelayQuotes(request);
       expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
     });
 
-    it('does not return hash if skipTransaction is false', async () => {
+    it('returns fallback hash if none included', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...STATUS_RESPONSE_MOCK,
+          txHashes: [],
+        }),
+      } as Response);
+
       const result = await submitRelayQuotes(request);
-      expect(result.transactionHash).toBeUndefined();
+      expect(result.transactionHash).toBe('0x0');
     });
 
     it('adds required transaction IDs', async () => {
       await submitRelayQuotes(request);
 
-      const updateFn = updateTransactionMock.mock.calls[0][1];
-      const txDraft = {} as TransactionMeta;
-      updateFn(txDraft);
+      const txDraft = { txParams: {} } as TransactionMeta;
+      updateTransactionMock.mock.calls.map((call) => call[1](txDraft));
 
       expect(txDraft.requiredTransactionIds).toStrictEqual([
         TRANSACTION_META_MOCK.id,

@@ -41,6 +41,7 @@ export type {
   FeeData,
   TxData,
   BitcoinTradeData,
+  TronTradeData,
   BridgeControllerState,
   BridgeControllerAction,
   BridgeControllerActions,
@@ -138,6 +139,13 @@ export {
   formatAddressToCaipReference,
   formatAddressToAssetId,
 } from './utils/caip-formatters';
+
+export {
+  extractTradeData,
+  isBitcoinTrade,
+  isTronTrade,
+  type Trade,
+} from './utils/trade-utils';
 
 export {
   selectBridgeQuotes,

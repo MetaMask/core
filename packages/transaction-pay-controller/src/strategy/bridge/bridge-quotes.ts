@@ -101,7 +101,7 @@ export async function getBridgeBatchTransactions(
 
       if (quote.approval) {
         result.push({
-          ...getBatchTransaction(quote.approval),
+          ...getBatchTransaction(quote.approval as TxData),
           type: TransactionType.swapApproval,
         });
       }
