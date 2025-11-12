@@ -33,8 +33,6 @@ import {
 
 export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
 
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export type unknownString = 'unknown';
 
 // Fee Market describes the way gas is set after the london hardfork, and was
@@ -83,6 +81,7 @@ export type EstimatedGasFeeTimeBounds = {
  * A single gas price estimate for networks and accounts that don't support EIP-1559
  * This estimate comes from eth_gasPrice but is converted to dec gwei to match other
  * return values
+ *
  * @property gasPrice - A GWEI dec string
  */
 
@@ -96,6 +95,7 @@ export type EthGasPriceEstimate = {
  * A set of gas price estimates for networks and accounts that don't support EIP-1559
  * These estimates include low, medium and high all as strings representing gwei in
  * decimal format.
+ *
  * @property high - gasPrice, in decimal gwei string format, suggested for fast inclusion
  * @property medium - gasPrice, in decimal gwei string format, suggested for avg inclusion
  * @property low - gasPrice, in decimal gwei string format, suggested for slow inclusion
@@ -110,6 +110,7 @@ export type LegacyGasPriceEstimate = {
  * @type Eip1559GasFee
  *
  * Data necessary to provide an estimate of a gas fee with a specific tip
+ *
  * @property minWaitTimeEstimate - The fastest the transaction will take, in milliseconds
  * @property maxWaitTimeEstimate - The slowest the transaction will take, in milliseconds
  * @property suggestedMaxPriorityFeePerGas - A suggested "tip", a GWEI hex number
@@ -126,6 +127,7 @@ export type Eip1559GasFee = {
  * @type GasFeeEstimates
  *
  * Data necessary to provide multiple GasFee estimates, and supporting information, to the user
+ *
  * @property low - A GasFee for a minimum necessary combination of tip and maxFee
  * @property medium - A GasFee for a recommended combination of tip and maxFee
  * @property high - A GasFee for a high combination of tip and maxFee
@@ -227,6 +229,7 @@ export type FetchGasFeeEstimateOptions = {
  * @type GasFeeState
  *
  * Gas Fee controller state
+ *
  * @property gasFeeEstimates - Gas fee estimate data based on new EIP-1559 properties
  * @property estimatedGasFeeTimeBounds - Estimates representing the minimum and maximum
  */
@@ -298,8 +301,6 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
 
   private readonly legacyAPIEndpoint: string;
 
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   private readonly EIP1559APIEndpoint: string;
 
   private readonly getCurrentNetworkEIP1559Compatibility;
@@ -314,7 +315,7 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
 
   private readonly clientId?: string;
 
-  #getProvider: () => ProviderProxy;
+  readonly #getProvider: () => ProviderProxy;
 
   /**
    * Creates a GasFeeController instance.
@@ -363,7 +364,6 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
     getProvider: () => ProviderProxy;
     onNetworkDidChange?: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     EIP1559APIEndpoint: string;
     clientId?: string;
   }) {
@@ -585,7 +585,6 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
   /**
    * Fetching token list from the Token Service API.
    *
-   * @private
    * @param input - The input for the poll.
    * @param input.networkClientId - The ID of the network client triggering the fetch.
    * @returns A promise that resolves when this operation completes.
