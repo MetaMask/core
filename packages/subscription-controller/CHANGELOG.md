@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added `modalType` field and constant to `SubscriptionEligibility` ([#7124](https://github.com/MetaMask/core/pull/7124))
 
+### Changed 
+
+- Bump `@metamask/transaction-controller` from `^61.1.0` to `^61.2.0` ([#7126](https://github.com/MetaMask/core/pull/7126))
+
 ## [4.0.0]
 
 ### Added
