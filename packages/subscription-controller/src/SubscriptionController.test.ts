@@ -42,6 +42,7 @@ import type {
   RecurringInterval,
 } from './types';
 import {
+  MODAL_TYPE,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
@@ -1426,6 +1427,7 @@ describe('SubscriptionController', () => {
       canSubscribe: true,
       minBalanceUSD: 100,
       canViewEntryModal: true,
+      modalType: MODAL_TYPE.A,
       cohorts: [],
       assignedCohort: null,
       hasAssignedCohortExpired: false,
