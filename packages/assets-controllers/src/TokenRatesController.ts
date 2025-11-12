@@ -25,7 +25,10 @@ import { isEqual } from 'lodash';
 
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare-service';
-import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
+import type {
+  AbstractTokenPricesService,
+  EvmAssetWithMarketData,
+} from './token-prices-service/abstract-token-prices-service';
 import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
 import type {
   TokensControllerGetStateAction,
@@ -703,17 +706,26 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     let contractNativeInformations;
     const tokenPricesByTokenAddress = await reduceInBatchesSerially<
       Hex,
-      Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
+      Record<Hex, EvmAssetWithMarketData>
     >({
       values: [...tokenAddresses].sort(),
       batchSize: TOKEN_PRICES_BATCH_SIZE,
       eachBatch: async (allTokenPricesByTokenAddress, batch) => {
-        const tokenPricesByTokenAddressForBatch =
+        const tokenPricesByTokenAddressForBatch = (
           await this.#tokenPricesService.fetchTokenPrices({
-            tokenAddresses: batch,
-            chainId,
+            assets: batch.map((address) => ({
+              chainId,
+              address,
+            })),
             currency: nativeCurrency,
-          });
+          })
+        ).reduce(
+          (acc, tokenPrice) => {
+            acc[tokenPrice.address] = tokenPrice;
+            return acc;
+          },
+          {} as Record<Hex, EvmAssetWithMarketData>,
+        );
 
         return {
           ...allTokenPricesByTokenAddress,
@@ -726,18 +738,19 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
     // fetch for native token
     if (tokenAddresses.length === 0) {
-      const contractNativeInformationsNative =
+      const contractNativeInformationNative =
         await this.#tokenPricesService.fetchTokenPrices({
-          tokenAddresses: [],
-          chainId,
+          assets: [
+            {
+              chainId,
+              address: getNativeTokenAddress(chainId),
+            },
+          ],
           currency: nativeCurrency,
         });
 
       contractNativeInformations = {
-        [getNativeTokenAddress(chainId)]: {
-          currency: nativeCurrency,
-          ...contractNativeInformationsNative[getNativeTokenAddress(chainId)],
-        },
+        [getNativeTokenAddress(chainId)]: contractNativeInformationNative[0],
       };
     }
     return Object.entries(contractNativeInformations).reduce(

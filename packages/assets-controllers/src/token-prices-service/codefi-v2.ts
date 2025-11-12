@@ -21,8 +21,6 @@ import type {
   EvmAssetWithMarketData,
   ExchangeRatesByCurrency,
   MarketData,
-  TokenPrice,
-  TokenPricesByTokenAddress,
 } from './abstract-token-prices-service';
 
 /**
@@ -449,67 +447,11 @@ export class CodefiTokenPricesServiceV2
    * given addresses which are expected to live on the given chain.
    *
    * @param args - The arguments to function.
-   * @param args.chainId - An EIP-155 chain ID.
-   * @param args.tokenAddresses - Addresses for tokens that live on the chain.
+   * @param args.assets - The assets to get prices for.
    * @param args.currency - The desired currency of the token prices.
    * @returns The prices for the requested tokens.
    */
   async fetchTokenPrices({
-    chainId,
-    tokenAddresses,
-    currency,
-  }: {
-    chainId: SupportedChainId;
-    tokenAddresses: Hex[];
-    currency: SupportedCurrency;
-  }): Promise<Partial<TokenPricesByTokenAddress<SupportedCurrency>>> {
-    const chainIdAsNumber = hexToNumber(chainId);
-
-    const url = new URL(`${BASE_URL}/chains/${chainIdAsNumber}/spot-prices`);
-    url.searchParams.append(
-      'tokenAddresses',
-      [getNativeTokenAddress(chainId), ...tokenAddresses].join(','),
-    );
-    url.searchParams.append('vsCurrency', currency);
-    url.searchParams.append('includeMarketData', 'true');
-
-    const addressCryptoDataMap: MarketDataByTokenAddress =
-      await this.#policy.execute(() =>
-        handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
-      );
-
-    return [getNativeTokenAddress(chainId), ...tokenAddresses].reduce(
-      (
-        obj: Partial<TokenPricesByTokenAddress<SupportedCurrency>>,
-        tokenAddress,
-      ) => {
-        // The Price API lowercases both currency and token addresses, so we have
-        // to keep track of them and make sure we return the original versions.
-        const lowercasedTokenAddress =
-          tokenAddress.toLowerCase() as Lowercase<Hex>;
-
-        const marketData = addressCryptoDataMap[lowercasedTokenAddress];
-
-        if (!marketData) {
-          return obj;
-        }
-
-        const token: TokenPrice<SupportedCurrency> = {
-          tokenAddress,
-          currency,
-          ...marketData,
-        };
-
-        return {
-          ...obj,
-          [tokenAddress]: token,
-        };
-      },
-      {},
-    ) as Partial<TokenPricesByTokenAddress<SupportedCurrency>>;
-  }
-
-  async fetchTokenPricesV3({
     assets,
     currency,
   }: {
@@ -557,11 +499,11 @@ export class CodefiTokenPricesServiceV2
 
         return {
           ...assetWithId,
-          currency,
           ...marketData,
+          currency,
         };
       })
-      .filter((x) => x !== undefined);
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
   }
 
   /**

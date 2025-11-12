@@ -2,32 +2,6 @@ import type { ServicePolicy } from '@metamask/controller-utils';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 
 /**
- * Represents the price of a token in a currency.
- */
-export type TokenPrice<Currency extends string> = {
-  tokenAddress: Hex;
-  currency: Currency;
-  allTimeHigh: number;
-  allTimeLow: number;
-  circulatingSupply: number;
-  dilutedMarketCap: number;
-  high1d: number;
-  low1d: number;
-  marketCap: number;
-  marketCapPercentChange1d: number;
-  price: number;
-  priceChange1d: number;
-  pricePercentChange1d: number;
-  pricePercentChange1h: number;
-  pricePercentChange1y: number;
-  pricePercentChange7d: number;
-  pricePercentChange14d: number;
-  pricePercentChange30d: number;
-  pricePercentChange200d: number;
-  totalVolume: number;
-};
-
-/**
  * Represents an exchange rate.
  */
 export type ExchangeRate = {
@@ -38,12 +12,15 @@ export type ExchangeRate = {
   usd?: number;
 };
 
-/**
- * A map of token address to its price.
- */
-export type TokenPricesByTokenAddress<Currency extends string> = {
-  [A in Hex]: TokenPrice<Currency>;
-};
+// /**
+//  * A map of token address to its price.
+//  */
+// export type TokenPricesByTokenAddress<
+//   ChainId extends Hex = Hex,
+//   Currency extends string = string,
+// > = {
+//   [A in Hex]: EvmAssetWithMarketData<ChainId, Currency>;
+// };
 
 /**
  * A map of currency to its exchange rate.
@@ -52,19 +29,19 @@ export type ExchangeRatesByCurrency<Currency extends string> = {
   [C in Currency]: ExchangeRate;
 };
 
-export type EvmAssetAddressWithChain<ChainId extends Hex> = {
+export type EvmAssetAddressWithChain<ChainId extends Hex = Hex> = {
   address: Hex;
   chainId: ChainId;
 };
 
-export type EvmAssetWithId<ChainId extends Hex> =
+export type EvmAssetWithId<ChainId extends Hex = Hex> =
   EvmAssetAddressWithChain<ChainId> & {
     assetId: CaipAssetType;
   };
 
 export type EvmAssetWithMarketData<
-  ChainId extends Hex,
-  Currency extends string,
+  ChainId extends Hex = Hex,
+  Currency extends string = string,
 > = EvmAssetWithId<ChainId> & MarketData & { currency: Currency };
 
 /**
@@ -167,7 +144,7 @@ export type AbstractTokenPricesService<
    * @param args.currency - The desired currency of the token prices.
    * @returns The prices for the requested tokens.
    */
-  fetchTokenPricesV3({
+  fetchTokenPrices({
     assets,
     currency,
   }: {
