@@ -51,6 +51,10 @@ function setup({
 }
 
 describe('ShieldRemoteBackend', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('should check coverage', async () => {
     const { backend, fetchMock, getAccessToken } = setup();
 
@@ -185,6 +189,66 @@ describe('ShieldRemoteBackend', () => {
     // Waiting here ensures coverage of the unexpected error and lets us know
     // that the polling loop is exited as expected.
     await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+
+  it('returns latency in coverageResult', async () => {
+    const { backend, fetchMock } = setup();
+
+    fetchMock.mockResolvedValueOnce({
+      status: 200,
+      json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+    } as unknown as Response);
+
+    const result = { status: 'covered', message: 'ok', reasonCode: 'E104' };
+    fetchMock.mockResolvedValueOnce({
+      status: 200,
+      json: jest.fn().mockResolvedValue(result),
+    } as unknown as Response);
+
+    let nowValue = 1000;
+    const latencyMs = 123;
+    const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => {
+      const val = nowValue;
+      nowValue += latencyMs;
+      return val;
+    });
+
+    const txMeta = generateMockTxMeta();
+    const coverageResult = await backend.checkCoverage({ txMeta });
+    expect(coverageResult.metrics.latency).toBe(latencyMs);
+
+    nowSpy.mockRestore();
+  });
+
+  it('returns latency in signatureCoverageResult', async () => {
+    const { backend, fetchMock } = setup();
+
+    fetchMock.mockResolvedValueOnce({
+      status: 200,
+      json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+    } as unknown as Response);
+
+    const result = { status: 'covered', message: 'ok', reasonCode: 'E104' };
+    fetchMock.mockResolvedValueOnce({
+      status: 200,
+      json: jest.fn().mockResolvedValue(result),
+    } as unknown as Response);
+
+    let nowValue = 2000;
+    const latencyMs = 456;
+    const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => {
+      const val = nowValue;
+      nowValue += latencyMs;
+      return val;
+    });
+
+    const signatureRequest = generateMockSignatureRequest();
+    const coverageResult = await backend.checkSignatureCoverage({
+      signatureRequest,
+    });
+    expect(coverageResult.metrics.latency).toBe(latencyMs);
+
+    nowSpy.mockRestore();
   });
 
   describe('checkSignatureCoverage', () => {

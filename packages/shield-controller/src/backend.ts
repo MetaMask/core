@@ -57,6 +57,9 @@ export type GetCoverageResultResponse = {
   message?: string;
   reasonCode?: string;
   status: CoverageStatus;
+  metrics: {
+    latency?: number;
+  };
 };
 
 export class ShieldRemoteBackend implements ShieldBackend {
@@ -117,6 +120,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
       message: coverageResult.message,
       reasonCode: coverageResult.reasonCode,
       status: coverageResult.status,
+      metrics: coverageResult.metrics,
     };
   }
 
@@ -143,6 +147,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
       message: coverageResult.message,
       reasonCode: coverageResult.reasonCode,
       status: coverageResult.status,
+      metrics: coverageResult.metrics,
     };
   }
 
@@ -209,6 +214,19 @@ export class ShieldRemoteBackend implements ShieldBackend {
     return (await res.json()) as InitCoverageCheckResponse;
   }
 
+  async #timedFetch(
+    url: string,
+    options: RequestInit,
+  ): Promise<{ response: Response; latency: number }> {
+    const startTime = Date.now();
+    const response = await this.#fetch(url, options);
+
+    return {
+      response,
+      latency: Date.now() - startTime,
+    };
+  }
+
   async #getCoverageResult(
     requestId: string,
     coverageId: string,
@@ -221,14 +239,21 @@ export class ShieldRemoteBackend implements ShieldBackend {
     const headers = await this.#createHeaders();
 
     const getCoverageResultFn = async (signal: AbortSignal) => {
-      const res = await this.#fetch(coverageResultUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(reqBody),
-        signal,
-      });
+      const { response: res, latency } = await this.#timedFetch(
+        coverageResultUrl,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(reqBody),
+          signal,
+        },
+      );
+
       if (res.status === 200) {
-        return (await res.json()) as GetCoverageResultResponse;
+        return {
+          ...(await res.json()),
+          metrics: { latency },
+        } as GetCoverageResultResponse;
       }
 
       // parse the error message from the response body
