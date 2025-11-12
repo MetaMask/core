@@ -11,8 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Uncategorized
 
-- Release/671.0.0 ([#7126](https://github.com/MetaMask/core/pull/7126))
-
 ### Added
 
 - **BREAKING:** Include transactions in Relay quotes via EIP-7702 and delegation ([#7122](https://github.com/MetaMask/core/pull/7122))
