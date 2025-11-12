@@ -3600,194 +3600,186 @@ describe('URL Scan Cache', () => {
       `);
     });
   });
+});
 
-  describe('Transaction Controller State Change Integration', () => {
-    let controller: PhishingController;
-    let globalMessenger: RootMessenger;
-    let bulkScanTokensSpy: jest.SpyInstance;
+describe('Transaction Controller State Change Integration', () => {
+  let controller: PhishingController;
+  let globalMessenger: RootMessenger;
+  let bulkScanTokensSpy: jest.SpyInstance;
 
-    beforeEach(() => {
-      const { messenger, rootMessenger } = setupMessenger();
+  beforeEach(() => {
+    const { messenger, rootMessenger } = setupMessenger();
 
-      globalMessenger = rootMessenger;
+    globalMessenger = rootMessenger;
 
-      controller = new PhishingController({
-        messenger,
-      });
-
-      bulkScanTokensSpy = jest
-        .spyOn(controller, 'bulkScanTokens')
-        .mockResolvedValue({});
+    controller = new PhishingController({
+      messenger,
     });
 
-    afterEach(() => {
-      bulkScanTokensSpy.mockRestore();
+    bulkScanTokensSpy = jest
+      .spyOn(controller, 'bulkScanTokens')
+      .mockResolvedValue({});
+  });
+
+  afterEach(() => {
+    bulkScanTokensSpy.mockRestore();
+  });
+
+  it('triggers bulk token scanning when transaction with token balance changes is added', async () => {
+    const mockTransaction = createMockTransaction('test-tx-1', [
+      TEST_ADDRESSES.USDC,
+      TEST_ADDRESSES.MOCK_TOKEN_1,
+    ]);
+    const stateChangePayload = createMockStateChangePayload([mockTransaction]);
+
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      stateChangePayload,
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0],
+          value: mockTransaction,
+        },
+      ],
+    );
+
+    await new Promise(process.nextTick);
+
+    expect(bulkScanTokensSpy).toHaveBeenCalledWith({
+      chainId: mockTransaction.chainId.toLowerCase(),
+      tokens: [
+        TEST_ADDRESSES.USDC.toLowerCase(),
+        TEST_ADDRESSES.MOCK_TOKEN_1.toLowerCase(),
+      ],
     });
+  });
 
-    it('should trigger bulk token scanning when transaction with token balance changes is added', async () => {
-      const mockTransaction = createMockTransaction('test-tx-1', [
-        TEST_ADDRESSES.USDC,
-        TEST_ADDRESSES.MOCK_TOKEN_1,
-      ]);
-      const stateChangePayload = createMockStateChangePayload([
-        mockTransaction,
-      ]);
+  it('skips processing when patch operation is remove', async () => {
+    const mockTransaction = createMockTransaction('test-tx-1', [
+      TEST_ADDRESSES.USDC,
+    ]);
 
-      globalMessenger.publish(
-        'TransactionController:stateChange',
-        stateChangePayload,
-        [
-          {
-            op: 'add' as const,
-            path: ['transactions', 0],
-            value: mockTransaction,
-          },
-        ],
-      );
+    const stateChangePayload = createMockStateChangePayload([]);
 
-      await new Promise(process.nextTick);
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      stateChangePayload,
+      [
+        {
+          op: 'remove' as const,
+          path: ['transactions', 0],
+          value: mockTransaction,
+        },
+      ],
+    );
 
-      expect(bulkScanTokensSpy).toHaveBeenCalledWith({
-        chainId: mockTransaction.chainId.toLowerCase(),
-        tokens: [
-          TEST_ADDRESSES.USDC.toLowerCase(),
-          TEST_ADDRESSES.MOCK_TOKEN_1.toLowerCase(),
-        ],
-      });
-    });
+    await new Promise(process.nextTick);
 
-    it('should skip processing when patch operation is remove', async () => {
-      const mockTransaction = createMockTransaction('test-tx-1', [
-        TEST_ADDRESSES.USDC,
-      ]);
+    expect(bulkScanTokensSpy).not.toHaveBeenCalled();
+  });
 
-      const stateChangePayload = createMockStateChangePayload([]);
+  it('does not trigger bulk token scanning when transaction has no token balance changes', async () => {
+    const mockTransaction = createMockTransaction('test-tx-1', []);
 
-      globalMessenger.publish(
-        'TransactionController:stateChange',
-        stateChangePayload,
-        [
-          {
-            op: 'remove' as const,
-            path: ['transactions', 0],
-            value: mockTransaction,
-          },
-        ],
-      );
+    const stateChangePayload = createMockStateChangePayload([mockTransaction]);
 
-      await new Promise(process.nextTick);
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      stateChangePayload,
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0],
+          value: mockTransaction,
+        },
+      ],
+    );
 
-      expect(bulkScanTokensSpy).not.toHaveBeenCalled();
-    });
+    await new Promise(process.nextTick);
 
-    it('should not trigger bulk token scanning when transaction has no token balance changes', async () => {
-      const mockTransaction = createMockTransaction('test-tx-1', []);
+    expect(bulkScanTokensSpy).not.toHaveBeenCalled();
+  });
 
-      const stateChangePayload = createMockStateChangePayload([
-        mockTransaction,
-      ]);
+  it('does not trigger bulk token scanning when using default tokenAddresses parameter', async () => {
+    const mockTransaction = createMockTransaction('test-tx-2');
 
-      globalMessenger.publish(
-        'TransactionController:stateChange',
-        stateChangePayload,
-        [
-          {
-            op: 'add' as const,
-            path: ['transactions', 0],
-            value: mockTransaction,
-          },
-        ],
-      );
+    const stateChangePayload = createMockStateChangePayload([mockTransaction]);
 
-      await new Promise(process.nextTick);
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      stateChangePayload,
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0],
+          value: mockTransaction,
+        },
+      ],
+    );
 
-      expect(bulkScanTokensSpy).not.toHaveBeenCalled();
-    });
+    await new Promise(process.nextTick);
 
-    it('should not trigger bulk token scanning when using default tokenAddresses parameter', async () => {
-      const mockTransaction = createMockTransaction('test-tx-2');
+    expect(bulkScanTokensSpy).not.toHaveBeenCalled();
+  });
 
-      const stateChangePayload = createMockStateChangePayload([
-        mockTransaction,
-      ]);
+  it('handles errors in transaction state change processing', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      globalMessenger.publish(
-        'TransactionController:stateChange',
-        stateChangePayload,
-        [
-          {
-            op: 'add' as const,
-            path: ['transactions', 0],
-            value: mockTransaction,
-          },
-        ],
-      );
+    const stateChangePayload = createMockStateChangePayload([]);
 
-      await new Promise(process.nextTick);
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      stateChangePayload,
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0],
+          value: null,
+        },
+      ],
+    );
 
-      expect(bulkScanTokensSpy).not.toHaveBeenCalled();
-    });
+    await new Promise(process.nextTick);
 
-    it('should handle errors in transaction state change processing', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Error processing transaction state change:',
+      expect.any(Error),
+    );
 
-      const stateChangePayload = createMockStateChangePayload([]);
+    consoleErrorSpy.mockRestore();
+  });
 
-      globalMessenger.publish(
-        'TransactionController:stateChange',
-        stateChangePayload,
-        [
-          {
-            op: 'add' as const,
-            path: ['transactions', 0],
-            value: null,
-          },
-        ],
-      );
+  it('handles errors in bulk token scanning', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      await new Promise(process.nextTick);
+    bulkScanTokensSpy.mockRejectedValue(new Error('Scanning failed'));
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error processing transaction state change:',
-        expect.any(Error),
-      );
+    const mockTransaction = createMockTransaction('test-tx-1', [
+      TEST_ADDRESSES.USDC,
+    ]);
 
-      consoleErrorSpy.mockRestore();
-    });
+    const stateChangePayload = createMockStateChangePayload([mockTransaction]);
 
-    it('should handle errors in bulk token scanning', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      stateChangePayload,
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0],
+          value: mockTransaction,
+        },
+      ],
+    );
 
-      bulkScanTokensSpy.mockRejectedValue(new Error('Scanning failed'));
+    await new Promise(process.nextTick);
 
-      const mockTransaction = createMockTransaction('test-tx-1', [
-        TEST_ADDRESSES.USDC,
-      ]);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Error scanning tokens for chain 0x1:',
+      expect.any(Error),
+    );
 
-      const stateChangePayload = createMockStateChangePayload([
-        mockTransaction,
-      ]);
-
-      globalMessenger.publish(
-        'TransactionController:stateChange',
-        stateChangePayload,
-        [
-          {
-            op: 'add' as const,
-            path: ['transactions', 0],
-            value: mockTransaction,
-          },
-        ],
-      );
-
-      await new Promise(process.nextTick);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error scanning tokens for chain 0x1:',
-        expect.any(Error),
-      );
-
-      consoleErrorSpy.mockRestore();
-    });
+    consoleErrorSpy.mockRestore();
   });
 });
