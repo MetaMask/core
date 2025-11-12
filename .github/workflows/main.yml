@@ -63,10 +63,29 @@ jobs:
     needs: check-workflows
     uses: ./.github/workflows/lint-build-test.yml
 
+  check-release:
+    name: Check release
+    needs: check-workflows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if the commit or pull request is a release
+        id: is-release
+        uses: MetaMask/action-is-release@d063725cd15ee145d7e795a2e77db31a3e3f2c92
+        with:
+          commit-starts-with: 'Release [version],Release v[version],Release/[version],Release/v[version],Release `[version]`'
+          commit-message: ${{ github.event.pull_request.title }}
+          before: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+
+      - name: Check for release conflicts
+        if: steps.is-release.outputs.IS_RELEASE == 'true'
+        uses: ./.github/actions/check-release
+        with:
+          before: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+
   is-release:
     name: Determine whether this is a release merge commit
     needs: lint-build-test
-    if: github.event_name == 'push' || github.event_name == 'merge_group'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
       IS_RELEASE: ${{ steps.is-release.outputs.IS_RELEASE }}
@@ -76,16 +95,10 @@ jobs:
         with:
           commit-starts-with: 'Release [version],Release v[version],Release/[version],Release/v[version],Release `[version]`'
 
-  check-release:
-    name: Check release
-    needs: is-release
-    if: needs.is-release.outputs.IS_RELEASE == 'true' && github.event_name == 'merge_group'
-    uses: ./.github/workflows/check-release.yml
-
   publish-release:
     name: Publish release
     needs: is-release
-    if: needs.is-release.outputs.IS_RELEASE == 'true' && github.event_name == 'push'
+    if: needs.is-release.outputs.IS_RELEASE == 'true'
     permissions:
       contents: write
     uses: ./.github/workflows/publish-release.yml
@@ -106,6 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - analyse-code
+      - check-release
       - lint-build-test
     outputs:
       passed: ${{ steps.set-output.outputs.passed }}
