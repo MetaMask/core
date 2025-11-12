@@ -468,7 +468,7 @@ export class CodefiTokenPricesServiceV2
           assetId:
             nativeAddress.toLowerCase() === asset.address.toLowerCase()
               ? HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP[asset.chainId]
-              : `${caipChainId}/erc20:${asset.address}`,
+              : `${caipChainId}/erc20:${asset.address.toLowerCase()}`,
           address: asset.address,
           chainId: asset.chainId,
         };

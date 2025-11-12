@@ -703,12 +703,11 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     chainId: Hex;
     nativeCurrency: string;
   }): Promise<ContractMarketData> {
-    let contractNativeInformations;
     const tokenPricesByTokenAddress = await reduceInBatchesSerially<
       Hex,
       Record<Hex, EvmAssetWithMarketData>
     >({
-      values: [...tokenAddresses].sort(),
+      values: [...tokenAddresses, getNativeTokenAddress(chainId)].sort(),
       batchSize: TOKEN_PRICES_BATCH_SIZE,
       eachBatch: async (allTokenPricesByTokenAddress, batch) => {
         const tokenPricesByTokenAddressForBatch = (
@@ -734,26 +733,26 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       },
       initialResult: {},
     });
-    contractNativeInformations = tokenPricesByTokenAddress;
+    // const contractNativeInformations = tokenPricesByTokenAddress;
 
     // fetch for native token
-    if (tokenAddresses.length === 0) {
-      const contractNativeInformationNative =
-        await this.#tokenPricesService.fetchTokenPrices({
-          assets: [
-            {
-              chainId,
-              address: getNativeTokenAddress(chainId),
-            },
-          ],
-          currency: nativeCurrency,
-        });
+    // if (tokenAddresses.length === 0) {
+    //   const contractNativeInformationNative =
+    //     await this.#tokenPricesService.fetchTokenPrices({
+    //       assets: [
+    //         {
+    //           chainId,
+    //           address: getNativeTokenAddress(chainId),
+    //         },
+    //       ],
+    //       currency: nativeCurrency,
+    //     });
 
-      contractNativeInformations = {
-        [getNativeTokenAddress(chainId)]: contractNativeInformationNative[0],
-      };
-    }
-    return Object.entries(contractNativeInformations).reduce(
+    //   contractNativeInformations = {
+    //     [getNativeTokenAddress(chainId)]: contractNativeInformationNative[0],
+    //   };
+    // }
+    return Object.entries(tokenPricesByTokenAddress).reduce(
       (obj, [tokenAddress, token]) => {
         obj = {
           ...obj,
