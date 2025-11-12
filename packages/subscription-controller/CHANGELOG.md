@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- added `useTestClock` param to `StartSubscriptionRequest` and `StartCryptoSubscriptionRequest` ([#7129](https://github.com/MetaMask/core/pull/7129))
+- added `useTestClock` param to `StartSubscriptionRequest`, `StartCryptoSubscriptionRequest`, `CachedLastSelectedPaymentMethod` ([#7129](https://github.com/MetaMask/core/pull/7129))
 
 ### Changed
 

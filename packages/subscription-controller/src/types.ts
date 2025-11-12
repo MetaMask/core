@@ -418,4 +418,5 @@ export type CachedLastSelectedPaymentMethod = {
   paymentTokenAddress?: Hex;
   paymentTokenSymbol?: string;
   plan: RecurringInterval;
+  useTestClock?: boolean;
 };
