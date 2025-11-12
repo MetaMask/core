@@ -169,17 +169,27 @@ export async function checkGasFeeTokenBeforePublish({
     tx.isExternalSign = true;
   });
 
-  if (gasFeeTokens !== undefined) {
-    return;
+  let finalGasFeeTokens = gasFeeTokens;
+
+  if (finalGasFeeTokens === undefined) {
+    const newGasFeeTokens = await fetchGasFeeTokens(transaction);
+
+    updateTransaction(transaction.id, (tx) => {
+      tx.gasFeeTokens = newGasFeeTokens;
+    });
+
+    log('Updated gas fee tokens before publish', newGasFeeTokens);
+
+    finalGasFeeTokens = newGasFeeTokens;
   }
 
-  const newGasFeeTokens = await fetchGasFeeTokens(transaction);
-
-  updateTransaction(transaction.id, (tx) => {
-    tx.gasFeeTokens = newGasFeeTokens;
-  });
-
-  log('Updated gas fee tokens before publish', newGasFeeTokens);
+  if (
+    !finalGasFeeTokens.some(
+      (t) => t.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
+    )
+  ) {
+    throw new Error('Gas fee token not found and insufficient native balance');
+  }
 }
 
 /**
