@@ -135,7 +135,7 @@ const appendNonEvmFees = async (
             transaction,
             selectedAccount.id,
             scope,
-            options
+            options,
           ),
         )) as {
           type: 'base' | 'priority';
