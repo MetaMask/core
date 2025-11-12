@@ -715,13 +715,13 @@ export function createMockPlatformNotification(): NormalisedAPINotification {
     type: TRIGGER_TYPES.PLATFORM,
     notification_type: 'platform',
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    unread: false,
+    unread: true,
     created_at: '2025-10-09T09:45:34.202Z',
     template: {
       image_url:
         'https://images.ctfassets.net/clixtyxoaeas/4rnpEzy1ATWRKVBOLxZ1Fm/a74dc1eed36d23d7ea6030383a4d5163/MetaMask-icon-fox.svg',
-      title: 'Welcome to MetaMask!',
-      body: 'Your account has been successfully set up. Start exploring the world of DeFi.',
+      title: 'This is a Platform Notification!',
+      body: 'Teams can now build out their own notifications, and add an optional CTA (like this one below).',
       cta: {
         content: 'Get Started',
         link: 'https://metamask.io/get-started',
