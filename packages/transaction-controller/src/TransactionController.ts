@@ -119,6 +119,7 @@ import type {
   GetSimulationConfig,
   AddTransactionOptions,
   PublishHookResult,
+  GetGasFeeTokensRequest,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -137,7 +138,10 @@ import {
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
-import { getGasFeeTokens } from './utils/gas-fee-tokens';
+import {
+  getGasFeeTokens,
+  processGasFeeTokensNoApproval,
+} from './utils/gas-fee-tokens';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
 import {
@@ -378,6 +382,11 @@ export type TransactionControllerEmulateTransactionUpdate = {
   handler: TransactionController['emulateTransactionUpdate'];
 };
 
+export type TransactionControllerGetGasFeeTokensAction = {
+  type: `${typeof controllerName}:getGasFeeTokens`;
+  handler: (request: GetGasFeeTokensRequest) => Promise<GasFeeToken[]>;
+};
+
 /**
  * The internal actions available to the TransactionController.
  */
@@ -386,6 +395,7 @@ export type TransactionControllerActions =
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerConfirmExternalTransactionAction
   | TransactionControllerEstimateGasAction
+  | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetNonceLockAction
   | TransactionControllerGetStateAction
   | TransactionControllerGetTransactionsAction
@@ -1215,6 +1225,7 @@ export class TransactionController extends BaseController<
       batchId,
       deviceConfirmedOn,
       disableGasBuffer,
+      gasFeeToken,
       isGasFeeIncluded,
       isGasFeeSponsored,
       method,
@@ -1315,6 +1326,7 @@ export class TransactionController extends BaseController<
           deviceConfirmedOn,
           disableGasBuffer,
           id: random(),
+          isGasFeeTokenIgnoredIfBalance: Boolean(gasFeeToken),
           isGasFeeIncluded,
           isGasFeeSponsored,
           isFirstTimeInteraction: undefined,
@@ -1322,6 +1334,7 @@ export class TransactionController extends BaseController<
           networkClientId,
           origin,
           securityAlertResponse,
+          selectedGasFeeToken: gasFeeToken,
           status: TransactionStatus.unapproved as const,
           time: Date.now(),
           txParams,
@@ -1406,6 +1419,15 @@ export class TransactionController extends BaseController<
           log('Error while updating first interaction properties', error);
         });
       } else {
+        await processGasFeeTokensNoApproval({
+          ethQuery,
+          fetchGasFeeTokens: async (tx) =>
+            (await this.#getGasFeeTokens(tx)).gasFeeTokens,
+          transaction: addedTransactionMeta,
+          updateTransaction: (transactionId, fn) =>
+            this.#updateTransactionInternal({ transactionId }, fn),
+        });
+
         log(
           'Skipping simulation & first interaction update as approval not required',
         );
@@ -4255,14 +4277,8 @@ export class TransactionController extends BaseController<
         };
       }
 
-      const gasFeeTokensResponse = await getGasFeeTokens({
-        chainId,
-        getSimulationConfig: this.#getSimulationConfig,
-        isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
-        messenger: this.messenger,
-        publicKeyEIP7702: this.#publicKeyEIP7702,
-        transactionMeta,
-      });
+      const gasFeeTokensResponse = await this.#getGasFeeTokens(transactionMeta);
+
       gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
       isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
     }
@@ -4477,6 +4493,11 @@ export class TransactionController extends BaseController<
       `${controllerName}:emulateTransactionUpdate`,
       this.emulateTransactionUpdate.bind(this),
     );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:getGasFeeTokens`,
+      this.#getGasFeeTokensAction.bind(this),
+    );
   }
 
   #deleteTransaction(transactionId: string) {
@@ -4636,5 +4657,35 @@ export class TransactionController extends BaseController<
     log('Publish successful', transactionHash);
 
     return { transactionHash };
+  }
+
+  async #getGasFeeTokens(transaction: TransactionMeta) {
+    const { chainId } = transaction;
+
+    return await getGasFeeTokens({
+      chainId,
+      getSimulationConfig: this.#getSimulationConfig,
+      isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
+      messenger: this.messenger,
+      publicKeyEIP7702: this.#publicKeyEIP7702,
+      transactionMeta: transaction,
+    });
+  }
+
+  async #getGasFeeTokensAction(request: GetGasFeeTokensRequest) {
+    const { chainId, data, from, to, value } = request;
+
+    const ethQuery = this.#getEthQuery({ chainId });
+    const delegationAddress = await getDelegationAddress(from, ethQuery);
+
+    const transactionMeta = {
+      chainId,
+      delegationAddress,
+      txParams: { data, from, to, value },
+    } as TransactionMeta;
+
+    const result = await this.#getGasFeeTokens(transactionMeta);
+
+    return result.gasFeeTokens;
   }
 }
