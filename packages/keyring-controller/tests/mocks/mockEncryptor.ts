@@ -65,12 +65,11 @@ export default class MockEncryptor implements Encryptor {
     password: string,
     text: string,
   ): Promise<DetailedDecryptResult> {
-    const { salt } = JSON.parse(text);
-    const key = deriveKey(password, salt);
     const payload = JSON.parse(text);
+    const key = deriveKey(password, payload.salt);
     return {
       vault: await this.decryptWithKey(key, payload),
-      salt,
+      salt: payload.salt,
       exportedKeyString: JSON.stringify(key),
     };
   }
