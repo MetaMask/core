@@ -12,7 +12,6 @@ import { type Messenger } from '@metamask/messenger';
 import type {
   TransactionControllerStateChangeEvent,
   TransactionMeta,
-  SimulationData,
 } from '@metamask/transaction-controller';
 import type { Patch } from 'immer';
 import { toASCII } from 'punycode/punycode.js';
