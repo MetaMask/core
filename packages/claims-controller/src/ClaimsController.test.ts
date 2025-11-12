@@ -1,10 +1,12 @@
+import { toHex } from '@metamask/controller-utils';
+
 import { ClaimsController } from './ClaimsController';
-import {
-  ClaimsControllerErrorMessages,
-  ClaimStatusEnum,
-  HttpContentTypeHeader,
-} from './constants';
-import type { Claim, CreateClaimRequest } from './types';
+import { ClaimsControllerErrorMessages, ClaimStatusEnum } from './constants';
+import type {
+  Claim,
+  ClaimsConfigurationsResponse,
+  CreateClaimRequest,
+} from './types';
 import { createMockClaimsControllerMessenger } from '../tests/mocks/messenger';
 import type { WithControllerArgs } from '../tests/types';
 
@@ -13,6 +15,7 @@ const mockClaimServiceGetClaimsApiUrl = jest.fn();
 const mockClaimServiceGenerateMessageForClaimSignature = jest.fn();
 const mockKeyringControllerSignPersonalMessage = jest.fn();
 const mockClaimsServiceGetClaims = jest.fn();
+const mockClaimsServiceFetchClaimsConfigurations = jest.fn();
 
 /**
  * Builds a controller based on the given options and calls the given function with that controller.
@@ -30,6 +33,7 @@ async function withController<ReturnValue>(
     mockClaimServiceGenerateMessageForClaimSignature,
     mockKeyringControllerSignPersonalMessage,
     mockClaimsServiceGetClaims,
+    mockClaimsServiceFetchClaimsConfigurations,
   });
 
   const controller = new ClaimsController({
@@ -52,6 +56,46 @@ describe('ClaimsController', () => {
     });
   });
 
+  describe('fetchClaimsConfigurations', () => {
+    const MOCK_CONFIGURATIONS_RESPONSE: ClaimsConfigurationsResponse = {
+      validSubmissionWindowDays: 21,
+      networks: [1, 5, 11155111],
+    };
+
+    beforeEach(() => {
+      jest.resetAllMocks();
+
+      mockClaimsServiceFetchClaimsConfigurations.mockResolvedValueOnce(
+        MOCK_CONFIGURATIONS_RESPONSE,
+      );
+    });
+
+    it('should fetch claims configurations successfully', async () => {
+      await withController(async ({ controller }) => {
+        const initialState = controller.state;
+        const configurations = await controller.fetchClaimsConfigurations();
+        expect(configurations).toBeDefined();
+
+        const expectedConfigurations = {
+          validSubmissionWindowDays:
+            MOCK_CONFIGURATIONS_RESPONSE.validSubmissionWindowDays,
+          supportedNetworks: MOCK_CONFIGURATIONS_RESPONSE.networks.map(
+            (network) => toHex(network),
+          ),
+        };
+
+        expect(configurations).toStrictEqual(expectedConfigurations);
+        expect(controller.state).not.toBe(initialState);
+        expect(
+          controller.state.claimsConfigurations.validSubmissionWindowDays,
+        ).toBe(MOCK_CONFIGURATIONS_RESPONSE.validSubmissionWindowDays);
+        expect(
+          controller.state.claimsConfigurations.supportedNetworks,
+        ).toStrictEqual(expectedConfigurations.supportedNetworks);
+      });
+    });
+  });
+
   describe('getSubmitClaimConfig', () => {
     const MOCK_CLAIM: CreateClaimRequest = {
       chainId: '0x1',
@@ -65,7 +109,6 @@ describe('ClaimsController', () => {
     };
     const MOCK_CLAIM_API = 'https://claims-api.test.com';
     const MOCK_HEADERS = {
-      'Content-Type': HttpContentTypeHeader.MULTIPART_FORM_DATA,
       Authorization: 'Bearer test-token',
     };
 
@@ -81,9 +124,7 @@ describe('ClaimsController', () => {
         const submitClaimConfig =
           await controller.getSubmitClaimConfig(MOCK_CLAIM);
 
-        expect(mockClaimServiceRequestHeaders).toHaveBeenCalledWith(
-          HttpContentTypeHeader.MULTIPART_FORM_DATA,
-        );
+        expect(mockClaimServiceRequestHeaders).toHaveBeenCalledTimes(1);
         expect(mockClaimServiceGetClaimsApiUrl).toHaveBeenCalledTimes(1);
 
         expect(submitClaimConfig).toBeDefined();
