@@ -64,8 +64,8 @@
   "devDependencies": {
     "@metamask/assets-controllers": "^88.0.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/bridge-controller": "^60.0.0",
-    "@metamask/bridge-status-controller": "^60.0.0",
+    "@metamask/bridge-controller": "^60.1.0",
+    "@metamask/bridge-status-controller": "^60.1.0",
     "@metamask/gas-fee-controller": "^25.0.0",
     "@metamask/network-controller": "^25.0.0",
     "@metamask/remote-feature-flag-controller": "^2.0.0",
