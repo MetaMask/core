@@ -614,6 +614,23 @@ describe('KeyringController', () => {
       });
     });
 
+    it('should create new vault with a different password', async () => {
+      await withController(async ({ controller, initialState }) => {
+        const initialKeyrings = controller.state.keyrings;
+
+        await controller.createNewVaultAndRestore(
+          'new-password',
+          uint8ArraySeed,
+        );
+
+        expect(controller.state).not.toBe(initialState);
+        expect(controller.state.vault).toBeDefined();
+        expect(controller.state.keyrings).toHaveLength(initialKeyrings.length);
+        // new keyring metadata should be generated
+        expect(controller.state.keyrings).not.toStrictEqual(initialKeyrings);
+      });
+    });
+
     it('should throw error if creating new vault and restore without password', async () => {
       await withController(async ({ controller }) => {
         await expect(
