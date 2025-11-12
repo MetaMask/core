@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [60.1.0]
 
-### Uncategorized
-
-- Release/671.0.0 ([#7126](https://github.com/MetaMask/core/pull/7126))
-
 ### Added
 
 - Added support for bridging and swapping tokens on the Tron blockchain ([#6862](https://github.com/MetaMask/core/pull/6862))
