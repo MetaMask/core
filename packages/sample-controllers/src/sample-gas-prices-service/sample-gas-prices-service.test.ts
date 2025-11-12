@@ -297,8 +297,6 @@ describe('SampleGasPricesService', () => {
 type RootMessenger = Messenger<
   MockAnyNamespace,
   MessengerActions<SampleGasPricesServiceMessenger>,
-  // TODO: Disable this lint rule
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-arguments
   MessengerEvents<SampleGasPricesServiceMessenger>
 >;
 

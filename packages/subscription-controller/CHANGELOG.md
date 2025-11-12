@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.0]
+
+### Added
+
+- added `useTestClock` param to `StartSubscriptionRequest`, `StartCryptoSubscriptionRequest`, `CachedLastSelectedPaymentMethod` ([#7129](https://github.com/MetaMask/core/pull/7129))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^61.1.0` to `^61.2.0` ([#7126](https://github.com/MetaMask/core/pull/7126))
+
+## [4.1.0]
+
+### Added
+
+- Added `modalType` field and constant to `SubscriptionEligibility` ([#7124](https://github.com/MetaMask/core/pull/7124))
+
+## [4.0.0]
+
+### Added
+
+- Added `lastSubscription` in state returned from `getSubscriptions` method ([#7110](https://github.com/MetaMask/core/pull/7110))
+- Add `assignUserToCohort` method to assign users to cohorts via backend API ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add cohort-related types: `Cohort`, `CohortName`, `BalanceCategory`, `AssignCohortRequest`, `GetSubscriptionsEligibilitiesRequest` ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add cohort-related constants: `COHORT_NAMES`, `BALANCE_CATEGORIES`, `SubscriptionUserEvent` ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add cohort fields to `SubscriptionEligibility` type: `cohorts`, `assignedCohort`, `hasAssignedCohortExpired` ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add `ShieldCohortAssigned` event to `SubscriptionUserEvent` ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add optional `balanceCategory` parameter to `getSubscriptionsEligibilities` for privacy-preserving balance evaluation ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add optional `cohort` field to `SubmitUserEventRequest` for event tracking ([#7099](https://github.com/MetaMask/core/pull/7099))
+
+### Changed
+
+- Refactor `SubscriptionService.makeRequest` to accept query parameters for cleaner URL construction ([#7099](https://github.com/MetaMask/core/pull/7099))
+
 ## [3.3.0]
 
 ### Changed
@@ -149,7 +182,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@3.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@4.2.0...HEAD
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@4.1.0...@metamask/subscription-controller@4.2.0
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@4.0.0...@metamask/subscription-controller@4.1.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@3.3.0...@metamask/subscription-controller@4.0.0
 [3.3.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@3.2.0...@metamask/subscription-controller@3.3.0
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@3.1.0...@metamask/subscription-controller@3.2.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@3.0.0...@metamask/subscription-controller@3.1.0

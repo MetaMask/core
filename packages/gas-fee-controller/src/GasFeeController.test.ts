@@ -21,10 +21,6 @@ import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
-import {
-  buildCustomNetworkConfiguration,
-  buildCustomRpcEndpoint,
-} from '../../network-controller/tests/helpers';
 import determineGasFeeCalculations from './determineGasFeeCalculations';
 import {
   fetchGasEstimates,
@@ -40,6 +36,10 @@ import type {
   GasFeeStateFeeMarket,
   GasFeeStateLegacy,
 } from './GasFeeController';
+import {
+  buildCustomNetworkConfiguration,
+  buildCustomRpcEndpoint,
+} from '../../network-controller/tests/helpers';
 
 jest.mock('./determineGasFeeCalculations');
 
@@ -307,7 +307,6 @@ describe('GasFeeController', () => {
     getIsEIP1559Compatible?: jest.Mock<Promise<boolean>>;
     getCurrentNetworkLegacyGasAPICompatibility?: jest.Mock<boolean>;
     legacyAPIEndpoint?: string;
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     EIP1559APIEndpoint?: string;
     clientId?: string;
     networkControllerState?: Partial<NetworkState>;
@@ -1099,14 +1098,10 @@ describe('GasFeeController', () => {
           isEIP1559Compatible: true,
           isLegacyGasAPICompatible: false,
           fetchGasEstimates,
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId.sepolia,
           )}`,
           fetchLegacyGasPriceEstimates,
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchLegacyGasPriceEstimatesUrl: `https://some-legacy-endpoint/${convertHexToDecimal(
             ChainId.sepolia,
           )}`,
@@ -1210,8 +1205,6 @@ describe('GasFeeController', () => {
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
           expect.objectContaining({
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             fetchGasEstimatesUrl: `http://eip-1559.endpoint/${convertHexToDecimal(
               ChainId.sepolia,
             )}`,
@@ -1258,8 +1251,6 @@ describe('GasFeeController', () => {
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId['linea-sepolia'],
           )}`,
@@ -1271,8 +1262,6 @@ describe('GasFeeController', () => {
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId['linea-sepolia'],
           )}`,
@@ -1290,8 +1279,6 @@ describe('GasFeeController', () => {
       await clock.tickAsync(pollingInterval);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
         expect.objectContaining({
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId.sepolia,
           )}`,
