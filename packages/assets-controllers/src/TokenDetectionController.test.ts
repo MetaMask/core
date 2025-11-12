@@ -2856,6 +2856,81 @@ describe('TokenDetectionController', () => {
       }
     });
 
+    it('should fallback to RPC when Accounts API call fails with an error (safelyExecute returns undefined)', async () => {
+      // Arrange - RPC Tokens Flow - Uses sampleTokenA
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+
+      // Mock an API call that throws an error inside safelyExecute
+      // This simulates a scenario where the API throws an error (network failure, parsing error, etc.)
+      const mockAPI = mockMultiChainAccountsService();
+      mockAPI.mockFetchSupportedNetworks.mockResolvedValue([1]);
+      mockAPI.mockFetchMultiChainBalances.mockRejectedValue(
+        new Error('API Network Error'),
+      );
+
+      // Arrange - Selected Account
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+
+      // Arrange / Act - withController setup
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({ controller, mockTokenListGetState, callActionSpy }) => {
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              },
+            },
+          });
+
+          // Execute detection
+          await controller.detectTokens({
+            chainIds: ['0x1'],
+            selectedAddress: selectedAccount.address,
+          });
+
+          // Verify that the API was initially called
+          expect(mockAPI.mockFetchMultiChainBalances).toHaveBeenCalled();
+
+          // Verify that after API error (safelyExecute returns undefined), RPC fallback was triggered
+          expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+
+          // Verify that tokens were added via RPC fallback method
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            [sampleTokenA],
+            'mainnet',
+          );
+        },
+      );
+    });
+
     /**
      * Test Utility - Arrange and Act `detectTokens()` with the Accounts API feature
      * RPC flow will return `sampleTokenA` and the Accounts API flow will use `sampleTokenB`

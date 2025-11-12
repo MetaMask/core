@@ -750,8 +750,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         supportedNetworks,
       );
 
-      // If the account API call failed, have those chains fall back to RPC detection
-      if (apiResult?.result === 'failed') {
+      // If the account API call failed or returned undefined, have those chains fall back to RPC detection
+      if (!apiResult || apiResult.result === 'failed') {
         this.#addChainsToRpcDetection(
           chainsToDetectUsingRpc,
           chainsToDetectUsingAccountAPI,
