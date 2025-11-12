@@ -18,13 +18,20 @@ export function toRawAPINotification(
 ): NormalisedAPINotification {
   const exhaustedAllCases = (_: never) => {
     const type: string = data?.notification_type;
-    throw new Error(`No processor found for notification kind ${type}`);
+    throw new Error(
+      `toRawAPINotification - No processor found for notification kind ${type}`,
+    );
   };
 
   if (data.notification_type === 'on-chain') {
+    if (!data?.payload?.data?.kind) {
+      throw new Error(
+        'toRawAPINotification - No kind found for on-chain notification',
+      );
+    }
     return {
       ...data,
-      type: data?.payload?.data?.kind,
+      type: data.payload.data.kind,
     } as OnChainRawNotification;
   }
 
