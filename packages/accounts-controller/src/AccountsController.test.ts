@@ -3370,6 +3370,32 @@ describe('AccountsController', () => {
         accountsController.getAccountExpect(mockAccount.id),
       );
     });
+
+    it('throws when renaming to an existing account name', () => {
+      const existingName = 'Existing Name';
+      const mockAccountWithName = createMockInternalAccount({
+        id: 'mock-id-2',
+        name: existingName,
+        address: '0xabc',
+        keyringType: KeyringTypes.hd,
+      });
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockAccountWithName.id]: mockAccountWithName,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      expect(() =>
+        accountsController.setAccountName(mockAccount.id, existingName),
+      ).toThrow('Account name already exists');
+    });
   });
 
   describe('updateAccountMetadata', () => {
@@ -3900,6 +3926,42 @@ describe('AccountsController', () => {
             'AccountsController:getNextAvailableAccountName',
           );
           expect(accountName).toBe('Account 4');
+        });
+
+        it('computes next name for non-HD keyring types (Ledger branch)', () => {
+          const { accountsController } = setupAccountsController({});
+
+          const ledger1 = createMockInternalAccount({
+            id: 'ledger-1',
+            name: 'Ledger 1',
+            address: '0xdeadbeef1',
+            keyringType: KeyringTypes.ledger,
+          });
+
+          const next = accountsController.getNextAvailableAccountName(
+            KeyringTypes.ledger,
+            [ledger1],
+          );
+          expect(next).toBe('Ledger 2');
+        });
+
+        it('treats Simple and HD as one group (invokes simple-type check)', () => {
+          const { accountsController } = setupAccountsController({});
+
+          const simple1 = createMockInternalAccount({
+            id: 'simple-1',
+            name: 'Account 1',
+            address: '0xfacefeed1',
+            keyringType: KeyringTypes.simple,
+          });
+
+          // Asking for next HD name with only a Simple account forces the
+          // filter to evaluate the Simple branch, covering isSimpleKeyringType.
+          const next = accountsController.getNextAvailableAccountName(
+            KeyringTypes.hd,
+            [simple1],
+          );
+          expect(next).toBe('Account 2');
         });
       });
     });
