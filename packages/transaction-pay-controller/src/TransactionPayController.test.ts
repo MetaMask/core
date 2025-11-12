@@ -37,6 +37,7 @@ describe('TransactionPayController', () => {
    */
   function createController() {
     return new TransactionPayController({
+      getDelegationTransaction: jest.fn(),
       messenger,
     });
   }
@@ -85,6 +86,7 @@ describe('TransactionPayController', () => {
 
     it('returns callback value if provided', async () => {
       new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
         getStrategy: async () => TransactionPayStrategy.Test,
         messenger,
       });
