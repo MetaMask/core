@@ -184,7 +184,7 @@ export async function checkGasFeeTokenBeforePublish({
   }
 
   if (
-    !finalGasFeeTokens.some(
+    !finalGasFeeTokens?.some(
       (t) => t.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
     )
   ) {
