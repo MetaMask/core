@@ -39,9 +39,8 @@ export default class MockEncryptor implements Encryptor {
   }
 
   async decrypt(password: string, text: string): Promise<Json> {
-    const { salt } = JSON.parse(text);
-    const key = deriveKey(password, salt);
     const payload = JSON.parse(text);
+    const key = deriveKey(password, payload.salt);
     return await this.decryptWithKey(key, payload);
   }
 
