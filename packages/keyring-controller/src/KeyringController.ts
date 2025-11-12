@@ -1480,7 +1480,7 @@ export class KeyringController<
 
     return this.#persistOrRollback(async () => {
       assertIsValidPassword(password);
-      await this.#deriveEncryptionKey(password, {
+      await this.#deriveAndSetEncryptionKey(password, {
         ignoreExistingVault: true,
       });
     });
@@ -1557,7 +1557,7 @@ export class KeyringController<
       // can attempt to upgrade the vault.
       await this.#withRollback(async () => {
         if (newMetadata || this.#isNewEncryptionAvailable()) {
-          await this.#deriveEncryptionKey(password, {
+          await this.#deriveAndSetEncryptionKey(password, {
             // If the vault is being upgraded, we want to ignore the metadata
             // that is already in the vault, so we can effectively
             // re-encrypt the vault with the new encryption config.
@@ -1906,7 +1906,7 @@ export class KeyringController<
       delete state.encryptionSalt;
     });
 
-    await this.#deriveEncryptionKey(password, {
+    await this.#deriveAndSetEncryptionKey(password, {
       ignoreExistingVault: true,
     });
 
@@ -1932,7 +1932,7 @@ export class KeyringController<
    * @param options - Options for the key derivation.
    * @param options.ignoreExistingVault - Whether to ignore the existing vault salt and key metadata
    */
-  async #deriveEncryptionKey(
+  async #deriveAndSetEncryptionKey(
     password: string,
     options: { ignoreExistingVault: boolean } = {
       ignoreExistingVault: false,
@@ -2163,7 +2163,7 @@ export class KeyringController<
       const parsedEncryptedVault = JSON.parse(this.state.vault);
 
       if ('password' in credentials) {
-        await this.#deriveEncryptionKey(credentials.password);
+        await this.#deriveAndSetEncryptionKey(credentials.password);
       } else {
         this.#setEncryptionKey(
           credentials.encryptionKey,
