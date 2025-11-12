@@ -2457,7 +2457,7 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should throw an error if vault unlocked has invalid authentication data', async () => {
-      const mockVault = JSON.stringify({ foo: 'bar' });
+      const mockVault = JSON.stringify({ foo: 'bar', salt: 'baz' });
 
       await withController(
         {
