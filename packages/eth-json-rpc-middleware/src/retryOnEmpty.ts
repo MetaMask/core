@@ -1,9 +1,8 @@
 import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
-import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
-import type { Json, JsonRpcParams } from '@metamask/utils';
-import { klona } from 'klona/full';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
+import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
+import { klona } from 'klona';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
 import type { Block } from './types';
@@ -37,7 +36,7 @@ export function createRetryOnEmptyMiddleware({
 }: {
   provider?: InternalProvider;
   blockTracker?: PollingBlockTracker;
-} = {}): JsonRpcMiddleware<JsonRpcParams, Json> {
+} = {}): JsonRpcMiddleware<JsonRpcRequest, Json> {
   if (!provider) {
     throw Error(
       'RetryOnEmptyMiddleware - mandatory "provider" option is missing.',
@@ -50,16 +49,18 @@ export function createRetryOnEmptyMiddleware({
     );
   }
 
-  return createAsyncMiddleware(async (req, res, next) => {
-    const blockRefIndex: number | undefined = blockTagParamIndex(req.method);
+  return async ({ request, next }) => {
+    const blockRefIndex: number | undefined = blockTagParamIndex(
+      request.method,
+    );
     // skip if method does not include blockRef
     if (blockRefIndex === undefined) {
       return next();
     }
     // skip if not exact block references
     let blockRef: string | undefined =
-      Array.isArray(req.params) && req.params[blockRefIndex]
-        ? (req.params[blockRefIndex] as string)
+      Array.isArray(request.params) && request.params[blockRefIndex]
+        ? (request.params[blockRefIndex] as string)
         : undefined;
     // omitted blockRef implies "latest"
     if (blockRef === undefined) {
@@ -98,7 +99,7 @@ export function createRetryOnEmptyMiddleware({
     );
 
     // create child request with specific block-ref
-    const childRequest = klona(req);
+    const childRequest = klona(request);
     // attempt child request until non-empty response is received
     const childResult = await retry(10, async () => {
       log('Performing request %o', childRequest);
@@ -118,10 +119,8 @@ export function createRetryOnEmptyMiddleware({
       return attemptResult;
     });
     log('Copying result %o', childResult);
-    // copy child result onto original response
-    res.result = childResult;
-    return undefined;
-  });
+    return childResult;
+  };
 }
 
 /**

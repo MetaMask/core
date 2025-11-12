@@ -15,16 +15,11 @@ export enum TRIGGER_TYPES {
   ERC721_RECEIVED = 'erc721_received',
   ERC1155_SENT = 'erc1155_sent',
   ERC1155_RECEIVED = 'erc1155_received',
-  AAVE_V3_HEALTH_FACTOR = 'aave_v3_health_factor',
-  ENS_EXPIRATION = 'ens_expiration',
-  LIDO_STAKING_REWARDS = 'lido_staking_rewards',
-  ROCKETPOOL_STAKING_REWARDS = 'rocketpool_staking_rewards',
-  NOTIONAL_LOAN_EXPIRATION = 'notional_loan_expiration',
-  SPARK_FI_HEALTH_FACTOR = 'spark_fi_health_factor',
   SNAP = 'snap',
+  PLATFORM = 'platform',
 }
 
-export const TRIGGER_TYPES_WALLET_SET: Set<string> = new Set([
+export const NOTIFICATION_API_TRIGGER_TYPES_SET: Set<string> = new Set([
   TRIGGER_TYPES.METAMASK_SWAP_COMPLETED,
   TRIGGER_TYPES.ERC20_SENT,
   TRIGGER_TYPES.ERC20_RECEIVED,
@@ -40,13 +35,8 @@ export const TRIGGER_TYPES_WALLET_SET: Set<string> = new Set([
   TRIGGER_TYPES.ERC721_RECEIVED,
   TRIGGER_TYPES.ERC1155_SENT,
   TRIGGER_TYPES.ERC1155_RECEIVED,
-]) satisfies Set<Exclude<TRIGGER_TYPES, TRIGGER_TYPES.FEATURES_ANNOUNCEMENT>>;
-
-export enum TRIGGER_TYPES_GROUPS {
-  RECEIVED = 'received',
-  SENT = 'sent',
-  DEFI = 'defi',
-}
+  TRIGGER_TYPES.PLATFORM,
+]);
 
 export const NOTIFICATION_CHAINS_ID = {
   ETHEREUM: '1',
