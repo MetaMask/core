@@ -2692,6 +2692,24 @@ describe('KeyringController', () => {
       );
     });
 
+    it('should throw an error if the encryptor returns an undefined encryption key', async () => {
+      await withController(
+        { skipVaultCreation: true, state: { vault: createVault() } },
+        async ({ controller, encryptor }) => {
+          jest.spyOn(encryptor, 'decryptWithDetail').mockResolvedValueOnce({
+            vault: defaultKeyrings,
+            // @ts-expect-error we are testing a broken encryptor
+            exportedKeyString: undefined,
+            salt: '',
+          });
+
+          await expect(controller.submitPassword(password)).rejects.toThrow(
+            KeyringControllerError.MissingCredentials,
+          );
+        },
+      );
+    });
+
     it('should unlock succesfully when the controller is instantiated with an existing `keyringsMetadata`', async () => {
       stubKeyringClassWithAccount(HdKeyring, '0x123');
       await withController(
