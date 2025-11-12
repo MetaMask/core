@@ -7,14 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Updated getBridgeBatchTransactions types to account for multichain approvals ([#6862](https://github.com/MetaMask/core/pull/6862))
-
 ### Added
 
 - **BREAKING:** Include transactions in Relay quotes via EIP-7702 and delegation ([#7122](https://github.com/MetaMask/core/pull/7122))
   - Requires new `getDelegationTransaction` constructor option.
+
+### Changed
+
+- Updated getBridgeBatchTransactions types to account for multichain approvals ([#6862](https://github.com/MetaMask/core/pull/6862))
 
 ### Fixed
 
