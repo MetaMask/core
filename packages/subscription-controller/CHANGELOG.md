@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add missing start crypto `useTestClock` param from `lastSelectedPaymentMethod` in `submitShieldSubscriptionCryptoApproval` ([#7131](https://github.com/MetaMask/core/pull/7131))
+
 ## [4.2.0]
 
 ### Added
