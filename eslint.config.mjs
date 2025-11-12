@@ -231,17 +231,6 @@ const config = createConfig([
     },
   },
   {
-    files: ['packages/eth-json-rpc-middleware/**/*.ts'],
-    rules: {
-      // TODO: Re-enable these rules or add inline ignores for warranted cases
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/prefer-nullish-coalescing': 'warn',
-      'jsdoc/match-description': 'warn',
-      'jsdoc/require-jsdoc': 'warn',
-      'no-restricted-syntax': 'warn',
-    },
-  },
-  {
     files: ['packages/foundryup/**/*.{js,ts}'],
     rules: {
       'import-x/no-nodejs-modules': 'off',
