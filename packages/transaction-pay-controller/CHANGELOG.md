@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Include transactions in Relay quotes via EIP-7702 and delegation ([#7122](https://github.com/MetaMask/core/pull/7122))
+  - Requires new `getDelegationTransaction` constructor option.
+
 ### Fixed
 
 - Read Relay provider fees directly from response ([#7098](https://github.com/MetaMask/core/pull/7098))
