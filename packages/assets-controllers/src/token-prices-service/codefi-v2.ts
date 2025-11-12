@@ -326,13 +326,10 @@ type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
 /**
  * All requests to V2 of the Price API start with this.
  */
-const BASE_URL = 'https://price.api.cx.metamask.io/v2';
-
 const BASE_URL_V1 = 'https://price.api.cx.metamask.io/v1';
 
 const BASE_URL_V3 = 'https://price.api.cx.metamask.io/v3';
 
-type MarketDataByTokenAddress = { [address: Hex]: MarketData };
 /**
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
