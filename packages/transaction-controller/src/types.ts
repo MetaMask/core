@@ -268,6 +268,9 @@ export type TransactionMeta = {
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
 
+  /** Whether the `selectedGasFeeToken` is only used if the user has insufficient native balance. */
+  isGasFeeTokenIgnoredIfBalance?: boolean;
+
   /** Whether the intent of the transaction was achieved via an alternate route or chain. */
   isIntentComplete?: boolean;
 
@@ -1723,6 +1726,9 @@ export type TransactionBatchRequest = {
   /** Address of the account to submit the transaction batch. */
   from: Hex;
 
+  /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
+  gasFeeToken?: Hex;
+
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
 
@@ -2060,6 +2066,9 @@ export type AddTransactionOptions = {
 
   /** Whether to disable the gas estimation buffer. */
   disableGasBuffer?: boolean;
+
+  /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
+  gasFeeToken?: Hex;
 
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
