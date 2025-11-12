@@ -245,6 +245,14 @@ describe('Relay Submit Utils', () => {
       );
     });
 
+    it('does not wait for relay status if same chain', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+
+      await submitRelayQuotes(request);
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(0);
+    });
+
     it('throws if transaction fails to confirm', async () => {
       waitForTransactionConfirmedMock.mockRejectedValue(
         new Error('Transaction failed'),
@@ -295,6 +303,18 @@ describe('Relay Submit Utils', () => {
     it('returns target hash', async () => {
       const result = await submitRelayQuotes(request);
       expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
+    });
+
+    it('returns fallback hash if none included', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...STATUS_RESPONSE_MOCK,
+          txHashes: [],
+        }),
+      } as Response);
+
+      const result = await submitRelayQuotes(request);
+      expect(result.transactionHash).toBe('0x0');
     });
 
     it('adds required transaction IDs', async () => {

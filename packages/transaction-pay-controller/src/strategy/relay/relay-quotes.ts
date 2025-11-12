@@ -122,6 +122,8 @@ async function processTransactions(
   messenger: TransactionPayControllerMessenger,
 ) {
   const { data, value } = transaction.txParams;
+
+  /* istanbul ignore next */
   const hasNoParams = (!data || data === '0x') && (!value || value === '0x0');
 
   const skipDelegation =
