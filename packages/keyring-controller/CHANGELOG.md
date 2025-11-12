@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed incorrect type for `decryptWithKey` method of `ExportableKeyEncryptor` ([#7127](https://github.com/MetaMask/core/pull/7127))
+- Fixed incorrect type for `decryptWithKey` method of `ExportableKeyEncryptor` (now `Encryptor`) ([#7127](https://github.com/MetaMask/core/pull/7127))
 
 ## [24.0.0]
 
