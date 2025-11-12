@@ -2199,7 +2199,7 @@ export class KeyringController<
       this.update((state) => {
         state.keyrings = updatedKeyrings;
         state.encryptionKey = encryptionKey;
-        state.encryptionSalt = parsedEncryptedVault.salt;
+        state.encryptionSalt = this.#encryptionKey?.salt;
       });
 
       return { keyrings, newMetadata };
