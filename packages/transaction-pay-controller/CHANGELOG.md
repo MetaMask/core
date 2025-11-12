@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Updated getBridgeBatchTransactions types to account for multichain approvals ([#6862](https://github.com/MetaMask/core/pull/6862))
+- Updated `getBridgeBatchTransactions` types to account for multichain approvals ([#6862](https://github.com/MetaMask/core/pull/6862))
 
 ### Fixed
 
