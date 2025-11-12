@@ -26,8 +26,9 @@ runs:
         RELEASED_PACKAGES=()
 
         # Get all packages being released in this PR
+        MERGE_BASE=$(git merge-base HEAD refs/remotes/origin/main)
         for package in "${PACKAGES[@]}"; do
-          MAIN_VERSION=$(git show "refs/remotes/origin/main:$package" | jq -r .version)
+          MAIN_VERSION=$(git show "$MERGE_BASE:$package" | jq -r .version)
           HEAD_VERSION=$(jq -r .version "$package")
 
           if [ "$HEAD_VERSION" != "$MAIN_VERSION" ]; then
@@ -38,7 +39,7 @@ runs:
         done
 
         # Get all files changed ahead of this PR.
-        git diff --name-only "$BEFORE..$(git merge-base HEAD refs/remotes/origin/main)" > changed-files.txt
+        git diff --name-only "$BEFORE..$MERGE_BASE" > changed-files.txt
 
         CONFLICTS=()
         for package in "${RELEASED_PACKAGES[@]}"; do
