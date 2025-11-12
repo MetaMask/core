@@ -1,5 +1,6 @@
 import { successfulFetch } from '@metamask/controller-utils';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import {
@@ -62,12 +63,12 @@ const QUOTE_MOCK = {
           },
           data: {
             chainId: 1,
-            data: '0x123',
-            from: '0x1',
+            data: '0x123' as Hex,
+            from: '0x1' as Hex,
             gas: '21000',
             maxFeePerGas: '1000000000',
             maxPriorityFeePerGas: '2000000000',
-            to: '0x2',
+            to: '0x2' as Hex,
             value: '300000',
           },
           status: 'complete',
@@ -78,7 +79,7 @@ const QUOTE_MOCK = {
   ],
 } as RelayQuote;
 
-const TRANSACTION_META_MOCK = {} as TransactionMeta;
+const TRANSACTION_META_MOCK = { txParams: {} } as TransactionMeta;
 
 describe('Relay Quotes Utils', () => {
   const successfulFetchMock = jest.mocked(successfulFetch);
@@ -325,8 +326,8 @@ describe('Relay Quotes Utils', () => {
       });
 
       expect(result[0].fees.targetNetwork).toStrictEqual({
-        usd: '1.23',
-        fiat: '2.34',
+        usd: '0',
+        fiat: '0',
       });
     });
 

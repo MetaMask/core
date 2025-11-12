@@ -29,6 +29,8 @@ import {
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
 
+const FALLBCAK_HASH = '0x0' as Hex;
+
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
 /**
@@ -125,7 +127,7 @@ async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
     quote.details.currencyOut.currency.chainId
   ) {
     log('Skipping polling as same chain');
-    return '0x0' as Hex;
+    return FALLBCAK_HASH;
   }
 
   const { endpoint, method } = quote.steps
@@ -141,7 +143,8 @@ async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
     log('Polled status', status.status, status);
 
     if (status.status === 'success') {
-      return status.txHashes.slice(-1)[0] as Hex;
+      const targetHash = status.txHashes?.slice(-1)[0] as Hex;
+      return targetHash ?? FALLBCAK_HASH;
     }
 
     if (['failure', 'refund', 'fallback'].includes(status.status)) {
