@@ -120,6 +120,14 @@ async function executeSingleQuote(
  * @returns A promise that resolves when the Relay request is complete.
  */
 async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
+  if (
+    quote.details.currencyIn.currency.chainId ===
+    quote.details.currencyOut.currency.chainId
+  ) {
+    log('Skipping polling as same chain');
+    return '0x0' as Hex;
+  }
+
   const { endpoint, method } = quote.steps
     .slice(-1)[0]
     .items.slice(-1)[0].check;
