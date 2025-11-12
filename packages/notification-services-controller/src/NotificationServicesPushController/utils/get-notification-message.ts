@@ -40,12 +40,14 @@ export type TranslationKeys = {
 type PushNotificationMessage = {
   title: string;
   description: string;
+  ctaLink?: string;
 };
 
 type NotificationMessage<N extends Types.INotification> = {
-  title: string | null;
-  defaultDescription: string | null;
+  title: (n: N) => string | null;
+  defaultDescription: (n: N) => string | null;
   getDescription?: (n: N) => string | null;
+  link?: (n: N) => string | null;
 };
 
 type NotificationMessageDict = {
@@ -78,14 +80,13 @@ export const createOnChainPushNotificationMessages = (
 
   return {
     erc20_sent: {
-      title: t('pushPlatformNotificationsFundsSentTitle'),
-      defaultDescription: t(
-        'pushPlatformNotificationsFundsSentDescriptionDefault',
-      ),
+      title: () => t('pushPlatformNotificationsFundsSentTitle'),
+      defaultDescription: () =>
+        t('pushPlatformNotificationsFundsSentDescriptionDefault'),
       getDescription: (n) => {
-        const symbol = n?.data?.token?.symbol;
-        const tokenAmount = n?.data?.token?.amount;
-        const tokenDecimals = n?.data?.token?.decimals;
+        const symbol = n?.payload?.data?.token?.symbol;
+        const tokenAmount = n?.payload?.data?.token?.amount;
+        const tokenDecimals = n?.payload?.data?.token?.decimals;
         if (!symbol || !tokenAmount || !tokenDecimals) {
           return null;
         }
@@ -101,13 +102,12 @@ export const createOnChainPushNotificationMessages = (
       },
     },
     eth_sent: {
-      title: t('pushPlatformNotificationsFundsSentTitle'),
-      defaultDescription: t(
-        'pushPlatformNotificationsFundsSentDescriptionDefault',
-      ),
+      title: () => t('pushPlatformNotificationsFundsSentTitle'),
+      defaultDescription: () =>
+        t('pushPlatformNotificationsFundsSentDescriptionDefault'),
       getDescription: (n) => {
-        const symbol = getChainSymbol(n?.chain_id);
-        const tokenAmount = n?.data?.amount?.eth;
+        const symbol = getChainSymbol(n?.payload?.chain_id);
+        const tokenAmount = n?.payload?.data?.amount?.eth;
         if (!symbol || !tokenAmount) {
           return null;
         }
@@ -123,14 +123,13 @@ export const createOnChainPushNotificationMessages = (
       },
     },
     erc20_received: {
-      title: t('pushPlatformNotificationsFundsReceivedTitle'),
-      defaultDescription: t(
-        'pushPlatformNotificationsFundsReceivedDescriptionDefault',
-      ),
+      title: () => t('pushPlatformNotificationsFundsReceivedTitle'),
+      defaultDescription: () =>
+        t('pushPlatformNotificationsFundsReceivedDescriptionDefault'),
       getDescription: (n) => {
-        const symbol = n?.data?.token?.symbol;
-        const tokenAmount = n?.data?.token?.amount;
-        const tokenDecimals = n?.data?.token?.decimals;
+        const symbol = n?.payload?.data?.token?.symbol;
+        const tokenAmount = n?.payload?.data?.token?.amount;
+        const tokenDecimals = n?.payload?.data?.token?.decimals;
         if (!symbol || !tokenAmount || !tokenDecimals) {
           return null;
         }
@@ -146,13 +145,12 @@ export const createOnChainPushNotificationMessages = (
       },
     },
     eth_received: {
-      title: t('pushPlatformNotificationsFundsReceivedTitle'),
-      defaultDescription: t(
-        'pushPlatformNotificationsFundsReceivedDescriptionDefault',
-      ),
+      title: () => t('pushPlatformNotificationsFundsReceivedTitle'),
+      defaultDescription: () =>
+        t('pushPlatformNotificationsFundsReceivedDescriptionDefault'),
       getDescription: (n) => {
-        const symbol = getChainSymbol(n?.chain_id);
-        const tokenAmount = n?.data?.amount?.eth;
+        const symbol = getChainSymbol(n?.payload?.chain_id);
+        const tokenAmount = n?.payload?.data?.amount?.eth;
         if (!symbol || !tokenAmount) {
           return null;
         }
@@ -168,66 +166,75 @@ export const createOnChainPushNotificationMessages = (
       },
     },
     metamask_swap_completed: {
-      title: t('pushPlatformNotificationsSwapCompletedTitle'),
-      defaultDescription: t(
-        'pushPlatformNotificationsSwapCompletedDescription',
-      ),
+      title: () => t('pushPlatformNotificationsSwapCompletedTitle'),
+      defaultDescription: () =>
+        t('pushPlatformNotificationsSwapCompletedDescription'),
     },
     erc721_sent: {
-      title: t('pushPlatformNotificationsNftSentTitle'),
-      defaultDescription: t('pushPlatformNotificationsNftSentDescription'),
+      title: () => t('pushPlatformNotificationsNftSentTitle'),
+      defaultDescription: () =>
+        t('pushPlatformNotificationsNftSentDescription'),
     },
     erc1155_sent: {
-      title: t('pushPlatformNotificationsNftSentTitle'),
-      defaultDescription: t('pushPlatformNotificationsNftSentDescription'),
+      title: () => t('pushPlatformNotificationsNftSentTitle'),
+      defaultDescription: () =>
+        t('pushPlatformNotificationsNftSentDescription'),
     },
     erc721_received: {
-      title: t('pushPlatformNotificationsNftReceivedTitle'),
-      defaultDescription: t('pushPlatformNotificationsNftReceivedDescription'),
+      title: () => t('pushPlatformNotificationsNftReceivedTitle'),
+      defaultDescription: () =>
+        t('pushPlatformNotificationsNftReceivedDescription'),
     },
     erc1155_received: {
-      title: t('pushPlatformNotificationsNftReceivedTitle'),
-      defaultDescription: t('pushPlatformNotificationsNftReceivedDescription'),
+      title: () => t('pushPlatformNotificationsNftReceivedTitle'),
+      defaultDescription: () =>
+        t('pushPlatformNotificationsNftReceivedDescription'),
     },
     rocketpool_stake_completed: {
-      title: t('pushPlatformNotificationsStakingRocketpoolStakeCompletedTitle'),
-      defaultDescription: t(
-        'pushPlatformNotificationsStakingRocketpoolStakeCompletedDescription',
-      ),
+      title: () =>
+        t('pushPlatformNotificationsStakingRocketpoolStakeCompletedTitle'),
+      defaultDescription: () =>
+        t(
+          'pushPlatformNotificationsStakingRocketpoolStakeCompletedDescription',
+        ),
     },
     rocketpool_unstake_completed: {
-      title: t(
-        'pushPlatformNotificationsStakingRocketpoolUnstakeCompletedTitle',
-      ),
-      defaultDescription: t(
-        'pushPlatformNotificationsStakingRocketpoolUnstakeCompletedDescription',
-      ),
+      title: () =>
+        t('pushPlatformNotificationsStakingRocketpoolUnstakeCompletedTitle'),
+      defaultDescription: () =>
+        t(
+          'pushPlatformNotificationsStakingRocketpoolUnstakeCompletedDescription',
+        ),
     },
     lido_stake_completed: {
-      title: t('pushPlatformNotificationsStakingLidoStakeCompletedTitle'),
-      defaultDescription: t(
-        'pushPlatformNotificationsStakingLidoStakeCompletedDescription',
-      ),
+      title: () => t('pushPlatformNotificationsStakingLidoStakeCompletedTitle'),
+      defaultDescription: () =>
+        t('pushPlatformNotificationsStakingLidoStakeCompletedDescription'),
     },
     lido_stake_ready_to_be_withdrawn: {
-      title: t(
-        'pushPlatformNotificationsStakingLidoStakeReadyToBeWithdrawnTitle',
-      ),
-      defaultDescription: t(
-        'pushPlatformNotificationsStakingLidoStakeReadyToBeWithdrawnDescription',
-      ),
+      title: () =>
+        t('pushPlatformNotificationsStakingLidoStakeReadyToBeWithdrawnTitle'),
+      defaultDescription: () =>
+        t(
+          'pushPlatformNotificationsStakingLidoStakeReadyToBeWithdrawnDescription',
+        ),
     },
     lido_withdrawal_requested: {
-      title: t('pushPlatformNotificationsStakingLidoWithdrawalRequestedTitle'),
-      defaultDescription: t(
-        'pushPlatformNotificationsStakingLidoWithdrawalRequestedDescription',
-      ),
+      title: () =>
+        t('pushPlatformNotificationsStakingLidoWithdrawalRequestedTitle'),
+      defaultDescription: () =>
+        t('pushPlatformNotificationsStakingLidoWithdrawalRequestedDescription'),
     },
     lido_withdrawal_completed: {
-      title: t('pushPlatformNotificationsStakingLidoWithdrawalCompletedTitle'),
-      defaultDescription: t(
-        'pushPlatformNotificationsStakingLidoWithdrawalCompletedDescription',
-      ),
+      title: () =>
+        t('pushPlatformNotificationsStakingLidoWithdrawalCompletedTitle'),
+      defaultDescription: () =>
+        t('pushPlatformNotificationsStakingLidoWithdrawalCompletedDescription'),
+    },
+    platform: {
+      title: (n) => n.template.title,
+      defaultDescription: (n) => n.template.body,
+      getDescription: (n) => n.template.body,
     },
   };
 };
@@ -272,14 +279,17 @@ export function createOnChainPushNotificationMessage(
     description =
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       notificationMessage?.getDescription?.(n as any) ??
-      notificationMessage.defaultDescription ??
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      notificationMessage.defaultDescription?.(n as any) ??
       null;
   } catch {
-    description = notificationMessage.defaultDescription ?? null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    description = notificationMessage.defaultDescription?.(n as any) ?? null;
   }
 
   return {
-    title: notificationMessage.title ?? '', // Ensure title is always a string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    title: notificationMessage?.title?.(n as any) ?? '', // Ensure title is always a string
     description: description ?? '', // Fallback to empty string if null
   };
 }
