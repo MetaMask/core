@@ -53,6 +53,13 @@ export const CRYPTO_PAYMENT_METHOD_ERRORS = {
 export type CryptoPaymentMethodError =
   (typeof CRYPTO_PAYMENT_METHOD_ERRORS)[keyof typeof CRYPTO_PAYMENT_METHOD_ERRORS];
 
+export const MODAL_TYPE = {
+  A: 'A',
+  B: 'B',
+} as const;
+
+export type ModalType = (typeof MODAL_TYPE)[keyof typeof MODAL_TYPE];
+
 /** only usd for now */
 export type Currency = 'usd';
 
@@ -266,6 +273,7 @@ export type SubscriptionEligibility = {
   canSubscribe: boolean;
   minBalanceUSD: number;
   canViewEntryModal: boolean;
+  modalType?: ModalType;
   cohorts: Cohort[];
   assignedCohort: string | null;
   hasAssignedCohortExpired: boolean;

@@ -65,6 +65,7 @@ export type {
   BalanceCategory,
   AssignCohortRequest,
   GetSubscriptionsEligibilitiesRequest,
+  ModalType,
 } from './types';
 export {
   CRYPTO_PAYMENT_METHOD_ERRORS,
@@ -75,6 +76,7 @@ export {
   SubscriptionUserEvent,
   COHORT_NAMES,
   BALANCE_CATEGORIES,
+  MODAL_TYPE,
 } from './types';
 export { SubscriptionServiceError } from './errors';
 export { Env, SubscriptionControllerErrorMessage } from './constants';
