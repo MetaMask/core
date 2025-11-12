@@ -2172,6 +2172,11 @@ export class KeyringController<
       }
 
       const encryptionKey = this.#encryptionKey?.serialized;
+      // The following check is necessary to satisfy TypeScript null checks.
+      // The branch is unreachable because `#setEncryptionKey` and
+      // `#deriveAndSetEncryptionKey` both throw if the encryption key
+      // cannot be set for any reason.
+      /* istanbul ignore if */
       if (!encryptionKey) {
         throw new Error(KeyringControllerError.MissingCredentials);
       }
