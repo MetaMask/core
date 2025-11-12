@@ -3655,6 +3655,35 @@ describe('Transaction Controller State Change Integration', () => {
     });
   });
 
+  it('triggers bulk token scanning when patch path includes simulationData', async () => {
+    const mockTransaction = createMockTransaction('test-tx-1', [
+      TEST_ADDRESSES.USDC,
+      TEST_ADDRESSES.MOCK_TOKEN_1,
+    ]);
+    const stateChangePayload = createMockStateChangePayload([mockTransaction]);
+
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      stateChangePayload,
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0, 'simulationData'],
+          value: mockTransaction.simulationData,
+        },
+      ],
+    );
+    await new Promise(process.nextTick);
+
+    expect(bulkScanTokensSpy).toHaveBeenCalledWith({
+      chainId: mockTransaction.chainId.toLowerCase(),
+      tokens: [
+        TEST_ADDRESSES.USDC.toLowerCase(),
+        TEST_ADDRESSES.MOCK_TOKEN_1.toLowerCase(),
+      ],
+    });
+  });
+
   it('skips processing when patch operation is remove', async () => {
     const mockTransaction = createMockTransaction('test-tx-1', [
       TEST_ADDRESSES.USDC,
