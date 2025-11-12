@@ -132,6 +132,7 @@ export type StartSubscriptionRequest = {
   isTrialRequested: boolean;
   recurringInterval: RecurringInterval;
   successUrl?: string;
+  useTestClock?: boolean;
 };
 
 export type StartSubscriptionResponse = {
@@ -151,6 +152,7 @@ export type StartCryptoSubscriptionRequest = {
   tokenSymbol: string;
   rawTransaction: Hex;
   isSponsored?: boolean;
+  useTestClock?: boolean;
 };
 
 export type StartCryptoSubscriptionResponse = {
