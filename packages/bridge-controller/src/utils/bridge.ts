@@ -1,6 +1,6 @@
 import { AddressZero } from '@ethersproject/constants';
 import { Contract } from '@ethersproject/contracts';
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 import { isCaipChainId, isStrictHexString, type Hex } from '@metamask/utils';
@@ -192,9 +192,16 @@ export const isBitcoinChainId = (
   return chainId.toString() === ChainId.BTC.toString();
 };
 
+export const isTronChainId = (chainId: Hex | number | CaipChainId | string) => {
+  if (isCaipChainId(chainId)) {
+    return chainId === TrxScope.Mainnet.toString();
+  }
+  return chainId.toString() === ChainId.TRON.toString();
+};
+
 /**
  * Checks if a chain ID represents a non-EVM blockchain supported by swaps
- * Currently supports Solana and Bitcoin
+ * Currently supports Solana, Bitcoin and Tron
  *
  * @param chainId - The chain ID to check
  * @returns True if the chain is a supported non-EVM chain, false otherwise
@@ -202,12 +209,16 @@ export const isBitcoinChainId = (
 export const isNonEvmChainId = (
   chainId: GenericQuoteRequest['srcChainId'],
 ): boolean => {
-  return isSolanaChainId(chainId) || isBitcoinChainId(chainId);
+  return (
+    isSolanaChainId(chainId) ||
+    isBitcoinChainId(chainId) ||
+    isTronChainId(chainId)
+  );
 };
 
 export const isEvmQuoteResponse = (
   quoteResponse: QuoteResponse,
-): quoteResponse is QuoteResponse<TxData> => {
+): quoteResponse is QuoteResponse<TxData, TxData> => {
   return !isNonEvmChainId(quoteResponse.quote.srcChainId);
 };
 
