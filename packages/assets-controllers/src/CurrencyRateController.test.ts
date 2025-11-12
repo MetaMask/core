@@ -44,7 +44,7 @@ function buildMockTokenPricesService(
 ): AbstractTokenPricesService {
   return {
     async fetchTokenPrices() {
-      return {};
+      return [];
     },
     async fetchExchangeRates() {
       return {};
