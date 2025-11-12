@@ -158,11 +158,16 @@ export async function checkGasFeeTokenBeforePublish({
     );
 
     updateTransaction(transaction.id, (tx) => {
+      tx.isExternalSign = false;
       tx.selectedGasFeeToken = undefined;
     });
 
     return;
   }
+
+  updateTransaction(transaction.id, (tx) => {
+    tx.isExternalSign = true;
+  });
 
   if (gasFeeTokens !== undefined) {
     return;

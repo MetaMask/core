@@ -3120,6 +3120,20 @@ export class TransactionController extends BaseController<
       clearApprovingTransactionId = () =>
         this.#approvingTransactionIds.delete(transactionId);
 
+      const { networkClientId } = transactionMeta;
+      const ethQuery = this.#getEthQuery({ networkClientId });
+
+      await checkGasFeeTokenBeforePublish({
+        ethQuery,
+        fetchGasFeeTokens: async (tx) =>
+          (await this.#getGasFeeTokens(tx)).gasFeeTokens,
+        transaction: transactionMeta,
+        updateTransaction: (txId, fn) =>
+          this.#updateTransactionInternal({ transactionId: txId }, fn),
+      });
+
+      transactionMeta = this.#getTransactionOrThrow(transactionId);
+
       const [nonce, releaseNonce] = await getNextNonce(
         transactionMeta,
         (address: string) =>
@@ -3171,9 +3185,6 @@ export class TransactionController extends BaseController<
         return ApprovalState.NotApproved;
       }
 
-      const { networkClientId } = transactionMeta;
-      const ethQuery = this.#getEthQuery({ networkClientId });
-
       let preTxBalance: string | undefined;
       const shouldUpdatePreTxBalance =
         transactionMeta.type === TransactionType.swap;
@@ -3185,17 +3196,6 @@ export class TransactionController extends BaseController<
           transactionMeta.txParams.from,
         ]);
       }
-
-      await checkGasFeeTokenBeforePublish({
-        ethQuery,
-        fetchGasFeeTokens: async (tx) =>
-          (await this.#getGasFeeTokens(tx)).gasFeeTokens,
-        transaction: transactionMeta,
-        updateTransaction: (txId, fn) =>
-          this.#updateTransactionInternal({ transactionId: txId }, fn),
-      });
-
-      transactionMeta = this.#getTransactionOrThrow(transactionId);
 
       log('Publishing transaction', transactionMeta.txParams);
 
