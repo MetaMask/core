@@ -2,7 +2,7 @@
 import { ReadableStream } from 'node:stream/web';
 
 import { flushPromises } from '../../../tests/helpers';
-import type { QuoteResponse, TxData } from '../src';
+import type { QuoteResponse, Trade } from '../src';
 
 export const advanceToNthTimer = (n = 1) => {
   for (let i = 0; i < n; i++) {
@@ -71,7 +71,7 @@ export const mockSseEventSource = (
  * @returns a stream of quotes with multiple delays in between each quote
  */
 export const mockSseEventSourceWithMultipleDelays = async (
-  mockQuotes: QuoteResponse<string | TxData>[],
+  mockQuotes: QuoteResponse<Trade, Trade>[],
   delay: number = 4000,
 ) => {
   return {

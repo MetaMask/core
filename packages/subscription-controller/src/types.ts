@@ -53,6 +53,13 @@ export const CRYPTO_PAYMENT_METHOD_ERRORS = {
 export type CryptoPaymentMethodError =
   (typeof CRYPTO_PAYMENT_METHOD_ERRORS)[keyof typeof CRYPTO_PAYMENT_METHOD_ERRORS];
 
+export const MODAL_TYPE = {
+  A: 'A',
+  B: 'B',
+} as const;
+
+export type ModalType = (typeof MODAL_TYPE)[keyof typeof MODAL_TYPE];
+
 /** only usd for now */
 export type Currency = 'usd';
 
@@ -125,6 +132,7 @@ export type StartSubscriptionRequest = {
   isTrialRequested: boolean;
   recurringInterval: RecurringInterval;
   successUrl?: string;
+  useTestClock?: boolean;
 };
 
 export type StartSubscriptionResponse = {
@@ -144,6 +152,7 @@ export type StartCryptoSubscriptionRequest = {
   tokenSymbol: string;
   rawTransaction: Hex;
   isSponsored?: boolean;
+  useTestClock?: boolean;
 };
 
 export type StartCryptoSubscriptionResponse = {
@@ -266,6 +275,7 @@ export type SubscriptionEligibility = {
   canSubscribe: boolean;
   minBalanceUSD: number;
   canViewEntryModal: boolean;
+  modalType?: ModalType;
   cohorts: Cohort[];
   assignedCohort: string | null;
   hasAssignedCohortExpired: boolean;
@@ -408,4 +418,5 @@ export type CachedLastSelectedPaymentMethod = {
   paymentTokenAddress?: Hex;
   paymentTokenSymbol?: string;
   plan: RecurringInterval;
+  useTestClock?: boolean;
 };

@@ -1,11 +1,12 @@
 import log from 'loglevel';
 
 import { notificationsConfigCache } from './notification-config-cache';
-import { toRawOnChainNotification } from '../../shared/to-raw-notification';
+import { toRawAPINotification } from '../../shared/to-raw-notification';
 import type {
-  OnChainRawNotification,
-  UnprocessedOnChainRawNotification,
-} from '../types/on-chain-notification/on-chain-notification';
+  NormalisedAPINotification,
+  Schema,
+  UnprocessedRawNotification,
+} from '../types/notification-api';
 import { makeApiCall } from '../utils/utils';
 
 export type NotificationTrigger = {
@@ -25,10 +26,10 @@ export const TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT = `${TRIGGER_API}/api/v2/n
 export const TRIGGER_API_NOTIFICATIONS_ENDPOINT = `${TRIGGER_API}/api/v2/notifications`;
 
 // Lists notifications for each account provided
-export const NOTIFICATION_API_LIST_ENDPOINT = `${NOTIFICATION_API}/api/v2/notifications`;
+export const NOTIFICATION_API_LIST_ENDPOINT = `${NOTIFICATION_API}/api/v3/notifications`;
 
 // Makrs notifications as read
-export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = `${NOTIFICATION_API}/api/v2/notifications/mark-as-read`;
+export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = `${NOTIFICATION_API}/api/v3/notifications/mark-as-read`;
 
 /**
  * fetches notification config (accounts enabled vs disabled)
@@ -39,7 +40,7 @@ export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = `${NOTIFICATION_API}/a
  * NOTE this is cached for 1s to prevent multiple update calls
  * @returns object of notification config, or null if missing
  */
-export async function getOnChainNotificationsConfigCached(
+export async function getNotificationsApiConfigCached(
   bearerToken: string,
   addresses: string[],
 ) {
@@ -112,41 +113,53 @@ export async function updateOnChainNotifications(
  *
  * @param bearerToken - The JSON Web Token used for authentication in the API call.
  * @param addresses - List of addresses
- * @returns A promise that resolves to an array of OnChainRawNotification objects. If no triggers are enabled or an error occurs, it may return an empty array.
+ * @param locale - to generate translated notifications
+ * @param platform - filter notifications for specific platforms ('extension' | 'mobile')
+ * @returns A promise that resolves to an array of NormalisedAPINotification objects. If no notifications are enabled or an error occurs, it may return an empty array.
  */
-export async function getOnChainNotifications(
+export async function getAPINotifications(
   bearerToken: string,
   addresses: string[],
-): Promise<OnChainRawNotification[]> {
+  locale: string,
+  platform: 'extension' | 'mobile',
+): Promise<NormalisedAPINotification[]> {
   if (addresses.length === 0) {
     return [];
   }
 
-  addresses = addresses.map((a) => a.toLowerCase());
+  type RequestBody =
+    Schema.paths['/api/v3/notifications']['post']['requestBody']['content']['application/json'];
+  type APIResponse =
+    Schema.paths['/api/v3/notifications']['post']['responses']['200']['content']['application/json'];
 
-  type RequestBody = { address: string }[];
-  const body: RequestBody = addresses.map((address) => ({ address }));
+  const body: RequestBody = {
+    addresses: addresses.map((a) => a.toLowerCase()),
+    locale,
+    platform,
+  };
   const notifications = await makeApiCall(
     bearerToken,
     NOTIFICATION_API_LIST_ENDPOINT,
     'POST',
     body,
   )
-    .then<UnprocessedOnChainRawNotification[] | null>((r) =>
-      r.ok ? r.json() : null,
-    )
+    .then<APIResponse | null>((r) => (r.ok ? r.json() : null))
     .catch(() => null);
 
   // Transform and sort notifications
   const transformedNotifications = notifications
-    ?.map((n): OnChainRawNotification | undefined => {
-      if (!n.data?.kind) {
+    ?.map((n): UnprocessedRawNotification | undefined => {
+      if (!n.notification_type) {
         return undefined;
       }
 
-      return toRawOnChainNotification(n);
+      try {
+        return toRawAPINotification(n);
+      } catch {
+        return undefined;
+      }
     })
-    .filter((n): n is OnChainRawNotification => Boolean(n));
+    .filter((n): n is NormalisedAPINotification => Boolean(n));
 
   return transformedNotifications ?? [];
 }
@@ -168,12 +181,18 @@ export async function markNotificationsAsRead(
     return;
   }
 
+  type ResponseBody =
+    Schema.paths['/api/v3/notifications/mark-as-read']['post']['requestBody']['content']['application/json'];
+  const body: ResponseBody = {
+    ids: notificationIds,
+  };
+
   try {
     await makeApiCall(
       bearerToken,
       NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT,
       'POST',
-      { ids: notificationIds },
+      body,
     );
   } catch (err) {
     log.error('Error marking notifications as read:', err);
