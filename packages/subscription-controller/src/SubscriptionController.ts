@@ -528,6 +528,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
       rawTransaction: rawTx as Hex,
       isSponsored,
+      useTestClock: lastSelectedPaymentMethodShield.useTestClock,
     };
     await this.startSubscriptionWithCrypto(params);
     // update the subscriptions state after subscription created in server
