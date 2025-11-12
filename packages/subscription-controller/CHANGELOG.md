@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- added `useTestClock` param to `StartSubscriptionRequest` and `StartCryptoSubscriptionRequest` ([#7129](https://github.com/MetaMask/core/pull/7129))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^61.1.0` to `^61.2.0` ([#7126](https://github.com/MetaMask/core/pull/7126))
