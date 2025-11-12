@@ -3195,6 +3195,8 @@ export class TransactionController extends BaseController<
           this.#updateTransactionInternal({ transactionId: txId }, fn),
       });
 
+      transactionMeta = this.#getTransactionOrThrow(transactionId);
+
       log('Publishing transaction', transactionMeta.txParams);
 
       clearNonceLock?.();
