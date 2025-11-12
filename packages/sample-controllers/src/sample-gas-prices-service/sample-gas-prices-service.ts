@@ -52,8 +52,6 @@ type AllowedEvents = never;
 export type SampleGasPricesServiceMessenger = Messenger<
   typeof serviceName,
   SampleGasPricesServiceActions | AllowedActions,
-  // TODO: Disable this lint rule
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-arguments
   SampleGasPricesServiceEvents | AllowedEvents
 >;
 
