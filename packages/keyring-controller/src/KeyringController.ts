@@ -1924,13 +1924,13 @@ export class KeyringController<
    * using the salt from the vault. If the vault is empty, a new salt
    * is generated and used to derive the key.
    *
-   * If `options.ignoreExistingVault` is set to `false`, the existing
+   * If `options.ignoreExistingVault` is set to `true`, the existing
    * vault is completely ignored: the new key won't be able to decrypt
    * the existing vault, and should be used to re-encrypt it.
    *
    * @param password - The password to use for decryption or derivation.
    * @param options - Options for the key derivation.
-   * @param options.ignoreExistingVault - Whether to use the existing vault salt and key metadata
+   * @param options.ignoreExistingVault - Whether to ignore the existing vault salt and key metadata
    */
   async #deriveEncryptionKey(
     password: string,
