@@ -462,11 +462,13 @@ export class CodefiTokenPricesServiceV2
           hexToNumber(asset.chainId).toString(),
         );
 
-        const nativeAsset =
-          HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP[asset.chainId];
+        const nativeAddress = getNativeTokenAddress(asset.chainId);
 
         return {
-          assetId: nativeAsset ?? `${caipChainId}/erc20:${asset.address}`,
+          assetId:
+            nativeAddress.toLowerCase() === asset.address.toLowerCase()
+              ? HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP[asset.chainId]
+              : `${caipChainId}/erc20:${asset.address}`,
           address: asset.address,
           chainId: asset.chainId,
         };
