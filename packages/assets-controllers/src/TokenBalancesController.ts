@@ -32,6 +32,7 @@ import type {
   PreferencesControllerGetStateAction,
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { Hex } from '@metamask/utils';
 import {
   isCaipAssetType,
@@ -48,7 +49,7 @@ import type {
   AccountTrackerUpdateNativeBalancesAction,
   AccountTrackerUpdateStakedBalancesAction,
 } from './AccountTrackerController';
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './assetsUtil';
 import {
   AccountsApiBalanceFetcher,
   type BalanceFetcher,
@@ -130,7 +131,8 @@ export type AllowedActions =
   | AccountsControllerListAccountsAction
   | AccountTrackerControllerGetStateAction
   | AccountTrackerUpdateNativeBalancesAction
-  | AccountTrackerUpdateStakedBalancesAction;
+  | AccountTrackerUpdateStakedBalancesAction
+  | AuthenticationController.AuthenticationControllerGetBearerToken;
 
 export type AllowedEvents =
   | TokensControllerStateChangeEvent
@@ -640,6 +642,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
     const allAccounts = this.messenger.call('AccountsController:listAccounts');
 
+    const jwtToken = await this.messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
+
     const aggregated: ProcessedBalance[] = [];
     let remainingChains = [...targetChains];
 
@@ -658,6 +664,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           queryAllAccounts: queryAllAccounts ?? this.#queryAllAccounts,
           selectedAccount: selected as ChecksumAddress,
           allAccounts,
+          jwtToken,
         });
 
         if (balances && balances.length > 0) {

@@ -10,7 +10,8 @@ import type { GetBalancesResponse } from './types';
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants';
 
 // Mock dependencies that cause import issues
-jest.mock('../AssetsContractController', () => ({
+jest.mock('../assetsUtil', () => ({
+  ...jest.requireActual('../assetsUtil'),
   STAKING_CONTRACT_ADDRESS_BY_CHAINID: {
     '0x1': '0x4FEF9D741011476750A243aC70b9789a63dd47Df',
     '0x4268': '0x4FEF9D741011476750A243aC70b9789a63dd47Df',
@@ -358,6 +359,7 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'extension',
+        undefined,
       );
 
       expect(result).toHaveLength(2);
@@ -395,6 +397,7 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'extension',
+        undefined,
       );
 
       expect(result).toHaveLength(3);
@@ -598,6 +601,7 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'extension',
+        undefined,
       );
     });
 
@@ -619,6 +623,7 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'mobile',
+        undefined,
       );
     });
   });
@@ -944,16 +949,14 @@ describe('AccountsApiBalanceFetcher', () => {
       const testChainId = '0x4268' as ChainIdHex; // Use the mock hoodi chain ID
 
       // Get the mocked module
-      const mockAssetsController = jest.requireMock(
-        '../AssetsContractController',
-      );
+      const mockAssetsUtil = jest.requireMock('../assetsUtil');
 
       // Store original mock
       const originalContractAddresses =
-        mockAssetsController.STAKING_CONTRACT_ADDRESS_BY_CHAINID;
+        mockAssetsUtil.STAKING_CONTRACT_ADDRESS_BY_CHAINID;
 
       // Temporarily remove '0x4268' from contract addresses
-      mockAssetsController.STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
+      mockAssetsUtil.STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
         '0x1': '0x4FEF9D741011476750A243aC70b9789a63dd47Df', // Keep mainnet
         // Remove '0x4268' (hoodi) from contract addresses
       };
@@ -1002,7 +1005,7 @@ describe('AccountsApiBalanceFetcher', () => {
         expect(nativeBalance).toBeDefined();
       } finally {
         // Restore original mocks
-        mockAssetsController.STAKING_CONTRACT_ADDRESS_BY_CHAINID =
+        mockAssetsUtil.STAKING_CONTRACT_ADDRESS_BY_CHAINID =
           originalContractAddresses;
 
         // Restore original supported networks

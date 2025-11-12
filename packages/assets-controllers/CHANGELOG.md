@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional JWT token authentication to multi-chain accounts API calls ([#7084](https://github.com/MetaMask/core/pull/7084))
+  - `fetchMultiChainBalances` and `fetchMultiChainBalancesV4` now accept an optional `jwtToken` parameter
+  - `TokenDetectionController` fetches and passes JWT token from `AuthenticationController` when using Accounts API
+  - `TokenBalancesController` fetches and passes JWT token through balance fetcher chain
+  - JWT token is included in `Authorization: Bearer <token>` header when provided
+  - Backward compatible: token parameter is optional and APIs work without authentication
+
+### Fixed
+
+- Add 30-second timeout protection for Accounts API calls in `TokenDetectionController` to prevent hanging requests ([#7084](https://github.com/MetaMask/core/pull/7084))
+  - Prevents token detection from hanging indefinitely on slow or unresponsive API requests
+  - Automatically falls back to RPC-based token detection when API call times out or fails
+  - Includes error logging for debugging timeout and failure events
+- Importing a non-evm asset with positive balance sets balance to 0 after import ([#7094](https://github.com/MetaMask/core/pull/7094))
+
 ## [88.0.0]
 
 ### Changed

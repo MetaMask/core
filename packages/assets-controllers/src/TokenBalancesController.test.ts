@@ -60,12 +60,18 @@ const { safelyExecuteWithTimeout } = jest.requireMock(
 );
 const mockedSafelyExecuteWithTimeout = safelyExecuteWithTimeout as jest.Mock;
 
+type SetupControllerConfig = Partial<
+  ConstructorParameters<typeof TokenBalancesController>[0]
+> & {
+  mockBearerToken?: string;
+};
+
 const setupController = ({
   config,
   tokens = { allTokens: {}, allDetectedTokens: {}, allIgnoredTokens: {} },
   listAccounts = [],
 }: {
-  config?: Partial<ConstructorParameters<typeof TokenBalancesController>[0]>;
+  config?: SetupControllerConfig;
   tokens?: Partial<TokensControllerState>;
   listAccounts?: InternalAccount[];
 } = {}) => {
@@ -95,6 +101,7 @@ const setupController = ({
       'AccountTrackerController:getState',
       'AccountTrackerController:updateNativeBalances',
       'AccountTrackerController:updateStakedBalances',
+      'AuthenticationController:getBearerToken',
     ],
     events: [
       'NetworkController:stateChange',
@@ -192,9 +199,18 @@ const setupController = ({
       getBlockNumber: jest.fn().mockResolvedValue(1),
     }),
   );
+
+  messenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    jest.fn().mockResolvedValue(config?.mockBearerToken ?? 'mock-jwt-token'),
+  );
+
+  // Extract mockBearerToken from config before passing to controller
+  const { mockBearerToken, ...controllerConfig } = config || {};
+
   const controller = new TokenBalancesController({
     messenger: tokenBalancesControllerMessenger,
-    ...config,
+    ...controllerConfig,
   });
   const updateSpy = jest.spyOn(controller, 'update' as never);
 
@@ -4313,6 +4329,62 @@ describe('TokenBalancesController', () => {
       mockedSafelyExecuteWithTimeout.mockRestore();
       // @ts-expect-error - deleting global fetch for test cleanup
       delete global.fetch;
+    });
+
+    it('should pass JWT token to AccountsApiBalanceFetcher fetch method', async () => {
+      const chainId1 = '0x1';
+      const accountAddress = '0x1234567890123456789012345678901234567890';
+      const mockJwtToken = 'test-jwt-token-67890';
+
+      // Create mock account for testing
+      const account = createMockInternalAccount({ address: accountAddress });
+
+      // Mock AccountsApiBalanceFetcher to capture fetch calls
+      const mockApiFetch = jest.fn().mockResolvedValue([
+        {
+          success: true,
+          value: new BN('1000000000000000000'),
+          account: accountAddress,
+          token: NATIVE_TOKEN_ADDRESS,
+          chainId: chainId1,
+        },
+      ]);
+
+      const apiBalanceFetcher = jest.requireActual(
+        './multi-chain-accounts-service/api-balance-fetcher',
+      );
+
+      const fetchSpy = jest
+        .spyOn(apiBalanceFetcher.AccountsApiBalanceFetcher.prototype, 'fetch')
+        .mockImplementation(mockApiFetch);
+
+      const { controller } = setupController({
+        config: {
+          accountsApiChainIds: () => [chainId1],
+          allowExternalServices: () => true,
+          mockBearerToken: mockJwtToken,
+        },
+        listAccounts: [account],
+      });
+
+      await controller.updateBalances({
+        chainIds: [chainId1],
+        queryAllAccounts: true,
+      });
+
+      // Verify fetch was called with JWT token
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chainIds: [chainId1],
+          queryAllAccounts: true,
+          selectedAccount: expect.any(String),
+          allAccounts: expect.any(Array),
+          jwtToken: mockJwtToken,
+        }),
+      );
+
+      // Clean up
+      fetchSpy.mockRestore();
     });
   });
 

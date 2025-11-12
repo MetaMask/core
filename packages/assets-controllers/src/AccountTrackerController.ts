@@ -36,10 +36,10 @@ import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
 
 import {
-  STAKING_CONTRACT_ADDRESS_BY_CHAINID,
   type AssetsContractController,
   type StakedBalance,
 } from './AssetsContractController';
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './assetsUtil';
 import {
   AccountsApiBalanceFetcher,
   type BalanceFetcher,

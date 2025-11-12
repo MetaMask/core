@@ -3,8 +3,10 @@ import type { Web3Provider } from '@ethersproject/providers';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
-import { reduceInBatchesSerially } from './assetsUtil';
+import {
+  reduceInBatchesSerially,
+  STAKING_CONTRACT_ADDRESS_BY_CHAINID,
+} from './assetsUtil';
 
 // https://github.com/mds1/multicall/blob/main/deployments.json
 const MULTICALL_CONTRACT_BY_CHAINID = {
@@ -297,6 +299,8 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x8f': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // XDC, contract found but not in multicall3 repo
   '0x32': '0x0B1795ccA8E4eC4df02346a082df54D437F8D9aF',
+  // Sonic
+  '0x92': '0xcA11bde05977b3631167028862bE2a173976CA11',
 } as Record<Hex, Hex>;
 
 const multicallAbi = [

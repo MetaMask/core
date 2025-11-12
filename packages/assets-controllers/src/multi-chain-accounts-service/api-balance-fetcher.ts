@@ -11,10 +11,10 @@ import type { CaipAccountAddress, Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
 import { fetchMultiChainBalancesV4 } from './multi-chain-accounts';
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from '../AssetsContractController';
 import {
   accountAddressToCaipReference,
   reduceInBatchesSerially,
+  STAKING_CONTRACT_ADDRESS_BY_CHAINID,
   SupportedStakedBalanceNetworks,
 } from '../assetsUtil';
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants';
@@ -40,6 +40,7 @@ export type BalanceFetcher = {
     queryAllAccounts: boolean;
     selectedAccount: ChecksumAddress;
     allAccounts: InternalAccount[];
+    jwtToken?: string;
   }): Promise<ProcessedBalance[]>;
 };
 
@@ -202,12 +203,13 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     return results;
   }
 
-  async #fetchBalances(addrs: CaipAccountAddress[]) {
+  async #fetchBalances(addrs: CaipAccountAddress[], jwtToken?: string) {
     // If we have fewer than or equal to the batch size, make a single request
     if (addrs.length <= ACCOUNTS_API_BATCH_SIZE) {
       const { balances } = await fetchMultiChainBalancesV4(
         { accountAddresses: addrs },
         this.#platform,
+        jwtToken,
       );
       return balances;
     }
@@ -227,6 +229,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
         const { balances } = await fetchMultiChainBalancesV4(
           { accountAddresses: batch },
           this.#platform,
+          jwtToken,
         );
         return [...(workingResult || []), ...balances];
       },
@@ -241,6 +244,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     queryAllAccounts,
     selectedAccount,
     allAccounts,
+    jwtToken,
   }: Parameters<BalanceFetcher['fetch']>[0]): Promise<ProcessedBalance[]> {
     const caipAddrs: CaipAccountAddress[] = [];
 
@@ -263,7 +267,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     let apiError = false;
 
     try {
-      balances = await this.#fetchBalances(caipAddrs);
+      balances = await this.#fetchBalances(caipAddrs, jwtToken);
     } catch (error) {
       // Mark that we had an API error so we don't add fake zero balances
       apiError = true;
