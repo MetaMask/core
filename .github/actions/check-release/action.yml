@@ -14,10 +14,27 @@ runs:
       with:
         fetch-depth: 0
 
+    - name: Get target reference
+      id: get-target
+      shell: bash
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+      run: |
+        if [ "$EVENT_NAME" = "pull_request" ]; then
+          echo "TARGET=$(git merge-base HEAD refs/remotes/origin/main)" >> "$GITHUB_OUTPUT"
+        elif [ "$EVENT_NAME" = "merge_group" ]; then
+          echo "TARGET=$(git rev-parse HEAD^)" >> "$GITHUB_OUTPUT"
+        else
+          echo "::error::This action only supports `pull_request` and `merge_group` events."
+          exit 1
+        fi
+
     - name: Check commits for changes in released packages
       shell: bash
       env:
+        GH_TOKEN: ${{ github.token }}
         PULL_REQUEST: ${{ inputs.pull-request }}
+        TARGET: ${{ steps.get-target.outputs.TARGET }}
       run: |
         set -euo pipefail
         git fetch origin main
@@ -38,14 +55,14 @@ runs:
           fi
         done
 
-        # Get all files changed ahead of this PR.
+        # Fetch the pull request branch to compare changes.
         PULL_REQUEST_BRANCH=$(gh pr view "$PULL_REQUEST" --json headRefName --template "{{ .headRefName }}")
-
         echo "🔍 Checking for release conflicts with files changed ahead of PR branch \`$PULL_REQUEST_BRANCH\`..."
-
         git fetch origin "$PULL_REQUEST_BRANCH"
-        BEFORE=$(git merge-base "refs/remotes/origin/main" "$PULL_REQUEST_BRANCH")
-        git diff --name-only "$BEFORE..refs/remotes/origin/main" > changed-files.txt
+
+        # Get all files changed ahead of this PR.
+        BEFORE=$(git merge-base "refs/remotes/origin/main" "origin/$PULL_REQUEST_BRANCH")
+        git diff --name-only "$BEFORE..$TARGET" > changed-files.txt
 
         CONFLICTS=()
         for package in "${RELEASED_PACKAGES[@]}"; do
