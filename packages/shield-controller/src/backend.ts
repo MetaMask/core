@@ -214,19 +214,6 @@ export class ShieldRemoteBackend implements ShieldBackend {
     return (await res.json()) as InitCoverageCheckResponse;
   }
 
-  async #timedFetch(
-    url: string,
-    options: RequestInit,
-  ): Promise<{ response: Response; latency: number }> {
-    const startTime = Date.now();
-    const response = await this.#fetch(url, options);
-
-    return {
-      response,
-      latency: Date.now() - startTime,
-    };
-  }
-
   async #getCoverageResult(
     requestId: string,
     coverageId: string,
@@ -238,22 +225,20 @@ export class ShieldRemoteBackend implements ShieldBackend {
 
     const headers = await this.#createHeaders();
 
+    // Start measuring total end-to-end latency including retries and delays
+    const startTime = Date.now();
+
     const getCoverageResultFn = async (signal: AbortSignal) => {
-      const { response: res, latency } = await this.#timedFetch(
-        coverageResultUrl,
-        {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(reqBody),
-          signal,
-        },
-      );
+      const res = await this.#fetch(coverageResultUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(reqBody),
+        signal,
+      });
 
       if (res.status === 200) {
-        return {
-          ...(await res.json()),
-          metrics: { latency },
-        } as GetCoverageResultResponse;
+        // Return the result without latency here - we'll add total latency after polling completes
+        return (await res.json()) as Omit<GetCoverageResultResponse, 'metrics'>;
       }
 
       // parse the error message from the response body
@@ -267,7 +252,19 @@ export class ShieldRemoteBackend implements ShieldBackend {
       throw new HttpError(res.status, errorMessage);
     };
 
-    return this.#pollingPolicy.start(requestId, getCoverageResultFn);
+    const result = await this.#pollingPolicy.start(
+      requestId,
+      getCoverageResultFn,
+    );
+
+    // Calculate total end-to-end latency including all retries and delays
+    const now = Date.now();
+    const totalLatency = now - startTime;
+
+    return {
+      ...result,
+      metrics: { latency: totalLatency },
+    } as GetCoverageResultResponse;
   }
 
   async #createHeaders() {

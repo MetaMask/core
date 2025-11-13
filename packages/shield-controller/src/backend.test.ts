@@ -80,8 +80,9 @@ describe('ShieldRemoteBackend', () => {
   });
 
   it('should check coverage with delay', async () => {
+    const pollInterval = 100;
     const { backend, fetchMock, getAccessToken } = setup({
-      getCoverageResultPollInterval: 100,
+      getCoverageResultPollInterval: pollInterval,
     });
 
     // Mock init coverage check.
@@ -105,13 +106,38 @@ describe('ShieldRemoteBackend', () => {
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
-    const coverageResult = await backend.checkCoverage({ txMeta });
-    expect(coverageResult).toStrictEqual({
-      coverageId,
-      ...result,
+
+    // generateMockTxMeta also use Date.now() to set the time, only do this after generateMockTxMeta
+    // Mock Date.now() to control latency measurement
+    // Simulate latency that includes the retry delay (poll interval + processing time)
+    let callCount = 0;
+    const startTime = 1000;
+    const expectedLatency = pollInterval + 50; // poll interval + processing time
+    const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => {
+      callCount += 1;
+      // First call: start of #getCoverageResult
+      if (callCount === 1) {
+        return startTime;
+      }
+      // Final call: end of #getCoverageResult (after retry delay)
+      return startTime + expectedLatency;
     });
+
+    const coverageResult = await backend.checkCoverage({ txMeta });
+
+    expect(coverageResult).toMatchObject({
+      coverageId,
+      status: result.status,
+      message: result.message,
+      reasonCode: result.reasonCode,
+    });
+    expect(coverageResult.metrics.latency).toBe(expectedLatency);
+    // Latency should include the retry delay (at least the poll interval)
+    expect(coverageResult.metrics.latency).toBeGreaterThanOrEqual(pollInterval);
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(getAccessToken).toHaveBeenCalledTimes(2);
+
+    nowSpy.mockRestore();
   });
 
   it('should throw on init coverage check failure', async () => {
