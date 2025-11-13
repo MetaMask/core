@@ -11,7 +11,7 @@ import type {
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   MessageManagerState,
-  OriginalRequest,
+  MessageRequest,
   SecurityProviderRequest,
 } from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
@@ -133,7 +133,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
    */
   async addUnapprovedMessageAsync(
     messageParams: DecryptMessageParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ): Promise<string> {
     validateDecryptedMessageData(messageParams);
     const messageId = await this.addUnapprovedMessage(messageParams, req);
@@ -183,7 +183,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
    */
   async addUnapprovedMessage(
     messageParams: DecryptMessageParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ) {
     const updatedMessageParams = this.addRequestToMessageParams(
       messageParams,

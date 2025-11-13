@@ -1459,7 +1459,7 @@ describe('TokenBalancesController', () => {
 
       // Mock the RPC balance fetcher's fetch method to verify the parameter
       const mockRpcFetch = jest.spyOn(RpcBalanceFetcher.prototype, 'fetch');
-      mockRpcFetch.mockResolvedValueOnce([]);
+      mockRpcFetch.mockResolvedValueOnce({ balances: [] });
 
       const { controller } = setupController({
         config: {
@@ -1771,7 +1771,7 @@ describe('TokenBalancesController', () => {
     // Mock empty aggregated results
     const mockFetcher = {
       supports: jest.fn().mockReturnValue(true),
-      fetch: jest.fn().mockResolvedValue([]), // Return empty array
+      fetch: jest.fn().mockResolvedValue({ balances: [] }), // Return empty result
     };
 
     // Replace the balance fetchers with our mock
@@ -4250,7 +4250,7 @@ describe('TokenBalancesController', () => {
 
       // Mock AccountsApiBalanceFetcher to track when line 320 logic is executed
       const mockSupports = jest.fn().mockReturnValue(true);
-      const mockApiFetch = jest.fn().mockResolvedValue([]);
+      const mockApiFetch = jest.fn().mockResolvedValue({ balances: [] });
 
       const apiBalanceFetcher = jest.requireActual(
         './multi-chain-accounts-service/api-balance-fetcher',

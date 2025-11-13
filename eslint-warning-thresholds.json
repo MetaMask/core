@@ -115,84 +115,6 @@
   "packages/eth-block-tracker/tests/withBlockTracker.ts": {
     "@typescript-eslint/no-explicit-any": 1
   },
-  "packages/eth-json-rpc-middleware/src/block-cache.ts": {
-    "@typescript-eslint/no-explicit-any": 1,
-    "jsdoc/require-jsdoc": 1,
-    "no-restricted-syntax": 1
-  },
-  "packages/eth-json-rpc-middleware/src/block-ref-rewrite.test.ts": {
-    "@typescript-eslint/no-misused-promises": 3
-  },
-  "packages/eth-json-rpc-middleware/src/block-ref-rewrite.ts": {
-    "jsdoc/match-description": 1
-  },
-  "packages/eth-json-rpc-middleware/src/block-ref.test.ts": {
-    "jest/expect-expect": 2
-  },
-  "packages/eth-json-rpc-middleware/src/block-ref.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/block-tracker-inspector.ts": {
-    "jsdoc/match-description": 1,
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/fetch.test.ts": {
-    "jsdoc/match-description": 1
-  },
-  "packages/eth-json-rpc-middleware/src/fetch.ts": {
-    "jsdoc/match-description": 1
-  },
-  "packages/eth-json-rpc-middleware/src/inflight-cache.ts": {
-    "@typescript-eslint/no-explicit-any": 1,
-    "jsdoc/require-jsdoc": 4
-  },
-  "packages/eth-json-rpc-middleware/src/methods/wallet-request-execution-permissions.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/methods/wallet-revoke-execution-permission.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/providerAsMiddleware.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/retryOnEmpty.test.ts": {
-    "jsdoc/match-description": 3
-  },
-  "packages/eth-json-rpc-middleware/src/retryOnEmpty.ts": {
-    "jsdoc/match-description": 2
-  },
-  "packages/eth-json-rpc-middleware/src/utils/cache.ts": {
-    "jsdoc/match-description": 6
-  },
-  "packages/eth-json-rpc-middleware/src/utils/common.ts": {
-    "jsdoc/match-description": 1
-  },
-  "packages/eth-json-rpc-middleware/src/utils/error.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/utils/normalize.ts": {
-    "jsdoc/match-description": 3
-  },
-  "packages/eth-json-rpc-middleware/src/utils/timeout.ts": {
-    "jsdoc/match-description": 1
-  },
-  "packages/eth-json-rpc-middleware/src/utils/validation.ts": {
-    "jsdoc/require-jsdoc": 4
-  },
-  "packages/eth-json-rpc-middleware/src/wallet.ts": {
-    "@typescript-eslint/no-explicit-any": 2,
-    "@typescript-eslint/prefer-nullish-coalescing": 5,
-    "jsdoc/match-description": 3,
-    "jsdoc/require-jsdoc": 12
-  },
-  "packages/eth-json-rpc-middleware/test/setupAfterEnv.ts": {
-    "@typescript-eslint/no-explicit-any": 3,
-    "jsdoc/match-description": 2
-  },
-  "packages/eth-json-rpc-middleware/test/util/helpers.ts": {
-    "@typescript-eslint/no-explicit-any": 5,
-    "jsdoc/match-description": 11
-  },
   "packages/gas-fee-controller/src/GasFeeController.test.ts": {
     "import-x/namespace": 2
   },
@@ -219,7 +141,7 @@
     "jsdoc/check-tag-names": 1
   },
   "packages/message-manager/src/AbstractMessageManager.ts": {
-    "jsdoc/check-tag-names": 25
+    "jsdoc/check-tag-names": 23
   },
   "packages/message-manager/src/DecryptMessageManager.ts": {
     "jsdoc/check-tag-names": 11
@@ -235,9 +157,6 @@
   },
   "packages/name-controller/src/util.ts": {
     "jsdoc/require-returns": 1
-  },
-  "packages/network-controller/src/NetworkController.ts": {
-    "@typescript-eslint/no-misused-promises": 1
   },
   "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.ts": {
     "@typescript-eslint/no-misused-promises": 1

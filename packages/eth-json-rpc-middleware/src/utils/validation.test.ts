@@ -1,13 +1,14 @@
+import { MiddlewareContext } from '@metamask/json-rpc-engine/v2';
 import { providerErrors } from '@metamask/rpc-errors';
 import type { StructError } from '@metamask/superstruct';
 import { any, validate } from '@metamask/superstruct';
-import type { JsonRpcRequest } from '@metamask/utils';
 
 import {
   resemblesAddress,
   validateAndNormalizeKeyholder,
   validateParams,
 } from './validation';
+import type { WalletMiddlewareKeyValues } from '../wallet';
 
 jest.mock('@metamask/superstruct', () => ({
   ...jest.requireActual('@metamask/superstruct'),
@@ -15,7 +16,8 @@ jest.mock('@metamask/superstruct', () => ({
 }));
 
 const ADDRESS_MOCK = '0xABCDabcdABCDabcdABCDabcdABCDabcdABCDabcd';
-const REQUEST_MOCK = {} as JsonRpcRequest;
+const createContext = () =>
+  new MiddlewareContext<WalletMiddlewareKeyValues>([['origin', 'test']]);
 
 const STRUCT_ERROR_MOCK = {
   failures: () => [
@@ -33,9 +35,7 @@ const STRUCT_ERROR_MOCK = {
 describe('Validation Utils', () => {
   const validateMock = jest.mocked(validate);
 
-  let getAccountsMock: jest.MockedFn<
-    (req: JsonRpcRequest) => Promise<string[]>
-  >;
+  let getAccountsMock: jest.MockedFn<(origin: string) => Promise<string[]>>;
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -47,7 +47,7 @@ describe('Validation Utils', () => {
     it('returns lowercase address', async () => {
       const result = await validateAndNormalizeKeyholder(
         ADDRESS_MOCK,
-        REQUEST_MOCK,
+        createContext(),
         {
           getAccounts: getAccountsMock,
         },
@@ -60,7 +60,7 @@ describe('Validation Utils', () => {
       getAccountsMock.mockResolvedValueOnce([]);
 
       await expect(
-        validateAndNormalizeKeyholder(ADDRESS_MOCK, REQUEST_MOCK, {
+        validateAndNormalizeKeyholder(ADDRESS_MOCK, createContext(), {
           getAccounts: getAccountsMock,
         }),
       ).rejects.toThrow(providerErrors.unauthorized());
@@ -68,7 +68,7 @@ describe('Validation Utils', () => {
 
     it('throws if address is not string', async () => {
       await expect(
-        validateAndNormalizeKeyholder(123 as never, REQUEST_MOCK, {
+        validateAndNormalizeKeyholder(123 as never, createContext(), {
           getAccounts: getAccountsMock,
         }),
       ).rejects.toThrow(
@@ -78,7 +78,7 @@ describe('Validation Utils', () => {
 
     it('throws if address is empty string', async () => {
       await expect(
-        validateAndNormalizeKeyholder('' as never, REQUEST_MOCK, {
+        validateAndNormalizeKeyholder('' as never, createContext(), {
           getAccounts: getAccountsMock,
         }),
       ).rejects.toThrow(
@@ -88,7 +88,7 @@ describe('Validation Utils', () => {
 
     it('throws if address length is not 40', async () => {
       await expect(
-        validateAndNormalizeKeyholder('0x123', REQUEST_MOCK, {
+        validateAndNormalizeKeyholder('0x123', createContext(), {
           getAccounts: getAccountsMock,
         }),
       ).rejects.toThrow(

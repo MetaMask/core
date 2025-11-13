@@ -10,7 +10,7 @@ import type {
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   MessageManagerState,
-  OriginalRequest,
+  MessageRequest,
   SecurityProviderRequest,
 } from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
@@ -133,7 +133,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
    */
   async addUnapprovedMessageAsync(
     messageParams: EncryptionPublicKeyParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ): Promise<string> {
     validateEncryptionPublicKeyMessageData(messageParams);
     const messageId = await this.addUnapprovedMessage(messageParams, req);
@@ -177,7 +177,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
    */
   async addUnapprovedMessage(
     messageParams: EncryptionPublicKeyParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ): Promise<string> {
     const updatedMessageParams = this.addRequestToMessageParams(
       messageParams,

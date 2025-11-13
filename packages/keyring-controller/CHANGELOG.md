@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added optional `EncryptionKey`, `SupportedKeyDerivationOptions` and `EncryptionResult` type parameters to the `KeyringController`, `ExportableKeyEncryptor` and `KeyringControllerOptions` types ([#7127](https://github.com/MetaMask/core/pull/7127))
+  - This type parameter allows specifying the encryption key, key derivation options and encryption result types supported by the injected encryptor, defaulting to `@metamask/browser-passworder` types.
+
+### Changed
+
+- **BREAKING:** The `KeyringController` constructor options now require an encryptor ([#7127](https://github.com/MetaMask/core/pull/7127))
+  - The `encryptor` constructor option was previously optional and defaulted to an instance of `@metamask/browser-passworder`.
+- **BREAKING:** The `GenericEncryptor` and `ExportableKeyEncryptor` types have been merged into a single `Encryptor` type ([#7127](https://github.com/MetaMask/core/pull/7127))
+
+### Removed
+
+- **BREAKING:** The `cacheEncryptionKey` parameter has been removed from the `KeyringController` constructor options ([#7127](https://github.com/MetaMask/core/pull/7127))
+  - This parameter was previously used to enable encryption key in-memory caching, but it is no longer needed as the controller now always uses the latest encryption key.
+
+### Fixed
+
+- Fixed incorrect type for `decryptWithKey` method of `ExportableKeyEncryptor` (now `Encryptor`) ([#7127](https://github.com/MetaMask/core/pull/7127))
+
 ## [24.0.0]
 
 ### Changed
