@@ -1622,11 +1622,8 @@ describe('AccountsApiBalanceFetcher', () => {
       balanceFetcher = new AccountsApiBalanceFetcher('extension');
     });
 
-    it('should not throw error when API fails but staked balances succeed', async () => {
-      // Mock console.error to suppress error logging
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      // Setup successful staking contract
+    it('should throw error when API fails (error propagates for RPC fallback)', async () => {
+      // Setup successful staking contract (but it won't be reached)
       const mockShares = {
         toString: () => '1000000000000000000',
         gt: jest.fn().mockReturnValue(true),
@@ -1653,36 +1650,18 @@ describe('AccountsApiBalanceFetcher', () => {
         mockGetProvider,
       );
 
-      // Make API fail but staking succeed
+      // Make API fail - safelyExecuteWithTimeout will return undefined
       mockFetchMultiChainBalancesV4.mockRejectedValue(new Error('API failure'));
 
-      try {
-        const result = await fetcherWithProvider.fetch({
+      // Should now throw error immediately to allow RPC fallback in TokenBalancesController
+      await expect(
+        fetcherWithProvider.fetch({
           chainIds: [MOCK_CHAIN_ID],
           queryAllAccounts: false,
           selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
           allAccounts: MOCK_INTERNAL_ACCOUNTS,
-        });
-
-        // With safelyExecuteWithTimeout, API failures are handled gracefully
-        // We should have successful staked balance + native token guarantee (no explicit error entries)
-        const successfulEntries = result.balances.filter((r) => r.success);
-        const stakedEntries = result.balances.filter(
-          (r) => r.token === STAKING_CONTRACT_ADDRESS,
-        );
-        const nativeEntries = result.balances.filter(
-          (r) => r.token === ZERO_ADDRESS,
-        );
-
-        expect(successfulEntries.length).toBeGreaterThan(0); // Staked balance + native token succeeded
-        expect(stakedEntries).toHaveLength(1); // Should have staked balance entry
-        expect(nativeEntries).toHaveLength(1); // Should have native token guarantee
-
-        // Should not throw since we have some successful results
-        expect(result.balances.length).toBeGreaterThan(0);
-      } finally {
-        consoleSpy.mockRestore();
-      }
+        }),
+      ).rejects.toThrow('Accounts API request timed out or failed');
     });
   });
 
@@ -2018,18 +1997,18 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(oldMethodCalculation.toString()).toContain('e+'); // Should be in scientific notation
     });
 
-    it('should throw error when API fails and no successful results exist (line 400)', async () => {
+    it('should throw error when API fails (safelyExecuteWithTimeout returns undefined)', async () => {
       const mockApiError = new Error('Complete API failure');
 
-      // Mock fetchMultiChainBalancesV4 to throw (this will trigger the catch block and set apiError = true)
+      // Mock fetchMultiChainBalancesV4 to throw - safelyExecuteWithTimeout will catch and return undefined
       mockFetchMultiChainBalancesV4.mockRejectedValue(mockApiError);
 
-      // Create a balance fetcher WITHOUT staking provider to avoid successful staked balances
+      // Create a balance fetcher WITHOUT staking provider
       const balanceFetcherNoStaking = new AccountsApiBalanceFetcher(
         'extension',
       );
 
-      // This should trigger the error throw on line 412 (was 400 before)
+      // Should throw immediately when apiResponse is undefined
       await expect(
         balanceFetcherNoStaking.fetch({
           chainIds: [MOCK_CHAIN_ID],
@@ -2037,7 +2016,7 @@ describe('AccountsApiBalanceFetcher', () => {
           selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
           allAccounts: MOCK_INTERNAL_ACCOUNTS,
         }),
-      ).rejects.toThrow('Failed to fetch any balance data due to API error');
+      ).rejects.toThrow('Accounts API request timed out or failed');
     });
   });
 });
