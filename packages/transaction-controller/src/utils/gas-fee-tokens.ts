@@ -60,6 +60,7 @@ export async function getGasFeeTokens({
   const from = txParams.from as Hex;
   const to = txParams.to as Hex;
   const value = txParams.value as Hex;
+  const gas = txParams.gas as Hex;
 
   log('Request', { chainId, txParams });
 
@@ -95,6 +96,7 @@ export async function getGasFeeTokens({
           from,
           to,
           value,
+          gas,
         },
       ],
       suggestFees: {
