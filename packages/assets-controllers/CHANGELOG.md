@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/671.0.0 ([#7126](https://github.com/MetaMask/core/pull/7126))
-- chore: Fix all auto-fixable ESLint warnings ([#7105](https://github.com/MetaMask/core/pull/7105))
-
 ### Fixed
 
 - Add 30-second timeout protection for Accounts API calls in `TokenDetectionController` to prevent hanging requests ([#7106](https://github.com/MetaMask/core/pull/7106))
