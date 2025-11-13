@@ -1,5 +1,3 @@
-// We use conditions exclusively in this file.
-
 import { HttpError } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
 import deepFreeze from 'deep-freeze-strict';

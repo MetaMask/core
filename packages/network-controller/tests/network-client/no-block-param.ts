@@ -282,7 +282,6 @@ export function testsForRpcMethodAssumingNoBlockParam(
         },
       );
 
-      // This is not ideal, but we can refactor this later.
       if (providerType === NetworkClientType.Infura) {
         // This is not ideal, but we can refactor this later.
         // eslint-disable-next-line jest/no-conditional-expect

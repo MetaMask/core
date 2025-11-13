@@ -1,5 +1,3 @@
-// We use conditions exclusively in this file.
-
 import { handleWhen } from 'cockatiel';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';

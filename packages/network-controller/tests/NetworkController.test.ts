@@ -1,5 +1,3 @@
-// A lot of the tests in this file have conditionals.
-
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   BuiltInNetworkName,
