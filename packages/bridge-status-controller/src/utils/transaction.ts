@@ -10,6 +10,11 @@ import {
   type QuoteMetadata,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
+import {
+  extractTradeData,
+  isTronTrade,
+  type Trade,
+} from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import type {
   BatchTransactionParams,
@@ -72,7 +77,7 @@ export const getStatusRequestParams = (quoteResponse: QuoteResponse) => {
 };
 
 export const getTxMetaFields = (
-  quoteResponse: Omit<QuoteResponse<string | TxData>, 'approval' | 'trade'> &
+  quoteResponse: Omit<QuoteResponse<Trade, Trade>, 'approval' | 'trade'> &
     QuoteMetadata,
   approvalTxId?: string,
 ): Omit<
@@ -123,11 +128,7 @@ export const handleNonEvmTxResponse = (
     | { transactionId: string } // New unified interface response
     | { result: Record<string, string> }
     | { signature: string },
-  quoteResponse: Omit<
-    QuoteResponse<string | { unsignedPsbtBase64: string }>,
-    'approval'
-  > &
-    QuoteMetadata,
+  quoteResponse: Omit<QuoteResponse<Trade>, 'approval'> & QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
 ): TransactionMeta & SolanaTransactionMeta => {
   const selectedAccountAddress = selectedAccount.address;
@@ -175,10 +176,7 @@ export const handleNonEvmTxResponse = (
   }
 
   // Extract the transaction data for storage
-  const tradeData =
-    typeof quoteResponse.trade === 'string'
-      ? quoteResponse.trade
-      : quoteResponse.trade.unsignedPsbtBase64;
+  const tradeData = extractTradeData(quoteResponse.trade);
 
   // Create a transaction meta object with bridge-specific fields
   return {
@@ -233,25 +231,27 @@ export const handleMobileHardwareWalletDelay = async (
  * Creates a request to sign and send a transaction for non-EVM chains
  * Uses the new unified ClientRequest:signAndSendTransaction interface
  *
- * @param quoteResponse - The quote response containing trade details and metadata
+ * @param trade - The trade data
+ * @param srcChainId - The source chain ID
  * @param selectedAccount - The selected account information
  * @returns The snap request object for signing and sending transaction
  */
 export const getClientRequest = (
-  quoteResponse: Omit<
-    QuoteResponse<string | { unsignedPsbtBase64: string }>,
-    'approval'
-  > &
-    QuoteMetadata,
+  trade: Trade,
+  srcChainId: number,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
 ) => {
-  const scope = formatChainIdToCaip(quoteResponse.quote.srcChainId);
+  const scope = formatChainIdToCaip(srcChainId);
 
-  // Extract the transaction data - Bitcoin uses unsignedPsbtBase64, others use string
-  const transactionData =
-    typeof quoteResponse.trade === 'string'
-      ? quoteResponse.trade
-      : quoteResponse.trade.unsignedPsbtBase64;
+  const transactionData = extractTradeData(trade);
+
+  // Tron trades need the visible flag and contract type to be included in the request options
+  const options = isTronTrade(trade)
+    ? {
+        visible: trade.visible,
+        type: trade.raw_data?.contract?.[0]?.type,
+      }
+    : undefined;
 
   // Use the new unified interface
   return createClientTransactionRequest(
@@ -259,6 +259,7 @@ export const getClientRequest = (
     transactionData,
     scope,
     selectedAccount.id,
+    options,
   );
 };
 

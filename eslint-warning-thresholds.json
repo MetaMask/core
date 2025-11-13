@@ -31,9 +31,6 @@
   "packages/assets-controllers/src/NftDetectionController.test.ts": {
     "import-x/namespace": 6
   },
-  "packages/assets-controllers/src/NftDetectionController.ts": {
-    "jsdoc/check-tag-names": 34
-  },
   "packages/assets-controllers/src/Standards/ERC20Standard.test.ts": {
     "jest/no-commented-out-tests": 1
   },
@@ -49,15 +46,11 @@
   "packages/assets-controllers/src/TokenListController.test.ts": {
     "import-x/namespace": 7
   },
-  "packages/assets-controllers/src/TokenRatesController.ts": {
-    "jsdoc/check-tag-names": 11
-  },
   "packages/assets-controllers/src/TokensController.test.ts": {
     "import-x/namespace": 1
   },
   "packages/assets-controllers/src/TokensController.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "jsdoc/check-tag-names": 10
+    "@typescript-eslint/no-unused-vars": 1
   },
   "packages/assets-controllers/src/multicall.test.ts": {
     "@typescript-eslint/prefer-promise-reject-errors": 2
@@ -74,8 +67,7 @@
     "no-shadow": 2
   },
   "packages/controller-utils/src/siwe.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "jsdoc/check-tag-names": 5
+    "@typescript-eslint/no-unused-vars": 1
   },
   "packages/controller-utils/src/util.test.ts": {
     "import-x/no-named-as-default": 1,
@@ -90,9 +82,6 @@
   "packages/eip-5792-middleware/src/hooks/processSendCalls.ts": {
     "@typescript-eslint/no-misused-promises": 1
   },
-  "packages/ens-controller/src/EnsController.ts": {
-    "jsdoc/check-tag-names": 6
-  },
   "packages/eth-block-tracker/src/PollingBlockTracker.test.ts": {
     "@typescript-eslint/unbound-method": 4
   },
@@ -101,103 +90,18 @@
     "@typescript-eslint/unbound-method": 5,
     "no-restricted-syntax": 28
   },
-  "packages/eth-block-tracker/tests/buildDeferred.ts": {
-    "@typescript-eslint/naming-convention": 1
-  },
   "packages/eth-block-tracker/tests/recordCallsToSetTimeout.ts": {
     "@typescript-eslint/no-explicit-any": 1
   },
   "packages/eth-block-tracker/tests/setupAfterEnv.ts": {
     "@typescript-eslint/consistent-type-definitions": 1,
-    "@typescript-eslint/naming-convention": 1,
     "@typescript-eslint/no-explicit-any": 3
   },
   "packages/eth-block-tracker/tests/withBlockTracker.ts": {
     "@typescript-eslint/no-explicit-any": 1
   },
-  "packages/eth-json-rpc-middleware/src/block-cache.ts": {
-    "@typescript-eslint/no-explicit-any": 1,
-    "jsdoc/require-jsdoc": 1,
-    "no-restricted-syntax": 1
-  },
-  "packages/eth-json-rpc-middleware/src/block-ref-rewrite.test.ts": {
-    "@typescript-eslint/no-misused-promises": 3
-  },
-  "packages/eth-json-rpc-middleware/src/block-ref-rewrite.ts": {
-    "jsdoc/match-description": 1
-  },
-  "packages/eth-json-rpc-middleware/src/block-ref.test.ts": {
-    "jest/expect-expect": 2
-  },
-  "packages/eth-json-rpc-middleware/src/block-ref.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/block-tracker-inspector.ts": {
-    "jsdoc/match-description": 1,
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/fetch.test.ts": {
-    "jsdoc/match-description": 1
-  },
-  "packages/eth-json-rpc-middleware/src/fetch.ts": {
-    "jsdoc/match-description": 1
-  },
-  "packages/eth-json-rpc-middleware/src/inflight-cache.ts": {
-    "@typescript-eslint/no-explicit-any": 1,
-    "jsdoc/require-jsdoc": 4
-  },
-  "packages/eth-json-rpc-middleware/src/methods/wallet-request-execution-permissions.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/methods/wallet-revoke-execution-permission.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/providerAsMiddleware.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/retryOnEmpty.test.ts": {
-    "jsdoc/match-description": 3
-  },
-  "packages/eth-json-rpc-middleware/src/retryOnEmpty.ts": {
-    "jsdoc/match-description": 2
-  },
-  "packages/eth-json-rpc-middleware/src/utils/cache.ts": {
-    "jsdoc/match-description": 6
-  },
-  "packages/eth-json-rpc-middleware/src/utils/common.ts": {
-    "jsdoc/match-description": 1
-  },
-  "packages/eth-json-rpc-middleware/src/utils/error.ts": {
-    "jsdoc/require-jsdoc": 1
-  },
-  "packages/eth-json-rpc-middleware/src/utils/normalize.ts": {
-    "jsdoc/match-description": 3
-  },
-  "packages/eth-json-rpc-middleware/src/utils/timeout.ts": {
-    "jsdoc/match-description": 1
-  },
-  "packages/eth-json-rpc-middleware/src/utils/validation.ts": {
-    "jsdoc/require-jsdoc": 4
-  },
-  "packages/eth-json-rpc-middleware/src/wallet.ts": {
-    "@typescript-eslint/no-explicit-any": 2,
-    "@typescript-eslint/prefer-nullish-coalescing": 5,
-    "jsdoc/match-description": 3,
-    "jsdoc/require-jsdoc": 12
-  },
-  "packages/eth-json-rpc-middleware/test/setupAfterEnv.ts": {
-    "@typescript-eslint/no-explicit-any": 3,
-    "jsdoc/match-description": 2
-  },
-  "packages/eth-json-rpc-middleware/test/util/helpers.ts": {
-    "@typescript-eslint/no-explicit-any": 5,
-    "jsdoc/match-description": 11
-  },
   "packages/gas-fee-controller/src/GasFeeController.test.ts": {
     "import-x/namespace": 2
-  },
-  "packages/gas-fee-controller/src/GasFeeController.ts": {
-    "jsdoc/check-tag-names": 20
   },
   "packages/json-rpc-middleware-stream/src/index.test.ts": {
     "@typescript-eslint/prefer-promise-reject-errors": 1,
@@ -215,18 +119,6 @@
   "packages/logging-controller/src/LoggingController.test.ts": {
     "import-x/namespace": 1
   },
-  "packages/logging-controller/src/LoggingController.ts": {
-    "jsdoc/check-tag-names": 1
-  },
-  "packages/message-manager/src/AbstractMessageManager.ts": {
-    "jsdoc/check-tag-names": 25
-  },
-  "packages/message-manager/src/DecryptMessageManager.ts": {
-    "jsdoc/check-tag-names": 11
-  },
-  "packages/message-manager/src/EncryptionPublicKeyManager.ts": {
-    "jsdoc/check-tag-names": 13
-  },
   "packages/message-manager/src/utils.ts": {
     "@typescript-eslint/no-unused-vars": 1
   },
@@ -236,23 +128,11 @@
   "packages/name-controller/src/util.ts": {
     "jsdoc/require-returns": 1
   },
-  "packages/network-controller/src/NetworkController.ts": {
-    "@typescript-eslint/no-misused-promises": 1
-  },
   "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.ts": {
     "@typescript-eslint/no-misused-promises": 1
   },
-  "packages/permission-log-controller/src/PermissionLogController.ts": {
-    "jsdoc/check-tag-names": 2
-  },
-  "packages/phishing-controller/src/PhishingController.ts": {
-    "jsdoc/check-tag-names": 32
-  },
   "packages/phishing-controller/src/utils.test.ts": {
     "import-x/namespace": 5
-  },
-  "packages/rate-limit-controller/src/RateLimitController.ts": {
-    "jsdoc/check-tag-names": 4
   },
   "packages/remote-feature-flag-controller/src/client-config-api-service/client-config-api-service.test.ts": {
     "promise/param-names": 1
@@ -287,11 +167,7 @@
     "no-empty-function": 1
   },
   "tests/fake-provider.ts": {
-    "@typescript-eslint/prefer-promise-reject-errors": 1,
-    "jsdoc/check-tag-names": 12
-  },
-  "tests/mock-network.ts": {
-    "jsdoc/check-tag-names": 10
+    "@typescript-eslint/prefer-promise-reject-errors": 1
   },
   "tests/setupAfterEnv/nock.ts": {
     "import-x/no-named-as-default-member": 3

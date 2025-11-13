@@ -17,6 +17,7 @@ import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metam
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
+  AuthorizationList,
   TransactionControllerAddTransactionBatchAction,
   TransactionControllerUnapprovedTransactionAddedEvent,
 } from '@metamask/transaction-controller';
@@ -59,10 +60,15 @@ export type TransactionPayControllerGetStateAction = ControllerGetStateAction<
   TransactionPayControllerState
 >;
 
+export type TransactionPayControllerGetDelegationTransactionAction = {
+  type: `${typeof CONTROLLER_NAME}:getDelegationTransaction`;
+  handler: GetDelegationTransactionCallback;
+};
+
 /** Action to get the pay strategy type used for a transaction. */
 export type TransactionPayControllerGetStrategyAction = {
   type: `${typeof CONTROLLER_NAME}:getStrategy`;
-  handler: (transaction: TransactionMeta) => Promise<TransactionPayStrategy>;
+  handler: (transaction: TransactionMeta) => TransactionPayStrategy;
 };
 
 /** Action to update the payment token for a transaction. */
@@ -78,6 +84,7 @@ export type TransactionPayControllerStateChangeEvent =
   >;
 
 export type TransactionPayControllerActions =
+  | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerUpdatePaymentTokenAction;
@@ -93,10 +100,11 @@ export type TransactionPayControllerMessenger = Messenger<
 
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
+  /** Callback to convert a transaction into a redeem delegation. */
+  getDelegationTransaction: GetDelegationTransactionCallback;
+
   /** Callback to select the PayStrategy for a transaction. */
-  getStrategy?: (
-    transaction: TransactionMeta,
-  ) => Promise<TransactionPayStrategy>;
+  getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
@@ -399,3 +407,15 @@ export type UpdatePaymentTokenRequest = {
   /** Chain ID of the new payment token. */
   chainId: Hex;
 };
+
+/** Callback to convert a transaction to a redeem delegation. */
+export type GetDelegationTransactionCallback = ({
+  transaction,
+}: {
+  transaction: TransactionMeta;
+}) => Promise<{
+  authorizationList?: AuthorizationList;
+  data: Hex;
+  to: Hex;
+  value: Hex;
+}>;

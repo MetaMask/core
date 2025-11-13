@@ -885,6 +885,100 @@ describe('CurrencyRateController', () => {
     controller.destroy();
   });
 
+  it('should set conversionDate to null when currency not found in price api response (lines 201-202)', async () => {
+    jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+
+    const messenger = getCurrencyRateControllerMessenger();
+
+    const tokenPricesService = buildMockTokenPricesService();
+
+    // Mock price API response where BNB is not included
+    jest.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
+      eth: {
+        name: 'Ether',
+        ticker: 'eth',
+        value: 1 / 1000,
+        usd: 1 / 3000,
+        currencyType: 'crypto',
+      },
+      // BNB is missing from the response
+    });
+
+    const controller = new CurrencyRateController({
+      messenger,
+      state: { currentCurrency: 'xyz' },
+      tokenPricesService,
+    });
+
+    await controller.updateExchangeRate(['ETH', 'BNB']);
+
+    const conversionDate = getStubbedDate() / 1000;
+    expect(controller.state).toStrictEqual({
+      currentCurrency: 'xyz',
+      currencyRates: {
+        ETH: {
+          conversionDate,
+          conversionRate: 1000,
+          usdConversionRate: 3000,
+        },
+        BNB: {
+          conversionDate: null, // Line 201: rate === undefined
+          conversionRate: null, // Line 202
+          usdConversionRate: null,
+        },
+      },
+    });
+
+    controller.destroy();
+  });
+
+  it('should set conversionDate to null when currency not found in crypto compare response (lines 231-232)', async () => {
+    jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+    const cryptoCompareHost = 'https://min-api.cryptocompare.com';
+    nock(cryptoCompareHost)
+      .get('/data/pricemulti?fsyms=ETH,BNB&tsyms=xyz')
+      .reply(200, {
+        ETH: { XYZ: 4000.42 },
+        // BNB is missing from the response
+      })
+      .persist();
+
+    const messenger = getCurrencyRateControllerMessenger();
+    const tokenPricesService = buildMockTokenPricesService();
+
+    // Make price API fail so it falls back to CryptoCompare
+    jest
+      .spyOn(tokenPricesService, 'fetchExchangeRates')
+      .mockRejectedValue(new Error('Failed to fetch'));
+
+    const controller = new CurrencyRateController({
+      messenger,
+      state: { currentCurrency: 'xyz' },
+      tokenPricesService,
+    });
+
+    await controller.updateExchangeRate(['ETH', 'BNB']);
+
+    const conversionDate = getStubbedDate() / 1000;
+    expect(controller.state).toStrictEqual({
+      currentCurrency: 'xyz',
+      currencyRates: {
+        ETH: {
+          conversionDate,
+          conversionRate: 4000.42,
+          usdConversionRate: null,
+        },
+        BNB: {
+          conversionDate: null, // Line 231: rate === undefined
+          conversionRate: null, // Line 232
+          usdConversionRate: null,
+        },
+      },
+    });
+
+    controller.destroy();
+  });
+
   describe('useExternalServices', () => {
     it('should not fetch exchange rates when useExternalServices is false', async () => {
       const fetchMultiExchangeRateStub = jest.fn();

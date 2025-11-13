@@ -37,7 +37,7 @@ expect.extend({
    * @param promise - The promise to test.
    * @returns The result of the matcher.
    */
-  async toNeverResolve(promise: Promise<any>) {
+  async toNeverResolve(promise: Promise<unknown>) {
     if (this.isNot) {
       throw new Error(
         'Using `.not.toNeverResolve(...)` is not supported. ' +
@@ -46,8 +46,8 @@ expect.extend({
       );
     }
 
-    let resolutionValue: any;
-    let rejectionValue: any;
+    let resolutionValue: unknown;
+    let rejectionValue: unknown;
     try {
       resolutionValue = await Promise.race([
         promise,
@@ -67,8 +67,8 @@ expect.extend({
           message: () => {
             return `Expected promise to never resolve after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it ${
               rejectionValue
-                ? `was rejected with ${rejectionValue}`
-                : `resolved with ${resolutionValue}`
+                ? `was rejected with ${JSON.stringify(rejectionValue, null, 2)}`
+                : `resolved with ${JSON.stringify(resolutionValue, null, 2)}`
             }`;
           },
           pass: false,
