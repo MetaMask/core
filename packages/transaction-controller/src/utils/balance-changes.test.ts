@@ -282,7 +282,7 @@ function mockParseLog({
   }
 }
 
-describe('Simulation Utils', () => {
+describe('Balance Change Utils', () => {
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
   const queryMock = jest.mocked(query);
 

@@ -272,7 +272,7 @@ async function getQuotes(
   messenger: TransactionPayControllerMessenger,
 ) {
   const { id: transactionId } = transaction;
-  const strategy = await getStrategy(messenger as never, transaction);
+  const strategy = getStrategy(messenger as never, transaction);
   let quotes: TransactionPayQuote<Json>[] | undefined = [];
 
   try {
