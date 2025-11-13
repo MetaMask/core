@@ -74,7 +74,16 @@ describe('ShieldRemoteBackend', () => {
 
     const txMeta = generateMockTxMeta();
     const coverageResult = await backend.checkCoverage({ txMeta });
-    expect(coverageResult).toStrictEqual({ coverageId, ...result });
+    expect({
+      coverageId: coverageResult.coverageId,
+      message: result.message,
+      reasonCode: result.reasonCode,
+      status: result.status,
+    }).toStrictEqual({
+      coverageId,
+      ...result,
+    });
+    expect(typeof coverageResult.metrics.latency).toBe('number');
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(getAccessToken).toHaveBeenCalledTimes(2);
   });
@@ -299,10 +308,16 @@ describe('ShieldRemoteBackend', () => {
       const coverageResult = await backend.checkSignatureCoverage({
         signatureRequest,
       });
-      expect(coverageResult).toStrictEqual({
+      expect({
+        coverageId: coverageResult.coverageId,
+        message: result.message,
+        reasonCode: result.reasonCode,
+        status: result.status,
+      }).toStrictEqual({
         coverageId,
         ...result,
       });
+      expect(typeof coverageResult.metrics.latency).toBe('number');
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(getAccessToken).toHaveBeenCalledTimes(2);
     });

@@ -83,9 +83,6 @@ export function getRandomCoverageResult() {
     status: getRandomCoverageStatus(),
     message: 'message',
     reasonCode: 'reasonCode',
-    metrics: {
-      latency: 0,
-    },
   };
 }
 
