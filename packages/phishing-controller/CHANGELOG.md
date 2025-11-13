@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed the Transaction Controller listener to correctly pick up state changes for mobile ([#7139](https://github.com/MetaMask/core/pull/7139))
+
 ## [15.0.0]
 
 ### Changed
