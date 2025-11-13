@@ -1,6 +1,6 @@
 {
   "name": "@metamask/subscription-controller",
-  "version": "4.2.1",
+  "version": "4.2.2",
   "description": "Handle user subscription",
   "keywords": [
     "MetaMask",
