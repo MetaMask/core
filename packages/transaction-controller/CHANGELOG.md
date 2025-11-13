@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `gasFeeToken` property to `addTransaction` and `addTransactionBatch` methods ([#7123](https://github.com/MetaMask/core/pull/7123))
+  - Also add optional `gasFeeToken` and `isGasFeeTokenIgnoredIfBalance` properties to `TransactionMeta`.
+
 ## [61.2.0]
 
 ### Added
