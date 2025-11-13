@@ -68,7 +68,7 @@ export type TransactionPayControllerGetDelegationTransactionAction = {
 /** Action to get the pay strategy type used for a transaction. */
 export type TransactionPayControllerGetStrategyAction = {
   type: `${typeof CONTROLLER_NAME}:getStrategy`;
-  handler: (transaction: TransactionMeta) => Promise<TransactionPayStrategy>;
+  handler: (transaction: TransactionMeta) => TransactionPayStrategy;
 };
 
 /** Action to update the payment token for a transaction. */
@@ -104,9 +104,7 @@ export type TransactionPayControllerOptions = {
   getDelegationTransaction: GetDelegationTransactionCallback;
 
   /** Callback to select the PayStrategy for a transaction. */
-  getStrategy?: (
-    transaction: TransactionMeta,
-  ) => Promise<TransactionPayStrategy>;
+  getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
