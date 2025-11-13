@@ -101,15 +101,11 @@
     "@typescript-eslint/unbound-method": 5,
     "no-restricted-syntax": 28
   },
-  "packages/eth-block-tracker/tests/buildDeferred.ts": {
-    "@typescript-eslint/naming-convention": 1
-  },
   "packages/eth-block-tracker/tests/recordCallsToSetTimeout.ts": {
     "@typescript-eslint/no-explicit-any": 1
   },
   "packages/eth-block-tracker/tests/setupAfterEnv.ts": {
     "@typescript-eslint/consistent-type-definitions": 1,
-    "@typescript-eslint/naming-convention": 1,
     "@typescript-eslint/no-explicit-any": 3
   },
   "packages/eth-block-tracker/tests/withBlockTracker.ts": {
