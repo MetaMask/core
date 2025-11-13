@@ -465,7 +465,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
     const response =
       await this.#subscriptionService.startSubscriptionWithCard(request);
-    // note no need to trigger access token refresh after startSubscriptionWithCard request because this only return stripe checkout session url, subscription not created yet
+    // note: no need to trigger access token refresh after startSubscriptionWithCard request because this only return stripe checkout session url, subscription not created yet
 
     return response;
   }
@@ -474,7 +474,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.#assertIsUserNotSubscribed({ products: request.products });
     const response =
       await this.#subscriptionService.startSubscriptionWithCrypto(request);
-    this.triggerAccessTokenRefresh();
+
     return response;
   }
 
