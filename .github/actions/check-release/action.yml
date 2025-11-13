@@ -2,8 +2,8 @@ name: Check release
 description: Check for conflicts in packages being released in this PR.
 
 inputs:
-  before:
-    description: 'The commit SHA before the current commit or pull request.'
+  pull-request:
+    description: 'The pull request number to get changed files from.'
     required: true
 
 runs:
@@ -17,7 +17,7 @@ runs:
     - name: Check commits for changes in released packages
       shell: bash
       env:
-        BEFORE: ${{ inputs.before }}
+        PULL_REQUEST: ${{ inputs.pull-request }}
       run: |
         set -euo pipefail
         git fetch origin main
@@ -39,7 +39,13 @@ runs:
         done
 
         # Get all files changed ahead of this PR.
-        git diff --name-only "$BEFORE..$MERGE_BASE" > changed-files.txt
+        PULL_REQUEST_BRANCH=$(gh pr view "$PULL_REQUEST" --json headRefName --template "{{ .headRefName }}")
+
+        echo "🔍 Checking for release conflicts with files changed ahead of PR branch \`$PULL_REQUEST_BRANCH\`..."
+
+        git fetch origin "$PULL_REQUEST_BRANCH"
+        BEFORE=$(git merge-base "refs/remotes/origin/main" "$PULL_REQUEST_BRANCH")
+        git diff --name-only "$BEFORE..refs/remotes/origin/main" > changed-files.txt
 
         CONFLICTS=()
         for package in "${RELEASED_PACKAGES[@]}"; do
