@@ -1,20 +1,16 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { noop } from 'lodash';
 
 import { TransactionPayController } from '.';
 import { updatePaymentToken } from './actions/update-payment-token';
 import { TransactionPayStrategy } from './constants';
 import { getMessengerMock } from './tests/messenger-mock';
-import type {
-  TransactionPayControllerMessenger,
-  TransactionPaySourceAmount,
-} from './types';
+import type { TransactionPayControllerMessenger } from './types';
 import { updateQuotes } from './utils/quotes';
-import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
 
 jest.mock('./actions/update-payment-token');
-jest.mock('./utils/source-amounts');
 jest.mock('./utils/quotes');
 jest.mock('./utils/transaction');
 
@@ -25,7 +21,6 @@ const CHAIN_ID_MOCK = '0x1' as Hex;
 
 describe('TransactionPayController', () => {
   const updatePaymentTokenMock = jest.mocked(updatePaymentToken);
-  const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
   const updateQuotesMock = jest.mocked(updateQuotes);
   const pollTransactionChangesMock = jest.mocked(pollTransactionChanges);
   let messenger: TransactionPayControllerMessenger;
@@ -112,22 +107,17 @@ describe('TransactionPayController', () => {
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
 
-      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
-        data.sourceAmounts = [
-          { sourceAmountHuman: '1.23' } as TransactionPaySourceAmount,
-        ];
-      });
+      updateTransactionData(TRANSACTION_ID_MOCK, noop);
 
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK],
       ).toStrictEqual({
         isLoading: false,
-        sourceAmounts: [{ sourceAmountHuman: '1.23' }],
         tokens: [],
       });
     });
 
-    it('updates source amounts and quotes', () => {
+    it('updates quotes', () => {
       const controller = createController();
 
       controller.updatePaymentToken({
@@ -138,25 +128,11 @@ describe('TransactionPayController', () => {
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
 
-      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
-        data.sourceAmounts = [
-          { sourceAmountHuman: '1.23' } as TransactionPaySourceAmount,
-        ];
-      });
-
-      expect(updateSourceAmountsMock).toHaveBeenCalledWith(
-        TRANSACTION_ID_MOCK,
-        expect.objectContaining({
-          sourceAmounts: [{ sourceAmountHuman: '1.23' }],
-        }),
-        messenger,
-      );
+      updateTransactionData(TRANSACTION_ID_MOCK, noop);
 
       expect(updateQuotesMock).toHaveBeenCalledWith({
         messenger,
-        transactionData: expect.objectContaining({
-          sourceAmounts: [{ sourceAmountHuman: '1.23' }],
-        }),
+        transactionData: expect.any(Object),
         transactionId: TRANSACTION_ID_MOCK,
         updateTransactionData: expect.any(Function),
       });
@@ -175,11 +151,7 @@ describe('TransactionPayController', () => {
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
 
-      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
-        data.sourceAmounts = [
-          { sourceAmountHuman: '1.23' } as TransactionPaySourceAmount,
-        ];
-      });
+      updateTransactionData(TRANSACTION_ID_MOCK, noop);
 
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK],

@@ -16,6 +16,7 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from './transaction';
+import { TransactionPayStrategy } from '..';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type { TransactionData, TransactionPayRequiredToken } from '../types';
 
@@ -45,6 +46,8 @@ describe('Transaction Utils', () => {
   const parseRequiredTokensMock = jest.mocked(parseRequiredTokens);
   const {
     messenger,
+    getControllerStateMock,
+    getStrategyMock,
     getTransactionControllerStateMock,
     publish,
     updateTransactionMock,
@@ -56,6 +59,12 @@ describe('Transaction Utils', () => {
     getTransactionControllerStateMock.mockReturnValue({
       transactions: [] as TransactionMeta[],
     } as TransactionControllerState);
+
+    getStrategyMock.mockReturnValue(TransactionPayStrategy.Relay);
+
+    getControllerStateMock.mockReturnValue({
+      transactionData: {},
+    });
   });
 
   describe('getTransaction', () => {

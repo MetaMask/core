@@ -252,7 +252,20 @@ function onTransactionChange(
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
 ) {
-  const tokens = parseRequiredTokens(transaction, messenger);
+  const paymentToken = messenger.call('TransactionPayController:getState')
+    .transactionData[transaction.id]?.paymentToken;
+
+  const strategyType = messenger.call(
+    'TransactionPayController:getStrategy',
+    transaction,
+  );
+
+  const tokens = parseRequiredTokens({
+    messenger,
+    paymentToken,
+    strategyType,
+    transaction,
+  });
 
   log('Transaction changed', { transaction, tokens });
 

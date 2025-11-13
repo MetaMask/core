@@ -12,7 +12,6 @@ export type {
   TransactionPaymentToken,
   TransactionPayQuote,
   TransactionPayRequiredToken,
-  TransactionPaySourceAmount,
   TransactionPayTotals,
   UpdatePaymentTokenRequest,
 } from './types';

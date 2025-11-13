@@ -5,8 +5,10 @@ import {
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import { getStrategy, getStrategyByName } from './strategy';
+import { getTokenFiatRate } from './token';
 import { calculateTotals } from './totals';
 import { getTransaction, updateTransaction } from './transaction';
 import { projectLogger } from '../logger';
@@ -16,7 +18,6 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
   TransactionPayRequiredToken,
-  TransactionPaySourceAmount,
   TransactionPayTotals,
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
@@ -57,12 +58,12 @@ export async function updateQuotes(
 
   log('Updating quotes', { transactionId });
 
-  const { paymentToken, sourceAmounts, tokens } = transactionData;
+  const { paymentToken, tokens } = transactionData;
 
   const requests = buildQuoteRequests({
     from: transaction.txParams.from as Hex,
+    messenger,
     paymentToken,
-    sourceAmounts,
     tokens,
     transactionId,
   });
@@ -212,21 +213,21 @@ export async function refreshQuotes(
  * @param request - Request parameters.
  * @param request.from - Address from which the transaction is sent.
  * @param request.paymentToken - Payment token used for the transaction.
- * @param request.sourceAmounts - Source amounts for the transaction.
+ * @param request.messenger - Controller messenger.
  * @param request.tokens - Required tokens for the transaction.
  * @param request.transactionId - ID of the transaction.
  * @returns Array of quote requests.
  */
 function buildQuoteRequests({
   from,
+  messenger,
   paymentToken,
-  sourceAmounts,
   tokens,
   transactionId,
 }: {
   from: Hex;
+  messenger: TransactionPayControllerMessenger;
   paymentToken: TransactionPaymentToken | undefined;
-  sourceAmounts: TransactionPaySourceAmount[] | undefined;
   tokens: TransactionPayRequiredToken[];
   transactionId: string;
 }): QuoteRequest[] {
@@ -234,22 +235,43 @@ function buildQuoteRequests({
     return [];
   }
 
-  const requests = (sourceAmounts ?? []).map((sourceAmount) => {
-    const token = tokens.find(
-      (t) => t.address === sourceAmount.targetTokenAddress,
-    ) as TransactionPayRequiredToken;
+  const paymentTokenFiatRate = getTokenFiatRate(
+    messenger,
+    paymentToken.address,
+    paymentToken.chainId,
+  );
 
-    return {
-      from,
-      sourceBalanceRaw: paymentToken.balanceRaw,
-      sourceTokenAmount: sourceAmount.sourceAmountRaw,
-      sourceChainId: paymentToken.chainId,
-      sourceTokenAddress: paymentToken.address,
-      targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
-      targetChainId: token.chainId,
-      targetTokenAddress: token.address,
-    };
-  });
+  if (paymentTokenFiatRate === undefined) {
+    log('Payment token fiat rate is undefined', {
+      transactionId,
+      paymentToken,
+    });
+
+    return [];
+  }
+
+  const requests = tokens
+    .filter((t) => t.isRequired)
+    .map((token) => {
+      const sourceAmountHumanValue = new BigNumber(token.amountUsd).div(
+        paymentTokenFiatRate.usdRate,
+      );
+
+      const sourceAmountRaw = sourceAmountHumanValue
+        .shiftedBy(paymentToken.decimals)
+        .toFixed(0);
+
+      return {
+        from,
+        sourceBalanceRaw: paymentToken.balanceRaw,
+        sourceTokenAmount: sourceAmountRaw,
+        sourceChainId: paymentToken.chainId,
+        sourceTokenAddress: paymentToken.address,
+        targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
+        targetChainId: token.chainId,
+        targetTokenAddress: token.address,
+      };
+    });
 
   if (!requests.length) {
     log('No quote requests', { transactionId });

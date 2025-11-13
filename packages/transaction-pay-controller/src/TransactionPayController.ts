@@ -16,7 +16,6 @@ import type {
   UpdatePaymentTokenRequest,
 } from './types';
 import { updateQuotes } from './utils/quotes';
-import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
 
 const stateMetadata: StateMetadata<TransactionPayControllerState> = {
@@ -115,8 +114,6 @@ export class TransactionPayController extends BaseController<
       const isTokensUpdated = current.tokens !== originalTokens;
 
       if (isPaymentTokenUpdated || isTokensUpdated) {
-        updateSourceAmounts(transactionId, current as never, this.messenger);
-
         shouldUpdateQuotes = true;
       }
     });

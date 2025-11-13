@@ -2,7 +2,7 @@ import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import { add0x, type Hex } from '@metamask/utils';
+import { add0x, createModuleLogger, type Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import {
@@ -11,42 +11,50 @@ import {
   getTokenFiatRate,
   getTokenInfo,
 } from './token';
+import { TransactionPayStrategy } from '..';
+import { projectLogger } from '../logger';
 import type {
   FiatRates,
   TransactionPayControllerMessenger,
+  TransactionPaymentToken,
   TransactionPayRequiredToken,
 } from '../types';
 
+const log = createModuleLogger(projectLogger, 'required-tokens');
+
 const FOUR_BYTE_TOKEN_TRANSFER = '0xa9059cbb';
+
+export type ParseRequiredTokensRequest = {
+  messenger: TransactionPayControllerMessenger;
+  paymentToken?: TransactionPaymentToken;
+  strategyType: TransactionPayStrategy;
+  transaction: TransactionMeta;
+};
 
 /**
  * Parse required tokens from a transaction.
  *
- * @param transaction - Transaction metadata.
- * @param messenger - Controller messenger.
- * @returns An array of required tokens.
+ * @param request - Parse request.
+ * @returns Array of required tokens.
  */
 export function parseRequiredTokens(
-  transaction: TransactionMeta,
-  messenger: TransactionPayControllerMessenger,
+  request: ParseRequiredTokensRequest,
 ): TransactionPayRequiredToken[] {
-  return [
-    getTokenTransferToken(transaction, messenger),
-    getGasFeeToken(transaction, messenger),
-  ].filter(Boolean) as TransactionPayRequiredToken[];
+  return [getTokenTransferToken(request), getGasFeeToken(request)].filter(
+    Boolean,
+  ) as TransactionPayRequiredToken[];
 }
 
 /**
  * Parse a required token from a token transfer.
  *
- * @param transaction - Transaction metadata.
- * @param messenger - Controller messenger.
- * @returns The required token or undefined if the transaction is not a token transfer.
+ * @param request - Parse request.
+ * @returns Required token or undefined if the transaction is not required.
  */
 function getTokenTransferToken(
-  transaction: TransactionMeta,
-  messenger: TransactionPayControllerMessenger,
+  request: ParseRequiredTokensRequest,
 ): TransactionPayRequiredToken | undefined {
+  const { messenger, strategyType, transaction } = request;
   const { data, to } = getTokenTransferData(transaction) ?? {};
 
   if (!to || !data) {
@@ -63,25 +71,52 @@ function getTokenTransferToken(
   }
 
   if (transferAmount === undefined) {
+    log('Could not decode token transfer amount');
     return undefined;
   }
 
-  return buildRequiredToken(transaction, to, transferAmount, messenger);
+  const token = buildRequiredToken(transaction, to, transferAmount, messenger);
+
+  if (!token) {
+    log('Could not build token transfer required token');
+    return undefined;
+  }
+
+  const matchesPayToken =
+    request.paymentToken?.address.toLowerCase() === to.toLowerCase() &&
+    request?.paymentToken?.chainId === transaction.chainId;
+
+  if (matchesPayToken && strategyType !== TransactionPayStrategy.Relay) {
+    log('Token transfer not required as matches payment token');
+    return { ...token, isRequired: false };
+  }
+
+  if (transferAmount === '0x0') {
+    log('Token transfer not required as transfer amount is zero');
+    return { ...token, isRequired: false };
+  }
+
+  return token;
 }
 
 /**
  * Get the gas fee token required for a transaction.
  *
- * @param transaction - Transaction metadata.
- * @param messenger - Controller messenger.
+ * @param request - Parse request.
  * @returns The gas fee token or undefined if it could not be determined.
  */
 function getGasFeeToken(
-  transaction: TransactionMeta,
-  messenger: TransactionPayControllerMessenger,
+  request: ParseRequiredTokensRequest,
 ): TransactionPayRequiredToken | undefined {
+  const { messenger, strategyType, transaction } = request;
   const { chainId, txParams } = transaction;
   const { gas, maxFeePerGas } = txParams;
+
+  if (strategyType === TransactionPayStrategy.Relay) {
+    log('Skipping gas fee token for relay strategy');
+    return undefined;
+  }
+
   const nativeTokenAddress = getNativeToken(chainId);
 
   const maxGasCostRawHex = add0x(
@@ -90,29 +125,34 @@ function getGasFeeToken(
       .toString(16),
   );
 
-  const token = buildRequiredToken(
+  const tokenOriginal = buildRequiredToken(
     transaction,
     nativeTokenAddress,
     maxGasCostRawHex,
     messenger,
   );
 
-  if (!token) {
+  if (!tokenOriginal) {
+    log('Could not build gas fee token');
     return undefined;
   }
 
-  const amountUsdValue = new BigNumber(token.amountUsd);
+  const token = { ...tokenOriginal, allowUnderMinimum: true };
 
   const hasBalance = new BigNumber(token.balanceRaw).isGreaterThanOrEqualTo(
     token.amountRaw,
   );
 
-  if (hasBalance || amountUsdValue.isGreaterThanOrEqualTo(1)) {
-    return {
-      ...token,
-      allowUnderMinimum: true,
-      skipIfBalance: true,
-    };
+  if (hasBalance) {
+    log('Gas fee token not required as sufficient native balance');
+    return { ...token, isRequired: false };
+  }
+
+  const amountUsdValue = new BigNumber(token.amountUsd);
+
+  if (amountUsdValue.isGreaterThanOrEqualTo(1)) {
+    log('Using full gas fee token as amount is >= $1');
+    return token;
   }
 
   const fiatRates = getTokenFiatRate(
@@ -134,13 +174,15 @@ function getGasFeeToken(
 
   /* istanbul ignore next */
   if (!oneDollarToken) {
-    return undefined;
+    log('Could not build $1 gas fee token');
+    return token;
   }
+
+  log('Using $1 gas fee token as amount is < $1');
 
   return {
     ...oneDollarToken,
     allowUnderMinimum: true,
-    skipIfBalance: true,
   };
 }
 
@@ -198,7 +240,7 @@ function buildRequiredToken(
     balanceUsd,
     chainId,
     decimals: tokenDecimals,
-    skipIfBalance: false,
+    isRequired: true,
     symbol,
   };
 }

@@ -9,11 +9,11 @@ import { cloneDeep } from 'lodash';
 import type { UpdateQuotesRequest } from './quotes';
 import { refreshQuotes, updateQuotes } from './quotes';
 import { getStrategy, getStrategyByName } from './strategy';
+import { getTokenFiatRate } from './token';
 import { calculateTotals } from './totals';
 import { getTransaction, updateTransaction } from './transaction';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type {
-  TransactionPaySourceAmount,
   TransactionData,
   TransactionPayQuote,
   TransactionPayTotals,
@@ -24,6 +24,7 @@ import type {
 jest.mock('./strategy');
 jest.mock('./transaction');
 jest.mock('./totals');
+jest.mock('./token');
 
 jest.useFakeTimers();
 
@@ -41,12 +42,7 @@ const TRANSACTION_DATA_MOCK: TransactionData = {
     decimals: 6,
     symbol: 'ETH',
   } as TransactionPaymentToken,
-  sourceAmounts: [
-    {
-      sourceAmountRaw: '1000000000000000000',
-    } as TransactionPaySourceAmount,
-  ],
-  tokens: [{} as TransactionPayRequiredToken],
+  tokens: [{ amountUsd: '1234' } as TransactionPayRequiredToken],
 };
 
 const TRANSACTION_META_MOCK = {
@@ -91,6 +87,7 @@ describe('Quotes Utils', () => {
   const getTransactionMock = jest.mocked(getTransaction);
   const updateTransactionMock = jest.mocked(updateTransaction);
   const calculateTotalsMock = jest.mocked(calculateTotals);
+  const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
   const getQuotesMock = jest.fn();
   const getBatchTransactionsMock = jest.fn();
 
@@ -126,6 +123,11 @@ describe('Quotes Utils', () => {
       getBatchTransactions: getBatchTransactionsMock,
     });
 
+    getTokenFiatRateMock.mockReturnValue({
+      usdRate: '1.5',
+      fiatRate: '2',
+    });
+
     getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
     getQuotesMock.mockResolvedValue([QUOTE_MOCK]);
     getBatchTransactionsMock.mockResolvedValue([BATCH_TRANSACTION_MOCK]);
@@ -144,27 +146,6 @@ describe('Quotes Utils', () => {
 
       expect(transactionDataMock).toMatchObject({
         quotes: [QUOTE_MOCK],
-      });
-    });
-
-    it('clears quotes in state if no source amounts', async () => {
-      await run({
-        transactionData: {
-          ...TRANSACTION_DATA_MOCK,
-          sourceAmounts: undefined,
-        },
-      });
-
-      const transactionDataMock = {
-        quotes: [QUOTE_MOCK],
-      };
-
-      updateTransactionDataMock.mock.calls.map((call) =>
-        call[1](transactionDataMock),
-      );
-
-      expect(transactionDataMock).toMatchObject({
-        quotes: [],
       });
     });
 
@@ -224,8 +205,7 @@ describe('Quotes Utils', () => {
           {
             from: TRANSACTION_META_MOCK.txParams.from,
             sourceBalanceRaw: TRANSACTION_DATA_MOCK.paymentToken?.balanceRaw,
-            sourceTokenAmount:
-              TRANSACTION_DATA_MOCK.sourceAmounts?.[0].sourceAmountRaw,
+            sourceTokenAmount: '822666667',
             sourceChainId: TRANSACTION_DATA_MOCK.paymentToken?.chainId,
             sourceTokenAddress: TRANSACTION_DATA_MOCK.paymentToken?.address,
             targetAmountMinimum: TRANSACTION_DATA_MOCK.tokens?.[0].amountRaw,
@@ -279,7 +259,9 @@ describe('Quotes Utils', () => {
       await run();
 
       const transactionMetaMock = {} as TransactionMeta;
-      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+      updateTransactionMock.mock.calls.map((call) =>
+        call[1](transactionMetaMock),
+      );
 
       expect(transactionMetaMock).toMatchObject(
         expect.objectContaining({
@@ -328,6 +310,7 @@ describe('Quotes Utils', () => {
             paymentToken: TRANSACTION_DATA_MOCK.paymentToken,
             quotes: [QUOTE_MOCK],
             quotesLastUpdated: 1,
+            tokens: [],
           } as TransactionData,
         },
       });
@@ -353,6 +336,7 @@ describe('Quotes Utils', () => {
             isLoading: false,
             paymentToken: TRANSACTION_DATA_MOCK.paymentToken,
             quotes: [QUOTE_MOCK],
+            tokens: [],
           } as TransactionData,
         },
       });

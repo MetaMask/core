@@ -133,9 +133,6 @@ export type TransactionData = {
   /** Timestamp of when quotes were last updated. */
   quotesLastUpdated?: number;
 
-  /** Amounts of payment token required for each required token. */
-  sourceAmounts?: TransactionPaySourceAmount[];
-
   /** Tokens required by the transaction. */
   tokens: TransactionPayRequiredToken[];
 
@@ -181,23 +178,11 @@ export type TransactionPayRequiredToken = {
   /** Decimals of the required token. */
   decimals: number;
 
-  /** Whether to skip transfer of this token if balance is already sufficient. */
-  skipIfBalance: boolean;
+  /** Whether the required token is missing from the user's account. */
+  isRequired: boolean;
 
   /** Symbol of the required token. */
   symbol: string;
-};
-
-/** Amount of payment token required by a required token. */
-export type TransactionPaySourceAmount = {
-  /** Amount of payment token required in the selected currency. */
-  sourceAmountHuman: string;
-
-  /** Amount of payment token required in atomic format without factoring token decimals. */
-  sourceAmountRaw: string;
-
-  /** Address of the required token. */
-  targetTokenAddress: Hex;
 };
 
 /** Source token used to pay for required tokens. */

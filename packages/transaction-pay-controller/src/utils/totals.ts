@@ -63,7 +63,7 @@ export function calculateTotals({
     ? sumProperty(quotes, (quote) => quote.fees.targetNetwork.usd)
     : transactionNetworkFee.usd;
 
-  const quoteTokens = tokens.filter((t) => !t.skipIfBalance);
+  const quoteTokens = tokens.filter((t) => !t.allowUnderMinimum);
   const amountFiat = sumProperty(quoteTokens, (token) => token.amountFiat);
   const amountUsd = sumProperty(quoteTokens, (token) => token.amountUsd);
 

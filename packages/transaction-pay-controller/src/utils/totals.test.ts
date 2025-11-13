@@ -116,26 +116,6 @@ describe('Totals Utils', () => {
       expect(result.total.usd).toBe('51.08');
     });
 
-    it('returns total excluding token amount not in quote', () => {
-      const result = calculateTotals({
-        quotes: [QUOTE_1_MOCK, QUOTE_2_MOCK],
-        tokens: [
-          TOKEN_1_MOCK,
-          {
-            ...TOKEN_2_MOCK,
-            balanceRaw: '10',
-            amountRaw: '9',
-            skipIfBalance: true,
-          },
-        ],
-        messenger: MESSENGER_MOCK,
-        transaction: TRANSACTION_META_MOCK,
-      });
-
-      expect(result.total.fiat).toBe('39.97');
-      expect(result.total.usd).toBe('46.64');
-    });
-
     it('returns provider fees', () => {
       const result = calculateTotals({
         quotes: [QUOTE_1_MOCK, QUOTE_2_MOCK],
