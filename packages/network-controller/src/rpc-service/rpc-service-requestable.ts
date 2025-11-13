@@ -62,7 +62,7 @@ export type RpcServiceRequestable = {
    * Makes a request to the target.
    */
   request<Params extends JsonRpcParams, Result extends Json>(
-    jsonRpcRequest: JsonRpcRequest<Params>,
+    jsonRpcRequest: Readonly<JsonRpcRequest<Params>>,
     fetchOptions?: FetchOptions,
   ): Promise<JsonRpcResponse<Result | null>>;
 };
