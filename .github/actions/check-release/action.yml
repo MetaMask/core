@@ -25,7 +25,7 @@ runs:
         elif [ "$EVENT_NAME" = "merge_group" ]; then
           echo "TARGET=$(git rev-parse HEAD^)" >> "$GITHUB_OUTPUT"
         else
-          echo "::error::This action only supports `pull_request` and `merge_group` events."
+          echo "::error::This action only supports \`pull_request\` and \`merge_group\` events."
           exit 1
         fi
 
