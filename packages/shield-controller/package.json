@@ -1,6 +1,6 @@
 {
   "name": "@metamask/shield-controller",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Controller handling shield transaction coverage logic",
   "keywords": [
     "MetaMask",
@@ -60,7 +60,7 @@
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/signature-controller": "^36.0.0",
-    "@metamask/transaction-controller": "^61.2.0",
+    "@metamask/transaction-controller": "^61.3.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",

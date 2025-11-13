@@ -61,7 +61,7 @@ describe('TransactionPayPublishHook', () => {
       },
     } as TransactionPayControllerState);
 
-    getStrategyMock.mockResolvedValue(TransactionPayStrategy.Test);
+    getStrategyMock.mockReturnValue(TransactionPayStrategy.Test);
   });
 
   it('executes strategy with quotes', async () => {

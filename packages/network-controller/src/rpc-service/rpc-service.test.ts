@@ -1,6 +1,3 @@
-// We use conditions exclusively in this file.
-/* eslint-disable jest/no-conditional-in-test */
-
 import { HttpError } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
 import deepFreeze from 'deep-freeze-strict';

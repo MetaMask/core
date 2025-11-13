@@ -60,7 +60,6 @@ describe('SampleGasPricesController', () => {
         rootMessenger.registerActionHandler(
           'SampleGasPricesService:fetchGasPrices',
           async (givenChainId) => {
-            // eslint-disable-next-line jest/no-conditional-in-test
             if (givenChainId === chainId) {
               return {
                 low: 5,
@@ -109,7 +108,6 @@ describe('SampleGasPricesController', () => {
         let i = 0;
         const delays = [5000, 1000];
         const fetchGasPrices = jest.fn(async (givenChainId) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (givenChainId === chainId) {
             jest.advanceTimersByTime(delays[i]);
             i += 1;
@@ -163,7 +161,6 @@ describe('SampleGasPricesController', () => {
       await withController(async ({ rootMessenger }) => {
         const chainId = '0x42';
         const fetchGasPrices = jest.fn(async (givenChainId) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (givenChainId === chainId) {
             return {
               low: 5,
@@ -222,7 +219,6 @@ describe('SampleGasPricesController', () => {
         rootMessenger.registerActionHandler(
           'SampleGasPricesService:fetchGasPrices',
           async (givenChainId) => {
-            // eslint-disable-next-line jest/no-conditional-in-test
             if (givenChainId === chainId) {
               return {
                 low: 5,
@@ -268,7 +264,6 @@ describe('SampleGasPricesController', () => {
         rootMessenger.registerActionHandler(
           'SampleGasPricesService:fetchGasPrices',
           async (givenChainId) => {
-            // eslint-disable-next-line jest/no-conditional-in-test
             if (givenChainId === chainId) {
               return {
                 low: 5,
