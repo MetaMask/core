@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [61.3.0]
+
 ### Added
 
 - Add optional `gasFeeToken` property to `addTransaction` and `addTransactionBatch` methods ([#7123](https://github.com/MetaMask/core/pull/7123))
@@ -1932,7 +1934,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.3.0...HEAD
+[61.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.2.0...@metamask/transaction-controller@61.3.0
 [61.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.1.0...@metamask/transaction-controller@61.2.0
 [61.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.0.0...@metamask/transaction-controller@61.1.0
 [61.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.10.0...@metamask/transaction-controller@61.0.0
