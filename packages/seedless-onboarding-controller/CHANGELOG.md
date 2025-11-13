@@ -10,9 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** The `encryptor` constructor param requires `exportKey`, `keyFromPassword` and `generateSalt` methods ([#7128](https://github.com/MetaMask/core/pull/7128))
-  - `exportKey`: Exports the encryption key as `string`
-  - `keyFromPassword`: Derives the encryption key from a password
-  - `generateSalt
 - `SeedlessOnboardingController` now accepts an optional `SupportedKeyDerivationOptions` type parameter ([#7127](https://github.com/MetaMask/core/pull/7127))
   - The type parameter can be used to specify which key derivation algorithms are supported by the controller instance.
 
