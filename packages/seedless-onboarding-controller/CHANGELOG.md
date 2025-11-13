@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-
 ### Changed
 
 - `SeedlessOnboardingController` now accepts an optional `SupportedKeyDerivationOptions` type parameter ([#7127](https://github.com/MetaMask/core/pull/7127))
