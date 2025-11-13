@@ -188,7 +188,6 @@ const config = createConfig([
   {
     files: ['**/*.d.ts'],
     rules: {
-      '@typescript-eslint/naming-convention': 'warn',
       'import-x/unambiguous': 'off',
     },
   },
@@ -224,7 +223,6 @@ const config = createConfig([
       // TODO: Re-enable these rules or add inline ignores for warranted cases
       '@typescript-eslint/prefer-nullish-coalescing': 'warn',
       'no-restricted-syntax': 'warn',
-      '@typescript-eslint/naming-convention': 'warn',
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/unbound-method': 'warn',
       '@typescript-eslint/consistent-type-definitions': 'warn',
