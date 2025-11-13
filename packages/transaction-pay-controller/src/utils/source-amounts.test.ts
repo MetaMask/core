@@ -2,12 +2,12 @@ import { updateSourceAmounts } from './source-amounts';
 import { getTokenFiatRate } from './token';
 import { getTransaction } from './transaction';
 import { TransactionPayStrategy, type TransactionPaymentToken } from '..';
-import { getMessengerMock } from '../tests/messenger-mock';
-import type { TransactionData, TransactionPayRequiredToken } from '../types';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
 } from '../strategy/relay/constants';
+import { getMessengerMock } from '../tests/messenger-mock';
+import type { TransactionData, TransactionPayRequiredToken } from '../types';
 
 jest.mock('./token');
 jest.mock('./transaction');
