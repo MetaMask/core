@@ -1,6 +1,8 @@
 import type { ServicePolicy } from '@metamask/controller-utils';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 
+import type { MarketDataDetails } from '../TokenRatesController';
+
 /**
  * Represents an exchange rate.
  */
@@ -30,7 +32,7 @@ export type ExchangeRatesByCurrency<Currency extends string> = {
 };
 
 export type EvmAssetAddressWithChain<ChainId extends Hex = Hex> = {
-  address: Hex;
+  tokenAddress: Hex;
   chainId: ChainId;
 };
 
@@ -42,85 +44,7 @@ export type EvmAssetWithId<ChainId extends Hex = Hex> =
 export type EvmAssetWithMarketData<
   ChainId extends Hex = Hex,
   Currency extends string = string,
-> = EvmAssetWithId<ChainId> & MarketData & { currency: Currency };
-
-/**
- * The shape of the data that the /spot-prices endpoint returns.
- */
-export type MarketData = {
-  /**
-   * The all-time highest price of the token.
-   */
-  allTimeHigh: number;
-  /**
-   * The all-time lowest price of the token.
-   */
-  allTimeLow: number;
-  /**
-   * The number of tokens currently in circulation.
-   */
-  circulatingSupply: number;
-  /**
-   * The market cap calculated using the diluted supply.
-   */
-  dilutedMarketCap: number;
-  /**
-   * The highest price of the token in the last 24 hours.
-   */
-  high1d: number;
-  /**
-   * The lowest price of the token in the last 24 hours.
-   */
-  low1d: number;
-  /**
-   * The current market capitalization of the token.
-   */
-  marketCap: number;
-  /**
-   * The percentage change in market capitalization over the last 24 hours.
-   */
-  marketCapPercentChange1d: number;
-  /**
-   * The current price of the token.
-   */
-  price: number;
-  /**
-   * The absolute change in price over the last 24 hours.
-   */
-  priceChange1d: number;
-  /**
-   * The percentage change in price over the last 24 hours.
-   */
-  pricePercentChange1d: number;
-  /**
-   * The percentage change in price over the last hour.
-   */
-  pricePercentChange1h: number;
-  /**
-   * The percentage change in price over the last year.
-   */
-  pricePercentChange1y: number;
-  /**
-   * The percentage change in price over the last 7 days.
-   */
-  pricePercentChange7d: number;
-  /**
-   * The percentage change in price over the last 14 days.
-   */
-  pricePercentChange14d: number;
-  /**
-   * The percentage change in price over the last 30 days.
-   */
-  pricePercentChange30d: number;
-  /**
-   * The percentage change in price over the last 200 days.
-   */
-  pricePercentChange200d: number;
-  /**
-   * The total trading volume of the token in the last 24 hours.
-   */
-  totalVolume: number;
-};
+> = EvmAssetWithId<ChainId> & MarketDataDetails & { currency: Currency };
 
 /**
  * An ideal token prices service. All implementations must confirm to this

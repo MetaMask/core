@@ -95,6 +95,11 @@ export type MarketDataDetails = {
  */
 export type ContractMarketData = Record<Hex, MarketDataDetails>;
 
+type ChainIdAndNativeCurrency = {
+  chainId: Hex;
+  nativeCurrency: string;
+};
+
 enum PollState {
   Active = 'Active',
   Inactive = 'Inactive',
@@ -253,6 +258,8 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
   readonly #interval: number;
 
+  readonly #getSelectedCurrency: () => string;
+
   #allTokens: TokensControllerState['allTokens'];
 
   #allDetectedTokens: TokensControllerState['allDetectedTokens'];
@@ -266,6 +273,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * @param options.tokenPricesService - An object in charge of retrieving token price
    * @param options.messenger - The messenger instance for communication
    * @param options.state - Initial state to set on this controller
+   * @param options.getSelectedCurrency - A function to fetch the selected currency
    */
   constructor({
     interval = DEFAULT_INTERVAL,
@@ -273,12 +281,14 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     tokenPricesService,
     messenger,
     state,
+    getSelectedCurrency,
   }: {
     interval?: number;
     disabled?: boolean;
     tokenPricesService: AbstractTokenPricesService;
     messenger: TokenRatesControllerMessenger;
     state?: Partial<TokenRatesControllerState>;
+    getSelectedCurrency: () => string;
   }) {
     super({
       name: controllerName,
@@ -291,6 +301,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.#tokenPricesService = tokenPricesService;
     this.#disabled = disabled;
     this.#interval = interval;
+    this.#getSelectedCurrency = getSelectedCurrency;
 
     const { allTokens, allDetectedTokens } = this.#getTokensControllerState();
     this.#allTokens = allTokens;
@@ -412,7 +423,13 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     const tokenAddresses = getTokens(this.#allTokens[chainId]);
     const detectedTokenAddresses = getTokens(this.#allDetectedTokens[chainId]);
 
-    return [...new Set([...tokenAddresses, ...detectedTokenAddresses])].sort();
+    return [
+      ...new Set([
+        ...tokenAddresses,
+        ...detectedTokenAddresses,
+        getNativeTokenAddress(chainId),
+      ]),
+    ].sort();
   }
 
   /**
@@ -498,12 +515,86 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * @param chainIdAndNativeCurrency - The chain ID and native currency.
    */
   async updateExchangeRates(
-    chainIdAndNativeCurrency: {
-      chainId: Hex;
-      nativeCurrency: string;
-    }[],
+    chainIdAndNativeCurrency: ChainIdAndNativeCurrency[],
   ) {
     await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
+  }
+
+  async updateExchangeRatesV3({
+    chainIds,
+    currency,
+  }: {
+    chainIds: Hex[];
+    currency: string;
+  }): Promise<void> {
+    if (this.#disabled) {
+      return;
+    }
+
+    const marketData: Record<Hex, Record<Hex, MarketDataDetails>> = {};
+
+    const [supportedChains, unsupportedChains] = chainIds.reduce(
+      ([supported, unsupported], chainId) => {
+        if (this.#tokenPricesService.validateChainIdSupported(chainId)) {
+          supported.push(chainId);
+        } else {
+          unsupported.push(chainId);
+        }
+        return [supported, unsupported];
+      },
+      [[], []] as [Hex[], Hex[]],
+    );
+
+    for (const chainId of unsupportedChains) {
+      marketData[chainId] = {};
+    }
+
+    // TODO Decide what to do with unsupported currencies
+
+    const assets = supportedChains.flatMap((chainId) => {
+      const tokenAddresses = this.#getTokenAddresses(chainId);
+
+      return tokenAddresses.map((tokenAddress) => {
+        return {
+          chainId,
+          tokenAddress,
+        };
+      });
+    });
+
+    await reduceInBatchesSerially<
+      { chainId: Hex; tokenAddress: Hex },
+      Record<Hex, Record<Hex, MarketDataDetails>>
+    >({
+      values: assets,
+      batchSize: TOKEN_PRICES_BATCH_SIZE,
+      eachBatch: async (partialMarketData, assetsBatch) => {
+        const batchMarketData = await this.#tokenPricesService.fetchTokenPrices(
+          {
+            assets: assetsBatch,
+            currency,
+          },
+        );
+
+        for (const tokenPrice of batchMarketData) {
+          (partialMarketData[tokenPrice.chainId] ??= {})[
+            tokenPrice.tokenAddress
+          ] = tokenPrice;
+        }
+
+        return partialMarketData;
+      },
+      initialResult: marketData,
+    });
+
+    if (Object.keys(marketData).length > 0) {
+      this.update((state) => {
+        state.marketData = {
+          ...state.marketData,
+          ...marketData,
+        };
+      });
+    }
   }
 
   /**
@@ -518,10 +609,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * @param chainIdAndNativeCurrency - The chain ID and native currency.
    */
   async updateExchangeRatesByChainId(
-    chainIdAndNativeCurrency: {
-      chainId: Hex;
-      nativeCurrency: string;
-    }[],
+    chainIdAndNativeCurrency: ChainIdAndNativeCurrency[],
   ): Promise<void> {
     if (this.#disabled) {
       return;
@@ -658,28 +746,9 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * @param input.chainIds - The chain ids to poll token rates on.
    */
   async _executePoll({ chainIds }: TokenRatesPollingInput): Promise<void> {
-    const { networkConfigurationsByChainId } = this.messenger.call(
-      'NetworkController:getState',
-    );
+    const selectedCurrency = this.#getSelectedCurrency();
 
-    const chainIdAndNativeCurrency = chainIds.reduce<
-      { chainId: Hex; nativeCurrency: string }[]
-    >((acc, chainId) => {
-      const networkConfiguration = networkConfigurationsByChainId[chainId];
-      if (!networkConfiguration) {
-        console.error(
-          `TokenRatesController: No network configuration found for chainId ${chainId}`,
-        );
-        return acc;
-      }
-      acc.push({
-        chainId,
-        nativeCurrency: networkConfiguration.nativeCurrency,
-      });
-      return acc;
-    }, []);
-
-    await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
+    await this.updateExchangeRatesV3({ chainIds, currency: selectedCurrency });
   }
 
   /**
@@ -712,15 +781,15 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       eachBatch: async (allTokenPricesByTokenAddress, batch) => {
         const tokenPricesByTokenAddressForBatch = (
           await this.#tokenPricesService.fetchTokenPrices({
-            assets: batch.map((address) => ({
+            assets: batch.map((tokenAddress) => ({
               chainId,
-              address,
+              tokenAddress,
             })),
             currency: nativeCurrency,
           })
         ).reduce(
           (acc, tokenPrice) => {
-            acc[tokenPrice.address] = tokenPrice;
+            acc[tokenPrice.tokenAddress] = tokenPrice;
             return acc;
           },
           {} as Record<Hex, EvmAssetWithMarketData>,
@@ -733,25 +802,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       },
       initialResult: {},
     });
-    // const contractNativeInformations = tokenPricesByTokenAddress;
 
-    // fetch for native token
-    // if (tokenAddresses.length === 0) {
-    //   const contractNativeInformationNative =
-    //     await this.#tokenPricesService.fetchTokenPrices({
-    //       assets: [
-    //         {
-    //           chainId,
-    //           address: getNativeTokenAddress(chainId),
-    //         },
-    //       ],
-    //       currency: nativeCurrency,
-    //     });
-
-    //   contractNativeInformations = {
-    //     [getNativeTokenAddress(chainId)]: contractNativeInformationNative[0],
-    //   };
-    // }
     return Object.entries(tokenPricesByTokenAddress).reduce(
       (obj, [tokenAddress, token]) => {
         obj = {

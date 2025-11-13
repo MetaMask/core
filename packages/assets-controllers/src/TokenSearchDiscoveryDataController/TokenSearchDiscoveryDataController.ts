@@ -178,7 +178,7 @@ export class TokenSearchDiscoveryDataController extends BaseController<
 
     try {
       const pricesData = await this.#tokenPricesService.fetchTokenPrices({
-        assets: [{ chainId, address: address as Hex }],
+        assets: [{ chainId, tokenAddress: address as Hex }],
         currency: currentCurrency,
       });
 

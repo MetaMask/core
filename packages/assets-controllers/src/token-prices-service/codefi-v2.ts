@@ -20,8 +20,8 @@ import type {
   EvmAssetWithId,
   EvmAssetWithMarketData,
   ExchangeRatesByCurrency,
-  MarketData,
 } from './abstract-token-prices-service';
+import type { MarketDataDetails } from '../TokenRatesController';
 
 /**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to
@@ -82,6 +82,8 @@ export const SUPPORTED_CURRENCIES = [
   'eur',
   // British Pound Sterling
   'gbp',
+  // Georgian Lari
+  'gel',
   // Hong Kong Dollar
   'hkd',
   // Hungarian Forint
@@ -150,6 +152,52 @@ export const SUPPORTED_CURRENCIES = [
   'bits',
   // Satoshi
   'sats',
+  // Colombian Peso
+  'cop',
+  // Kenyan Shilling
+  'kes',
+  // Romanian Leu
+  'ron',
+  // Dominican Peso
+  'dop',
+  // Costa Rican Colón
+  'crc',
+  // Honduran Lempira
+  'hnl',
+  // Zambian Kwacha
+  'zmw',
+  // Salvadoran Colón
+  'svc',
+  // Bosnia-Herzegovina Convertible Mark
+  'bam',
+  // Peruvian Sol
+  'pen',
+  // Guatemalan Quetzal
+  'gtq',
+  // Lebanese Pound
+  'lbp',
+  // Armenian Dram
+  'amd',
+  // Solana
+  'sol',
+  // Sei
+  'sei',
+  // Sonic
+  'sonic',
+  // Tron
+  'trx',
+  // Taiko
+  'taiko',
+  // Pepu
+  'pepu',
+  // Polygon
+  'pol',
+  // Mantle
+  'mnt',
+  // Onomy
+  'nom',
+  // Avalanche
+  'avax',
 ] as const;
 
 /**
@@ -465,12 +513,11 @@ export class CodefiTokenPricesServiceV2
         const nativeAddress = getNativeTokenAddress(asset.chainId);
 
         return {
+          ...asset,
           assetId:
-            nativeAddress.toLowerCase() === asset.address.toLowerCase()
+            nativeAddress.toLowerCase() === asset.tokenAddress.toLowerCase()
               ? HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP[asset.chainId]
-              : `${caipChainId}/erc20:${asset.address.toLowerCase()}`,
-          address: asset.address,
-          chainId: asset.chainId,
+              : `${caipChainId}/erc20:${asset.tokenAddress.toLowerCase()}`,
         };
       },
     );
@@ -483,10 +530,14 @@ export class CodefiTokenPricesServiceV2
     url.searchParams.append('vsCurrency', currency);
     url.searchParams.append('includeMarketData', 'true');
 
-    const addressCryptoDataMap: { [assetId: CaipAssetType]: MarketData } =
-      await this.#policy.execute(() =>
-        handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
-      );
+    const addressCryptoDataMap: {
+      [assetId: CaipAssetType]: Omit<
+        MarketDataDetails,
+        'currency' | 'tokenAddress'
+      >;
+    } = await this.#policy.execute(() =>
+      handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
+    );
 
     return assetsWithIds
       .map((assetWithId) => {
@@ -497,8 +548,8 @@ export class CodefiTokenPricesServiceV2
         }
 
         return {
-          ...assetWithId,
           ...marketData,
+          ...assetWithId,
           currency,
         };
       })

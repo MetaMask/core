@@ -378,15 +378,15 @@ export async function fetchTokenContractExchangeRates({
     eachBatch: async (allTokenPricesByTokenAddress, batch) => {
       const tokenPricesByTokenAddressForBatch = (
         await tokenPricesService.fetchTokenPrices({
-          assets: batch.map((address) => ({
+          assets: batch.map((tokenAddress) => ({
             chainId,
-            address,
+            tokenAddress,
           })),
           currency: nativeCurrency,
         })
       ).reduce(
         (acc, tokenPrice) => {
-          acc[tokenPrice.address] = tokenPrice;
+          acc[tokenPrice.tokenAddress] = tokenPrice;
           return acc;
         },
         {} as Record<Hex, EvmAssetWithMarketData>,
