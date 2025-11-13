@@ -31,9 +31,6 @@
   "packages/assets-controllers/src/NftDetectionController.test.ts": {
     "import-x/namespace": 6
   },
-  "packages/assets-controllers/src/NftDetectionController.ts": {
-    "jsdoc/check-tag-names": 34
-  },
   "packages/assets-controllers/src/Standards/ERC20Standard.test.ts": {
     "jest/no-commented-out-tests": 1
   },
@@ -49,15 +46,11 @@
   "packages/assets-controllers/src/TokenListController.test.ts": {
     "import-x/namespace": 7
   },
-  "packages/assets-controllers/src/TokenRatesController.ts": {
-    "jsdoc/check-tag-names": 11
-  },
   "packages/assets-controllers/src/TokensController.test.ts": {
     "import-x/namespace": 1
   },
   "packages/assets-controllers/src/TokensController.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "jsdoc/check-tag-names": 10
+    "@typescript-eslint/no-unused-vars": 1
   },
   "packages/assets-controllers/src/multicall.test.ts": {
     "@typescript-eslint/prefer-promise-reject-errors": 2
@@ -74,8 +67,7 @@
     "no-shadow": 2
   },
   "packages/controller-utils/src/siwe.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "jsdoc/check-tag-names": 5
+    "@typescript-eslint/no-unused-vars": 1
   },
   "packages/controller-utils/src/util.test.ts": {
     "import-x/no-named-as-default": 1,
@@ -89,9 +81,6 @@
   },
   "packages/eip-5792-middleware/src/hooks/processSendCalls.ts": {
     "@typescript-eslint/no-misused-promises": 1
-  },
-  "packages/ens-controller/src/EnsController.ts": {
-    "jsdoc/check-tag-names": 6
   },
   "packages/eth-block-tracker/src/PollingBlockTracker.test.ts": {
     "@typescript-eslint/unbound-method": 4
@@ -114,9 +103,6 @@
   "packages/gas-fee-controller/src/GasFeeController.test.ts": {
     "import-x/namespace": 2
   },
-  "packages/gas-fee-controller/src/GasFeeController.ts": {
-    "jsdoc/check-tag-names": 20
-  },
   "packages/json-rpc-middleware-stream/src/index.test.ts": {
     "@typescript-eslint/prefer-promise-reject-errors": 1,
     "no-empty-function": 1
@@ -133,18 +119,6 @@
   "packages/logging-controller/src/LoggingController.test.ts": {
     "import-x/namespace": 1
   },
-  "packages/logging-controller/src/LoggingController.ts": {
-    "jsdoc/check-tag-names": 1
-  },
-  "packages/message-manager/src/AbstractMessageManager.ts": {
-    "jsdoc/check-tag-names": 23
-  },
-  "packages/message-manager/src/DecryptMessageManager.ts": {
-    "jsdoc/check-tag-names": 11
-  },
-  "packages/message-manager/src/EncryptionPublicKeyManager.ts": {
-    "jsdoc/check-tag-names": 13
-  },
   "packages/message-manager/src/utils.ts": {
     "@typescript-eslint/no-unused-vars": 1
   },
@@ -157,17 +131,8 @@
   "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.ts": {
     "@typescript-eslint/no-misused-promises": 1
   },
-  "packages/permission-log-controller/src/PermissionLogController.ts": {
-    "jsdoc/check-tag-names": 2
-  },
-  "packages/phishing-controller/src/PhishingController.ts": {
-    "jsdoc/check-tag-names": 32
-  },
   "packages/phishing-controller/src/utils.test.ts": {
     "import-x/namespace": 5
-  },
-  "packages/rate-limit-controller/src/RateLimitController.ts": {
-    "jsdoc/check-tag-names": 4
   },
   "packages/remote-feature-flag-controller/src/client-config-api-service/client-config-api-service.test.ts": {
     "promise/param-names": 1
@@ -202,11 +167,7 @@
     "no-empty-function": 1
   },
   "tests/fake-provider.ts": {
-    "@typescript-eslint/prefer-promise-reject-errors": 1,
-    "jsdoc/check-tag-names": 12
-  },
-  "tests/mock-network.ts": {
-    "jsdoc/check-tag-names": 10
+    "@typescript-eslint/prefer-promise-reject-errors": 1
   },
   "tests/setupAfterEnv/nock.ts": {
     "import-x/no-named-as-default-member": 3
