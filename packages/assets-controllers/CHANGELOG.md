@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Remove unused ESLint ignore directives ([#7154](https://github.com/MetaMask/core/pull/7154))
-- Release 679.0.0 ([#7153](https://github.com/MetaMask/core/pull/7153))
-- Release/671.0.0 ([#7126](https://github.com/MetaMask/core/pull/7126))
-- chore: Fix all auto-fixable ESLint warnings ([#7105](https://github.com/MetaMask/core/pull/7105))
-
 ### Fixed
 
 - Enable RPC fallback when Accounts API fails or times out in `TokenBalancesController` ([#7155](https://github.com/MetaMask/core/pull/7155))

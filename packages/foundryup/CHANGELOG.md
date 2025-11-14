@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-
 ## [1.0.1]
 
 ### Fixed
