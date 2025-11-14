@@ -142,14 +142,35 @@ const DefaultPairSchema = type({
 });
 
 export const ChainConfigurationSchema = type({
+  /**
+   * @deprecated This field is no longer used, use chainRanking instead
+   */
   isActiveSrc: boolean(),
+   /**
+   * @deprecated This field is no longer used
+   */
   isActiveDest: boolean(),
   refreshRate: optional(number()),
+  /**
+   * @deprecated This field is no longer used
+   */
   topAssets: optional(array(string())),
   stablecoins: optional(array(string())),
+  /**
+   * @deprecated This field is no longer used, clients should default to true
+   */
   isUnifiedUIEnabled: optional(boolean()),
+  /**
+   * @deprecated This field is no longer used, clients should default to true
+   */
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
+  /**
+   * @deprecated This field should not be used
+   */
   isGaslessSwapEnabled: optional(boolean()),
+  /**
+   * @deprecated Use `noFee` object in `BridgeAssetV2Schema` instead
+   */
   noFeeAssets: optional(array(string())),
   defaultPairs: optional(DefaultPairSchema),
 });
