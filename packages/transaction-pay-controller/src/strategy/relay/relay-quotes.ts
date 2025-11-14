@@ -379,16 +379,25 @@ function getFeatureFlags(messenger: TransactionPayControllerMessenger) {
 function calculateSourceNetworkCost(
   quote: RelayQuote,
   messenger: TransactionPayControllerMessenger,
-): Amount {
+): TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] {
   const allParams = quote.steps[0].items.map((i) => i.data);
   const { chainId } = allParams[0];
   const totalGasLimit = calculateSourceNetworkGasLimit(allParams);
 
-  return calculateGasCost({
+  const estimate = calculateGasCost({
     chainId,
     gas: totalGasLimit,
     messenger,
   });
+
+  const max = calculateGasCost({
+    chainId,
+    gas: totalGasLimit,
+    messenger,
+    isMax: true,
+  });
+
+  return { estimate, max };
 }
 
 /**

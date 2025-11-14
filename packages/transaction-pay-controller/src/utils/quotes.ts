@@ -149,7 +149,7 @@ function syncTransaction({
       tx.metamaskPay = {
         bridgeFeeFiat: totals.fees.provider.usd,
         chainId: paymentToken.chainId,
-        networkFeeFiat: totals.fees.sourceNetwork.usd,
+        networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
         tokenAddress: paymentToken.address,
         totalFiat: totals.total.usd,
       };

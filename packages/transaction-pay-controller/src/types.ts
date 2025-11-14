@@ -277,7 +277,10 @@ export type TransactionPayFees = {
   provider: FiatValue;
 
   /** Network fee for transactions on the source network. */
-  sourceNetwork: Amount;
+  sourceNetwork: {
+    estimate: Amount;
+    max: Amount;
+  };
 
   /** Network fee for transactions on the target network. */
   targetNetwork: FiatValue;
@@ -394,6 +397,9 @@ export type TransactionPayTotals = {
 
   /** Total fees for the target transaction and all quotes. */
   fees: TransactionPayFees;
+
+  /** Total amount of source token required. */
+  sourceAmount: Amount;
 
   /** Overall total cost for the target transaction and all quotes. */
   total: FiatValue;

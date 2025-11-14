@@ -762,8 +762,7 @@ describe('Bridge Quotes Utils', () => {
 
         expect(quotes[0].fees).toMatchObject({
           sourceNetwork: {
-            fiat: '1.23',
-            usd: '2.34',
+            estimate: { fiat: '1.23', usd: '2.34' },
           },
         });
       });
@@ -798,8 +797,10 @@ describe('Bridge Quotes Utils', () => {
 
         expect(quotes[0].fees).toMatchObject({
           sourceNetwork: {
-            fiat: '2.46',
-            usd: '4.68',
+            estimate: {
+              fiat: '2.46',
+              usd: '4.68',
+            },
           },
         });
       });
