@@ -84,7 +84,7 @@ jobs:
       - name: Check if the commit or pull request is a release
         id: is-release
         if: github.event_name != 'push'
-        uses: MetaMask/action-is-release@d063725cd15ee145d7e795a2e77db31a3e3f2c92
+        uses: MetaMask/action-is-release@v2
         with:
           commit-starts-with: 'Release [version],Release v[version],Release/[version],Release/v[version],Release `[version]`'
           commit-message: ${{ github.event.pull_request.title }}
