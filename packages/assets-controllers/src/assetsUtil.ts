@@ -14,7 +14,10 @@ import BN from 'bn.js';
 import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController';
-import type { AbstractTokenPricesService } from './token-prices-service';
+import {
+  getNativeTokenAddress,
+  type AbstractTokenPricesService,
+} from './token-prices-service';
 import type { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service';
 import type { ContractExchangeRates } from './TokenRatesController';
 
@@ -373,7 +376,7 @@ export async function fetchTokenContractExchangeRates({
     Hex,
     Record<Hex, EvmAssetWithMarketData>
   >({
-    values: [...tokenAddresses].sort(),
+    values: [...tokenAddresses, getNativeTokenAddress(chainId)].sort(),
     batchSize: TOKEN_PRICES_BATCH_SIZE,
     eachBatch: async (allTokenPricesByTokenAddress, batch) => {
       const tokenPricesByTokenAddressForBatch = (
