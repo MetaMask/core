@@ -12,19 +12,18 @@ import {
   createFetchMiddleware,
   createRetryOnEmptyMiddleware,
 } from '@metamask/eth-json-rpc-middleware';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import { providerFromMiddlewareV2 } from '@metamask/eth-json-rpc-provider';
+import { asV2Middleware } from '@metamask/json-rpc-engine';
 import {
-  providerFromEngine,
-  providerFromMiddleware,
-} from '@metamask/eth-json-rpc-provider';
-import {
-  createAsyncMiddleware,
   createScaffoldMiddleware,
-  JsonRpcEngine,
-  mergeMiddleware,
-} from '@metamask/json-rpc-engine';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
-import type { Hex, Json, JsonRpcParams } from '@metamask/utils';
+  JsonRpcEngineV2,
+} from '@metamask/json-rpc-engine/v2';
+import type {
+  JsonRpcMiddleware,
+  MiddlewareContext,
+} from '@metamask/json-rpc-engine/v2';
+import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
 import type { Logger } from 'loglevel';
 
 import type { NetworkControllerMessenger } from './NetworkController';
@@ -49,6 +48,12 @@ export type NetworkClient = {
   blockTracker: BlockTracker;
   destroy: () => void;
 };
+
+type RpcApiMiddleware = JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  MiddlewareContext<{ origin: string }>
+>;
 
 /**
  * Create a JSON RPC network client for a specific network.
@@ -137,17 +142,21 @@ export function createNetworkClient({
     });
   });
 
-  const rpcApiMiddleware =
-    configuration.type === NetworkClientType.Infura
-      ? createInfuraMiddleware({
-          rpcService: rpcServiceChain,
-          options: {
-            source: 'metamask',
-          },
-        })
-      : createFetchMiddleware({ rpcService: rpcServiceChain });
+  let rpcApiMiddleware: RpcApiMiddleware;
+  if (configuration.type === NetworkClientType.Infura) {
+    rpcApiMiddleware = asV2Middleware(
+      createInfuraMiddleware({
+        rpcService: rpcServiceChain,
+        options: {
+          source: 'metamask',
+        },
+      }),
+    );
+  } else {
+    rpcApiMiddleware = createFetchMiddleware({ rpcService: rpcServiceChain });
+  }
 
-  const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
+  const rpcProvider = providerFromMiddlewareV2(rpcApiMiddleware);
 
   const blockTracker = createBlockTracker({
     networkClientType: configuration.type,
@@ -170,11 +179,11 @@ export function createNetworkClient({
           rpcApiMiddleware,
         });
 
-  const engine = new JsonRpcEngine();
-
-  engine.push(networkMiddleware);
-
-  const provider = providerFromEngine(engine);
+  const provider: Provider = new InternalProvider({
+    engine: JsonRpcEngineV2.create({
+      middleware: [networkMiddleware],
+    }),
+  });
 
   const destroy = () => {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -208,7 +217,7 @@ function createBlockTracker({
   getOptions: (
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
-  provider: SafeEventEmitterProvider;
+  provider: InternalProvider;
 }) {
   const testOptions =
     process.env.IN_TEST && networkClientType === NetworkClientType.Custom
@@ -240,18 +249,20 @@ function createInfuraNetworkMiddleware({
 }: {
   blockTracker: PollingBlockTracker;
   network: InfuraNetworkType;
-  rpcProvider: SafeEventEmitterProvider;
-  rpcApiMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
+  rpcProvider: InternalProvider;
+  rpcApiMiddleware: RpcApiMiddleware;
 }) {
-  return mergeMiddleware([
-    createNetworkAndChainIdMiddleware({ network }),
-    createBlockCacheMiddleware({ blockTracker }),
-    createInflightCacheMiddleware(),
-    createBlockRefMiddleware({ blockTracker, provider: rpcProvider }),
-    createRetryOnEmptyMiddleware({ blockTracker, provider: rpcProvider }),
-    createBlockTrackerInspectorMiddleware({ blockTracker }),
-    rpcApiMiddleware,
-  ]);
+  return JsonRpcEngineV2.create({
+    middleware: [
+      createNetworkAndChainIdMiddleware({ network }),
+      createBlockCacheMiddleware({ blockTracker }),
+      createInflightCacheMiddleware(),
+      createBlockRefMiddleware({ blockTracker, provider: rpcProvider }),
+      createRetryOnEmptyMiddleware({ blockTracker, provider: rpcProvider }),
+      createBlockTrackerInspectorMiddleware({ blockTracker }),
+      rpcApiMiddleware,
+    ],
+  }).asMiddleware();
 }
 
 /**
@@ -267,19 +278,16 @@ function createNetworkAndChainIdMiddleware({
   network: InfuraNetworkType;
 }) {
   return createScaffoldMiddleware({
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     eth_chainId: ChainId[network],
   });
 }
 
 const createChainIdMiddleware = (
   chainId: Hex,
-): JsonRpcMiddleware<JsonRpcParams, Json> => {
-  return (req, res, next, end) => {
-    if (req.method === 'eth_chainId') {
-      res.result = chainId;
-      return end();
+): JsonRpcMiddleware<JsonRpcRequest, Json> => {
+  return ({ request, next }) => {
+    if (request.method === 'eth_chainId') {
+      return chainId;
     }
     return next();
   };
@@ -301,21 +309,23 @@ function createCustomNetworkMiddleware({
 }: {
   blockTracker: PollingBlockTracker;
   chainId: Hex;
-  rpcApiMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
-}): JsonRpcMiddleware<JsonRpcParams, Json> {
+  rpcApiMiddleware: RpcApiMiddleware;
+}) {
   const testMiddlewares = process.env.IN_TEST
     ? [createEstimateGasDelayTestMiddleware()]
     : [];
 
-  return mergeMiddleware([
-    ...testMiddlewares,
-    createChainIdMiddleware(chainId),
-    createBlockRefRewriteMiddleware({ blockTracker }),
-    createBlockCacheMiddleware({ blockTracker }),
-    createInflightCacheMiddleware(),
-    createBlockTrackerInspectorMiddleware({ blockTracker }),
-    rpcApiMiddleware,
-  ]);
+  return JsonRpcEngineV2.create({
+    middleware: [
+      ...testMiddlewares,
+      createChainIdMiddleware(chainId),
+      createBlockRefRewriteMiddleware({ blockTracker }),
+      createBlockCacheMiddleware({ blockTracker }),
+      createInflightCacheMiddleware(),
+      createBlockTrackerInspectorMiddleware({ blockTracker }),
+      rpcApiMiddleware,
+    ],
+  }).asMiddleware();
 }
 
 /**
@@ -324,11 +334,14 @@ function createCustomNetworkMiddleware({
  *
  * @returns The middleware for delaying gas estimation calls by 2 seconds when in test.
  */
-function createEstimateGasDelayTestMiddleware() {
-  return createAsyncMiddleware(async (req, _, next) => {
-    if (req.method === 'eth_estimateGas') {
+function createEstimateGasDelayTestMiddleware(): JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json
+> {
+  return async ({ request, next }) => {
+    if (request.method === 'eth_estimateGas') {
       await new Promise((resolve) => setTimeout(resolve, SECOND * 2));
     }
     return next();
-  });
+  };
 }

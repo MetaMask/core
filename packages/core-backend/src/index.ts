@@ -19,8 +19,6 @@ export type {
   WebSocketConnectionInfo,
   WebSocketSubscription,
   BackendWebSocketServiceActions,
-  BackendWebSocketServiceAllowedActions,
-  BackendWebSocketServiceAllowedEvents,
   BackendWebSocketServiceMessenger,
   BackendWebSocketServiceEvents,
   BackendWebSocketServiceConnectionStateChangedEvent,
@@ -34,17 +32,11 @@ export type {
   SubscriptionOptions,
   AccountActivityServiceOptions,
   AccountActivityServiceActions,
-  AccountActivityServiceAllowedActions,
-  AccountActivityServiceAllowedEvents,
   AccountActivityServiceTransactionUpdatedEvent,
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceSubscriptionErrorEvent,
   AccountActivityServiceStatusChangedEvent,
   AccountActivityServiceEvents,
   AccountActivityServiceMessenger,
-} from './AccountActivityService';
-export {
-  ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
-  ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS,
 } from './AccountActivityService';
 export { AccountActivityService } from './AccountActivityService';

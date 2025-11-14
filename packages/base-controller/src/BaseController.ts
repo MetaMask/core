@@ -1,35 +1,15 @@
+import type {
+  ActionConstraint,
+  EventConstraint,
+  Messenger,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
 import type { Json, PublicInterface } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
 
-import type { ActionConstraint, EventConstraint } from './Messenger';
-import type {
-  RestrictedMessenger,
-  RestrictedMessengerConstraint,
-} from './RestrictedMessenger';
-
 enablePatches();
-
-/**
- * Determines if the given controller is an instance of `BaseController`
- *
- * @param controller - Controller instance to check
- * @returns True if the controller is an instance of `BaseController`
- */
-export function isBaseController(
-  controller: unknown,
-): controller is BaseControllerInstance {
-  return (
-    typeof controller === 'object' &&
-    controller !== null &&
-    'name' in controller &&
-    typeof controller.name === 'string' &&
-    'state' in controller &&
-    typeof controller.state === 'object' &&
-    'metadata' in controller &&
-    typeof controller.metadata === 'object'
-  );
-}
 
 /**
  * A type that constrains the state of all controllers.
@@ -49,9 +29,7 @@ export type StateConstraint = Record<string, Json>;
  * @param patches - A list of patches describing any changes (see here for more
  * information: https://immerjs.github.io/immer/docs/patches)
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export type Listener<T> = (state: T, patches: Patch[]) => void;
+export type StateChangeListener<T> = (state: T, patches: Patch[]) => void;
 
 /**
  * An function to derive state.
@@ -62,8 +40,6 @@ export type Listener<T> = (state: T, patches: Patch[]) => void;
  * @param value - A piece of controller state.
  * @returns Something derived from controller state.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export type StateDeriver<T extends Json> = (value: T) => Json;
 
 /**
@@ -72,8 +48,6 @@ export type StateDeriver<T extends Json> = (value: T) => Json;
  * This metadata describes which parts of state should be persisted, and how to
  * get an anonymized representation of the state.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export type StateMetadata<T extends StateConstraint> = {
   [P in keyof T]-?: StatePropertyMetadata<T[P]>;
 };
@@ -89,7 +63,7 @@ export type StatePropertyMetadata<ControllerState extends Json> = {
    * Set this to false if the state may contain personally identifiable information, or if it's
    * too large to include in a debug snapshot.
    */
-  anonymous: boolean | StateDeriver<ControllerState>;
+  includeInDebugSnapshot: boolean | StateDeriver<ControllerState>;
   /**
    * Indicates whether this property should be included in state logs.
    *
@@ -100,7 +74,7 @@ export type StatePropertyMetadata<ControllerState extends Json> = {
    * diagnosing errors (e.g. transaction hashes, addresses), but we still attempt to limit the
    * data we expose to what is most useful for helping users.
    */
-  includeInStateLogs?: boolean | StateDeriver<ControllerState>;
+  includeInStateLogs: boolean | StateDeriver<ControllerState>;
   /**
    * Indicates whether this property should be persisted.
    *
@@ -120,7 +94,7 @@ export type StatePropertyMetadata<ControllerState extends Json> = {
    * Note that we disallow the use of a state derivation function here to preserve type information
    * for the UI (the state deriver type always returns `Json`).
    */
-  usedInUi?: boolean;
+  usedInUi: boolean;
 };
 
 /**
@@ -134,10 +108,10 @@ export type StateDeriverConstraint = (value: never) => Json;
  * This type can be assigned to any `StatePropertyMetadata` type.
  */
 export type StatePropertyMetadataConstraint = {
-  anonymous: boolean | StateDeriverConstraint;
-  includeInStateLogs?: boolean | StateDeriverConstraint;
+  includeInDebugSnapshot: boolean | StateDeriverConstraint;
+  includeInStateLogs: boolean | StateDeriverConstraint;
   persist: boolean | StateDeriverConstraint;
-  usedInUi?: boolean;
+  usedInUi: boolean;
 };
 
 /**
@@ -155,7 +129,13 @@ export type StateMetadataConstraint = Record<
  */
 export type BaseControllerInstance = Omit<
   PublicInterface<
-    BaseController<string, StateConstraint, RestrictedMessengerConstraint>
+    BaseController<
+      string,
+      StateConstraint,
+      // Use `any` to allow any parent to be set.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      Messenger<string, ActionConstraint, EventConstraint, any>
+    >
   >,
   'metadata'
 > & {
@@ -194,19 +174,37 @@ export type ControllerEvents<
 export class BaseController<
   ControllerName extends string,
   ControllerState extends StateConstraint,
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  messenger extends RestrictedMessenger<
+  ControllerMessenger extends Messenger<
     ControllerName,
-    ActionConstraint | ControllerActions<ControllerName, ControllerState>,
-    EventConstraint | ControllerEvents<ControllerName, ControllerState>,
-    string,
-    string
+    ActionConstraint,
+    EventConstraint,
+    // Use `any` to allow any parent to be set. `any` is harmless in a type constraint anyway,
+    // it's the one totally safe place to use it.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any
   >,
 > {
+  /**
+   * The controller state.
+   */
   #internalState: ControllerState;
 
-  protected messagingSystem: messenger;
+  /**
+   * The controller messenger. This is used to interact with other parts of the application.
+   */
+  protected messenger: ControllerMessenger;
+
+  /**
+   * The controller messenger.
+   *
+   * This is the same as the `messenger` property, but has a type that only lets us use
+   * actions and events that are part of the `BaseController` class.
+   */
+  readonly #messenger: Messenger<
+    ControllerName,
+    ControllerActions<ControllerName, ControllerState>,
+    ControllerEvents<ControllerName, ControllerState>
+  >;
 
   /**
    * The name of the controller.
@@ -221,7 +219,7 @@ export class BaseController<
    * Creates a BaseController instance.
    *
    * @param options - Controller options.
-   * @param options.messenger - Controller messaging system.
+   * @param options.messenger - The controller messenger.
    * @param options.metadata - ControllerState metadata, describing how to "anonymize" the state, and which
    * parts should be persisted.
    * @param options.name - The name of the controller, used as a namespace for events and actions.
@@ -233,12 +231,29 @@ export class BaseController<
     name,
     state,
   }: {
-    messenger: messenger;
+    messenger: ControllerActions<
+      ControllerName,
+      ControllerState
+    >['type'] extends MessengerActions<ControllerMessenger>['type']
+      ? ControllerEvents<
+          ControllerName,
+          ControllerState
+        >['type'] extends MessengerEvents<ControllerMessenger>['type']
+        ? ControllerMessenger
+        : never
+      : never;
     metadata: StateMetadata<ControllerState>;
     name: ControllerName;
     state: ControllerState;
   }) {
-    this.messagingSystem = messenger;
+    // The parameter type validates that the expected actions/events are present
+    // We don't have a way to validate the type property because the type is invariant
+    this.#messenger = messenger as unknown as Messenger<
+      ControllerName,
+      ControllerActions<ControllerName, ControllerState>,
+      ControllerEvents<ControllerName, ControllerState>
+    >;
+    this.messenger = messenger;
     this.name = name;
     // Here we use `freeze` from Immer to enforce that the state is deeply
     // immutable. Note that this is a runtime check, not a compile-time check.
@@ -248,12 +263,9 @@ export class BaseController<
     this.#internalState = freeze(state, true);
     this.metadata = metadata;
 
-    this.messagingSystem.registerActionHandler(
-      `${name}:getState`,
-      () => this.state,
-    );
+    this.#messenger.registerActionHandler(`${name}:getState`, () => this.state);
 
-    this.messagingSystem.registerInitialEventPayload({
+    this.#messenger.registerInitialEventPayload({
       eventType: `${name}:stateChange`,
       getPayload: () => [this.state, []],
     });
@@ -304,8 +316,8 @@ export class BaseController<
     // Protect against unnecessary state updates when there is no state diff.
     if (patches.length > 0) {
       this.#internalState = nextState;
-      this.messagingSystem.publish(
-        `${this.name}:stateChange`,
+      this.#messenger.publish(
+        `${this.name}:stateChange` as const,
         nextState,
         patches,
       );
@@ -324,8 +336,8 @@ export class BaseController<
   protected applyPatches(patches: Patch[]) {
     const nextState = applyPatches(this.#internalState, patches);
     this.#internalState = nextState;
-    this.messagingSystem.publish(
-      `${this.name}:stateChange`,
+    this.#messenger.publish(
+      `${this.name}:stateChange` as const,
       nextState,
       patches,
     );
@@ -341,51 +353,8 @@ export class BaseController<
    * listeners from being garbage collected.
    */
   protected destroy() {
-    this.messagingSystem.clearEventSubscriptions(`${this.name}:stateChange`);
+    this.messenger.clearEventSubscriptions(`${this.name}:stateChange`);
   }
-}
-
-/**
- * Returns an anonymized representation of the controller state.
- *
- * By "anonymized" we mean that it should not contain any information that could be personally
- * identifiable.
- *
- * @deprecated Use `deriveStateFromMetadata` instead.
- * @param state - The controller state.
- * @param metadata - The controller state metadata, which describes how to derive the
- * anonymized state.
- * @param captureException - Reports an error to an error monitoring service.
- * @returns The anonymized controller state.
- */
-export function getAnonymizedState<ControllerState extends StateConstraint>(
-  state: ControllerState,
-  metadata: StateMetadata<ControllerState>,
-  captureException?: (error: Error) => void,
-): Record<keyof ControllerState, Json> {
-  return deriveStateFromMetadata(
-    state,
-    metadata,
-    'anonymous',
-    captureException,
-  );
-}
-
-/**
- * Returns the subset of state that should be persisted.
- *
- * @deprecated Use `deriveStateFromMetadata` instead.
- * @param state - The controller state.
- * @param metadata - The controller state metadata, which describes which pieces of state should be persisted.
- * @param captureException - Reports an error to an error monitoring service.
- * @returns The subset of controller state that should be persisted.
- */
-export function getPersistentState<ControllerState extends StateConstraint>(
-  state: ControllerState,
-  metadata: StateMetadata<ControllerState>,
-  captureException?: (error: Error) => void,
-): Record<keyof ControllerState, Json> {
-  return deriveStateFromMetadata(state, metadata, 'persist', captureException);
 }
 
 /**

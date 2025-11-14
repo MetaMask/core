@@ -1,16 +1,19 @@
 import {
   deriveStateFromMetadata,
-  type RestrictedMessenger,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 
-import type {
-  AbstractMessage,
-  AbstractMessageParams,
-  OriginalRequest,
-  SecurityProviderRequest,
+import {
+  AbstractMessageManager,
+  type AbstractMessage,
+  type AbstractMessageParams,
+  type MessageManagerState,
+  type MessageRequest,
+  type SecurityProviderRequest,
 } from './AbstractMessageManager';
-import { AbstractMessageManager } from './AbstractMessageManager';
 
 type ConcreteMessage = AbstractMessage & {
   messageParams: ConcreteMessageParams;
@@ -24,20 +27,30 @@ type ConcreteMessageParamsMetamask = ConcreteMessageParams & {
   metamaskId?: string;
 };
 
-type ConcreteMessageManagerActions = never;
-type ConcreteMessageManagerEvents = never;
+type ConcreteMessageManagerActions = ControllerGetStateAction<
+  'TestManager',
+  MessageManagerState<ConcreteMessage>
+>;
+type ConcreteMessageManagerEvents = ControllerStateChangeEvent<
+  'TestManager',
+  MessageManagerState<ConcreteMessage>
+>;
+type ConcreteMessageManagerMessenger = Messenger<
+  'TestManager',
+  ConcreteMessageManagerActions,
+  ConcreteMessageManagerEvents
+>;
 
 class AbstractTestManager extends AbstractMessageManager<
   'TestManager',
   ConcreteMessage,
   ConcreteMessageParams,
   ConcreteMessageParamsMetamask,
-  ConcreteMessageManagerActions,
-  ConcreteMessageManagerEvents
+  ConcreteMessageManagerMessenger
 > {
   addRequestToMessageParams<MessageParams extends AbstractMessageParams>(
     messageParams: MessageParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ) {
     return super.addRequestToMessageParams(messageParams, req);
   }
@@ -45,7 +58,7 @@ class AbstractTestManager extends AbstractMessageManager<
   createUnapprovedMessage<MessageParams extends AbstractMessageParams>(
     messageParams: MessageParams,
     type: ApprovalType,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ) {
     return super.createUnapprovedMessage(messageParams, type, req);
   }
@@ -71,13 +84,7 @@ const MOCK_MESSENGER = {
   publish: jest.fn(),
   registerActionHandler: jest.fn(),
   registerInitialEventPayload: jest.fn(),
-} as unknown as RestrictedMessenger<
-  'TestManager',
-  never,
-  never,
-  string,
-  string
->;
+} as unknown as Messenger<'TestManager'>;
 
 const MOCK_INITIAL_OPTIONS = {
   additionalFinishStatuses: undefined,
@@ -579,7 +586,7 @@ describe('AbstractTestManager', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });

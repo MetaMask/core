@@ -1,12 +1,12 @@
 import { createMockFeatureAnnouncementAPIResult } from './mock-feature-announcements';
 import { createMockRawOnChainNotifications } from './mock-raw-notifications';
-import { FEATURE_ANNOUNCEMENT_API } from '../services/feature-announcements';
 import {
   NOTIFICATION_API_LIST_ENDPOINT,
   NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT,
   TRIGGER_API_NOTIFICATIONS_ENDPOINT,
   TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT,
-} from '../services/onchain-notifications';
+} from '../services/api-notifications';
+import { FEATURE_ANNOUNCEMENT_API } from '../services/feature-announcements';
 import { PERPS_API_CREATE_ORDERS } from '../services/perp-notifications';
 
 type MockResponse = {

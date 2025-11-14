@@ -5,6 +5,8 @@ export type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
   TransactionControllerConfirmExternalTransactionAction,
+  TransactionControllerEmulateNewTransaction,
+  TransactionControllerEmulateTransactionUpdate,
   TransactionControllerEvents,
   TransactionControllerEstimateGasAction,
   TransactionControllerGetNonceLockAction,

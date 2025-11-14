@@ -451,8 +451,6 @@ describe('RpcServiceChain', () => {
         onRetryListener.mock.calls.reduce(
           (memo, call) => {
             const { endpointUrl } = call[0];
-            // There is nothing wrong with this.
-            // eslint-disable-next-line jest/no-conditional-in-test
             memo[endpointUrl] = (memo[endpointUrl] ?? 0) + 1;
             return memo;
           },
@@ -681,8 +679,6 @@ describe('RpcServiceChain', () => {
         onDegradedListener.mock.calls.reduce(
           (memo: Record<string, number>, call) => {
             const { endpointUrl } = call[0];
-            // There is nothing wrong with this.
-            // eslint-disable-next-line jest/no-conditional-in-test
             memo[endpointUrl] = (memo[endpointUrl] ?? 0) + 1;
             return memo;
           },

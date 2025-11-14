@@ -6,6 +6,7 @@ import type {
   TxData,
   QuoteResponse,
   Intent,
+  Trade,
 } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
@@ -16,6 +17,8 @@ import {
   isCrossChain,
   isHardwareWallet,
   MetricsActionType,
+  isBitcoinTrade,
+  isTronTrade,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
@@ -85,7 +88,7 @@ const metadata: StateMetadata<BridgeStatusControllerState> = {
   txHistory: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -171,31 +174,31 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     // Register action handlers
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_STATUS_CONTROLLER_NAME}:startPollingForBridgeTxStatus`,
       this.startPollingForBridgeTxStatus.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_STATUS_CONTROLLER_NAME}:wipeBridgeStatus`,
       this.wipeBridgeStatus.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_STATUS_CONTROLLER_NAME}:resetState`,
       this.resetState.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_STATUS_CONTROLLER_NAME}:submitTx`,
       this.submitTx.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_STATUS_CONTROLLER_NAME}:submitIntent`,
       this.submitIntent.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_STATUS_CONTROLLER_NAME}:restartPollingForFailedAttempts`,
       this.restartPollingForFailedAttempts.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_STATUS_CONTROLLER_NAME}:getBridgeHistoryItemByTxMetaId`,
       this.getBridgeHistoryItemByTxMetaId.bind(this),
     );
@@ -203,7 +206,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Set interval
     this.setIntervalLength(REFRESH_INTERVAL_MS);
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:transactionFailed',
       ({ transactionMeta }) => {
         const { type, status, id } = transactionMeta;
@@ -245,7 +248,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       (transactionMeta) => {
         const { type, id, chainId } = transactionMeta;
@@ -301,10 +304,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         state.txHistory = DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.txHistory;
       });
     } else {
-      const { selectedNetworkClientId } = this.messagingSystem.call(
+      const { selectedNetworkClientId } = this.messenger.call(
         'NetworkController:getState',
       );
-      const selectedNetworkClient = this.messagingSystem.call(
+      const selectedNetworkClient = this.messenger.call(
         'NetworkController:getNetworkClientById',
         selectedNetworkClientId,
       );
@@ -545,7 +548,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   #getMultichainSelectedAccount(accountAddress: string) {
-    return this.messagingSystem.call(
+    return this.messenger.call(
       'AccountsController:getAccountByAddress',
       accountAddress,
     );
@@ -677,6 +680,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             bridgeTxMetaId,
+          );
+          this.messenger.publish(
+            'BridgeStatusController:destinationTransactionCompleted',
+            historyItem.quote.destAsset.assetId,
           );
         }
         if (status.status === StatusTypes.FAILED) {
@@ -825,7 +832,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         );
 
         // Merge with existing TransactionMeta to avoid wiping required fields
-        const { transactions } = this.messagingSystem.call(
+        const { transactions } = this.messenger.call(
           'TransactionController:getState',
         );
         const existingTxMeta = (transactions as TransactionMeta[]).find(
@@ -907,7 +914,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     // Look up in TransactionController if txMeta has been updated with the srcTxHash
-    const txControllerState = this.messagingSystem.call(
+    const txControllerState = this.messenger.call(
       'TransactionController:getState',
     );
     const txMeta = txControllerState.transactions.find(
@@ -981,14 +988,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * This adds an approval tx to the ApprovalsController in the background
    * The client needs to handle the approval tx by redirecting to the confirmation page with the approvalTxId in the URL
    *
-   * @param quoteResponse - The quote response
-   * @param quoteResponse.quote - The quote
+   * @param trade - The trade data (can be approval or main trade)
+   * @param quoteResponse - The quote response containing metadata
    * @param selectedAccount - The account to submit the transaction for
    * @returns The transaction meta
    */
   readonly #handleNonEvmTx = async (
-    quoteResponse: QuoteResponse<string | { unsignedPsbtBase64: string }> &
-      QuoteMetadata,
+    trade: Trade,
+    quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
     selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
   ) => {
     if (!selectedAccount.metadata?.snap?.id) {
@@ -997,8 +1004,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
     }
 
-    const request = getClientRequest(quoteResponse, selectedAccount);
-    const requestResponse = (await this.messagingSystem.call(
+    const request = getClientRequest(
+      trade,
+      quoteResponse.quote.srcChainId,
+      selectedAccount,
+    );
+    const requestResponse = (await this.messenger.call(
       'SnapController:handleRequest',
       request,
     )) as
@@ -1007,9 +1018,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | { result: Record<string, string> }
       | { signature: string };
 
+    // Create quote response with the specified trade
+    // This allows the same method to handle both approvals and main trades
+    const txQuoteResponse: QuoteResponse<Trade> & QuoteMetadata = {
+      ...quoteResponse,
+      trade,
+    };
+
     const txMeta = handleNonEvmTxResponse(
       requestResponse,
-      quoteResponse,
+      txQuoteResponse,
       selectedAccount,
     );
 
@@ -1024,12 +1042,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     >['result'],
   ): Promise<TransactionMeta> => {
     const transactionHash = await hashPromise;
-    const finalTransactionMeta: TransactionMeta | undefined =
-      this.messagingSystem
-        .call('TransactionController:getState')
-        .transactions.find(
-          (tx: TransactionMeta) => tx.hash === transactionHash,
-        );
+    const finalTransactionMeta: TransactionMeta | undefined = this.messenger
+      .call('TransactionController:getState')
+      .transactions.find((tx: TransactionMeta) => tx.hash === transactionHash);
     if (!finalTransactionMeta) {
       throw new Error(
         'Failed to submit cross-chain swap tx: txMeta for txHash was not found',
@@ -1051,7 +1066,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // We intentionally keep this simple to avoid extra wiring/subscriptions in this controller
     // and because we only need it for the rare intent+approval path.
     while (true) {
-      const { transactions } = this.messagingSystem.call(
+      const { transactions } = this.messenger.call(
         'TransactionController:getState',
       );
       const meta = transactions.find((t: TransactionMeta) => t.id === txId);
@@ -1085,7 +1100,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #handleApprovalTx = async (
     isBridgeTx: boolean,
-    quoteResponse: QuoteResponse<string | TxData> & Partial<QuoteMetadata>,
+    quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
     requireApproval?: boolean,
   ): Promise<TransactionMeta | undefined> => {
     const { approval } = quoteResponse;
@@ -1098,7 +1113,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           transactionType: isBridgeTx
             ? TransactionType.bridgeApproval
             : TransactionType.swapApproval,
-          trade: approval,
+          trade: approval as TxData,
           requireApproval,
         });
 
@@ -1143,7 +1158,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   }): Promise<TransactionMeta> => {
     const actionId = generateActionId().toString();
 
-    const selectedAccount = this.messagingSystem.call(
+    const selectedAccount = this.messenger.call(
       'AccountsController:getAccountByAddress',
       trade.from,
     );
@@ -1153,7 +1168,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
     }
     const hexChainId = formatChainIdToHex(trade.chainId);
-    const networkClientId = this.messagingSystem.call(
+    const networkClientId = this.messenger.call(
       'NetworkController:findNetworkClientIdByChainId',
       hexChainId,
     );
@@ -1198,16 +1213,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #handleUSDTAllowanceReset = async (
-    quoteResponse: QuoteResponse<TxData | string> & Partial<QuoteMetadata>,
+    quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
   ) => {
     const resetApproval = await getUSDTAllowanceResetTx(
-      this.messagingSystem,
+      this.messenger,
       quoteResponse,
     );
     if (resetApproval) {
       await this.#handleEvmTransaction({
         transactionType: TransactionType.bridgeApproval,
-        trade: resetApproval,
+        trade: resetApproval as TxData,
       });
     }
   };
@@ -1217,7 +1232,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     networkClientId: string,
     chainId: Hex,
   ) => {
-    const { gasFeeEstimates } = this.messagingSystem.call(
+    const { gasFeeEstimates } = this.messenger.call(
       'GasFeeController:getState',
     );
     const { estimates: txGasFeeEstimates } = await this.#estimateGasFeeFn({
@@ -1258,11 +1273,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #handleEvmTransactionBatch = async (
     args: Omit<
       Parameters<typeof getAddTransactionBatchParams>[0],
-      'messagingSystem' | 'estimateGasFeeFn'
+      'messenger' | 'estimateGasFeeFn'
     >,
   ) => {
     const transactionParams = await getAddTransactionBatchParams({
-      messagingSystem: this.messagingSystem,
+      messenger: this.messenger,
       estimateGasFeeFn: this.#estimateGasFeeFn,
       ...args,
     });
@@ -1284,7 +1299,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const { batchId } = await this.#addTransactionBatchFn(transactionParams);
 
     const { approvalMeta, tradeMeta } = findAndUpdateTransactionsInBatch({
-      messagingSystem: this.messagingSystem,
+      messenger: this.messenger,
       updateTransactionFn: this.#updateTransactionFn,
       batchId,
       txDataByType,
@@ -1309,10 +1324,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    */
   submitTx = async (
     accountAddress: string,
-    quoteResponse: QuoteResponse<TxData | string> & Partial<QuoteMetadata>,
+    quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
-    this.messagingSystem.call('BridgeController:stopPollingForQuotes');
+    this.messenger.call('BridgeController:stopPollingForQuotes');
 
     const selectedAccount = this.#getMultichainSelectedAccount(accountAddress);
     if (!selectedAccount) {
@@ -1345,14 +1360,53 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
 
     // Submit non-EVM tx (Solana, BTC, Tron)
-    // Bitcoin trades come as objects with unsignedPsbtBase64, others as strings
     const isNonEvmTrade =
       isNonEvmChainId(quoteResponse.quote.srcChainId) &&
       (typeof quoteResponse.trade === 'string' ||
-        (typeof quoteResponse.trade === 'object' &&
-          'unsignedPsbtBase64' in quoteResponse.trade));
+        isBitcoinTrade(quoteResponse.trade) ||
+        isTronTrade(quoteResponse.trade));
 
     if (isNonEvmTrade) {
+      // Handle non-EVM approval if present (e.g., Tron token approvals)
+      if (quoteResponse.approval) {
+        const approvalTxMeta = await this.#trace(
+          {
+            name: isBridgeTx
+              ? TraceName.BridgeTransactionApprovalCompleted
+              : TraceName.SwapTransactionApprovalCompleted,
+            data: {
+              srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
+              stxEnabled: false,
+            },
+          },
+          async () => {
+            try {
+              return await this.#handleNonEvmTx(
+                quoteResponse.approval as Trade,
+                quoteResponse,
+                selectedAccount,
+              );
+            } catch (error) {
+              !quoteResponse.featureId &&
+                this.#trackUnifiedSwapBridgeEvent(
+                  UnifiedSwapBridgeEventName.Failed,
+                  undefined,
+                  {
+                    error_message: (error as Error)?.message,
+                    ...preConfirmationProperties,
+                  },
+                );
+              throw error;
+            }
+          },
+        );
+
+        approvalTxId = approvalTxMeta?.id;
+
+        // Add delay after approval similar to EVM flow
+        await handleApprovalDelay(quoteResponse);
+      }
+
       txMeta = await this.#trace(
         {
           name: isBridgeTx
@@ -1366,10 +1420,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         async () => {
           try {
             return await this.#handleNonEvmTx(
-              quoteResponse as QuoteResponse<
-                string | { unsignedPsbtBase64: string }
-              > &
-                QuoteMetadata,
+              quoteResponse.trade,
+              quoteResponse,
               selectedAccount,
             );
           } catch (error) {
@@ -1409,11 +1461,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             const { tradeMeta, approvalMeta } =
               await this.#handleEvmTransactionBatch({
                 isBridgeTx,
-                resetApproval: await getUSDTAllowanceResetTx(
-                  this.messagingSystem,
+                resetApproval: (await getUSDTAllowanceResetTx(
+                  this.messenger,
                   quoteResponse,
-                ),
-                approval: quoteResponse.approval,
+                )) as TxData,
+                approval: quoteResponse.approval as TxData,
                 trade: quoteResponse.trade as TxData,
                 quoteResponse,
                 requireApproval,
@@ -1495,7 +1547,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const { quoteResponse, signature, accountAddress } = params;
 
     // Build pre-confirmation properties for error tracking parity with submitTx
-    const account = this.messagingSystem.call(
+    const account = this.messenger.call(
       'AccountsController:getAccountByAddress',
       accountAddress,
     );
@@ -1583,7 +1635,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         : TransactionType.swap;
 
       // Create actual transaction in Transaction Controller first
-      const networkClientId = this.messagingSystem.call(
+      const networkClientId = this.messenger.call(
         'NetworkController:findNetworkClientIdByChainId',
         formatChainIdToHex(chainId),
       );
@@ -1771,7 +1823,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     // This will publish events for PERPS dropped tx failures as well
     if (!txMetaId) {
-      this.messagingSystem.call(
+      this.messenger.call(
         'BridgeController:trackUnifiedSwapBridgeEvent',
         eventName,
         baseProperties,
@@ -1782,7 +1834,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const historyItem: BridgeHistoryItem | undefined =
       this.state.txHistory[txMetaId];
     if (!historyItem) {
-      this.messagingSystem.call(
+      this.messenger.call(
         'BridgeController:trackUnifiedSwapBridgeEvent',
         eventName,
         eventProperties ?? {},
@@ -1790,12 +1842,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    const selectedAccount = this.messagingSystem.call(
+    const selectedAccount = this.messenger.call(
       'AccountsController:getAccountByAddress',
       historyItem.account,
     );
 
-    const { transactions } = this.messagingSystem.call(
+    const { transactions } = this.messenger.call(
       'TransactionController:getState',
     );
     const txMeta = transactions?.find(
@@ -1814,7 +1866,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         token_address_source,
         token_address_destination,
       } = requestParamProperties;
-      this.messagingSystem.call(
+      this.messenger.call(
         'BridgeController:trackUnifiedSwapBridgeEvent',
         eventName,
         {
@@ -1833,6 +1885,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (historyItem.featureId) {
       return;
     }
+
     const requiredEventProperties = {
       ...baseProperties,
       ...requestParamProperties,
@@ -1843,7 +1896,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...getPriceImpactFromQuote(historyItem.quote),
     };
 
-    this.messagingSystem.call(
+    this.messenger.call(
       'BridgeController:trackUnifiedSwapBridgeEvent',
       eventName,
       requiredEventProperties,

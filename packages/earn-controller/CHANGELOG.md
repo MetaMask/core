@@ -7,8 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+
 ### Changed
 
+- **BREAKING:** Bump `@metamask/account-tree-controller` from `^2.0.0` to `^3.0.0` ([#7100](https://github.com/MetaMask/core/pull/7100))
+- Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
+
+## [9.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6445](https://github.com/MetaMask/core/pull/6445))
+  - Previously, `EarnController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6445](https://github.com/MetaMask/core/pull/6445))
+- **BREAKING:** Bump `@metamask/account-tree-controller` from `^1.0.0` to `^2.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [8.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 - Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 - Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.8.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 
@@ -298,7 +319,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@9.0.0...@metamask/earn-controller@10.0.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.2...@metamask/earn-controller@9.0.0
+[8.0.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.1...@metamask/earn-controller@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.0...@metamask/earn-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@7.0.0...@metamask/earn-controller@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@6.0.0...@metamask/earn-controller@7.0.0

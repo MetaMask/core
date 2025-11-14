@@ -26,6 +26,27 @@ export type BackendWebSocketServiceDisconnectAction = {
 };
 
 /**
+ * Forces a WebSocket reconnection to clean up subscription state
+ *
+ * This method is useful when subscription state may be out of sync and needs to be reset.
+ * It performs a controlled disconnect-then-reconnect sequence:
+ * - Disconnects cleanly to trigger subscription cleanup
+ * - Schedules reconnection with exponential backoff to prevent rapid loops
+ * - All subscriptions will be cleaned up automatically on disconnect
+ *
+ * Use cases:
+ * - Recovering from subscription/unsubscription issues
+ * - Cleaning up orphaned subscriptions
+ * - Forcing a fresh subscription state
+ *
+ * @returns Promise that resolves when disconnection is complete (reconnection is scheduled)
+ */
+export type BackendWebSocketServiceForceReconnectionAction = {
+  type: `BackendWebSocketService:forceReconnection`;
+  handler: BackendWebSocketService['forceReconnection'];
+};
+
+/**
  * Sends a message through the WebSocket
  *
  * @param message - The message to send
@@ -159,6 +180,7 @@ export type BackendWebSocketServiceSubscribeAction = {
 export type BackendWebSocketServiceMethodActions =
   | BackendWebSocketServiceConnectAction
   | BackendWebSocketServiceDisconnectAction
+  | BackendWebSocketServiceForceReconnectionAction
   | BackendWebSocketServiceSendMessageAction
   | BackendWebSocketServiceSendRequestAction
   | BackendWebSocketServiceGetConnectionInfoAction

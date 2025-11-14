@@ -1,11 +1,9 @@
-/* eslint-disable jest/no-conditional-in-test */
 /* eslint-disable jest/no-restricted-matchers */
-import type { AccountsControllerActions } from '@metamask/accounts-controller';
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
-  BridgeControllerActions,
-  BridgeControllerEvents,
+  BridgeControllerMessenger,
   TxData,
+  TronTradeData,
 } from '@metamask/bridge-controller';
 import {
   type QuoteResponse,
@@ -18,12 +16,17 @@ import {
 import { ChainId } from '@metamask/bridge-controller';
 import { ActionTypes, FeeType } from '@metamask/bridge-controller';
 import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
+import {
   TransactionType,
   TransactionStatus,
 } from '@metamask/transaction-controller';
 import type {
-  TransactionControllerActions,
-  TransactionControllerEvents,
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
@@ -36,11 +39,7 @@ import {
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   MAX_ATTEMPTS,
 } from './constants';
-import type {
-  BridgeStatusControllerActions,
-  BridgeStatusControllerEvents,
-  StatusResponse,
-} from './types';
+import type { StatusResponse } from './types';
 import {
   type BridgeId,
   type StartPollingForBridgeTxStatusArgsSerialized,
@@ -53,6 +52,22 @@ import * as bridgeStatusUtils from './utils/bridge-status';
 import * as transactionUtils from './utils/transaction';
 import { flushPromises } from '../../../tests/helpers';
 import { CHAIN_IDS } from '../../bridge-controller/src/constants/chains';
+
+type AllBridgeStatusControllerActions =
+  MessengerActions<BridgeStatusControllerMessenger>;
+
+type AllBridgeStatusControllerEvents =
+  MessengerEvents<BridgeStatusControllerMessenger>;
+
+type AllBridgeControllerActions = MessengerActions<BridgeControllerMessenger>;
+
+type AllBridgeControllerEvents = MessengerEvents<BridgeControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllBridgeStatusControllerActions | AllBridgeControllerActions,
+  AllBridgeStatusControllerEvents | AllBridgeControllerEvents
+>;
 
 jest.mock('uuid', () => ({
   v4: () => 'test-uuid-1234',
@@ -977,6 +992,7 @@ describe('BridgeStatusController', () => {
       );
 
       expect(messengerMock.call.mock.calls).toMatchSnapshot();
+      expect(messengerMock.publish.mock.calls.at(-1)).toMatchSnapshot();
       // Cleanup
       jest.restoreAllMocks();
     });
@@ -1133,6 +1149,9 @@ describe('BridgeStatusController', () => {
       // Assertions
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
       expect(messengerMock.call.mock.calls).toMatchSnapshot();
+      expect(messengerMock.publish).not.toHaveBeenCalledWith(
+        'BridgeStatusController:destinationTransactionCompleted',
+      );
 
       // Cleanup
       jest.restoreAllMocks();
@@ -2089,6 +2108,227 @@ describe('BridgeStatusController', () => {
     });
   });
 
+  describe('submitTx: Tron swap with approval', () => {
+    const mockTronApproval: TronTradeData = {
+      raw_data_hex:
+        '0a02aabb22084dde86d0f68ae3e5403a680801b2630a31747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e54726967676572536d617274436f6e747261637412330a15418f7ea8cce9f8bba67d7ae59cd49a1965d617e71a121541a614f803b6fd780986a42c78ec9c7f77e6ded13c',
+    };
+
+    const mockTronTrade: TronTradeData = {
+      raw_data_hex:
+        '0a02aabb22084dde86d0f68ae3e5403a680801b2630a31747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e54726967676572536d617274436f6e747261637412330a15418f7ea8cce9f8bba67d7ae59cd49a1965d617e71b121541a614f803b6fd780986a42c78ec9c7f77e6ded13c',
+    };
+
+    const mockQuoteResponse: QuoteResponse<TronTradeData, TronTradeData> &
+      QuoteMetadata = {
+      quote: {
+        requestId: '123',
+        srcChainId: ChainId.TRON,
+        destChainId: ChainId.TRON,
+        srcTokenAmount: '1000000',
+        srcAsset: {
+          chainId: ChainId.TRON,
+          address: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', // USDT on Tron
+          symbol: 'USDT',
+          name: 'Tether USD',
+          decimals: 6,
+          assetId: 'tron:728126428/slip44:195',
+        },
+        destTokenAmount: '500000000',
+        minDestTokenAmount: '475000000',
+        destAsset: {
+          chainId: ChainId.TRON,
+          address: 'native',
+          symbol: 'TRX',
+          name: 'Tron',
+          decimals: 6,
+          assetId: 'tron:728126428/slip44:195',
+        },
+        bridgeId: 'test-bridge',
+        bridges: [],
+        steps: [
+          {
+            action: ActionTypes.SWAP,
+            srcChainId: ChainId.TRON,
+            destChainId: ChainId.TRON,
+            srcAsset: {
+              chainId: ChainId.TRON,
+              address: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
+              symbol: 'USDT',
+              name: 'Tether USD',
+              decimals: 6,
+              assetId: 'tron:728126428/slip44:195',
+            },
+            destAsset: {
+              chainId: ChainId.TRON,
+              address: 'native',
+              symbol: 'TRX',
+              name: 'Tron',
+              decimals: 6,
+              assetId: 'tron:728126428/slip44:195',
+            },
+            srcAmount: '1000000',
+            destAmount: '500000000',
+            protocol: {
+              name: 'test-protocol',
+              displayName: 'Test Protocol',
+              icon: 'test-icon',
+            },
+          },
+        ],
+        feeData: {
+          [FeeType.METABRIDGE]: {
+            amount: '10000',
+            asset: {
+              chainId: ChainId.TRON,
+              address: 'native',
+              symbol: 'TRX',
+              name: 'Tron',
+              decimals: 6,
+              assetId: 'tron:728126428/slip44:195',
+            },
+          },
+        },
+      },
+      estimatedProcessingTimeInSeconds: 30,
+      approval: mockTronApproval,
+      trade: mockTronTrade,
+      sentAmount: {
+        amount: '1',
+        valueInCurrency: '1',
+        usd: '1',
+      },
+      toTokenAmount: {
+        amount: '500',
+        valueInCurrency: '500',
+        usd: '500',
+      },
+      minToTokenAmount: {
+        amount: '475',
+        valueInCurrency: '475',
+        usd: '475',
+      },
+      totalNetworkFee: {
+        amount: '0.01',
+        valueInCurrency: '0.01',
+        usd: '0.01',
+      },
+      totalMaxNetworkFee: {
+        amount: '0.015',
+        valueInCurrency: '0.015',
+        usd: '0.015',
+      },
+      gasFee: {
+        effective: { amount: '0.005', valueInCurrency: '0.005', usd: '0.005' },
+        total: { amount: '0.005', valueInCurrency: '0.005', usd: '0.005' },
+        max: { amount: '0', valueInCurrency: null, usd: null },
+      },
+      adjustedReturn: {
+        valueInCurrency: '499.99',
+        usd: '499.99',
+      },
+      cost: {
+        valueInCurrency: '0.01',
+        usd: '0.01',
+      },
+      swapRate: '500',
+    };
+
+    const mockTronAccount = {
+      id: 'tron-account-1',
+      address: 'TRX123...',
+      metadata: {
+        snap: {
+          id: 'npm:@metamask/tron-snap',
+        },
+        keyring: {
+          type: 'any',
+        },
+      },
+      options: { scope: 'tron-chain-id' },
+    };
+
+    let mockMessengerCall: jest.Mock;
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest.clearAllTimers();
+      jest.spyOn(Date, 'now').mockReturnValue(1234567890);
+      mockMessengerCall = jest.fn();
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
+    });
+
+    it('should successfully submit a Tron swap with approval transaction', async () => {
+      mockMessengerCall.mockReturnValueOnce(mockTronAccount);
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
+      mockMessengerCall.mockResolvedValueOnce('approval-signature'); // approval tx
+      mockMessengerCall.mockResolvedValueOnce('swap-signature'); // swap tx
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      const result = await controller.submitTx(
+        'TRXaccountAddress',
+        mockQuoteResponse,
+        false,
+      );
+      controller.stopAllPolling();
+
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+      expect(result).toMatchSnapshot();
+      // Swaps don't start polling (only bridges do)
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+    });
+
+    it('should handle approval transaction errors', async () => {
+      mockMessengerCall.mockReturnValueOnce(mockTronAccount);
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
+      mockMessengerCall.mockRejectedValueOnce(
+        new Error('Approval transaction failed'),
+      ); // approval tx error
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+
+      await expect(
+        controller.submitTx('TRXaccountAddress', mockQuoteResponse, false),
+      ).rejects.toThrow('Approval transaction failed');
+      expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+    });
+
+    it('should successfully submit a Tron bridge with approval transaction', async () => {
+      const mockTronBridgeQuote = {
+        ...mockQuoteResponse,
+        quote: {
+          ...mockQuoteResponse.quote,
+          destChainId: ChainId.ETH, // Different chain = bridge
+        },
+      };
+
+      mockMessengerCall.mockReturnValueOnce(mockTronAccount);
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
+      mockMessengerCall.mockResolvedValueOnce('approval-signature'); // approval tx
+      mockMessengerCall.mockResolvedValueOnce('bridge-signature'); // bridge tx
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      const result = await controller.submitTx(
+        'TRXaccountAddress',
+        mockTronBridgeQuote,
+        false,
+      );
+      controller.stopAllPolling();
+
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+      expect(result).toMatchSnapshot();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+      expect(
+        startPollingForBridgeTxStatusSpy.mock.lastCall[0],
+      ).toMatchSnapshot();
+      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+    });
+  });
+
   describe('submitTx: EVM bridge', () => {
     const mockEvmQuoteResponse = {
       ...getMockQuote(),
@@ -2309,7 +2549,7 @@ describe('BridgeStatusController', () => {
       };
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
       const result = await controller.submitTx(
-        quoteWithoutApproval.trade.from,
+        (quoteWithoutApproval.trade as TxData).from,
         {
           ...quoteWithoutApproval,
           quote: { ...quoteWithoutApproval.quote, destAsset: erc20Token },
@@ -2336,7 +2576,7 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
       const result = await controller.submitTx(
-        quoteWithoutApproval.trade.from,
+        (quoteWithoutApproval.trade as TxData).from,
         quoteWithoutApproval,
         true,
       );
@@ -2361,7 +2601,7 @@ describe('BridgeStatusController', () => {
 
       await expect(
         controller.submitTx(
-          quoteWithoutApproval.trade.from,
+          (quoteWithoutApproval.trade as TxData).from,
           quoteWithoutApproval,
           false,
         ),
@@ -2391,7 +2631,7 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         mockEvmQuoteResponse,
         false,
       );
@@ -2436,7 +2676,7 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         mockEvmQuoteResponse,
         true,
       );
@@ -2469,7 +2709,7 @@ describe('BridgeStatusController', () => {
 
       await expect(
         controller.submitTx(
-          mockEvmQuoteResponse.trade.from,
+          (mockEvmQuoteResponse.trade as TxData).from,
           mockEvmQuoteResponse,
           false,
         ),
@@ -2502,7 +2742,7 @@ describe('BridgeStatusController', () => {
 
       await expect(
         controller.submitTx(
-          mockEvmQuoteResponse.trade.from,
+          (mockEvmQuoteResponse.trade as TxData).from,
           mockEvmQuoteResponse,
           false,
         ),
@@ -2629,7 +2869,7 @@ describe('BridgeStatusController', () => {
       );
 
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         mockEvmQuoteResponse,
         false,
       );
@@ -2711,7 +2951,7 @@ describe('BridgeStatusController', () => {
       );
 
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         mockEvmQuoteResponse,
         false,
       );
@@ -2883,7 +3123,7 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         mockEvmQuoteResponse,
         false,
       );
@@ -2905,14 +3145,10 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         {
-          quote: mockEvmQuoteResponse.quote,
+          ...mockEvmQuoteResponse,
           featureId: FeatureId.PERPS,
-          trade: mockEvmQuoteResponse.trade,
-          approval: mockEvmQuoteResponse.approval,
-          estimatedProcessingTimeInSeconds:
-            mockEvmQuoteResponse.estimatedProcessingTimeInSeconds,
         },
         false,
       );
@@ -2944,7 +3180,7 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         {
           ...mockEvmQuoteResponse,
           quote: {
@@ -3001,7 +3237,7 @@ describe('BridgeStatusController', () => {
       };
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         {
           ...quoteWithoutApproval,
           quote: { ...quoteWithoutApproval.quote, destAsset: erc20Token },
@@ -3039,7 +3275,7 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       const result = await controller.submitTx(
-        mockEvmQuoteResponse.trade.from,
+        (mockEvmQuoteResponse.trade as TxData).from,
         mockEvmQuoteResponse,
         true,
       );
@@ -3062,7 +3298,7 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
       await expect(
         controller.submitTx(
-          mockEvmQuoteResponse.trade.from,
+          (mockEvmQuoteResponse.trade as TxData).from,
           mockEvmQuoteResponse,
           true,
         ),
@@ -3101,7 +3337,7 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
       await expect(
         controller.submitTx(
-          mockEvmQuoteResponse.trade.from,
+          (mockEvmQuoteResponse.trade as TxData).from,
           mockEvmQuoteResponse,
           true,
         ),
@@ -3454,19 +3690,16 @@ describe('BridgeStatusController', () => {
   });
 
   describe('subscription handlers', () => {
-    let mockBridgeStatusMessenger: jest.Mocked<BridgeStatusControllerMessenger>;
+    let mockMessenger: RootMessenger;
+    let mockBridgeStatusMessenger: Messenger<
+      'BridgeStatusController',
+      MessengerActions<BridgeStatusControllerMessenger>,
+      MessengerEvents<BridgeStatusControllerMessenger>,
+      RootMessenger
+    >;
     let mockTrackEventFn: jest.Mock;
     let bridgeStatusController: BridgeStatusController;
 
-    let mockMessenger: Messenger<
-      | BridgeStatusControllerActions
-      | TransactionControllerActions
-      | BridgeControllerActions
-      | AccountsControllerActions,
-      | BridgeStatusControllerEvents
-      | TransactionControllerEvents
-      | BridgeControllerEvents
-    >;
     let mockFetchFn: jest.Mock;
     const consoleFn = console.warn;
     let consoleFnSpy: jest.SpyInstance;
@@ -3476,37 +3709,38 @@ describe('BridgeStatusController', () => {
       jest.clearAllMocks();
       // eslint-disable-next-line no-empty-function
       consoleFnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-      mockMessenger = new Messenger<
-        | BridgeStatusControllerActions
-        | TransactionControllerActions
-        | BridgeControllerActions
-        | AccountsControllerActions,
-        | BridgeStatusControllerEvents
-        | TransactionControllerEvents
-        | BridgeControllerEvents
-      >();
-
-      jest.spyOn(mockMessenger, 'call').mockImplementation((..._args) => {
-        return Promise.resolve();
+      mockMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+      mockBridgeStatusMessenger = new Messenger({
+        namespace: BRIDGE_STATUS_CONTROLLER_NAME,
+        parent: mockMessenger,
       });
-
-      mockBridgeStatusMessenger = mockMessenger.getRestricted({
-        name: BRIDGE_STATUS_CONTROLLER_NAME,
-        allowedActions: [
+      mockMessenger.delegate({
+        messenger: mockBridgeStatusMessenger,
+        actions: [
           'TransactionController:getState',
           'BridgeController:trackUnifiedSwapBridgeEvent',
           'AccountsController:getAccountByAddress',
         ],
-        allowedEvents: [
+        events: [
           'TransactionController:transactionFailed',
           'TransactionController:transactionConfirmed',
         ],
-      }) as never;
+      });
 
-      const mockBridgeMessenger = mockMessenger.getRestricted({
-        name: 'BridgeController',
-        allowedActions: [],
-        allowedEvents: [],
+      jest
+        .spyOn(mockBridgeStatusMessenger, 'call')
+        .mockImplementation((..._args) => {
+          return Promise.resolve();
+        });
+
+      const mockBridgeMessenger = new Messenger<
+        'BridgeController',
+        MessengerActions<BridgeControllerMessenger>,
+        MessengerEvents<BridgeControllerMessenger>,
+        RootMessenger
+      >({
+        namespace: 'BridgeController',
+        parent: mockMessenger,
       });
       mockTrackEventFn = jest.fn();
       new BridgeController({
@@ -3939,7 +4173,7 @@ describe('BridgeStatusController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });

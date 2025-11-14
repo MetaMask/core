@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
@@ -6,21 +6,18 @@ import {
   toHex,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
-import { advanceTime } from '../../../tests/helpers';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildInfuraNetworkClientConfiguration,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 import * as tokenService from './token-service';
 import type {
   TokenListMap,
@@ -28,8 +25,14 @@ import type {
   TokenListControllerMessenger,
 } from './TokenListController';
 import { TokenListController } from './TokenListController';
+import { advanceTime } from '../../../tests/helpers';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildInfuraNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 
-const name = 'TokenListController';
+const namespace = 'TokenListController';
 const timestamp = Date.now();
 
 const sampleMainnetTokenList = [
@@ -470,21 +473,40 @@ const expiredCacheExistingState: TokenListState = {
   preventPollingOnNetworkRestart: false,
 };
 
-type MainMessenger = Messenger<
-  ExtractAvailableAction<TokenListControllerMessenger>,
-  ExtractAvailableEvent<TokenListControllerMessenger>
+type AllTokenListControllerActions =
+  MessengerActions<TokenListControllerMessenger>;
+
+type AllTokenListControllerEvents =
+  MessengerEvents<TokenListControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllTokenListControllerActions,
+  AllTokenListControllerEvents
 >;
 
-const getMessenger = (): MainMessenger => {
-  return new Messenger();
+const getMessenger = (): RootMessenger => {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 };
 
-const getRestrictedMessenger = (messenger: MainMessenger) => {
-  return messenger.getRestricted({
-    name,
-    allowedActions: ['NetworkController:getNetworkClientById'],
-    allowedEvents: ['NetworkController:stateChange'],
+const getRestrictedMessenger = (
+  messenger: RootMessenger,
+): TokenListControllerMessenger => {
+  const tokenListControllerMessenger = new Messenger<
+    typeof namespace,
+    AllTokenListControllerActions,
+    AllTokenListControllerEvents,
+    RootMessenger
+  >({
+    namespace,
+    parent: messenger,
   });
+  messenger.delegate({
+    messenger: tokenListControllerMessenger,
+    actions: ['NetworkController:getNetworkClientById'],
+    events: ['NetworkController:stateChange'],
+  });
+  return tokenListControllerMessenger;
 };
 
 describe('TokenListController', () => {
@@ -1276,7 +1298,7 @@ describe('TokenListController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
         Object {
@@ -1349,8 +1371,6 @@ describe('TokenListController', () => {
  * @returns The constructed path.
  */
 function getTokensPath(chainId: Hex) {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `/tokens/${convertHexToDecimal(
     chainId,
   )}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;

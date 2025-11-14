@@ -1,67 +1,20 @@
-import { PollingBlockTracker } from '@metamask/eth-block-tracker';
-import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
 import { createRetryOnEmptyMiddleware } from '.';
 import type { ProviderRequestStub } from '../test/util/helpers';
 import {
-  buildFinalMiddlewareWithDefaultResult,
-  buildMockParamsWithBlockParamAt,
-  buildMockParamsWithoutBlockParamAt,
-  buildSimpleFinalMiddleware,
-  buildStubForBlockNumberRequest,
+  createMockParamsWithBlockParamAt,
+  createMockParamsWithoutBlockParamAt,
+  createStubForBlockNumberRequest,
   expectProviderRequestNotToHaveBeenMade,
   requestMatches,
   stubProviderRequests,
+  createProviderAndBlockTracker,
+  createEngine,
+  createRequest,
+  createFinalMiddlewareWithDefaultResult,
 } from '../test/util/helpers';
-
-/**
- * Objects used in each test.
- */
-type Setup = {
-  /**
-   * The engine that holds the middleware stack, including the
-   * one being tested.
-   */
-  engine: JsonRpcEngine;
-  /**
-   * The provider that is used to make requests against
-   * (which the middleware being tested will react to).
-   */
-  provider: SafeEventEmitterProvider;
-  /**
-   * The block tracker which is used inside of the
-   * middleware being tested.
-   */
-  blockTracker: PollingBlockTracker;
-};
-
-/**
- * Options supported by `withTestSetup`.
- */
-type WithTestSetupOptions = {
-  /**
-   * A function which determines which middleware
-   * should be added to the engine.
-   */
-  configureMiddleware: (setup: Setup) => {
-    middlewareUnderTest: JsonRpcMiddleware<any, any>;
-    otherMiddleware?: JsonRpcMiddleware<any, any>[];
-  };
-};
-
-/**
- * The function that `withTestSetup` is expected to take and will call once the
- * setup objects are created.
- *
- * @template T - The type that the function will return, minus the promise
- * wrapper.
- */
-type WithTestSetupCallback<T> = (setup: Setup) => Promise<T>;
 
 const originalSetTimeout = globalThis.setTimeout;
 
@@ -70,20 +23,24 @@ describe('createRetryOnEmptyMiddleware', () => {
     jest.useFakeTimers();
   });
 
-  afterEach(() => {
-    jest.clearAllTimers();
+  let provider: ReturnType<typeof createProviderAndBlockTracker>['provider'];
+  let blockTracker: ReturnType<
+    typeof createProviderAndBlockTracker
+  >['blockTracker'];
+
+  beforeEach(() => {
+    const providerAndBlockTracker = createProviderAndBlockTracker();
+    provider = providerAndBlockTracker.provider;
+    blockTracker = providerAndBlockTracker.blockTracker;
   });
 
-  it('throws if not given a provider', async () => {
-    const promise = withTestSetup({
-      configureMiddleware: () => {
-        return {
-          middlewareUnderTest: createRetryOnEmptyMiddleware(),
-        };
-      },
-    });
+  afterEach(async () => {
+    jest.clearAllTimers();
+    await blockTracker.destroy();
+  });
 
-    await expect(promise).rejects.toThrow(
+  it('throws if not given a provider', () => {
+    expect(() => createRetryOnEmptyMiddleware()).toThrow(
       new Error(
         'RetryOnEmptyMiddleware - mandatory "provider" option is missing.',
       ),
@@ -91,15 +48,7 @@ describe('createRetryOnEmptyMiddleware', () => {
   });
 
   it('throws if not given a block tracker', async () => {
-    const promise = withTestSetup({
-      configureMiddleware: ({ provider }) => {
-        return {
-          middlewareUnderTest: createRetryOnEmptyMiddleware({ provider }),
-        };
-      },
-    });
-
-    await expect(promise).rejects.toThrow(
+    expect(() => createRetryOnEmptyMiddleware({ provider })).toThrow(
       new Error(
         'RetryOnEmptyMiddleware - mandatory "blockTracker" option is missing.',
       ),
@@ -126,289 +75,221 @@ describe('createRetryOnEmptyMiddleware', () => {
     methods.forEach((method: string) => {
       describe(`${method}`, () => {
         it('makes a direct request through the provider, retrying it request up to 10 times and returning the response if it does not have a result of undefined', async () => {
-          await withTestSetup(
-            {
-              configureMiddleware: ({ provider, blockTracker }) => {
-                return {
-                  middlewareUnderTest: createRetryOnEmptyMiddleware({
-                    provider,
-                    blockTracker,
-                  }),
-                };
-              },
-            },
-            async ({ engine, provider }) => {
-              const blockNumber = '0x0';
-              const request: JsonRpcRequest<string[]> = {
-                id: 1,
-                jsonrpc: '2.0',
-                method,
-                params: buildMockParamsWithBlockParamAt(
-                  blockParamIndex,
-                  blockNumber,
-                ),
-              };
-              const requestSpy = stubProviderRequests(provider, [
-                buildStubForBlockNumberRequest(blockNumber),
-                stubRequestThatFailsThenFinallySucceeds({
-                  request,
-                  numberOfTimesToFail: 9,
-                  successfulResult: async () => 'something',
-                }),
-              ]);
-
-              const promiseForResponse = engine.handle(request);
-              await waitForRequestToBeRetried({
-                requestSpy,
-                request,
-                numberOfTimes: 10,
-              });
-
-              expect(await promiseForResponse).toStrictEqual({
-                id: 1,
-                jsonrpc: '2.0',
-                result: 'something',
-              });
-            },
+          const engine = createEngine(
+            createRetryOnEmptyMiddleware({
+              provider,
+              blockTracker,
+            }),
           );
+
+          const blockNumber = '0x0';
+          const request = createRequest({
+            id: 1,
+            method,
+            params: createMockParamsWithBlockParamAt(
+              blockParamIndex,
+              blockNumber,
+            ),
+          });
+          const requestSpy = stubProviderRequests(provider, [
+            createStubForBlockNumberRequest(blockNumber),
+            stubRequestThatFailsThenFinallySucceeds({
+              request,
+              numberOfTimesToFail: 9,
+              successfulResult: async () => 'something',
+            }),
+          ]);
+
+          const resultPromise = engine.handle(request);
+          await waitForRequestToBeRetried({
+            requestSpy,
+            request,
+            numberOfTimes: 10,
+          });
+
+          expect(await resultPromise).toBe('something');
         });
 
         it('returns an error if the request is still unsuccessful after 10 retries', async () => {
-          await withTestSetup(
-            {
-              configureMiddleware: ({ provider, blockTracker }) => {
-                return {
-                  middlewareUnderTest: createRetryOnEmptyMiddleware({
-                    provider,
-                    blockTracker,
-                  }),
-                };
+          const engine = createEngine(
+            createRetryOnEmptyMiddleware({
+              provider,
+              blockTracker,
+            }),
+          );
+
+          const blockNumber = '0x0';
+          const request = createRequest({
+            method,
+            params: createMockParamsWithBlockParamAt(
+              blockParamIndex,
+              blockNumber,
+            ),
+          });
+          const requestSpy = stubProviderRequests(provider, [
+            createStubForBlockNumberRequest(blockNumber),
+            stubGenericRequest({
+              request,
+              result: () => {
+                throw providerErrors.custom({ code: -1, message: 'oops' });
               },
-            },
-            async ({ engine, provider }) => {
-              const blockNumber = '0x0';
-              const request: JsonRpcRequest<string[]> = {
-                id: 1,
-                jsonrpc: '2.0',
-                method,
-                params: buildMockParamsWithBlockParamAt(
-                  blockParamIndex,
-                  blockNumber,
-                ),
-              };
-              const requestSpy = stubProviderRequests(provider, [
-                buildStubForBlockNumberRequest(blockNumber),
-                stubGenericRequest({
-                  request,
-                  result: () => {
-                    throw providerErrors.custom({ code: -1, message: 'oops' });
-                  },
-                  remainAfterUse: true,
-                }),
-              ]);
+              remainAfterUse: true,
+            }),
+          ]);
 
-              const promiseForResponse = engine.handle(request);
-              await waitForRequestToBeRetried({
-                requestSpy,
-                request,
-                numberOfTimes: 10,
-              });
+          const resultPromise = engine.handle(request);
+          await waitForRequestToBeRetried({
+            requestSpy,
+            request,
+            numberOfTimes: 10,
+          });
 
-              expect(await promiseForResponse).toMatchObject({
-                error: expect.objectContaining({
-                  data: expect.objectContaining({
-                    cause: expect.objectContaining({
-                      message: 'RetryOnEmptyMiddleware - retries exhausted',
-                    }),
-                  }),
-                }),
-              });
-            },
+          await expect(resultPromise).rejects.toThrow(
+            new Error('RetryOnEmptyMiddleware - retries exhausted'),
           );
         });
 
         it('does not proceed to the next middleware after making a request through the provider', async () => {
-          const finalMiddleware = buildSimpleFinalMiddleware();
+          const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
-          await withTestSetup(
-            {
-              configureMiddleware: ({ provider, blockTracker }) => {
-                return {
-                  middlewareUnderTest: createRetryOnEmptyMiddleware({
-                    provider,
-                    blockTracker,
-                  }),
-                  otherMiddleware: [finalMiddleware],
-                };
-              },
-            },
-            async ({ engine, provider }) => {
-              const blockNumber = '0x0';
-              const request: JsonRpcRequest<string[]> = {
-                id: 1,
-                jsonrpc: '2.0',
-                method,
-                params: buildMockParamsWithBlockParamAt(
-                  blockParamIndex,
-                  blockNumber,
-                ),
-              };
-              stubProviderRequests(provider, [
-                buildStubForBlockNumberRequest(blockNumber),
-                stubGenericRequest({
-                  request,
-                  result: async () => 'success',
-                }),
-              ]);
-
-              await engine.handle(request);
-
-              expect(finalMiddleware).not.toHaveBeenCalled();
-            },
+          const engine = createEngine(
+            createRetryOnEmptyMiddleware({
+              provider,
+              blockTracker,
+            }),
+            finalMiddleware,
           );
+
+          const blockNumber = '0x0';
+          const request = createRequest({
+            method,
+            params: createMockParamsWithBlockParamAt(
+              blockParamIndex,
+              blockNumber,
+            ),
+          });
+          stubProviderRequests(provider, [
+            createStubForBlockNumberRequest(blockNumber),
+            stubGenericRequest({
+              request,
+              result: async () => 'success',
+            }),
+          ]);
+
+          await engine.handle(request);
+
+          expect(finalMiddleware).not.toHaveBeenCalled();
         });
 
         describe('if the block number in the request params is higher than the latest block number reported by the block tracker', () => {
+          // Using custom expect helper
+          // eslint-disable-next-line jest/expect-expect
           it('does not make a direct request through the provider', async () => {
-            await withTestSetup(
-              {
-                configureMiddleware: ({ provider, blockTracker }) => {
-                  return {
-                    middlewareUnderTest: createRetryOnEmptyMiddleware({
-                      provider,
-                      blockTracker,
-                    }),
-                  };
-                },
-              },
-              async ({ engine, provider }) => {
-                const request: JsonRpcRequest<string[]> = {
-                  id: 1,
-                  jsonrpc: '2.0',
-                  method,
-                  params: buildMockParamsWithBlockParamAt(
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                };
-                const requestSpy = stubProviderRequests(provider, [
-                  buildStubForBlockNumberRequest('0x0'),
-                ]);
-
-                await engine.handle(request);
-
-                expectProviderRequestNotToHaveBeenMade(requestSpy, request);
-              },
+            const engine = createEngine(
+              createRetryOnEmptyMiddleware({
+                provider,
+                blockTracker,
+              }),
             );
+
+            const request = createRequest({
+              method,
+              params: createMockParamsWithBlockParamAt(
+                blockParamIndex,
+                '0x100',
+              ),
+            });
+            const requestSpy = stubProviderRequests(provider, [
+              createStubForBlockNumberRequest('0x0'),
+            ]);
+
+            await engine.handle(request);
+
+            expectProviderRequestNotToHaveBeenMade(requestSpy, request);
           });
 
           it('proceeds to the next middleware', async () => {
-            const finalMiddleware = buildSimpleFinalMiddleware();
+            const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
-            await withTestSetup(
-              {
-                configureMiddleware: ({ provider, blockTracker }) => {
-                  return {
-                    middlewareUnderTest: createRetryOnEmptyMiddleware({
-                      provider,
-                      blockTracker,
-                    }),
-                    otherMiddleware: [finalMiddleware],
-                  };
-                },
-              },
-              async ({ engine, provider }) => {
-                const request: JsonRpcRequest<string[]> = {
-                  id: 1,
-                  jsonrpc: '2.0',
-                  method,
-                  params: buildMockParamsWithBlockParamAt(
-                    blockParamIndex,
-                    '0x100',
-                  ),
-                };
-                stubProviderRequests(provider, [
-                  buildStubForBlockNumberRequest('0x0'),
-                ]);
-
-                await engine.handle(request);
-
-                expect(finalMiddleware).toHaveBeenCalled();
-              },
+            const engine = createEngine(
+              createRetryOnEmptyMiddleware({
+                provider,
+                blockTracker,
+              }),
+              finalMiddleware,
             );
+
+            const request = createRequest({
+              method,
+              params: createMockParamsWithBlockParamAt(
+                blockParamIndex,
+                '0x100',
+              ),
+            });
+            stubProviderRequests(provider, [
+              createStubForBlockNumberRequest('0x0'),
+            ]);
+
+            await engine.handle(request);
+
+            expect(finalMiddleware).toHaveBeenCalled();
           });
         });
 
         describe.each(['1', 'earliest', 'asdlsdfls'])(
           'if the block parameter is not a 0x-prefixed hex number such as %o',
           (blockParam) => {
+            // Using custom expect helper
+            // eslint-disable-next-line jest/expect-expect
             it('does not make a direct request through the provider', async () => {
-              await withTestSetup(
-                {
-                  configureMiddleware: ({ provider, blockTracker }) => {
-                    return {
-                      middlewareUnderTest: createRetryOnEmptyMiddleware({
-                        provider,
-                        blockTracker,
-                      }),
-                    };
-                  },
-                },
-                async ({ engine, provider }) => {
-                  const request: JsonRpcRequest<string[]> = {
-                    id: 1,
-                    jsonrpc: '2.0',
-                    method,
-                    params: buildMockParamsWithBlockParamAt(
-                      blockParamIndex,
-                      blockParam,
-                    ),
-                  };
-                  const requestSpy = stubProviderRequests(provider, [
-                    buildStubForBlockNumberRequest('0x0'),
-                  ]);
-
-                  await engine.handle(request);
-
-                  expectProviderRequestNotToHaveBeenMade(requestSpy, request);
-                },
+              const engine = createEngine(
+                createRetryOnEmptyMiddleware({
+                  provider,
+                  blockTracker,
+                }),
               );
+
+              const request = createRequest({
+                method,
+                params: createMockParamsWithBlockParamAt(
+                  blockParamIndex,
+                  blockParam,
+                ),
+              });
+              const requestSpy = stubProviderRequests(provider, [
+                createStubForBlockNumberRequest('0x0'),
+              ]);
+
+              await engine.handle(request);
+
+              expectProviderRequestNotToHaveBeenMade(requestSpy, request);
             });
 
             it('proceeds to the next middleware', async () => {
-              const finalMiddleware = buildSimpleFinalMiddleware();
+              const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
-              await withTestSetup(
-                {
-                  configureMiddleware: ({ provider, blockTracker }) => {
-                    return {
-                      middlewareUnderTest: createRetryOnEmptyMiddleware({
-                        provider,
-                        blockTracker,
-                      }),
-                      otherMiddleware: [finalMiddleware],
-                    };
-                  },
-                },
-                async ({ engine, provider }) => {
-                  const request: JsonRpcRequest<string[]> = {
-                    id: 1,
-                    jsonrpc: '2.0',
-                    method,
-                    params: buildMockParamsWithBlockParamAt(
-                      blockParamIndex,
-                      blockParam,
-                    ),
-                  };
-                  stubProviderRequests(provider, [
-                    buildStubForBlockNumberRequest('0x0'),
-                  ]);
-
-                  await engine.handle(request);
-
-                  expect(finalMiddleware).toHaveBeenCalled();
-                },
+              const engine = createEngine(
+                createRetryOnEmptyMiddleware({
+                  provider,
+                  blockTracker,
+                }),
+                finalMiddleware,
               );
+
+              const request = createRequest({
+                method,
+                params: createMockParamsWithBlockParamAt(
+                  blockParamIndex,
+                  blockParam,
+                ),
+              });
+              stubProviderRequests(provider, [
+                createStubForBlockNumberRequest('0x0'),
+              ]);
+
+              await engine.handle(request);
+
+              expect(finalMiddleware).toHaveBeenCalled();
             });
           },
         );
@@ -416,139 +297,107 @@ describe('createRetryOnEmptyMiddleware', () => {
         describe.each(['latest', 'pending'])(
           'if the block parameter is %o',
           (blockParam) => {
+            // Using custom expect helper
+            // eslint-disable-next-line jest/expect-expect
             it('does not make a direct request through the provider', async () => {
-              await withTestSetup(
-                {
-                  configureMiddleware: ({ provider, blockTracker }) => {
-                    return {
-                      middlewareUnderTest: createRetryOnEmptyMiddleware({
-                        provider,
-                        blockTracker,
-                      }),
-                    };
-                  },
-                },
-                async ({ engine, provider }) => {
-                  const request: JsonRpcRequest<string[]> = {
-                    id: 1,
-                    jsonrpc: '2.0',
-                    method,
-                    params: buildMockParamsWithBlockParamAt(
-                      blockParamIndex,
-                      blockParam,
-                    ),
-                  };
-                  const requestSpy = stubProviderRequests(provider, [
-                    buildStubForBlockNumberRequest(),
-                  ]);
-
-                  await engine.handle(request);
-
-                  expectProviderRequestNotToHaveBeenMade(requestSpy, request);
-                },
+              const engine = createEngine(
+                createRetryOnEmptyMiddleware({
+                  provider,
+                  blockTracker,
+                }),
               );
+
+              const request = createRequest({
+                method,
+                params: createMockParamsWithBlockParamAt(
+                  blockParamIndex,
+                  blockParam,
+                ),
+              });
+              const requestSpy = stubProviderRequests(provider, [
+                createStubForBlockNumberRequest(),
+              ]);
+
+              await engine.handle(request);
+
+              expectProviderRequestNotToHaveBeenMade(requestSpy, request);
             });
 
             it('proceeds to the next middleware', async () => {
-              const finalMiddleware = buildSimpleFinalMiddleware();
+              const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
-              await withTestSetup(
-                {
-                  configureMiddleware: ({ provider, blockTracker }) => {
-                    return {
-                      middlewareUnderTest: createRetryOnEmptyMiddleware({
-                        provider,
-                        blockTracker,
-                      }),
-                      otherMiddleware: [finalMiddleware],
-                    };
-                  },
-                },
-                async ({ engine, provider }) => {
-                  const request: JsonRpcRequest<string[]> = {
-                    id: 1,
-                    jsonrpc: '2.0',
-                    method,
-                    params: buildMockParamsWithBlockParamAt(
-                      blockParamIndex,
-                      blockParam,
-                    ),
-                  };
-                  stubProviderRequests(provider, [
-                    buildStubForBlockNumberRequest(),
-                  ]);
-
-                  await engine.handle(request);
-
-                  expect(finalMiddleware).toHaveBeenCalled();
-                },
+              const engine = createEngine(
+                createRetryOnEmptyMiddleware({
+                  provider,
+                  blockTracker,
+                }),
+                finalMiddleware,
               );
+
+              const request: JsonRpcRequest<string[]> = {
+                id: 1,
+                jsonrpc: '2.0',
+                method,
+                params: createMockParamsWithBlockParamAt(
+                  blockParamIndex,
+                  blockParam,
+                ),
+              };
+              stubProviderRequests(provider, [
+                createStubForBlockNumberRequest(),
+              ]);
+
+              await engine.handle(request);
+
+              expect(finalMiddleware).toHaveBeenCalled();
             });
           },
         );
 
         describe('if no block parameter is given', () => {
+          // Using custom expect helper
+          // eslint-disable-next-line jest/expect-expect
           it('does not make a direct request through the provider', async () => {
-            await withTestSetup(
-              {
-                configureMiddleware: ({ provider, blockTracker }) => {
-                  return {
-                    middlewareUnderTest: createRetryOnEmptyMiddleware({
-                      provider,
-                      blockTracker,
-                    }),
-                  };
-                },
-              },
-              async ({ engine, provider }) => {
-                const request: JsonRpcRequest<string[]> = {
-                  id: 1,
-                  jsonrpc: '2.0',
-                  method,
-                  params: buildMockParamsWithoutBlockParamAt(blockParamIndex),
-                };
-                const requestSpy = stubProviderRequests(provider, [
-                  buildStubForBlockNumberRequest(),
-                ]);
-
-                await engine.handle(request);
-
-                expectProviderRequestNotToHaveBeenMade(requestSpy, request);
-              },
+            const engine = createEngine(
+              createRetryOnEmptyMiddleware({
+                provider,
+                blockTracker,
+              }),
             );
+
+            const request = createRequest({
+              method,
+              params: createMockParamsWithoutBlockParamAt(blockParamIndex),
+            });
+            const requestSpy = stubProviderRequests(provider, [
+              createStubForBlockNumberRequest(),
+            ]);
+
+            await engine.handle(request);
+
+            expectProviderRequestNotToHaveBeenMade(requestSpy, request);
           });
 
           it('proceeds to the next middleware', async () => {
-            const finalMiddleware = buildSimpleFinalMiddleware();
+            const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
-            await withTestSetup(
-              {
-                configureMiddleware: ({ provider, blockTracker }) => {
-                  return {
-                    middlewareUnderTest: createRetryOnEmptyMiddleware({
-                      provider,
-                      blockTracker,
-                    }),
-                    otherMiddleware: [finalMiddleware],
-                  };
-                },
-              },
-              async ({ engine, provider }) => {
-                const request: JsonRpcRequest<string[]> = {
-                  id: 1,
-                  jsonrpc: '2.0',
-                  method,
-                  params: buildMockParamsWithoutBlockParamAt(blockParamIndex),
-                };
-                stubProviderRequests(provider, [
-                  buildStubForBlockNumberRequest(),
-                ]);
-
-                await engine.handle(request);
-
-                expect(finalMiddleware).toHaveBeenCalled();
-              },
+            const engine = createEngine(
+              createRetryOnEmptyMiddleware({
+                provider,
+                blockTracker,
+              }),
+              finalMiddleware,
             );
+
+            const request = createRequest({
+              method,
+              params: createMockParamsWithoutBlockParamAt(blockParamIndex),
+            });
+            stubProviderRequests(provider, [createStubForBlockNumberRequest()]);
+
+            await engine.handle(request);
+
+            expect(finalMiddleware).toHaveBeenCalled();
           });
         });
       });
@@ -556,150 +405,80 @@ describe('createRetryOnEmptyMiddleware', () => {
   });
 
   describe('a method that does not take a block parameter', () => {
+    // Using custom expect helper
+    // eslint-disable-next-line jest/expect-expect
     it('does not make a direct request through the provider', async () => {
-      await withTestSetup(
-        {
-          configureMiddleware: ({ provider, blockTracker }) => {
-            return {
-              middlewareUnderTest: createRetryOnEmptyMiddleware({
-                provider,
-                blockTracker,
-              }),
-            };
-          },
-        },
-        async ({ engine, provider }) => {
-          const method = 'a_non_block_param_method';
-          const request: JsonRpcRequest<string[]> = {
-            id: 1,
-            jsonrpc: '2.0',
-            method,
-          };
-          const requestSpy = stubProviderRequests(provider, [
-            buildStubForBlockNumberRequest(),
-          ]);
-
-          await engine.handle(request);
-
-          expectProviderRequestNotToHaveBeenMade(requestSpy, request);
-        },
+      const engine = createEngine(
+        createRetryOnEmptyMiddleware({
+          provider,
+          blockTracker,
+        }),
       );
+
+      const method = 'a_non_block_param_method';
+      const request = createRequest({ method });
+      const requestSpy = stubProviderRequests(provider, [
+        createStubForBlockNumberRequest(),
+      ]);
+
+      await engine.handle(request);
+
+      expectProviderRequestNotToHaveBeenMade(requestSpy, request);
     });
 
     it('proceeds to the next middleware', async () => {
-      const finalMiddleware = buildSimpleFinalMiddleware();
+      const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
-      await withTestSetup(
-        {
-          configureMiddleware: ({ provider, blockTracker }) => {
-            return {
-              middlewareUnderTest: createRetryOnEmptyMiddleware({
-                provider,
-                blockTracker,
-              }),
-              otherMiddleware: [finalMiddleware],
-            };
-          },
-        },
-        async ({ engine }) => {
-          const method = 'a_non_block_param_method';
-          const request: JsonRpcRequest<string[]> = {
-            id: 1,
-            jsonrpc: '2.0',
-            method,
-          };
-
-          await engine.handle(request);
-
-          expect(finalMiddleware).toHaveBeenCalled();
-        },
+      const engine = createEngine(
+        createRetryOnEmptyMiddleware({
+          provider,
+          blockTracker,
+        }),
+        finalMiddleware,
       );
+
+      const method = 'a_non_block_param_method';
+      const request = createRequest({ method });
+
+      await engine.handle(request);
+
+      expect(finalMiddleware).toHaveBeenCalled();
     });
   });
 
   describe('when provider return execution revert error', () => {
     it('returns the same error to caller', async () => {
-      await withTestSetup(
+      const engine = createEngine(
+        createRetryOnEmptyMiddleware({
+          provider,
+          blockTracker,
+        }),
+      );
+
+      const request = createRequest({
+        method: 'eth_call',
+        params: createMockParamsWithBlockParamAt(1, '100'),
+      });
+      stubProviderRequests(provider, [
+        createStubForBlockNumberRequest(),
         {
-          configureMiddleware: ({ provider, blockTracker }) => {
-            return {
-              middlewareUnderTest: createRetryOnEmptyMiddleware({
-                provider,
-                blockTracker,
-              }),
-            };
+          request,
+          result: () => {
+            throw rpcErrors.invalidInput('execution reverted');
           },
         },
-        async ({ engine, provider }) => {
-          const request: JsonRpcRequest<string[]> = {
-            id: 123,
-            jsonrpc: '2.0',
-            method: 'eth_call',
-            params: buildMockParamsWithBlockParamAt(1, '100'),
-          };
-          stubProviderRequests(provider, [
-            buildStubForBlockNumberRequest(),
-            {
-              request,
-              result: () => {
-                throw rpcErrors.invalidInput('execution reverted');
-              },
-            },
-          ]);
-          const promiseForResponse = engine.handle(request);
-          expect(await promiseForResponse).toMatchObject({
-            error: expect.objectContaining({
-              code: errorCodes.rpc.invalidInput,
-              message: 'execution reverted',
-            }),
-          });
-        },
+      ]);
+
+      const resultPromise = engine.handle(request);
+      await expect(resultPromise).rejects.toThrow(
+        rpcErrors.invalidInput('execution reverted'),
       );
     });
   });
 });
 
 /**
- * Calls the given function, which should represent a test of some kind, with
- * data that the test can use, namely, a JsonRpcEngine instance, a provider
- * object, and a block tracker.
- *
- * @template T - The type that the function will return, minus the promise
- * wrapper.
- * @param options - Options.
- * @param options.configureMiddleware - A function that is called to add the
- * middleware-under-test, along with any other necessary middleware, to the
- * engine.
- * @param callback - A function.
- * @returns Whatever the function returns.
- */
-async function withTestSetup<T>(
-  { configureMiddleware }: WithTestSetupOptions,
-  callback?: WithTestSetupCallback<T>,
-) {
-  const engine = new JsonRpcEngine();
-  const provider = providerFromEngine(engine);
-  const blockTracker = new PollingBlockTracker({
-    provider,
-  });
-
-  const {
-    middlewareUnderTest,
-    otherMiddleware = [buildFinalMiddlewareWithDefaultResult()],
-  } = configureMiddleware({ engine, provider, blockTracker });
-
-  for (const middleware of [middlewareUnderTest, ...otherMiddleware]) {
-    engine.push(middleware);
-  }
-
-  if (callback === undefined) {
-    return undefined;
-  }
-  return await callback({ engine, provider, blockTracker });
-}
-
-/**
- * Builds a canned result for a request made to `provider.request`. Intended
+ * Creates a canned result for a request made to `provider.request`. Intended
  * to be used in conjunction with `stubProviderRequests`. Although not strictly
  * necessary, it helps to assign a proper type to a request/result pair.
  *
@@ -713,7 +492,7 @@ function stubGenericRequest<T extends JsonRpcParams, U extends Json>(
 }
 
 /**
- * Builds a canned result for a request made to `provider.request` which
+ * Creates a canned result for a request made to `provider.request` which
  * will error for the first N instances and then succeed on the last instance.
  * Intended to be used in conjunction with `stubProviderRequests`.
  *

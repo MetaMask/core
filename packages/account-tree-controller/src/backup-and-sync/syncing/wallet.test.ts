@@ -131,7 +131,6 @@ describe('BackupAndSync - Syncing - Wallet', () => {
       );
 
       expect(applyLocalUpdate).toBeDefined();
-      /* eslint-disable jest/no-conditional-in-test */
       /* eslint-disable jest/no-conditional-expect */
       if (applyLocalUpdate) {
         await applyLocalUpdate('New Name');
@@ -139,7 +138,6 @@ describe('BackupAndSync - Syncing - Wallet', () => {
           mockContext.controller.setAccountWalletName,
         ).toHaveBeenCalledWith(mockLocalWallet.id, 'New Name');
       }
-      /* eslint-enable jest/no-conditional-in-test */
       /* eslint-enable jest/no-conditional-expect */
     });
 
@@ -169,7 +167,6 @@ describe('BackupAndSync - Syncing - Wallet', () => {
       );
 
       expect(validateUserStorageValue).toBeDefined();
-      /* eslint-disable jest/no-conditional-in-test */
       /* eslint-disable jest/no-conditional-expect */
       if (validateUserStorageValue) {
         expect(validateUserStorageValue('valid string')).toBe(true);
@@ -177,7 +174,6 @@ describe('BackupAndSync - Syncing - Wallet', () => {
         expect(validateUserStorageValue(null)).toBe(false);
         expect(validateUserStorageValue(undefined)).toBe(false);
       }
-      /* eslint-enable jest/no-conditional-in-test */
       /* eslint-enable jest/no-conditional-expect */
     });
   });

@@ -1,6 +1,18 @@
-import type { SignatureRequest } from '@metamask/signature-controller';
+import {
+  ConstantBackoff,
+  DEFAULT_MAX_RETRIES,
+  HttpError,
+} from '@metamask/controller-utils';
+import {
+  EthMethod,
+  SignatureRequestType,
+  type SignatureRequest,
+} from '@metamask/signature-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { Json } from '@metamask/utils';
 
+import { SignTypedDataVersion } from './constants';
+import { PollingWithCockatielPolicy } from './polling-with-policy';
 import type {
   CheckCoverageRequest,
   CheckSignatureCoverageRequest,
@@ -27,7 +39,7 @@ export type InitCoverageCheckRequest = {
 
 export type InitSignatureCoverageCheckRequest = {
   chainId: string;
-  data: string;
+  data: Json;
   from: string;
   method: string;
   origin?: string;
@@ -45,18 +57,19 @@ export type GetCoverageResultResponse = {
   message?: string;
   reasonCode?: string;
   status: CoverageStatus;
+  metrics: {
+    latency?: number;
+  };
 };
 
 export class ShieldRemoteBackend implements ShieldBackend {
   readonly #getAccessToken: () => Promise<string>;
 
-  readonly #getCoverageResultTimeout: number;
-
-  readonly #getCoverageResultPollInterval: number;
-
   readonly #baseUrl: string;
 
   readonly #fetch: typeof globalThis.fetch;
+
+  readonly #pollingPolicy: PollingWithCockatielPolicy;
 
   constructor({
     getAccessToken,
@@ -72,10 +85,18 @@ export class ShieldRemoteBackend implements ShieldBackend {
     fetch: typeof globalThis.fetch;
   }) {
     this.#getAccessToken = getAccessToken;
-    this.#getCoverageResultTimeout = getCoverageResultTimeout;
-    this.#getCoverageResultPollInterval = getCoverageResultPollInterval;
     this.#baseUrl = baseUrl;
     this.#fetch = fetchFn;
+
+    const { backoff, maxRetries } = computePollingIntervalAndRetryCount(
+      getCoverageResultTimeout,
+      getCoverageResultPollInterval,
+    );
+
+    this.#pollingPolicy = new PollingWithCockatielPolicy({
+      backoff,
+      maxRetries,
+    });
   }
 
   async checkCoverage(req: CheckCoverageRequest): Promise<CoverageResult> {
@@ -89,14 +110,17 @@ export class ShieldRemoteBackend implements ShieldBackend {
     }
 
     const txCoverageResultUrl = `${this.#baseUrl}/v1/transaction/coverage/result`;
-    const coverageResult = await this.#getCoverageResult(coverageId, {
-      coverageResultUrl: txCoverageResultUrl,
-    });
+    const coverageResult = await this.#getCoverageResult(
+      req.txMeta.id,
+      coverageId,
+      txCoverageResultUrl,
+    );
     return {
       coverageId,
       message: coverageResult.message,
       reasonCode: coverageResult.reasonCode,
       status: coverageResult.status,
+      metrics: coverageResult.metrics,
     };
   }
 
@@ -113,14 +137,17 @@ export class ShieldRemoteBackend implements ShieldBackend {
     }
 
     const signatureCoverageResultUrl = `${this.#baseUrl}/v1/signature/coverage/result`;
-    const coverageResult = await this.#getCoverageResult(coverageId, {
-      coverageResultUrl: signatureCoverageResultUrl,
-    });
+    const coverageResult = await this.#getCoverageResult(
+      req.signatureRequest.id,
+      coverageId,
+      signatureCoverageResultUrl,
+    );
     return {
       coverageId,
       message: coverageResult.message,
       reasonCode: coverageResult.reasonCode,
       status: coverageResult.status,
+      metrics: coverageResult.metrics,
     };
   }
 
@@ -131,6 +158,9 @@ export class ShieldRemoteBackend implements ShieldBackend {
       status: req.status,
       ...initBody,
     };
+
+    // cancel the pending get coverage result request
+    this.#pollingPolicy.abortPendingRequest(req.signatureRequest.id);
 
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/signature/coverage/log`,
@@ -152,6 +182,9 @@ export class ShieldRemoteBackend implements ShieldBackend {
       status: req.status,
       ...initBody,
     };
+
+    // cancel the pending get coverage result request
+    this.#pollingPolicy.abortPendingRequest(req.txMeta.id);
 
     const res = await this.#fetch(
       `${this.#baseUrl}/v1/transaction/coverage/log`,
@@ -182,51 +215,56 @@ export class ShieldRemoteBackend implements ShieldBackend {
   }
 
   async #getCoverageResult(
+    requestId: string,
     coverageId: string,
-    configs: {
-      coverageResultUrl: string;
-      timeout?: number;
-      pollInterval?: number;
-    },
+    coverageResultUrl: string,
   ): Promise<GetCoverageResultResponse> {
     const reqBody: GetCoverageResultRequest = {
       coverageId,
     };
 
-    const timeout = configs?.timeout ?? this.#getCoverageResultTimeout;
-    const pollInterval =
-      configs?.pollInterval ?? this.#getCoverageResultPollInterval;
-
     const headers = await this.#createHeaders();
-    return await new Promise((resolve, reject) => {
-      let timeoutReached = false;
-      setTimeout(() => {
-        timeoutReached = true;
-        reject(new Error('Timeout waiting for coverage result'));
-      }, timeout);
 
-      const poll = async (): Promise<GetCoverageResultResponse> => {
-        // The timeoutReached variable is modified in the timeout callback.
-        // eslint-disable-next-line no-unmodified-loop-condition
-        while (!timeoutReached) {
-          const startTime = Date.now();
-          const res = await this.#fetch(configs.coverageResultUrl, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(reqBody),
-          });
-          if (res.status === 200) {
-            return (await res.json()) as GetCoverageResultResponse;
-          }
-          await sleep(pollInterval - (Date.now() - startTime));
-        }
-        // The following line will not have an effect as the upper level promise
-        // will already be rejected by now.
-        throw new Error('unexpected error');
-      };
+    // Start measuring total end-to-end latency including retries and delays
+    const startTime = Date.now();
 
-      poll().then(resolve).catch(reject);
-    });
+    const getCoverageResultFn = async (signal: AbortSignal) => {
+      const res = await this.#fetch(coverageResultUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(reqBody),
+        signal,
+      });
+
+      if (res.status === 200) {
+        // Return the result without latency here - we'll add total latency after polling completes
+        return (await res.json()) as Omit<GetCoverageResultResponse, 'metrics'>;
+      }
+
+      // parse the error message from the response body
+      let errorMessage = 'Timeout waiting for coverage result';
+      try {
+        const errorJson = await res.json();
+        errorMessage = `Failed to get coverage result: ${errorJson.message || errorJson.status}`;
+      } catch {
+        errorMessage = `Failed to get coverage result: ${res.status}`;
+      }
+      throw new HttpError(res.status, errorMessage);
+    };
+
+    const result = await this.#pollingPolicy.start(
+      requestId,
+      getCoverageResultFn,
+    );
+
+    // Calculate total end-to-end latency including all retries and delays
+    const now = Date.now();
+    const totalLatency = now - startTime;
+
+    return {
+      ...result,
+      metrics: { latency: totalLatency },
+    } as GetCoverageResultResponse;
   }
 
   async #createHeaders() {
@@ -236,16 +274,6 @@ export class ShieldRemoteBackend implements ShieldBackend {
       Authorization: `Bearer ${accessToken}`,
     };
   }
-}
-
-/**
- * Sleep for a specified amount of time.
- *
- * @param ms - The number of milliseconds to sleep.
- * @returns A promise that resolves after the specified amount of time.
- */
-async function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -281,15 +309,65 @@ function makeInitCoverageCheckBody(
 function makeInitSignatureCoverageCheckBody(
   signatureRequest: SignatureRequest,
 ): InitSignatureCoverageCheckRequest {
-  if (typeof signatureRequest.messageParams.data !== 'string') {
-    throw new Error('Signature data must be a string');
-  }
+  // TODO: confirm that do we still need to validate the signature data?
+  // signature controller already validates the signature data before adding it to the state.
+  // @link https://github.com/MetaMask/core/blob/main/packages/signature-controller/src/SignatureController.ts#L408
+  const method = parseSignatureRequestMethod(signatureRequest);
 
   return {
     chainId: signatureRequest.chainId,
-    data: signatureRequest.messageParams.data as string,
+    data: signatureRequest.messageParams.data,
     from: signatureRequest.messageParams.from,
-    method: signatureRequest.type,
+    method,
     origin: signatureRequest.messageParams.origin,
+  };
+}
+
+/**
+ * Parse the JSON-RPC method from the signature request.
+ *
+ * @param signatureRequest - The signature request.
+ * @returns The JSON-RPC method.
+ */
+export function parseSignatureRequestMethod(
+  signatureRequest: SignatureRequest,
+): string {
+  if (signatureRequest.type === SignatureRequestType.TypedSign) {
+    switch (signatureRequest.version) {
+      case SignTypedDataVersion.V3:
+        return EthMethod.SignTypedDataV3;
+      case SignTypedDataVersion.V4:
+        return EthMethod.SignTypedDataV4;
+      case SignTypedDataVersion.V1:
+      default:
+        return SignatureRequestType.TypedSign;
+    }
+  }
+
+  return signatureRequest.type;
+}
+
+/**
+ * Compute the polling interval and retry count for the Cockatiel policy based on the timeout and poll interval given.
+ *
+ * @param timeout - The timeout in milliseconds.
+ * @param pollInterval - The poll interval in milliseconds.
+ * @returns The polling interval and retry count.
+ */
+function computePollingIntervalAndRetryCount(
+  timeout: number,
+  pollInterval: number,
+) {
+  const backoff = new ConstantBackoff(pollInterval);
+  const computedMaxRetries = Math.floor(timeout / pollInterval) + 1;
+
+  const maxRetries =
+    isNaN(computedMaxRetries) || !isFinite(computedMaxRetries)
+      ? DEFAULT_MAX_RETRIES
+      : computedMaxRetries;
+
+  return {
+    backoff,
+    maxRetries,
   };
 }

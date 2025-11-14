@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0]
+
+### Added
+
+- Export new messenger action and event types: `PermissionLogControllerActions`, `PermissionLogControllerGetStateAction`, `PermissionLogControllerEvents`, and `PermissionLogControllerStateChangeEvent` ([#6536](https://github.com/MetaMask/core/pull/6536))
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6536](https://github.com/MetaMask/core/pull/6536))
+  - Previously, `PermissionLogController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6536](https://github.com/MetaMask/core/pull/6536))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [4.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
 ## [4.1.0]
 
 ### Added
@@ -114,7 +133,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@4.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@4.1.1...@metamask/permission-log-controller@5.0.0
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@4.1.0...@metamask/permission-log-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@4.0.0...@metamask/permission-log-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@3.0.3...@metamask/permission-log-controller@4.0.0
 [3.0.3]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@3.0.2...@metamask/permission-log-controller@3.0.3

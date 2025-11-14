@@ -26,6 +26,9 @@
     },
     {
       "path": "../transaction-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

@@ -1,12 +1,17 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 import type {
-  AddressBookControllerActions,
-  AddressBookControllerEvents,
-  AddressBookControllerContactUpdatedEvent,
   AddressBookControllerContactDeletedEvent,
+  AddressBookControllerMessenger,
 } from './AddressBookController';
 import {
   AddressBookController,
@@ -14,23 +19,39 @@ import {
   controllerName,
 } from './AddressBookController';
 
+type AllActions = MessengerActions<AddressBookControllerMessenger>;
+
+type AllEvents = MessengerEvents<AddressBookControllerMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
+
+/**
+ * Creates a new root messenger instance for testing.
+ *
+ * @returns A new Messenger instance.
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+}
+
 /**
  * Helper function to create test fixtures
  *
  * @returns Test fixtures including messenger, controller, and event listeners
  */
 function arrangeMocks() {
-  const messenger = new Messenger<
-    AddressBookControllerActions,
-    AddressBookControllerEvents
-  >();
-  const restrictedMessenger = messenger.getRestricted({
-    name: controllerName,
-    allowedActions: [],
-    allowedEvents: [],
+  const rootMessenger = getRootMessenger();
+  const addressBookControllerMessenger = new Messenger<
+    typeof controllerName,
+    AllActions,
+    AllEvents,
+    typeof rootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
   });
   const controller = new AddressBookController({
-    messenger: restrictedMessenger,
+    messenger: addressBookControllerMessenger,
   });
 
   // Set up mock event listeners
@@ -38,11 +59,11 @@ function arrangeMocks() {
   const contactDeletedListener = jest.fn();
 
   // Subscribe to events
-  messenger.subscribe(
-    'AddressBookController:contactUpdated' as AddressBookControllerContactUpdatedEvent['type'],
+  rootMessenger.subscribe(
+    'AddressBookController:contactUpdated',
     contactUpdatedListener,
   );
-  messenger.subscribe(
+  rootMessenger.subscribe(
     'AddressBookController:contactDeleted' as AddressBookControllerContactDeletedEvent['type'],
     contactDeletedListener,
   );
@@ -627,7 +648,7 @@ describe('AddressBookController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });

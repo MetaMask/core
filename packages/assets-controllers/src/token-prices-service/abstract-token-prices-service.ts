@@ -28,6 +28,17 @@ export type TokenPrice<TokenAddress extends Hex, Currency extends string> = {
 };
 
 /**
+ * Represents an exchange rate.
+ */
+export type ExchangeRate = {
+  name: string;
+  ticker: string;
+  value: number;
+  currencyType: string;
+  usd?: number;
+};
+
+/**
  * A map of token address to its price.
  */
 export type TokenPricesByTokenAddress<
@@ -35,6 +46,13 @@ export type TokenPricesByTokenAddress<
   Currency extends string,
 > = {
   [A in TokenAddress]: TokenPrice<A, Currency>;
+};
+
+/**
+ * A map of currency to its exchange rate.
+ */
+export type ExchangeRatesByCurrency<Currency extends string> = {
+  [C in Currency]: ExchangeRate;
 };
 
 /**
@@ -74,6 +92,25 @@ export type AbstractTokenPricesService<
     tokenAddresses: TokenAddress[];
     currency: Currency;
   }): Promise<Partial<TokenPricesByTokenAddress<TokenAddress, Currency>>>;
+
+  /**
+   * Retrieves exchange rates in the given currency.
+   *
+   * @param args - The arguments to this function.
+   * @param args.baseCurrency - The desired currency of the token prices.
+   * @param args.includeUsdRate - Whether to include the USD rate in the response.
+   * @param args.cryptocurrencies - The cryptocurrencies to get exchange rates for.
+   * @returns The exchange rates in the requested base currency.
+   */
+  fetchExchangeRates({
+    baseCurrency,
+    includeUsdRate,
+    cryptocurrencies,
+  }: {
+    baseCurrency: Currency;
+    includeUsdRate: boolean;
+    cryptocurrencies: string[];
+  }): Promise<ExchangeRatesByCurrency<Currency>>;
 
   /**
    * Type guard for whether the API can return token prices for the given chain

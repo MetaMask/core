@@ -37,13 +37,14 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/eth-json-rpc-middleware --tag-prefix-before-package-rename eth-json-rpc-middleware@ --version-before-package-rename 6.1.0",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eth-json-rpc-middleware --tag-prefix-before-package-rename eth-json-rpc-middleware@ --version-before-package-rename 6.1.0",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies && yarn lint:changelog",
     "lint:changelog": "auto-changelog validate",
     "lint:dependencies": "depcheck",
-    "lint:eslint": "eslint . --cache --ext js,ts",
+    "lint:eslint": "eslint .  --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies && yarn lint:changelog",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "publish:preview": "yarn npm publish --tag preview",
@@ -58,6 +59,7 @@
     "@metamask/eth-json-rpc-provider": "^5.0.1",
     "@metamask/eth-sig-util": "^8.2.0",
     "@metamask/json-rpc-engine": "^10.1.1",
+    "@metamask/message-manager": "^14.0.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.8.1",
@@ -67,15 +69,18 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/error-reporting-service": "^2.2.1",
-    "@metamask/network-controller": "^24.3.0",
+    "@metamask/error-reporting-service": "^3.0.0",
+    "@metamask/network-controller": "^25.0.0",
+    "@ts-bridge/cli": "^0.6.4",
+    "@types/deep-freeze-strict": "^1.1.0",
     "@types/jest": "^27.4.1",
     "@types/pify": "^5.0.2",
+    "deep-freeze-strict": "^1.1.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "tsd": "^0.31.2",
     "typedoc": "^0.24.8",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "engines": {
     "node": "^18.18 || >=20"

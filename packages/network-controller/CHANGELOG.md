@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
+  - Providers accessible either via network clients or global proxies no longer emit events (or inherit from EventEmitter, for that matter).
+- **BREAKING:** Make `Provider` type more specific ([#7061](https://github.com/MetaMask/core/pull/7061))
+  - The `Provider` type is now an `InternalProvider` with a context type of `{ origin: string; skipCache: boolean } & Record<string, unknown>`.
+- **BREAKING:** Stop retrying `undefined` results for methods that include a block tag parameter ([#7001](https://github.com/MetaMask/core/pull/7001))
+  - The network client middleware, via `@metamask/eth-json-rpc-middleware`, will now throw an error if it encounters an
+    `undefined` result when dispatching a request with a later block number than the originally requested block number.
+  - In practice, this should happen rarely if ever.
+- **BREAKING:** Migrate `NetworkClient` to `JsonRpcEngineV2` ([#7065](https://github.com/MetaMask/core/pull/7065))
+  - This ought to be unobservable, but we mark it as breaking out of an abundance of caution.
+- Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
+
+### Fixed
+
+- Ensure `networksMetadata` never references old network client IDs ([#7047](https://github.com/MetaMask/core/pull/7047))
+  - When removing a network configuration, ensure that metadata for all RPC endpoints in the network configuration are also removed from `networksMetadata`
+  - When initializing the controller, remove metadata for RPC endpoints in `networksMetadata` that are not present in a network configuration
+
+## [25.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6386](https://github.com/MetaMask/core/pull/6386))
+  - Previously, `NetworkController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Bump `@metamask/error-reporting-service` from `^2.0.0` to `^3.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [24.3.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
 ## [24.3.0]
 
 ### Changed
@@ -969,7 +1004,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@25.0.0...HEAD
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.1...@metamask/network-controller@25.0.0
+[24.3.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.0...@metamask/network-controller@24.3.1
 [24.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.2...@metamask/network-controller@24.3.0
 [24.2.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.1...@metamask/network-controller@24.2.2
 [24.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.0...@metamask/network-controller@24.2.1

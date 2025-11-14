@@ -1,10 +1,10 @@
 import { Contract } from '@ethersproject/contracts';
-import type { ApprovalStateChange } from '@metamask/approval-controller';
+import type { ApprovalControllerMessenger } from '@metamask/approval-controller';
 import {
   ApprovalController,
   type ApprovalControllerState,
 } from '@metamask/approval-controller';
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
 import {
   ApprovalType,
@@ -14,6 +14,13 @@ import {
   InfuraNetworkType,
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MockAnyNamespace,
+  type MessengerActions,
+  type MessengerEvents,
+} from '@metamask/messenger';
 import type {
   NetworkClientConfiguration,
   NetworkClientId,
@@ -25,27 +32,21 @@ import nock from 'nock';
 import * as sinon from 'sinon';
 import { v1 as uuidV1 } from 'uuid';
 
-import { FakeProvider } from '../../../tests/fake-provider';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { TOKEN_END_POINT_API } from './token-service';
 import type { Token } from './TokenRatesController';
 import { TokensController } from './TokensController';
 import type {
-  AllowedActions,
-  AllowedEvents,
   TokensControllerMessenger,
   TokensControllerState,
 } from './TokensController';
+import { FakeProvider } from '../../../tests/fake-provider';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 
 jest.mock('@ethersproject/contracts');
 jest.mock('uuid', () => ({
@@ -55,10 +56,15 @@ jest.mock('uuid', () => ({
 jest.mock('./Standards/ERC20Standard');
 jest.mock('./Standards/NftStandards/ERC1155/ERC1155Standard');
 
-type UnrestrictedMessenger = Messenger<
-  ExtractAvailableAction<TokensControllerMessenger>,
-  ExtractAvailableEvent<TokensControllerMessenger> | ApprovalStateChange
->;
+type AllActions =
+  | MessengerActions<TokensControllerMessenger>
+  | MessengerActions<ApprovalControllerMessenger>;
+
+type AllEvents =
+  | MessengerEvents<TokensControllerMessenger>
+  | MessengerEvents<ApprovalControllerMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const ContractMock = jest.mocked(Contract);
 const uuidV1Mock = jest.mocked(uuidV1);
@@ -1614,8 +1620,6 @@ describe('TokensController', () => {
           const fullErrorMessage = `TokenService Error: ${error}`;
           nock(TOKEN_END_POINT_API)
             .get(
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `/token/${convertHexToDecimal(
                 chainId,
               )}?address=${dummyTokenAddress}`,
@@ -2919,6 +2923,68 @@ describe('TokensController', () => {
       );
     });
 
+    it('should clear nest allIgnoredTokens when re-adding tokens with different address case via addTokens', async () => {
+      const selectedAddress = '0x1';
+      const selectedAccount = createMockInternalAccount({
+        address: selectedAddress,
+      });
+
+      const tokenAddressFromAPI = '0x7DA14988E4F390C2E34ED41DF1814467D3ADE0C3';
+      const checksummedAddress = '0x7da14988E4f390C2E34ed41DF1814467D3aDe0c3';
+
+      const dummyTokens = [
+        {
+          address: tokenAddressFromAPI,
+          symbol: 'PEPE',
+          decimals: 18,
+          aggregators: [],
+          image: undefined,
+        },
+      ];
+
+      await withController(
+        {
+          options: {
+            chainId: ChainId.mainnet,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+          },
+        },
+        async ({ controller }) => {
+          await controller.addTokens(dummyTokens, 'mainnet');
+          expect(
+            controller.state.allTokens[ChainId.mainnet][selectedAddress][0]
+              .address,
+          ).toBe(checksummedAddress);
+
+          controller.ignoreTokens([tokenAddressFromAPI], 'mainnet');
+          expect(
+            controller.state.allIgnoredTokens[ChainId.mainnet][selectedAddress],
+          ).toStrictEqual([checksummedAddress]);
+
+          expect(
+            controller.state.allTokens[ChainId.mainnet][selectedAddress],
+          ).toStrictEqual([]);
+
+          await controller.addTokens(dummyTokens, 'mainnet');
+
+          // Should remove ignored token despite case difference
+          expect(
+            controller.state.allIgnoredTokens[ChainId.mainnet][selectedAddress],
+          ).toStrictEqual([]);
+
+          expect(
+            controller.state.allTokens[ChainId.mainnet][selectedAddress],
+          ).toHaveLength(1);
+          expect(
+            controller.state.allTokens[ChainId.mainnet][selectedAddress][0]
+              .address,
+          ).toBe(checksummedAddress);
+        },
+      );
+    });
+
     it('should clear nest allDetectedTokens under chain ID and selected address when an detected token is added to tokens list', async () => {
       const selectedAddress = '0x1';
       const selectedAccount = createMockInternalAccount({
@@ -3477,7 +3543,7 @@ describe('TokensController', () => {
           deriveStateFromMetadata(
             controller.state,
             controller.metadata,
-            'anonymous',
+            'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`Object {}`);
       });
@@ -3545,7 +3611,7 @@ type WithControllerCallback<ReturnValue> = ({
   changeNetwork: (networkControllerState: {
     selectedNetworkClientId: NetworkClientId;
   }) => void;
-  messenger: UnrestrictedMessenger;
+  messenger: RootMessenger;
   approvalController: ApprovalController;
   triggerSelectedAccountChange: (internalAccount: InternalAccount) => void;
   triggerAccountRemoved: (accountAddress: string) => void;
@@ -3603,12 +3669,18 @@ async function withController<ReturnValue>(
     fn,
   ] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger = new Messenger<AllowedActions, AllowedEvents>();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
-  const approvalControllerMessenger = messenger.getRestricted({
-    name: 'ApprovalController',
-    allowedActions: [],
-    allowedEvents: [],
+  const approvalControllerMessenger = new Messenger<
+    'ApprovalController',
+    MessengerActions<ApprovalControllerMessenger>,
+    MessengerEvents<ApprovalControllerMessenger>,
+    RootMessenger
+  >({
+    namespace: 'ApprovalController',
+    parent: messenger,
   });
   const approvalController = new ApprovalController({
     messenger: approvalControllerMessenger,
@@ -3616,16 +3688,25 @@ async function withController<ReturnValue>(
     typesExcludedFromRateLimiting: [ApprovalType.WatchAsset],
   });
 
-  const restrictedMessenger = messenger.getRestricted({
-    name: 'TokensController',
-    allowedActions: [
+  const tokensControllerMessenger = new Messenger<
+    'TokensController',
+    MessengerActions<TokensControllerMessenger>,
+    MessengerEvents<TokensControllerMessenger>,
+    RootMessenger
+  >({
+    namespace: 'TokensController',
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: tokensControllerMessenger,
+    actions: [
       'ApprovalController:addRequest',
       'NetworkController:getNetworkClientById',
       'AccountsController:getAccount',
       'AccountsController:getSelectedAccount',
       'AccountsController:listAccounts',
     ],
-    allowedEvents: [
+    events: [
       'NetworkController:networkDidChange',
       'NetworkController:stateChange',
       'AccountsController:selectedEvmAccountChange',
@@ -3663,7 +3744,7 @@ async function withController<ReturnValue>(
     // where the provider can possibly be `undefined` if `networkClientId` is
     // not specified.
     provider: new FakeProvider(),
-    messenger: restrictedMessenger,
+    messenger: tokensControllerMessenger,
     ...options,
   });
 

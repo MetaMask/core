@@ -12,6 +12,9 @@
     },
     {
       "path": "../keyring-controller"
+    },
+    {
+      "path": "../messenger"
     }
   ],
   "include": ["../../types", "./src"]

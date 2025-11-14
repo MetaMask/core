@@ -78,6 +78,7 @@ export default async function determineGasFeeCalculations(
 
 /**
  * Retrieve the gas fee estimates using a series of fallback mechanisms.
+ *
  * @param request - The request object.
  * @returns The gas fee estimates.
  */
@@ -107,6 +108,7 @@ async function getEstimatesUsingFallbacks(
 
 /**
  * Retrieve gas fee estimates using the EIP-1559 endpoint of the gas API.
+ *
  * @param request - The request object.
  * @returns The gas fee estimates.
  */
@@ -140,6 +142,7 @@ async function getEstimatesUsingFeeMarketEndpoint(
 
 /**
  * Retrieve gas fee estimates using the legacy endpoint of the gas API.
+ *
  * @param request - The request object.
  * @returns The gas fee estimates.
  */
@@ -166,6 +169,7 @@ async function getEstimatesUsingLegacyEndpoint(
 
 /**
  * Retrieve gas fee estimates using an `eth_gasPrice` call to the RPC provider.
+ *
  * @param request - The request object.
  * @returns The gas fee estimates.
  */

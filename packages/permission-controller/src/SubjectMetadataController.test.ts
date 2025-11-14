@@ -1,11 +1,14 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { HasPermissions } from './PermissionController';
-import type {
-  SubjectMetadataControllerActions,
-  SubjectMetadataControllerEvents,
-} from './SubjectMetadataController';
+import type { SubjectMetadataControllerMessenger } from './SubjectMetadataController';
 import {
   SubjectMetadataController,
   SubjectType,
@@ -13,31 +16,59 @@ import {
 
 const controllerName = 'SubjectMetadataController';
 
+type AllSubjectMetadataControllerActions =
+  MessengerActions<SubjectMetadataControllerMessenger>;
+
+type AllSubjectMetadataControllerEvents =
+  MessengerEvents<SubjectMetadataControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllSubjectMetadataControllerActions,
+  AllSubjectMetadataControllerEvents
+>;
+
+/**
+ * Creates and returns a root messenger for testing
+ *
+ * @returns A messenger instance
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+}
+
 /**
  * Utility function for creating a messenger.
  *
  * @returns A tuple containing the messenger and a spy for the "hasPermission" action handler
  */
 function getSubjectMetadataControllerMessenger() {
-  const messenger = new Messenger<
-    SubjectMetadataControllerActions | HasPermissions,
-    SubjectMetadataControllerEvents
-  >();
+  const rootMessenger = getRootMessenger();
 
   const hasPermissionsSpy = jest.fn();
-  messenger.registerActionHandler(
+  rootMessenger.registerActionHandler(
     'PermissionController:hasPermissions',
     hasPermissionsSpy,
   );
 
-  return [
-    messenger.getRestricted<typeof controllerName, HasPermissions['type']>({
-      name: controllerName,
-      allowedActions: ['PermissionController:hasPermissions'],
-      allowedEvents: [],
-    }),
-    hasPermissionsSpy,
-  ] as const;
+  const messenger = new Messenger<
+    typeof controllerName,
+    AllSubjectMetadataControllerActions,
+    AllSubjectMetadataControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
+
+  rootMessenger.delegate({
+    actions: ['PermissionController:hasPermissions'],
+    messenger,
+  });
+
+  return [messenger, hasPermissionsSpy] as const;
 }
 
 /**
@@ -351,7 +382,7 @@ describe('SubjectMetadataController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });

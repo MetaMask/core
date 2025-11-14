@@ -1,65 +1,35 @@
-import { PollingBlockTracker } from '@metamask/eth-block-tracker';
-import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { MiddlewareContext } from '@metamask/json-rpc-engine/v2';
 
 import { createBlockRefMiddleware } from '.';
 import {
-  buildMockParamsWithBlockParamAt,
+  createMockParamsWithBlockParamAt,
   stubProviderRequests,
-  buildStubForBlockNumberRequest,
-  buildStubForGenericRequest,
-  buildFinalMiddlewareWithDefaultResult,
-  buildMockParamsWithoutBlockParamAt,
+  createStubForBlockNumberRequest,
+  createStubForGenericRequest,
+  createFinalMiddlewareWithDefaultResult,
+  createMockParamsWithoutBlockParamAt,
   expectProviderRequestNotToHaveBeenMade,
+  createProviderAndBlockTracker,
+  createEngine,
+  createRequest,
 } from '../test/util/helpers';
 
-/**
- * Objects used in each test.
- */
-type Setup = {
-  /**
-   * The engine that holds the middleware stack, including the
-   * one being tested.
-   */
-  engine: JsonRpcEngine;
-  /**
-   * provider - The provider that is used to make requests against
-   * (which the middleware being tested will react to).
-   */
-  provider: SafeEventEmitterProvider;
-  /**
-   * The block tracker which is used inside of the
-   * middleware being tested.
-   */
-  blockTracker: PollingBlockTracker;
-};
-
-/**
- * Options supported by `withTestSetup`.
- */
-type WithTestSetupOptions = {
-  /**
-   * A function which determines which middleware
-   * should be added to the engine.
-   */
-  configureMiddleware: (setup: Setup) => {
-    middlewareUnderTest: JsonRpcMiddleware<any, any>;
-    otherMiddleware?: JsonRpcMiddleware<any, any>[];
-  };
-};
-
-/**
- * The function that `withTestSetup` is expected to take and will call once the
- * setup objects are created.
- *
- * @template T - The type that the function will return, minus the promise
- * wrapper.
- */
-type WithTestSetupCallback<T> = (setup: Setup) => Promise<T>;
-
 describe('createBlockRefMiddleware', () => {
+  let provider: ReturnType<typeof createProviderAndBlockTracker>['provider'];
+  let blockTracker: ReturnType<
+    typeof createProviderAndBlockTracker
+  >['blockTracker'];
+
+  beforeEach(() => {
+    const providerAndBlockTracker = createProviderAndBlockTracker();
+    provider = providerAndBlockTracker.provider;
+    blockTracker = providerAndBlockTracker.blockTracker;
+  });
+
+  afterEach(async () => {
+    await blockTracker.destroy();
+  });
+
   // This list corresponds to the list in the `blockTagParamIndex` function
   // within `src/utils/cache.ts`
   (
@@ -81,270 +51,216 @@ describe('createBlockRefMiddleware', () => {
       describe(`when the RPC method is ${method}`, () => {
         describe('if the block param is "latest"', () => {
           it('makes a direct request through the provider, replacing the block param with the latest block number', async () => {
-            await withTestSetup(
-              {
-                configureMiddleware: ({ provider, blockTracker }) => {
-                  return {
-                    middlewareUnderTest: createBlockRefMiddleware({
-                      provider,
-                      blockTracker,
-                    }),
-                  };
-                },
-              },
-              async ({ engine, provider }) => {
-                const request = {
-                  id: 1,
-                  jsonrpc: '2.0' as const,
-                  method,
-                  params: buildMockParamsWithBlockParamAt(
-                    blockParamIndex,
-                    'latest',
-                  ),
-                };
-                stubProviderRequests(provider, [
-                  buildStubForBlockNumberRequest('0x100'),
-                  buildStubForGenericRequest({
-                    request: {
-                      ...request,
-                      params: buildMockParamsWithBlockParamAt(
-                        blockParamIndex,
-                        '0x100',
-                      ),
-                    },
-                    result: async () => 'something',
-                  }),
-                ]);
-
-                const response = await engine.handle(request);
-
-                expect(response).toStrictEqual({
-                  id: 1,
-                  jsonrpc: '2.0',
-                  result: 'something',
-                });
-              },
+            const engine = createEngine(
+              createBlockRefMiddleware({
+                provider,
+                blockTracker,
+              }),
             );
+
+            const request = createRequest({
+              method,
+              params: createMockParamsWithBlockParamAt(
+                blockParamIndex,
+                'latest',
+              ),
+            });
+
+            stubProviderRequests(provider, [
+              createStubForBlockNumberRequest('0x100'),
+              createStubForGenericRequest({
+                request: {
+                  ...request,
+                  params: createMockParamsWithBlockParamAt(
+                    blockParamIndex,
+                    '0x100',
+                  ),
+                },
+                result: async () => 'something',
+              }),
+            ]);
+
+            const result = await engine.handle(request);
+
+            expect(result).toBe('something');
           });
 
           it('does not proceed to the next middleware after making a request through the provider', async () => {
-            const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
+            const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
-            await withTestSetup(
-              {
-                configureMiddleware: ({ provider, blockTracker }) => {
-                  return {
-                    middlewareUnderTest: createBlockRefMiddleware({
-                      provider,
-                      blockTracker,
-                    }),
-                    otherMiddleware: [finalMiddleware],
-                  };
-                },
-              },
-              async ({ engine, provider }) => {
-                const request = {
-                  id: 1,
-                  jsonrpc: '2.0' as const,
-                  method,
-                  params: buildMockParamsWithBlockParamAt(
-                    blockParamIndex,
-                    'latest',
-                  ),
-                };
-                stubProviderRequests(provider, [
-                  buildStubForBlockNumberRequest('0x100'),
-                  buildStubForGenericRequest({
-                    request: {
-                      ...request,
-                      params: buildMockParamsWithBlockParamAt(
-                        blockParamIndex,
-                        '0x100',
-                      ),
-                    },
-                    result: async () => 'something',
-                  }),
-                ]);
-
-                await engine.handle(request);
-
-                expect(finalMiddleware).not.toHaveBeenCalled();
-              },
+            const engine = createEngine(
+              createBlockRefMiddleware({
+                provider,
+                blockTracker,
+              }),
+              finalMiddleware,
             );
+
+            const request = createRequest({
+              method,
+              params: createMockParamsWithBlockParamAt(
+                blockParamIndex,
+                'latest',
+              ),
+            });
+
+            stubProviderRequests(provider, [
+              createStubForBlockNumberRequest('0x100'),
+              createStubForGenericRequest({
+                request: {
+                  ...request,
+                  params: createMockParamsWithBlockParamAt(
+                    blockParamIndex,
+                    '0x100',
+                  ),
+                },
+                result: async () => 'something',
+              }),
+            ]);
+
+            await engine.handle(request);
+
+            expect(finalMiddleware).not.toHaveBeenCalled();
           });
         });
 
         describe('if no block param is provided', () => {
           it('makes a direct request through the provider, replacing the block param with the latest block number', async () => {
-            await withTestSetup(
-              {
-                configureMiddleware: ({ provider, blockTracker }) => {
-                  return {
-                    middlewareUnderTest: createBlockRefMiddleware({
-                      provider,
-                      blockTracker,
-                    }),
-                  };
-                },
-              },
-              async ({ engine, provider }) => {
-                const request = {
-                  jsonrpc: '2.0' as const,
-                  id: 1,
-                  method,
-                  params: buildMockParamsWithoutBlockParamAt(blockParamIndex),
-                };
-                stubProviderRequests(provider, [
-                  buildStubForBlockNumberRequest('0x100'),
-                  buildStubForGenericRequest({
-                    request: {
-                      ...request,
-                      params: buildMockParamsWithBlockParamAt(
-                        blockParamIndex,
-                        '0x100',
-                      ),
-                    },
-                    result: async () => 'something',
-                  }),
-                ]);
-
-                const response = await engine.handle(request);
-
-                expect(response).toStrictEqual({
-                  id: 1,
-                  jsonrpc: '2.0',
-                  result: 'something',
-                });
-              },
+            const engine = createEngine(
+              createBlockRefMiddleware({
+                provider,
+                blockTracker,
+              }),
             );
+
+            const request = createRequest({
+              method,
+              params: createMockParamsWithoutBlockParamAt(blockParamIndex),
+            });
+
+            stubProviderRequests(provider, [
+              createStubForBlockNumberRequest('0x100'),
+              createStubForGenericRequest({
+                request: {
+                  ...request,
+                  params: createMockParamsWithBlockParamAt(
+                    blockParamIndex,
+                    '0x100',
+                  ),
+                },
+                result: async () => 'something',
+              }),
+            ]);
+
+            const result = await engine.handle(request);
+
+            expect(result).toBe('something');
           });
 
           it('does not proceed to the next middleware after making a request through the provider', async () => {
-            const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
+            const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
-            await withTestSetup(
-              {
-                configureMiddleware: ({ provider, blockTracker }) => {
-                  return {
-                    middlewareUnderTest: createBlockRefMiddleware({
-                      provider,
-                      blockTracker,
-                    }),
-                    otherMiddleware: [finalMiddleware],
-                  };
-                },
-              },
-              async ({ engine, provider }) => {
-                const request = {
-                  id: 1,
-                  jsonrpc: '2.0' as const,
-                  method,
-                  params: buildMockParamsWithoutBlockParamAt(blockParamIndex),
-                };
-                stubProviderRequests(provider, [
-                  buildStubForBlockNumberRequest('0x100'),
-                  buildStubForGenericRequest({
-                    request: {
-                      ...request,
-                      params: buildMockParamsWithBlockParamAt(
-                        blockParamIndex,
-                        '0x100',
-                      ),
-                    },
-                    result: async () => 'something',
-                  }),
-                ]);
-
-                await engine.handle(request);
-
-                expect(finalMiddleware).not.toHaveBeenCalled();
-              },
+            const engine = createEngine(
+              createBlockRefMiddleware({
+                provider,
+                blockTracker,
+              }),
+              finalMiddleware,
             );
+
+            const request = createRequest({
+              method,
+              params: createMockParamsWithoutBlockParamAt(blockParamIndex),
+            });
+
+            stubProviderRequests(provider, [
+              createStubForBlockNumberRequest('0x100'),
+              createStubForGenericRequest({
+                request: {
+                  ...request,
+                  params: createMockParamsWithBlockParamAt(
+                    blockParamIndex,
+                    '0x100',
+                  ),
+                },
+                result: async () => 'something',
+              }),
+            ]);
+
+            await engine.handle(request);
+
+            expect(finalMiddleware).not.toHaveBeenCalled();
           });
         });
 
         describe.each(['earliest', 'pending', '0x200'])(
           'if the block param is something other than "latest", like %o',
           (blockParam) => {
+            // Using custom expect helper
+            // eslint-disable-next-line jest/expect-expect
             it('does not make a direct request through the provider', async () => {
-              const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
+              const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
-              await withTestSetup(
-                {
-                  configureMiddleware: ({ provider, blockTracker }) => {
-                    return {
-                      middlewareUnderTest: createBlockRefMiddleware({
-                        provider,
-                        blockTracker,
-                      }),
-                      otherMiddleware: [finalMiddleware],
-                    };
-                  },
-                },
-                async ({ engine, provider }) => {
-                  const request = {
-                    id: 1,
-                    jsonrpc: '2.0' as const,
-                    method,
-                    params: buildMockParamsWithBlockParamAt(
-                      blockParamIndex,
-                      blockParam,
-                    ),
-                  };
-                  const requestSpy = stubProviderRequests(provider, [
-                    buildStubForBlockNumberRequest('0x100'),
-                  ]);
-
-                  await engine.handle(request);
-
-                  expectProviderRequestNotToHaveBeenMade(requestSpy, request);
-                },
+              const engine = createEngine(
+                createBlockRefMiddleware({
+                  provider,
+                  blockTracker,
+                }),
+                finalMiddleware,
               );
+
+              const request = createRequest({
+                method,
+                params: createMockParamsWithBlockParamAt(
+                  blockParamIndex,
+                  blockParam,
+                ),
+              });
+
+              const requestSpy = stubProviderRequests(provider, [
+                createStubForBlockNumberRequest('0x100'),
+              ]);
+
+              await engine.handle(request);
+
+              expectProviderRequestNotToHaveBeenMade(requestSpy, request);
             });
 
             it('proceeds to the next middleware', async () => {
-              const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
+              const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
-              await withTestSetup(
-                {
-                  configureMiddleware: ({ provider, blockTracker }) => {
-                    return {
-                      middlewareUnderTest: createBlockRefMiddleware({
-                        provider,
-                        blockTracker,
-                      }),
-                      otherMiddleware: [finalMiddleware],
-                    };
-                  },
-                },
-                async ({ engine, provider }) => {
-                  stubProviderRequests(provider, [
-                    buildStubForBlockNumberRequest('0x100'),
-                  ]);
-
-                  await engine.handle({
-                    id: 1,
-                    jsonrpc: '2.0' as const,
-                    method,
-                    params: buildMockParamsWithBlockParamAt(
-                      blockParamIndex,
-                      blockParam,
-                    ),
-                  });
-
-                  expect(finalMiddleware).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                      params: buildMockParamsWithBlockParamAt(
-                        blockParamIndex,
-                        blockParam,
-                      ),
-                    }),
-                    expect.anything(),
-                    expect.anything(),
-                    expect.anything(),
-                  );
-                },
+              const engine = createEngine(
+                createBlockRefMiddleware({
+                  provider,
+                  blockTracker,
+                }),
+                finalMiddleware,
               );
+
+              stubProviderRequests(provider, [
+                createStubForBlockNumberRequest('0x100'),
+              ]);
+
+              await engine.handle(
+                createRequest({
+                  method,
+                  params: createMockParamsWithBlockParamAt(
+                    blockParamIndex,
+                    blockParam,
+                  ),
+                }),
+              );
+
+              expect(finalMiddleware).toHaveBeenCalledWith({
+                request: expect.objectContaining({
+                  params: createMockParamsWithBlockParamAt(
+                    blockParamIndex,
+                    blockParam,
+                  ),
+                }),
+                context: expect.any(MiddlewareContext),
+                next: expect.any(Function),
+              });
             });
           },
         );
@@ -353,115 +269,62 @@ describe('createBlockRefMiddleware', () => {
   });
 
   describe('when the RPC method does not take a block parameter', () => {
+    // Using custom expect helper
+    // eslint-disable-next-line jest/expect-expect
     it('does not make a direct request through the provider', async () => {
-      const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
+      const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
-      await withTestSetup(
-        {
-          configureMiddleware: ({ provider, blockTracker }) => {
-            return {
-              middlewareUnderTest: createBlockRefMiddleware({
-                provider,
-                blockTracker,
-              }),
-              otherMiddleware: [finalMiddleware],
-            };
-          },
-        },
-        async ({ engine, provider }) => {
-          const request = {
-            id: 1,
-            jsonrpc: '2.0' as const,
-            method: 'a_non_block_param_method',
-            params: ['some value', '0x200'],
-          };
-          const requestSpy = stubProviderRequests(provider, [
-            buildStubForBlockNumberRequest('0x100'),
-          ]);
-
-          await engine.handle(request);
-
-          expectProviderRequestNotToHaveBeenMade(requestSpy, request);
-        },
+      const engine = createEngine(
+        createBlockRefMiddleware({
+          provider,
+          blockTracker,
+        }),
+        finalMiddleware,
       );
+
+      const request = createRequest({
+        method: 'a_non_block_param_method',
+        params: ['some value', '0x200'],
+      });
+
+      const requestSpy = stubProviderRequests(provider, [
+        createStubForBlockNumberRequest('0x100'),
+      ]);
+
+      await engine.handle(request);
+
+      expectProviderRequestNotToHaveBeenMade(requestSpy, request);
     });
 
     it('proceeds to the next middleware', async () => {
-      const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
+      const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
-      await withTestSetup(
-        {
-          configureMiddleware: ({ provider, blockTracker }) => {
-            return {
-              middlewareUnderTest: createBlockRefMiddleware({
-                provider,
-                blockTracker,
-              }),
-              otherMiddleware: [finalMiddleware],
-            };
-          },
-        },
-        async ({ engine, provider }) => {
-          stubProviderRequests(provider, [
-            buildStubForBlockNumberRequest('0x100'),
-          ]);
-
-          await engine.handle({
-            id: 1,
-            jsonrpc: '2.0' as const,
-            method: 'a_non_block_param_method',
-            params: ['some value', '0x200'],
-          });
-
-          expect(finalMiddleware).toHaveBeenCalledWith(
-            expect.objectContaining({
-              params: ['some value', '0x200'],
-            }),
-            expect.anything(),
-            expect.anything(),
-            expect.anything(),
-          );
-        },
+      const engine = createEngine(
+        createBlockRefMiddleware({
+          provider,
+          blockTracker,
+        }),
+        finalMiddleware,
       );
+
+      stubProviderRequests(provider, [
+        createStubForBlockNumberRequest('0x100'),
+      ]);
+
+      await engine.handle(
+        createRequest({
+          method: 'a_non_block_param_method',
+          params: ['some value', '0x200'],
+        }),
+      );
+
+      expect(finalMiddleware).toHaveBeenCalledWith({
+        request: expect.objectContaining({
+          params: ['some value', '0x200'],
+        }),
+        context: expect.any(MiddlewareContext),
+        next: expect.any(Function),
+      });
     });
   });
 });
-
-/**
- * Calls the given function, which should represent a test of some kind, with
- * data that the test can use, namely, a JsonRpcEngine instance, a provider
- * object, and a block tracker.
- *
- * @template T - The type that the function will return, minus the promise
- * wrapper.
- * @param options - Options.
- * @param options.configureMiddleware - A function that is called to add the
- * middleware-under-test, along with any other necessary middleware, to the
- * engine.
- * @param callback - A function.
- * @returns Whatever the function returns.
- */
-async function withTestSetup<T>(
-  { configureMiddleware }: WithTestSetupOptions,
-  callback?: WithTestSetupCallback<T>,
-) {
-  const engine = new JsonRpcEngine();
-  const provider = providerFromEngine(engine);
-  const blockTracker = new PollingBlockTracker({
-    provider,
-  });
-
-  const {
-    middlewareUnderTest,
-    otherMiddleware = [buildFinalMiddlewareWithDefaultResult()],
-  } = configureMiddleware({ engine, provider, blockTracker });
-
-  for (const middleware of [middlewareUnderTest, ...otherMiddleware]) {
-    engine.push(middleware);
-  }
-
-  if (callback === undefined) {
-    return undefined;
-  }
-  return await callback({ engine, provider, blockTracker });
-}

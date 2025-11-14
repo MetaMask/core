@@ -6,13 +6,14 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
+  StateMetadata,
 } from '@metamask/base-controller';
 import {
   safelyExecute,
   toChecksumHexAddress,
   FALL_BACK_VS_CURRENCY,
 } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -36,6 +37,7 @@ import type {
  * @type Token
  *
  * Token representation
+ *
  * @property address - Hex address of the token contract
  * @property decimals - Number of decimals the token uses
  * @property symbol - Symbol of the token
@@ -122,6 +124,7 @@ export const controllerName = 'TokenRatesController';
  * @type TokenRatesState
  *
  * Token rates controller state
+ *
  * @property marketData - Market data for tokens, keyed by chain ID and then token contract address.
  */
 export type TokenRatesControllerState = {
@@ -157,12 +160,10 @@ export type TokenRatesControllerEvents = TokenRatesControllerStateChangeEvent;
 /**
  * The messenger of the {@link TokenRatesController} for communication.
  */
-export type TokenRatesControllerMessenger = RestrictedMessenger<
+export type TokenRatesControllerMessenger = Messenger<
   typeof controllerName,
   TokenRatesControllerActions | AllowedActions,
-  TokenRatesControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  TokenRatesControllerEvents | AllowedEvents
 >;
 
 /**
@@ -202,11 +203,11 @@ async function getCurrencyConversionRate({
   }
 }
 
-const tokenRatesControllerMetadata = {
+const tokenRatesControllerMetadata: StateMetadata<TokenRatesControllerState> = {
   marketData: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -247,7 +248,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
   #disabled: boolean;
 
-  #interval: number;
+  readonly #interval: number;
 
   #allTokens: TokensControllerState['allTokens'];
 
@@ -298,7 +299,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   #subscribeToTokensStateChange() {
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TokensController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -307,7 +308,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
           return;
         }
 
-        const { networkConfigurationsByChainId } = this.messagingSystem.call(
+        const { networkConfigurationsByChainId } = this.messenger.call(
           'NetworkController:getState',
         );
 
@@ -356,7 +357,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   #subscribeToNetworkStateChange() {
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'NetworkController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -449,7 +450,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     allTokens: TokensControllerState['allTokens'];
     allDetectedTokens: TokensControllerState['allDetectedTokens'];
   } {
-    const { allTokens, allDetectedTokens } = this.messagingSystem.call(
+    const { allTokens, allDetectedTokens } = this.messenger.call(
       'TokensController:getState',
     );
 
@@ -654,7 +655,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * @param input.chainIds - The chain ids to poll token rates on.
    */
   async _executePoll({ chainIds }: TokenRatesPollingInput): Promise<void> {
-    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+    const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
 

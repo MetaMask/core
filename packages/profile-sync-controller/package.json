@@ -1,6 +1,6 @@
 {
   "name": "@metamask/profile-sync-controller",
-  "version": "25.1.1",
+  "version": "26.0.0",
   "description": "The profile sync helps developers synchronize data across multiple clients and devices in a privacy-preserving way. All data saved in the user storage database is encrypted client-side to preserve privacy. The user storage provides a modular design, giving developers the flexibility to construct and manage their storage spaces in a way that best suits their needs",
   "keywords": [
     "MetaMask",
@@ -89,6 +89,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/profile-sync-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/profile-sync-controller",
@@ -100,7 +101,8 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.4.1",
+    "@metamask/base-controller": "^9.0.0",
+    "@metamask/messenger": "^0.3.0",
     "@metamask/snaps-sdk": "^9.0.0",
     "@metamask/snaps-utils": "^11.0.0",
     "@metamask/utils": "^11.8.1",
@@ -113,13 +115,14 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
-    "@metamask/address-book-controller": "^6.2.0",
+    "@metamask/address-book-controller": "^7.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-api": "^21.0.0",
-    "@metamask/keyring-controller": "^23.1.1",
+    "@metamask/keyring-controller": "^24.0.0",
     "@metamask/keyring-internal-api": "^9.0.0",
     "@metamask/providers": "^22.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "ethers": "^6.12.0",
@@ -129,12 +132,12 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2",
+    "typescript": "~5.3.3",
     "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {
-    "@metamask/address-book-controller": "^6.1.1",
-    "@metamask/keyring-controller": "^23.0.0",
+    "@metamask/address-book-controller": "^7.0.0",
+    "@metamask/keyring-controller": "^24.0.0",
     "@metamask/providers": "^22.0.0",
     "@metamask/snaps-controllers": "^14.0.0",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"

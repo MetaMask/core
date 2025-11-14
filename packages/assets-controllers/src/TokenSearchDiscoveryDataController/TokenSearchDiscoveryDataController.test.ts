@@ -1,5 +1,12 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { ChainId } from '@metamask/controller-utils';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
 import { useFakeTimers } from 'sinon';
@@ -9,8 +16,6 @@ import {
   TokenSearchDiscoveryDataController,
   controllerName,
   MAX_TOKEN_DISPLAY_DATA_LENGTH,
-  type AllowedActions,
-  type AllowedEvents,
   type TokenSearchDiscoveryDataControllerMessenger,
   type TokenSearchDiscoveryDataControllerState,
 } from './TokenSearchDiscoveryDataController';
@@ -32,7 +37,11 @@ jest.mock('../token-service', () => {
   };
 });
 
-type MainMessenger = Messenger<AllowedActions, AllowedEvents>;
+type AllActions = MessengerActions<TokenSearchDiscoveryDataControllerMessenger>;
+
+type AllEvents = MessengerEvents<TokenSearchDiscoveryDataControllerMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 /**
  * Builds a not found token display data object.
@@ -111,13 +120,21 @@ function buildFoundTokenDisplayData(
  * @returns The restricted messenger.
  */
 function buildTokenSearchDiscoveryDataControllerMessenger(
-  messenger: MainMessenger = new Messenger(),
+  messenger: RootMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE }),
 ): TokenSearchDiscoveryDataControllerMessenger {
-  return messenger.getRestricted({
-    name: controllerName,
-    allowedActions: ['CurrencyRateController:getState'],
-    allowedEvents: [],
+  const tokenSearchDiscoveryDataControllerMessenger = new Messenger<
+    typeof controllerName,
+    AllActions,
+    AllEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
   });
+  messenger.delegate({
+    messenger: tokenSearchDiscoveryDataControllerMessenger,
+    actions: ['CurrencyRateController:getState'],
+  });
+  return tokenSearchDiscoveryDataControllerMessenger;
 }
 
 /**
@@ -130,6 +147,9 @@ function buildMockTokenPricesService(
   overrides: Partial<AbstractTokenPricesService> = {},
 ): AbstractTokenPricesService {
   return {
+    async fetchExchangeRates() {
+      return {};
+    },
     async fetchTokenPrices() {
       return {};
     },
@@ -206,7 +226,9 @@ async function withController<ReturnValue>(
     callback = maybeCallback;
   }
 
-  const messenger = new Messenger<AllowedActions, AllowedEvents>();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   messenger.registerActionHandler('CurrencyRateController:getState', () => ({
     currentCurrency: 'USD',
@@ -649,7 +671,6 @@ describe('TokenSearchDiscoveryDataController', () => {
           return {
             [tokenAddress as Hex]: {
               ...basePrice,
-              // eslint-disable-next-line jest/no-conditional-in-test
               price: currency === 'USD' ? 10.5 : 9.5,
               currency,
             },
@@ -718,7 +739,6 @@ describe('TokenSearchDiscoveryDataController', () => {
       const mockFetchTokenPrices = jest
         .fn()
         .mockImplementation(({ currency }: { currency: string }) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (currency === 'USD') {
             return Promise.resolve({ [tokenAddress as Hex]: mockTokenPrice });
           }
@@ -761,14 +781,12 @@ describe('TokenSearchDiscoveryDataController', () => {
 
       (fetchTokenMetadata as jest.Mock).mockImplementation(
         (_chainId, address) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (address === tokenAddress1) {
             return Promise.resolve({
               decimals: 18,
               symbol: 'DAI',
               name: 'Dai Stablecoin',
             });
-            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (address === tokenAddress2) {
             return Promise.resolve({
               decimals: 6,
@@ -899,7 +917,7 @@ describe('TokenSearchDiscoveryDataController', () => {
           deriveStateFromMetadata(
             controller.state,
             controller.metadata,
-            'anonymous',
+            'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`Object {}`);
       });

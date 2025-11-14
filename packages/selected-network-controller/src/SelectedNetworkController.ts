@@ -1,5 +1,9 @@
-import type { RestrictedMessenger } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+} from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   BlockTrackerProxy,
   NetworkClientId,
@@ -14,17 +18,19 @@ import type {
   GetSubjects as PermissionControllerGetSubjectsAction,
   HasPermissions as PermissionControllerHasPermissions,
 } from '@metamask/permission-controller';
-import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
+import {
+  createEventEmitterProxy,
+  createSwappableProxy,
+} from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
-import type { Patch } from 'immer';
 
-export const controllerName = 'SelectedNetworkController';
+const controllerName = 'SelectedNetworkController';
 
 const stateMetadata = {
   domains: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -51,15 +57,17 @@ export type SelectedNetworkControllerState = {
   domains: Record<Domain, NetworkClientId>;
 };
 
-export type SelectedNetworkControllerStateChangeEvent = {
-  type: typeof SelectedNetworkControllerEventTypes.stateChange;
-  payload: [SelectedNetworkControllerState, Patch[]];
-};
+export type SelectedNetworkControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    SelectedNetworkControllerState
+  >;
 
-export type SelectedNetworkControllerGetSelectedNetworkStateAction = {
-  type: typeof SelectedNetworkControllerActionTypes.getState;
-  handler: () => SelectedNetworkControllerState;
-};
+export type SelectedNetworkControllerGetSelectedNetworkStateAction =
+  ControllerGetStateAction<
+    typeof controllerName,
+    SelectedNetworkControllerState
+  >;
 
 export type SelectedNetworkControllerGetNetworkClientIdForDomainAction = {
   type: typeof SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain;
@@ -76,7 +84,7 @@ export type SelectedNetworkControllerActions =
   | SelectedNetworkControllerGetNetworkClientIdForDomainAction
   | SelectedNetworkControllerSetNetworkClientIdForDomainAction;
 
-export type AllowedActions =
+type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetSelectedNetworkClientAction
   | NetworkControllerGetStateAction
@@ -86,16 +94,14 @@ export type AllowedActions =
 export type SelectedNetworkControllerEvents =
   SelectedNetworkControllerStateChangeEvent;
 
-export type AllowedEvents =
+type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | PermissionControllerStateChange;
 
-export type SelectedNetworkControllerMessenger = RestrictedMessenger<
+export type SelectedNetworkControllerMessenger = Messenger<
   typeof controllerName,
   SelectedNetworkControllerActions | AllowedActions,
-  SelectedNetworkControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  SelectedNetworkControllerEvents | AllowedEvents
 >;
 
 export type SelectedNetworkControllerOptions = {
@@ -123,7 +129,7 @@ export class SelectedNetworkController extends BaseController<
    * Construct a SelectedNetworkController controller.
    *
    * @param options - The controller options.
-   * @param options.messenger - The restricted messenger for the EncryptionPublicKey controller.
+   * @param options.messenger - The messenger for the SelectedNetworkController controller.
    * @param options.state - The controllers initial state.
    * @param options.domainProxyMap - A map for storing domain-specific proxies that are held in memory only during use.
    */
@@ -142,18 +148,18 @@ export class SelectedNetworkController extends BaseController<
     this.#registerMessageHandlers();
 
     // this is fetching all the dapp permissions from the PermissionsController and looking for any domains that are not in domains state in this controller. Then we take any missing domains and add them to state here, setting it with the globally selected networkClientId (fetched from the NetworkController)
-    this.messagingSystem
+    this.messenger
       .call('PermissionController:getSubjectNames')
       .filter((domain) => this.state.domains[domain] === undefined)
       .forEach((domain) =>
         this.setNetworkClientIdForDomain(
           domain,
-          this.messagingSystem.call('NetworkController:getState')
+          this.messenger.call('NetworkController:getState')
             .selectedNetworkClientId,
         ),
       );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'PermissionController:stateChange',
       (_, patches) => {
         patches.forEach(({ op, path }) => {
@@ -164,7 +170,7 @@ export class SelectedNetworkController extends BaseController<
             if (op === 'add' && this.state.domains[domain] === undefined) {
               this.setNetworkClientIdForDomain(
                 domain,
-                this.messagingSystem.call('NetworkController:getState')
+                this.messenger.call('NetworkController:getState')
                   .selectedNetworkClientId,
               );
             } else if (
@@ -178,7 +184,7 @@ export class SelectedNetworkController extends BaseController<
       },
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'NetworkController:stateChange',
       (
         { selectedNetworkClientId, networkConfigurationsByChainId },
@@ -217,7 +223,6 @@ export class SelectedNetworkController extends BaseController<
                 );
               } else if (patch.op === 'replace') {
                 // If the network was updated, redirect to the network's default endpoint
-
                 const updatedChainId = patch.path[1] as Hex;
                 if (!chainIdForDomain || chainIdForDomain === updatedChainId) {
                   const network =
@@ -242,11 +247,11 @@ export class SelectedNetworkController extends BaseController<
   }
 
   #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
       this.getNetworkClientIdForDomain.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain,
       this.setNetworkClientIdForDomain.bind(this),
     );
@@ -256,7 +261,7 @@ export class SelectedNetworkController extends BaseController<
     domain: Domain,
     networkClientId: NetworkClientId,
   ) {
-    const networkClient = this.messagingSystem.call(
+    const networkClient = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
@@ -279,7 +284,7 @@ export class SelectedNetworkController extends BaseController<
    * @param domain - The domain for which to unset the network client ID.
    */
   #unsetNetworkClientIdForDomain(domain: Domain) {
-    const globallySelectedNetworkClient = this.messagingSystem.call(
+    const globallySelectedNetworkClient = this.messenger.call(
       'NetworkController:getSelectedNetworkClient',
     );
     const networkProxy = this.#domainProxyMap.get(domain);
@@ -297,10 +302,7 @@ export class SelectedNetworkController extends BaseController<
   }
 
   #domainHasPermissions(domain: Domain): boolean {
-    return this.messagingSystem.call(
-      'PermissionController:hasPermissions',
-      domain,
-    );
+    return this.messenger.call('PermissionController:hasPermissions', domain);
   }
 
   setNetworkClientIdForDomain(
@@ -324,7 +326,7 @@ export class SelectedNetworkController extends BaseController<
 
   getNetworkClientIdForDomain(domain: Domain): NetworkClientId {
     const { selectedNetworkClientId: metamaskSelectedNetworkClientId } =
-      this.messagingSystem.call('NetworkController:getState');
+      this.messenger.call('NetworkController:getState');
 
     return this.state.domains[domain] ?? metamaskSelectedNetworkClientId;
   }
@@ -338,7 +340,7 @@ export class SelectedNetworkController extends BaseController<
   getProviderAndBlockTracker(domain: Domain): NetworkProxy {
     // If the domain is 'metamask', return the NetworkController's globally selected network client proxy
     if (domain === METAMASK_DOMAIN) {
-      const networkClient = this.messagingSystem.call(
+      const networkClient = this.messenger.call(
         'NetworkController:getSelectedNetworkClient',
       );
       if (networkClient === undefined) {
@@ -352,12 +354,12 @@ export class SelectedNetworkController extends BaseController<
       let networkClient;
       if (this.#domainHasPermissions(domain)) {
         const networkClientId = this.getNetworkClientIdForDomain(domain);
-        networkClient = this.messagingSystem.call(
+        networkClient = this.messenger.call(
           'NetworkController:getNetworkClientById',
           networkClientId,
         );
       } else {
-        networkClient = this.messagingSystem.call(
+        networkClient = this.messenger.call(
           'NetworkController:getSelectedNetworkClient',
         );
         if (networkClient === undefined) {
@@ -365,7 +367,7 @@ export class SelectedNetworkController extends BaseController<
         }
       }
       networkProxy = {
-        provider: createEventEmitterProxy(networkClient.provider),
+        provider: createSwappableProxy(networkClient.provider),
         blockTracker: createEventEmitterProxy(networkClient.blockTracker, {
           eventFilter: 'skipInternal',
         }),

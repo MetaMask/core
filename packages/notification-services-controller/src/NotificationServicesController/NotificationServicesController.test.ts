@@ -1,10 +1,17 @@
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import * as ControllerUtils from '@metamask/controller-utils';
 import {
   KeyringTypes,
   type KeyringControllerGetStateAction,
   type KeyringControllerState,
 } from '@metamask/keyring-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 import type nock from 'nock';
@@ -13,7 +20,7 @@ import { ADDRESS_1, ADDRESS_2 } from './__fixtures__/mockAddresses';
 import {
   mockGetOnChainNotificationsConfig,
   mockUpdateOnChainNotifications,
-  mockGetOnChainNotifications,
+  mockGetAPINotifications,
   mockFetchFeatureAnnouncementNotifications,
   mockMarkNotificationsAsRead,
   mockCreatePerpNotification,
@@ -30,8 +37,6 @@ import NotificationServicesController, {
   defaultState,
 } from './NotificationServicesController';
 import type {
-  AllowedActions,
-  AllowedEvents,
   NotificationServicesControllerMessenger,
   NotificationServicesControllerState,
 } from './NotificationServicesController';
@@ -589,7 +594,7 @@ describe('NotificationServicesController', () => {
       const mockOnChainNotificationsAPIResult = [
         createMockNotificationEthSent(),
       ];
-      const mockOnChainNotificationsAPI = mockGetOnChainNotifications({
+      const mockOnChainNotificationsAPI = mockGetAPINotifications({
         status: 200,
         body: mockOnChainNotificationsAPIResult,
       });
@@ -700,7 +705,7 @@ describe('NotificationServicesController', () => {
 
       // Mock APIs to fail
       mockFetchFeatureAnnouncementNotifications({ status: 500 });
-      mockGetOnChainNotifications({ status: 500 });
+      mockGetAPINotifications({ status: 500 });
 
       const controller = arrangeController(messenger);
 
@@ -1262,7 +1267,7 @@ describe('NotificationServicesController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
         Object {
@@ -1360,17 +1365,52 @@ type AnyFunc = (...args: any[]) => any;
 const typedMockAction = <Action extends { handler: AnyFunc }>() =>
   jest.fn<ReturnType<Action['handler']>, Parameters<Action['handler']>>();
 
+const controllerName = 'NotificationServicesController';
+
+type AllNotificationServicesControllerActions =
+  MessengerActions<NotificationServicesControllerMessenger>;
+
+type AllNotificationServicesControllerEvents =
+  MessengerEvents<NotificationServicesControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllNotificationServicesControllerActions,
+  AllNotificationServicesControllerEvents
+>;
+
+/**
+ * Creates and returns a root messenger for testing
+ *
+ * @returns A messenger instance
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+}
+
 /**
  * Jest Mock Utility - Mock Notification Messenger
  *
  * @returns mock notification messenger and other messenger mocks
  */
 function mockNotificationMessenger() {
-  const globalMessenger = new Messenger<AllowedActions, AllowedEvents>();
+  const globalMessenger = getRootMessenger();
 
-  const messenger = globalMessenger.getRestricted({
-    name: 'NotificationServicesController',
-    allowedActions: [
+  const messenger = new Messenger<
+    typeof controllerName,
+    AllNotificationServicesControllerActions,
+    AllNotificationServicesControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: globalMessenger,
+  });
+
+  globalMessenger.delegate({
+    messenger,
+    actions: [
       'KeyringController:getState',
       'AuthenticationController:getBearerToken',
       'AuthenticationController:isSignedIn',
@@ -1379,7 +1419,7 @@ function mockNotificationMessenger() {
       'NotificationServicesPushController:enablePushNotifications',
       'NotificationServicesPushController:subscribeToPushNotifications',
     ],
-    allowedEvents: [
+    events: [
       'KeyringController:stateChange',
       'KeyringController:lock',
       'KeyringController:unlock',

@@ -1,18 +1,11 @@
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
-import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
+import type {
+  JsonRpcMiddleware,
+  MiddlewareContext,
+} from '@metamask/json-rpc-engine/v2';
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import type { AbstractRpcServiceLike } from './types';
-
-/**
- * Like a JSON-RPC request, but includes an optional `origin` property.
- * This will be included in the request as a header if specified.
- */
-type JsonRpcRequestWithOrigin<Params extends JsonRpcParams> =
-  JsonRpcRequest<Params> & {
-    origin?: string;
-  };
 
 /**
  * Creates middleware for sending a JSON-RPC request through the given RPC
@@ -34,41 +27,31 @@ export function createFetchMiddleware({
   options?: {
     originHttpHeaderKey?: string;
   };
-}): JsonRpcMiddleware<JsonRpcParams, Json> {
-  return createAsyncMiddleware(
-    async (req: JsonRpcRequestWithOrigin<JsonRpcParams>, res) => {
-      const headers =
-        'originHttpHeaderKey' in options &&
-        options.originHttpHeaderKey !== undefined &&
-        req.origin !== undefined
-          ? { [options.originHttpHeaderKey]: req.origin }
-          : {};
+}): JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  MiddlewareContext<{ origin: string }>
+> {
+  return async ({ request, context }) => {
+    const origin = context.get('origin');
+    const headers =
+      options.originHttpHeaderKey !== undefined && origin !== undefined
+        ? { [options.originHttpHeaderKey]: origin }
+        : {};
 
-      const jsonRpcResponse = await rpcService.request(
-        {
-          id: req.id,
-          jsonrpc: req.jsonrpc,
-          method: req.method,
-          params: req.params,
-        },
-        {
-          headers,
-        },
-      );
+    const jsonRpcResponse = await rpcService.request(request, {
+      headers,
+    });
 
-      // NOTE: We intentionally do not test to see if `jsonRpcResponse.error` is
-      // strictly a JSON-RPC error response as per
-      // <https://www.jsonrpc.org/specification#error_object> to account for
-      // Ganache returning error objects with extra properties such as `name`
-      if ('error' in jsonRpcResponse) {
-        throw rpcErrors.internal({
-          data: jsonRpcResponse.error,
-        });
-      }
-
-      // Discard the `id` and `jsonrpc` fields in the response body
-      // (the JSON-RPC engine will fill those in)
-      res.result = jsonRpcResponse.result;
-    },
-  );
+    // NOTE: We intentionally do not test to see if `jsonRpcResponse.error` is
+    // strictly a JSON-RPC error response as per
+    // <https://www.jsonrpc.org/specification#error_object> to account for
+    // Ganache returning error objects with extra properties such as `name`
+    if ('error' in jsonRpcResponse) {
+      throw rpcErrors.internal({
+        data: jsonRpcResponse.error,
+      });
+    }
+    return jsonRpcResponse.result;
+  };
 }

@@ -10,6 +10,7 @@
     { "path": "./packages/account-tree-controller" },
     { "path": "./packages/accounts-controller" },
     { "path": "./packages/address-book-controller" },
+    { "path": "./packages/analytics-controller" },
     { "path": "./packages/announcement-controller" },
     { "path": "./packages/app-metadata-controller" },
     { "path": "./packages/approval-controller" },
@@ -19,6 +20,7 @@
     { "path": "./packages/bridge-status-controller" },
     { "path": "./packages/build-utils" },
     { "path": "./packages/chain-agnostic-permission" },
+    { "path": "./packages/claims-controller" },
     { "path": "./packages/composable-controller" },
     { "path": "./packages/controller-utils" },
     { "path": "./packages/core-backend" },
@@ -62,8 +64,9 @@
     { "path": "./packages/subscription-controller" },
     { "path": "./packages/token-search-discovery-controller" },
     { "path": "./packages/transaction-controller" },
+    { "path": "./packages/transaction-pay-controller" },
     { "path": "./packages/user-operation-controller" }
   ],
   "files": [],
-  "include": ["./types"]
+  "include": ["./types", "./scripts"]
 }

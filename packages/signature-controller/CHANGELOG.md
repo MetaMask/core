@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Permit string `id` values in `OriginalRequest` type ([#7065](https://github.com/MetaMask/core/pull/7065))
+  - Previously, only number values were permitted for the `id` property.
+
+## [36.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/gator-permissions-controller` from `^0.3.0` to `^0.4.0` ([#7057](https://github.com/MetaMask/core/pull/7057))
+
+## [35.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6496](https://github.com/MetaMask/core/pull/6496))
+  - Previously, `SignatureController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6496](https://github.com/MetaMask/core/pull/6496))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^33.0.0` to `^34.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/approval-controller` from `^7.0.0` to `^8.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/gator-permissions-controller` from `^0.2.0` to `^0.3.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^23.0.0` to `^24.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/loggin-controller` from `^6.0.0` to `^7.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [34.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 - Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 
 ## [34.0.1]
@@ -586,7 +615,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@34.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@36.0.0...HEAD
+[36.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@35.0.0...@metamask/signature-controller@36.0.0
+[35.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@34.0.2...@metamask/signature-controller@35.0.0
+[34.0.2]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@34.0.1...@metamask/signature-controller@34.0.2
 [34.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@34.0.0...@metamask/signature-controller@34.0.1
 [34.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@33.0.0...@metamask/signature-controller@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@32.0.0...@metamask/signature-controller@33.0.0

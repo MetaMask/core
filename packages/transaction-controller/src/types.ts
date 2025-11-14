@@ -268,6 +268,12 @@ export type TransactionMeta = {
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
 
+  /** Whether the `selectedGasFeeToken` is only used if the user has insufficient native balance. */
+  isGasFeeTokenIgnoredIfBalance?: boolean;
+
+  /** Whether the intent of the transaction was achieved via an alternate route or chain. */
+  isIntentComplete?: boolean;
+
   /**
    * Whether the transaction is an incoming token transfer.
    */
@@ -1434,7 +1440,7 @@ export type Layer1GasFeeFlow = {
    * @param args - The arguments for the matcher function.
    * @param args.transactionMeta - The transaction metadata.
    * @param args.messenger - The messenger instance.
-   * @returns Whether the gas fee flow supports the transaction.
+   * @returns A promise that resolves to whether the gas fee flow supports the transaction.
    */
   matchesTransaction({
     transactionMeta,
@@ -1442,7 +1448,7 @@ export type Layer1GasFeeFlow = {
   }: {
     transactionMeta: TransactionMeta;
     messenger: TransactionControllerMessenger;
-  }): boolean;
+  }): Promise<boolean>;
 
   /**
    * Get layer 1 gas fee estimates for a specific transaction.
@@ -1720,8 +1726,14 @@ export type TransactionBatchRequest = {
   /** Address of the account to submit the transaction batch. */
   from: Hex;
 
+  /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
+  gasFeeToken?: Hex;
+
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
+
+  /** Whether MetaMask will sponsor the gas fee for the transaction. */
+  isGasFeeSponsored?: boolean;
 
   /** ID of the network client to submit the transaction. */
   networkClientId: NetworkClientId;
@@ -2055,8 +2067,14 @@ export type AddTransactionOptions = {
   /** Whether to disable the gas estimation buffer. */
   disableGasBuffer?: boolean;
 
+  /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
+  gasFeeToken?: Hex;
+
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
+
+  /** Whether MetaMask will sponsor the gas fee for the transaction. */
+  isGasFeeSponsored?: boolean;
 
   /** RPC method that requested the transaction. */
   method?: string;

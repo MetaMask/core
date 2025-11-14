@@ -11,7 +11,8 @@
     { "path": "../eth-json-rpc-middleware" },
     { "path": "../eth-json-rpc-provider" },
     { "path": "../json-rpc-engine" },
-    { "path": "../error-reporting-service" }
+    { "path": "../error-reporting-service" },
+    { "path": "../messenger" }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]
 }

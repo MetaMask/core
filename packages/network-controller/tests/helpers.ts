@@ -1,4 +1,3 @@
-import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   InfuraNetworkType,
@@ -6,6 +5,15 @@ import {
   NetworksTicker,
   toHex,
 } from '@metamask/controller-utils';
+import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import {
+  Messenger,
+  type MockAnyNamespace,
+  type MessengerActions,
+  type MessengerEvents,
+  MOCK_ANY_NAMESPACE,
+} from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
 
@@ -13,10 +21,6 @@ import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import type { FakeProviderStub } from '../../../tests/fake-provider';
 import { buildTestObject } from '../../../tests/helpers';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
 import {
   type BuiltInNetworkClientId,
   type CustomNetworkClientId,
@@ -42,9 +46,16 @@ import type {
 } from '../src/types';
 import { NetworkClientType } from '../src/types';
 
+export type AllNetworkControllerActions =
+  MessengerActions<NetworkControllerMessenger>;
+
+export type AllNetworkControllerEvents =
+  MessengerEvents<NetworkControllerMessenger>;
+
 export type RootMessenger = Messenger<
-  ExtractAvailableAction<NetworkControllerMessenger>,
-  ExtractAvailableEvent<NetworkControllerMessenger>
+  MockAnyNamespace,
+  AllNetworkControllerActions,
+  AllNetworkControllerEvents
 >;
 
 /**
@@ -73,26 +84,54 @@ export const TESTNET = {
  * Build a root messenger that includes all events used by the network
  * controller.
  *
+ * @param options - Options.
+ * @param options.actionHandlers - Handlers for actions that are pre-registered
+ * on the messenger.
  * @returns The messenger.
  */
-export function buildRootMessenger(): RootMessenger {
-  return new Messenger();
+export function buildRootMessenger({
+  actionHandlers = {},
+}: {
+  actionHandlers?: {
+    'ErrorReportingService:captureException'?: ErrorReportingServiceCaptureExceptionAction['handler'];
+  };
+} = {}): RootMessenger {
+  const rootMessenger = new Messenger<
+    MockAnyNamespace,
+    MessengerActions<NetworkControllerMessenger>,
+    MessengerEvents<NetworkControllerMessenger>
+  >({ namespace: MOCK_ANY_NAMESPACE });
+  rootMessenger.registerActionHandler(
+    'ErrorReportingService:captureException',
+    actionHandlers['ErrorReportingService:captureException'] ??
+      ((error) => console.error(error)),
+  );
+  return rootMessenger;
 }
 
 /**
- * Build a restricted messenger for the network controller.
+ * Build a messenger for the network controller.
  *
- * @param messenger - A messenger.
- * @returns The network controller restricted messenger.
+ * @param rootMessenger - The root messenger.
+ * @returns The network controller messenger.
  */
 export function buildNetworkControllerMessenger(
-  messenger = buildRootMessenger(),
+  rootMessenger = buildRootMessenger(),
 ): NetworkControllerMessenger {
-  return messenger.getRestricted({
-    name: 'NetworkController',
-    allowedActions: ['ErrorReportingService:captureException'],
-    allowedEvents: [],
+  const networkControllerMessenger = new Messenger<
+    'NetworkController',
+    AllNetworkControllerActions,
+    AllNetworkControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'NetworkController',
+    parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    messenger: networkControllerMessenger,
+    actions: ['ErrorReportingService:captureException'],
+  });
+  return networkControllerMessenger;
 }
 
 /**
@@ -116,7 +155,9 @@ function buildFakeNetworkClient({
   return {
     configuration,
     provider,
-    blockTracker: new FakeBlockTracker({ provider }),
+    blockTracker: new FakeBlockTracker({
+      provider: provider as unknown as InternalProvider,
+    }),
     destroy: () => {
       // do nothing
     },

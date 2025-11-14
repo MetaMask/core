@@ -4,7 +4,6 @@ import type {
   AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
-  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -14,14 +13,17 @@ import {
   ChainId,
   ERC20,
   safelyExecute,
+  safelyExecuteWithTimeout,
   isEqualCaseInsensitive,
   toChecksumHexAddress,
+  toHex,
 } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
   NetworkControllerFindNetworkClientIdByChainIdAction,
@@ -60,6 +62,7 @@ import type {
 } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
+const ACCOUNTS_API_TIMEOUT_MS = 30000;
 
 type LegacyToken = {
   name: string;
@@ -158,12 +161,10 @@ export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
   | TransactionControllerTransactionConfirmedEvent;
 
-export type TokenDetectionControllerMessenger = RestrictedMessenger<
+export type TokenDetectionControllerMessenger = Messenger<
   typeof controllerName,
   TokenDetectionControllerActions | AllowedActions,
-  TokenDetectionControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  TokenDetectionControllerEvents | AllowedEvents
 >;
 
 /** The input to start polling for the {@link TokenDetectionController} */
@@ -267,7 +268,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         this.platform,
       );
 
-      return result.balances;
+      // Return the full response including unprocessedNetworks
+      return result;
     },
   };
 
@@ -275,7 +277,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * Creates a TokenDetectionController instance.
    *
    * @param options - The controller options.
-   * @param options.messenger - The controller messaging system.
+   * @param options.messenger - The controller messenger.
    * @param options.disabled - If set to true, all network requests are blocked.
    * @param options.interval - Polling interval used to fetch new token rates
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
@@ -321,7 +323,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       metadata: {},
     });
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:addDetectedTokensViaWs` as const,
       this.addDetectedTokensViaWs.bind(this),
     );
@@ -331,23 +333,22 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     this.#selectedAccountId = this.#getSelectedAccount().id;
 
-    const { tokensChainsCache } = this.messagingSystem.call(
+    const { tokensChainsCache } = this.messenger.call(
       'TokenListController:getState',
     );
 
     this.#tokensChainsCache = tokensChainsCache;
 
-    const { useTokenDetection: defaultUseTokenDetection } =
-      this.messagingSystem.call('PreferencesController:getState');
+    const { useTokenDetection: defaultUseTokenDetection } = this.messenger.call(
+      'PreferencesController:getState',
+    );
     this.#isDetectionEnabledFromPreferences = defaultUseTokenDetection;
 
     this.#getBalancesInSingleCall = getBalancesInSingleCall;
 
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
 
-    const { isUnlocked } = this.messagingSystem.call(
-      'KeyringController:getState',
-    );
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
     this.#isUnlocked = isUnlocked;
 
     this.#accountsAPI.isAccountsAPIEnabled = useAccountsAPI;
@@ -359,20 +360,20 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   /**
-   * Constructor helper for registering this controller's messaging system subscriptions to controller events.
+   * Constructor helper for registering this controller's messenger subscriptions to controller events.
    */
   #registerEventListeners() {
-    this.messagingSystem.subscribe('KeyringController:unlock', async () => {
+    this.messenger.subscribe('KeyringController:unlock', async () => {
       this.#isUnlocked = true;
       await this.#restartTokenDetection();
     });
 
-    this.messagingSystem.subscribe('KeyringController:lock', () => {
+    this.messenger.subscribe('KeyringController:lock', () => {
       this.#isUnlocked = false;
       this.#stopPolling();
     });
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TokenListController:stateChange',
       async ({ tokensChainsCache }) => {
         const isEqualValues = this.#compareTokensChainsCache(
@@ -385,7 +386,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       },
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'PreferencesController:stateChange',
       async ({ useTokenDetection }) => {
         const selectedAccount = this.#getSelectedAccount();
@@ -402,10 +403,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       },
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:selectedEvmAccountChange',
       async (selectedAccount) => {
-        const { networkConfigurationsByChainId } = this.messagingSystem.call(
+        const { networkConfigurationsByChainId } = this.messenger.call(
           'NetworkController:getState',
         );
 
@@ -422,7 +423,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       },
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       async (transactionMeta) => {
         await this.detectTokens({
@@ -521,10 +522,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     chainIds: Hex[] | undefined,
   ): { chainId: Hex; networkClientId: NetworkClientId }[] {
     const { networkConfigurationsByChainId, selectedNetworkClientId } =
-      this.messagingSystem.call('NetworkController:getState');
+      this.messenger.call('NetworkController:getState');
 
     if (!chainIds) {
-      const networkConfiguration = this.messagingSystem.call(
+      const networkConfiguration = this.messenger.call(
         'NetworkController:getNetworkConfigurationByNetworkClientId',
         selectedNetworkClientId,
       );
@@ -606,11 +607,23 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     addressToDetect: string,
     supportedNetworks: number[] | null,
   ) {
-    return await this.#addDetectedTokensViaAPI({
-      chainIds: chainsToDetectUsingAccountAPI,
-      selectedAddress: addressToDetect,
-      supportedNetworks,
-    });
+    const result = await safelyExecuteWithTimeout(
+      async () => {
+        return this.#addDetectedTokensViaAPI({
+          chainIds: chainsToDetectUsingAccountAPI,
+          selectedAddress: addressToDetect,
+          supportedNetworks,
+        });
+      },
+      false,
+      ACCOUNTS_API_TIMEOUT_MS,
+    );
+
+    if (!result) {
+      return { result: 'failed' } as const;
+    }
+
+    return result;
   }
 
   #addChainsToRpcDetection(
@@ -647,7 +660,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     if (isMainnetDetectionInactive) {
       this.#tokensChainsCache = this.#getConvertedStaticMainnetTokenList();
     } else {
-      const { tokensChainsCache } = this.messagingSystem.call(
+      const { tokensChainsCache } = this.messenger.call(
         'TokenListController:getState',
       );
       this.#tokensChainsCache = tokensChainsCache ?? {};
@@ -723,11 +736,25 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         supportedNetworks,
       );
 
-      // If the account API call failed, have those chains fall back to RPC detection
-      if (apiResult?.result === 'failed') {
+      // If the account API call failed or returned undefined, have those chains fall back to RPC detection
+      if (!apiResult || apiResult.result === 'failed') {
         this.#addChainsToRpcDetection(
           chainsToDetectUsingRpc,
           chainsToDetectUsingAccountAPI,
+          clientNetworks,
+        );
+      } else if (
+        apiResult?.result === 'success' &&
+        apiResult.unprocessedNetworks &&
+        apiResult.unprocessedNetworks.length > 0
+      ) {
+        // Handle unprocessed networks by adding them to RPC detection
+        const unprocessedChainIds = apiResult.unprocessedNetworks.map(
+          (chainId: number) => toHex(chainId),
+        ) as Hex[];
+        this.#addChainsToRpcDetection(
+          chainsToDetectUsingRpc,
+          unprocessedChainIds,
           clientNetworks,
         );
       }
@@ -747,7 +774,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     selectedAddress: string;
   }): string[][] {
     const { allTokens, allDetectedTokens, allIgnoredTokens } =
-      this.messagingSystem.call('TokensController:getState');
+      this.messenger.call('TokensController:getState');
     const [tokensAddresses, detectedTokensAddresses, ignoredTokensAddresses] = [
       allTokens,
       allDetectedTokens,
@@ -829,20 +856,22 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }) {
     return await safelyExecute(async () => {
       // Fetch balances for multiple chain IDs at once
-      const tokenBalancesByChain = await this.#accountsAPI
+      const apiResponse = await this.#accountsAPI
         .getMultiNetworksBalances(selectedAddress, chainIds, supportedNetworks)
         .catch(() => null);
 
-      if (tokenBalancesByChain === null) {
+      if (apiResponse === null) {
         return { result: 'failed' } as const;
       }
+
+      const tokenBalancesByChain = apiResponse.balances;
 
       // Process each chain ID individually
       for (const chainId of chainIds) {
         const isTokenDetectionInactiveInMainnet =
           !this.#isDetectionEnabledFromPreferences &&
           chainId === ChainId.mainnet;
-        const { tokensChainsCache } = this.messagingSystem.call(
+        const { tokensChainsCache } = this.messenger.call(
           'TokenListController:getState',
         );
         this.#tokensChainsCache = isTokenDetectionInactiveInMainnet
@@ -883,12 +912,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
             },
           });
 
-          const networkClientId = this.messagingSystem.call(
+          const networkClientId = this.messenger.call(
             'NetworkController:findNetworkClientIdByChainId',
             chainId,
           );
 
-          await this.messagingSystem.call(
+          await this.messenger.call(
             'TokensController:addTokens',
             tokensWithBalance,
             networkClientId,
@@ -896,7 +925,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         }
       }
 
-      return { result: 'success' } as const;
+      return {
+        result: 'success',
+        unprocessedNetworks: apiResponse.unprocessedNetworks,
+      } as const;
     });
   }
 
@@ -1012,7 +1044,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           },
         });
 
-        await this.messagingSystem.call(
+        await this.messenger.call(
           'TokensController:addTokens',
           tokensWithBalance,
           networkClientId,
@@ -1086,12 +1118,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         },
       });
 
-      const networkClientId = this.messagingSystem.call(
+      const networkClientId = this.messenger.call(
         'NetworkController:findNetworkClientIdByChainId',
         chainId,
       );
 
-      await this.messagingSystem.call(
+      await this.messenger.call(
         'TokensController:addTokens',
         tokensWithBalance,
         networkClientId,
@@ -1100,12 +1132,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   #getSelectedAccount() {
-    return this.messagingSystem.call('AccountsController:getSelectedAccount');
+    return this.messenger.call('AccountsController:getSelectedAccount');
   }
 
   #getSelectedAddress() {
     // If the address is not defined (or empty), we fallback to the currently selected account's address
-    const account = this.messagingSystem.call(
+    const account = this.messenger.call(
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );

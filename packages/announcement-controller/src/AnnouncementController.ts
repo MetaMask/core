@@ -1,10 +1,10 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 
 type ViewedAnnouncement = {
   [id: number]: boolean;
@@ -64,17 +64,15 @@ const metadata: StateMetadata<AnnouncementControllerState> = {
   announcements: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
 };
 
-export type AnnouncementControllerMessenger = RestrictedMessenger<
+export type AnnouncementControllerMessenger = Messenger<
   typeof controllerName,
   AnnouncementControllerActions,
-  AnnouncementControllerEvents,
-  never,
-  never
+  AnnouncementControllerEvents
 >;
 
 /**

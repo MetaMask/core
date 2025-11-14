@@ -1,17 +1,18 @@
 import type {
-  RestrictedMessenger,
   StateConstraint,
   StateMetadata,
   StateMetadataConstraint,
   ControllerStateChangeEvent,
+  ControllerGetStateAction,
   BaseControllerInstance as ControllerInstance,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 
 export const controllerName = 'ComposableController';
 
 export const INVALID_CONTROLLER_ERROR =
-  'Invalid controller: controller must have a `messagingSystem` and inherit from `BaseController`.';
+  'Invalid controller: controller must inherit from `BaseController`.';
 
 /**
  * The narrowest supertype for the composable controller state object.
@@ -19,6 +20,15 @@ export const INVALID_CONTROLLER_ERROR =
 export type ComposableControllerStateConstraint = {
   [controllerName: string]: StateConstraint;
 };
+
+/**
+ * The `getState` action type for the {@link ComposableControllerMessenger}.
+ *
+ * @template ComposableControllerState - A type object that maps controller names to their state types.
+ */
+export type ComposableControllerGetStateAction<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = ControllerGetStateAction<typeof controllerName, ComposableControllerState>;
 
 /**
  * The `stateChange` event type for the {@link ComposableControllerMessenger}.
@@ -42,6 +52,15 @@ export type ComposableControllerEvents<
 > = ComposableControllerStateChangeEvent<ComposableControllerState>;
 
 /**
+ * A union type of action types available to the {@link ComposableControllerMessenger}.
+ *
+ * @template ComposableControllerState - A type object that maps controller names to their state types.
+ */
+export type ComposableControllerActions<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = ComposableControllerGetStateAction<ComposableControllerState>;
+
+/**
  * A utility type that extracts controllers from the {@link ComposableControllerState} type,
  * and derives a union type of all of their corresponding `stateChange` events.
  *
@@ -51,12 +70,10 @@ export type ChildControllerStateChangeEvents<
   ComposableControllerState extends ComposableControllerStateConstraint,
 > =
   ComposableControllerState extends Record<
-    infer ControllerName extends string,
-    infer ControllerState
+    infer ChildControllerName extends string,
+    infer ChildControllerState extends StateConstraint
   >
-    ? ControllerState extends StateConstraint
-      ? ControllerStateChangeEvent<ControllerName, ControllerState>
-      : never
+    ? ControllerStateChangeEvent<ChildControllerName, ChildControllerState>
     : never;
 
 /**
@@ -75,13 +92,11 @@ export type AllowedEvents<
  */
 export type ComposableControllerMessenger<
   ComposableControllerState extends ComposableControllerStateConstraint,
-> = RestrictedMessenger<
+> = Messenger<
   typeof controllerName,
-  never,
+  ComposableControllerActions<ComposableControllerState>,
   | ComposableControllerEvents<ComposableControllerState>
-  | AllowedEvents<ComposableControllerState>,
-  never,
-  AllowedEvents<ComposableControllerState>['type']
+  | AllowedEvents<ComposableControllerState>
 >;
 
 /**
@@ -106,7 +121,7 @@ export class ComposableController<
    *
    * @param options - Initial options used to configure this controller
    * @param options.controllers - An object that contains child controllers keyed by their names.
-   * @param options.messenger - A restricted messenger.
+   * @param options.messenger - A controller messenger.
    */
   constructor({
     controllers,
@@ -128,7 +143,7 @@ export class ComposableController<
         (metadata as StateMetadataConstraint)[name] = {
           includeInStateLogs: false,
           persist: true,
-          anonymous: true,
+          includeInDebugSnapshot: true,
           usedInUi: false,
         };
         return metadata;
@@ -163,27 +178,23 @@ export class ComposableController<
         delete this.metadata[name];
         delete this.state[name];
         // eslint-disable-next-line no-empty
-      } catch (_) {}
-      // False negative. `name` is a string type.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      } catch {}
       throw new Error(`${name} - ${INVALID_CONTROLLER_ERROR}`);
     }
     try {
-      this.messagingSystem.subscribe(
-        // False negative. `name` is a string type.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        `${name}:stateChange`,
-        (childState: StateConstraint) => {
-          this.update((state) => {
-            // Type assertion is necessary for property assignment to a generic type. This does not pollute or widen the type of the asserted variable.
-            // @ts-expect-error "Type instantiation is excessively deep"
-            (state as ComposableControllerStateConstraint)[name] = childState;
-          });
-        },
-      );
+      this.messenger.subscribe<
+        // The type intersection with "ComposableController:stateChange" is added by one of the `Messenger.subscribe` overloads, but that constraint is unnecessary here,
+        // since this method only subscribes the messenger to child controller `stateChange` events.
+        // @ts-expect-error "Type '`${string}:stateChange`' is not assignable to parameter of type '"ComposableController:stateChange" & ChildControllerStateChangeEvents<ComposableControllerState>["type"]'."
+        ChildControllerStateChangeEvents<ComposableControllerState>['type']
+      >(`${name}:stateChange`, (childState: StateConstraint) => {
+        this.update((state) => {
+          // Type assertion is necessary for property assignment to a generic type. This does not pollute or widen the type of the asserted variable.
+          // @ts-expect-error "Type instantiation is excessively deep"
+          (state as ComposableControllerStateConstraint)[name] = childState;
+        });
+      });
     } catch (error: unknown) {
-      // False negative. `name` is a string type.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       console.error(`${name} - ${String(error)}`);
     }
   }

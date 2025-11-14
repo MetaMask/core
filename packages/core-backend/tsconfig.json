@@ -10,13 +10,13 @@
       "path": "../accounts-controller"
     },
     {
-      "path": "../base-controller"
-    },
-    {
       "path": "../controller-utils"
     },
     {
       "path": "../keyring-controller"
+    },
+    {
+      "path": "../messenger"
     },
     {
       "path": "../profile-sync-controller"

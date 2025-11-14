@@ -1271,6 +1271,489 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
   });
 
+  describe('fetchExchangeRates', () => {
+    const exchangeRatesMockResponseUsd = {
+      btc: {
+        name: 'Bitcoin',
+        ticker: 'btc',
+        value: 0.000008880690393396647,
+        currencyType: 'crypto',
+      },
+      eth: {
+        name: 'Ether',
+        ticker: 'eth',
+        value: 0.000240977533824818,
+        currencyType: 'crypto',
+      },
+      ltc: {
+        name: 'Litecoin',
+        ticker: 'ltc',
+        value: 0.01021289164000047,
+        currencyType: 'crypto',
+      },
+    };
+
+    const exchangeRatesMockResponseEur = {
+      btc: {
+        name: 'Bitcoin',
+        ticker: 'btc',
+        value: 0.000010377048177666853,
+        currencyType: 'crypto',
+      },
+      eth: {
+        name: 'Ether',
+        ticker: 'eth',
+        value: 0.0002845697921761581,
+        currencyType: 'crypto',
+      },
+      ltc: {
+        name: 'Litecoin',
+        ticker: 'ltc',
+        value: 0.011983861448641322,
+        currencyType: 'crypto',
+      },
+    };
+
+    const cryptocurrencies = ['ETH'];
+
+    describe('when includeUsdRate is true and baseCurrency is not USD', () => {
+      it('throws when all calls to price fail', async () => {
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'eur',
+          })
+          .replyWithError('Failed to fetch');
+
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'usd',
+          })
+          .replyWithError('Failed to fetch');
+        await expect(() =>
+          new CodefiTokenPricesServiceV2().fetchExchangeRates({
+            baseCurrency: 'eur',
+            includeUsdRate: true,
+            cryptocurrencies: ['btc', 'eth'],
+          }),
+        ).rejects.toThrow('Failed to fetch');
+      });
+      it('throws an error if none of the cryptocurrencies are supported', async () => {
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'eur',
+          })
+          .reply(200, exchangeRatesMockResponseEur);
+
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'usd',
+          })
+          .reply(200, exchangeRatesMockResponseUsd);
+
+        await expect(
+          new CodefiTokenPricesServiceV2().fetchExchangeRates({
+            baseCurrency: 'eur',
+            includeUsdRate: true,
+            cryptocurrencies: ['not-supported'],
+          }),
+        ).rejects.toThrow(
+          'None of the cryptocurrencies are supported by price api',
+        );
+      });
+
+      it('returns result when some of the cryptocurrencies are supported', async () => {
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'eur',
+          })
+          .reply(200, exchangeRatesMockResponseEur);
+
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'usd',
+          })
+          .reply(200, exchangeRatesMockResponseUsd);
+
+        const result =
+          await new CodefiTokenPricesServiceV2().fetchExchangeRates({
+            baseCurrency: 'eur',
+            includeUsdRate: true,
+            cryptocurrencies: ['not-supported', 'eth'],
+          });
+
+        expect(result).toStrictEqual({
+          eth: {
+            ...exchangeRatesMockResponseEur.eth,
+            usd: 0.000240977533824818,
+          },
+        });
+      });
+
+      it('returns successfully usd values when all the cryptocurrencies are supported', async () => {
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'eur',
+          })
+          .reply(200, exchangeRatesMockResponseEur);
+
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'usd',
+          })
+          .reply(200, exchangeRatesMockResponseUsd);
+
+        const result =
+          await new CodefiTokenPricesServiceV2().fetchExchangeRates({
+            baseCurrency: 'eur',
+            includeUsdRate: true,
+            cryptocurrencies: ['btc', 'eth'],
+          });
+
+        expect(result).toStrictEqual({
+          eth: {
+            ...exchangeRatesMockResponseEur.eth,
+            usd: 0.000240977533824818,
+          },
+          btc: {
+            ...exchangeRatesMockResponseEur.btc,
+            usd: 0.000008880690393396647,
+          },
+        });
+      });
+
+      it('does not return usd values when one call to price fails', async () => {
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'eur',
+          })
+          .reply(200, exchangeRatesMockResponseEur);
+
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'usd',
+          })
+          .replyWithError('Failed to fetch');
+
+        const result =
+          await new CodefiTokenPricesServiceV2().fetchExchangeRates({
+            baseCurrency: 'eur',
+            includeUsdRate: true,
+            cryptocurrencies: ['btc', 'eth'],
+          });
+
+        expect(result).toStrictEqual({
+          eth: {
+            ...exchangeRatesMockResponseEur.eth,
+          },
+          btc: {
+            ...exchangeRatesMockResponseEur.btc,
+          },
+        });
+      });
+    });
+
+    describe('when includeUsdRate is true and baseCurrency is equal to USD', () => {
+      it('throws when the call to price fails', async () => {
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'usd',
+          })
+          .replyWithError('Failed to fetch')
+          .persist();
+
+        await expect(() =>
+          new CodefiTokenPricesServiceV2().fetchExchangeRates({
+            baseCurrency: 'usd',
+            includeUsdRate: true,
+            cryptocurrencies: ['btc', 'eth'],
+          }),
+        ).rejects.toThrow('Failed to fetch');
+      });
+
+      it('returns successfully usd values when all the cryptocurrencies are supported', async () => {
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'usd',
+          })
+          .reply(200, exchangeRatesMockResponseUsd);
+
+        const result =
+          await new CodefiTokenPricesServiceV2().fetchExchangeRates({
+            baseCurrency: 'usd',
+            includeUsdRate: true,
+            cryptocurrencies: ['btc', 'eth'],
+          });
+
+        expect(result).toStrictEqual({
+          eth: {
+            ...exchangeRatesMockResponseUsd.eth,
+            usd: exchangeRatesMockResponseUsd.eth.value,
+          },
+          btc: {
+            ...exchangeRatesMockResponseUsd.btc,
+            usd: exchangeRatesMockResponseUsd.btc.value,
+          },
+        });
+      });
+
+      it('returns successfully usd values when some of the cryptocurrencies are supported', async () => {
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'usd',
+          })
+          .reply(200, exchangeRatesMockResponseUsd);
+
+        const result =
+          await new CodefiTokenPricesServiceV2().fetchExchangeRates({
+            baseCurrency: 'usd',
+            includeUsdRate: true,
+            cryptocurrencies: ['not-supported', 'eth'],
+          });
+
+        expect(result).toStrictEqual({
+          eth: {
+            ...exchangeRatesMockResponseUsd.eth,
+            usd: exchangeRatesMockResponseUsd.eth.value,
+          },
+        });
+      });
+    });
+
+    describe('when includeUsdRate is false and baseCurrency is not USD', () => {
+      it('does not include usd in the returned result', async () => {
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'eur',
+          })
+          .reply(200, exchangeRatesMockResponseEur);
+
+        const result =
+          await new CodefiTokenPricesServiceV2().fetchExchangeRates({
+            baseCurrency: 'eur',
+            includeUsdRate: false,
+            cryptocurrencies: ['eth'],
+          });
+
+        expect(result).toStrictEqual({
+          eth: exchangeRatesMockResponseEur.eth,
+        });
+      });
+    });
+
+    describe('when includeUsdRate is false and baseCurrency is USD', () => {
+      it('includes usd in the returned result', async () => {
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'usd',
+          })
+          .reply(200, exchangeRatesMockResponseUsd);
+
+        const result =
+          await new CodefiTokenPricesServiceV2().fetchExchangeRates({
+            baseCurrency: 'usd',
+            includeUsdRate: false,
+            cryptocurrencies: ['eth'],
+          });
+
+        expect(result).toStrictEqual({
+          eth: {
+            ...exchangeRatesMockResponseUsd.eth,
+            usd: exchangeRatesMockResponseUsd.eth.value,
+          },
+        });
+      });
+    });
+
+    it('throws if the request fails consistently', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v1/exchange-rates')
+        .query({
+          baseCurrency: 'eur',
+        })
+        .replyWithError('Failed to fetch');
+
+      await expect(
+        new CodefiTokenPricesServiceV2().fetchExchangeRates({
+          baseCurrency: 'eur',
+          includeUsdRate: false,
+          cryptocurrencies,
+        }),
+      ).rejects.toThrow('Failed to fetch');
+    });
+
+    it('throws if the initial request and all retries fail', async () => {
+      const retries = 3;
+      nock('https://price.api.cx.metamask.io')
+        .get('/v1/exchange-rates')
+        .query({
+          baseCurrency: 'eur',
+        })
+        .times(1 + retries)
+        .replyWithError('Failed to fetch');
+
+      await expect(
+        new CodefiTokenPricesServiceV2({ retries }).fetchExchangeRates({
+          baseCurrency: 'eur',
+          includeUsdRate: false,
+          cryptocurrencies,
+        }),
+      ).rejects.toThrow('Failed to fetch');
+    });
+
+    it('succeeds if the last retry succeeds', async () => {
+      const retries = 3;
+      // Initial interceptor for failing requests
+      nock('https://price.api.cx.metamask.io')
+        .get('/v1/exchange-rates')
+        .query({
+          baseCurrency: 'eur',
+        })
+        .times(retries)
+        .replyWithError('Failed to fetch');
+      // Interceptor for successful request
+      nock('https://price.api.cx.metamask.io')
+        .get('/v1/exchange-rates')
+        .query({
+          baseCurrency: 'eur',
+        })
+        .reply(200, exchangeRatesMockResponseEur);
+
+      const exchangeRates = await new CodefiTokenPricesServiceV2({
+        retries,
+      }).fetchExchangeRates({
+        baseCurrency: 'eur',
+        includeUsdRate: false,
+        cryptocurrencies,
+      });
+
+      expect(exchangeRates).toStrictEqual({
+        eth: exchangeRatesMockResponseEur.eth,
+      });
+    });
+
+    describe('before circuit break', () => {
+      let clock: sinon.SinonFakeTimers;
+
+      beforeEach(() => {
+        clock = useFakeTimers({ now: Date.now() });
+      });
+
+      afterEach(() => {
+        clock.restore();
+      });
+
+      it('calls onDegraded when request is slower than threshold', async () => {
+        const degradedThreshold = 1000;
+        const retries = 0;
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'eur',
+          })
+          .delay(degradedThreshold * 2)
+          .reply(200, exchangeRatesMockResponseEur);
+        const onDegradedHandler = jest.fn();
+        const service = new CodefiTokenPricesServiceV2({
+          degradedThreshold,
+          onDegraded: onDegradedHandler,
+          retries,
+        });
+
+        await fetchExchangeRatesWithFakeTimers({
+          clock,
+          fetchExchangeRates: () =>
+            service.fetchExchangeRates({
+              baseCurrency: 'eur',
+              includeUsdRate: false,
+              cryptocurrencies,
+            }),
+          retries,
+        });
+
+        expect(onDegradedHandler).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('after circuit break', () => {
+      let clock: sinon.SinonFakeTimers;
+
+      beforeEach(() => {
+        clock = useFakeTimers({ now: Date.now() });
+      });
+
+      afterEach(() => {
+        clock.restore();
+      });
+
+      it('calls onBreak handler upon break', async () => {
+        const retries = 3;
+        // Max consencutive failures is set to match number of calls in three update attempts (including retries)
+        const maximumConsecutiveFailures = (1 + retries) * 3;
+        // Initial interceptor for failing requests
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'eur',
+          })
+          .times(maximumConsecutiveFailures)
+          .replyWithError('Failed to fetch');
+        // This interceptor should not be used
+        nock('https://price.api.cx.metamask.io')
+          .get('/v1/exchange-rates')
+          .query({
+            baseCurrency: 'eur',
+          })
+          .reply(200, exchangeRatesMockResponseEur);
+        const onBreakHandler = jest.fn();
+        const service = new CodefiTokenPricesServiceV2({
+          retries,
+          maximumConsecutiveFailures,
+          onBreak: onBreakHandler,
+          // Ensure break duration is well over the max delay for a single request, so that the
+          // break doesn't end during a retry attempt
+          circuitBreakDuration: defaultMaxRetryDelay * 10,
+        });
+        const fetchExchangeRates = () =>
+          service.fetchExchangeRates({
+            baseCurrency: 'eur',
+            includeUsdRate: false,
+            cryptocurrencies,
+          });
+        expect(onBreakHandler).not.toHaveBeenCalled();
+
+        // Initial three calls to exhaust maximum allowed failures
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for (const _retryAttempt of Array(retries).keys()) {
+          // eslint-disable-next-line no-loop-func
+          await expect(() =>
+            fetchExchangeRatesWithFakeTimers({
+              clock,
+              fetchExchangeRates,
+              retries,
+            }),
+          ).rejects.toThrow('Failed to fetch');
+        }
+
+        expect(onBreakHandler).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
   describe('validateChainIdSupported', () => {
     it.each(SUPPORTED_CHAIN_IDS)(
       'returns true if the given chain ID is %s',
@@ -1344,6 +1827,7 @@ describe('CodefiTokenPricesServiceV2', () => {
  * @param args.clock - The fake timers clock to advance.
  * @param args.fetchTokenPrices - The "fetchTokenPrices" function to call.
  * @param args.retries - The number of retries the fetch call is configured to make.
+ * @returns The result of the fetch call.
  */
 async function fetchTokenPricesWithFakeTimers({
   clock,
@@ -1355,6 +1839,46 @@ async function fetchTokenPricesWithFakeTimers({
   retries: number;
 }) {
   const pendingUpdate = fetchTokenPrices();
+  pendingUpdate.catch(() => {
+    // suppress Unhandled Promise error
+  });
+
+  // Advance timer enough to exceed max possible retry delay for initial call, and all
+  // subsequent retries
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  for (const _retryAttempt of Array(retries + 1).keys()) {
+    await clock.tickAsync(defaultMaxRetryDelay);
+  }
+
+  return await pendingUpdate;
+}
+
+/**
+ * Calls the 'fetchExchangeRates' function while advancing the clock, allowing
+ * the function to resolve.
+ *
+ * Fetching rates is challenging in an environment with fake timers
+ * because we're using a library that automatically retries failed requests,
+ * which uses `setTimeout` internally. We have to advance the clock after the
+ * update call starts but before awaiting the result, otherwise it never
+ * resolves.
+ *
+ * @param args - Arguments
+ * @param args.clock - The fake timers clock to advance.
+ * @param args.fetchExchangeRates - The "fetchExchangeRates" function to call.
+ * @param args.retries - The number of retries the fetch call is configured to make.
+ * @returns The result of the fetch call.
+ */
+async function fetchExchangeRatesWithFakeTimers({
+  clock,
+  fetchExchangeRates,
+  retries,
+}: {
+  clock: sinon.SinonFakeTimers;
+  fetchExchangeRates: () => Promise<unknown>;
+  retries: number;
+}) {
+  const pendingUpdate = fetchExchangeRates();
   pendingUpdate.catch(() => {
     // suppress Unhandled Promise error
   });

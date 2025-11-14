@@ -27,10 +27,12 @@
 /packages/name-controller                   @MetaMask/confirmations
 /packages/signature-controller              @MetaMask/confirmations
 /packages/transaction-controller            @MetaMask/confirmations
+/packages/transaction-pay-controller        @MetaMask/confirmations
 /packages/user-operation-controller         @MetaMask/confirmations
 
 ## Delegation Team
 /packages/gator-permissions-controller @MetaMask/delegation
+/packages/eip-7702-internal-rpc-middleware @MetaMask/delegation @MetaMask/core-platform
 
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
@@ -47,6 +49,7 @@
 
 ## Mobile Platform Team
 /packages/app-metadata-controller @MetaMask/mobile-platform
+/packages/analytics-controller    @MetaMask/mobile-platform @MetaMask/extension-platform
 
 ## Portfolio Team
 /packages/token-search-discovery-controller      @MetaMask/portfolio
@@ -78,6 +81,7 @@
 /packages/seedless-onboarding-controller @MetaMask/web3auth
 /packages/shield-controller              @MetaMask/web3auth
 /packages/subscription-controller        @MetaMask/web3auth
+/packages/claims-controller              @MetaMask/web3auth
 
 ## Joint team ownership
 /packages/announcement-controller               @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
@@ -100,6 +104,8 @@
 /packages/account-tree-controller/package.json  @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/account-tree-controller/CHANGELOG.md  @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/accounts-controller/package.json        @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/analytics-controller/package.json       @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
+/packages/analytics-controller/CHANGELOG.md       @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/accounts-controller/CHANGELOG.md        @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/address-book-controller/package.json    @MetaMask/confirmations @MetaMask/core-platform
 /packages/address-book-controller/CHANGELOG.md    @MetaMask/confirmations @MetaMask/core-platform
@@ -149,6 +155,8 @@
 /packages/signature-controller/CHANGELOG.md       @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-controller/package.json     @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-controller/CHANGELOG.md     @MetaMask/confirmations @MetaMask/core-platform
+/packages/transaction-pay-controller/package.json @MetaMask/confirmations @MetaMask/core-platform
+/packages/transaction-pay-controller/CHANGELOG.md @MetaMask/confirmations @MetaMask/core-platform
 /packages/user-operation-controller/package.json  @MetaMask/confirmations @MetaMask/core-platform
 /packages/user-operation-controller/CHANGELOG.md  @MetaMask/confirmations @MetaMask/core-platform
 /packages/multichain-transactions-controller/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
@@ -175,3 +183,5 @@
 /packages/subscription-controller/CHANGELOG.md @MetaMask/web3auth @MetaMask/core-platform
 /packages/core-backend/package.json           @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/core-backend/CHANGELOG.md           @MetaMask/core-platform @MetaMask/metamask-assets
+/packages/claims-controller/package.json @MetaMask/web3auth @MetaMask/core-platform
+/packages/claims-controller/CHANGELOG.md @MetaMask/web3auth @MetaMask/core-platform

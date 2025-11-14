@@ -56,8 +56,6 @@ export function testsForRpcFailoverBehavior({
             const request = requestToCall;
             const requestToMock = getRequestToMock(request, blockNumber);
             const additionalMockRpcCallOptions =
-              // This condition is intentional.
-              // eslint-disable-next-line jest/no-conditional-in-test
               failure instanceof Error || typeof failure === 'string'
                 ? { error: failure }
                 : { response: failure };
@@ -135,8 +133,6 @@ export function testsForRpcFailoverBehavior({
             const request = requestToCall;
             const requestToMock = getRequestToMock(request, blockNumber);
             const additionalMockRpcCallOptions =
-              // This condition is intentional.
-              // eslint-disable-next-line jest/no-conditional-in-test
               failure instanceof Error || typeof failure === 'string'
                 ? { error: failure }
                 : { response: failure };
@@ -226,8 +222,6 @@ export function testsForRpcFailoverBehavior({
             const request = requestToCall;
             const requestToMock = getRequestToMock(request, blockNumber);
             const additionalMockRpcCallOptions =
-              // This condition is intentional.
-              // eslint-disable-next-line jest/no-conditional-in-test
               failure instanceof Error || typeof failure === 'string'
                 ? { error: failure }
                 : { response: failure };
@@ -311,8 +305,6 @@ export function testsForRpcFailoverBehavior({
     it('allows RPC service options to be customized', async () => {
       const customMaxConsecutiveFailures = 6;
       const customMaxRetries = 2;
-      // This is okay.
-      // eslint-disable-next-line jest/no-conditional-in-test
       const customNumRequestsToMake = isRetriableFailure
         ? customMaxConsecutiveFailures / (customMaxRetries + 1)
         : customMaxConsecutiveFailures;
@@ -337,8 +329,6 @@ export function testsForRpcFailoverBehavior({
               const request = requestToCall;
               const requestToMock = getRequestToMock(request, blockNumber);
               const additionalMockRpcCallOptions =
-                // This condition is intentional.
-                // eslint-disable-next-line jest/no-conditional-in-test
                 failure instanceof Error || typeof failure === 'string'
                   ? { error: failure }
                   : { response: failure };
@@ -371,8 +361,6 @@ export function testsForRpcFailoverBehavior({
                   messenger,
                   getRpcServiceOptions: (rpcEndpointUrl) => {
                     const commonOptions = { fetch, btoa };
-                    // We need to return different results.
-                    // eslint-disable-next-line jest/no-conditional-in-test
                     if (rpcEndpointUrl === 'https://failover.endpoint') {
                       const headers: HeadersInit = {
                         'X-Baz': 'Qux',
@@ -434,7 +422,6 @@ export function testsForRpcFailoverBehavior({
         const request = requestToCall;
         const requestToMock = getRequestToMock(request, blockNumber);
         const additionalMockRpcCallOptions =
-          // eslint-disable-next-line jest/no-conditional-in-test
           failure instanceof Error || typeof failure === 'string'
             ? { error: failure }
             : { response: failure };

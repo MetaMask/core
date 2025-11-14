@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+
 ### Changed
 
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` for `StaticIntervalPollingController` and `BlockTrackerPollingController` ([#6444](https://github.com/MetaMask/core/pull/6444))
+  - Previously, `StaticIntervalPollingController` and `BlockTrackerPollingController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [14.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 - Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 
 ## [14.0.1]
@@ -261,7 +273,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@14.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@14.0.2...@metamask/polling-controller@15.0.0
+[14.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@14.0.1...@metamask/polling-controller@14.0.2
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@14.0.0...@metamask/polling-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@13.0.0...@metamask/polling-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.3...@metamask/polling-controller@13.0.0

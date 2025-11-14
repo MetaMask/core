@@ -376,6 +376,31 @@ describe('IncomingTransactionHelper', () => {
 
       expect(jest.getTimerCount()).toBe(0);
     });
+
+    it('does not queue additional updates if first is still running', async () => {
+      const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        remoteTransactionSource,
+      });
+
+      helper.start();
+      helper.stop();
+
+      helper.start();
+      helper.stop();
+
+      helper.start();
+
+      await flushPromises();
+
+      expect(jest.getTimerCount()).toBe(1);
+
+      expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
+        1,
+      );
+    });
   });
 
   describe('stop', () => {

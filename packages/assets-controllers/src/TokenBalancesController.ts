@@ -6,7 +6,7 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
+  StateMetadata,
 } from '@metamask/base-controller';
 import {
   BNToHex,
@@ -20,6 +20,7 @@ import type {
   AccountActivityServiceStatusChangedEvent,
 } from '@metamask/core-backend';
 import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -68,11 +69,11 @@ const CONTROLLER = 'TokenBalancesController' as const;
 const DEFAULT_INTERVAL_MS = 30_000; // 30 seconds
 const DEFAULT_WEBSOCKET_ACTIVE_POLLING_INTERVAL_MS = 300_000; // 5 minutes
 
-const metadata = {
+const metadata: StateMetadata<TokenBalancesControllerState> = {
   tokenBalances: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -139,12 +140,10 @@ export type AllowedEvents =
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceStatusChangedEvent;
 
-export type TokenBalancesControllerMessenger = RestrictedMessenger<
+export type TokenBalancesControllerMessenger = Messenger<
   typeof CONTROLLER,
   TokenBalancesControllerActions | AllowedActions,
-  TokenBalancesControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  TokenBalancesControllerEvents | AllowedEvents
 >;
 
 export type ChainPollingConfig = {
@@ -326,12 +325,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
     // initial token state & subscriptions
     const { allTokens, allDetectedTokens, allIgnoredTokens } =
-      this.messagingSystem.call('TokensController:getState');
+      this.messenger.call('TokensController:getState');
     this.#allTokens = allTokens;
     this.#detectedTokens = allDetectedTokens;
     this.#allIgnoredTokens = allIgnoredTokens;
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TokensController:stateChange',
       (tokensState: TokensControllerState) => {
         this.#onTokensChanged(tokensState).catch((error) => {
@@ -339,34 +338,34 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         });
       },
     );
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'NetworkController:stateChange',
       this.#onNetworkChanged,
     );
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'KeyringController:accountRemoved',
       this.#onAccountRemoved,
     );
 
     // Register action handlers for polling interval control
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `TokenBalancesController:updateChainPollingConfigs`,
       this.updateChainPollingConfigs.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `TokenBalancesController:getChainPollingConfig`,
       this.getChainPollingConfig.bind(this),
     );
 
     // Subscribe to AccountActivityService balance updates for real-time updates
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountActivityService:balanceUpdated',
       this.#onAccountActivityBalanceUpdate.bind(this),
     );
 
     // Subscribe to AccountActivityService status changes for dynamic polling management
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountActivityService:statusChanged',
       this.#onAccountActivityStatusChanged.bind(this),
     );
@@ -382,12 +381,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   }
 
   readonly #getProvider = (chainId: ChainIdHex): Web3Provider => {
-    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+    const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
     const cfg = networkConfigurationsByChainId[chainId];
     const { networkClientId } = cfg.rpcEndpoints[cfg.defaultRpcEndpointIndex];
-    const client = this.messagingSystem.call(
+    const client = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
@@ -395,12 +394,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   };
 
   readonly #getNetworkClient = (chainId: ChainIdHex) => {
-    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+    const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
     const cfg = networkConfigurationsByChainId[chainId];
     const { networkClientId } = cfg.rpcEndpoints[cfg.defaultRpcEndpointIndex];
-    return this.messagingSystem.call(
+    return this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
@@ -636,12 +635,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       return;
     }
 
-    const { address: selected } = this.messagingSystem.call(
+    const { address: selected } = this.messenger.call(
       'AccountsController:getSelectedAccount',
     );
-    const allAccounts = this.messagingSystem.call(
-      'AccountsController:listAccounts',
-    );
+    const allAccounts = this.messenger.call('AccountsController:listAccounts');
 
     const aggregated: ProcessedBalance[] = [];
     let remainingChains = [...targetChains];
@@ -656,20 +653,36 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
 
       try {
-        const balances = await fetcher.fetch({
+        const result = await fetcher.fetch({
           chainIds: supportedChains,
           queryAllAccounts: queryAllAccounts ?? this.#queryAllAccounts,
           selectedAccount: selected as ChecksumAddress,
           allAccounts,
         });
 
-        if (balances && balances.length > 0) {
-          aggregated.push(...balances);
+        if (result.balances && result.balances.length > 0) {
+          aggregated.push(...result.balances);
           // Remove chains that were successfully processed
-          const processedChains = new Set(balances.map((b) => b.chainId));
+          const processedChains = new Set(
+            result.balances.map((b) => b.chainId),
+          );
           remainingChains = remainingChains.filter(
             (chain) => !processedChains.has(chain),
           );
+        }
+
+        // Add unprocessed chains back to remainingChains for next fetcher
+        if (
+          result.unprocessedChainIds &&
+          result.unprocessedChainIds.length > 0
+        ) {
+          const currentRemainingChains = remainingChains;
+          const chainsToAdd = result.unprocessedChainIds.filter(
+            (chainId) =>
+              supportedChains.includes(chainId) &&
+              !currentRemainingChains.includes(chainId),
+          );
+          remainingChains.push(...chainsToAdd);
         }
       } catch (error) {
         console.warn(
@@ -755,7 +768,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       );
 
       // Get current AccountTracker state to compare existing balances
-      const accountTrackerState = this.messagingSystem.call(
+      const accountTrackerState = this.messenger.call(
         'AccountTrackerController:getState',
       );
 
@@ -777,7 +790,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           });
 
         if (balanceUpdates.length > 0) {
-          this.messagingSystem.call(
+          this.messenger.call(
             'AccountTrackerController:updateNativeBalances',
             balanceUpdates,
           );
@@ -818,7 +831,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           });
 
         if (stakedBalanceUpdates.length > 0) {
-          this.messagingSystem.call(
+          this.messenger.call(
             'AccountTrackerController:updateStakedBalances',
             stakedBalanceUpdates,
           );
@@ -1148,7 +1161,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
       // Update native balances in AccountTrackerController
       if (nativeBalanceUpdates.length > 0) {
-        this.messagingSystem.call(
+        this.messenger.call(
           'AccountTrackerController:updateNativeBalances',
           nativeBalanceUpdates,
         );
@@ -1156,7 +1169,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
       // Import any new tokens that were discovered (balance already updated from websocket)
       if (newTokens.length > 0) {
-        await this.messagingSystem.call(
+        await this.messenger.call(
           'TokenDetectionController:addDetectedTokensViaWs',
           {
             tokensSlice: newTokens,
@@ -1265,10 +1278,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
 
     // Unregister action handlers
-    this.messagingSystem.unregisterActionHandler(
+    this.messenger.unregisterActionHandler(
       `TokenBalancesController:updateChainPollingConfigs`,
     );
-    this.messagingSystem.unregisterActionHandler(
+    this.messenger.unregisterActionHandler(
       `TokenBalancesController:getChainPollingConfig`,
     );
 

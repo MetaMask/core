@@ -4,10 +4,11 @@ import {
   type Bip44Account,
 } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
-import type {
-  KeyringMetadata,
-  KeyringSelector,
+import {
+  type KeyringMetadata,
+  type KeyringSelector,
 } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { MultichainAccountServiceMessenger } from '../types';
 
@@ -37,13 +38,22 @@ export function assertAreBip44Accounts(
   accounts.forEach(assertIsBip44Account);
 }
 
-export type NamedAccountProvider<
+export type Bip44AccountProvider<
   Account extends Bip44Account<KeyringAccount> = Bip44Account<KeyringAccount>,
 > = AccountProvider<Account> & {
   getName(): string;
+
+  /**
+   * Re-synchronize MetaMask accounts and the providers accounts if needed.
+   *
+   * NOTE: This is mostly required if one of the providers (keyrings or Snaps)
+   * have different sets of accounts. This method would ensure that both are
+   * in-sync and use the same accounts (and same IDs).
+   */
+  resyncAccounts(accounts: Bip44Account<InternalAccount>[]): Promise<void>;
 };
 
-export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
+export abstract class BaseBip44AccountProvider implements Bip44AccountProvider {
   protected readonly messenger: MultichainAccountServiceMessenger;
 
   constructor(messenger: MultichainAccountServiceMessenger) {
@@ -114,6 +124,10 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
 
     return result as CallbackResult;
   }
+
+  abstract resyncAccounts(
+    accounts: Bip44Account<InternalAccount>[],
+  ): Promise<void>;
 
   abstract isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
 

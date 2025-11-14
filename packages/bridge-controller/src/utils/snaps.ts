@@ -62,6 +62,7 @@ export const getMinimumBalanceForRentExemptionInLamports = async (
  * @param transaction - The base64 encoded transaction string
  * @param accountId - The account ID
  * @param scope - The CAIP-2 chain scope
+ * @param options - Additional options to include in the request
  * @returns The snap request object
  */
 export const computeFeeRequest = (
@@ -69,6 +70,7 @@ export const computeFeeRequest = (
   transaction: string,
   accountId: string,
   scope: CaipChainId,
+  options?: Record<string, unknown>,
 ) => {
   return {
     // TODO: remove 'as never' typing.
@@ -83,6 +85,7 @@ export const computeFeeRequest = (
         transaction,
         accountId,
         scope,
+        ...(options && { options }),
       },
     },
   };

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/delegation-controller",
-  "version": "0.8.0",
+  "version": "1.0.0",
   "description": "Manages delegations for MetaMask",
   "keywords": [
     "MetaMask",
@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/delegation-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/delegation-controller",
@@ -47,25 +48,26 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.4.1",
+    "@metamask/base-controller": "^9.0.0",
+    "@metamask/messenger": "^0.3.0",
     "@metamask/utils": "^11.8.1"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^33.1.1",
+    "@metamask/accounts-controller": "^34.0.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^23.1.1",
-    "@ts-bridge/cli": "^0.6.1",
+    "@metamask/keyring-controller": "^24.0.0",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^33.0.0",
-    "@metamask/keyring-controller": "^23.0.0"
+    "@metamask/accounts-controller": "^34.0.0",
+    "@metamask/keyring-controller": "^24.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

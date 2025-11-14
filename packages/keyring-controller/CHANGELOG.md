@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added optional `EncryptionKey`, `SupportedKeyDerivationOptions` and `EncryptionResult` type parameters to the `KeyringController`, `ExportableKeyEncryptor` and `KeyringControllerOptions` types ([#7127](https://github.com/MetaMask/core/pull/7127))
+  - This type parameter allows specifying the encryption key, key derivation options and encryption result types supported by the injected encryptor, defaulting to `@metamask/browser-passworder` types.
+
+### Changed
+
+- **BREAKING:** The `KeyringController` constructor options now require an encryptor ([#7127](https://github.com/MetaMask/core/pull/7127))
+  - The `encryptor` constructor option was previously optional and defaulted to an instance of `@metamask/browser-passworder`.
+- **BREAKING:** The `GenericEncryptor` and `ExportableKeyEncryptor` types have been merged into a single `Encryptor` type ([#7127](https://github.com/MetaMask/core/pull/7127))
+
+### Removed
+
+- **BREAKING:** The `cacheEncryptionKey` parameter has been removed from the `KeyringController` constructor options ([#7127](https://github.com/MetaMask/core/pull/7127))
+  - This parameter was previously used to enable encryption key in-memory caching, but it is no longer needed as the controller now always uses the latest encryption key.
+
+### Fixed
+
+- Fixed incorrect type for `decryptWithKey` method of `ExportableKeyEncryptor` (now `Encryptor`) ([#7127](https://github.com/MetaMask/core/pull/7127))
+
+## [24.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6370](https://github.com/MetaMask/core/pull/6370))
+  - Previously, `KeyringController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6370](https://github.com/MetaMask/core/pull/6370))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [23.2.0]
+
+### Added
+
+- Add actions for `createNewVaultAndKeychain` and `createNewVaultAndRestore` ([#6928](https://github.com/MetaMask/core/pull/6928))
+  - These actions are meant to to be consumed by the `MultichainAccountService` in its `createMultichainAccountWallet` method.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
 ## [23.1.1]
 
 ### Changed
@@ -865,7 +905,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.2.0...@metamask/keyring-controller@24.0.0
+[23.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.1.1...@metamask/keyring-controller@23.2.0
 [23.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.1.0...@metamask/keyring-controller@23.1.1
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.0.0...@metamask/keyring-controller@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.1.1...@metamask/keyring-controller@23.0.0

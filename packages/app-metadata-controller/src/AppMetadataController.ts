@@ -1,10 +1,10 @@
-import { BaseController } from '@metamask/base-controller';
 import type {
   StateMetadata,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 
 // Unique name for the controller
 const controllerName = 'AppMetadataController';
@@ -88,12 +88,10 @@ type AllowedEvents = never;
  * @returns A restricted messenger type that defines the allowed actions and events
  * for the AppMetadataController
  */
-export type AppMetadataControllerMessenger = RestrictedMessenger<
+export type AppMetadataControllerMessenger = Messenger<
   typeof controllerName,
   AppMetadataControllerActions | AllowedActions,
-  AppMetadataControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  AppMetadataControllerEvents | AllowedEvents
 >;
 
 /**
@@ -105,25 +103,25 @@ const controllerMetadata = {
   currentAppVersion: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
   previousAppVersion: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
   previousMigrationVersion: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
   currentMigrationVersion: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
 } satisfies StateMetadata<AppMetadataControllerState>;

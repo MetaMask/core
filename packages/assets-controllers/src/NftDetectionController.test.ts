@@ -1,10 +1,16 @@
 import type { AccountsController } from '@metamask/accounts-controller';
-import { Messenger } from '@metamask/base-controller';
 import {
   NFT_API_BASE_URL,
   ChainId,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import {
   getDefaultNetworkControllerState,
   NetworkClientType,
@@ -23,6 +29,13 @@ import {
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { Source } from './constants';
+import { getDefaultNftControllerState } from './NftController';
+import {
+  NftDetectionController,
+  BlockaidResultType,
+  type NftDetectionControllerMessenger,
+} from './NftDetectionController';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';
@@ -31,14 +44,12 @@ import {
   buildMockFindNetworkClientIdByChainId,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
-import { Source } from './constants';
-import { getDefaultNftControllerState } from './NftController';
-import {
-  NftDetectionController,
-  BlockaidResultType,
-  type AllowedActions,
-  type AllowedEvents,
-} from './NftDetectionController';
+
+type AllActions = MessengerActions<NftDetectionControllerMessenger>;
+
+type AllEvents = MessengerEvents<NftDetectionControllerMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const controllerName = 'NftDetectionController' as const;
 
@@ -211,8 +222,6 @@ describe('NftDetectionController', () => {
               },
             },
             blockaidResult: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -236,8 +245,6 @@ describe('NftDetectionController', () => {
               },
             },
             blockaidResult: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -268,8 +275,6 @@ describe('NftDetectionController', () => {
               },
             },
             blockaidResult: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -310,8 +315,6 @@ describe('NftDetectionController', () => {
               isSpam: false,
             },
             blockaidResult: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Malicious,
             },
           },
@@ -332,8 +335,6 @@ describe('NftDetectionController', () => {
               isSpam: true,
             },
             blockaidResult: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -354,8 +355,6 @@ describe('NftDetectionController', () => {
               isSpam: true,
             },
             blockaidResult: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Malicious,
             },
           },
@@ -834,8 +833,6 @@ describe('NftDetectionController', () => {
   it('should not call addNFt when the request to Nft API call throws', async () => {
     const selectedAccount = createMockInternalAccount({ address: '0x3' });
     nock(NFT_API_BASE_URL)
-      // ESLint is confused; this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       .get(`/users/${selectedAccount.address}/tokens`)
       .query({
         continuation: '',
@@ -1069,7 +1066,9 @@ async function withController<ReturnValue>(
     testFunction,
   ] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger = new Messenger<AllowedActions, AllowedEvents>();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   messenger.registerActionHandler(
     'NetworkController:getState',
@@ -1109,21 +1108,32 @@ async function withController<ReturnValue>(
     }),
   );
 
+  const nftDetectionControllerMessenger = new Messenger<
+    typeof controllerName,
+    AllActions,
+    AllEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: nftDetectionControllerMessenger,
+    actions: [
+      'NetworkController:getState',
+      'NetworkController:getNetworkClientById',
+      'PreferencesController:getState',
+      'AccountsController:getSelectedAccount',
+      'NetworkController:findNetworkClientIdByChainId',
+    ],
+    events: [
+      'NetworkController:stateChange',
+      'PreferencesController:stateChange',
+    ],
+  });
+
   const controller = new NftDetectionController({
-    messenger: messenger.getRestricted({
-      name: controllerName,
-      allowedActions: [
-        'NetworkController:getState',
-        'NetworkController:getNetworkClientById',
-        'PreferencesController:getState',
-        'AccountsController:getSelectedAccount',
-        'NetworkController:findNetworkClientIdByChainId',
-      ],
-      allowedEvents: [
-        'NetworkController:stateChange',
-        'PreferencesController:stateChange',
-      ],
-    }),
+    messenger: nftDetectionControllerMessenger,
     disabled: true,
     addNft: jest.fn(),
     getNftState: getDefaultNftControllerState,

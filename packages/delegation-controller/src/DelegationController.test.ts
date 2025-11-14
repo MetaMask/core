@@ -1,9 +1,12 @@
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import {
-  type KeyringControllerSignTypedMessageAction,
-  SignTypedDataVersion,
-} from '@metamask/keyring-controller';
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { hexToNumber } from '@metamask/utils';
 
 import { ROOT_AUTHORITY } from './constants';
@@ -11,13 +14,25 @@ import { controllerName, DelegationController } from './DelegationController';
 import type {
   Address,
   Delegation,
-  DelegationControllerEvents,
+  DelegationControllerMessenger,
   DelegationControllerState,
   DelegationEntry,
   DeleGatorEnvironment,
   Hex,
 } from './types';
 import { toDelegationStruct } from './utils';
+
+type AllDelegationControllerActions =
+  MessengerActions<DelegationControllerMessenger>;
+
+type AllDelegationControllerEvents =
+  MessengerEvents<DelegationControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllDelegationControllerActions,
+  AllDelegationControllerEvents
+>;
 
 const FROM_MOCK = '0x2234567890123456789012345678901234567890' as Address;
 const SIGNATURE_HASH_MOCK = '0x123ABC';
@@ -60,11 +75,9 @@ class TestDelegationController extends DelegationController {
  * @returns The mock messenger instance plus individual mock functions for each action.
  */
 function createMessengerMock() {
-  const messenger = new Messenger<
-    | KeyringControllerSignTypedMessageAction
-    | AccountsControllerGetSelectedAccountAction,
-    DelegationControllerEvents
-  >();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   const accountsControllerGetSelectedAccountMock = jest.fn();
   const keyringControllerSignTypedMessageMock = jest.fn();
@@ -84,19 +97,27 @@ function createMessengerMock() {
     keyringControllerSignTypedMessageMock,
   );
 
-  const restrictedMessenger = messenger.getRestricted({
-    name: `${controllerName}`,
-    allowedActions: [
+  const delegationControllerMessenger = new Messenger<
+    'DelegationController',
+    AllDelegationControllerActions,
+    AllDelegationControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: delegationControllerMessenger,
+    actions: [
       'AccountsController:getSelectedAccount',
       'KeyringController:signTypedMessage',
     ],
-    allowedEvents: [],
   });
 
   return {
     accountsControllerGetSelectedAccountMock,
     keyringControllerSignTypedMessageMock,
-    messenger: restrictedMessenger,
+    messenger: delegationControllerMessenger,
   };
 }
 
@@ -679,7 +700,7 @@ describe(`${controllerName}`, () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });

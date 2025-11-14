@@ -382,7 +382,12 @@ export class PendingTransactionTracker {
   }
 
   async #checkTransaction(txMeta: TransactionMeta) {
-    const { hash, id } = txMeta;
+    const { hash, id, isIntentComplete } = txMeta;
+
+    if (isIntentComplete) {
+      await this.#onTransactionConfirmed(txMeta);
+      return;
+    }
 
     if (!hash && (await this.#beforeCheckPendingTransaction(txMeta))) {
       const error = new Error(
@@ -450,10 +455,10 @@ export class PendingTransactionTracker {
 
   async #onTransactionConfirmed(
     txMeta: TransactionMeta,
-    receipt: SuccessfulTransactionReceipt,
+    receipt?: SuccessfulTransactionReceipt,
   ) {
     const { id } = txMeta;
-    const { blockHash } = receipt;
+    const { blockHash } = receipt ?? {};
 
     this.#log('Transaction confirmed', id);
 
@@ -463,19 +468,23 @@ export class PendingTransactionTracker {
       return;
     }
 
-    const { baseFeePerGas, timestamp: blockTimestamp } =
-      await this.#getBlockByHash(blockHash, false);
-
     const updatedTxMeta = cloneDeep(txMeta);
-    updatedTxMeta.baseFeePerGas = baseFeePerGas;
-    updatedTxMeta.blockTimestamp = blockTimestamp;
+
+    if (receipt && blockHash) {
+      const { baseFeePerGas, timestamp: blockTimestamp } =
+        await this.#getBlockByHash(blockHash, false);
+
+      updatedTxMeta.baseFeePerGas = baseFeePerGas;
+      updatedTxMeta.blockTimestamp = blockTimestamp;
+      updatedTxMeta.txParams = {
+        ...updatedTxMeta.txParams,
+        gasUsed: receipt.gasUsed,
+      };
+      updatedTxMeta.txReceipt = receipt;
+      updatedTxMeta.verifiedOnBlockchain = true;
+    }
+
     updatedTxMeta.status = TransactionStatus.confirmed;
-    updatedTxMeta.txParams = {
-      ...updatedTxMeta.txParams,
-      gasUsed: receipt.gasUsed,
-    };
-    updatedTxMeta.txReceipt = receipt;
-    updatedTxMeta.verifiedOnBlockchain = true;
 
     this.#updateTransaction(
       updatedTxMeta,
@@ -534,7 +543,8 @@ export class PendingTransactionTracker {
         tx.status === TransactionStatus.confirmed &&
         tx.txParams.nonce &&
         tx.txParams.nonce === txParams.nonce &&
-        tx.type !== TransactionType.incoming,
+        tx.type !== TransactionType.incoming &&
+        tx.isTransfer === undefined,
     );
   }
 

@@ -33,6 +33,11 @@ export type ProcessedBalance = {
   chainId: ChainIdHex;
 };
 
+export type BalanceFetchResult = {
+  balances: ProcessedBalance[];
+  unprocessedChainIds?: ChainIdHex[];
+};
+
 export type BalanceFetcher = {
   supports(chainId: ChainIdHex): boolean;
   fetch(input: {
@@ -40,7 +45,7 @@ export type BalanceFetcher = {
     queryAllAccounts: boolean;
     selectedAccount: ChecksumAddress;
     allAccounts: InternalAccount[];
-  }): Promise<ProcessedBalance[]>;
+  }): Promise<BalanceFetchResult>;
 };
 
 const checksum = (addr: string): ChecksumAddress =>
@@ -205,11 +210,10 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
   async #fetchBalances(addrs: CaipAccountAddress[]) {
     // If we have fewer than or equal to the batch size, make a single request
     if (addrs.length <= ACCOUNTS_API_BATCH_SIZE) {
-      const { balances } = await fetchMultiChainBalancesV4(
+      return await fetchMultiChainBalancesV4(
         { accountAddresses: addrs },
         this.#platform,
       );
-      return balances;
     }
 
     // Otherwise, batch the requests to respect the 50-element limit
@@ -217,6 +221,9 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
       ReturnType<typeof fetchMultiChainBalancesV4>
     >['balances'][number];
 
+    type ResponseData = Awaited<ReturnType<typeof fetchMultiChainBalancesV4>>;
+
+    const allUnprocessedNetworks = new Set<number>();
     const allBalances = await reduceInBatchesSerially<
       CaipAccountAddress,
       BalanceData[]
@@ -224,16 +231,25 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
       values: addrs,
       batchSize: ACCOUNTS_API_BATCH_SIZE,
       eachBatch: async (workingResult, batch) => {
-        const { balances } = await fetchMultiChainBalancesV4(
+        const response = await fetchMultiChainBalancesV4(
           { accountAddresses: batch },
           this.#platform,
         );
-        return [...(workingResult || []), ...balances];
+        // Collect unprocessed networks from each batch
+        if (response.unprocessedNetworks) {
+          response.unprocessedNetworks.forEach((network) =>
+            allUnprocessedNetworks.add(network),
+          );
+        }
+        return [...(workingResult || []), ...response.balances];
       },
       initialResult: [],
     });
 
-    return allBalances;
+    return {
+      balances: allBalances,
+      unprocessedNetworks: Array.from(allUnprocessedNetworks),
+    } as ResponseData;
   }
 
   async fetch({
@@ -241,7 +257,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     queryAllAccounts,
     selectedAccount,
     allAccounts,
-  }: Parameters<BalanceFetcher['fetch']>[0]): Promise<ProcessedBalance[]> {
+  }: Parameters<BalanceFetcher['fetch']>[0]): Promise<BalanceFetchResult> {
     const caipAddrs: CaipAccountAddress[] = [];
 
     for (const chainId of chainIds.filter((c) => this.supports(c))) {
@@ -255,21 +271,29 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     }
 
     if (!caipAddrs.length) {
-      return [];
+      return { balances: [] };
     }
 
     // Don't use safelyExecute here - let real errors propagate
-    let balances;
+    let apiResponse;
     let apiError = false;
 
     try {
-      balances = await this.#fetchBalances(caipAddrs);
+      apiResponse = await this.#fetchBalances(caipAddrs);
     } catch (error) {
       // Mark that we had an API error so we don't add fake zero balances
       apiError = true;
       console.error('Failed to fetch balances from API:', error);
-      balances = undefined;
+      apiResponse = undefined;
     }
+
+    // Extract unprocessed networks and convert to hex chain IDs
+    const unprocessedChainIds: ChainIdHex[] | undefined =
+      apiResponse?.unprocessedNetworks
+        ? apiResponse.unprocessedNetworks.map(
+            (chainId) => toHex(chainId) as ChainIdHex,
+          )
+        : undefined;
 
     const stakedBalances = await this.#fetchStakedBalances(caipAddrs);
 
@@ -294,8 +318,8 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     const nativeBalancesFromAPI = new Map<string, BN>(); // key: `${address}-${chainId}`
 
     // Process regular API balances
-    if (balances) {
-      const apiBalances = balances.flatMap((b) => {
+    if (apiResponse?.balances) {
+      const apiBalances = apiResponse.balances.flatMap((b) => {
         const addressPart = b.accountAddress?.split(':')[2];
         if (!addressPart) {
           return [];
@@ -389,6 +413,9 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
       throw new Error('Failed to fetch any balance data due to API error');
     }
 
-    return results;
+    return {
+      balances: results,
+      unprocessedChainIds,
+    };
   }
 }

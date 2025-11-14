@@ -7,6 +7,103 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^61.2.0` to `^61.3.0` ([#7153](https://github.com/MetaMask/core/pull/7153))
+
+## [4.2.2]
+
+### Changed
+
+- Trigger `triggerAccessTokenRefresh` everytime subscription state change instead of only when polling ([#7149](https://github.com/MetaMask/core/pull/7149))
+- Remove `triggerAccessTokenRefresh` after `startShieldSubscriptionWithCard` ([#7149](https://github.com/MetaMask/core/pull/7149))
+
+## [4.2.1]
+
+### Added
+
+- Add missing start crypto `useTestClock` param from `lastSelectedPaymentMethod` in `submitShieldSubscriptionCryptoApproval` ([#7131](https://github.com/MetaMask/core/pull/7131))
+
+## [4.2.0]
+
+### Added
+
+- added `useTestClock` param to `StartSubscriptionRequest`, `StartCryptoSubscriptionRequest`, `CachedLastSelectedPaymentMethod` ([#7129](https://github.com/MetaMask/core/pull/7129))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^61.1.0` to `^61.2.0` ([#7126](https://github.com/MetaMask/core/pull/7126))
+
+## [4.1.0]
+
+### Added
+
+- Added `modalType` field and constant to `SubscriptionEligibility` ([#7124](https://github.com/MetaMask/core/pull/7124))
+
+## [4.0.0]
+
+### Added
+
+- Added `lastSubscription` in state returned from `getSubscriptions` method ([#7110](https://github.com/MetaMask/core/pull/7110))
+- Add `assignUserToCohort` method to assign users to cohorts via backend API ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add cohort-related types: `Cohort`, `CohortName`, `BalanceCategory`, `AssignCohortRequest`, `GetSubscriptionsEligibilitiesRequest` ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add cohort-related constants: `COHORT_NAMES`, `BALANCE_CATEGORIES`, `SubscriptionUserEvent` ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add cohort fields to `SubscriptionEligibility` type: `cohorts`, `assignedCohort`, `hasAssignedCohortExpired` ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add `ShieldCohortAssigned` event to `SubscriptionUserEvent` ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add optional `balanceCategory` parameter to `getSubscriptionsEligibilities` for privacy-preserving balance evaluation ([#7099](https://github.com/MetaMask/core/pull/7099))
+- Add optional `cohort` field to `SubmitUserEventRequest` for event tracking ([#7099](https://github.com/MetaMask/core/pull/7099))
+
+### Changed
+
+- Refactor `SubscriptionService.makeRequest` to accept query parameters for cleaner URL construction ([#7099](https://github.com/MetaMask/core/pull/7099))
+
+## [3.3.0]
+
+### Changed
+
+- fix: `getTokenApproveAmount` precision by using bignumber.js ([#7070](https://github.com/MetaMask/core/pull/7070))
+
+## [3.2.0]
+
+### Added
+
+- Added new property, `isSponsorshipSupported` to the ControllerState, `pricing.paymentMethods.chains`. ([#7035](https://github.com/MetaMask/core/pull/7035))
+- Added `SubscriptionControllerSubmitSponsorshipIntentsAction` in the controller exports. ([#7037](https://github.com/MetaMask/core/pull/7037))
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0`. ([#7003](https://github.com/MetaMask/core/pull/7003))
+- Bump `@metamask/transaction-controller` from `^61.0.0` to `^61.1.0` ([#7007](https://github.com/MetaMask/core/pull/7007))
+- Updated `submitSponsorshipIntents` method with chain validation. ([#7035](https://github.com/MetaMask/core/pull/7035))
+- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
+
+## [3.1.0]
+
+### Added
+
+- Added new public method `submitShieldSubscriptionCryptoApproval`, to submit shield crypto approval transaction ([#6945](https://github.com/MetaMask/core/pull/6945))
+- Added the new controller state, `lastSelectedPaymentMethod`. ([#6946](https://github.com/MetaMask/core/pull/6946))
+  - We will use this in the UI state persistence between navigation.
+  - We will use this to query user subscription plan details in subscribe methods internally.
+- Added new public method, `submitSponsorshipIntents`, to submit sponsorship intents for the new subscription with crypto. ([#6898](https://github.com/MetaMask/core/pull/6898))
+
+## [3.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6444](https://github.com/MetaMask/core/pull/6444))
+  - Previously, `SubscriptionController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Bump `@metamask/profile-sync-controller` from `^25.0.0` to `^26.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/polling-controller` from `^14.0.1` to `^15.0.0` ([#6940](https://github.com/MetaMask/core/pull/6940), [#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [2.1.0]
+
+### Changed
+
+- Make `getCryptoApproveTransactionParams` synchronous ([#6930](https://github.com/MetaMask/core/pull/6930))
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
 ## [2.0.0]
 
 ### Added
@@ -102,7 +199,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@4.2.2...HEAD
+[4.2.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@4.2.1...@metamask/subscription-controller@4.2.2
+[4.2.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@4.2.0...@metamask/subscription-controller@4.2.1
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@4.1.0...@metamask/subscription-controller@4.2.0
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@4.0.0...@metamask/subscription-controller@4.1.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@3.3.0...@metamask/subscription-controller@4.0.0
+[3.3.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@3.2.0...@metamask/subscription-controller@3.3.0
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@3.1.0...@metamask/subscription-controller@3.2.0
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@3.0.0...@metamask/subscription-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@2.1.0...@metamask/subscription-controller@3.0.0
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@2.0.0...@metamask/subscription-controller@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@1.1.0...@metamask/subscription-controller@2.0.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@1.0.1...@metamask/subscription-controller@1.1.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@1.0.0...@metamask/subscription-controller@1.0.1

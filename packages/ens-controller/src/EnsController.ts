@@ -1,6 +1,10 @@
 import { Web3Provider } from '@ethersproject/providers';
-import type { RestrictedMessenger } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import {
+  BaseController,
+  type StateMetadata,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+} from '@metamask/base-controller';
 import type { ChainId } from '@metamask/controller-utils';
 import {
   normalizeEnsName,
@@ -11,6 +15,7 @@ import {
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -44,6 +49,7 @@ export const DEFAULT_ENS_NETWORK_MAP: Record<number, Hex> = {
  * @type EnsEntry
  *
  * ENS entry representation
+ *
  * @property chainId - Id of the associated chain
  * @property ensName - The ENS name
  * @property address - Hex address with the ENS name, or null
@@ -58,6 +64,7 @@ export type EnsEntry = {
  * @type EnsControllerState
  *
  * ENS controller state
+ *
  * @property ensEntries - Object of ENS entry objects
  */
 export type EnsControllerState = {
@@ -69,29 +76,37 @@ export type EnsControllerState = {
   ensResolutionsByAddress: { [key: string]: string };
 };
 
+export type EnsControllerActions = ControllerGetStateAction<
+  typeof name,
+  EnsControllerState
+>;
+
+export type EnsControllerEvents = ControllerStateChangeEvent<
+  typeof name,
+  EnsControllerState
+>;
+
 export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction;
 
-export type EnsControllerMessenger = RestrictedMessenger<
+export type EnsControllerMessenger = Messenger<
   typeof name,
-  AllowedActions,
-  never,
-  AllowedActions['type'],
-  never
+  EnsControllerActions | AllowedActions,
+  EnsControllerEvents
 >;
 
-const metadata = {
+const metadata: StateMetadata<EnsControllerState> = {
   ensEntries: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   ensResolutionsByAddress: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -250,8 +265,6 @@ export class EnsController extends BaseController<
       (address && !isValidHexAddress(address))
     ) {
       throw new Error(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Invalid ENS entry: { chainId:${chainId}, ensName:${ensName}, address:${address}}`,
       );
     }
@@ -288,7 +301,7 @@ export class EnsController extends BaseController<
   }
 
   #setDefaultEthProvider(registriesByChainId?: Record<number, Hex>) {
-    const { selectedNetworkClientId } = this.messagingSystem.call(
+    const { selectedNetworkClientId } = this.messenger.call(
       'NetworkController:getState',
     );
     this.#setEthProvider(selectedNetworkClientId, registriesByChainId);
@@ -301,7 +314,7 @@ export class EnsController extends BaseController<
     const {
       configuration: { chainId: currentChainId },
       provider,
-    } = this.messagingSystem.call(
+    } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     );

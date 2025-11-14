@@ -7,8 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- include additional popular networks now enabled by default ([#7014](https://github.com/MetaMask/core/pull/7014))
+
+## [3.1.0]
+
+### Added
+
+- Add Monad network into constant POPULAR_NETWORKS ([#6978](https://github.com/MetaMask/core/pull/6978))
+
+## [3.0.0]
+
 ### Changed
 
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6540](https://github.com/MetaMask/core/pull/6540))
+  - Previously, `NetworkEnablementController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6540](https://github.com/MetaMask/core/pull/6540))
+- **BREAKING:** Bump `@metamask/multichain-network-controller` from `^1.0.0` to `^2.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^60.0.0` to `^61.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [2.1.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 - Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 - Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.8.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 
@@ -129,7 +154,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@3.1.0...HEAD
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@3.0.0...@metamask/network-enablement-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.1.2...@metamask/network-enablement-controller@3.0.0
+[2.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.1.1...@metamask/network-enablement-controller@2.1.2
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.1.0...@metamask/network-enablement-controller@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.0.0...@metamask/network-enablement-controller@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@1.2.0...@metamask/network-enablement-controller@2.0.0

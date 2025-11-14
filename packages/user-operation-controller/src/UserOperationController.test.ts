@@ -98,6 +98,7 @@ const ADD_USER_OPERATION_OPTIONS_MOCK: AddUserOperationOptions = {
 
 /**
  * Creates a mock user operation messenger.
+ *
  * @returns The mock user operation messenger.
  */
 function createMessengerMock() {
@@ -111,6 +112,7 @@ function createMessengerMock() {
 
 /**
  * Creates a mock smart contract account.
+ *
  * @returns The mock smart contract account.
  */
 function createSmartContractAccountMock() {
@@ -123,6 +125,7 @@ function createSmartContractAccountMock() {
 
 /**
  * Creates a mock bundler.
+ *
  * @returns The mock bundler.
  */
 function createBundlerMock() {
@@ -134,6 +137,7 @@ function createBundlerMock() {
 
 /**
  * Creates a mock PendingUserOperationTracker.
+ *
  * @returns The mock PendingUserOperationTracker.
  */
 function createPendingUserOperationTrackerMock() {
@@ -237,8 +241,6 @@ describe('UserOperationController', () => {
           return approvalControllerAddRequestMock();
         }
 
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         throw new Error(`Unexpected mock messenger action: ${action}`);
       },
     );
@@ -1453,7 +1455,7 @@ describe('UserOperationController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });

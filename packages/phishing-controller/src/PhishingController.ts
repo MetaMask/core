@@ -1,14 +1,14 @@
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedMessenger,
-  StateMetadata,
+import {
+  BaseController,
+  type StateMetadata,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
 import {
   safelyExecute,
   safelyExecuteWithTimeout,
 } from '@metamask/controller-utils';
+import { type Messenger } from '@metamask/messenger';
 import type {
   TransactionControllerStateChangeEvent,
   TransactionMeta,
@@ -95,6 +95,7 @@ export type ListTypes =
  *
  * Configuration response from the eth-phishing-detect package
  * consisting of approved and unapproved website origins
+ *
  * @property blacklist - List of unapproved origins
  * @property fuzzylist - List of fuzzy-matched unapproved origins
  * @property tolerance - Fuzzy match tolerance level
@@ -113,6 +114,7 @@ export type EthPhishingResponse = {
  * @type C2DomainBlocklistResponse
  *
  * Response for blocklist update requests
+ *
  * @property recentlyAdded - List of c2 domains recently added to the blocklist
  * @property recentlyRemoved - List of c2 domains recently removed from the blocklist
  * @property lastFetchedAt - Timestamp of the last fetch request
@@ -148,6 +150,7 @@ export type PhishingStalelist = {
  * @type PhishingListState
  *
  * type defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
+ *
  * @property allowlist - List of approved origins (legacy naming "whitelist")
  * @property blocklist - List of unapproved origins (legacy naming "blacklist")
  * @property blocklistPaths - Trie of unapproved origins with paths (hostname + path, no query params).
@@ -174,6 +177,7 @@ export type PhishingListState = {
  * @type HotlistDiff
  *
  * type defining the expected type of the diffs in hotlist.json file.
+ *
  * @property url - Url of the diff entry.
  * @property timestamp - Timestamp at which the diff was identified.
  * @property targetList - The list name where the diff was identified.
@@ -194,6 +198,7 @@ export type DataResultWrapper<T> = {
  * @type Hotlist
  *
  * Type defining expected hotlist.json file.
+ *
  * @property url - Url of the diff entry.
  * @property timestamp - Timestamp at which the diff was identified.
  * @property targetList - The list name where the diff was identified.
@@ -238,49 +243,49 @@ const metadata: StateMetadata<PhishingControllerState> = {
   phishingLists: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   whitelist: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   whitelistPaths: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   hotlistLastFetched: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   stalelistLastFetched: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   c2DomainBlocklistLastFetched: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   urlScanCache: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   tokenScanCache: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -399,12 +404,10 @@ type AllowedActions = never;
  */
 export type AllowedEvents = TransactionControllerStateChangeEvent;
 
-export type PhishingControllerMessenger = RestrictedMessenger<
+export type PhishingControllerMessenger = Messenger<
   typeof controllerName,
   PhishingControllerActions | AllowedActions,
-  PhishingControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  PhishingControllerEvents | AllowedEvents
 >;
 
 /**
@@ -521,7 +524,7 @@ export class PhishingController extends BaseController<
   }
 
   #subscribeToTransactionControllerStateChange() {
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
     );
@@ -532,22 +535,22 @@ export class PhishingController extends BaseController<
    * actions.
    */
   #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:maybeUpdateState` as const,
       this.maybeUpdateState.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:testOrigin` as const,
       this.test.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:bulkScanUrls` as const,
       this.bulkScanUrls.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:bulkScanTokens` as const,
       this.bulkScanTokens.bind(this),
     );

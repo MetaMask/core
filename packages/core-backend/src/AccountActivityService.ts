@@ -9,9 +9,9 @@ import type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
-import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { Messenger } from '@metamask/messenger';
 
 import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types';
 import type {
@@ -80,7 +80,7 @@ export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'AccountsController:getSelectedAccount',
   'BackendWebSocketService:connect',
-  'BackendWebSocketService:disconnect',
+  'BackendWebSocketService:forceReconnection',
   'BackendWebSocketService:subscribe',
   'BackendWebSocketService:getConnectionInfo',
   'BackendWebSocketService:channelHasSubscription',
@@ -96,7 +96,7 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS = [
   'BackendWebSocketService:connectionStateChanged',
 ] as const;
 
-export type AccountActivityServiceAllowedActions =
+export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | BackendWebSocketServiceMethodActions;
 
@@ -134,16 +134,14 @@ export type AccountActivityServiceEvents =
   | AccountActivityServiceSubscriptionErrorEvent
   | AccountActivityServiceStatusChangedEvent;
 
-export type AccountActivityServiceAllowedEvents =
+export type AllowedEvents =
   | AccountsControllerSelectedAccountChangeEvent
   | BackendWebSocketServiceConnectionStateChangedEvent;
 
-export type AccountActivityServiceMessenger = RestrictedMessenger<
+export type AccountActivityServiceMessenger = Messenger<
   typeof SERVICE_NAME,
-  AccountActivityServiceActions | AccountActivityServiceAllowedActions,
-  AccountActivityServiceEvents | AccountActivityServiceAllowedEvents,
-  AccountActivityServiceAllowedActions['type'],
-  AccountActivityServiceAllowedEvents['type']
+  AccountActivityServiceActions | AllowedActions,
+  AccountActivityServiceEvents | AllowedEvents
 >;
 
 // =============================================================================
@@ -233,11 +231,15 @@ export class AccountActivityService {
     );
     this.#messenger.subscribe(
       'AccountsController:selectedAccountChange',
+      // Promise result intentionally not awaited
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (account: InternalAccount) =>
         await this.#handleSelectedAccountChange(account),
     );
     this.#messenger.subscribe(
       'BackendWebSocketService:connectionStateChanged',
+      // Promise result intentionally not awaited
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       (connectionInfo: WebSocketConnectionInfo) =>
         this.#handleWebSocketStateChange(connectionInfo),
     );
@@ -357,6 +359,8 @@ export class AccountActivityService {
     });
 
     // Trace message receipt with latency from transaction time to now
+    // Promise result intentionally not awaited
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#trace(
       {
         name: `${SERVICE_NAME} Transaction Message`,
@@ -559,16 +563,11 @@ export class AccountActivityService {
    * Force WebSocket reconnection to clean up subscription state
    */
   async #forceReconnection(): Promise<void> {
-    try {
-      log('Forcing WebSocket reconnection to clean up subscription state');
+    log('Forcing WebSocket reconnection to clean up subscription state');
 
-      // All subscriptions will be cleaned up automatically on WebSocket disconnect
-
-      await this.#messenger.call('BackendWebSocketService:disconnect');
-      await this.#messenger.call('BackendWebSocketService:connect');
-    } catch (error) {
-      log('Failed to force WebSocket reconnection', { error });
-    }
+    // Use the dedicated forceReconnection method which performs a controlled
+    // disconnect-then-connect sequence to clean up subscription state
+    await this.#messenger.call('BackendWebSocketService:forceReconnection');
   }
 
   // =============================================================================

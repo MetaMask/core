@@ -1,8 +1,15 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   JsonRpcEngineReturnHandler,
   JsonRpcEngineNextCallback,
 } from '@metamask/json-rpc-engine';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import {
   type PendingJsonRpcResponse,
   type JsonRpcRequest,
@@ -13,9 +20,10 @@ import { nanoid } from 'nanoid';
 import { constants, getters, noop } from './helpers';
 import { LOG_LIMIT, LOG_METHOD_TYPES } from '../src/enums';
 import {
+  PermissionLogController,
   type Permission,
   type PermissionLogControllerState,
-  PermissionLogController,
+  type PermissionLogControllerMessenger,
 } from '../src/PermissionLogController';
 
 const { PERMS, RPC_REQUESTS } = getters;
@@ -33,6 +41,29 @@ class CustomError extends Error {
 
 const name = 'PermissionLogController';
 
+type AllPermissionLogControllerActions =
+  MessengerActions<PermissionLogControllerMessenger>;
+
+type AllPermissionLogControllerEvents =
+  MessengerEvents<PermissionLogControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllPermissionLogControllerActions,
+  AllPermissionLogControllerEvents
+>;
+
+/**
+ * Creates and returns a root messenger for testing
+ *
+ * @returns A messenger instance
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+}
+
 const initController = ({
   restrictedMethods,
   state,
@@ -40,10 +71,15 @@ const initController = ({
   restrictedMethods: Set<string>;
   state?: Partial<PermissionLogControllerState>;
 }): PermissionLogController => {
-  const messenger = new Messenger().getRestricted({
-    name,
-    allowedActions: [],
-    allowedEvents: [],
+  const rootMessenger = getRootMessenger();
+  const messenger = new Messenger<
+    typeof name,
+    AllPermissionLogControllerActions,
+    AllPermissionLogControllerEvents,
+    RootMessenger
+  >({
+    namespace: name,
+    parent: rootMessenger,
   });
   return new PermissionLogController({
     messenger,
@@ -824,7 +860,7 @@ describe('PermissionLogController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });

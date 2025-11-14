@@ -9,6 +9,11 @@ export const InfuraNetworkType = {
   'linea-sepolia': 'linea-sepolia',
   'linea-mainnet': 'linea-mainnet',
   'base-mainnet': 'base-mainnet',
+  'arbitrum-mainnet': 'arbitrum-mainnet',
+  'bsc-mainnet': 'bsc-mainnet',
+  'optimism-mainnet': 'optimism-mainnet',
+  'polygon-mainnet': 'polygon-mainnet',
+  'sei-mainnet': 'sei-mainnet',
 } as const;
 
 export type InfuraNetworkType =
@@ -80,6 +85,11 @@ export enum BuiltInNetworkName {
   MegaETHTestnet = 'megaeth-testnet',
   MonadTestnet = 'monad-testnet',
   BaseMainnet = 'base-mainnet',
+  ArbitrumOne = 'arbitrum-mainnet',
+  BscMainnet = 'bsc-mainnet',
+  OptimismMainnet = 'optimism-mainnet',
+  PolygonMainnet = 'polygon-mainnet',
+  SeiMainnet = 'sei-mainnet',
 }
 
 /**
@@ -98,6 +108,11 @@ export const ChainId = {
   [BuiltInNetworkName.MegaETHTestnet]: '0x18c6', // toHex(6342)
   [BuiltInNetworkName.MonadTestnet]: '0x279f', // toHex(10143)
   [BuiltInNetworkName.BaseMainnet]: '0x2105', // toHex(8453)
+  [BuiltInNetworkName.ArbitrumOne]: '0xa4b1', // toHex(42161)
+  [BuiltInNetworkName.BscMainnet]: '0x38', // toHex(56)
+  [BuiltInNetworkName.OptimismMainnet]: '0xa', // toHex(10)
+  [BuiltInNetworkName.PolygonMainnet]: '0x89', // toHex(137)
+  [BuiltInNetworkName.SeiMainnet]: '0x531', // toHex(1329)
 } as const;
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
@@ -114,6 +129,13 @@ export enum NetworksTicker {
   'monad-testnet' = 'MON',
   // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'base-mainnet' = 'ETH',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'arbitrum-mainnet' = 'ETH',
+  'bsc-mainnet' = 'BNB',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'optimism-mainnet' = 'ETH',
+  'polygon-mainnet' = 'POL',
+  'sei-mainnet' = 'SEI',
   rpc = '',
 }
 
@@ -127,6 +149,11 @@ export const BlockExplorerUrl = {
   [BuiltInNetworkName.MegaETHTestnet]: 'https://megaexplorer.xyz',
   [BuiltInNetworkName.MonadTestnet]: 'https://testnet.monadexplorer.com',
   [BuiltInNetworkName.BaseMainnet]: 'https://basescan.org',
+  [BuiltInNetworkName.ArbitrumOne]: 'https://arbiscan.io',
+  [BuiltInNetworkName.BscMainnet]: 'https://bscscan.com',
+  [BuiltInNetworkName.OptimismMainnet]: 'https://optimistic.etherscan.io',
+  [BuiltInNetworkName.PolygonMainnet]: 'https://polygonscan.com',
+  [BuiltInNetworkName.SeiMainnet]: 'https://seitrace.com',
 } as const satisfies Record<BuiltInNetworkType, string>;
 export type BlockExplorerUrl =
   (typeof BlockExplorerUrl)[keyof typeof BlockExplorerUrl];
@@ -141,6 +168,11 @@ export const NetworkNickname = {
   [BuiltInNetworkName.MegaETHTestnet]: 'Mega Testnet',
   [BuiltInNetworkName.MonadTestnet]: 'Monad Testnet',
   [BuiltInNetworkName.BaseMainnet]: 'Base Mainnet',
+  [BuiltInNetworkName.ArbitrumOne]: 'Arbitrum One',
+  [BuiltInNetworkName.BscMainnet]: 'BSC Mainnet',
+  [BuiltInNetworkName.OptimismMainnet]: 'Optimism Mainnet',
+  [BuiltInNetworkName.PolygonMainnet]: 'Polygon Mainnet',
+  [BuiltInNetworkName.SeiMainnet]: 'Sei Mainnet',
 } as const satisfies Record<BuiltInNetworkType, string>;
 export type NetworkNickname =
   (typeof NetworkNickname)[keyof typeof NetworkNickname];
@@ -187,6 +219,7 @@ export type TraceCallback = <ReturnType>(
   /**
    * Callback to trace.
    * Thrown errors will not be caught, but the trace will still be recorded.
+   *
    * @param context - The context in which the operation is running.
    */
   fn?: (context?: TraceContext) => ReturnType,

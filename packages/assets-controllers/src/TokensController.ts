@@ -8,9 +8,9 @@ import type {
 } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
-  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import contractsMap from '@metamask/contract-metadata';
@@ -27,6 +27,7 @@ import {
 } from '@metamask/controller-utils';
 import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { Messenger } from '@metamask/messenger';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkClientId,
@@ -60,6 +61,7 @@ import type { Token } from './TokenRatesController';
  * @type SuggestedAssetMeta
  *
  * Suggested asset by EIP747 meta data
+ *
  * @property id - Generated UUID associated with this suggested asset
  * @property time - Timestamp associated with this this suggested asset
  * @property type - Type type this suggested asset
@@ -78,6 +80,7 @@ type SuggestedAssetMeta = {
  * @type TokensControllerState
  *
  * Assets controller state
+ *
  * @property allTokens - Object containing tokens by network and account
  * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
  * @property allDetectedTokens - Object containing tokens detected with non-zero balances
@@ -88,23 +91,23 @@ export type TokensControllerState = {
   allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
 };
 
-const metadata = {
+const metadata: StateMetadata<TokensControllerState> = {
   allTokens: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   allIgnoredTokens: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   allDetectedTokens: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -158,12 +161,10 @@ export type AllowedEvents =
 /**
  * The messenger of the {@link TokensController}.
  */
-export type TokensControllerMessenger = RestrictedMessenger<
+export type TokensControllerMessenger = Messenger<
   typeof controllerName,
   TokensControllerActions | AllowedActions,
-  TokensControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  TokensControllerEvents | AllowedEvents
 >;
 
 export const getDefaultTokensState = (): TokensControllerState => {
@@ -186,12 +187,13 @@ export class TokensController extends BaseController<
 
   #selectedAccountId: string;
 
-  #provider: Provider;
+  readonly #provider: Provider;
 
   readonly #abortController: AbortController;
 
   /**
    * Tokens controller options
+   *
    * @param options - Constructor options.
    * @param options.chainId - The chain ID of the current network.
    * @param options.provider - Network provider.
@@ -224,32 +226,32 @@ export class TokensController extends BaseController<
 
     this.#abortController = new AbortController();
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:addDetectedTokens` as const,
       this.addDetectedTokens.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:addTokens` as const,
       this.addTokens.bind(this),
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:selectedEvmAccountChange',
       this.#onSelectedAccountChange.bind(this),
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'NetworkController:stateChange',
       this.#onNetworkStateChange.bind(this),
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'KeyringController:accountRemoved',
       (accountAddress: string) => this.#handleOnAccountRemoved(accountAddress),
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TokenListController:stateChange',
       ({ tokensChainsCache }) => {
         const { allTokens } = this.state;
@@ -327,6 +329,7 @@ export class TokensController extends BaseController<
 
   /**
    * Handles the event when the network state changes.
+   *
    * @param _ - The network state.
    * @param patches - An array of patch operations performed on the network state.
    */
@@ -419,7 +422,7 @@ export class TokensController extends BaseController<
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
 
-    const chainIdToUse = this.messagingSystem.call(
+    const chainIdToUse = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     ).configuration.chainId;
@@ -505,7 +508,7 @@ export class TokensController extends BaseController<
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
 
-    const interactingChainId = this.messagingSystem.call(
+    const interactingChainId = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     ).configuration.chainId;
@@ -517,7 +520,7 @@ export class TokensController extends BaseController<
       ...tokensToImport,
     ].reduce(
       (output, token) => {
-        output[token.address] = token;
+        output[toChecksumHexAddress(token.address)] = token;
         return output;
       },
       {} as { [address: string]: Token },
@@ -535,7 +538,7 @@ export class TokensController extends BaseController<
           aggregators,
           name,
         };
-        newTokensMap[address] = formattedToken;
+        newTokensMap[checksumAddress] = formattedToken;
         importedTokensMap[address.toLowerCase()] = true;
         return formattedToken;
       });
@@ -543,7 +546,9 @@ export class TokensController extends BaseController<
 
       const newIgnoredTokens = allIgnoredTokens[interactingChainId]?.[
         this.#getSelectedAddress()
-      ]?.filter((tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()]);
+      ]?.filter(
+        (tokenAddress) => !newTokensMap[toChecksumHexAddress(tokenAddress)],
+      );
 
       const detectedTokensForGivenChain = interactingChainId
         ? allDetectedTokens?.[interactingChainId]?.[this.#getSelectedAddress()]
@@ -581,7 +586,7 @@ export class TokensController extends BaseController<
     tokenAddressesToIgnore: string[],
     networkClientId: NetworkClientId,
   ) {
-    const interactingChainId = this.messagingSystem.call(
+    const interactingChainId = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     ).configuration.chainId;
@@ -739,7 +744,7 @@ export class TokensController extends BaseController<
     tokenAddress: string,
     networkClientId: NetworkClientId,
   ) {
-    const chainIdToUse = this.messagingSystem.call(
+    const chainIdToUse = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     ).configuration.chainId;
@@ -798,7 +803,7 @@ export class TokensController extends BaseController<
   #getProvider(networkClientId?: NetworkClientId): Web3Provider {
     return new Web3Provider(
       networkClientId
-        ? this.messagingSystem.call(
+        ? this.messenger.call(
             'NetworkController:getNetworkClientById',
             networkClientId,
           ).provider
@@ -861,8 +866,6 @@ export class TokensController extends BaseController<
 
     if (await this.#detectIsERC721(asset.address, networkClientId)) {
       throw rpcErrors.invalidParams(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Contract ${asset.address} must match type ${type}, but was detected as ${ERC721}`,
       );
     }
@@ -875,8 +878,6 @@ export class TokensController extends BaseController<
     );
     if (isErc1155) {
       throw rpcErrors.invalidParams(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Contract ${asset.address} must match type ${type}, but was detected as ${ERC1155}`,
       );
     }
@@ -904,8 +905,6 @@ export class TokensController extends BaseController<
       asset.symbol.toUpperCase() !== contractSymbol.toUpperCase()
     ) {
       throw rpcErrors.invalidParams(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `The symbol in the request (${asset.symbol}) does not match the symbol in the contract (${contractSymbol})`,
       );
     }
@@ -935,8 +934,6 @@ export class TokensController extends BaseController<
       String(asset.decimals) !== contractDecimals
     ) {
       throw rpcErrors.invalidParams(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `The decimals in the request (${asset.decimals}) do not match the decimals in the contract (${contractDecimals})`,
       );
     }
@@ -945,8 +942,6 @@ export class TokensController extends BaseController<
     const decimalsNum = parseInt(decimalsStr as unknown as string, 10);
     if (!Number.isInteger(decimalsNum) || decimalsNum > 36 || decimalsNum < 0) {
       throw rpcErrors.invalidParams(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Invalid decimals "${decimalsStr}": must be an integer 0 <= 36`,
       );
     }
@@ -1082,7 +1077,7 @@ export class TokensController extends BaseController<
   }
 
   async #requestApproval(suggestedAssetMeta: SuggestedAssetMeta) {
-    return this.messagingSystem.call(
+    return this.messenger.call(
       'ApprovalController:addRequest',
       {
         id: suggestedAssetMeta.id,
@@ -1104,12 +1099,12 @@ export class TokensController extends BaseController<
   }
 
   #getSelectedAccount() {
-    return this.messagingSystem.call('AccountsController:getSelectedAccount');
+    return this.messenger.call('AccountsController:getSelectedAccount');
   }
 
   #getSelectedAddress() {
     // If the address is not defined (or empty), we fallback to the currently selected account's address
-    const account = this.messagingSystem.call(
+    const account = this.messenger.call(
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );

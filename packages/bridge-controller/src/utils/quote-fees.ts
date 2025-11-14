@@ -5,6 +5,7 @@ import { numberToHex } from '@metamask/utils';
 import { isNonEvmChainId, sumHexes } from './bridge';
 import { formatChainIdToCaip } from './caip-formatters';
 import { computeFeeRequest } from './snaps';
+import { extractTradeData, isTronTrade } from './trade-utils';
 import { CHAIN_IDS } from '../constants/chains';
 import type {
   QuoteResponse,
@@ -22,9 +23,9 @@ import type {
  * @returns Array of quotes with fees appended, or undefined if quotes are for non-EVM chains
  */
 const appendL1GasFees = async (
-  quotes: QuoteResponse[],
+  quotes: QuoteResponse<TxData, TxData>[],
   getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee,
-): Promise<(QuoteResponse & L1GasFees)[] | undefined> => {
+): Promise<(QuoteResponse<TxData, TxData> & L1GasFees)[] | undefined> => {
   // Indicates whether some of the quotes are not for optimism or base
   const hasInvalidQuotes = quotes.some(({ quote }) => {
     const chainId = formatChainIdToCaip(quote.srcChainId);
@@ -57,7 +58,7 @@ const appendL1GasFees = async (
           })
         : '0x0';
       const tradeL1GasFees = await getLayer1GasFee({
-        transactionParams: getTxParams(trade),
+        transactionParams: getTxParams(trade as TxData),
         chainId,
       });
 
@@ -73,7 +74,7 @@ const appendL1GasFees = async (
   );
 
   const quotesWithL1GasFees = (await l1GasFeePromises).reduce<
-    (QuoteResponse & L1GasFees)[]
+    (QuoteResponse<TxData, TxData> & L1GasFees)[]
   >((acc, result) => {
     if (result.status === 'fulfilled' && result.value) {
       acc.push(result.value);
@@ -109,16 +110,32 @@ const appendNonEvmFees = async (
     quotes.map(async (quoteResponse) => {
       const { trade, quote } = quoteResponse;
 
-      if (selectedAccount?.metadata?.snap?.id && typeof trade === 'string') {
+      // Skip fee computation if no snap account or trade data
+      if (!selectedAccount?.metadata?.snap?.id || !trade) {
+        return quoteResponse;
+      }
+
+      try {
         const scope = formatChainIdToCaip(quote.srcChainId);
+
+        const transaction = extractTradeData(trade);
+
+        // Tron trades need the visible flag and contract type to be included in the request options
+        const options = isTronTrade(trade)
+          ? {
+              visible: trade.visible,
+              type: trade.raw_data?.contract?.[0]?.type,
+            }
+          : undefined;
 
         const response = (await messenger.call(
           'SnapController:handleRequest',
           computeFeeRequest(
             selectedAccount.metadata.snap?.id,
-            trade,
+            transaction,
             selectedAccount.id,
             scope,
+            options,
           ),
         )) as {
           type: 'base' | 'priority';
@@ -130,16 +147,29 @@ const appendNonEvmFees = async (
           };
         }[];
 
-        const baseFee = response?.find((fee) => fee.type === 'base');
-        // Store fees in native units as returned by the snap (e.g., SOL, BTC)
-        const feeInNative = baseFee?.asset?.amount || '0';
+        // Bitcoin snap returns 'priority' fee, Solana returns 'base' fee
+        const fee =
+          response?.find((f) => f.type === 'base') ||
+          response?.find((f) => f.type === 'priority') ||
+          response?.[0];
+        const feeInNative = fee?.asset?.amount || '0';
 
         return {
           ...quoteResponse,
           nonEvmFeesInNative: feeInNative,
         };
+      } catch (error) {
+        // Return quote with undefined fee if snap fails (e.g., insufficient UTXO funds)
+        // Client can render special UI or skip the quote card row for quotes with missing fee data
+        console.error(
+          `Failed to compute non-EVM fees for quote ${quote.requestId}:`,
+          error,
+        );
+        return {
+          ...quoteResponse,
+          nonEvmFeesInNative: undefined,
+        };
       }
-      return quoteResponse;
     }),
   );
 
@@ -172,7 +202,11 @@ export const appendFeesToQuotes = async (
   getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee,
   selectedAccount: InternalAccount,
 ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
-  const quotesWithL1GasFees = await appendL1GasFees(quotes, getLayer1GasFee);
+  // Safe to cast: appendL1GasFees checks if all quotes are EVM and returns undefined otherwise
+  const quotesWithL1GasFees = await appendL1GasFees(
+    quotes as QuoteResponse<TxData, TxData>[],
+    getLayer1GasFee,
+  );
   const quotesWithNonEvmFees = await appendNonEvmFees(
     quotes,
     messenger,

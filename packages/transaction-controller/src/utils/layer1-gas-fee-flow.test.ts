@@ -33,7 +33,7 @@ function createLayer1GasFeeFlowMock({
   layer1Fee: Hex;
 }): jest.Mocked<Layer1GasFeeFlow> {
   return {
-    matchesTransaction: jest.fn().mockReturnValue(match),
+    matchesTransaction: jest.fn().mockResolvedValue(match),
     getLayer1Fee: jest.fn().mockResolvedValue({ layer1Fee }),
   };
 }

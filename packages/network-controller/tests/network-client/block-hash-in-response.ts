@@ -88,7 +88,6 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
             // Start the block tracker
             blockTracker.on('latest', () => {
               numberOfBlocks += 1;
-              // eslint-disable-next-line jest/no-conditional-in-test
               if (numberOfBlocks === 2) {
                 resolve();
               }
@@ -203,9 +202,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
     });
   });
 
-  for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+  for (const emptyValue of [null, '\u003cnil\u003e']) {
     it(`does not retry an empty response of "${emptyValue}"`, async () => {
       const request = { method };
       const mockResult = emptyValue;
@@ -229,8 +226,6 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
       });
     });
 
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
       const requests = [{ method }, { method }];
       const mockResults = [emptyValue, { blockHash: '0x100' }];
@@ -331,8 +326,6 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         },
       );
 
-      // This is not ideal, but we can refactor this later.
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (providerType === NetworkClientType.Infura) {
         // This is not ideal, but we can refactor this later.
         // eslint-disable-next-line jest/no-conditional-expect

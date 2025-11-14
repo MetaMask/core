@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6386](https://github.com/MetaMask/core/pull/6386))
+  - Previously, `ApprovalController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [7.2.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
 ## [7.2.0]
 
 ### Added
@@ -280,7 +294,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.2.1...@metamask/approval-controller@8.0.0
+[7.2.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.2.0...@metamask/approval-controller@7.2.1
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.3...@metamask/approval-controller@7.2.0
 [7.1.3]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.2...@metamask/approval-controller@7.1.3
 [7.1.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.1...@metamask/approval-controller@7.1.2

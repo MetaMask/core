@@ -17,6 +17,9 @@
     },
     {
       "path": "../json-rpc-engine/tsconfig.build.json"
+    },
+    {
+      "path": "../message-manager/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"],

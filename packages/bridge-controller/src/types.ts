@@ -5,12 +5,12 @@ import type {
   TokenRatesControllerGetStateAction,
 } from '@metamask/assets-controllers';
 import type {
+  ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
 } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
-  NetworkControllerGetStateAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
@@ -27,6 +27,7 @@ import type {
 import type { BridgeController } from './bridge-controller';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 import type {
+  BitcoinTradeDataSchema,
   BridgeAssetSchema,
   ChainConfigurationSchema,
   FeatureId,
@@ -37,6 +38,7 @@ import type {
   QuoteResponseSchema,
   QuoteSchema,
   StepSchema,
+  TronTradeDataSchema,
   TxDataSchema,
 } from './utils/validators';
 
@@ -215,7 +217,10 @@ export type QuoteRequest<
    * Whether to request quotes that use EIP-7702 delegated gasless execution
    */
   gasIncluded7702: boolean;
-  noFee?: boolean;
+  /**
+   * The fee that will be charged by MetaMask
+   */
+  fee?: number;
 };
 
 export enum StatusTypes {
@@ -233,7 +238,6 @@ export enum StatusTypes {
 export type GenericQuoteRequest = QuoteRequest<
   Hex | CaipChainId | string | number, // chainIds
   Hex | CaipAssetId | string, // assetIds/addresses
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-arguments
   Hex | CaipAccountId | string // accountIds/addresses
 >;
 
@@ -248,17 +252,24 @@ export type FeeData = Infer<typeof FeeDataSchema>;
 export type Quote = Infer<typeof QuoteSchema>;
 
 export type TxData = Infer<typeof TxDataSchema>;
+
 export type Intent = Infer<typeof IntentSchema>;
 export type IntentOrderLike = Intent['order'];
+
+export type BitcoinTradeData = Infer<typeof BitcoinTradeDataSchema>;
+
+export type TronTradeData = Infer<typeof TronTradeDataSchema>;
 /**
  * This is the type for the quote response from the bridge-api
  * TxDataType can be overriden to be a string when the quote is non-evm
+ * ApprovalType can be overriden when you know the specific approval type (e.g., TxData for EVM-only contexts)
  */
-export type QuoteResponse<TxDataType = TxData> = Infer<
-  typeof QuoteResponseSchema
-> & {
+export type QuoteResponse<
+  TxDataType = TxData | string | BitcoinTradeData | TronTradeData,
+  ApprovalType = TxData | TronTradeData,
+> = Infer<typeof QuoteResponseSchema> & {
   trade: TxDataType;
-  approval?: TxData;
+  approval?: ApprovalType;
   featureId?: FeatureId;
 };
 
@@ -274,6 +285,7 @@ export enum ChainId {
   LINEA = 59144,
   SOLANA = 1151111081099710,
   BTC = 20000000000001,
+  TRON = 728126428,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
@@ -342,8 +354,19 @@ export type BridgeControllerAction<
   handler: BridgeController[FunctionName];
 };
 
+export type BridgeControllerGetStateAction = ControllerGetStateAction<
+  typeof BRIDGE_CONTROLLER_NAME,
+  BridgeControllerState
+>;
+
+export type BridgeControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof BRIDGE_CONTROLLER_NAME,
+  BridgeControllerState
+>;
+
 // Maps to BridgeController function names
 export type BridgeControllerActions =
+  | BridgeControllerGetStateAction
   | BridgeControllerAction<BridgeBackgroundAction.SET_CHAIN_INTERVAL_LENGTH>
   | BridgeControllerAction<BridgeBackgroundAction.RESET_STATE>
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
@@ -352,10 +375,7 @@ export type BridgeControllerActions =
   | BridgeControllerAction<BridgeBackgroundAction.FETCH_QUOTES>
   | BridgeControllerAction<BridgeUserAction.UPDATE_QUOTE_PARAMS>;
 
-export type BridgeControllerEvents = ControllerStateChangeEvent<
-  typeof BRIDGE_CONTROLLER_NAME,
-  BridgeControllerState
->;
+export type BridgeControllerEvents = BridgeControllerStateChangeEvent;
 
 export type AllowedActions =
   | AccountsControllerGetAccountByAddressAction
@@ -364,7 +384,6 @@ export type AllowedActions =
   | MultichainAssetsRatesControllerGetStateAction
   | HandleSnapRequest
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | RemoteFeatureFlagControllerGetStateAction;
 export type AllowedEvents = never;
@@ -372,10 +391,8 @@ export type AllowedEvents = never;
 /**
  * The messenger for the BridgeController.
  */
-export type BridgeControllerMessenger = RestrictedMessenger<
+export type BridgeControllerMessenger = Messenger<
   typeof BRIDGE_CONTROLLER_NAME,
   BridgeControllerActions | AllowedActions,
-  BridgeControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  BridgeControllerEvents | AllowedEvents
 >;

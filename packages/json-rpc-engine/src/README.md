@@ -1,0 +1,252 @@
+# `JsonRpcEngine` (deprecated)
+
+The deprecated, original `JsonRpcEngine` implementation.
+
+To be removed once the rest of MetaMask's codebase has been migrated to `JsonRpcEngineV2`.
+
+> [!TIP]
+> For the new `JsonRpcEngineV2`, see [the package readme](../README.md).
+>
+> For how to migrate from the legacy `JsonRpcEngine` to `JsonRpcEngineV2`, see [this package readme section](../README.md#migrating-from-jsonrpcengine).
+
+## Usage
+
+```js
+const { JsonRpcEngine } = require('@metamask/json-rpc-engine');
+
+const engine = new JsonRpcEngine();
+```
+
+Build a stack of JSON-RPC processors by pushing middleware to the engine.
+
+```js
+engine.push(function (req, res, next, end) {
+  res.result = 42;
+  end();
+});
+```
+
+### V2 compatibility
+
+Use `asV2Middleware()` to convert a `JsonRpcEngine` or one or more legacy middleware into a V2 middleware.
+
+#### Context propagation
+
+Non-JSON-RPC string properties on the request object will be copied over to the V2 engine's `context` object
+once the legacy engine is done with the request, _unless_ they already exist on the `context`, in which case
+they will be ignored.
+
+#### Converting a legacy engine
+
+```ts
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import { asV2Middleware, JsonRpcEngine } from '@metamask/json-rpc-engine';
+
+const legacyEngine = new JsonRpcEngine();
+legacyEngine.push(/* ... */);
+
+const v2Engine = JsonRpcEngineV2.create({
+  middleware: [asV2Middleware(legacyEngine)],
+});
+```
+
+#### Converting legacy middleware
+
+You can also directly convert one or more legacy middlewares without creating an engine:
+
+```ts
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import { asV2Middleware } from '@metamask/json-rpc-engine';
+
+// Convert a single legacy middleware
+const middleware1 = (req, res, next, end) => {
+  /* ... */
+};
+
+const v2Engine = JsonRpcEngineV2.create({
+  middleware: [asV2Middleware(middleware1)],
+});
+
+// Convert multiple legacy middlewares at once
+const middleware2 = (req, res, next, end) => {
+  /* ... */
+};
+
+const v2Engine2 = JsonRpcEngineV2.create({
+  middleware: [asV2Middleware(middleware1, middleware2)],
+});
+```
+
+### Middleware
+
+Requests are handled asynchronously, stepping down the stack until complete.
+
+```js
+const request = { id: 1, jsonrpc: '2.0', method: 'hello' };
+
+engine.handle(request, function (err, response) {
+  // Do something with response.result, or handle response.error
+});
+
+// There is also a Promise signature
+const response = await engine.handle(request);
+```
+
+Middleware have direct access to the request and response objects.
+They can let processing continue down the stack with `next()`, or complete the request with `end()`.
+
+```js
+engine.push(function (req, res, next, end) {
+  if (req.skipCache) return next();
+  res.result = getResultFromCache(req);
+  end();
+});
+```
+
+By passing a _return handler_ to the `next` function, you can get a peek at the result before it returns.
+
+```js
+engine.push(function (req, res, next, end) {
+  next(function (cb) {
+    insertIntoCache(res, cb);
+  });
+});
+```
+
+If you specify a `notificationHandler` when constructing the engine, JSON-RPC notifications passed to `handle()` will be handed off directly to this function without touching the middleware stack:
+
+```js
+const engine = new JsonRpcEngine({ notificationHandler });
+
+// A notification is defined as a JSON-RPC request without an `id` property.
+const notification = { jsonrpc: '2.0', method: 'hello' };
+
+const response = await engine.handle(notification);
+console.log(typeof response); // 'undefined'
+```
+
+Engines can be nested by converting them to middleware using `JsonRpcEngine.asMiddleware()`:
+
+```js
+const engine = new JsonRpcEngine();
+const subengine = new JsonRpcEngine();
+engine.push(subengine.asMiddleware());
+```
+
+### `async` Middleware
+
+If you require your middleware function to be `async`, use `createAsyncMiddleware`:
+
+```js
+const { createAsyncMiddleware } = require('@metamask/json-rpc-engine');
+
+let engine = new RpcEngine();
+engine.push(
+  createAsyncMiddleware(async (req, res, next) => {
+    res.result = 42;
+    next();
+  }),
+);
+```
+
+`async` middleware do not take an `end` callback.
+Instead, the request ends if the middleware returns without calling `next()`:
+
+```js
+engine.push(
+  createAsyncMiddleware(async (req, res, next) => {
+    res.result = 42;
+    /* The request will end when this returns */
+  }),
+);
+```
+
+The `next` callback of `async` middleware also don't take return handlers.
+Instead, you can `await next()`.
+When the execution of the middleware resumes, you can work with the response again.
+
+```js
+engine.push(
+  createAsyncMiddleware(async (req, res, next) => {
+    res.result = 42;
+    await next();
+    /* Your return handler logic goes here */
+    addToMetrics(res);
+  }),
+);
+```
+
+You can freely mix callback-based and `async` middleware:
+
+```js
+engine.push(function (req, res, next, end) {
+  if (!isCached(req)) {
+    return next((cb) => {
+      insertIntoCache(res, cb);
+    });
+  }
+  res.result = getResultFromCache(req);
+  end();
+});
+
+engine.push(
+  createAsyncMiddleware(async (req, res, next) => {
+    res.result = 42;
+    await next();
+    addToMetrics(res);
+  }),
+);
+```
+
+### Teardown
+
+If your middleware has teardown to perform, you can assign a method `destroy()` to your middleware function(s),
+and calling `JsonRpcEngine.destroy()` will call this method on each middleware that has it.
+A destroyed engine can no longer be used.
+
+```js
+const middleware = (req, res, next, end) => {
+  /* do something */
+};
+middleware.destroy = () => {
+  /* perform teardown */
+};
+
+const engine = new JsonRpcEngine();
+engine.push(middleware);
+
+/* perform work */
+
+// This will call middleware.destroy() and destroy the engine itself.
+engine.destroy();
+
+// Calling any public method on the middleware other than `destroy()` itself
+// will throw an error.
+engine.handle(req);
+```
+
+### Gotchas
+
+Handle errors via `end(err)`, _NOT_ `next(err)`.
+
+```js
+/* INCORRECT */
+engine.push(function (req, res, next, end) {
+  next(new Error());
+});
+
+/* CORRECT */
+engine.push(function (req, res, next, end) {
+  end(new Error());
+});
+```
+
+However, `next()` will detect errors on the response object, and cause
+`end(res.error)` to be called.
+
+```js
+engine.push(function (req, res, next, end) {
+  res.error = new Error();
+  next(); /* This will cause end(res.error) to be called. */
+});
+```

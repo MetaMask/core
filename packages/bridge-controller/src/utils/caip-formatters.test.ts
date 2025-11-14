@@ -1,5 +1,5 @@
 import { AddressZero } from '@ethersproject/constants';
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 
 import {
   formatChainIdToCaip,
@@ -36,6 +36,11 @@ describe('CAIP Formatters', () => {
       expect(formatChainIdToCaip('20000000000001')).toBe(BtcScope.Mainnet);
     });
 
+    it('should convert Tron chainId to TrxScope.Mainnet', () => {
+      expect(formatChainIdToCaip(ChainId.TRON)).toBe(TrxScope.Mainnet);
+      expect(formatChainIdToCaip(TrxScope.Mainnet)).toBe(TrxScope.Mainnet);
+    });
+
     it('should convert number to CAIP format', () => {
       expect(formatChainIdToCaip(1)).toBe('eip155:1');
     });
@@ -57,6 +62,10 @@ describe('CAIP Formatters', () => {
     it('should handle Bitcoin numeric chainId', () => {
       expect(formatChainIdToDec(20000000000001)).toBe(20000000000001);
       expect(formatChainIdToDec('20000000000001')).toBe(20000000000001);
+    });
+
+    it('should handle Tron mainnet', () => {
+      expect(formatChainIdToDec(TrxScope.Mainnet)).toBe(ChainId.TRON);
     });
 
     it('should parse CAIP chainId to decimal', () => {

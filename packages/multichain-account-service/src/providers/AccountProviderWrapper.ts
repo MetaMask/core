@@ -1,5 +1,6 @@
 import type { Bip44Account } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import type { MultichainAccountServiceMessenger } from '../types';
@@ -32,6 +33,20 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
    */
   setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
+  }
+
+  /**
+   * Override resyncAccounts to not execute it when disabled.
+   *
+   * @param accounts - List of local accounts.
+   */
+  override async resyncAccounts(
+    accounts: Bip44Account<InternalAccount>[],
+  ): Promise<void> {
+    if (!this.isEnabled) {
+      return;
+    }
+    await this.provider.resyncAccounts(accounts);
   }
 
   /**

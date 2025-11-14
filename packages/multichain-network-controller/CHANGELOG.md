@@ -7,8 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Changed
 
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6543](https://github.com/MetaMask/core/pull/6543))
+  - Previously, `MultichainNetworkController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6543](https://github.com/MetaMask/core/pull/6543))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^33.0.0` to `^34.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [1.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 - Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 
 ## [1.0.1]
@@ -174,7 +188,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Handle both EVM and non-EVM network and account switching for the associated network.
   - Act as a proxy for the `NetworkController` (for EVM network changes).
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@1.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@1.0.2...@metamask/multichain-network-controller@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@1.0.1...@metamask/multichain-network-controller@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@1.0.0...@metamask/multichain-network-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.12.0...@metamask/multichain-network-controller@1.0.0
 [0.12.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.11.1...@metamask/multichain-network-controller@0.12.0

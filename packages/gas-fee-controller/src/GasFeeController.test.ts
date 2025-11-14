@@ -1,26 +1,26 @@
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   ChainId,
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { NetworkController, NetworkStatus } from '@metamask/network-controller';
 import type {
-  NetworkControllerGetEIP1559CompatibilityAction,
-  NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetStateAction,
-  NetworkControllerNetworkDidChangeEvent,
+  NetworkControllerMessenger,
   NetworkState,
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
-import {
-  buildCustomNetworkConfiguration,
-  buildCustomRpcEndpoint,
-} from '../../network-controller/tests/helpers';
 import determineGasFeeCalculations from './determineGasFeeCalculations';
 import {
   fetchGasEstimates,
@@ -30,13 +30,16 @@ import {
 } from './gas-util';
 import { GAS_ESTIMATE_TYPES, GasFeeController } from './GasFeeController';
 import type {
+  GasFeeMessenger,
   GasFeeState,
-  GasFeeStateChange,
   GasFeeStateEthGasPrice,
   GasFeeStateFeeMarket,
   GasFeeStateLegacy,
-  GetGasFeeState,
 } from './GasFeeController';
+import {
+  buildCustomNetworkConfiguration,
+  buildCustomRpcEndpoint,
+} from '../../network-controller/tests/helpers';
 
 jest.mock('./determineGasFeeCalculations');
 
@@ -48,39 +51,59 @@ const mockedDetermineGasFeeCalculations =
 
 const name = 'GasFeeController';
 
-type MainMessenger = Messenger<
-  | GetGasFeeState
-  | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetEIP1559CompatibilityAction,
-  GasFeeStateChange | NetworkControllerNetworkDidChangeEvent
->;
+type AllGasFeeControllerActions = MessengerActions<GasFeeMessenger>;
+type AllGasFeeControllerEvents = MessengerEvents<GasFeeMessenger>;
 
-const getMessenger = (): MainMessenger => {
-  return new Messenger();
+type AllNetworkControllerActions = MessengerActions<NetworkControllerMessenger>;
+type AllNetworkControllerEvents = MessengerEvents<NetworkControllerMessenger>;
+
+type AllActions = AllGasFeeControllerActions | AllNetworkControllerActions;
+type AllEvents = AllGasFeeControllerEvents | AllNetworkControllerEvents;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
+
+const getRootMessenger = (): RootMessenger => {
+  const rootMessenger = new Messenger<
+    MockAnyNamespace,
+    MessengerActions<NetworkControllerMessenger>,
+    MessengerEvents<NetworkControllerMessenger>
+  >({ namespace: MOCK_ANY_NAMESPACE });
+  rootMessenger.registerActionHandler(
+    'ErrorReportingService:captureException',
+    jest.fn(),
+  );
+  return rootMessenger;
 };
 
 const setupNetworkController = async ({
-  unrestrictedMessenger,
+  rootMessenger,
   state,
   clock,
   initializeProvider = true,
 }: {
-  unrestrictedMessenger: MainMessenger;
+  rootMessenger: RootMessenger;
   state: Partial<NetworkState>;
   clock: sinon.SinonFakeTimers;
   initializeProvider?: boolean;
 }) => {
-  const restrictedMessenger = unrestrictedMessenger.getRestricted({
-    name: 'NetworkController',
-    allowedActions: [],
-    allowedEvents: [],
+  const networkControllerMessenger = new Messenger<
+    'NetworkController',
+    MessengerActions<NetworkControllerMessenger>,
+    MessengerEvents<NetworkControllerMessenger>,
+    typeof rootMessenger
+  >({
+    namespace: 'NetworkController',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger: networkControllerMessenger,
+    actions: ['ErrorReportingService:captureException'],
   });
 
   const infuraProjectId = '123';
 
   const networkController = new NetworkController({
-    messenger: restrictedMessenger,
+    messenger: networkControllerMessenger,
     state,
     infuraProjectId,
     getRpcServiceOptions: () => ({
@@ -117,16 +140,26 @@ const setupNetworkController = async ({
   return networkController;
 };
 
-const getRestrictedMessenger = (messenger: MainMessenger) => {
-  return messenger.getRestricted({
-    name,
-    allowedActions: [
+const getGasFeeControllerMessenger = (rootMessenger: RootMessenger) => {
+  const gasFeeControllerMessenger = new Messenger<
+    'GasFeeController',
+    AllGasFeeControllerActions,
+    AllGasFeeControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'GasFeeController',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger: gasFeeControllerMessenger,
+    actions: [
       'NetworkController:getState',
       'NetworkController:getNetworkClientById',
       'NetworkController:getEIP1559Compatibility',
     ],
-    allowedEvents: ['NetworkController:networkDidChange'],
+    events: ['NetworkController:networkDidChange'],
   });
+  return gasFeeControllerMessenger;
 };
 
 /**
@@ -274,7 +307,6 @@ describe('GasFeeController', () => {
     getIsEIP1559Compatible?: jest.Mock<Promise<boolean>>;
     getCurrentNetworkLegacyGasAPICompatibility?: jest.Mock<boolean>;
     legacyAPIEndpoint?: string;
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     EIP1559APIEndpoint?: string;
     clientId?: string;
     networkControllerState?: Partial<NetworkState>;
@@ -282,14 +314,14 @@ describe('GasFeeController', () => {
     interval?: number;
     initializeNetworkProvider?: boolean;
   } = {}) {
-    const messenger = getMessenger();
+    const rootMessenger = getRootMessenger();
     networkController = await setupNetworkController({
-      unrestrictedMessenger: messenger,
+      rootMessenger,
       state: networkControllerState,
       clock,
       initializeProvider: initializeNetworkProvider,
     });
-    const restrictedMessenger = getRestrictedMessenger(messenger);
+    const restrictedMessenger = getGasFeeControllerMessenger(rootMessenger);
     gasFeeController = new GasFeeController({
       getProvider: jest.fn(),
       getChainId,
@@ -1066,14 +1098,10 @@ describe('GasFeeController', () => {
           isEIP1559Compatible: true,
           isLegacyGasAPICompatible: false,
           fetchGasEstimates,
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId.sepolia,
           )}`,
           fetchLegacyGasPriceEstimates,
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchLegacyGasPriceEstimatesUrl: `https://some-legacy-endpoint/${convertHexToDecimal(
             ChainId.sepolia,
           )}`,
@@ -1177,8 +1205,6 @@ describe('GasFeeController', () => {
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
           expect.objectContaining({
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             fetchGasEstimatesUrl: `http://eip-1559.endpoint/${convertHexToDecimal(
               ChainId.sepolia,
             )}`,
@@ -1225,8 +1251,6 @@ describe('GasFeeController', () => {
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId['linea-sepolia'],
           )}`,
@@ -1238,8 +1262,6 @@ describe('GasFeeController', () => {
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId['linea-sepolia'],
           )}`,
@@ -1257,8 +1279,6 @@ describe('GasFeeController', () => {
       await clock.tickAsync(pollingInterval);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
         expect.objectContaining({
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId.sepolia,
           )}`,
@@ -1277,7 +1297,7 @@ describe('GasFeeController', () => {
         deriveStateFromMetadata(
           gasFeeController.state,
           gasFeeController.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
