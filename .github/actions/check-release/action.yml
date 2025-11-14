@@ -150,3 +150,9 @@ runs:
             issue_number: context.issue.number,
             body: body.split('\n').map(line => line.trim()).join('\n'),
           });
+
+    - name: Fail if conflicts found
+      if: steps.check-release.outputs.has-conflicts == 'true'
+      shell: bash
+      run: |
+        exit 1
