@@ -601,10 +601,8 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       if (this.#tokenPricesService.validateChainIdSupported(chainId)) {
         const { nativeCurrency } = networkConfigurationsByChainId[chainId];
 
-        assetsByNativeCurrency[nativeCurrency] = [];
-
         this.#getTokenAddresses(chainId).forEach((tokenAddress) => {
-          assetsByNativeCurrency[nativeCurrency].push({
+          (assetsByNativeCurrency[nativeCurrency] ??= []).push({
             chainId,
             tokenAddress,
           });
