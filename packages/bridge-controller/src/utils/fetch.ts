@@ -20,6 +20,7 @@ import type {
   BridgeAsset,
   BridgeAssetV2,
   TokenBalance,
+  MinimalAsset,
 } from '../types';
 
 export const getClientHeaders = (clientId: string, clientVersion?: string) => ({
@@ -75,7 +76,7 @@ export async function fetchBridgeTokens(
  * @param params.signal - The abort signal
  * @returns A list of sorted tokens
  */
-export async function fetchPopularTokens<AdditionalTokenFields = TokenBalance>({
+export async function fetchPopularTokens({
   signal,
   chainIds,
   clientId,
@@ -90,17 +91,9 @@ export async function fetchPopularTokens<AdditionalTokenFields = TokenBalance>({
   fetchFn: FetchFunction;
   bridgeApiBaseUrl: string;
   clientVersion?: string;
-  assetsWithBalances?: (BridgeAssetV2 & AdditionalTokenFields)[];
-}): Promise<(BridgeAssetV2 & AdditionalTokenFields)[]> {
+  assetsWithBalances?: MinimalAsset[];
+}): Promise<BridgeAssetV2[]> {
   const url = `${bridgeApiBaseUrl}/getTokens/popular`;
-
-  const balancesByAssetId = assetsWithBalances?.reduce(
-    (acc, asset) => {
-      acc[asset.assetId.toLowerCase()] = asset;
-      return acc;
-    },
-    {} as Record<string, BridgeAssetV2 & AdditionalTokenFields>,
-  );
 
   const tokens = await fetchFn(url, {
     signal,
@@ -117,13 +110,7 @@ export async function fetchPopularTokens<AdditionalTokenFields = TokenBalance>({
 
   return tokens
     .map((token: unknown) => (validateSwapsAssetV2Object(token) ? token : null))
-    .filter(Boolean)
-    .map((token: BridgeAssetV2) => {
-      return {
-        ...(balancesByAssetId?.[token.assetId.toLowerCase()] ?? {}),
-        ...token,
-      };
-    });
+    .filter(Boolean);
 }
 
 /**
@@ -155,13 +142,11 @@ export async function fetchPopularTokens<AdditionalTokenFields = TokenBalance>({
  *   signal: abortController.signal,
  * });
  * for await (const tokens of tokens) {
- *   searchResults.push(. ..tokens);
+ *   searchResults.push(...tokens.map(addBalanceDisplayData));
  * }
  * return searchResults;
  */
-export async function* fetchTokensBySearchQuery<
-  AdditionalTokenFields = TokenBalance,
->({
+export async function* fetchTokensBySearchQuery({
   signal,
   chainIds,
   query,
@@ -179,18 +164,10 @@ export async function* fetchTokensBySearchQuery<
   fetchFn: FetchFunction;
   bridgeApiBaseUrl: string;
   clientVersion?: string;
-  assetsWithBalances?: (BridgeAssetV2 & AdditionalTokenFields)[];
+  assetsWithBalances?: MinimalAsset[];
   after?: string;
-}): AsyncGenerator<(BridgeAssetV2 & AdditionalTokenFields)[]> {
+}): AsyncGenerator<BridgeAssetV2[]> {
   const url = `${bridgeApiBaseUrl}/getTokens/search`;
-  const balancesByAssetId = assetsWithBalances?.reduce(
-    (acc, asset) => {
-      acc[asset.assetId.toLowerCase()] = asset;
-      return acc;
-    },
-    {} as Record<string, BridgeAssetV2 & AdditionalTokenFields>,
-  );
-
   const { data: tokens, pageInfo } = await fetchFn(url, {
     method: 'POST',
     body: JSON.stringify({
@@ -209,13 +186,7 @@ export async function* fetchTokensBySearchQuery<
 
   yield tokens
     .map((token: unknown) => (validateSwapsAssetV2Object(token) ? token : null))
-    .filter(Boolean)
-    .map((token: BridgeAssetV2) => {
-      return {
-        ...(balancesByAssetId?.[token.assetId.toLowerCase()] ?? {}),
-        ...token,
-      };
-    });
+    .filter(Boolean);
 
   if (hasNextPage) {
     yield* fetchTokensBySearchQuery({

@@ -92,11 +92,7 @@ export const BridgeAssetSchema = type({
   iconUrl: optional(nullable(string())),
 });
 
-export const BridgeAssetV2Schema = type({
-  /**
-   * The chainId of the token
-   */
-  chainId: CaipChainIdStruct,
+export const MinimalAssetSchema = type({
   /**
    * The assetId of the token
    */
@@ -110,17 +106,27 @@ export const BridgeAssetV2Schema = type({
    */
   name: string(),
   decimals: number(),
-  /**
-   * URL for token icon
-   */
-  image: optional(nullable(string())),
-  noFee: optional(
-    type({
-      isDestination: optional(boolean()),
-      isSource: optional(boolean()),
-    }),
-  ),
 });
+
+export const BridgeAssetV2Schema = intersection([
+  MinimalAssetSchema,
+  type({
+    /**
+     * The chainId of the token
+     */
+    chainId: CaipChainIdStruct,
+    /**
+     * URL for token icon
+     */
+    image: optional(nullable(string())),
+    noFee: optional(
+      type({
+        isDestination: nullable(optional(boolean())),
+        isSource: nullable(optional(boolean())),
+      }),
+    ),
+  }),
+]);
 
 const DefaultPairSchema = type({
   /**
@@ -173,6 +179,7 @@ export const PlatformConfigSchema = type({
   quoteRequestOverrides: optional(
     record(FeatureIdSchema, optional(GenericQuoteRequestSchema)),
   ),
+
   minimumVersion: string(),
   refreshRate: number(),
   maxRefreshCount: number(),

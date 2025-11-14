@@ -33,6 +33,7 @@ import type {
   ChainConfigurationSchema,
   FeatureId,
   FeeDataSchema,
+  MinimalAssetSchema,
   PlatformConfigSchema,
   ProtocolSchema,
   QuoteResponseSchema,
@@ -175,7 +176,7 @@ export type TokenBalance = {
  * This type is used in the fetchPopularTokens and fetchSearchTokens responses
  */
 export type BridgeAssetV2 = Infer<typeof BridgeAssetV2Schema>;
-
+export type MinimalAsset = Infer<typeof MinimalAssetSchema>;
 /**
  * This is the interface for the token object used in the extension client
  * In addition to the {@link BridgeAsset} fields, it includes balance information

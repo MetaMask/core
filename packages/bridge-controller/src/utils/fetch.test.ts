@@ -240,20 +240,12 @@ describe('fetch', () => {
             decimals: 8,
             symbol: 'DEF',
             name: 'DEF',
-            chainId: 'eip155:10',
-            balance: '1000000000000000000',
-            tokenFiatAmount: '5',
           },
           {
             assetId: 'eip155:10/slip44:614',
             symbol: 'ETH',
             decimals: 18,
             name: 'Ether',
-            image:
-              'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png',
-            chainId: 'eip155:10',
-            balance: '0',
-            tokenFiatAmount: '0',
           },
         ],
         clientId: BridgeClientId.EXTENSION,
@@ -266,7 +258,7 @@ describe('fetch', () => {
         'https://bridge.api.cx.metamask.io/getTokens/popular',
         {
           method: 'POST',
-          body: '{"chainIds":["eip155:10"],"includeAssets":[{"assetId":"eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201F986","decimals":8,"symbol":"DEF","name":"DEF","chainId":"eip155:10","balance":"1000000000000000000","tokenFiatAmount":"5"},{"assetId":"eip155:10/slip44:614","symbol":"ETH","decimals":18,"name":"Ether","image":"https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png","chainId":"eip155:10","balance":"0","tokenFiatAmount":"0"}]}',
+          body: '{"chainIds":["eip155:10"],"includeAssets":[{"assetId":"eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201F986","decimals":8,"symbol":"DEF","name":"DEF"},{"assetId":"eip155:10/slip44:614","symbol":"ETH","decimals":18,"name":"Ether"}]}',
           headers: {
             'Client-Version': '1.0.0',
             'Content-Type': 'application/json',
@@ -280,13 +272,11 @@ describe('fetch', () => {
         Array [
           Object {
             "assetId": "eip155:10/slip44:614",
-            "balance": "0",
             "chainId": "eip155:10",
             "decimals": 18,
             "image": "https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png",
             "name": "Ether",
             "symbol": "ETH",
-            "tokenFiatAmount": "0",
           },
           Object {
             "assetId": "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
@@ -304,12 +294,10 @@ describe('fetch', () => {
           },
           Object {
             "assetId": "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f986",
-            "balance": "1000000000000000000",
             "chainId": "eip155:10",
             "decimals": 8,
             "name": "DEF",
             "symbol": "DEF",
-            "tokenFiatAmount": "5",
           },
           Object {
             "assetId": "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f987",
@@ -518,20 +506,12 @@ describe('fetch', () => {
             decimals: 8,
             symbol: 'DEF',
             name: 'DEF',
-            chainId: 'eip155:10',
-            balance: '1000000000000000000',
-            tokenFiatAmount: '5',
           },
           {
             assetId: 'eip155:10/slip44:614',
             symbol: 'ETH',
             decimals: 18,
             name: 'Ether',
-            image:
-              'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png',
-            chainId: 'eip155:10',
-            balance: '0',
-            tokenFiatAmount: '0',
           },
         ],
         clientId: BridgeClientId.EXTENSION,
@@ -548,7 +528,7 @@ describe('fetch', () => {
         'https://bridge.api.cx.metamask.io/getTokens/search',
         {
           method: 'POST',
-          body: '{"chainIds":["eip155:10"],"includeAssets":[{"assetId":"eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201F986","decimals":8,"symbol":"DEF","name":"DEF","chainId":"eip155:10","balance":"1000000000000000000","tokenFiatAmount":"5"},{"assetId":"eip155:10/slip44:614","symbol":"ETH","decimals":18,"name":"Ether","image":"https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png","chainId":"eip155:10","balance":"0","tokenFiatAmount":"0"}],"query":"ABC"}',
+          body: '{"chainIds":["eip155:10"],"includeAssets":[{"assetId":"eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201F986","decimals":8,"symbol":"DEF","name":"DEF"},{"assetId":"eip155:10/slip44:614","symbol":"ETH","decimals":18,"name":"Ether"}],"query":"ABC"}',
           headers: {
             'Client-Version': '1.0.0',
             'Content-Type': 'application/json',
@@ -562,13 +542,11 @@ describe('fetch', () => {
         Array [
           Object {
             "assetId": "eip155:10/slip44:614",
-            "balance": "0",
             "chainId": "eip155:10",
             "decimals": 18,
             "image": "https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png",
             "name": "Ether",
             "symbol": "ETH",
-            "tokenFiatAmount": "0",
           },
           Object {
             "assetId": "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
@@ -586,12 +564,10 @@ describe('fetch', () => {
           },
           Object {
             "assetId": "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f986",
-            "balance": "1000000000000000000",
             "chainId": "eip155:10",
             "decimals": 8,
             "name": "DEF",
             "symbol": "DEF",
-            "tokenFiatAmount": "5",
           },
           Object {
             "assetId": "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f987",
