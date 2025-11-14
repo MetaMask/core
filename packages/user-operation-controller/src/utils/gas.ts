@@ -19,6 +19,7 @@ const GAS_ESTIMATE_MULTIPLIER = 1.5;
 
 /**
  * Populates the gas properties for a user operation.
+ *
  * @param metadata - The metadata for the user operation.
  * @param prepareResponse - The prepare response from the smart contract account.
  * @param entrypoint - Address of the entrypoint contract.
@@ -78,6 +79,7 @@ export async function updateGas(
 
 /**
  * Normalizes a gas estimate value from the bundler.
+ *
  * @param rawValue - The raw value to normalize.
  * @returns The normalized value as a hexadecimal string.
  */

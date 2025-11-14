@@ -7,7 +7,6 @@ import {
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
-import type { Messenger } from '@metamask/base-controller';
 import {
   EthAccountType,
   SolAccountType,
@@ -31,14 +30,9 @@ import {
   setupNamedAccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
+  type RootMessenger,
 } from './tests';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  MultichainAccountServiceActions,
-  MultichainAccountServiceEvents,
-  MultichainAccountServiceMessenger,
-} from './types';
+import type { MultichainAccountServiceMessenger } from './types';
 
 function setup({
   entropySource = MOCK_WALLET_1_ENTROPY_SOURCE,
@@ -55,10 +49,7 @@ function setup({
   ],
 }: {
   entropySource?: EntropySourceId;
-  messenger?: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  messenger?: RootMessenger;
   providers?: MockAccountProvider[];
   accounts?: InternalAccount[][];
 } = {}): {
@@ -75,6 +66,11 @@ function setup({
   });
 
   const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
+
+  messenger.registerActionHandler(
+    'ErrorReportingService:captureException',
+    jest.fn(),
+  );
 
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
     entropySource,
@@ -373,6 +369,74 @@ describe('MultichainAccountWallet', () => {
         'Unable to create multichain account group for index: 1',
       );
     });
+
+    it('captures an error when a provider fails to create its account', async () => {
+      const groupIndex = 1;
+      const { wallet, providers, messenger } = setup({
+        accounts: [[MOCK_HD_ACCOUNT_1]],
+      });
+      const [provider] = providers;
+      const providerError = new Error('Unable to create accounts');
+      provider.createAccounts.mockRejectedValueOnce(providerError);
+      const callSpy = jest.spyOn(messenger, 'call');
+      await expect(
+        wallet.createMultichainAccountGroup(groupIndex),
+      ).rejects.toThrow(
+        'Unable to create multichain account group for index: 1',
+      );
+      expect(callSpy).toHaveBeenCalledWith(
+        'ErrorReportingService:captureException',
+        new Error('Unable to create account with provider "Mocked Provider 0"'),
+      );
+      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
+    });
+
+    it('aggregates non-EVM failures when waiting for all providers', async () => {
+      const startingIndex = 0;
+
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(startingIndex)
+        .get();
+
+      const { wallet, providers } = setup({
+        providers: [
+          setupNamedAccountProvider({ accounts: [mockEvmAccount], index: 0 }),
+          setupNamedAccountProvider({
+            name: 'Non-EVM Provider',
+            accounts: [],
+            index: 1,
+          }),
+        ],
+      });
+
+      const nextIndex = 1;
+      const nextEvmAccount = MockAccountBuilder.from(mockEvmAccount)
+        .withGroupIndex(nextIndex)
+        .get();
+
+      const [evmProvider, solProvider] = providers;
+      evmProvider.createAccounts.mockResolvedValueOnce([nextEvmAccount]);
+      evmProvider.getAccounts.mockReturnValueOnce([nextEvmAccount]);
+      evmProvider.getAccount.mockReturnValueOnce(nextEvmAccount);
+
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const SOL_PROVIDER_ERROR = 'SOL create failed';
+      solProvider.createAccounts.mockRejectedValueOnce(
+        new Error(SOL_PROVIDER_ERROR),
+      );
+
+      await expect(
+        wallet.createMultichainAccountGroup(nextIndex, {
+          waitForAllProvidersToFinishCreatingAccounts: true,
+        }),
+      ).rejects.toThrow(
+        `Unable to create multichain account group for index: ${nextIndex}:\n- Error: ${SOL_PROVIDER_ERROR}`,
+      );
+
+      expect(warnSpy).toHaveBeenCalled();
+    });
   });
 
   describe('createNextMultichainAccountGroup', () => {
@@ -665,6 +729,23 @@ describe('MultichainAccountWallet', () => {
 
       // Other provider proceeds normally
       expect(providers[1].discoverAccounts).toHaveBeenCalledTimes(1);
+    });
+
+    it('captures an error when a provider fails to discover its accounts', async () => {
+      const { wallet, providers, messenger } = setup({
+        accounts: [[], []],
+      });
+      const providerError = new Error('Unable to discover accounts');
+      providers[0].discoverAccounts.mockRejectedValueOnce(providerError);
+      const callSpy = jest.spyOn(messenger, 'call');
+      // Ensure the other provider stops immediately to finish the Promise.all
+      providers[1].discoverAccounts.mockResolvedValueOnce([]);
+      await wallet.discoverAccounts();
+      expect(callSpy).toHaveBeenCalledWith(
+        'ErrorReportingService:captureException',
+        new Error('Unable to discover accounts'),
+      );
+      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
     });
   });
 });

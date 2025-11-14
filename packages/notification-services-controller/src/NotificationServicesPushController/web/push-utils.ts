@@ -14,7 +14,7 @@ import log from 'loglevel';
 
 import type { Types } from '../../NotificationServicesController';
 import { Processors } from '../../NotificationServicesController';
-import { toRawOnChainNotification } from '../../shared/to-raw-notification';
+import { toRawAPINotification } from '../../shared/to-raw-notification';
 import type { NotificationServicesPushControllerMessenger } from '../NotificationServicesPushController';
 import type { PushNotificationEnv } from '../types/firebase';
 
@@ -128,14 +128,16 @@ async function listenToPushNotificationsReceived(
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (payload: MessagePayload) => {
       try {
-        const data: Types.UnprocessedOnChainRawNotification | undefined =
-          payload?.data?.data ? JSON.parse(payload?.data?.data) : undefined;
+        const data: Types.UnprocessedRawNotification | undefined = payload?.data
+          ?.data
+          ? JSON.parse(payload?.data?.data)
+          : undefined;
 
         if (!data) {
           return;
         }
 
-        const notificationData = toRawOnChainNotification(data);
+        const notificationData = toRawAPINotification(data);
         const notification = Processors.processNotification(notificationData);
         await handler(notification);
       } catch (error) {

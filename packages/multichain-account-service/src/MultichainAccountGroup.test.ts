@@ -5,7 +5,6 @@ import {
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
-import type { Messenger } from '@metamask/base-controller';
 import { EthScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
@@ -22,13 +21,9 @@ import {
   setupNamedAccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
+  type RootMessenger,
 } from './tests';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  MultichainAccountServiceActions,
-  MultichainAccountServiceEvents,
-} from './types';
+import type { MultichainAccountServiceMessenger } from './types';
 
 function setup({
   groupIndex = 0,
@@ -44,23 +39,27 @@ function setup({
   ],
 }: {
   groupIndex?: number;
-  messenger?: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  messenger?: RootMessenger;
   accounts?: InternalAccount[][];
 } = {}): {
   wallet: MultichainAccountWallet<Bip44Account<InternalAccount>>;
   group: MultichainAccountGroup<Bip44Account<InternalAccount>>;
   providers: MockAccountProvider[];
+  messenger: MultichainAccountServiceMessenger;
 } {
   const providers = accounts.map((providerAccounts) => {
     return setupNamedAccountProvider({ accounts: providerAccounts });
   });
 
+  const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
+  messenger.registerActionHandler(
+    'ErrorReportingService:captureException',
+    jest.fn(),
+  );
+
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
     entropySource: MOCK_WALLET_1_ENTROPY_SOURCE,
-    messenger: getMultichainAccountServiceMessenger(messenger),
+    messenger: serviceMessenger,
     providers,
   });
 
@@ -68,10 +67,10 @@ function setup({
     wallet,
     groupIndex,
     providers,
-    messenger: getMultichainAccountServiceMessenger(messenger),
+    messenger: serviceMessenger,
   });
 
-  return { wallet, group, providers };
+  return { wallet, group, providers, messenger: serviceMessenger };
 }
 
 describe('MultichainAccount', () => {
@@ -221,6 +220,23 @@ describe('MultichainAccount', () => {
       expect(consoleSpy).toHaveBeenCalledWith(
         `Failed to fully align multichain account group for entropy ID: ${wallet.entropySource} and group index: ${groupIndex}, some accounts might be missing`,
       );
+    });
+
+    it('captures an error when a provider fails to create its account', async () => {
+      const groupIndex = 0;
+      const { group, providers, messenger } = setup({
+        groupIndex,
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+      const providerError = new Error('Unable to create accounts');
+      providers[1].createAccounts.mockRejectedValueOnce(providerError);
+      const callSpy = jest.spyOn(messenger, 'call');
+      await group.alignAccounts();
+      expect(callSpy).toHaveBeenCalledWith(
+        'ErrorReportingService:captureException',
+        new Error('Unable to align accounts with provider "Mocked Provider"'),
+      );
+      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
     });
   });
 });

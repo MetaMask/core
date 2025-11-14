@@ -1,9 +1,15 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 
 import AuthenticationController from './AuthenticationController';
 import type {
-  AllowedActions,
-  AllowedEvents,
+  AuthenticationControllerMessenger,
   AuthenticationControllerState,
 } from './AuthenticationController';
 import {
@@ -292,7 +298,6 @@ describe('AuthenticationController', () => {
       const { messenger } = createMockAuthenticationMessenger();
       mockAuthenticationFlowEndpoints();
       const originalState = mockSignedInState();
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (originalState.srpSessionData) {
         originalState.srpSessionData[
           MOCK_ENTROPY_SOURCE_IDS[0]
@@ -326,7 +331,6 @@ describe('AuthenticationController', () => {
 
       // Invalid/old state
       const originalState = mockSignedInState();
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (originalState.srpSessionData) {
         originalState.srpSessionData[
           MOCK_ENTROPY_SOURCE_IDS[0]
@@ -400,7 +404,6 @@ describe('AuthenticationController', () => {
       const { messenger } = createMockAuthenticationMessenger();
       mockAuthenticationFlowEndpoints();
       const originalState = mockSignedInState();
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (originalState.srpSessionData) {
         originalState.srpSessionData[
           MOCK_ENTROPY_SOURCE_IDS[0]
@@ -437,7 +440,6 @@ describe('AuthenticationController', () => {
 
       // Invalid/old state
       const originalState = mockSignedInState();
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (originalState.srpSessionData) {
         originalState.srpSessionData[
           MOCK_ENTROPY_SOURCE_IDS[0]
@@ -560,7 +562,7 @@ describe('metadata', () => {
       deriveStateFromMetadata(
         controller.state,
         controller.metadata,
-        'anonymous',
+        'includeInDebugSnapshot',
       ),
     ).toMatchInlineSnapshot(`
       Object {
@@ -726,23 +728,52 @@ describe('metadata', () => {
   });
 });
 
+type AllAuthenticationControllerActions =
+  MessengerActions<AuthenticationControllerMessenger>;
+
+type AllAuthenticationControllerEvents =
+  MessengerEvents<AuthenticationControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllAuthenticationControllerActions,
+  AllAuthenticationControllerEvents
+>;
+
+/**
+ * Constructs the root messenger.
+ *
+ * @returns A root messenger.
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+}
+
+const controllerName = 'AuthenticationController';
+
 /**
  * Jest Test Utility - create Auth Messenger
  *
  * @returns Auth Messenger
  */
 function createAuthenticationMessenger() {
-  const baseMessenger = new Messenger<AllowedActions, AllowedEvents>();
-  const messenger = baseMessenger.getRestricted({
-    name: 'AuthenticationController',
-    allowedActions: [
-      'KeyringController:getState',
-      'SnapController:handleRequest',
-    ],
-    allowedEvents: ['KeyringController:lock', 'KeyringController:unlock'],
+  const rootMessenger = getRootMessenger();
+  const messenger = new Messenger<
+    typeof controllerName,
+    AllAuthenticationControllerActions,
+    AllAuthenticationControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger,
+    actions: ['KeyringController:getState', 'SnapController:handleRequest'],
+    events: ['KeyringController:lock', 'KeyringController:unlock'],
   });
 
-  return { messenger, baseMessenger };
+  return { messenger, baseMessenger: rootMessenger };
 }
 
 /**
@@ -771,6 +802,12 @@ function createMockAuthenticationMessenger() {
   mockCall.mockImplementation((...args) => {
     const [actionType, params] = args;
     if (actionType === 'SnapController:handleRequest') {
+      if (typeof params === 'string') {
+        throw new Error(
+          `MOCK_FAIL - unsupported SnapController:handleRequest call: ${params}`,
+        );
+      }
+
       if (params?.request.method === 'getPublicKey') {
         return mockSnapGetPublicKey();
       }

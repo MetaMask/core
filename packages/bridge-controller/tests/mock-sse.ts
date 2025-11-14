@@ -1,7 +1,8 @@
-import * as eventSource from '@microsoft/fetch-event-source';
+// eslint-disable-next-line @typescript-eslint/no-shadow
+import { ReadableStream } from 'node:stream/web';
 
 import { flushPromises } from '../../../tests/helpers';
-import type { QuoteResponse, TxData } from '../src';
+import type { QuoteResponse, Trade } from '../src';
 
 export const advanceToNthTimer = (n = 1) => {
   for (let i = 0; i < n; i++) {
@@ -14,12 +15,6 @@ export const advanceToNthTimerThenFlush = async (n = 1) => {
   await flushPromises();
 };
 
-const mockOnOpen = (onOpen?: (response: Response) => Promise<void>) =>
-  setTimeout(() => {
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    onOpen?.({ ok: true } as Response);
-  }, 1000);
-
 /**
  * Generates a unique event id for the server event. This matches the id
  * used by the bridge-api
@@ -31,112 +26,100 @@ const getEventId = (index: number) => {
   return `${Date.now().toString()}-${index}`;
 };
 
+const emitLine = (
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  controller: ReadableStreamDefaultController,
+  line: string,
+) => {
+  controller.enqueue(Buffer.from(line));
+};
+
 /**
- * This simulates responses from the fetchEventSource function for unit tests
- * onopen, onmessage and onerror callbacks are executed based on this sequence: https://github.com/Azure/fetch-event-source/blob/main/src/fetch.ts#L102-L127
+ * This simulates responses from the fetch function for unit tests
  *
- * @param mockQuotes1 - a list of quotes to stream
- * @param mockQuotes2 - a list of quotes to stream
- *
- * @returns a mock of the fetchEventSource function
+ * @param mockQuotes - a list of quotes to stream
+ * @param delay - the delay in milliseconds
+ * @returns a delayed stream of quotes
  */
 export const mockSseEventSource = (
-  mockQuotes1: QuoteResponse<string | TxData>[],
-  mockQuotes2: QuoteResponse<string | TxData>[],
-) =>
-  jest
-    .spyOn(eventSource, 'fetchEventSource')
-    // Valid quotes
-    .mockImplementationOnce(async (_, { onopen, onmessage, onclose }) => {
-      mockOnOpen(onopen);
-      setTimeout(() => {
-        mockQuotes1.forEach((quote, id) => {
-          onmessage?.({
-            data: JSON.stringify(quote),
-            event: 'quote',
-            id: getEventId(id + 1),
-          });
-        });
-        onclose?.();
-      }, 4000);
-    })
-    // Valid quotes
-    .mockImplementationOnce(async (_, { onopen, onmessage, onclose }) => {
-      mockOnOpen(onopen);
-      setTimeout(() => {
-        onmessage?.({
-          data: JSON.stringify(mockQuotes2[0]),
-          event: 'quote',
-          id: getEventId(1),
-        });
-      }, 9000);
-      await Promise.resolve();
-      setTimeout(() => {
-        onmessage?.({
-          data: JSON.stringify(mockQuotes2[1]),
-          event: 'quote',
-          id: getEventId(2),
-        });
-        onclose?.();
-      }, 9000);
-    })
-    // Catches a network error
-    .mockImplementationOnce(async (_, { onopen, onerror, onclose }) => {
-      mockOnOpen(onopen);
-      onerror?.('Network error');
-      onclose?.();
-    })
-    .mockImplementationOnce(async (_, { onopen, onmessage, onclose }) => {
-      mockOnOpen(onopen);
-      [...mockQuotes1, ...mockQuotes1].forEach((quote, id) => {
+  mockQuotes: QuoteResponse[],
+  delay: number = 3000,
+) => {
+  return {
+    status: 200,
+    ok: true,
+    body: new ReadableStream({
+      start(controller) {
         setTimeout(() => {
-          onmessage?.({
-            data: JSON.stringify(quote),
-            event: 'quote',
-            id: getEventId(id + 1),
+          mockQuotes.forEach((quote, id) => {
+            emitLine(controller, `event: quote\n`);
+            emitLine(controller, `id: ${getEventId(id + 1)}\n`);
+            emitLine(controller, `data: ${JSON.stringify(quote)}\n\n`);
           });
-          // eslint-disable-next-line no-empty-function
-          Promise.resolve().catch(() => {});
-          if (id === mockQuotes1.length - 1) {
-            onclose?.();
-          }
-        }, 2000 + id);
-      });
-    })
-    // Returns valid and invalid quotes
-    .mockImplementationOnce(async (_, { onopen, onmessage, onclose }) => {
-      mockOnOpen(onopen);
-      setTimeout(() => {
-        onmessage?.({
-          data: JSON.stringify({
-            ...mockQuotes2[1],
-            trade: { abc: '123' },
-          }),
-          event: 'quote',
-          id: 'invalidId',
+          controller.close();
+        }, delay);
+      },
+    }),
+  };
+};
+
+/**
+ * This simulates responses from the fetch function for unit tests
+ *
+ * @param mockQuotes - a list of quotes to stream
+ * @param delay - the delay in milliseconds
+ * @returns a stream of quotes with multiple delays in between each quote
+ */
+export const mockSseEventSourceWithMultipleDelays = async (
+  mockQuotes: QuoteResponse<Trade, Trade>[],
+  delay: number = 4000,
+) => {
+  return {
+    status: 200,
+    ok: true,
+    body: new ReadableStream({
+      async start(controller) {
+        mockQuotes.forEach((quote, id) => {
+          setTimeout(
+            () => {
+              emitLine(controller, `event: quote\n`);
+              emitLine(controller, `id: ${getEventId(id + 1)}\n`);
+              emitLine(controller, `data: ${JSON.stringify(quote)}\n\n`);
+              if (id === mockQuotes.length - 1) {
+                controller.close();
+              }
+            },
+            delay * (id + 1),
+          );
         });
-      }, 2000);
-      setTimeout(() => {
-        onmessage?.({
-          data: '',
-          event: 'quote',
-          id: getEventId(2),
-        });
-      }, 3000);
-      setTimeout(() => {
-        onmessage?.({
-          data: JSON.stringify(mockQuotes2[0]),
-          event: 'quote',
-          id: getEventId(3),
-        });
-      }, 4000);
-      setTimeout(() => {
-        const { quote, ...rest } = mockQuotes1[0];
-        onmessage?.({
-          data: JSON.stringify(rest),
-          event: 'quote',
-          id: getEventId(4),
-        });
-        onclose?.();
-      }, 6000);
-    });
+      },
+    }),
+  };
+};
+
+/**
+ * This simulates responses from the fetch function for unit tests
+ *
+ * @param errorMessage - the error message to rethrow
+ * @param delay - the delay in milliseconds
+ * @returns a delayed stream of quotes
+ */
+export const mockSseServerError = (
+  errorMessage: string,
+  delay: number = 3000,
+) => {
+  return {
+    status: 200,
+    ok: true,
+    body: new ReadableStream({
+      start(controller) {
+        setTimeout(() => {
+          emitLine(controller, `event: error\n`);
+          emitLine(controller, `id: ${getEventId(1)}\n`);
+          emitLine(controller, `data: ${errorMessage}\n\n`);
+          controller.close();
+        }, delay);
+      },
+    }),
+  };
+};

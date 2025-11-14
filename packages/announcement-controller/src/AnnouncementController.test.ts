@@ -1,4 +1,9 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 
 import type {
   AnnouncementControllerState,
@@ -16,15 +21,20 @@ const name = 'AnnouncementController';
  *
  * @returns A restricted controller messenger.
  */
-function getRestrictedMessenger() {
+function getMessenger() {
   const messenger = new Messenger<
+    MockAnyNamespace,
     AnnouncementControllerActions,
     AnnouncementControllerEvents
-  >();
-  return messenger.getRestricted({
-    name,
-    allowedActions: [],
-    allowedEvents: [],
+  >({ namespace: MOCK_ANY_NAMESPACE });
+  return new Messenger<
+    typeof name,
+    AnnouncementControllerActions,
+    AnnouncementControllerEvents,
+    typeof messenger
+  >({
+    namespace: name,
+    parent: messenger,
   });
 }
 const allAnnouncements: AnnouncementMap = {
@@ -89,7 +99,7 @@ const state2: AnnouncementControllerState = {
 describe('announcement controller', () => {
   it('should add announcement to state', () => {
     const controller = new AnnouncementController({
-      messenger: getRestrictedMessenger(),
+      messenger: getMessenger(),
       allAnnouncements,
     });
     expect(Object.keys(controller.state.announcements)).toHaveLength(2);
@@ -110,7 +120,7 @@ describe('announcement controller', () => {
 
   it('should add new announcement to state and a new announcement should be created with isShown as false', () => {
     const controller = new AnnouncementController({
-      messenger: getRestrictedMessenger(),
+      messenger: getMessenger(),
       state: state1,
       allAnnouncements: allAnnouncements2,
     });
@@ -123,7 +133,7 @@ describe('announcement controller', () => {
   describe('resetViewed', () => {
     it('resets all announcement isShown states to false', () => {
       const controller = new AnnouncementController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
         state: state2,
         allAnnouncements: allAnnouncements2,
       });
@@ -142,7 +152,7 @@ describe('announcement controller', () => {
   describe('update viewed announcements', () => {
     it('should update isShown status', () => {
       const controller = new AnnouncementController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
         state: state2,
         allAnnouncements: allAnnouncements2,
       });
@@ -154,7 +164,7 @@ describe('announcement controller', () => {
 
     it('should update isShown of more than one announcement', () => {
       const controller = new AnnouncementController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
         state: state2,
         allAnnouncements: allAnnouncements2,
       });
@@ -168,7 +178,7 @@ describe('announcement controller', () => {
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
       const controller = new AnnouncementController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
         allAnnouncements,
       });
 
@@ -176,7 +186,7 @@ describe('announcement controller', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
         Object {
@@ -198,7 +208,7 @@ describe('announcement controller', () => {
 
     it('includes expected state in state logs', () => {
       const controller = new AnnouncementController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
         allAnnouncements,
       });
 
@@ -228,7 +238,7 @@ describe('announcement controller', () => {
 
     it('persists expected state', () => {
       const controller = new AnnouncementController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
         allAnnouncements,
       });
 
@@ -258,7 +268,7 @@ describe('announcement controller', () => {
 
     it('exposes expected state to UI', () => {
       const controller = new AnnouncementController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
         allAnnouncements,
       });
 

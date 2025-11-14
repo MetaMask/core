@@ -9,6 +9,7 @@ import { EvmAccountProvider } from '../providers';
 export type MockAccountProvider = {
   accounts: KeyringAccount[];
   constructor: jest.Mock;
+  resyncAccounts: jest.Mock;
   getAccount: jest.Mock;
   getAccounts: jest.Mock;
   createAccounts: jest.Mock;
@@ -23,6 +24,7 @@ export function makeMockAccountProvider(
   return {
     accounts,
     constructor: jest.fn(),
+    resyncAccounts: jest.fn(),
     getAccount: jest.fn(),
     getAccounts: jest.fn(),
     createAccounts: jest.fn(),

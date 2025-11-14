@@ -1,8 +1,51 @@
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import { PollingBlockTracker } from '@metamask/eth-block-tracker';
+import { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import type {
+  JsonRpcMiddleware,
+  ResultConstraint,
+} from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
+
+import type { WalletMiddlewareKeyValues } from '../../src/wallet';
+
+export const createRequest = <
+  Input extends Partial<JsonRpcRequest<Json[]>>,
+  Output extends Input & JsonRpcRequest<Json[]>,
+>(
+  request: Input,
+): Output => {
+  return {
+    jsonrpc: '2.0',
+    id: request.id ?? '1',
+    method: request.method ?? 'test_request',
+    params: request.params === undefined ? [] : request.params,
+  } as Output;
+};
+
+const createHandleOptions = (
+  keyValues: Partial<WalletMiddlewareKeyValues> = {},
+): { context: WalletMiddlewareKeyValues } => ({
+  context: {
+    networkClientId: 'test-client-id',
+    origin: 'test-origin',
+    ...keyValues,
+  },
+});
+
+export const createHandleParams = <
+  InputReq extends Partial<JsonRpcRequest<Json[]>>,
+  OutputReq extends InputReq & JsonRpcRequest<Json[]>,
+>(
+  request: InputReq,
+  keyValues: Partial<WalletMiddlewareKeyValues> = {},
+): [OutputReq, ReturnType<typeof createHandleOptions>] => [
+  createRequest(request),
+  createHandleOptions(keyValues),
+];
 
 /**
  * An object that can be used to assign a canned result to a request made via
@@ -47,34 +90,62 @@ export type ProviderRequestStub<
  * @template Result - The type that represents the result.
  * @returns The created middleware, as a mock function.
  */
-export function buildFinalMiddlewareWithDefaultResult<
-  Params extends JsonRpcParams,
-  Result extends Json,
->(): JsonRpcMiddleware<Params, Result | 'default result'> {
-  return jest.fn((req, res, _next, end) => {
-    if (res.id === undefined) {
-      res.id = req.id;
+export function createFinalMiddlewareWithDefaultResult(): JsonRpcMiddleware<JsonRpcRequest> {
+  return jest.fn(async ({ next }) => {
+    // Not a Node.js callback
+    // eslint-disable-next-line n/callback-return
+    const result = await next();
+    if (result === undefined) {
+      return 'default result';
     }
-
-    res.jsonrpc ??= '2.0';
-
-    if (res.result === undefined) {
-      res.result = 'default result';
-    }
-
-    end();
+    return result;
   });
 }
 
 /**
- * Creates a middleware function that just ends the request, but is also a Jest
- * mock function so that you can make assertions on it.
+ * Creates a provider and block tracker. The provider is the block tracker's
+ * provider.
  *
- * @returns The created middleware, as a mock function.
+ * @returns The provider and block tracker.
  */
-export function buildSimpleFinalMiddleware() {
-  return jest.fn((_req, _res, _next, end) => {
-    end();
+export function createProviderAndBlockTracker(): {
+  provider: InternalProvider;
+  blockTracker: PollingBlockTracker;
+} {
+  const engine = new JsonRpcEngine();
+  const provider = new InternalProvider({ engine });
+
+  const blockTracker = new PollingBlockTracker({
+    provider,
+  });
+
+  return { provider, blockTracker };
+}
+
+// An expedient for use with createEngine below.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyMiddleware = JsonRpcMiddleware<any, ResultConstraint<any>, any>;
+
+/**
+ * Creates a JSON-RPC engine with the middleware under test and any
+ * additional middleware. If no other middleware is provided, a final middleware
+ * that returns a default result is added.
+ *
+ * @param middlewareUnderTest - The middleware under test.
+ * @param otherMiddleware - Any additional middleware.
+ * @returns The created engine.
+ */
+export function createEngine(
+  middlewareUnderTest: AnyMiddleware,
+  ...otherMiddleware: AnyMiddleware[]
+): JsonRpcEngineV2 {
+  return JsonRpcEngineV2.create({
+    middleware: [
+      middlewareUnderTest,
+      ...(otherMiddleware.length === 0
+        ? [createFinalMiddlewareWithDefaultResult()]
+        : otherMiddleware),
+    ],
   });
 }
 
@@ -82,14 +153,14 @@ export function buildSimpleFinalMiddleware() {
  * Some JSON-RPC endpoints take a "block" param (example: `eth_blockNumber`)
  * which can optionally be left out. Additionally, the endpoint may support some
  * number of arguments, although the "block" param will always be last, even if
- * it is optional. Given this, this function builds a `params` array for such an
+ * it is optional. Given this, this function creates a `params` array for such an
  * endpoint with the given "block" param added at the end.
  *
  * @param blockParamIndex - The index within the `params` array to add the "block" param.
  * @param blockParam - The desired "block" param to add.
  * @returns The mock params.
  */
-export function buildMockParamsWithBlockParamAt(
+export function createMockParamsWithBlockParamAt(
   blockParamIndex: number,
   blockParam: string,
 ): string[] {
@@ -107,7 +178,7 @@ export function buildMockParamsWithBlockParamAt(
  * Some JSON-RPC endpoints take a "block" param (example: `eth_blockNumber`)
  * which can optionally be left out. Additionally, the endpoint may support some
  * number of arguments, although the "block" param will always be last, even if
- * it is optional. Given this, this function builds a mock `params` array for
+ * it is optional. Given this, this function creates a mock `params` array for
  * such an endpoint, filling it with arbitrary values, but with the "block"
  * param missing.
  *
@@ -115,7 +186,7 @@ export function buildMockParamsWithBlockParamAt(
  * would* appear.
  * @returns The mock params.
  */
-export function buildMockParamsWithoutBlockParamAt(
+export function createMockParamsWithoutBlockParamAt(
   blockParamIndex: number,
 ): string[] {
   const params = [];
@@ -128,14 +199,14 @@ export function buildMockParamsWithoutBlockParamAt(
 }
 
 /**
- * Builds a canned result for a `eth_blockNumber` request made to
+ * Creates a canned result for a `eth_blockNumber` request made to
  * `provider.request` such that the result will return the given block
  * number. Intended to be used in conjunction with `stubProviderRequests`.
  *
  * @param blockNumber - The block number (default: '0x0').
  * @returns The request/result pair.
  */
-export function buildStubForBlockNumberRequest(
+export function createStubForBlockNumberRequest(
   blockNumber = '0x0',
 ): ProviderRequestStub<JsonRpcParams, Json> {
   return {
@@ -148,7 +219,7 @@ export function buildStubForBlockNumberRequest(
 }
 
 /**
- * Builds a canned result for a request made to `provider.request`. Intended
+ * Creates a canned result for a request made to `provider.request`. Intended
  * to be used in conjunction with `stubProviderRequests`. Although not strictly
  * necessary, it helps to assign a proper type to a request/result pair.
  *
@@ -157,7 +228,7 @@ export function buildStubForBlockNumberRequest(
  * @param requestStub - The request/result pair.
  * @returns The request/result pair, properly typed.
  */
-export function buildStubForGenericRequest<
+export function createStubForGenericRequest<
   Params extends JsonRpcParams,
   Result extends Json,
 >(requestStub: ProviderRequestStub<Params, Result>) {
@@ -200,10 +271,10 @@ export function expectProviderRequestNotToHaveBeenMade(
  * @returns The Jest spy object that represents `provider.request` (so that
  * you can make assertions on the method later, if you like).
  */
-export function stubProviderRequests(
-  provider: SafeEventEmitterProvider,
-  stubs: ProviderRequestStub<any, Json>[],
-) {
+export function stubProviderRequests<
+  Params extends JsonRpcParams = JsonRpcParams,
+  Result extends Json = Json,
+>(provider: InternalProvider, stubs: ProviderRequestStub<Params, Result>[]) {
   const remainingStubs = klona(stubs);
   const callNumbersByRequest = new Map<Partial<JsonRpcRequest>, number>();
   return jest.spyOn(provider, 'request').mockImplementation(async (request) => {

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controller-utils",
-  "version": "11.14.1",
+  "version": "11.15.0",
   "description": "Data and convenience functions shared by multiple packages",
   "keywords": [
     "MetaMask",
@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/controller-utils",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/controller-utils",
@@ -62,6 +63,7 @@
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
     "@metamask/auto-changelog": "^3.4.4",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
     "deepmerge": "^4.2.2",
@@ -72,7 +74,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "peerDependencies": {
     "@babel/runtime": "^7.0.0"

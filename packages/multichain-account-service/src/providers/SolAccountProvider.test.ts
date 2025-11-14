@@ -1,5 +1,4 @@
 import { isBip44Account } from '@metamask/account-api';
-import type { Messenger } from '@metamask/base-controller';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type {
@@ -8,7 +7,11 @@ import type {
 } from '@metamask/keyring-internal-api';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
-import { SolAccountProvider } from './SolAccountProvider';
+import {
+  SOL_ACCOUNT_PROVIDER_NAME,
+  SolAccountProvider,
+} from './SolAccountProvider';
+import { TraceName } from '../constants/traces';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -17,13 +20,8 @@ import {
   MOCK_SOL_ACCOUNT_1,
   MOCK_SOL_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
+  type RootMessenger,
 } from '../tests';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  MultichainAccountServiceActions,
-  MultichainAccountServiceEvents,
-} from '../types';
 
 class MockSolanaKeyring {
   readonly type = 'MockSolanaKeyring';
@@ -94,23 +92,18 @@ function setup({
   messenger = getRootMessenger(),
   accounts = [],
 }: {
-  messenger?: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  messenger?: RootMessenger;
   accounts?: InternalAccount[];
 } = {}): {
   provider: AccountProviderWrapper;
-  messenger: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  messenger: RootMessenger;
   keyring: MockSolanaKeyring;
   mocks: {
     handleRequest: jest.Mock;
     keyring: {
       createAccount: jest.Mock;
     };
+    trace: jest.Mock;
   };
 } {
   const keyring = new MockSolanaKeyring(accounts);
@@ -125,6 +118,15 @@ function setup({
     .mockImplementation((address: string) =>
       keyring.accounts.find((account) => account.address === address),
     );
+
+  const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
+    expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
+    expect(request.data).toStrictEqual({
+      provider: SOL_ACCOUNT_PROVIDER_NAME,
+    });
+    return await fn();
+  });
+
   messenger.registerActionHandler(
     'SnapController:handleRequest',
     mockHandleRequest,
@@ -144,7 +146,7 @@ function setup({
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
   const provider = new AccountProviderWrapper(
     multichainMessenger,
-    new SolAccountProvider(multichainMessenger),
+    new SolAccountProvider(multichainMessenger, undefined, mockTrace),
   );
 
   return {
@@ -156,6 +158,7 @@ function setup({
       keyring: {
         createAccount: keyring.createAccount as jest.Mock,
       },
+      trace: mockTrace,
     },
   };
 }
@@ -318,5 +321,108 @@ describe('SolAccountProvider', () => {
     });
 
     expect(discovered).toStrictEqual([]);
+  });
+
+  describe('trace functionality', () => {
+    it('calls trace callback during account discovery', async () => {
+      const { messenger, mocks } = setup({
+        accounts: [],
+      });
+
+      mocks.handleRequest.mockReturnValue([MOCK_SOL_DISCOVERED_ACCOUNT_1]);
+
+      const multichainMessenger =
+        getMultichainAccountServiceMessenger(messenger);
+      const solProvider = new SolAccountProvider(
+        multichainMessenger,
+        undefined,
+        mocks.trace,
+      );
+      const provider = new AccountProviderWrapper(
+        multichainMessenger,
+        solProvider,
+      );
+
+      const discovered = await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+
+      expect(discovered).toHaveLength(1);
+      expect(mocks.trace).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses fallback trace when no trace callback is provided', async () => {
+      const { provider, mocks } = setup({
+        accounts: [],
+      });
+
+      mocks.handleRequest.mockReturnValue([MOCK_SOL_DISCOVERED_ACCOUNT_1]);
+
+      const discovered = await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+
+      expect(discovered).toHaveLength(1);
+    });
+
+    it('trace callback is called even when discovery returns empty results', async () => {
+      const { messenger, mocks } = setup({
+        accounts: [],
+      });
+
+      mocks.handleRequest.mockReturnValue([]);
+
+      const multichainMessenger =
+        getMultichainAccountServiceMessenger(messenger);
+      const solProvider = new SolAccountProvider(
+        multichainMessenger,
+        undefined,
+        mocks.trace,
+      );
+      const provider = new AccountProviderWrapper(
+        multichainMessenger,
+        solProvider,
+      );
+
+      const discovered = await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+
+      expect(discovered).toStrictEqual([]);
+      expect(mocks.trace).toHaveBeenCalledTimes(1);
+    });
+
+    it('trace callback receives error when discovery fails', async () => {
+      const mockError = new Error('Discovery failed');
+      const { messenger, mocks } = setup({
+        accounts: [],
+      });
+
+      mocks.handleRequest.mockRejectedValue(mockError);
+
+      const multichainMessenger =
+        getMultichainAccountServiceMessenger(messenger);
+      const solProvider = new SolAccountProvider(
+        multichainMessenger,
+        undefined,
+        mocks.trace,
+      );
+      const provider = new AccountProviderWrapper(
+        multichainMessenger,
+        solProvider,
+      );
+
+      await expect(
+        provider.discoverAccounts({
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: 0,
+        }),
+      ).rejects.toThrow(mockError);
+
+      expect(mocks.trace).toHaveBeenCalledTimes(1);
+    });
   });
 });

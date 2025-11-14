@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6495](https://github.com/MetaMask/core/pull/6495))
+  - Previously, `TokenSearchDiscoveryController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6495](https://github.com/MetaMask/core/pull/6495))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [3.5.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
 ## [3.5.0]
 
 ### Added
@@ -99,7 +114,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This service is responsible for making search related requests to the Portfolio API
   - Specifically, it handles the `tokens-search` endpoint which returns a list of tokens based on the provided query parameters
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.5.1...@metamask/token-search-discovery-controller@4.0.0
+[3.5.1]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.5.0...@metamask/token-search-discovery-controller@3.5.1
 [3.5.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.4.0...@metamask/token-search-discovery-controller@3.5.0
 [3.4.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.3.0...@metamask/token-search-discovery-controller@3.4.0
 [3.3.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@3.2.0...@metamask/token-search-discovery-controller@3.3.0

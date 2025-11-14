@@ -1,7 +1,9 @@
-import type { RestrictedMessenger } from '@metamask/base-controller';
-import type { ControllerGetStateAction } from '@metamask/base-controller';
-import type { ControllerStateChangeEvent } from '@metamask/base-controller';
-import type { ExportableKeyEncryptor } from '@metamask/keyring-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from '@metamask/base-controller';
+import type { Encryptor } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
@@ -205,19 +207,17 @@ export type SeedlessOnboardingControllerEvents =
 type AllowedEvents = never;
 
 // Messenger
-export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<
+export type SeedlessOnboardingControllerMessenger = Messenger<
   typeof controllerName,
   SeedlessOnboardingControllerActions | AllowedActions,
-  SeedlessOnboardingControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  SeedlessOnboardingControllerEvents | AllowedEvents
 >;
 
 /**
  * Encryptor interface for encrypting and decrypting seedless onboarding vault.
  */
-export type VaultEncryptor<EncryptionKey> = Omit<
-  ExportableKeyEncryptor<EncryptionKey>,
+export type VaultEncryptor<EncryptionKey, SupportedKeyDerivationParams> = Omit<
+  Encryptor<EncryptionKey, SupportedKeyDerivationParams>,
   'encryptWithKey'
 >;
 
@@ -270,7 +270,10 @@ export type RenewRefreshToken = (params: {
  * @param state - The initial state to set on this controller.
  * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
  */
-export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
+export type SeedlessOnboardingControllerOptions<
+  EncryptionKey,
+  SupportedKeyDerivationParams,
+> = {
   messenger: SeedlessOnboardingControllerMessenger;
 
   /**
@@ -283,7 +286,7 @@ export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
    *
    * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
    */
-  encryptor: VaultEncryptor<EncryptionKey>;
+  encryptor: VaultEncryptor<EncryptionKey, SupportedKeyDerivationParams>;
 
   /**
    * A function to get a new jwt token using refresh token.
@@ -359,7 +362,7 @@ export type VaultData = {
    * The revoke token to revoke refresh token and get new refresh token and new revoke token.
    * The revoke token may no longer be available after a large number of password changes. In this case, re-authentication is advised.
    */
-  revokeToken?: string;
+  revokeToken: string;
   /**
    * The access token used for pairing with profile sync auth service and to access other services.
    */

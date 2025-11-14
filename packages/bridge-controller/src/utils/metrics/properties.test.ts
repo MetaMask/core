@@ -230,14 +230,12 @@ describe('properties', () => {
     });
 
     it('should format request params correctly with all values provided', () => {
-      const result = getRequestParams(
-        {
-          destChainId: SolScope.Mainnet,
-          srcTokenAddress: '0x123',
-          destTokenAddress: 'ABD456',
-        },
-        'eip155:1' as CaipChainId,
-      );
+      const result = getRequestParams({
+        srcChainId: 1,
+        destChainId: SolScope.Mainnet,
+        srcTokenAddress: '0x123',
+        destTokenAddress: 'ABD456',
+      });
 
       expect(result).toStrictEqual({
         chain_id_destination: SolScope.Mainnet,
@@ -249,14 +247,11 @@ describe('properties', () => {
     });
 
     it('should fallback to src chainId when destChainId is undefined', () => {
-      const result = getRequestParams(
-        {
-          srcTokenAddress: getNativeAssetForChainId('0x1')?.address,
-          destTokenAddress: getNativeAssetForChainId('0xa')?.address,
-          srcChainId: 1,
-        },
-        formatChainIdToCaip(1),
-      );
+      const result = getRequestParams({
+        srcChainId: formatChainIdToCaip(1),
+        srcTokenAddress: getNativeAssetForChainId('0x1')?.address,
+        destTokenAddress: getNativeAssetForChainId('0xa')?.address,
+      });
 
       expect(result).toStrictEqual({
         chain_id_source: 'eip155:1',
@@ -267,14 +262,12 @@ describe('properties', () => {
     });
 
     it('should use native asset when srcTokenAddress is not provided', () => {
-      const result = getRequestParams(
-        {
-          destChainId: '2',
-          srcTokenAddress: undefined,
-          destTokenAddress: '0x456',
-        },
-        'eip155:1' as CaipChainId,
-      );
+      const result = getRequestParams({
+        srcChainId: 'eip155:1' as CaipChainId,
+        destChainId: '2',
+        srcTokenAddress: undefined,
+        destTokenAddress: '0x456',
+      });
 
       expect(result).toStrictEqual({
         chain_id_destination: 'eip155:2',
@@ -285,14 +278,12 @@ describe('properties', () => {
     });
 
     it('should use native asset when formatAddressToAssetId returns null', () => {
-      const result = getRequestParams(
-        {
-          destChainId: '2',
-          srcTokenAddress: '123',
-          destTokenAddress: '456',
-        },
-        'eip155:1' as CaipChainId,
-      );
+      const result = getRequestParams({
+        srcChainId: 'eip155:1' as CaipChainId,
+        destChainId: '2',
+        srcTokenAddress: '123',
+        destTokenAddress: '456',
+      });
 
       expect(result).toStrictEqual({
         chain_id_source: 'eip155:1',

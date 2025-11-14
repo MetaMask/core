@@ -46,17 +46,3 @@ export type ServiceResponse = {
   remoteFeatureFlags: FeatureFlags;
   cacheTimestamp: number | null;
 };
-
-/**
- * Describes the shape of the state object for the {@link RemoteFeatureFlagController}.
- */
-export type RemoteFeatureFlagControllerState = {
-  /**
-   * The collection of feature flags and their respective values, which can be objects.
-   */
-  remoteFeatureFlags: FeatureFlags;
-  /**
-   * The timestamp of the last successful feature flag cache.
-   */
-  cacheTimestamp: number;
-};

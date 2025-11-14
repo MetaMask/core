@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+
+### Changed
+
+- **BREAKING:** Update `BaseController` type and constructor to require new `Messenger` from `@metamask/messenger` rather than `RestrictedMessenger` ([#6318](https://github.com/MetaMask/core/pull/6318), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Rename `anonymous` metadata property to `includeInDebugSnapshot` ([#6593](https://github.com/MetaMask/core/pull/6593), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Make `includeInStateLogs` and `usedInUi` metadata properties required ([#6593](https://github.com/MetaMask/core/pull/6593), [#6926](https://github.com/MetaMask/core/pull/6926))
+  - This applies both to the `BaseController` type and the `StatePropertyMetadataConstraint` type
+- **BREAKING:** Rename `ListenerV2` type export to `StateChangeListener` ([#6339](https://github.com/MetaMask/core/pull/6339), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Rename `messagingSystem` protected instance variable to `messenger` ([#6337](https://github.com/MetaMask/core/pull/6337), [#6926](https://github.com/MetaMask/core/pull/6926))
+
+### Removed
+
+- **BREAKING:** Remove `Messenger` and `RestrictedMessenger` ([#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Remove `isBaseController` ([#6341](https://github.com/MetaMask/core/pull/6341), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Remove deprecated exports `getPersistentState` and `getAnonymizedState` ([#6611](https://github.com/MetaMask/core/pull/6611), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Remove `next` export ([#6926](https://github.com/MetaMask/core/pull/6926))
+
+## [8.4.2]
+
+### Fixed
+
+- Fix TypeScript module resolution for `/next` subpath export with legacy resolution mode ([#6915](https://github.com/MetaMask/core/pull/6915))
+  - Added `next.d.ts` file to enable imports like `import { BaseController } from '@metamask/base-controller/next'` to work with both legacy TypeScript module resolution and Node16/NodeNext resolution modes
+  - Previously, this import pattern only worked with Node16/NodeNext resolution which uses the `exports` field in package.json
+
 ## [8.4.1]
 
 ### Changed
@@ -386,7 +412,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.2...@metamask/base-controller@9.0.0
+[8.4.2]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.1...@metamask/base-controller@8.4.2
 [8.4.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.0...@metamask/base-controller@8.4.1
 [8.4.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.3.0...@metamask/base-controller@8.4.0
 [8.3.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.2.0...@metamask/base-controller@8.3.0

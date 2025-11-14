@@ -32,6 +32,10 @@ export enum GatorPermissionsSnapRpcMethod {
    * This method is used by the metamask to request a permissions provider to get granted permissions for all sites.
    */
   PermissionProviderGetGrantedPermissions = 'permissionsProvider_getGrantedPermissions',
+  /**
+   * This method is used by the metamask to submit a revocation to the permissions provider.
+   */
+  PermissionProviderSubmitRevocation = 'permissionsProvider_submitRevocation',
 }
 
 /**
@@ -145,6 +149,10 @@ export type StoredGatorPermission<
 > = {
   permissionResponse: PermissionResponse<TSigner, TPermission>;
   siteOrigin: string;
+  /**
+   * Flag indicating whether this permission has been revoked.
+   */
+  isRevoked?: boolean;
 };
 
 /**
@@ -159,6 +167,10 @@ export type StoredGatorPermissionSanitized<
 > = {
   permissionResponse: PermissionResponseSanitized<TSigner, TPermission>;
   siteOrigin: string;
+  /**
+   * Flag indicating whether this permission has been revoked.
+   */
+  isRevoked?: boolean;
 };
 
 /**
@@ -220,3 +232,27 @@ export type DelegationDetails = Pick<
   Delegation<Hex>,
   'caveats' | 'delegator' | 'delegate' | 'authority'
 >;
+
+/**
+ * Represents the parameters for submitting a revocation.
+ */
+export type RevocationParams = {
+  /**
+   * The permission context as a hex string that identifies the permission to revoke.
+   */
+  permissionContext: Hex;
+};
+
+/**
+ * Represents the parameters for adding a pending revocation.
+ */
+export type PendingRevocationParams = {
+  /**
+   * The transaction metadata ID to monitor.
+   */
+  txId: string;
+  /**
+   * The permission context as a hex string that identifies the permission to revoke.
+   */
+  permissionContext: Hex;
+};

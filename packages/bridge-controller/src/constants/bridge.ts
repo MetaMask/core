@@ -1,5 +1,5 @@
 import { AddressZero } from '@ethersproject/constants';
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
 
 import { CHAIN_IDS } from './chains';
@@ -19,8 +19,10 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.LINEA_MAINNET,
   CHAIN_IDS.BASE,
   CHAIN_IDS.SEI,
+  CHAIN_IDS.MONAD,
   SolScope.Mainnet,
   BtcScope.Mainnet,
+  TrxScope.Mainnet,
 ] as const;
 
 export type AllowedBridgeChainIds = (typeof ALLOWED_BRIDGE_CHAIN_IDS)[number];

@@ -10,6 +10,11 @@ import {
   type QuoteMetadata,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
+import {
+  extractTradeData,
+  isTronTrade,
+  type Trade,
+} from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import type {
   BatchTransactionParams,
@@ -36,8 +41,8 @@ import type {
 export const generateActionId = () => (Date.now() + Math.random()).toString();
 
 export const getUSDTAllowanceResetTx = async (
-  messagingSystem: BridgeStatusControllerMessenger,
-  quoteResponse: QuoteResponse<TxData | string> & Partial<QuoteMetadata>,
+  messenger: BridgeStatusControllerMessenger,
+  quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
 ) => {
   const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
   if (
@@ -45,7 +50,7 @@ export const getUSDTAllowanceResetTx = async (
     isEthUsdt(hexChainId, quoteResponse.quote.srcAsset.address)
   ) {
     const allowance = new BigNumber(
-      await messagingSystem.call(
+      await messenger.call(
         'BridgeController:getBridgeERC20Allowance',
         quoteResponse.quote.srcAsset.address,
         hexChainId,
@@ -60,9 +65,7 @@ export const getUSDTAllowanceResetTx = async (
   return undefined;
 };
 
-export const getStatusRequestParams = (
-  quoteResponse: QuoteResponse<string | TxData>,
-) => {
+export const getStatusRequestParams = (quoteResponse: QuoteResponse) => {
   return {
     bridgeId: quoteResponse.quote.bridgeId,
     bridge: quoteResponse.quote.bridges[0],
@@ -74,7 +77,7 @@ export const getStatusRequestParams = (
 };
 
 export const getTxMetaFields = (
-  quoteResponse: Omit<QuoteResponse<string | TxData>, 'approval' | 'trade'> &
+  quoteResponse: Omit<QuoteResponse<Trade, Trade>, 'approval' | 'trade'> &
     QuoteMetadata,
   approvalTxId?: string,
 ): Omit<
@@ -125,11 +128,7 @@ export const handleNonEvmTxResponse = (
     | { transactionId: string } // New unified interface response
     | { result: Record<string, string> }
     | { signature: string },
-  quoteResponse: Omit<
-    QuoteResponse<string | { unsignedPsbtBase64: string }>,
-    'approval'
-  > &
-    QuoteMetadata,
+  quoteResponse: Omit<QuoteResponse<Trade>, 'approval'> & QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
 ): TransactionMeta & SolanaTransactionMeta => {
   const selectedAccountAddress = selectedAccount.address;
@@ -177,10 +176,7 @@ export const handleNonEvmTxResponse = (
   }
 
   // Extract the transaction data for storage
-  const tradeData =
-    typeof quoteResponse.trade === 'string'
-      ? quoteResponse.trade
-      : quoteResponse.trade.unsignedPsbtBase64;
+  const tradeData = extractTradeData(quoteResponse.trade);
 
   // Create a transaction meta object with bridge-specific fields
   return {
@@ -200,9 +196,7 @@ export const handleNonEvmTxResponse = (
   };
 };
 
-export const handleApprovalDelay = async (
-  quoteResponse: QuoteResponse<TxData | string>,
-) => {
+export const handleApprovalDelay = async (quoteResponse: QuoteResponse) => {
   if ([ChainId.LINEA, ChainId.BASE].includes(quoteResponse.quote.srcChainId)) {
     const debugLog = createProjectLogger('bridge');
     debugLog(
@@ -237,25 +231,27 @@ export const handleMobileHardwareWalletDelay = async (
  * Creates a request to sign and send a transaction for non-EVM chains
  * Uses the new unified ClientRequest:signAndSendTransaction interface
  *
- * @param quoteResponse - The quote response containing trade details and metadata
+ * @param trade - The trade data
+ * @param srcChainId - The source chain ID
  * @param selectedAccount - The selected account information
  * @returns The snap request object for signing and sending transaction
  */
 export const getClientRequest = (
-  quoteResponse: Omit<
-    QuoteResponse<string | { unsignedPsbtBase64: string }>,
-    'approval'
-  > &
-    QuoteMetadata,
+  trade: Trade,
+  srcChainId: number,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
 ) => {
-  const scope = formatChainIdToCaip(quoteResponse.quote.srcChainId);
+  const scope = formatChainIdToCaip(srcChainId);
 
-  // Extract the transaction data - Bitcoin uses unsignedPsbtBase64, others use string
-  const transactionData =
-    typeof quoteResponse.trade === 'string'
-      ? quoteResponse.trade
-      : quoteResponse.trade.unsignedPsbtBase64;
+  const transactionData = extractTradeData(trade);
+
+  // Tron trades need the visible flag and contract type to be included in the request options
+  const options = isTronTrade(trade)
+    ? {
+        visible: trade.visible,
+        type: trade.raw_data?.contract?.[0]?.type,
+      }
+    : undefined;
 
   // Use the new unified interface
   return createClientTransactionRequest(
@@ -263,6 +259,7 @@ export const getClientRequest = (
     transactionData,
     scope,
     selectedAccount.id,
+    options,
   );
 };
 
@@ -294,7 +291,7 @@ export const toBatchTxParams = (
 };
 
 export const getAddTransactionBatchParams = async ({
-  messagingSystem,
+  messenger,
   isBridgeTx,
   approval,
   resetApproval,
@@ -304,6 +301,7 @@ export const getAddTransactionBatchParams = async ({
       feeData: { txFee },
       gasIncluded,
       gasIncluded7702,
+      gasSponsored,
     },
     sentAmount,
     toTokenAmount,
@@ -311,7 +309,7 @@ export const getAddTransactionBatchParams = async ({
   requireApproval = false,
   estimateGasFeeFn,
 }: {
-  messagingSystem: BridgeStatusControllerMessenger;
+  messenger: BridgeStatusControllerMessenger;
   isBridgeTx: boolean;
   trade: TxData;
   quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> &
@@ -322,7 +320,7 @@ export const getAddTransactionBatchParams = async ({
   requireApproval?: boolean;
 }) => {
   const isGasless = gasIncluded || gasIncluded7702;
-  const selectedAccount = messagingSystem.call(
+  const selectedAccount = messenger.call(
     'AccountsController:getAccountByAddress',
     trade.from,
   );
@@ -332,7 +330,7 @@ export const getAddTransactionBatchParams = async ({
     );
   }
   const hexChainId = formatChainIdToHex(trade.chainId);
-  const networkClientId = messagingSystem.call(
+  const networkClientId = messenger.call(
     'NetworkController:findNetworkClientIdByChainId',
     hexChainId,
   );
@@ -344,7 +342,7 @@ export const getAddTransactionBatchParams = async ({
   if (resetApproval) {
     const gasFees = await calculateGasFees(
       disable7702,
-      messagingSystem,
+      messenger,
       estimateGasFeeFn,
       resetApproval,
       networkClientId,
@@ -361,7 +359,7 @@ export const getAddTransactionBatchParams = async ({
   if (approval) {
     const gasFees = await calculateGasFees(
       disable7702,
-      messagingSystem,
+      messenger,
       estimateGasFeeFn,
       approval,
       networkClientId,
@@ -377,7 +375,7 @@ export const getAddTransactionBatchParams = async ({
   }
   const gasFees = await calculateGasFees(
     disable7702,
-    messagingSystem,
+    messenger,
     estimateGasFeeFn,
     trade,
     networkClientId,
@@ -397,6 +395,7 @@ export const getAddTransactionBatchParams = async ({
   >[0] = {
     disable7702,
     isGasFeeIncluded: Boolean(gasIncluded7702),
+    isGasFeeSponsored: Boolean(gasSponsored),
     networkClientId,
     requireApproval,
     origin: 'metamask',
@@ -408,19 +407,17 @@ export const getAddTransactionBatchParams = async ({
 };
 
 export const findAndUpdateTransactionsInBatch = ({
-  messagingSystem,
+  messenger,
   updateTransactionFn,
   batchId,
   txDataByType,
 }: {
-  messagingSystem: BridgeStatusControllerMessenger;
+  messenger: BridgeStatusControllerMessenger;
   updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
   batchId: string;
   txDataByType: { [key in TransactionType]?: string };
 }) => {
-  const txs = messagingSystem.call(
-    'TransactionController:getState',
-  ).transactions;
+  const txs = messenger.call('TransactionController:getState').transactions;
   const txBatch: {
     approvalMeta?: TransactionMeta;
     tradeMeta?: TransactionMeta;

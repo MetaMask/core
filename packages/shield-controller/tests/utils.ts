@@ -8,6 +8,7 @@ import {
   TransactionType,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { SignTypedDataVersion } from 'src/constants';
 import { v1 as random } from 'uuid';
 
 import type { createMockMessenger } from './mocks/messenger';
@@ -39,13 +40,18 @@ export function generateMockTxMeta(): TransactionMeta {
 /**
  * Generate a mock signature request.
  *
+ * @param type - The type of the signature request.
+ * @param version - The version of the signature request.
  * @returns A mock signature request.
  */
-export function generateMockSignatureRequest(): SignatureRequest {
+export function generateMockSignatureRequest(
+  type: SignatureRequestType = SignatureRequestType.PersonalSign,
+  version?: SignTypedDataVersion,
+): SignatureRequest {
   return {
     chainId: '0x1',
     id: random(),
-    type: SignatureRequestType.PersonalSign,
+    type,
     messageParams: {
       data: '0x00',
       from: '0x0000000000000000000000000000000000000000',
@@ -54,6 +60,7 @@ export function generateMockSignatureRequest(): SignatureRequest {
     networkClientId: '1',
     status: SignatureRequestStatus.Unapproved,
     time: Date.now(),
+    version,
   };
 }
 
@@ -82,20 +89,29 @@ export function getRandomCoverageResult() {
 /**
  * Setup a coverage result received handler.
  *
- * @param baseMessenger - The base messenger.
+ * @param messenger - The controller messenger.
  * @returns A promise that resolves when the coverage result is received.
  */
 export function setupCoverageResultReceived(
-  baseMessenger: ReturnType<typeof createMockMessenger>['baseMessenger'],
+  messenger: ReturnType<typeof createMockMessenger>['messenger'],
 ): Promise<void> {
   return new Promise<void>((resolve) => {
     const handler = (_coverageResult: unknown) => {
-      baseMessenger.unsubscribe(
-        'ShieldController:coverageResultReceived',
-        handler,
-      );
+      messenger.unsubscribe('ShieldController:coverageResultReceived', handler);
       resolve();
     };
-    baseMessenger.subscribe('ShieldController:coverageResultReceived', handler);
+    messenger.subscribe('ShieldController:coverageResultReceived', handler);
+  });
+}
+
+/**
+ * Delay for a specified amount of time.
+ *
+ * @param ms - The number of milliseconds to delay.
+ * @returns A promise that resolves after the specified amount of time.
+ */
+export function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
   });
 }

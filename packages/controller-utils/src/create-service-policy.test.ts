@@ -1,6 +1,3 @@
-// We use conditions exclusively in this file.
-/* eslint-disable jest/no-conditional-in-test */
-
 import { handleWhen } from 'cockatiel';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';

@@ -1,4 +1,3 @@
-/* eslint-enable @typescript-eslint/no-unused-vars */
 import type {
   AcceptRequest as AcceptApprovalRequest,
   AddApprovalRequest,
@@ -7,9 +6,6 @@ import type {
 } from '@metamask/approval-controller';
 import type {
   StateMetadata,
-  RestrictedMessenger,
-  ActionConstraint,
-  EventConstraint,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -20,6 +16,11 @@ import {
   isPlainObject,
   isValidJson,
 } from '@metamask/controller-utils';
+import type {
+  Messenger,
+  ActionConstraint,
+  EventConstraint,
+} from '@metamask/messenger';
 import { JsonRpcError } from '@metamask/rpc-errors';
 import { hasProperty } from '@metamask/utils';
 import type { Json, Mutable } from '@metamask/utils';
@@ -222,7 +223,7 @@ function getStateMetadata<Permission extends PermissionConstraint>() {
   return {
     subjects: {
       includeInStateLogs: true,
-      anonymous: true,
+      includeInDebugSnapshot: true,
       persist: true,
       usedInUi: true,
     },
@@ -280,7 +281,7 @@ export type HasPermission = {
 };
 
 /**
- * Directly grants given permissions for a specificed origin without requesting user approval
+ * Directly grants given permissions for a specified origin without requesting user approval
  */
 export type GrantPermissions = {
   type: `${typeof controllerName}:grantPermissions`;
@@ -288,7 +289,7 @@ export type GrantPermissions = {
 };
 
 /**
- * Directly grants given permissions for a specificed origin without requesting user approval
+ * Directly grants given permissions for a specified origin without requesting user approval
  */
 export type GrantPermissionsIncremental = {
   type: `${typeof controllerName}:grantPermissionsIncremental`;
@@ -411,24 +412,16 @@ type AllowedActions =
 /**
  * The messenger of the {@link PermissionController}.
  */
-export type PermissionControllerMessenger = RestrictedMessenger<
+export type PermissionControllerMessenger = Messenger<
   typeof controllerName,
   PermissionControllerActions | AllowedActions,
-  PermissionControllerEvents,
-  AllowedActions['type'],
-  never
+  PermissionControllerEvents
 >;
 
 export type SideEffectMessenger<
   Actions extends ActionConstraint,
   Events extends EventConstraint,
-> = RestrictedMessenger<
-  typeof controllerName,
-  Actions | AllowedActions,
-  Events,
-  AllowedActions['type'] | Actions['type'],
-  Events['type']
->;
+> = Messenger<typeof controllerName, Actions | AllowedActions, Events>;
 
 /**
  * A generic {@link PermissionController}.
@@ -810,70 +803,69 @@ export class PermissionController<
   }
 
   /**
-   * Constructor helper for registering the controller's messaging system
-   * actions.
+   * Constructor helper for registering the controller's messenger actions.
    */
   private registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:clearPermissions` as const,
       () => this.clearState(),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:getEndowments` as const,
       (origin: string, targetName: string, requestData?: unknown) =>
         this.getEndowments(origin, targetName, requestData),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:getSubjectNames` as const,
       () => this.getSubjectNames(),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:getPermissions` as const,
       (origin: OriginString) => this.getPermissions(origin),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:hasPermission` as const,
       (origin: OriginString, targetName: string) =>
         this.hasPermission(origin, targetName),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:hasPermissions` as const,
       (origin: OriginString) => this.hasPermissions(origin),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:grantPermissions` as const,
       this.grantPermissions.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:grantPermissionsIncremental` as const,
       this.grantPermissionsIncremental.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:requestPermissions` as const,
       (subject: PermissionSubjectMetadata, permissions: RequestedPermissions) =>
         this.requestPermissions(subject, permissions),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:requestPermissionsIncremental` as const,
       (subject: PermissionSubjectMetadata, permissions: RequestedPermissions) =>
         this.requestPermissionsIncremental(subject, permissions),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:revokeAllPermissions` as const,
       (origin: OriginString) => this.revokeAllPermissions(origin),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:revokePermissionForAllSubjects` as const,
       (
         target: ExtractPermission<
@@ -883,12 +875,12 @@ export class PermissionController<
       ) => this.revokePermissionForAllSubjects(target),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:revokePermissions` as const,
       this.revokePermissions.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:updateCaveat` as const,
       (origin, target, caveatType, caveatValue) => {
         this.updateCaveat(
@@ -1869,7 +1861,7 @@ export class PermissionController<
       specification.subjectTypes?.length &&
       specification.subjectTypes.length > 0
     ) {
-      const metadata = this.messagingSystem.call(
+      const metadata = this.messenger.call(
         'SubjectMetadataController:getSubjectMetadata',
         origin,
       );
@@ -2444,7 +2436,7 @@ export class PermissionController<
    */
   private async requestUserApproval(permissionsRequest: PermissionsRequest) {
     const { origin, id } = permissionsRequest.metadata;
-    const approvedRequest = await this.messagingSystem.call(
+    const approvedRequest = await this.messenger.call(
       'ApprovalController:addRequest',
       {
         id,
@@ -2543,7 +2535,7 @@ export class PermissionController<
 
   /**
    * Executes the side-effects of the approved permissions while handling the errors if any.
-   * It will pass an instance of the {@link messagingSystem} and the request data associated with the permission request to the handlers through its params.
+   * It will pass an instance of the {@link messenger} and the request data associated with the permission request to the handlers through its params.
    *
    * @param sideEffects - the side-effect record created by {@link getSideEffects}
    * @param requestData - the permissions requestData.
@@ -2556,7 +2548,7 @@ export class PermissionController<
     const { permittedHandlers, failureHandlers } = sideEffects;
     const params = {
       requestData,
-      messagingSystem: this.messagingSystem,
+      messenger: this.messenger,
     };
 
     const promiseResults = await Promise.allSettled(
@@ -2689,7 +2681,7 @@ export class PermissionController<
     }
 
     try {
-      await this.messagingSystem.call(
+      await this.messenger.call(
         'ApprovalController:acceptRequest',
         id,
         request,
@@ -2727,7 +2719,7 @@ export class PermissionController<
    * @returns Whether the specified request exists.
    */
   private hasApprovalRequest(options: { id: string }): boolean {
-    return this.messagingSystem.call('ApprovalController:hasRequest', options);
+    return this.messenger.call('ApprovalController:hasRequest', options);
   }
 
   /**
@@ -2742,11 +2734,7 @@ export class PermissionController<
    * @returns Nothing
    */
   private _rejectPermissionsRequest(id: string, error: unknown): void {
-    return this.messagingSystem.call(
-      'ApprovalController:rejectRequest',
-      id,
-      error,
-    );
+    return this.messenger.call('ApprovalController:rejectRequest', id, error);
   }
 
   /**

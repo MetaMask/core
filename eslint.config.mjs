@@ -82,9 +82,11 @@ const config = createConfig([
     rules: {
       // TODO: These rules created more errors after the upgrade to ESLint 9.
       // Re-enable these rules and address any lint violations.
-      'jest/no-conditional-in-test': 'warn',
       'jest/prefer-lowercase-title': 'warn',
       'jest/prefer-strict-equal': 'warn',
+
+      // TODO: Re-enable this rule
+      'jest/unbound-method': 'off',
     },
     settings: {
       node: {
@@ -117,11 +119,6 @@ const config = createConfig([
     languageOptions: {
       parserOptions: {
         tsconfigRootDir: import.meta.dirname,
-        project: './tsconfig.packages.json',
-        // Disable `projectService` because we run into out-of-memory issues.
-        // See this ticket for inspiration out how to solve this:
-        // <https://github.com/typescript-eslint/typescript-eslint/issues/1192>
-        projectService: false,
       },
     },
     rules: {
@@ -132,6 +129,9 @@ const config = createConfig([
           considerDefaultExhaustiveForUnions: true,
         },
       ],
+
+      // TODO: Disable in `eslint-config-typescript`, tracked here: https://github.com/MetaMask/eslint-config/issues/413
+      '@typescript-eslint/no-unnecessary-type-arguments': 'off',
 
       // This rule does not detect multiple imports of the same file where types
       // are being imported in one case and runtime values are being imported in
@@ -162,7 +162,6 @@ const config = createConfig([
       '@typescript-eslint/no-base-to-string': 'warn',
       '@typescript-eslint/no-duplicate-enum-values': 'warn',
       '@typescript-eslint/no-misused-promises': 'warn',
-      '@typescript-eslint/no-unsafe-enum-comparison': 'warn',
       '@typescript-eslint/no-unused-vars': 'warn',
       '@typescript-eslint/only-throw-error': 'warn',
       '@typescript-eslint/prefer-promise-reject-errors': 'warn',
@@ -170,7 +169,6 @@ const config = createConfig([
       'import-x/namespace': 'warn',
       'import-x/no-named-as-default': 'warn',
       'import-x/order': 'warn',
-      'jsdoc/check-tag-names': 'warn',
       'jsdoc/require-returns': 'warn',
       'jsdoc/tag-lines': 'warn',
       'no-unused-private-class-members': 'warn',
@@ -189,7 +187,6 @@ const config = createConfig([
   {
     files: ['**/*.d.ts'],
     rules: {
-      '@typescript-eslint/naming-convention': 'warn',
       'import-x/unambiguous': 'off',
     },
   },
@@ -225,21 +222,9 @@ const config = createConfig([
       // TODO: Re-enable these rules or add inline ignores for warranted cases
       '@typescript-eslint/prefer-nullish-coalescing': 'warn',
       'no-restricted-syntax': 'warn',
-      '@typescript-eslint/naming-convention': 'warn',
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/unbound-method': 'warn',
       '@typescript-eslint/consistent-type-definitions': 'warn',
-    },
-  },
-  {
-    files: ['packages/eth-json-rpc-middleware/**/*.ts'],
-    rules: {
-      // TODO: Re-enable these rules or add inline ignores for warranted cases
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/prefer-nullish-coalescing': 'warn',
-      'jsdoc/match-description': 'warn',
-      'jsdoc/require-jsdoc': 'warn',
-      'no-restricted-syntax': 'warn',
     },
   },
   {
@@ -250,6 +235,43 @@ const config = createConfig([
       'n/no-missing-import': 'off',
       'n/no-restricted-import': 'off',
       'n/no-deprecated-api': 'off',
+    },
+  },
+  {
+    files: [
+      'packages/notification-services-controller/src/NotificationServicesPushController/services/push/*-web.ts',
+      'packages/notification-services-controller/src/NotificationServicesPushController/web/**/*.ts',
+    ],
+    rules: {
+      // These files use `self` because they're written for a service worker context.
+      // TODO: Move these files to the extension repository, `core` is just for platform-agnostic code.
+      'consistent-this': 'off',
+    },
+  },
+  {
+    files: [
+      'packages/assets-controllers/src/NftDetectionController.ts',
+      'packages/assets-controllers/src/TokenRatesController.ts',
+      'packages/assets-controllers/src/TokensController.ts',
+      'packages/controller-utils/src/siwe.ts',
+      'packages/ens-controller/src/EnsController.ts',
+      'packages/gas-fee-controller/src/GasFeeController.ts',
+      'packages/logging-controller/src/LoggingController.ts',
+      'packages/message-manager/src/AbstractMessageManager.ts',
+      'packages/message-manager/src/DecryptMessageManager.ts',
+      'packages/message-manager/src/EncryptionPublicKeyManager.ts',
+      'packages/permission-log-controller/src/PermissionLogController.ts',
+      'packages/phishing-controller/src/PhishingController.ts',
+      'packages/rate-limit-controller/src/RateLimitController.ts',
+      'tests/fake-provider.ts',
+      'tests/mock-network.ts',
+    ],
+    rules: {
+      // TODO: Re-enable this rule
+      // This has been temporarily disabled because the auto-fix mangles pre-existing JSDoc blocks
+      // for types that don't follow TSDoc properly.
+      // See https://github.com/gajus/eslint-plugin-jsdoc/issues/1054
+      'jsdoc/check-tag-names': 'off',
     },
   },
 ]);

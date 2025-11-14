@@ -14,9 +14,34 @@ import {
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { JsonRpcSuccess, JsonRpcRequest } from '@metamask/utils';
+import {
+  type JsonRpcSuccess,
+  type JsonRpcRequest,
+  isObject,
+} from '@metamask/utils';
 
 import type { WalletRevokeSessionHooks } from './types';
+
+/**
+ * Check whether the given error is a permission error.
+ *
+ * @param error - The error to check.
+ * @returns Whether the error is a permission error.
+ */
+function isPermissionError(error: unknown) {
+  if (
+    !isObject(error) ||
+    !('name' in error) ||
+    typeof error.name !== 'string'
+  ) {
+    return false;
+  }
+
+  return [
+    UnrecognizedSubjectError.name,
+    PermissionDoesNotExistError.name,
+  ].includes(error.name);
+}
 
 /**
  * Revokes specific session scopes from an existing caveat.
@@ -109,10 +134,7 @@ async function walletRevokeSessionHandler(
       hooks.revokePermissionForOrigin(Caip25EndowmentPermissionName);
     }
   } catch (err) {
-    if (
-      !(err instanceof UnrecognizedSubjectError) &&
-      !(err instanceof PermissionDoesNotExistError)
-    ) {
+    if (!isPermissionError(err)) {
       console.error(err);
       return end(rpcErrors.internal());
     }

@@ -1,4 +1,11 @@
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 
 import { AbstractTokenDiscoveryApiService } from './token-discovery-api-service/abstract-token-discovery-api-service';
 import { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';
@@ -14,18 +21,45 @@ import type {
 
 const controllerName = 'TokenSearchDiscoveryController';
 
+type AllTokenSearchDiscoveryControllerActions =
+  MessengerActions<TokenSearchDiscoveryControllerMessenger>;
+
+type AllTokenSearchDiscoveryControllerEvents =
+  MessengerEvents<TokenSearchDiscoveryControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllTokenSearchDiscoveryControllerActions,
+  AllTokenSearchDiscoveryControllerEvents
+>;
+
 /**
- * Helper function to get a restricted messenger for testing
+ * Constructs the root messenger.
  *
- * @returns A restricted messenger for the TokenSearchDiscoveryController
+ * @returns A root messenger.
  */
-function getRestrictedMessenger() {
-  const messenger = new Messenger<never, never>();
-  return messenger.getRestricted({
-    name: controllerName,
-    allowedActions: [],
-    allowedEvents: [],
-  }) as TokenSearchDiscoveryControllerMessenger;
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+}
+
+/**
+ * Helper function to get a messenger for testing
+ *
+ * @returns A messenger for the TokenSearchDiscoveryController
+ */
+function getMessenger(): TokenSearchDiscoveryControllerMessenger {
+  const rootMessenger = getRootMessenger();
+  return new Messenger<
+    typeof controllerName,
+    AllTokenSearchDiscoveryControllerActions,
+    AllTokenSearchDiscoveryControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
 }
 
 describe('TokenSearchDiscoveryController', () => {
@@ -133,7 +167,7 @@ describe('TokenSearchDiscoveryController', () => {
     mainController = new TokenSearchDiscoveryController({
       tokenSearchService: new MockTokenSearchService(),
       tokenDiscoveryService: new MockTokenDiscoveryService(),
-      messenger: getRestrictedMessenger(),
+      messenger: getMessenger(),
     });
   });
 
@@ -142,7 +176,7 @@ describe('TokenSearchDiscoveryController', () => {
       const controller = new TokenSearchDiscoveryController({
         tokenSearchService: new MockTokenSearchService(),
         tokenDiscoveryService: new MockTokenDiscoveryService(),
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
       });
 
       expect(controller.state).toStrictEqual(
@@ -160,7 +194,7 @@ describe('TokenSearchDiscoveryController', () => {
         tokenSearchService: new MockTokenSearchService(),
         tokenDiscoveryService: new MockTokenDiscoveryService(),
         state: initialState,
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
       });
 
       expect(controller.state).toStrictEqual(initialState);
@@ -256,7 +290,7 @@ describe('TokenSearchDiscoveryController', () => {
       const errorController = new TokenSearchDiscoveryController({
         tokenSearchService: new ErrorTokenSearchService(),
         tokenDiscoveryService: new MockTokenDiscoveryService(),
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
       });
 
       const results = await errorController.searchTokens({});
@@ -267,7 +301,7 @@ describe('TokenSearchDiscoveryController', () => {
       const errorController = new TokenSearchDiscoveryController({
         tokenSearchService: new MockTokenSearchService(),
         tokenDiscoveryService: new ErrorTokenDiscoveryService(),
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
       });
 
       const results = await errorController.getTrendingTokens({});
@@ -281,7 +315,7 @@ describe('TokenSearchDiscoveryController', () => {
         deriveStateFromMetadata(
           mainController.state,
           mainController.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });

@@ -4,12 +4,11 @@ import type {
   AcceptResultCallbacks,
   AddResult,
 } from '@metamask/approval-controller';
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedMessenger,
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import {
   ApprovalType,
@@ -32,6 +31,7 @@ import {
   SigningStage,
   type AddLog,
 } from '@metamask/logging-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -73,31 +73,31 @@ const stateMetadata = {
   signatureRequests: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   unapprovedPersonalMsgs: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   unapprovedTypedMessages: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   unapprovedPersonalMsgCount: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   unapprovedTypedMessagesCount: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -176,12 +176,10 @@ export type SignatureControllerActions = GetSignatureState;
 
 export type SignatureControllerEvents = SignatureStateChange;
 
-export type SignatureControllerMessenger = RestrictedMessenger<
+export type SignatureControllerMessenger = Messenger<
   typeof controllerName,
   SignatureControllerActions | AllowedActions,
-  SignatureControllerEvents,
-  AllowedActions['type'],
-  never
+  SignatureControllerEvents
 >;
 
 export type SignatureControllerOptions = {
@@ -477,7 +475,7 @@ export class SignatureController extends BaseController<
       decodedPermission = decodePermissionFromRequest({
         origin: request.origin,
         data,
-        messenger: this.messagingSystem,
+        messenger: this.messenger,
       });
     } catch (error) {
       // we ignore this error, because it simply means the request could not be
@@ -791,7 +789,7 @@ export class SignatureController extends BaseController<
 
       switch (type) {
         case SignatureRequestType.PersonalSign:
-          signature = await this.messagingSystem.call(
+          signature = await this.messenger.call(
             'KeyringController:signPersonalMessage',
             // Keyring controller temporarily using message manager types.
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -804,7 +802,7 @@ export class SignatureController extends BaseController<
             ? this.#parseTypedData(messageParams, metadata.version)
             : messageParams;
 
-          signature = await this.messagingSystem.call(
+          signature = await this.messenger.call(
             'KeyringController:signTypedMessage',
             finalRequest,
             metadata.version as SignTypedDataVersion,
@@ -883,7 +881,7 @@ export class SignatureController extends BaseController<
       parentContext: traceContext,
     });
 
-    return (await this.messagingSystem.call(
+    return (await this.messenger.call(
       'ApprovalController:addRequest',
       {
         id,
@@ -986,7 +984,7 @@ export class SignatureController extends BaseController<
       version,
     );
 
-    this.messagingSystem.call('LoggingController:add', {
+    this.messenger.call('LoggingController:add', {
       type: LogType.EthSignLog,
       data: {
         signingMethod,
@@ -1028,7 +1026,7 @@ export class SignatureController extends BaseController<
       throw new Error('Network client ID not found in request');
     }
 
-    const networkClient = this.messagingSystem.call(
+    const networkClient = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
@@ -1069,7 +1067,7 @@ export class SignatureController extends BaseController<
   }
 
   #getInternalAccounts(): Hex[] {
-    const state = this.messagingSystem.call('AccountsController:getState');
+    const state = this.messenger.call('AccountsController:getState');
 
     /* istanbul ignore next */
     return Object.values(state.internalAccounts?.accounts ?? {})

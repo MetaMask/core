@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6383](https://github.com/MetaMask/core/pull/6383))
+  - Previously, `AddressBookController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6383](https://github.com/MetaMask/core/pull/6383))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [6.2.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
 ## [6.2.0]
 
 ### Added
@@ -242,7 +257,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.2.1...@metamask/address-book-controller@7.0.0
+[6.2.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.2.0...@metamask/address-book-controller@6.2.1
 [6.2.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.1.1...@metamask/address-book-controller@6.2.0
 [6.1.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.1.0...@metamask/address-book-controller@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.3...@metamask/address-book-controller@6.1.0

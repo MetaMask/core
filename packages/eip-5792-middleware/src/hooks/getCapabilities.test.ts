@@ -2,8 +2,13 @@ import type {
   AccountsControllerGetStateAction,
   AccountsControllerState,
 } from '@metamask/accounts-controller';
-import { Messenger } from '@metamask/base-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MockAnyNamespace,
+  type MessengerActions,
+} from '@metamask/messenger';
 import type {
   PreferencesControllerGetStateAction,
   PreferencesState,
@@ -19,6 +24,10 @@ const FROM_MOCK = '0xabc123';
 const FROM_MOCK_HARDWARE = '0xdef456';
 const FROM_MOCK_SIMPLE = '0x789abc';
 const DELEGATION_ADDRESS_MOCK = '0x1234567890abcdef1234567890abcdef12345678';
+
+type AllActions = MessengerActions<EIP5792Messenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions>;
 
 describe('EIP-5792', () => {
   const isAtomicBatchSupportedMock: jest.MockedFn<
@@ -46,7 +55,9 @@ describe('EIP-5792', () => {
 
   const isAuxiliaryFundsSupportedMock: jest.Mock = jest.fn();
 
-  let messenger: EIP5792Messenger;
+  let rootMessenger: RootMessenger;
+
+  let messenger: Messenger<'EIP5792', AllActions, never, RootMessenger>;
 
   const getCapabilitiesHooks = {
     getDismissSmartAccountSuggestionEnabled:
@@ -61,17 +72,33 @@ describe('EIP-5792', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    messenger = new Messenger();
+    rootMessenger = new Messenger<MockAnyNamespace, AllActions>({
+      namespace: MOCK_ANY_NAMESPACE,
+    });
 
-    messenger.registerActionHandler(
+    rootMessenger.registerActionHandler(
       'AccountsController:getState',
       getAccountsStateMock,
     );
 
-    messenger.registerActionHandler(
+    rootMessenger.registerActionHandler(
       'PreferencesController:getState',
       getPreferencesStateMock,
     );
+
+    messenger = new Messenger({
+      namespace: 'EIP5792',
+      parent: rootMessenger,
+    });
+
+    rootMessenger.delegate({
+      messenger,
+      actions: [
+        'AccountsController:getState',
+        'PreferencesController:getState',
+        'NetworkController:getState',
+      ],
+    });
 
     isAtomicBatchSupportedMock.mockResolvedValue([
       {
@@ -435,7 +462,7 @@ describe('EIP-5792', () => {
         '0x89': { chainId: '0x89' },
       };
 
-      messenger.registerActionHandler(
+      rootMessenger.registerActionHandler(
         'NetworkController:getState',
         jest.fn().mockReturnValue({
           networkConfigurationsByChainId: networkConfigurationsMock,

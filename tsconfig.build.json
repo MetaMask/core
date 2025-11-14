@@ -3,6 +3,7 @@
     { "path": "./packages/account-tree-controller/tsconfig.build.json" },
     { "path": "./packages/accounts-controller/tsconfig.build.json" },
     { "path": "./packages/address-book-controller/tsconfig.build.json" },
+    { "path": "./packages/analytics-controller/tsconfig.build.json" },
     { "path": "./packages/announcement-controller/tsconfig.build.json" },
     { "path": "./packages/app-metadata-controller/tsconfig.build.json" },
     { "path": "./packages/approval-controller/tsconfig.build.json" },
@@ -13,11 +14,15 @@
     { "path": "./packages/bridge-status-controller/tsconfig.build.json" },
     { "path": "./packages/build-utils/tsconfig.build.json" },
     { "path": "./packages/chain-agnostic-permission/tsconfig.build.json" },
+    { "path": "./packages/claims-controller/tsconfig.build.json" },
     { "path": "./packages/composable-controller/tsconfig.build.json" },
     { "path": "./packages/controller-utils/tsconfig.build.json" },
     { "path": "./packages/delegation-controller/tsconfig.build.json" },
     { "path": "./packages/earn-controller/tsconfig.build.json" },
     { "path": "./packages/eip-5792-middleware/tsconfig.build.json" },
+    {
+      "path": "./packages/eip-7702-internal-rpc-middleware/tsconfig.build.json"
+    },
     { "path": "./packages/eip1193-permission-middleware/tsconfig.build.json" },
     { "path": "./packages/ens-controller/tsconfig.build.json" },
     { "path": "./packages/error-reporting-service/tsconfig.build.json" },
@@ -64,6 +69,7 @@
       "path": "./packages/token-search-discovery-controller/tsconfig.build.json"
     },
     { "path": "./packages/transaction-controller/tsconfig.build.json" },
+    { "path": "./packages/transaction-pay-controller/tsconfig.build.json" },
     { "path": "./packages/user-operation-controller/tsconfig.build.json" }
   ],
   "files": [],

@@ -142,6 +142,7 @@ export {
   SUPPORTED_CHAIN_IDS,
   getNativeTokenAddress,
 } from './token-prices-service';
+export { searchTokens, getTrendingTokens } from './token-service';
 export { RatesController, Cryptocurrency } from './RatesController';
 export type {
   RatesControllerState,
@@ -223,9 +224,11 @@ export {
   calculateBalanceChangeForAccountGroup,
 } from './balances';
 export type {
+  AssetsByAccountGroup,
   AccountGroupAssets,
   Asset,
   AssetListState,
 } from './selectors/token-selectors';
 export { selectAssetsBySelectedAccountGroup } from './selectors/token-selectors';
 export { createFormatters } from './utils/formatters';
+export type { SortTrendingBy, TrendingAsset } from './token-service';

@@ -1,12 +1,13 @@
-import type {
-  AcceptRequest as AcceptApprovalRequest,
-  AddApprovalRequest,
-  HasApprovalRequest,
-  RejectRequest as RejectApprovalRequest,
-} from '@metamask/approval-controller';
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { isPlainObject } from '@metamask/controller-utils';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import {
   assertIsJsonRpcFailure,
@@ -22,8 +23,7 @@ import type {
   CaveatMutator,
   ExtractSpecifications,
   PermissionConstraint,
-  PermissionControllerActions,
-  PermissionControllerEvents,
+  PermissionControllerMessenger,
   PermissionOptions,
   PermissionsRequest,
   RestrictedMethodOptions,
@@ -40,7 +40,6 @@ import {
 import * as errors from './errors';
 import type { EndowmentGetterParams } from './Permission';
 import { SubjectType } from './SubjectMetadataController';
-import type { GetSubjectMetadata } from './SubjectMetadataController';
 
 // Caveat types and specifications
 
@@ -546,13 +545,6 @@ type DefaultPermissionSpecifications = ExtractSpecifications<
 
 const controllerName = 'PermissionController' as const;
 
-type AllowedActions =
-  | HasApprovalRequest
-  | AddApprovalRequest
-  | AcceptApprovalRequest
-  | RejectApprovalRequest
-  | GetSubjectMetadata;
-
 /**
  * Params for `ApprovalController:addRequest` of type `wallet_requestPermissions`.
  */
@@ -565,41 +557,59 @@ type AddPermissionRequestParams = {
 
 type AddPermissionRequestArgs = [string, AddPermissionRequestParams];
 
+type AllPermissionControllerActions =
+  MessengerActions<PermissionControllerMessenger>;
+
+type AllPermissionControllerEvents =
+  MessengerEvents<PermissionControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllPermissionControllerActions,
+  AllPermissionControllerEvents
+>;
+
 /**
- * Gets an unrestricted messenger. Used for tests.
+ * Creates and returns a root messenger for testing
  *
- * @returns The unrestricted messenger.
+ * @returns A messenger instance
  */
-function getUnrestrictedMessenger() {
-  return new Messenger<
-    PermissionControllerActions | AllowedActions,
-    PermissionControllerEvents
-  >();
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 }
 
 /**
- * Gets a restricted messenger.
+ * Gets a messenger for the permission controller.
  * Used as a default in {@link getPermissionControllerOptions}.
  *
- * @param messenger - Optional parameter to pass in a messenger
- * @returns The restricted messenger.
+ * @param rootMessenger - Optional parameter to pass in a root messenger
+ * @returns The messenger for the permission controller.
  */
 function getPermissionControllerMessenger(
-  messenger = getUnrestrictedMessenger(),
-) {
-  return messenger.getRestricted<typeof controllerName, AllowedActions['type']>(
-    {
-      name: controllerName,
-      allowedActions: [
-        'ApprovalController:hasRequest',
-        'ApprovalController:addRequest',
-        'ApprovalController:acceptRequest',
-        'ApprovalController:rejectRequest',
-        'SubjectMetadataController:getSubjectMetadata',
-      ],
-      allowedEvents: [],
-    },
-  );
+  rootMessenger = getRootMessenger(),
+): PermissionControllerMessenger {
+  const messenger = new Messenger<
+    typeof controllerName,
+    AllPermissionControllerActions,
+    AllPermissionControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    actions: [
+      'ApprovalController:hasRequest',
+      'ApprovalController:addRequest',
+      'ApprovalController:acceptRequest',
+      'ApprovalController:rejectRequest',
+      'SubjectMetadataController:getSubjectMetadata',
+    ],
+    messenger,
+  });
+  return messenger;
 }
 
 /**
@@ -5572,7 +5582,7 @@ describe('PermissionController', () => {
 
   describe('controller actions', () => {
     it('action: PermissionController:clearPermissions', () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5597,7 +5607,7 @@ describe('PermissionController', () => {
     });
 
     it('action: PermissionController:getEndowments', async () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5670,7 +5680,7 @@ describe('PermissionController', () => {
     });
 
     it('action: PermissionController:getSubjectNames', () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5698,7 +5708,7 @@ describe('PermissionController', () => {
     });
 
     it('action: PermissionController:hasPermission', () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5760,7 +5770,7 @@ describe('PermissionController', () => {
     });
 
     it('action: PermissionController:hasPermissions', () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5790,7 +5800,7 @@ describe('PermissionController', () => {
     });
 
     it('action: PermissionController:getPermissions', () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5824,7 +5834,7 @@ describe('PermissionController', () => {
     });
 
     it('action: PermissionController:revokeAllPermissions', () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5858,7 +5868,7 @@ describe('PermissionController', () => {
     });
 
     it('action: PermissionController:revokePermissionForAllSubjects', () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5898,7 +5908,7 @@ describe('PermissionController', () => {
     });
 
     it('action: PermissionController:grantPermissions', async () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5919,7 +5929,7 @@ describe('PermissionController', () => {
     });
 
     it('action: PermissionController:grantPermissionsIncremental', async () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5943,7 +5953,7 @@ describe('PermissionController', () => {
     });
 
     it('action: PermissionController:requestPermissions', async () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5970,7 +5980,7 @@ describe('PermissionController', () => {
     });
 
     it('action: PermissionController:requestPermissionsIncremental', async () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5997,7 +6007,7 @@ describe('PermissionController', () => {
     });
 
     it('action: PermissionController:updateCaveat', async () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
       const state = {
         subjects: {
           'metamask.io': {
@@ -6197,8 +6207,6 @@ describe('PermissionController', () => {
           'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
       });
 
-      // ESLint is confused; this signature is async.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       expect(response.error).toMatchObject(
@@ -6221,8 +6229,6 @@ describe('PermissionController', () => {
 
       const expectedError = errors.methodNotFound('wallet_foo', { origin });
 
-      // ESLint is confused; this signature is async.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       const { error } = response;
@@ -6272,8 +6278,6 @@ describe('PermissionController', () => {
         { request: { ...request } },
       );
 
-      // ESLint is confused; this signature is async.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       const { error } = response;
@@ -6295,7 +6299,7 @@ describe('PermissionController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
         Object {

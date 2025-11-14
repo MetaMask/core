@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v1
+        uses: MetaMask/action-checkout-and-setup@v2
         with:
           is-high-risk-environment: true
       - uses: MetaMask/action-publish-release@v3
@@ -23,7 +23,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn build
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: publish-release-artifacts-${{ github.sha }}
           include-hidden-files: true
@@ -38,12 +38,12 @@ jobs:
     needs: publish-release
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v1
+        uses: MetaMask/action-checkout-and-setup@v2
         with:
           is-high-risk-environment: true
           ref: ${{ github.sha }}
       - name: Restore build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: publish-release-artifacts-${{ github.sha }}
       - name: Dry run publish to NPM
@@ -59,12 +59,12 @@ jobs:
     needs: publish-npm-dry-run
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v1
+        uses: MetaMask/action-checkout-and-setup@v2
         with:
           is-high-risk-environment: true
           ref: ${{ github.sha }}
       - name: Restore build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: publish-release-artifacts-${{ github.sha }}
       - name: Publish to NPM

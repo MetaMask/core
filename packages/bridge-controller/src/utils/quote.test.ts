@@ -347,14 +347,14 @@ describe('Quote Metadata Utils', () => {
   });
 
   describe('calcRelayerFee', () => {
-    const mockBridgeQuote: QuoteResponse = {
+    const mockBridgeQuote: QuoteResponse<TxData, TxData> = {
       quote: {
         srcAsset: { address: '0x123', decimals: 18 },
         srcTokenAmount: '1000000000000000000',
         feeData: { metabridge: { amount: '100000000000000000' } },
       },
       trade: { value: '0x10A741A462780000' },
-    } as QuoteResponse;
+    } as QuoteResponse<TxData, TxData>;
 
     it('should calculate relayer fee correctly with exchange rates', () => {
       const result = calcRelayerFee(mockBridgeQuote, {
@@ -405,7 +405,7 @@ describe('Quote Metadata Utils', () => {
               'eip155:1/erc20:0x0000000000000000000000000000000000000000',
           },
         },
-      } as unknown as QuoteResponse;
+      } as unknown as QuoteResponse<TxData, TxData>;
 
       const result = calcRelayerFee(nativeBridgeQuote, {
         exchangeRate: '2',
@@ -424,12 +424,12 @@ describe('Quote Metadata Utils', () => {
   });
 
   describe('calcEstimatedAndMaxTotalGasFee', () => {
-    const mockBridgeQuote: QuoteResponse & L1GasFees = {
+    const mockBridgeQuote: QuoteResponse<TxData, TxData> & L1GasFees = {
       quote: {} as Quote,
       trade: { gasLimit: 21000 },
       approval: { gasLimit: 46000 },
       l1GasFeesInHexWei: '0x5AF3107A4000',
-    } as QuoteResponse & L1GasFees;
+    } as QuoteResponse<TxData, TxData> & L1GasFees;
 
     it('should calculate estimated and max gas fees correctly', () => {
       const result = calcEstimatedAndMaxTotalGasFee({
@@ -473,7 +473,7 @@ describe('Quote Metadata Utils', () => {
           ...mockBridgeQuote,
           trade: { gasLimit: 21000, effectiveGas: 10000 },
           approval: { gasLimit: 46000, effectiveGas: 20000 },
-        } as QuoteResponse & L1GasFees,
+        } as QuoteResponse<TxData, TxData> & L1GasFees,
         estimatedBaseFeeInDecGwei: '50',
         maxFeePerGasInDecGwei: '100',
         maxPriorityFeePerGasInDecGwei: '2',
@@ -564,7 +564,7 @@ describe('Quote Metadata Utils', () => {
         approval: { gasLimit: 0 },
         l1GasFeesInHexWei: '0x0',
         estimatedProcessingTimeInSeconds: 60,
-      } as QuoteResponse & L1GasFees;
+      } as QuoteResponse<TxData, TxData> & L1GasFees;
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: zeroGasQuote,
@@ -588,7 +588,7 @@ describe('Quote Metadata Utils', () => {
         approval: undefined,
         l1GasFeesInHexWei: '0x5AF3107A4000',
         estimatedProcessingTimeInSeconds: 60,
-      } as QuoteResponse & L1GasFees;
+      } as QuoteResponse<TxData, TxData> & L1GasFees;
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: noApprovalQuote,
@@ -613,7 +613,7 @@ describe('Quote Metadata Utils', () => {
         approval: { gasLimit: 46000 },
         l1GasFeesInHexWei: '0x5AF3107A4000',
         estimatedProcessingTimeInSeconds: 60,
-      } as unknown as QuoteResponse & L1GasFees;
+      } as unknown as QuoteResponse<TxData, TxData> & L1GasFees;
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: noGasLimitQuote,
@@ -635,7 +635,7 @@ describe('Quote Metadata Utils', () => {
         approval: { gasLimit: 500000 },
         l1GasFeesInHexWei: '0x1BC16D674EC80000', // 2 ETH in wei
         estimatedProcessingTimeInSeconds: 60,
-      } as QuoteResponse & L1GasFees;
+      } as QuoteResponse<TxData, TxData> & L1GasFees;
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: largeGasQuote,

@@ -2,7 +2,7 @@ import type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerGetStateAction,
 } from '@metamask/accounts-controller';
-import type { Messenger } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -32,7 +32,7 @@ type Actions =
   | PreferencesControllerGetStateAction
   | NetworkControllerGetStateAction;
 
-export type EIP5792Messenger = Messenger<Actions, never>;
+export type EIP5792Messenger = Messenger<'EIP5792', Actions>;
 
 // wallet_getCallStatus
 export type GetCallsStatusParams = Infer<typeof GetCallsStatusStruct>;

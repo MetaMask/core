@@ -2,13 +2,13 @@ import {
   BaseController,
   type ControllerStateChangeEvent,
   type ControllerGetStateAction,
-  type RestrictedMessenger,
 } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type {
   KeyringControllerState,
   KeyringControllerStateChangeEvent,
 } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
@@ -157,139 +157,139 @@ const metadata = {
   featureFlags: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   identities: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   ipfsGateway: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   isIpfsGatewayEnabled: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   isMultiAccountBalancesEnabled: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   lostIdentities: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   displayNftMedia: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   securityAlertsEnabled: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   selectedAddress: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   showTestNetworks: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   showIncomingTransactions: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   useNftDetection: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   useTokenDetection: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   smartTransactionsOptInStatus: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   useTransactionSimulations: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   showMultiRpcModal: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   useSafeChainsListValidation: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   tokenSortConfig: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   privacyMode: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   dismissSmartAccountSuggestionEnabled: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   smartAccountOptIn: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   smartAccountOptInForAccounts: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   tokenNetworkFilter: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -310,14 +310,12 @@ export type PreferencesControllerActions = PreferencesControllerGetStateAction;
 
 export type PreferencesControllerEvents = PreferencesControllerStateChangeEvent;
 
-export type AllowedEvents = KeyringControllerStateChangeEvent;
+type AllowedEvents = KeyringControllerStateChangeEvent;
 
-export type PreferencesControllerMessenger = RestrictedMessenger<
+export type PreferencesControllerMessenger = Messenger<
   typeof name,
   PreferencesControllerActions,
-  PreferencesControllerEvents | AllowedEvents,
-  never,
-  AllowedEvents['type']
+  PreferencesControllerEvents | AllowedEvents
 >;
 
 /**

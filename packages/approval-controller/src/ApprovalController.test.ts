@@ -1,14 +1,21 @@
 /* eslint-disable jest/expect-expect */
 
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
 import { nanoid } from 'nanoid';
 
-import { flushPromises } from '../../../tests/helpers';
 import type {
   AddApprovalOptions,
   ApprovalControllerActions,
   ApprovalControllerEvents,
+  ApprovalControllerMessenger,
   ErrorOptions,
   StartFlowOptions,
   SuccessOptions,
@@ -25,8 +32,15 @@ import {
   MissingApprovalFlowError,
   NoApprovalFlowsError,
 } from './errors';
+import { flushPromises } from '../../../tests/helpers';
 
 jest.mock('nanoid');
+
+type AllActions = MessengerActions<ApprovalControllerMessenger>;
+
+type AllEvents = MessengerEvents<ApprovalControllerMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const nanoidMock = jest.mocked(nanoid);
 
@@ -223,20 +237,26 @@ function getError(message: string, code?: number) {
 }
 
 /**
- * Constructs a restricted messenger.
+ * Constructs a controller messenger.
  *
- * @returns A restricted messenger.
+ * @returns A controller messenger.
  */
-function getRestrictedMessenger() {
-  const messenger = new Messenger<
-    ApprovalControllerActions,
-    ApprovalControllerEvents
-  >();
-  return messenger.getRestricted({
-    name: 'ApprovalController',
-    allowedActions: [],
-    allowedEvents: [],
+function getMessengers() {
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
   });
+  return {
+    rootMessenger,
+    approvalControllerMessenger: new Messenger<
+      typeof controllerName,
+      ApprovalControllerActions,
+      ApprovalControllerEvents,
+      typeof rootMessenger
+    >({
+      namespace: controllerName,
+      parent: rootMessenger,
+    }),
+  };
 }
 
 describe('approval controller', () => {
@@ -250,7 +270,7 @@ describe('approval controller', () => {
     showApprovalRequest = jest.fn();
 
     approvalController = new ApprovalController({
-      messenger: getRestrictedMessenger(),
+      messenger: getMessengers().approvalControllerMessenger,
       showApprovalRequest,
     });
   });
@@ -445,7 +465,7 @@ describe('approval controller', () => {
 
     it('does not throw on origin and type collision if type excluded', () => {
       approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessengers().approvalControllerMessenger,
         showApprovalRequest,
         typesExcludedFromRateLimiting: ['myType'],
       });
@@ -638,7 +658,7 @@ describe('approval controller', () => {
 
     it('gets the count when specifying origin and type with type excluded from rate limiting', () => {
       approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessengers().approvalControllerMessenger,
         showApprovalRequest,
         typesExcludedFromRateLimiting: [TYPE],
       });
@@ -678,7 +698,7 @@ describe('approval controller', () => {
 
     it('gets the total approval count with type excluded from rate limiting', () => {
       approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessengers().approvalControllerMessenger,
         showApprovalRequest,
         typesExcludedFromRateLimiting: ['type0'],
       });
@@ -1269,23 +1289,16 @@ describe('approval controller', () => {
 
   describe('actions', () => {
     it('addApprovalRequest: shouldShowRequest = true', async () => {
-      const messenger = new Messenger<
-        ApprovalControllerActions,
-        ApprovalControllerEvents
-      >();
+      const { rootMessenger, approvalControllerMessenger } = getMessengers();
 
       approvalController = new ApprovalController({
-        messenger: messenger.getRestricted({
-          name: controllerName,
-          allowedActions: [],
-          allowedEvents: [],
-        }),
+        messenger: approvalControllerMessenger,
         showApprovalRequest,
       });
 
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      messenger.call(
+      rootMessenger.call(
         'ApprovalController:addRequest',
         { id: 'foo', origin: 'bar.baz', type: TYPE },
         true,
@@ -1295,23 +1308,16 @@ describe('approval controller', () => {
     });
 
     it('addApprovalRequest: shouldShowRequest = false', async () => {
-      const messenger = new Messenger<
-        ApprovalControllerActions,
-        ApprovalControllerEvents
-      >();
+      const { rootMessenger, approvalControllerMessenger } = getMessengers();
 
       approvalController = new ApprovalController({
-        messenger: messenger.getRestricted({
-          name: controllerName,
-          allowedActions: [],
-          allowedEvents: [],
-        }),
+        messenger: approvalControllerMessenger,
         showApprovalRequest,
       });
 
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      messenger.call(
+      rootMessenger.call(
         'ApprovalController:addRequest',
         { id: 'foo', origin: 'bar.baz', type: TYPE },
         false,
@@ -1321,17 +1327,10 @@ describe('approval controller', () => {
     });
 
     it('updateRequestState', () => {
-      const messenger = new Messenger<
-        ApprovalControllerActions,
-        ApprovalControllerEvents
-      >();
+      const { approvalControllerMessenger } = getMessengers();
 
       approvalController = new ApprovalController({
-        messenger: messenger.getRestricted({
-          name: controllerName,
-          allowedActions: [],
-          allowedEvents: [],
-        }),
+        messenger: approvalControllerMessenger,
         showApprovalRequest,
       });
 
@@ -1344,10 +1343,13 @@ describe('approval controller', () => {
         requestState: { foo: 'bar' },
       });
 
-      messenger.call('ApprovalController:updateRequestState', {
-        id: 'foo',
-        requestState: { foo: 'foobar' },
-      });
+      approvalControllerMessenger.call(
+        'ApprovalController:updateRequestState',
+        {
+          id: 'foo',
+          requestState: { foo: 'foobar' },
+        },
+      );
 
       expect(approvalController.get('foo')?.requestState).toStrictEqual({
         foo: 'foobar',
@@ -1719,7 +1721,7 @@ describe('approval controller', () => {
         deriveStateFromMetadata(
           approvalController.state,
           approvalController.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
         Object {

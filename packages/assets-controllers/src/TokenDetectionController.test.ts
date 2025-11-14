@@ -1,4 +1,3 @@
-import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
@@ -7,6 +6,13 @@ import {
 } from '@metamask/controller-utils';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import {
   getDefaultNetworkControllerState,
   RpcEndpointType,
@@ -36,11 +42,7 @@ import {
 } from './multi-chain-accounts-service/mocks/mock-get-balances';
 import { MOCK_GET_SUPPORTED_NETWORKS_RESPONSE } from './multi-chain-accounts-service/mocks/mock-get-supported-networks';
 import { TOKEN_END_POINT_API } from './token-service';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  TokenDetectionControllerMessenger,
-} from './TokenDetectionController';
+import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
 import {
   STATIC_MAINNET_TOKEN_LIST,
   TokenDetectionController,
@@ -148,20 +150,48 @@ const mockNetworkConfigurations: Record<string, NetworkConfiguration> = {
   },
 };
 
-type MainMessenger = Messenger<AllowedActions, AllowedEvents>;
+type AllTokenDetectionControllerActions =
+  MessengerActions<TokenDetectionControllerMessenger>;
+
+type AllTokenDetectionControllerEvents =
+  MessengerEvents<TokenDetectionControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllTokenDetectionControllerActions,
+  AllTokenDetectionControllerEvents
+>;
+
+/**
+ * Builds a root messenger for testing.
+ *
+ * @returns The root messenger.
+ */
+function buildRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+}
 
 /**
  * Builds a messenger that `TokenDetectionController` can use to communicate with other controllers.
  *
- * @param messenger - The main messenger.
- * @returns The restricted messenger.
+ * @param messenger - The root messenger.
+ * @returns The controller messenger.
  */
 function buildTokenDetectionControllerMessenger(
-  messenger: MainMessenger = new Messenger(),
+  messenger = buildRootMessenger(),
 ): TokenDetectionControllerMessenger {
-  return messenger.getRestricted({
-    name: controllerName,
-    allowedActions: [
+  const tokenDetectionControllerMessenger = new Messenger<
+    'TokenDetectionController',
+    AllTokenDetectionControllerActions,
+    AllTokenDetectionControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: tokenDetectionControllerMessenger,
+    actions: [
       'AccountsController:getAccount',
       'AccountsController:getSelectedAccount',
       'KeyringController:getState',
@@ -175,7 +205,7 @@ function buildTokenDetectionControllerMessenger(
       'TokensController:addTokens',
       'NetworkController:findNetworkClientIdByChainId',
     ],
-    allowedEvents: [
+    events: [
       'AccountsController:selectedEvmAccountChange',
       'KeyringController:lock',
       'KeyringController:unlock',
@@ -185,6 +215,7 @@ function buildTokenDetectionControllerMessenger(
       'TransactionController:transactionConfirmed',
     ],
   });
+  return tokenDetectionControllerMessenger;
 }
 
 const mockMultiChainAccountsService = () => {
@@ -1150,7 +1181,18 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(mockTokens).toHaveBeenNthCalledWith(1, {
-              chainIds: ['0x1', '0xaa36a7', '0xe705', '0xe708', '0x2105'],
+              chainIds: [
+                '0x1',
+                '0xaa36a7',
+                '0xe705',
+                '0xe708',
+                '0x2105',
+                '0xa4b1',
+                '0x38',
+                '0xa',
+                '0x89',
+                '0x531',
+              ],
               selectedAddress: secondSelectedAccount.address,
             });
           },
@@ -2586,11 +2628,7 @@ describe('TokenDetectionController', () => {
             category: 'Wallet',
             properties: {
               tokens: [`${sampleTokenA.symbol} - ${sampleTokenA.address}`],
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
               token_standard: 'ERC20',
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
               asset_type: 'TOKEN',
             },
           });
@@ -2722,6 +2760,172 @@ describe('TokenDetectionController', () => {
           });
           expect(callActionSpy).not.toHaveBeenCalledWith(
             'TokensController:addDetectedTokens',
+          );
+        },
+      );
+    });
+
+    it('should timeout and fallback to RPC when Accounts API call takes longer than 30 seconds', async () => {
+      // Use fake timers to simulate the 30-second timeout
+      const clock = sinon.useFakeTimers();
+
+      try {
+        // Arrange - RPC Tokens Flow - Uses sampleTokenA
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+
+        // Mock a hanging API call that never resolves (simulates network timeout)
+        const mockAPI = mockMultiChainAccountsService();
+        mockAPI.mockFetchSupportedNetworks.mockResolvedValue([1]);
+        mockAPI.mockFetchMultiChainBalances.mockImplementation(
+          () =>
+            new Promise(() => {
+              // Promise that never resolves (simulating a hanging request)
+            }),
+        );
+
+        // Arrange - Selected Account
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+
+        // Arrange / Act - withController setup
+        await withController(
+          {
+            options: {
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              useAccountsAPI: true, // USING ACCOUNTS API
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
+            },
+          },
+          async ({ controller, mockTokenListGetState, callActionSpy }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                },
+              },
+            });
+
+            // Start the detection process (don't await yet so we can advance time)
+            const detectPromise = controller.detectTokens({
+              chainIds: ['0x1'],
+              selectedAddress: selectedAccount.address,
+            });
+
+            // Fast-forward time by 30 seconds to trigger the timeout
+            // This simulates the API call taking longer than the ACCOUNTS_API_TIMEOUT_MS (30000ms)
+            await advanceTime({ clock, duration: 30000 });
+
+            // Now await the result after the timeout has been triggered
+            await detectPromise;
+
+            // Verify that the API was initially called
+            expect(mockAPI.mockFetchMultiChainBalances).toHaveBeenCalled();
+
+            // Verify that after timeout, RPC fallback was triggered
+            expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+
+            // Verify that tokens were added via RPC fallback method
+            expect(callActionSpy).toHaveBeenCalledWith(
+              'TokensController:addTokens',
+              [sampleTokenA],
+              'mainnet',
+            );
+          },
+        );
+      } finally {
+        clock.restore();
+      }
+    });
+
+    it('should fallback to RPC when Accounts API call fails with an error (safelyExecute returns undefined)', async () => {
+      // Arrange - RPC Tokens Flow - Uses sampleTokenA
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+
+      // Mock an API call that throws an error inside safelyExecute
+      // This simulates a scenario where the API throws an error (network failure, parsing error, etc.)
+      const mockAPI = mockMultiChainAccountsService();
+      mockAPI.mockFetchSupportedNetworks.mockResolvedValue([1]);
+      mockAPI.mockFetchMultiChainBalances.mockRejectedValue(
+        new Error('API Network Error'),
+      );
+
+      // Arrange - Selected Account
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+
+      // Arrange / Act - withController setup
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({ controller, mockTokenListGetState, callActionSpy }) => {
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              },
+            },
+          });
+
+          // Execute detection
+          await controller.detectTokens({
+            chainIds: ['0x1'],
+            selectedAddress: selectedAccount.address,
+          });
+
+          // Verify that the API was initially called
+          expect(mockAPI.mockFetchMultiChainBalances).toHaveBeenCalled();
+
+          // Verify that after API error (safelyExecute returns undefined), RPC fallback was triggered
+          expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+
+          // Verify that tokens were added via RPC fallback method
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            [sampleTokenA],
+            'mainnet',
           );
         },
       );
@@ -3918,7 +4122,7 @@ type WithControllerCallback<ReturnValue> = ({
   triggerTransactionConfirmed,
 }: {
   controller: TokenDetectionController;
-  messenger: MainMessenger;
+  messenger: RootMessenger;
   mockGetAccount: (internalAccount: InternalAccount) => void;
   mockGetSelectedAccount: (address: string) => void;
   mockKeyringGetState: (state: KeyringControllerState) => void;
@@ -3974,7 +4178,7 @@ async function withController<ReturnValue>(
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const { options, isKeyringUnlocked, mocks } = rest;
-  const messenger = new Messenger<AllowedActions, AllowedEvents>();
+  const messenger = buildRootMessenger();
 
   const mockGetAccount = jest.fn<InternalAccount, []>();
   messenger.registerActionHandler(
@@ -4075,12 +4279,15 @@ async function withController<ReturnValue>(
       .mockResolvedValue(undefined),
   );
 
-  const callActionSpy = jest.spyOn(messenger, 'call');
+  const tokenDetectionControllerMessenger =
+    buildTokenDetectionControllerMessenger(messenger);
+
+  const callActionSpy = jest.spyOn(tokenDetectionControllerMessenger, 'call');
 
   const controller = new TokenDetectionController({
     getBalancesInSingleCall: jest.fn(),
     trackMetaMetricsEvent: jest.fn(),
-    messenger: buildTokenDetectionControllerMessenger(messenger),
+    messenger: tokenDetectionControllerMessenger,
     useAccountsAPI: false,
     platform: 'extension',
     ...options,

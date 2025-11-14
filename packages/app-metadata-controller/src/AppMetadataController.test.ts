@@ -1,9 +1,16 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 
 import {
   AppMetadataController,
   getDefaultAppMetadataControllerState,
   type AppMetadataControllerOptions,
+  type AppMetadataControllerActions,
+  type AppMetadataControllerEvents,
 } from './AppMetadataController';
 
 describe('AppMetadataController', () => {
@@ -128,7 +135,7 @@ describe('AppMetadataController', () => {
           deriveStateFromMetadata(
             controller.state,
             controller.metadata,
-            'anonymous',
+            'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`
           Object {
@@ -219,12 +226,20 @@ function withController<ReturnValue>(
 ): ReturnValue {
   const [options = {}, fn] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger = new Messenger<never, never>();
+  const rootMessenger = new Messenger<
+    MockAnyNamespace,
+    AppMetadataControllerActions,
+    AppMetadataControllerEvents
+  >({ namespace: MOCK_ANY_NAMESPACE });
 
-  const appMetadataControllerMessenger = messenger.getRestricted({
-    name: 'AppMetadataController',
-    allowedActions: [],
-    allowedEvents: [],
+  const appMetadataControllerMessenger = new Messenger<
+    'AppMetadataController',
+    AppMetadataControllerActions,
+    AppMetadataControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'AppMetadataController',
+    parent: rootMessenger,
   });
 
   return fn({

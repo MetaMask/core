@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
+### Added
+
+- **BREAKING:** Added error reporting around account creation with the `ErrorReportingService` ([#7044](https://github.com/MetaMask/core/pull/7044))
+  - The `@metamask/error-reporting-service` is now a peer dependency.
+- Add `MultichainAccountService.resyncAccounts` method and action ([#7087](https://github.com/MetaMask/core/pull/7087)), ([#7093](https://github.com/MetaMask/core/pull/7093))
+- Add `*AccountProvider.resyncAccounts` method ([#7087](https://github.com/MetaMask/core/pull/7087))
+
+### Changed
+
+- **BREAKING:** Make `init` method `async` ([#7087](https://github.com/MetaMask/core/pull/7087))
+  - While this is not yet really used, we might want to make some `async` calls (like `resyncAccounts`) in `init` directly at some point.
+- Add optional tracing configuration ([#7006](https://github.com/MetaMask/core/pull/7006))
+  - For now, only the account discovery is being traced.
+- Limit Bitcoin and Tron providers to 3 concurrent account creations by default when creating multichain account groups ([#7052](https://github.com/MetaMask/core/pull/7052))
+
+## [2.1.0]
+
+### Added
+
+- Add per-provider throttling for non-EVM account creation to improve performance on low-end devices ([#7000](https://github.com/MetaMask/core/pull/7000))
+  - Solana provider is now limited to 3 concurrent account creations by default when creating multichain account groups.
+  - Other providers remain unthrottled by default.
+
+## [2.0.1]
+
+### Fixed
+
+- Use `groupIndex` for account creations on `TrxAccountProvider` instead of the outdated `derivationPath` ([#7010](https://github.com/MetaMask/core/pull/7010)), ([#7018](https://github.com/MetaMask/core/pull/7018))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6544](https://github.com/MetaMask/core/pull/6544))
+  - Previously, `MultichainAccountService` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^33.0.0` to `^34.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^23.0.0` to `^24.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/eth-snap-keyring` from `^17.0.0` to `^18.0.0` ([#6951](https://github.com/MetaMask/core/pull/6951))
+
+## [1.6.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
 ## [1.6.1]
 
 ### Changed
@@ -227,7 +275,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.6.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@2.1.0...@metamask/multichain-account-service@3.0.0
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@2.0.1...@metamask/multichain-account-service@2.1.0
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@2.0.0...@metamask/multichain-account-service@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.6.2...@metamask/multichain-account-service@2.0.0
+[1.6.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.6.1...@metamask/multichain-account-service@1.6.2
 [1.6.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.6.0...@metamask/multichain-account-service@1.6.1
 [1.6.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.5.0...@metamask/multichain-account-service@1.6.0
 [1.5.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.4.0...@metamask/multichain-account-service@1.5.0

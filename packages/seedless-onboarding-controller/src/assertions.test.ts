@@ -81,51 +81,23 @@ describe('assertIsValidVaultData', () => {
       }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
     });
 
-    it('should throw when revokeToken exists but is not a string or undefined', () => {
-      const invalidData = {
-        ...createValidVaultData(),
-        revokeToken: 789,
-      };
-
-      expect(() => {
-        assertIsValidVaultData(invalidData);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
-
-      const invalidData2 = {
-        ...createValidVaultData(),
-        revokeToken: null,
-      };
-
-      expect(() => {
-        assertIsValidVaultData(invalidData2);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
-
-      const invalidData3 = {
-        ...createValidVaultData(),
-        revokeToken: {},
-      };
-
-      expect(() => {
-        assertIsValidVaultData(invalidData3);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
-    });
-
     it('should throw when accessToken is missing or not a string', () => {
       const invalidData = createValidVaultData();
       delete (invalidData as Record<string, unknown>).accessToken;
 
       expect(() => {
         assertIsValidVaultData(invalidData);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidAccessToken);
 
       const invalidData2 = {
         ...createValidVaultData(),
+        revokeToken: 'MOCK_REVOKE_TOKEN',
         accessToken: 999,
       };
 
       expect(() => {
         assertIsValidVaultData(invalidData2);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidAccessToken);
     });
   });
 
@@ -135,50 +107,6 @@ describe('assertIsValidVaultData', () => {
 
       expect(() => {
         assertIsValidVaultData(validData);
-      }).not.toThrow();
-    });
-
-    it('should not throw when revokeToken is undefined', () => {
-      const validData = {
-        ...createValidVaultData(),
-        revokeToken: undefined,
-      };
-
-      expect(() => {
-        assertIsValidVaultData(validData);
-      }).not.toThrow();
-    });
-
-    it('should not throw when revokeToken is a valid string', () => {
-      const validData = {
-        ...createValidVaultData(),
-        revokeToken: 'valid_revoke_token',
-      };
-
-      expect(() => {
-        assertIsValidVaultData(validData);
-      }).not.toThrow();
-    });
-
-    it('should not throw when revokeToken property is missing entirely', () => {
-      const validData = createValidVaultData();
-      delete (validData as Record<string, unknown>).revokeToken;
-
-      expect(() => {
-        assertIsValidVaultData(validData);
-      }).not.toThrow();
-    });
-
-    it('should not throw with minimal valid vault data', () => {
-      const minimalValidData = {
-        toprfEncryptionKey: 'key1',
-        toprfPwEncryptionKey: 'key2',
-        toprfAuthKeyPair: 'keyPair',
-        accessToken: 'token',
-      };
-
-      expect(() => {
-        assertIsValidVaultData(minimalValidData);
       }).not.toThrow();
     });
 

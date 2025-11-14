@@ -1,5 +1,5 @@
 import type { FeatureAnnouncementRawNotification } from '../feature-announcement/feature-announcement';
-import type { OnChainRawNotification } from '../on-chain-notification/on-chain-notification';
+import type { NormalisedAPINotification } from '../notification-api/notification-api';
 import type { RawSnapNotification } from '../snaps';
 import type { Compute } from '../type-utils';
 
@@ -10,7 +10,7 @@ export type BaseNotification = {
 };
 
 export type RawNotificationUnion =
-  | OnChainRawNotification
+  | NormalisedAPINotification
   | FeatureAnnouncementRawNotification
   | RawSnapNotification;
 
@@ -22,19 +22,9 @@ export type RawNotificationUnion =
  */
 export type INotification = Compute<
   | (FeatureAnnouncementRawNotification & BaseNotification)
-  | (OnChainRawNotification & BaseNotification)
+  | (NormalisedAPINotification & BaseNotification)
   | (RawSnapNotification & BaseNotification & { readDate?: string | null })
 >;
-
-// NFT
-export type NFT = {
-  token_id: string;
-  image: string;
-  collection?: {
-    name: string;
-    image: string;
-  };
-};
 
 export type MarkAsReadNotificationsParam = Pick<
   INotification,

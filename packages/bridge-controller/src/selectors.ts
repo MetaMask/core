@@ -25,6 +25,7 @@ import type {
 import { RequestStatus, SortOrder } from './types';
 import {
   getNativeAssetForChainId,
+  isEvmQuoteResponse,
   isNativeAddress,
   isNonEvmChainId,
 } from './utils/bridge';
@@ -289,7 +290,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         relayerFee,
         gasFee: QuoteMetadata['gasFee'];
 
-      if (isNonEvmChainId(quote.quote.srcChainId)) {
+      if (!isEvmQuoteResponse(quote)) {
         // Use the new generic function for all non-EVM chains
         totalEstimatedNetworkFee = calcNonEvmTotalNetworkFee(
           quote,

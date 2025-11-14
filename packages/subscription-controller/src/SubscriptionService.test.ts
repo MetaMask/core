@@ -53,6 +53,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
       last4: '1234',
     },
   },
+  isEligibleForSupport: true,
 };
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token-12345';
@@ -71,6 +72,40 @@ const MOCK_HEADERS = {
   'Content-Type': 'application/json',
   Authorization: `Bearer ${MOCK_ACCESS_TOKEN}`,
 };
+
+const MOCK_COHORTS = [
+  {
+    cohort: 'post_tx',
+    eligibilityRate: 0.8,
+    priority: 1,
+    eligible: true,
+  },
+  {
+    cohort: 'wallet_home',
+    eligibilityRate: 0.2,
+    priority: 2,
+    eligible: true,
+  },
+];
+
+/**
+ * Creates a mock subscription eligibility response
+ *
+ * @param overrides - Optional overrides for the response
+ * @returns Mock eligibility response
+ */
+function createMockEligibilityResponse(overrides = {}) {
+  return {
+    product: PRODUCT_TYPES.SHIELD,
+    canSubscribe: true,
+    minBalanceUSD: 100,
+    canViewEntryModal: true,
+    cohorts: [],
+    assignedCohort: null,
+    hasAssignedCohortExpired: false,
+    ...overrides,
+  };
+}
 
 /**
  * Creates a mock subscription service config for testing
@@ -407,25 +442,30 @@ describe('SubscriptionService', () => {
   describe('getShieldSubscriptionEligibility', () => {
     it('should get shield subscription eligibility successfully', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        handleFetchMock.mockResolvedValue([
-          {
-            product: PRODUCT_TYPES.SHIELD,
-            canSubscribe: true,
-            minBalanceUSD: 100,
-            canViewEntryModal: true,
-          },
-        ]);
+        const mockResponse = createMockEligibilityResponse();
+        handleFetchMock.mockResolvedValue([mockResponse]);
 
         const results = await service.getSubscriptionsEligibilities();
 
-        expect(results).toStrictEqual([
-          {
-            product: PRODUCT_TYPES.SHIELD,
-            canSubscribe: true,
-            minBalanceUSD: 100,
-            canViewEntryModal: true,
-          },
-        ]);
+        expect(results).toStrictEqual([mockResponse]);
+      });
+    });
+
+    it('should get shield subscription eligibility with cohort information', async () => {
+      await withMockSubscriptionService(async ({ service }) => {
+        const mockResponse = createMockEligibilityResponse({
+          cohorts: MOCK_COHORTS,
+          assignedCohort: 'post_tx',
+          assignedAt: '2024-01-01T00:00:00Z',
+        });
+
+        handleFetchMock.mockResolvedValue([mockResponse]);
+
+        const results = await service.getSubscriptionsEligibilities({
+          balanceCategory: '1k-9.9k',
+        });
+
+        expect(results).toStrictEqual([mockResponse]);
       });
     });
 
@@ -442,13 +482,49 @@ describe('SubscriptionService', () => {
 
         expect(results).toHaveLength(1);
         expect(results).toStrictEqual([
-          {
-            product: PRODUCT_TYPES.SHIELD,
+          createMockEligibilityResponse({
             canSubscribe: false,
             canViewEntryModal: false,
-            minBalanceUSD: 100,
-          },
+          }),
         ]);
+      });
+    });
+
+    it('should pass balanceCategory as query parameter when provided', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        const mockResponse = createMockEligibilityResponse();
+        handleFetchMock.mockResolvedValue([mockResponse]);
+
+        await service.getSubscriptionsEligibilities({
+          balanceCategory: '100-999',
+        });
+
+        expect(handleFetchMock).toHaveBeenCalledWith(
+          expect.stringContaining('balanceCategory=100-999'),
+          expect.objectContaining({
+            method: 'GET',
+            headers: MOCK_HEADERS,
+          }),
+        );
+        expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should not pass balanceCategory query parameter when not provided', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        const mockResponse = createMockEligibilityResponse();
+        handleFetchMock.mockResolvedValue([mockResponse]);
+
+        await service.getSubscriptionsEligibilities();
+
+        expect(handleFetchMock).toHaveBeenCalledWith(
+          expect.not.stringContaining('balanceCategory'),
+          expect.objectContaining({
+            method: 'GET',
+            headers: MOCK_HEADERS,
+          }),
+        );
+        expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
       });
     });
   });
@@ -469,6 +545,94 @@ describe('SubscriptionService', () => {
             headers: MOCK_HEADERS,
             body: JSON.stringify({
               event: SubscriptionUserEvent.ShieldEntryModalViewed,
+            }),
+          },
+        );
+      });
+    });
+
+    it('should submit user event with cohort successfully', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        handleFetchMock.mockResolvedValue({});
+
+        await service.submitUserEvent({
+          event: SubscriptionUserEvent.ShieldEntryModalViewed,
+          cohort: 'post_tx',
+        });
+
+        expect(handleFetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(config.env, 'user-events'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              event: SubscriptionUserEvent.ShieldEntryModalViewed,
+              cohort: 'post_tx',
+            }),
+          },
+        );
+      });
+    });
+  });
+
+  describe('assignUserToCohort', () => {
+    it('should assign user to cohort successfully', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        handleFetchMock.mockResolvedValue({});
+
+        await service.assignUserToCohort({ cohort: 'post_tx' });
+
+        expect(handleFetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(config.env, 'cohorts/assign'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              cohort: 'post_tx',
+            }),
+          },
+        );
+        expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should handle cohort assignment errors', async () => {
+      await withMockSubscriptionService(async ({ service }) => {
+        handleFetchMock.mockRejectedValue(new Error('Network error'));
+
+        await expect(
+          service.assignUserToCohort({ cohort: 'wallet_home' }),
+        ).rejects.toThrow(SubscriptionServiceError);
+      });
+    });
+  });
+
+  describe('submitSponsorshipIntents', () => {
+    it('should submit sponsorship intents successfully', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        handleFetchMock.mockResolvedValue({});
+
+        await service.submitSponsorshipIntents({
+          chainId: '0x1',
+          address: '0x1234567890123456789012345678901234567890',
+          products: [PRODUCT_TYPES.SHIELD],
+          recurringInterval: RECURRING_INTERVALS.month,
+          billingCycles: 12,
+          paymentTokenSymbol: 'USDT',
+        });
+
+        expect(handleFetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(config.env, 'transaction-sponsorship/intents'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              chainId: '0x1',
+              address: '0x1234567890123456789012345678901234567890',
+              products: [PRODUCT_TYPES.SHIELD],
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 12,
+              paymentTokenSymbol: 'USDT',
             }),
           },
         );

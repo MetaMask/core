@@ -1,8 +1,7 @@
 import type { TypedTransaction, TypedTxData } from '@ethereumjs/tx';
 import { isValidPrivate, getBinarySize } from '@ethereumjs/util';
-import type { RestrictedMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import * as encryptorUtils from '@metamask/browser-passworder';
+import type * as encryptorUtils from '@metamask/browser-passworder';
 import { HdKeyring } from '@metamask/eth-hd-keyring';
 import { normalize as ethNormalize } from '@metamask/eth-sig-util';
 import SimpleKeyring from '@metamask/eth-simple-keyring';
@@ -15,6 +14,7 @@ import type {
 } from '@metamask/keyring-api';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { KeyringClass } from '@metamask/keyring-utils';
+import type { Messenger } from '@metamask/messenger';
 import type { Eip1024EncryptedData, Hex, Json } from '@metamask/utils';
 import {
   add0x,
@@ -184,6 +184,16 @@ export type KeyringControllerWithKeyringAction = {
   handler: KeyringController['withKeyring'];
 };
 
+export type KeyringControllerCreateNewVaultAndKeychainAction = {
+  type: `${typeof name}:createNewVaultAndKeychain`;
+  handler: KeyringController['createNewVaultAndKeychain'];
+};
+
+export type KeyringControllerCreateNewVaultAndRestoreAction = {
+  type: `${typeof name}:createNewVaultAndRestore`;
+  handler: KeyringController['createNewVaultAndRestore'];
+};
+
 export type KeyringControllerAddNewKeyringAction = {
   type: `${typeof name}:addNewKeyring`;
   handler: KeyringController['addNewKeyring'];
@@ -226,7 +236,9 @@ export type KeyringControllerActions =
   | KeyringControllerSignUserOperationAction
   | KeyringControllerAddNewAccountAction
   | KeyringControllerWithKeyringAction
-  | KeyringControllerAddNewKeyringAction;
+  | KeyringControllerAddNewKeyringAction
+  | KeyringControllerCreateNewVaultAndKeychainAction
+  | KeyringControllerCreateNewVaultAndRestoreAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -234,28 +246,27 @@ export type KeyringControllerEvents =
   | KeyringControllerUnlockEvent
   | KeyringControllerAccountRemovedEvent;
 
-export type KeyringControllerMessenger = RestrictedMessenger<
+export type KeyringControllerMessenger = Messenger<
   typeof name,
   KeyringControllerActions,
-  KeyringControllerEvents,
-  never,
-  never
+  KeyringControllerEvents
 >;
 
-export type KeyringControllerOptions = {
+export type KeyringControllerOptions<
+  EncryptionKey = encryptorUtils.EncryptionKey | CryptoKey,
+  SupportedKeyDerivationOptions = encryptorUtils.KeyDerivationOptions,
+  EncryptionResult extends
+    EncryptionResultConstraint<SupportedKeyDerivationOptions> = DefaultEncryptionResult<SupportedKeyDerivationOptions>,
+> = {
   keyringBuilders?: { (): EthKeyring; type: string }[];
   messenger: KeyringControllerMessenger;
   state?: { vault?: string; keyringsMetadata?: KeyringMetadata[] };
-} & (
-  | {
-      cacheEncryptionKey: true;
-      encryptor?: ExportableKeyEncryptor;
-    }
-  | {
-      cacheEncryptionKey?: false;
-      encryptor?: GenericEncryptor | ExportableKeyEncryptor;
-    }
-);
+  encryptor: Encryptor<
+    EncryptionKey,
+    SupportedKeyDerivationOptions,
+    EncryptionResult
+  >;
+};
 
 /**
  * A keyring object representation.
@@ -325,11 +336,28 @@ type SessionState = {
   password?: string;
 };
 
+export type EncryptionResultConstraint<SupportedKeyMetadata> = {
+  salt?: string;
+  keyMetadata?: SupportedKeyMetadata;
+};
+
+export type DefaultEncryptionResult<SupportedKeyMetadata> = {
+  data: string;
+  iv: string;
+  salt?: string;
+  keyMetadata?: SupportedKeyMetadata;
+};
+
 /**
- * A generic encryptor interface that supports encrypting and decrypting
- * serializable data with a password.
+ * An encryptor interface that supports encrypting and decrypting
+ * serializable data with a password, and exporting and importing keys.
  */
-export type GenericEncryptor = {
+export type Encryptor<
+  EncryptionKey = encryptorUtils.EncryptionKey | CryptoKey,
+  SupportedKeyDerivationParams = encryptorUtils.KeyDerivationOptions,
+  EncryptionResult extends
+    EncryptionResultConstraint<SupportedKeyDerivationParams> = DefaultEncryptionResult<SupportedKeyDerivationParams>,
+> = {
   /**
    * Encrypts the given object with the given password.
    *
@@ -358,72 +386,64 @@ export type GenericEncryptor = {
     vault: string,
     targetDerivationParams?: encryptorUtils.KeyDerivationOptions,
   ) => boolean;
+  /**
+   * Encrypts the given object with the given encryption key.
+   *
+   * @param key - The encryption key to encrypt with.
+   * @param object - The object to encrypt.
+   * @returns The encryption result.
+   */
+  encryptWithKey: (
+    key: EncryptionKey,
+    object: Json,
+  ) => Promise<EncryptionResult>;
+  /**
+   * Encrypts the given object with the given password, and returns the
+   * encryption result and the serialized key string.
+   *
+   * @param password - The password to encrypt with.
+   * @param object - The object to encrypt.
+   * @param salt - The optional salt to use for encryption.
+   * @returns The encrypted string and the serialized key string.
+   */
+  encryptWithDetail: (
+    password: string,
+    object: Json,
+    salt?: string,
+  ) => Promise<encryptorUtils.DetailedEncryptionResult>;
+  /**
+   * Decrypts the given encrypted string with the given encryption key.
+   *
+   * @param key - The encryption key to decrypt with.
+   * @param encryptedObject - The encrypted string to decrypt.
+   * @returns The decrypted object.
+   */
+  decryptWithKey: (
+    key: EncryptionKey,
+    encryptedObject: EncryptionResult,
+  ) => Promise<unknown>;
+  /**
+   * Decrypts the given encrypted string with the given password, and returns
+   * the decrypted object and the salt and serialized key string used for
+   * encryption.
+   *
+   * @param password - The password to decrypt with.
+   * @param encryptedString - The encrypted string to decrypt.
+   * @returns The decrypted object and the salt and serialized key string used for
+   * encryption.
+   */
+  decryptWithDetail: (
+    password: string,
+    encryptedString: string,
+  ) => Promise<encryptorUtils.DetailedDecryptResult>;
+  /**
+   * Generates an encryption key from a serialized key.
+   *
+   * @param key - The serialized key string.
+   * @returns The encryption key.
+   */
+  importKey: (key: string) => Promise<EncryptionKey>;
 };
-
-/**
- * An encryptor interface that supports encrypting and decrypting
- * serializable data with a password, and exporting and importing keys.
- */
-export type ExportableKeyEncryptor<EncryptionKey = unknown> =
-  GenericEncryptor & {
-    /**
-     * Encrypts the given object with the given encryption key.
-     *
-     * @param key - The encryption key to encrypt with.
-     * @param object - The object to encrypt.
-     * @returns The encryption result.
-     */
-    encryptWithKey: (
-      key: EncryptionKey,
-      object: Json,
-    ) => Promise<encryptorUtils.EncryptionResult>;
-    /**
-     * Encrypts the given object with the given password, and returns the
-     * encryption result and the exported key string.
-     *
-     * @param password - The password to encrypt with.
-     * @param object - The object to encrypt.
-     * @param salt - The optional salt to use for encryption.
-     * @returns The encrypted string and the exported key string.
-     */
-    encryptWithDetail: (
-      password: string,
-      object: Json,
-      salt?: string,
-    ) => Promise<encryptorUtils.DetailedEncryptionResult>;
-    /**
-     * Decrypts the given encrypted string with the given encryption key.
-     *
-     * @param key - The encryption key to decrypt with.
-     * @param encryptedString - The encrypted string to decrypt.
-     * @returns The decrypted object.
-     */
-    decryptWithKey: (
-      key: EncryptionKey,
-      encryptedString: string,
-    ) => Promise<unknown>;
-    /**
-     * Decrypts the given encrypted string with the given password, and returns
-     * the decrypted object and the salt and exported key string used for
-     * encryption.
-     *
-     * @param password - The password to decrypt with.
-     * @param encryptedString - The encrypted string to decrypt.
-     * @returns The decrypted object and the salt and exported key string used for
-     * encryption.
-     */
-    decryptWithDetail: (
-      password: string,
-      encryptedString: string,
-    ) => Promise<encryptorUtils.DetailedDecryptResult>;
-    /**
-     * Generates an encryption key from exported key string.
-     *
-     * @param key - The exported key string.
-     * @returns The encryption key.
-     */
-    importKey: (key: string) => Promise<EncryptionKey>;
-  };
 
 export type KeyringSelector =
   | {
@@ -495,30 +515,6 @@ function assertHasUint8ArrayMnemonic(
     )
   ) {
     throw new Error("Can't get mnemonic bytes from keyring");
-  }
-}
-
-/**
- * Assert that the provided encryptor supports
- * encryption and encryption key export.
- *
- * @param encryptor - The encryptor to check.
- * @throws If the encryptor does not support key encryption.
- */
-function assertIsExportableKeyEncryptor(
-  encryptor: GenericEncryptor | ExportableKeyEncryptor,
-): asserts encryptor is ExportableKeyEncryptor {
-  if (
-    !(
-      'importKey' in encryptor &&
-      typeof encryptor.importKey === 'function' &&
-      'decryptWithKey' in encryptor &&
-      typeof encryptor.decryptWithKey === 'function' &&
-      'encryptWithKey' in encryptor &&
-      typeof encryptor.encryptWithKey === 'function'
-    )
-  ) {
-    throw new Error(KeyringControllerError.UnsupportedEncryptionKeyExport);
   }
 }
 
@@ -637,7 +633,12 @@ function normalize(address: string): string | undefined {
  * with the internal keyring controller and handling certain complex operations that involve the
  * keyrings.
  */
-export class KeyringController extends BaseController<
+export class KeyringController<
+  EncryptionKey = encryptorUtils.EncryptionKey | CryptoKey,
+  SupportedKeyDerivationOptions = encryptorUtils.KeyDerivationOptions,
+  EncryptionResult extends
+    EncryptionResultConstraint<SupportedKeyDerivationOptions> = DefaultEncryptionResult<SupportedKeyDerivationOptions>,
+> extends BaseController<
   typeof name,
   KeyringControllerState,
   KeyringControllerMessenger
@@ -648,9 +649,11 @@ export class KeyringController extends BaseController<
 
   readonly #keyringBuilders: { (): EthKeyring; type: string }[];
 
-  readonly #encryptor: GenericEncryptor | ExportableKeyEncryptor;
-
-  readonly #cacheEncryptionKey: boolean;
+  readonly #encryptor: Encryptor<
+    EncryptionKey,
+    SupportedKeyDerivationOptions,
+    EncryptionResult
+  >;
 
   #keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
 
@@ -668,13 +671,14 @@ export class KeyringController extends BaseController<
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    */
-  constructor(options: KeyringControllerOptions) {
-    const {
-      encryptor = encryptorUtils,
-      keyringBuilders,
-      messenger,
-      state,
-    } = options;
+  constructor(
+    options: KeyringControllerOptions<
+      EncryptionKey,
+      SupportedKeyDerivationOptions,
+      EncryptionResult
+    >,
+  ) {
+    const { encryptor, keyringBuilders, messenger, state } = options;
 
     super({
       name,
@@ -682,31 +686,31 @@ export class KeyringController extends BaseController<
         vault: {
           includeInStateLogs: false,
           persist: true,
-          anonymous: false,
+          includeInDebugSnapshot: false,
           usedInUi: false,
         },
         isUnlocked: {
           includeInStateLogs: true,
           persist: false,
-          anonymous: true,
+          includeInDebugSnapshot: true,
           usedInUi: true,
         },
         keyrings: {
           includeInStateLogs: true,
           persist: false,
-          anonymous: false,
+          includeInDebugSnapshot: false,
           usedInUi: true,
         },
         encryptionKey: {
           includeInStateLogs: false,
           persist: false,
-          anonymous: false,
+          includeInDebugSnapshot: false,
           usedInUi: false,
         },
         encryptionSalt: {
           includeInStateLogs: false,
           persist: false,
-          anonymous: false,
+          includeInDebugSnapshot: false,
           usedInUi: false,
         },
       },
@@ -724,13 +728,6 @@ export class KeyringController extends BaseController<
     this.#encryptor = encryptor;
     this.#keyrings = [];
     this.#unsupportedKeyrings = [];
-
-    // This option allows the controller to cache an exported key
-    // for use in decrypting and encrypting data without password
-    this.#cacheEncryptionKey = Boolean(options.cacheEncryptionKey);
-    if (this.#cacheEncryptionKey) {
-      assertIsExportableKeyEncryptor(encryptor);
-    }
 
     this.#registerMessageHandlers();
   }
@@ -1179,7 +1176,7 @@ export class KeyringController extends BaseController<
       }
     });
 
-    this.messagingSystem.publish(`${name}:accountRemoved`, address);
+    this.messenger.publish(`${name}:accountRemoved`, address);
   }
 
   /**
@@ -1201,7 +1198,7 @@ export class KeyringController extends BaseController<
         delete state.encryptionSalt;
       });
 
-      this.messagingSystem.publish(`${name}:lock`);
+      this.messenger.publish(`${name}:lock`);
     });
   }
 
@@ -1453,12 +1450,10 @@ export class KeyringController extends BaseController<
       // We need to clear encryption key and salt from state
       // to force the controller to re-encrypt the vault using
       // the new password.
-      if (this.#cacheEncryptionKey) {
-        this.update((state) => {
-          delete state.encryptionKey;
-          delete state.encryptionSalt;
-        });
-      }
+      this.update((state) => {
+        delete state.encryptionKey;
+        delete state.encryptionSalt;
+      });
     });
   }
 
@@ -1697,88 +1692,98 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Constructor helper for registering this controller's messaging system
+   * Constructor helper for registering this controller's messeger
    * actions.
    */
   #registerMessageHandlers() {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:signMessage`,
       this.signMessage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:signEip7702Authorization`,
       this.signEip7702Authorization.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:signPersonalMessage`,
       this.signPersonalMessage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:signTypedMessage`,
       this.signTypedMessage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:decryptMessage`,
       this.decryptMessage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:getEncryptionPublicKey`,
       this.getEncryptionPublicKey.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:getAccounts`,
       this.getAccounts.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:getKeyringsByType`,
       this.getKeyringsByType.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:getKeyringForAccount`,
       this.getKeyringForAccount.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:persistAllKeyrings`,
       this.persistAllKeyrings.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:prepareUserOperation`,
       this.prepareUserOperation.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:patchUserOperation`,
       this.patchUserOperation.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:signUserOperation`,
       this.signUserOperation.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:addNewAccount`,
       this.addNewAccount.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:withKeyring`,
       this.withKeyring.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:addNewKeyring`,
       this.addNewKeyring.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${name}:createNewVaultAndKeychain`,
+      this.createNewVaultAndKeychain.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${name}:createNewVaultAndRestore`,
+      this.createNewVaultAndRestore.bind(this),
     );
   }
 
@@ -2041,50 +2046,36 @@ export class KeyringController extends BaseController<
       let vault;
       const updatedState: Partial<KeyringControllerState> = {};
 
-      if (this.#cacheEncryptionKey) {
-        assertIsExportableKeyEncryptor(this.#encryptor);
+      if (password) {
+        const result = await this.#encryptor.decryptWithDetail(
+          password,
+          encryptedVault,
+        );
+        vault = result.vault;
+        this.#password = password;
 
-        if (password) {
-          const result = await this.#encryptor.decryptWithDetail(
-            password,
-            encryptedVault,
-          );
-          vault = result.vault;
-          this.#password = password;
-
-          updatedState.encryptionKey = result.exportedKeyString;
-          updatedState.encryptionSalt = result.salt;
-        } else {
-          const parsedEncryptedVault = JSON.parse(encryptedVault);
-
-          if (encryptionSalt && encryptionSalt !== parsedEncryptedVault.salt) {
-            throw new Error(KeyringControllerError.ExpiredCredentials);
-          } else {
-            encryptionSalt = parsedEncryptedVault.salt as string;
-          }
-
-          if (typeof encryptionKey !== 'string') {
-            throw new TypeError(KeyringControllerError.WrongPasswordType);
-          }
-
-          const key = await this.#encryptor.importKey(encryptionKey);
-          vault = await this.#encryptor.decryptWithKey(
-            key,
-            parsedEncryptedVault,
-          );
-
-          // This call is required on the first call because encryptionKey
-          // is not yet inside the memStore
-          updatedState.encryptionKey = encryptionKey;
-          updatedState.encryptionSalt = encryptionSalt;
-        }
+        updatedState.encryptionKey = result.exportedKeyString;
+        updatedState.encryptionSalt = result.salt;
       } else {
-        if (typeof password !== 'string') {
+        const parsedEncryptedVault = JSON.parse(encryptedVault);
+
+        if (encryptionSalt && encryptionSalt !== parsedEncryptedVault.salt) {
+          throw new Error(KeyringControllerError.ExpiredCredentials);
+        } else {
+          encryptionSalt = parsedEncryptedVault.salt as string;
+        }
+
+        if (typeof encryptionKey !== 'string') {
           throw new TypeError(KeyringControllerError.WrongPasswordType);
         }
 
-        vault = await this.#encryptor.decrypt(password, encryptedVault);
-        this.#password = password;
+        const key = await this.#encryptor.importKey(encryptionKey);
+        vault = await this.#encryptor.decryptWithKey(key, parsedEncryptedVault);
+
+        // This call is required on the first call because encryptionKey
+        // is not yet inside the memStore
+        updatedState.encryptionKey = encryptionKey;
+        updatedState.encryptionSalt = encryptionSalt;
       }
 
       if (!isSerializedKeyringsArray(vault)) {
@@ -2142,33 +2133,23 @@ export class KeyringController extends BaseController<
 
       const updatedState: Partial<KeyringControllerState> = {};
 
-      if (this.#cacheEncryptionKey) {
-        assertIsExportableKeyEncryptor(this.#encryptor);
-
-        if (useCachedKey) {
-          const key = await this.#encryptor.importKey(encryptionKey);
-          const vaultJSON = await this.#encryptor.encryptWithKey(
-            key,
-            serializedKeyrings,
-          );
-          vaultJSON.salt = encryptionSalt;
-          updatedState.vault = JSON.stringify(vaultJSON);
-        } else if (this.#password) {
-          const { vault: newVault, exportedKeyString } =
-            await this.#encryptor.encryptWithDetail(
-              this.#password,
-              serializedKeyrings,
-            );
-
-          updatedState.vault = newVault;
-          updatedState.encryptionKey = exportedKeyString;
-        }
-      } else {
-        assertIsValidPassword(this.#password);
-        updatedState.vault = await this.#encryptor.encrypt(
-          this.#password,
+      if (useCachedKey) {
+        const key = await this.#encryptor.importKey(encryptionKey);
+        const vaultJSON = await this.#encryptor.encryptWithKey(
+          key,
           serializedKeyrings,
         );
+        vaultJSON.salt = encryptionSalt;
+        updatedState.vault = JSON.stringify(vaultJSON);
+      } else if (this.#password) {
+        const { vault: newVault, exportedKeyString } =
+          await this.#encryptor.encryptWithDetail(
+            this.#password,
+            serializedKeyrings,
+          );
+
+        updatedState.vault = newVault;
+        updatedState.encryptionKey = exportedKeyString;
       }
 
       if (!updatedState.vault) {
@@ -2450,7 +2431,7 @@ export class KeyringController extends BaseController<
     this.update((state) => {
       state.isUnlocked = true;
     });
-    this.messagingSystem.publish(`${name}:unlock`);
+    this.messenger.publish(`${name}:unlock`);
   }
 
   /**

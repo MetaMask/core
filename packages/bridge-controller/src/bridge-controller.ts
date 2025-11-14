@@ -5,7 +5,6 @@ import type { StateMetadata } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import type { NetworkClientId } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
@@ -70,7 +69,6 @@ import {
 import type {
   QuoteFetchData,
   RequestMetadata,
-  RequestParams,
   RequiredEventContextFromClient,
 } from './utils/metrics/types';
 import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
@@ -83,55 +81,55 @@ const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   quotes: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   quotesInitialLoadTime: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   quotesLastFetched: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   quotesLoadingStatus: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   quoteFetchError: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   quotesRefreshCount: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   assetExchangeRates: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   minimumBalanceForRentExemptionInLamports: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -139,13 +137,11 @@ const metadata: StateMetadata<BridgeControllerState> = {
 /**
  * The input to start polling for the {@link BridgeController}
  *
- * @param networkClientId - The network client ID of the selected network
  * @param updatedQuoteRequest - The updated quote request
  * @param context - The context contains properties that can't be populated by the
  * controller and need to be provided by the client for analytics
  */
 type BridgePollingInput = {
-  networkClientId: NetworkClientId;
   updatedQuoteRequest: GenericQuoteRequest;
   context: Pick<
     RequiredEventContextFromClient,
@@ -239,31 +235,31 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     // Register action handlers
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:setChainIntervalLength`,
       this.setChainIntervalLength.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:updateBridgeQuoteRequestParams`,
       this.updateBridgeQuoteRequestParams.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:resetState`,
       this.resetState.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:getBridgeERC20Allowance`,
       this.getBridgeERC20Allowance.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:trackUnifiedSwapBridgeEvent`,
       this.trackUnifiedSwapBridgeEvent.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:stopPollingForQuotes`,
       this.stopPollingForQuotes.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:fetchQuotes`,
       this.fetchQuotes.bind(this),
     );
@@ -295,10 +291,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     if (isValidQuoteRequest(updatedQuoteRequest)) {
       this.#quotesFirstFetched = Date.now();
-      const providerConfig = this.#getSelectedNetworkClient()?.configuration;
+      const isSrcChainNonEVM = isNonEvmChainId(updatedQuoteRequest.srcChainId);
+      const providerConfig = isSrcChainNonEVM
+        ? undefined
+        : this.#getNetworkClientByChainId(
+            formatChainIdToHex(updatedQuoteRequest.srcChainId),
+          )?.configuration;
 
       let insufficientBal: boolean | undefined;
-      if (isNonEvmChainId(updatedQuoteRequest.srcChainId)) {
+      if (isSrcChainNonEVM) {
         // If the source chain is not an EVM network, use value from params
         insufficientBal = paramsToUpdate.insufficientBal;
       } else if (providerConfig?.rpcUrl?.includes('tenderly')) {
@@ -317,11 +318,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         }
       }
 
-      const networkClientId = this.#getSelectedNetworkClientId();
       // Set refresh rate based on the source chain before starting polling
       this.setChainIntervalLength();
       this.startPolling({
-        networkClientId,
         updatedQuoteRequest: {
           ...updatedQuoteRequest,
           insufficientBal,
@@ -345,7 +344,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     abortSignal: AbortSignal | null = null,
     featureId: FeatureId | null = null,
   ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
-    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
+    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
     // If featureId is specified, retrieve the quoteRequestOverrides for that featureId
     const quoteRequestOverrides = featureId
       ? bridgeFeatureFlags.quoteRequestOverrides?.[featureId]
@@ -368,7 +367,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     const quotesWithFees = await appendFeesToQuotes(
       baseQuotes,
-      this.messagingSystem,
+      this.messenger,
       this.#getLayer1GasFee,
       this.#getMultichainSelectedAccount(quoteRequest.walletAddress),
     );
@@ -392,9 +391,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getExchangeRateSources = () => {
     return {
-      ...this.messagingSystem.call('MultichainAssetsRatesController:getState'),
-      ...this.messagingSystem.call('CurrencyRateController:getState'),
-      ...this.messagingSystem.call('TokenRatesController:getState'),
+      ...this.messenger.call('MultichainAssetsRatesController:getState'),
+      ...this.messenger.call('CurrencyRateController:getState'),
+      ...this.messenger.call('TokenRatesController:getState'),
       ...this.state,
     };
   };
@@ -444,7 +443,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       );
     }
 
-    const currency = this.messagingSystem.call(
+    const currency = this.messenger.call(
       'CurrencyRateController:getState',
     ).currentCurrency;
 
@@ -473,7 +472,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     quoteRequest: GenericQuoteRequest,
   ) => {
     const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
-    const provider = this.#getSelectedNetworkClient()?.provider;
+    const provider = this.#getNetworkClientByChainId(srcChainIdInHex)?.provider;
     const normalizedSrcTokenAddress = formatAddressToCaipReference(
       quoteRequest.srcTokenAddress,
     );
@@ -526,7 +525,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   setChainIntervalLength = () => {
     const { state } = this;
     const { srcChainId } = state.quoteRequest;
-    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
+    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
 
     const refreshRateOverride = srcChainId
       ? bridgeFeatureFlags.chains[formatChainIdToCaip(srcChainId)]?.refreshRate
@@ -536,7 +535,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   readonly #fetchBridgeQuotes = async ({
-    networkClientId: _networkClientId,
     updatedQuoteRequest,
     context,
   }: BridgePollingInput) => {
@@ -548,14 +546,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       context,
     );
 
-    const { sse, maxRefreshCount } = getBridgeFeatureFlags(
-      this.messagingSystem,
-    );
-    // const shouldStream =
-    //   sse?.enabled &&
-    //   hasMinimumRequiredVersion(this.#clientVersion, sse.minimumVersion);
-    // TODO enable SSE again after florin backend changes are deployed
-    const shouldStream = false;
+    const { sse, maxRefreshCount } = getBridgeFeatureFlags(this.messenger);
+    const shouldStream =
+      sse?.enabled &&
+      hasMinimumRequiredVersion(this.#clientVersion, sse.minimumVersion);
 
     this.update((state) => {
       state.quoteRequest = updatedQuoteRequest;
@@ -622,9 +616,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
       // Ignore abort errors
-      const isAbortError = (error as Error).name === 'AbortError';
       if (
-        isAbortError ||
+        (error as Error).toString().includes('AbortError') ||
+        (error as Error).toString().includes('FetchRequestCanceledException') ||
         [
           AbortReason.ResetState,
           AbortReason.NewQuoteRequest,
@@ -696,7 +690,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         onValidQuoteReceived: async (quote: QuoteResponse) => {
           const quotesWithFees = await appendFeesToQuotes(
             [quote],
-            this.messagingSystem,
+            this.messenger,
             this.#getLayer1GasFee,
             selectedAccount,
           );
@@ -743,10 +737,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       return;
     }
     const minimumBalanceForRentExemptionInLamports =
-      await getMinimumBalanceForRentExemptionInLamports(
-        snapId,
-        this.messagingSystem,
-      );
+      await getMinimumBalanceForRentExemptionInLamports(snapId, this.messenger);
     this.update((state) => {
       state.minimumBalanceForRentExemptionInLamports =
         minimumBalanceForRentExemptionInLamports;
@@ -760,7 +751,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     if (!addressToUse) {
       throw new Error('Account address is required');
     }
-    const selectedAccount = this.messagingSystem.call(
+    const selectedAccount = this.messenger.call(
       'AccountsController:getAccountByAddress',
       addressToUse,
     );
@@ -770,32 +761,20 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return selectedAccount;
   }
 
-  #getSelectedNetworkClientId() {
-    const { selectedNetworkClientId } = this.messagingSystem.call(
-      'NetworkController:getState',
+  #getNetworkClientByChainId(chainId: Hex) {
+    const networkClientId = this.messenger.call(
+      'NetworkController:findNetworkClientIdByChainId',
+      chainId,
     );
-    return selectedNetworkClientId;
-  }
-
-  #getSelectedNetworkClient() {
-    const selectedNetworkClientId = this.#getSelectedNetworkClientId();
-    const networkClient = this.messagingSystem.call(
+    if (!networkClientId) {
+      throw new Error(`No network client found for chainId: ${chainId}`);
+    }
+    const networkClient = this.messenger.call(
       'NetworkController:getNetworkClientById',
-      selectedNetworkClientId,
+      networkClientId,
     );
     return networkClient;
   }
-
-  readonly #getRequestParams = (): Omit<
-    RequestParams,
-    'token_symbol_source' | 'token_symbol_destination'
-  > => {
-    const srcChainIdCaip = formatChainIdToCaip(
-      this.state.quoteRequest.srcChainId ||
-        this.#getSelectedNetworkClient().configuration.chainId,
-    );
-    return getRequestParams(this.state.quoteRequest, srcChainIdCaip);
-  };
 
   readonly #getRequestMetadata = (): Omit<
     RequestMetadata,
@@ -839,18 +818,18 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case UnifiedSwapBridgeEventName.ButtonClicked:
       case UnifiedSwapBridgeEventName.PageViewed:
         return {
-          ...this.#getRequestParams(),
+          ...getRequestParams(this.state.quoteRequest),
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.QuotesValidationFailed:
         return {
-          ...this.#getRequestParams(),
+          ...getRequestParams(this.state.quoteRequest),
           refresh_count: this.state.quotesRefreshCount,
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.QuotesReceived:
         return {
-          ...this.#getRequestParams(),
+          ...getRequestParams(this.state.quoteRequest),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
           is_hardware_wallet: isHardwareWallet(
@@ -861,7 +840,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         };
       case UnifiedSwapBridgeEventName.QuotesRequested:
         return {
-          ...this.#getRequestParams(),
+          ...getRequestParams(this.state.quoteRequest),
           ...this.#getRequestMetadata(),
           is_hardware_wallet: isHardwareWallet(
             this.#getMultichainSelectedAccount(),
@@ -871,7 +850,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         };
       case UnifiedSwapBridgeEventName.QuotesError:
         return {
-          ...this.#getRequestParams(),
+          ...getRequestParams(this.state.quoteRequest),
           ...this.#getRequestMetadata(),
           is_hardware_wallet: isHardwareWallet(
             this.#getMultichainSelectedAccount(),
@@ -884,7 +863,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case UnifiedSwapBridgeEventName.AllQuotesSorted:
       case UnifiedSwapBridgeEventName.QuoteSelected:
         return {
-          ...this.#getRequestParams(),
+          ...getRequestParams(this.state.quoteRequest),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
           is_hardware_wallet: isHardwareWallet(
@@ -896,7 +875,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         // Populate the properties that the error occurred before the tx was submitted
         return {
           ...baseProperties,
-          ...this.#getRequestParams(),
+          ...getRequestParams(this.state.quoteRequest),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
           ...propertiesFromClient,
@@ -982,7 +961,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     contractAddress: string,
     chainId: Hex,
   ): Promise<string> => {
-    const provider = this.#getSelectedNetworkClient()?.provider;
+    const networkClient = this.#getNetworkClientByChainId(chainId);
+    const provider = networkClient?.provider;
     if (!provider) {
       throw new Error('No provider found');
     }

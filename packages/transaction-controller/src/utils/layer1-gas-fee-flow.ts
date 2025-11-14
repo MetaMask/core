@@ -46,17 +46,23 @@ export async function updateTransactionLayer1GasFee(
  * @param messenger - The messenger instance.
  * @returns The layer 1 gas fee flow for the transaction, or undefined if none match.
  */
-function getLayer1GasFeeFlow(
+async function getLayer1GasFeeFlow(
   transactionMeta: TransactionMeta,
   layer1GasFeeFlows: Layer1GasFeeFlow[],
   messenger: TransactionControllerMessenger,
-): Layer1GasFeeFlow | undefined {
-  return layer1GasFeeFlows.find((layer1GasFeeFlow) =>
-    layer1GasFeeFlow.matchesTransaction({
+): Promise<Layer1GasFeeFlow | undefined> {
+  for (const layer1GasFeeFlow of layer1GasFeeFlows) {
+    const matches = await layer1GasFeeFlow.matchesTransaction({
       transactionMeta,
       messenger,
-    }),
-  );
+    });
+
+    if (matches) {
+      return layer1GasFeeFlow;
+    }
+  }
+
+  return undefined;
 }
 
 /**
@@ -75,7 +81,7 @@ export async function getTransactionLayer1GasFee({
   provider,
   transactionMeta,
 }: UpdateLayer1GasFeeRequest): Promise<Hex | undefined> {
-  const layer1GasFeeFlow = getLayer1GasFeeFlow(
+  const layer1GasFeeFlow = await getLayer1GasFeeFlow(
     transactionMeta,
     layer1GasFeeFlows,
     messenger,

@@ -1,46 +1,29 @@
 import * as sigUtil from '@metamask/eth-sig-util';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
-import {
-  createAsyncMiddleware,
-  createScaffoldMiddleware,
-} from '@metamask/json-rpc-engine';
+import type {
+  JsonRpcMiddleware,
+  MiddlewareContext,
+  MiddlewareParams,
+} from '@metamask/json-rpc-engine/v2';
+import { createScaffoldMiddleware } from '@metamask/json-rpc-engine/v2';
+import type { MessageRequest } from '@metamask/message-manager';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { isValidHexAddress } from '@metamask/utils';
-import type {
-  JsonRpcRequest,
-  PendingJsonRpcResponse,
-  Json,
-  Hex,
-} from '@metamask/utils';
+import type { JsonRpcRequest, Json, Hex } from '@metamask/utils';
 
 import {
+  createWalletRequestExecutionPermissionsHandler,
   type ProcessRequestExecutionPermissionsHook,
-  walletRequestExecutionPermissions,
 } from './methods/wallet-request-execution-permissions';
 import {
   type ProcessRevokeExecutionPermissionHook,
-  walletRevokeExecutionPermission,
+  createWalletRevokeExecutionPermissionHandler,
 } from './methods/wallet-revoke-execution-permission';
-import type { Block } from './types';
 import { stripArrayTypeIfPresent } from './utils/common';
 import { normalizeTypedMessage, parseTypedMessage } from './utils/normalize';
 import {
   resemblesAddress,
   validateAndNormalizeKeyholder as validateKeyholder,
 } from './utils/validation';
-
-/*
-export type TransactionParams = {
-  [prop: string]: Json;
-  from: string;
-}
-*/
-
-/*
-export type TransactionParams = JsonRpcParams & {
-  from: string;
-}
-*/
 
 export type TransactionParams = {
   from: string;
@@ -60,46 +43,86 @@ export type TypedMessageV1Params = Omit<TypedMessageParams, 'data'> & {
 };
 
 export type WalletMiddlewareOptions = {
-  getAccounts: (req: JsonRpcRequest) => Promise<string[]>;
+  getAccounts: (origin: string) => Promise<string[]>;
   processDecryptMessage?: (
     msgParams: MessageParams,
-    req: JsonRpcRequest,
+    req: MessageRequest,
   ) => Promise<string>;
   processEncryptionPublicKey?: (
     address: string,
-    req: JsonRpcRequest,
+    req: MessageRequest,
   ) => Promise<string>;
   processPersonalMessage?: (
     msgParams: MessageParams,
     req: JsonRpcRequest,
+    context: WalletMiddlewareContext,
   ) => Promise<string>;
   processTransaction?: (
     txParams: TransactionParams,
     req: JsonRpcRequest,
+    context: WalletMiddlewareContext,
   ) => Promise<string>;
   processSignTransaction?: (
     txParams: TransactionParams,
     req: JsonRpcRequest,
+    context: WalletMiddlewareContext,
   ) => Promise<string>;
   processTypedMessage?: (
     msgParams: TypedMessageV1Params,
     req: JsonRpcRequest,
+    context: WalletMiddlewareContext,
     version: string,
   ) => Promise<string>;
   processTypedMessageV3?: (
     msgParams: TypedMessageParams,
     req: JsonRpcRequest,
+    context: WalletMiddlewareContext,
     version: string,
   ) => Promise<string>;
   processTypedMessageV4?: (
     msgParams: TypedMessageParams,
     req: JsonRpcRequest,
+    context: WalletMiddlewareContext,
     version: string,
   ) => Promise<string>;
   processRequestExecutionPermissions?: ProcessRequestExecutionPermissionsHook;
   processRevokeExecutionPermission?: ProcessRevokeExecutionPermissionHook;
 };
 
+export type WalletMiddlewareKeyValues = {
+  networkClientId: string;
+  origin: string;
+  securityAlertResponse?: Record<string, Json>;
+  traceContext?: unknown;
+};
+
+export type WalletMiddlewareContext =
+  MiddlewareContext<WalletMiddlewareKeyValues>;
+
+export type WalletMiddlewareParams = MiddlewareParams<
+  JsonRpcRequest,
+  WalletMiddlewareContext
+>;
+
+/**
+ * Creates a JSON-RPC middleware that handles "wallet"-related JSON-RPC methods.
+ * "Wallet" may have had a specific meaning at some point in the distant past,
+ * but at this point it's just an arbitrary label.
+ *
+ * @param options - The options for the middleware.
+ * @param options.getAccounts - The function to get the accounts for the origin.
+ * @param options.processDecryptMessage - The function to process the decrypt message request.
+ * @param options.processEncryptionPublicKey - The function to process the encryption public key request.
+ * @param options.processPersonalMessage - The function to process the personal message request.
+ * @param options.processTransaction - The function to process the transaction request.
+ * @param options.processSignTransaction - The function to process the sign transaction request.
+ * @param options.processTypedMessage - The function to process the typed message request.
+ * @param options.processTypedMessageV3 - The function to process the typed message v3 request.
+ * @param options.processTypedMessageV4 - The function to process the typed message v4 request.
+ * @param options.processRequestExecutionPermissions - The function to process the request execution permissions request.
+ * @param options.processRevokeExecutionPermission - The function to process the revoke execution permission request.
+ * @returns A JSON-RPC middleware that handles wallet-related JSON-RPC methods.
+ */
 export function createWalletMiddleware({
   getAccounts,
   processDecryptMessage,
@@ -112,138 +135,175 @@ export function createWalletMiddleware({
   processTypedMessageV4,
   processRequestExecutionPermissions,
   processRevokeExecutionPermission,
-}: // }: WalletMiddlewareOptions): JsonRpcMiddleware<string, Block> {
-WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
+}: WalletMiddlewareOptions): JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  WalletMiddlewareContext
+> {
   if (!getAccounts) {
     throw new Error('opts.getAccounts is required');
   }
 
-  return createScaffoldMiddleware({
+  return createScaffoldMiddleware<WalletMiddlewareContext>({
     // account lookups
-    eth_accounts: createAsyncMiddleware(lookupAccounts),
-    eth_coinbase: createAsyncMiddleware(lookupDefaultAccount),
+    eth_accounts: lookupAccounts,
+    eth_coinbase: lookupDefaultAccount,
 
     // tx signatures
-    eth_sendTransaction: createAsyncMiddleware(sendTransaction),
-    eth_signTransaction: createAsyncMiddleware(signTransaction),
+    eth_sendTransaction: sendTransaction,
+    eth_signTransaction: signTransaction,
 
     // message signatures
-    eth_signTypedData: createAsyncMiddleware(signTypedData),
-    eth_signTypedData_v3: createAsyncMiddleware(signTypedDataV3),
-    eth_signTypedData_v4: createAsyncMiddleware(signTypedDataV4),
-    personal_sign: createAsyncMiddleware(personalSign),
-    eth_getEncryptionPublicKey: createAsyncMiddleware(encryptionPublicKey),
-    eth_decrypt: createAsyncMiddleware(decryptMessage),
-    personal_ecRecover: createAsyncMiddleware(personalRecover),
+    eth_signTypedData: signTypedData,
+    eth_signTypedData_v3: signTypedDataV3,
+    eth_signTypedData_v4: signTypedDataV4,
+    personal_sign: personalSign,
+    eth_getEncryptionPublicKey: encryptionPublicKey,
+    eth_decrypt: decryptMessage,
+    personal_ecRecover: personalRecover,
 
     // EIP-7715
-    wallet_requestExecutionPermissions: createAsyncMiddleware(
-      async (req, res) =>
-        walletRequestExecutionPermissions(req, res, {
-          processRequestExecutionPermissions,
-        }),
-    ),
-    wallet_revokeExecutionPermission: createAsyncMiddleware(async (req, res) =>
-      walletRevokeExecutionPermission(req, res, {
+    wallet_requestExecutionPermissions:
+      createWalletRequestExecutionPermissionsHandler({
+        processRequestExecutionPermissions,
+      }),
+    wallet_revokeExecutionPermission:
+      createWalletRevokeExecutionPermissionHandler({
         processRevokeExecutionPermission,
       }),
-    ),
   });
 
   //
   // account lookups
   //
 
-  async function lookupAccounts(
-    req: JsonRpcRequest,
-    res: PendingJsonRpcResponse,
-  ): Promise<void> {
-    res.result = await getAccounts(req);
+  /**
+   * Gets the accounts for the origin.
+   *
+   * @param options - Options bag.
+   * @param options.context - The context of the request.
+   * @returns The accounts for the origin.
+   */
+  async function lookupAccounts({
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
+    return await getAccounts(context.assertGet('origin'));
   }
 
-  async function lookupDefaultAccount(
-    req: JsonRpcRequest,
-    res: PendingJsonRpcResponse,
-  ): Promise<void> {
-    const accounts = await getAccounts(req);
-    res.result = accounts[0] || null;
+  /**
+   * Gets the default account (i.e. first in the list) for the origin.
+   *
+   * @param options - Options bag.
+   * @param options.context - The context of the request.
+   * @returns The default account for the origin.
+   */
+  async function lookupDefaultAccount({
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
+    const accounts = await getAccounts(context.assertGet('origin'));
+    return accounts[0] || null;
   }
 
   //
   // transaction signatures
   //
 
-  async function sendTransaction(
-    req: JsonRpcRequest,
-    res: PendingJsonRpcResponse,
-  ): Promise<void> {
+  /**
+   * Sends a transaction.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The transaction hash.
+   */
+  async function sendTransaction({
+    request,
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processTransaction) {
       throw rpcErrors.methodNotSupported();
     }
     if (
-      !req.params ||
-      !Array.isArray(req.params) ||
-      !(req.params.length >= 1)
+      !request.params ||
+      !Array.isArray(request.params) ||
+      !(request.params.length >= 1)
     ) {
       throw rpcErrors.invalidInput();
     }
 
-    const params = req.params[0] as TransactionParams | undefined;
+    const params = request.params[0] as TransactionParams | undefined;
     const txParams: TransactionParams = {
       ...params,
-      from: await validateAndNormalizeKeyholder(params?.from || '', req),
+      from: await validateAndNormalizeKeyholder(params?.from || '', context),
     };
-    res.result = await processTransaction(txParams, req);
+    return await processTransaction(txParams, request, context);
   }
 
-  async function signTransaction(
-    req: JsonRpcRequest,
-    res: PendingJsonRpcResponse,
-  ): Promise<void> {
+  /**
+   * Signs a transaction.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The signed transaction.
+   */
+  async function signTransaction({
+    request,
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processSignTransaction) {
       throw rpcErrors.methodNotSupported();
     }
     if (
-      !req.params ||
-      !Array.isArray(req.params) ||
-      !(req.params.length >= 1)
+      !request.params ||
+      !Array.isArray(request.params) ||
+      !(request.params.length >= 1)
     ) {
       throw rpcErrors.invalidInput();
     }
 
-    const params = req.params[0] as TransactionParams | undefined;
+    const params = request.params[0] as TransactionParams | undefined;
     const txParams: TransactionParams = {
       ...params,
-      from: await validateAndNormalizeKeyholder(params?.from || '', req),
+      from: await validateAndNormalizeKeyholder(params?.from || '', context),
     };
-    res.result = await processSignTransaction(txParams, req);
+    return await processSignTransaction(txParams, request, context);
   }
 
   //
   // message signatures
   //
-  async function signTypedData(
-    req: JsonRpcRequest,
-    res: PendingJsonRpcResponse,
-  ): Promise<void> {
+
+  /**
+   * Signs a `eth_signTypedData` message.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The signed message.
+   */
+  async function signTypedData({
+    request,
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processTypedMessage) {
       throw rpcErrors.methodNotSupported();
     }
     if (
-      !req?.params ||
-      !Array.isArray(req.params) ||
-      !(req.params.length >= 2)
+      !request.params ||
+      !Array.isArray(request.params) ||
+      !(request.params.length >= 2)
     ) {
       throw rpcErrors.invalidInput();
     }
 
-    const params = req.params as [
+    const params = request.params as [
       Record<string, unknown>[],
       string,
       Record<string, string>?,
     ];
     const message = params[0];
-    const address = await validateAndNormalizeKeyholder(params[1], req);
+    const address = await validateAndNormalizeKeyholder(params[1], context);
     const version = 'V1';
     const extraParams = params[2] || {};
     const msgParams: TypedMessageV1Params = {
@@ -254,27 +314,35 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
       version,
     };
 
-    res.result = await processTypedMessage(msgParams, req, version);
+    return await processTypedMessage(msgParams, request, context, version);
   }
 
-  async function signTypedDataV3(
-    req: JsonRpcRequest,
-    res: PendingJsonRpcResponse,
-  ): Promise<void> {
+  /**
+   * Signs a `eth_signTypedData_v3` message.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The signed message.
+   */
+  async function signTypedDataV3({
+    request,
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processTypedMessageV3) {
       throw rpcErrors.methodNotSupported();
     }
     if (
-      !req?.params ||
-      !Array.isArray(req.params) ||
-      !(req.params.length >= 2)
+      !request.params ||
+      !Array.isArray(request.params) ||
+      !(request.params.length >= 2)
     ) {
       throw rpcErrors.invalidInput();
     }
 
-    const params = req.params as [string, string];
+    const params = request.params as [string, string];
 
-    const address = await validateAndNormalizeKeyholder(params[0], req);
+    const address = await validateAndNormalizeKeyholder(params[0], context);
     const message = normalizeTypedMessage(params[1]);
     validatePrimaryType(message);
     validateVerifyingContract(message);
@@ -286,27 +354,35 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
       signatureMethod: 'eth_signTypedData_v3',
     };
 
-    res.result = await processTypedMessageV3(msgParams, req, version);
+    return await processTypedMessageV3(msgParams, request, context, version);
   }
 
-  async function signTypedDataV4(
-    req: JsonRpcRequest,
-    res: PendingJsonRpcResponse,
-  ): Promise<void> {
+  /**
+   * Signs a `eth_signTypedData_v4` message.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The signed message.
+   */
+  async function signTypedDataV4({
+    request,
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processTypedMessageV4) {
       throw rpcErrors.methodNotSupported();
     }
     if (
-      !req?.params ||
-      !Array.isArray(req.params) ||
-      !(req.params.length >= 2)
+      !request.params ||
+      !Array.isArray(request.params) ||
+      !(request.params.length >= 2)
     ) {
       throw rpcErrors.invalidInput();
     }
 
-    const params = req.params as [string, string];
+    const params = request.params as [string, string];
 
-    const address = await validateAndNormalizeKeyholder(params[0], req);
+    const address = await validateAndNormalizeKeyholder(params[0], context);
     const message = normalizeTypedMessage(params[1]);
     validatePrimaryType(message);
     validateVerifyingContract(message);
@@ -318,25 +394,33 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
       signatureMethod: 'eth_signTypedData_v4',
     };
 
-    res.result = await processTypedMessageV4(msgParams, req, version);
+    return await processTypedMessageV4(msgParams, request, context, version);
   }
 
-  async function personalSign(
-    req: JsonRpcRequest,
-    res: PendingJsonRpcResponse,
-  ): Promise<void> {
+  /**
+   * Signs a `personal_sign` message.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The signed message.
+   */
+  async function personalSign({
+    request,
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processPersonalMessage) {
       throw rpcErrors.methodNotSupported();
     }
     if (
-      !req?.params ||
-      !Array.isArray(req.params) ||
-      !(req.params.length >= 2)
+      !request.params ||
+      !Array.isArray(request.params) ||
+      !(request.params.length >= 2)
     ) {
       throw rpcErrors.invalidInput();
     }
 
-    const params = req.params as [string, string, TransactionParams?];
+    const params = request.params as [string, string, TransactionParams?];
 
     // process normally
     const firstParam = params[0];
@@ -353,19 +437,13 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
     // and the second param is definitely not, but is hex.
     let address: string, message: string;
     if (resemblesAddress(firstParam) && !resemblesAddress(secondParam)) {
-      let warning = `The eth_personalSign method requires params ordered `;
-      warning += `[message, address]. This was previously handled incorrectly, `;
-      warning += `and has been corrected automatically. `;
-      warning += `Please switch this param order for smooth behavior in the future.`;
-      (res as any).warning = warning;
-
       address = firstParam;
       message = secondParam;
     } else {
       message = firstParam;
       address = secondParam;
     }
-    address = await validateAndNormalizeKeyholder(address, req);
+    address = await validateAndNormalizeKeyholder(address, context);
 
     const msgParams: MessageParams = {
       ...extraParams,
@@ -374,22 +452,28 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
       signatureMethod: 'personal_sign',
     };
 
-    res.result = await processPersonalMessage(msgParams, req);
+    return await processPersonalMessage(msgParams, request, context);
   }
 
-  async function personalRecover(
-    req: JsonRpcRequest,
-    res: PendingJsonRpcResponse,
-  ): Promise<void> {
+  /**
+   * Recovers the signer address from a `personal_sign` message.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @returns The recovered signer address.
+   */
+  async function personalRecover({
+    request,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (
-      !req?.params ||
-      !Array.isArray(req.params) ||
-      !(req.params.length >= 2)
+      !request.params ||
+      !Array.isArray(request.params) ||
+      !(request.params.length >= 2)
     ) {
       throw rpcErrors.invalidInput();
     }
 
-    const params = req.params as [string, string];
+    const params = request.params as [string, string];
     const message = params[0];
     const signature = params[1];
     const signerAddress = sigUtil.recoverPersonalSignature({
@@ -397,49 +481,72 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
       signature,
     });
 
-    res.result = signerAddress;
+    return signerAddress;
   }
 
-  async function encryptionPublicKey(
-    req: JsonRpcRequest,
-    res: PendingJsonRpcResponse,
-  ): Promise<void> {
+  /**
+   * Gets the encryption public key for an address.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The encryption public key.
+   */
+  async function encryptionPublicKey({
+    request,
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processEncryptionPublicKey) {
       throw rpcErrors.methodNotSupported();
     }
     if (
-      !req?.params ||
-      !Array.isArray(req.params) ||
-      !(req.params.length >= 1)
+      !request.params ||
+      !Array.isArray(request.params) ||
+      !(request.params.length >= 1)
     ) {
       throw rpcErrors.invalidInput();
     }
 
-    const params = req.params as [string];
+    const params = request.params as [string];
 
-    const address = await validateAndNormalizeKeyholder(params[0], req);
+    const address = await validateAndNormalizeKeyholder(params[0], context);
 
-    res.result = await processEncryptionPublicKey(address, req);
+    return await processEncryptionPublicKey(address, {
+      id: request.id as string | number,
+      origin: context.assertGet('origin'),
+      securityAlertResponse: context.get('securityAlertResponse'),
+    });
   }
 
-  async function decryptMessage(
-    req: JsonRpcRequest,
-    res: PendingJsonRpcResponse,
-  ): Promise<void> {
+  /**
+   * Decrypts a message.
+   *
+   * @param options - Options bag.
+   * @param options.request - The request.
+   * @param options.context - The context of the request.
+   * @returns The decrypted message.
+   */
+  async function decryptMessage({
+    request,
+    context,
+  }: WalletMiddlewareParams): Promise<Json> {
     if (!processDecryptMessage) {
       throw rpcErrors.methodNotSupported();
     }
     if (
-      !req?.params ||
-      !Array.isArray(req.params) ||
-      !(req.params.length >= 1)
+      !request.params ||
+      !Array.isArray(request.params) ||
+      !(request.params.length >= 1)
     ) {
       throw rpcErrors.invalidInput();
     }
-    const params = req.params as [string, string, Record<string, Json>?];
+    const params = request.params as [string, string, Record<string, Json>?];
 
     const ciphertext: string = params[0];
-    const address: string = await validateAndNormalizeKeyholder(params[1], req);
+    const address: string = await validateAndNormalizeKeyholder(
+      params[1],
+      context,
+    );
     const extraParams = params[2] || {};
     const msgParams: MessageParams = {
       ...extraParams,
@@ -447,7 +554,11 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
       data: ciphertext,
     };
 
-    res.result = await processDecryptMessage(msgParams, req);
+    return await processDecryptMessage(msgParams, {
+      id: request.id as string | number,
+      origin: context.assertGet('origin'),
+      securityAlertResponse: context.get('securityAlertResponse'),
+    });
   }
 
   //
@@ -459,15 +570,15 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
    * copy of it.
    *
    * @param address - The address to validate and normalize.
-   * @param req - The request object.
+   * @param context - The context of the request.
    * @returns The normalized address, if valid. Otherwise, throws
    * an error
    */
   async function validateAndNormalizeKeyholder(
     address: string,
-    req: JsonRpcRequest,
+    context: WalletMiddlewareContext,
   ): Promise<string> {
-    return validateKeyholder(address as Hex, req, { getAccounts });
+    return validateKeyholder(address as Hex, context, { getAccounts });
   }
 }
 

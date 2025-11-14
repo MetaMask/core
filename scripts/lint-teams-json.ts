@@ -1,10 +1,17 @@
 import { readJsonFile } from '@metamask/utils/node';
-import { getPluginConfiguration } from '@yarnpkg/cli';
-import { Configuration, Project, structUtils } from '@yarnpkg/core';
-import { ppath } from '@yarnpkg/fslib';
+import execa from 'execa';
 import path from 'path';
 
-main().catch(console.error);
+type Workspace = {
+  location: string;
+  name: string;
+};
+
+// Run the script immediately.
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
 
 /**
  * The entrypoint to this script.
@@ -16,17 +23,9 @@ main().catch(console.error);
 async function main() {
   const releaseableWorkspaces = await getPublicWorkspaces();
   const releaseablePackageNames = releaseableWorkspaces.map((workspace) => {
-    const packageName = workspace.manifest.name;
-    if (packageName === null) {
-      throw new Error(
-        `${structUtils.stringifyIdent(
-          workspace.anchoredDescriptor,
-        )} has no name in its manifest`,
-      );
-    }
     // The package names in teams.json omit the leading "@", so we do that here
     // too in order to be consistent
-    return structUtils.stringifyIdent(packageName).slice(1);
+    return workspace.name.slice(1);
   });
 
   const teams = await readJsonFile<Record<string, string>>(
@@ -52,18 +51,19 @@ async function main() {
 }
 
 /**
- * Uses the Yarn API to gather the Yarn workspaces inside of this project (the
- * packages that are matched by the `workspaces` field inside of
+ * Uses the `yarn` executable to gather the Yarn workspaces inside of this
+ * project (the packages that are matched by the `workspaces` field inside of
  * `package.json`).
  *
  * @returns The list of workspaces.
  */
-async function getPublicWorkspaces() {
-  const cwd = ppath.resolve('..', ppath.cwd());
-  const configuration = await Configuration.find(cwd, getPluginConfiguration());
-  const { project } = await Project.find(configuration, cwd);
+async function getPublicWorkspaces(): Promise<Workspace[]> {
+  const { stdout } = await execa('yarn', [
+    'workspaces',
+    'list',
+    '--json',
+    '--no-private',
+  ]);
 
-  return project.workspaces.filter((workspace) => {
-    return !workspace.manifest.private;
-  });
+  return stdout.split('\n').map((line) => JSON.parse(line));
 }

@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/json-rpc-middleware-stream --tag-prefix-before-package-rename json-rpc-middleware-stream@ --version-before-package-rename 5.0.1",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/json-rpc-middleware-stream --tag-prefix-before-package-rename json-rpc-middleware-stream@ --version-before-package-rename 5.0.1",
@@ -54,6 +55,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "deepmerge": "^4.2.2",
@@ -63,7 +65,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2",
+    "typescript": "~5.3.3",
     "webextension-polyfill-ts": "^0.26.0"
   },
   "engines": {

@@ -3,12 +3,11 @@ import type {
   AccountsControllerSelectedEvmAccountChangeEvent,
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerListAccountsAction,
-  AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerStateChangeEvent,
   ControllerGetStateAction,
-  RestrictedMessenger,
+  StateMetadata,
 } from '@metamask/base-controller';
 import {
   query,
@@ -16,14 +15,22 @@ import {
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import type { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClient,
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
+  NetworkControllerNetworkAddedEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
+import type {
+  TransactionControllerTransactionConfirmedEvent,
+  TransactionControllerUnapprovedTransactionAddedEvent,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import { assert, type Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
@@ -84,14 +91,19 @@ function createAccountTrackerRpcBalanceFetcher(
     },
 
     async fetch(params) {
-      const balances = await rpcBalanceFetcher.fetch(params);
+      const result = await rpcBalanceFetcher.fetch(params);
 
       if (!includeStakedAssets) {
         // Filter out staked balances from the results
-        return balances.filter((balance) => balance.token === ZERO_ADDRESS);
+        return {
+          balances: result.balances.filter(
+            (balance) => balance.token === ZERO_ADDRESS,
+          ),
+          unprocessedChainIds: result.unprocessedChainIds,
+        };
       }
 
-      return balances;
+      return result;
     },
   };
 }
@@ -121,11 +133,11 @@ export type AccountTrackerControllerState = {
   accountsByChainId: Record<string, { [address: string]: AccountInformation }>;
 };
 
-const accountTrackerMetadata = {
+const accountTrackerMetadata: StateMetadata<AccountTrackerControllerState> = {
   accountsByChainId: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -167,7 +179,10 @@ export type AccountTrackerControllerActions =
  */
 export type AllowedActions =
   | AccountsControllerListAccountsAction
-  | PreferencesControllerGetStateAction
+  | {
+      type: 'PreferencesController:getState';
+      handler: () => { isMultiAccountBalancesEnabled: boolean };
+    }
   | AccountsControllerGetSelectedAccountAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction;
@@ -192,17 +207,18 @@ export type AccountTrackerControllerEvents =
  */
 export type AllowedEvents =
   | AccountsControllerSelectedEvmAccountChangeEvent
-  | AccountsControllerSelectedAccountChangeEvent;
+  | TransactionControllerUnapprovedTransactionAddedEvent
+  | TransactionControllerTransactionConfirmedEvent
+  | NetworkControllerNetworkAddedEvent
+  | KeyringControllerUnlockEvent;
 
 /**
  * The messenger of the {@link AccountTrackerController}.
  */
-export type AccountTrackerControllerMessenger = RestrictedMessenger<
+export type AccountTrackerControllerMessenger = Messenger<
   typeof controllerName,
   AccountTrackerControllerActions | AllowedActions,
-  AccountTrackerControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  AccountTrackerControllerEvents | AllowedEvents
 >;
 
 /** The input to start polling for the {@link AccountTrackerController} */
@@ -229,17 +245,20 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
   readonly #balanceFetchers: BalanceFetcher[];
 
+  readonly #fetchingEnabled: () => boolean;
+
   /**
    * Creates an AccountTracker instance.
    *
    * @param options - The controller options.
    * @param options.interval - Polling interval used to fetch new account balances.
    * @param options.state - Initial state to set on this controller.
-   * @param options.messenger - The controller messaging system.
+   * @param options.messenger - The controller messenger.
    * @param options.getStakedBalanceForChain - The function to get the staked native asset balance for a chain.
    * @param options.includeStakedAssets - Whether to include staked assets in the account balances.
    * @param options.accountsApiChainIds - Function that returns array of chainIds that should use Accounts-API strategy (if supported by API).
    * @param options.allowExternalServices - Disable external HTTP calls (privacy / offline mode).
+   * @param options.fetchingEnabled - Function that returns whether the controller is fetching enabled.
    */
   constructor({
     interval = 10000,
@@ -249,6 +268,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     includeStakedAssets = false,
     accountsApiChainIds = () => [],
     allowExternalServices = () => true,
+    fetchingEnabled = () => true,
   }: {
     interval?: number;
     state?: Partial<AccountTrackerControllerState>;
@@ -257,6 +277,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     includeStakedAssets?: boolean;
     accountsApiChainIds?: () => ChainIdHex[];
     allowExternalServices?: () => boolean;
+    fetchingEnabled?: () => boolean;
   }) {
     const { selectedNetworkClientId } = messenger.call(
       'NetworkController:getState',
@@ -295,9 +316,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       ),
     ];
 
+    this.#fetchingEnabled = fetchingEnabled;
+
     this.setIntervalLength(interval);
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:selectedEvmAccountChange',
       (newAddress, prevAddress) => {
         if (newAddress !== prevAddress) {
@@ -309,17 +332,53 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       (event): string => event.address,
     );
 
+    this.messenger.subscribe('NetworkController:networkAdded', async () => {
+      await this.refresh(this.#getNetworkClientIds());
+    });
+
+    this.messenger.subscribe('KeyringController:unlock', async () => {
+      await this.refresh(this.#getNetworkClientIds());
+    });
+
+    this.messenger.subscribe(
+      'TransactionController:unapprovedTransactionAdded',
+      async (transactionMeta: TransactionMeta) => {
+        const addresses = [transactionMeta.txParams.from];
+        if (transactionMeta.txParams.to) {
+          addresses.push(transactionMeta.txParams.to);
+        }
+        await this.refreshAddresses({
+          networkClientIds: [transactionMeta.networkClientId],
+          addresses,
+        });
+      },
+    );
+
+    this.messenger.subscribe(
+      'TransactionController:transactionConfirmed',
+      async (transactionMeta: TransactionMeta) => {
+        const addresses = [transactionMeta.txParams.from];
+        if (transactionMeta.txParams.to) {
+          addresses.push(transactionMeta.txParams.to);
+        }
+        await this.refreshAddresses({
+          networkClientIds: [transactionMeta.networkClientId],
+          addresses,
+        });
+      },
+    );
+
     this.#registerMessageHandlers();
   }
 
   private syncAccounts(newChainIds: string[]) {
     const accountsByChainId = cloneDeep(this.state.accountsByChainId);
-    const { selectedNetworkClientId } = this.messagingSystem.call(
+    const { selectedNetworkClientId } = this.messenger.call(
       'NetworkController:getState',
     );
     const {
       configuration: { chainId: currentChainId },
-    } = this.messagingSystem.call(
+    } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     );
@@ -339,7 +398,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     // Note: The address from the preferences controller are checksummed
     // The addresses from the accounts controller are lowercased
     const addresses = Object.values(
-      this.messagingSystem
+      this.messenger
         .call('AccountsController:listAccounts')
         .map((internalAccount) =>
           toChecksumHexAddress(internalAccount.address),
@@ -373,12 +432,12 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   }
 
   readonly #getProvider = (chainId: Hex): Web3Provider => {
-    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+    const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
     const cfg = networkConfigurationsByChainId[chainId];
     const { networkClientId } = cfg.rpcEndpoints[cfg.defaultRpcEndpointIndex];
-    const client = this.messagingSystem.call(
+    const client = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
@@ -386,12 +445,12 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   };
 
   readonly #getNetworkClient = (chainId: Hex) => {
-    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+    const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
     const cfg = networkConfigurationsByChainId[chainId];
     const { networkClientId } = cfg.rpcEndpoints[cfg.defaultRpcEndpointIndex];
-    return this.messagingSystem.call(
+    return this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
@@ -432,13 +491,12 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   #getCorrectNetworkClient(networkClientId?: NetworkClientId) {
     const selectedNetworkClientId =
       networkClientId ??
-      this.messagingSystem.call('NetworkController:getState')
-        .selectedNetworkClientId;
+      this.messenger.call('NetworkController:getState').selectedNetworkClientId;
     const {
       configuration: { chainId },
       provider,
       blockTracker,
-    } = this.messagingSystem.call(
+    } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     );
@@ -457,7 +515,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @returns An array of network client IDs.
    */
   #getNetworkClientIds(): NetworkClientId[] {
-    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+    const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
     return Object.values(networkConfigurationsByChainId).flatMap(
@@ -496,16 +554,60 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     networkClientIds: NetworkClientId[],
     queryAllAccounts: boolean = false,
   ) {
-    const selectedAccount = this.messagingSystem.call(
+    const selectedAccount = this.messenger.call(
       'AccountsController:getSelectedAccount',
     );
-    const allAccounts = this.messagingSystem.call(
-      'AccountsController:listAccounts',
-    );
-    const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
+    const allAccounts = this.messenger.call('AccountsController:listAccounts');
+    const { isMultiAccountBalancesEnabled } = this.messenger.call(
       'PreferencesController:getState',
     );
 
+    await this.#refreshAccounts({
+      networkClientIds,
+      queryAllAccounts: queryAllAccounts ?? isMultiAccountBalancesEnabled,
+      selectedAccount: toChecksumHexAddress(
+        selectedAccount.address,
+      ) as ChecksumAddress,
+      allAccounts,
+    });
+  }
+
+  async refreshAddresses({
+    networkClientIds,
+    addresses,
+  }: {
+    networkClientIds: NetworkClientId[];
+    addresses: string[];
+  }) {
+    const checksummedAddresses = addresses.map((address) =>
+      toChecksumHexAddress(address),
+    );
+
+    const accounts = this.messenger
+      .call('AccountsController:listAccounts')
+      .filter((account) =>
+        checksummedAddresses.includes(toChecksumHexAddress(account.address)),
+      );
+
+    await this.#refreshAccounts({
+      networkClientIds,
+      queryAllAccounts: true,
+      selectedAccount: '0x0',
+      allAccounts: accounts,
+    });
+  }
+
+  async #refreshAccounts({
+    networkClientIds,
+    queryAllAccounts,
+    selectedAccount,
+    allAccounts,
+  }: {
+    networkClientIds: NetworkClientId[];
+    queryAllAccounts: boolean;
+    selectedAccount: ChecksumAddress;
+    allAccounts: InternalAccount[];
+  }) {
     const releaseLock = await this.#refreshMutex.acquire();
     try {
       const chainIds = networkClientIds.map((networkClientId) => {
@@ -514,6 +616,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       });
 
       this.syncAccounts(chainIds);
+
+      if (!this.#fetchingEnabled()) {
+        return;
+      }
 
       // Use balance fetchers with fallback strategy
       const aggregated: ProcessedBalance[] = [];
@@ -529,22 +635,37 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         }
 
         try {
-          const balances = await fetcher.fetch({
+          const result = await fetcher.fetch({
             chainIds: supportedChains,
-            queryAllAccounts: queryAllAccounts ?? isMultiAccountBalancesEnabled,
-            selectedAccount: toChecksumHexAddress(
-              selectedAccount.address,
-            ) as ChecksumAddress,
+            queryAllAccounts,
+            selectedAccount,
             allAccounts,
           });
 
-          if (balances && balances.length > 0) {
-            aggregated.push(...balances);
+          if (result.balances && result.balances.length > 0) {
+            aggregated.push(...result.balances);
             // Remove chains that were successfully processed
-            const processedChains = new Set(balances.map((b) => b.chainId));
+            const processedChains = new Set(
+              result.balances.map((b) => b.chainId),
+            );
             remainingChains = remainingChains.filter(
               (chain) => !processedChains.has(chain),
             );
+          }
+
+          // Add unprocessed chains back to remainingChains for next fetcher
+          if (
+            result.unprocessedChainIds &&
+            result.unprocessedChainIds.length > 0
+          ) {
+            // Only add chains that were originally requested and aren't already in remainingChains
+            const currentRemainingChains = remainingChains;
+            const chainsToAdd = result.unprocessedChainIds.filter(
+              (chainId) =>
+                supportedChains.includes(chainId) &&
+                !currentRemainingChains.includes(chainId),
+            );
+            remainingChains.push(...chainsToAdd);
           }
         } catch (error) {
           console.warn(
@@ -806,12 +927,12 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   }
 
   #registerMessageHandlers() {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:updateNativeBalances` as const,
       this.updateNativeBalances.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:updateStakedBalances` as const,
       this.updateStakedBalances.bind(this),
     );

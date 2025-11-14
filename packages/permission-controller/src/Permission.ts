@@ -1,8 +1,5 @@
-import type {
-  ActionConstraint,
-  EventConstraint,
-} from '@metamask/base-controller';
 import type { NonEmptyArray } from '@metamask/controller-utils';
+import type { ActionConstraint, EventConstraint } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
@@ -117,8 +114,8 @@ export type ValidPermission<
 type ExtractArrayMembers<ArrayType> = ArrayType extends []
   ? never
   : ArrayType extends unknown[] | readonly unknown[]
-  ? ArrayType[number]
-  : never;
+    ? ArrayType[number]
+    : never;
 
 /**
  * A utility type for extracting the allowed caveat types for a particular
@@ -317,7 +314,7 @@ export type SideEffectParams<
   Events extends EventConstraint,
 > = {
   requestData: PermissionsRequest;
-  messagingSystem: SideEffectMessenger<Actions, Events>;
+  messenger: SideEffectMessenger<Actions, Events>;
 };
 
 /**
@@ -538,11 +535,12 @@ export type PermissionSpecificationBuilderExportConstraint = {
 
 type ValidRestrictedMethodSpecification<
   Specification extends RestrictedMethodSpecificationConstraint,
-> = Specification['methodImplementation'] extends ValidRestrictedMethod<
-  Specification['methodImplementation']
->
-  ? Specification
-  : never;
+> =
+  Specification['methodImplementation'] extends ValidRestrictedMethod<
+    Specification['methodImplementation']
+  >
+    ? Specification
+    : never;
 
 /**
  * Constraint for {@link PermissionSpecificationConstraint} objects that
@@ -556,10 +554,10 @@ export type ValidPermissionSpecification<
   ? Specification['permissionType'] extends PermissionType.Endowment
     ? Specification
     : Specification['permissionType'] extends PermissionType.RestrictedMethod
-    ? ValidRestrictedMethodSpecification<
-        Extract<Specification, RestrictedMethodSpecificationConstraint>
-      >
-    : never
+      ? ValidRestrictedMethodSpecification<
+          Extract<Specification, RestrictedMethodSpecificationConstraint>
+        >
+      : never
   : never;
 
 /**

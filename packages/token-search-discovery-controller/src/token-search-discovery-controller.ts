@@ -1,10 +1,10 @@
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedMessenger,
-  StateMetadata,
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+  type StateMetadata,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 
 import type { AbstractTokenDiscoveryApiService } from './token-discovery-api-service/abstract-token-discovery-api-service';
 import type { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';
@@ -36,13 +36,13 @@ const tokenSearchDiscoveryControllerMetadata: StateMetadata<TokenSearchDiscovery
     recentSearches: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: true,
     },
     lastSearchTimestamp: {
       includeInStateLogs: true,
       persist: true,
-      anonymous: false,
+      includeInDebugSnapshot: false,
       usedInUi: true,
     },
   };
@@ -67,11 +67,6 @@ export type TokenSearchDiscoveryControllerActions =
   TokenSearchDiscoveryControllerGetStateAction;
 
 /**
- * All actions that {@link TokenSearchDiscoveryController} calls internally.
- */
-type AllowedActions = never;
-
-/**
  * The event that {@link TokenSearchDiscoveryController} publishes when updating
  * state.
  */
@@ -89,20 +84,13 @@ export type TokenSearchDiscoveryControllerEvents =
   TokenSearchDiscoveryControllerStateChangeEvent;
 
 /**
- * All events that {@link TokenSearchDiscoveryController} subscribes to internally.
- */
-type AllowedEvents = never;
-
-/**
  * The messenger which is restricted to actions and events accessed by
  * {@link TokenSearchDiscoveryController}.
  */
-export type TokenSearchDiscoveryControllerMessenger = RestrictedMessenger<
+export type TokenSearchDiscoveryControllerMessenger = Messenger<
   typeof controllerName,
-  TokenSearchDiscoveryControllerActions | AllowedActions,
-  TokenSearchDiscoveryControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  TokenSearchDiscoveryControllerActions,
+  TokenSearchDiscoveryControllerEvents
 >;
 
 /**

@@ -1,15 +1,15 @@
-import type {
-  ActionConstraint,
-  RestrictedMessenger,
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import type { Messenger, ActionConstraint } from '@metamask/messenger';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { getKnownPropertyNames } from '@metamask/utils';
 
 /**
  * A rate-limited API endpoint.
+ *
  * @property method - The method that is rate-limited.
  * @property rateLimitTimeout - The time window in which the rate limit is applied (in ms).
  * @property rateLimitCount - The amount of calls an origin can make in the rate limit time window.
@@ -27,6 +27,7 @@ export type RateLimitedApiMap = Record<string, RateLimitedApi>;
 
 /**
  * A map of rate-limited API types to the number of requests made in a given interval for each origin and api type combination.
+ *
  * @template RateLimitedApis - A {@link RateLimitedApiMap} containing the rate-limited API endpoints that is used by the {@link RateLimitController}.
  */
 export type RateLimitedRequests<RateLimitedApis extends RateLimitedApiMap> =
@@ -34,6 +35,7 @@ export type RateLimitedRequests<RateLimitedApis extends RateLimitedApiMap> =
 
 /**
  * The state of the {@link RateLimitController}.
+ *
  * @template RateLimitedApis - A {@link RateLimitedApiMap} containing the rate-limited API endpoints that is used by the {@link RateLimitController}.
  * @property requests - An object containing the number of requests made in a given interval for each origin and api type combination.
  */
@@ -41,20 +43,26 @@ export type RateLimitState<RateLimitedApis extends RateLimitedApiMap> = {
   requests: RateLimitedRequests<RateLimitedApis>;
 };
 
-const name = 'RateLimitController';
+const controllerName = 'RateLimitController';
 
 export type RateLimitControllerStateChangeEvent<
   RateLimitedApis extends RateLimitedApiMap,
-> = ControllerStateChangeEvent<typeof name, RateLimitState<RateLimitedApis>>;
+> = ControllerStateChangeEvent<
+  typeof controllerName,
+  RateLimitState<RateLimitedApis>
+>;
 
 export type RateLimitControllerGetStateAction<
   RateLimitedApis extends RateLimitedApiMap,
-> = ControllerGetStateAction<typeof name, RateLimitState<RateLimitedApis>>;
+> = ControllerGetStateAction<
+  typeof controllerName,
+  RateLimitState<RateLimitedApis>
+>;
 
 export type RateLimitControllerCallApiAction<
   RateLimitedApis extends RateLimitedApiMap,
 > = {
-  type: `${typeof name}:call`;
+  type: `${typeof controllerName}:call`;
   handler: RateLimitController<RateLimitedApis>['call'];
 };
 
@@ -69,19 +77,17 @@ export type RateLimitControllerEvents<
 > = RateLimitControllerStateChangeEvent<RateLimitedApis>;
 
 export type RateLimitMessenger<RateLimitedApis extends RateLimitedApiMap> =
-  RestrictedMessenger<
-    typeof name,
+  Messenger<
+    typeof controllerName,
     RateLimitControllerActions<RateLimitedApis>,
-    RateLimitControllerEvents<RateLimitedApis>,
-    never,
-    never
+    RateLimitControllerEvents<RateLimitedApis>
   >;
 
 const metadata = {
   requests: {
     includeInStateLogs: false,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
 };
@@ -92,7 +98,7 @@ const metadata = {
 export class RateLimitController<
   RateLimitedApis extends RateLimitedApiMap,
 > extends BaseController<
-  typeof name,
+  typeof controllerName,
   RateLimitState<RateLimitedApis>,
   RateLimitMessenger<RateLimitedApis>
 > {
@@ -131,7 +137,7 @@ export class RateLimitController<
       >((acc, key) => ({ ...acc, [key]: {} }), {} as never),
     };
     super({
-      name,
+      name: controllerName,
       metadata,
       messenger,
       state: { ...defaultState, ...state },
@@ -140,8 +146,8 @@ export class RateLimitController<
     this.rateLimitTimeout = rateLimitTimeout;
     this.rateLimitCount = rateLimitCount;
 
-    this.messagingSystem.registerActionHandler(
-      `${name}:call`,
+    this.messenger.registerActionHandler(
+      `${controllerName}:call`,
       (
         origin: string,
         type: keyof RateLimitedApis,
@@ -156,6 +162,7 @@ export class RateLimitController<
    * @param origin - The requesting origin.
    * @param type - The type of API call to make.
    * @param args - Arguments for the API call.
+   * @returns The result of the API call.
    */
   async call<ApiType extends keyof RateLimitedApis>(
     origin: string,
@@ -210,8 +217,6 @@ export class RateLimitController<
       Object.assign(state, {
         requests: {
           ...(state.requests as RateLimitedRequests<RateLimitedApis>),
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
           [api]: { [origin]: previous + 1 },
         },
       });

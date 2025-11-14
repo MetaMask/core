@@ -429,7 +429,8 @@ export class RpcService implements AbstractRpcService {
   ): Promise<JsonRpcResponse<Result>>;
 
   async request<Params extends JsonRpcParams, Result extends Json>(
-    jsonRpcRequest: JsonRpcRequest<Params>,
+    // The request object may be frozen and must not be mutated.
+    jsonRpcRequest: Readonly<JsonRpcRequest<Params>>,
     fetchOptions: FetchOptions = {},
   ): Promise<JsonRpcResponse<Result | null>> {
     const completeFetchOptions = this.#getCompleteFetchOptions(
@@ -489,7 +490,7 @@ export class RpcService implements AbstractRpcService {
    * @returns The complete set of `fetch` options.
    */
   #getCompleteFetchOptions<Params extends JsonRpcParams>(
-    jsonRpcRequest: JsonRpcRequest<Params>,
+    jsonRpcRequest: Readonly<JsonRpcRequest<Params>>,
     fetchOptions: FetchOptions,
   ): FetchOptions {
     const defaultOptions = {

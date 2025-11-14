@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/multichain-account-service` from `^2.0.0` to `^3.0.0` ([#7100](https://github.com/MetaMask/core/pull/7100))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6380](https://github.com/MetaMask/core/pull/6380))
+  - Previously, `AccountTreeController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^33.0.0` to `^34.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^23.0.0` to `^24.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/multichain-account-service` from `^1.0.0` to `^2.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/profile-sync-controller` from `^25.0.0` to `^26.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [1.6.0]
+
+### Changed
+
+- Add optional account hidden/pinned state callbacks ([#6910](https://github.com/MetaMask/core/pull/6910))
+  - Those callbacks can be used migrate existing account state into the tree metadata.
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
 ## [1.5.0]
 
 ### Changed
@@ -373,7 +399,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@2.0.0...@metamask/account-tree-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.6.0...@metamask/account-tree-controller@2.0.0
+[1.6.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.5.0...@metamask/account-tree-controller@1.6.0
 [1.5.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.4.2...@metamask/account-tree-controller@1.5.0
 [1.4.2]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.4.1...@metamask/account-tree-controller@1.4.2
 [1.4.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.4.0...@metamask/account-tree-controller@1.4.1

@@ -4,9 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  merge_group:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
   cancel-in-progress: ${{ !contains(github.ref, 'refs/heads/main') }}
 
 jobs:
@@ -14,7 +15,7 @@ jobs:
     name: Check workflows
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Download actionlint
         id: download-actionlint
         run: bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/7fdc9630cc360ea1a469eed64ac6d78caeda1234/scripts/download-actionlint.bash) 1.6.25
@@ -24,21 +25,96 @@ jobs:
         shell: bash
 
   analyse-code:
-    name: Code scanner
+    name: Analyse code
     needs: check-workflows
-    uses: ./.github/workflows/security-code-scanner.yml
+    uses: MetaMask/action-security-code-scanner/.github/workflows/security-scan.yml@v2
+    with:
+      scanner-ref: v2
+      paths-ignored: |
+        .storybook/
+        **/__snapshots__/
+        **/*.snap
+        **/*.stories.js
+        **/*.stories.tsx
+        **/*.test.browser.ts*
+        **/*.test.js*
+        **/*.test.ts*
+        **/fixtures/
+        **/jest.config.js
+        **/jest.environment.js
+        **/mocks/
+        **/test*/
+        docs/
+        e2e/
+        merged-packages/
+        node_modules/
+        storybook/
+        test*/
+    secrets:
+      project-metrics-token: ${{ secrets.SECURITY_SCAN_METRICS_TOKEN }}
+      slack-webhook: ${{ secrets.APPSEC_BOT_SLACK_WEBHOOK }}
     permissions:
       actions: read
       contents: read
       security-events: write
-    secrets:
-      SECURITY_SCAN_METRICS_TOKEN: ${{ secrets.SECURITY_SCAN_METRICS_TOKEN }}
-      APPSEC_BOT_SLACK_WEBHOOK: ${{ secrets.APPSEC_BOT_SLACK_WEBHOOK }}
 
   lint-build-test:
     name: Lint, build, and test
     needs: check-workflows
     uses: ./.github/workflows/lint-build-test.yml
+
+  check-release:
+    name: Check release
+    needs: check-workflows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get merge base
+        id: merge-base
+        if: github.event_name != 'push'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+        run: |
+          echo "MERGE_BASE=$(git merge-base HEAD "refs/remotes/origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
+
+      - name: Check if the commit or pull request is a release
+        id: is-release
+        if: github.event_name != 'push'
+        uses: MetaMask/action-is-release@d063725cd15ee145d7e795a2e77db31a3e3f2c92
+        with:
+          commit-starts-with: 'Release [version],Release v[version],Release/[version],Release/v[version],Release `[version]`'
+          commit-message: ${{ github.event.pull_request.title }}
+          before: ${{ steps.merge-base.outputs.MERGE_BASE }}
+
+      - name: Get pull request number
+        if: github.event_name != 'push'
+        id: pr-number
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          MERGE_GROUP_HEAD_REF: ${{ github.event.merge_group.head_ref }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            echo "PR_NUMBER=$PULL_REQUEST_NUMBER" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_NAME" = "merge_group" ]; then
+            PR_NUMBER_REGEX='/pr-([0-9]+)-'
+            if [[ "$MERGE_GROUP_HEAD_REF" =~ $PR_NUMBER_REGEX ]]; then
+              echo "PR_NUMBER=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error::Could not extract PR number from merge group head ref: $MERGE_GROUP_HEAD_REF."
+              exit 1
+            fi
+          fi
+
+      - name: Check release
+        if: github.event_name != 'push' && steps.is-release.outputs.IS_RELEASE == 'true'
+        uses: ./.github/actions/check-release
+        with:
+          pull-request: ${{ steps.pr-number.outputs.PR_NUMBER }}
 
   is-release:
     name: Determine whether this is a release merge commit
@@ -49,7 +125,7 @@ jobs:
       IS_RELEASE: ${{ steps.is-release.outputs.IS_RELEASE }}
     steps:
       - id: is-release
-        uses: MetaMask/action-is-release@dc4672b05e3b1d464cdaf783579b04a4e43f8b02
+        uses: MetaMask/action-is-release@v2
         with:
           commit-starts-with: 'Release [version],Release v[version],Release/[version],Release/v[version],Release `[version]`'
 
@@ -77,6 +153,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - analyse-code
+      - check-release
       - lint-build-test
     outputs:
       passed: ${{ steps.set-output.outputs.passed }}

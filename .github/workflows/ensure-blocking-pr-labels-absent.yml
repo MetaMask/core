@@ -14,11 +14,11 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v1
+        uses: MetaMask/action-checkout-and-setup@v2
         with:
           is-high-risk-environment: false
       - name: Run command
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             if (context.payload.pull_request.labels.some((label) => label.name === 'DO-NOT-MERGE')) {

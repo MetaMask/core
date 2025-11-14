@@ -1,5 +1,4 @@
 import type {
-  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
@@ -17,23 +16,29 @@ import {
   KeyringTypes,
   type KeyringControllerState,
 } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import { assert } from '@metamask/utils';
 import log from 'loglevel';
 
+import type { NormalisedAPINotification } from '.';
 import { TRIGGER_TYPES } from './constants/notification-schema';
 import {
   processAndFilterNotifications,
   safeProcessNotification,
 } from './processors/process-notifications';
-import * as FeatureNotifications from './services/feature-announcements';
-import * as OnChainNotifications from './services/onchain-notifications';
+import {
+  getAPINotifications,
+  getNotificationsApiConfigCached,
+  markNotificationsAsRead,
+  updateOnChainNotifications,
+} from './services/api-notifications';
+import { getFeatureAnnouncementNotifications } from './services/feature-announcements';
 import { createPerpOrderNotification } from './services/perp-notifications';
 import type {
   INotification,
   MarkAsReadNotificationsParam,
 } from './types/notification/notification';
-import type { OnChainRawNotification } from './types/on-chain-notification/on-chain-notification';
 import type { OrderInput } from './types/perps';
 import type {
   NotificationServicesPushControllerEnablePushNotificationsAction,
@@ -51,7 +56,7 @@ const controllerName = 'NotificationServicesController';
  */
 export type NotificationServicesControllerState = {
   /**
-   * We store and manage accounts that have been seen/visted through the
+   * We store and manage accounts that have been seen/visited through the
    * account subscription. This allows us to track and add notifications for new accounts and not previous accounts added.
    */
   subscriptionAccountsSeen: string[];
@@ -104,62 +109,62 @@ const metadata: StateMetadata<NotificationServicesControllerState> = {
   subscriptionAccountsSeen: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
 
   isMetamaskNotificationsFeatureSeen: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   isNotificationServicesEnabled: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   isFeatureAnnouncementsEnabled: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   metamaskNotificationsList: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   metamaskNotificationsReadList: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   isUpdatingMetamaskNotifications: {
     includeInStateLogs: false,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   isFetchingMetamaskNotifications: {
     includeInStateLogs: false,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   isUpdatingMetamaskNotificationsAccount: {
     includeInStateLogs: false,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   isCheckingAccountsPresence: {
     includeInStateLogs: false,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -215,7 +220,7 @@ export type Actions =
   | NotificationServicesControllerDeleteNotificationsById;
 
 // Allowed Actions
-export type AllowedActions =
+type AllowedActions =
   // Keyring Controller Requests
   | KeyringControllerGetStateAction
   // Auth Controller Requests
@@ -251,7 +256,7 @@ export type Events =
   | MarkNotificationsAsReadEvent;
 
 // Allowed Events
-export type AllowedEvents =
+type AllowedEvents =
   // Keyring Events
   | KeyringControllerStateChangeEvent
   | KeyringControllerLockEvent
@@ -261,12 +266,10 @@ export type AllowedEvents =
   | NotificationServicesPushControllerStateChangeEvent;
 
 // Type for the messenger of NotificationServicesController
-export type NotificationServicesControllerMessenger = RestrictedMessenger<
+export type NotificationServicesControllerMessenger = Messenger<
   typeof controllerName,
   Actions | AllowedActions,
-  Events | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  Events | AllowedEvents
 >;
 
 type FeatureAnnouncementEnv = {
@@ -288,12 +291,10 @@ export default class NotificationServicesController extends BaseController<
     isUnlocked: false,
 
     setupLockedStateSubscriptions: (onUnlock: () => Promise<void>) => {
-      const { isUnlocked } = this.messagingSystem.call(
-        'KeyringController:getState',
-      );
+      const { isUnlocked } = this.messenger.call('KeyringController:getState');
       this.#keyringController.isUnlocked = isUnlocked;
 
-      this.messagingSystem.subscribe('KeyringController:unlock', () => {
+      this.messenger.subscribe('KeyringController:unlock', () => {
         this.#keyringController.isUnlocked = true;
         // messaging system cannot await promises
         // we don't need to wait for a result on this.
@@ -301,7 +302,7 @@ export default class NotificationServicesController extends BaseController<
         onUnlock();
       });
 
-      this.messagingSystem.subscribe('KeyringController:lock', () => {
+      this.messenger.subscribe('KeyringController:lock', () => {
         this.#keyringController.isUnlocked = false;
       });
     },
@@ -309,15 +310,15 @@ export default class NotificationServicesController extends BaseController<
 
   readonly #auth = {
     getBearerToken: async () => {
-      return await this.messagingSystem.call(
+      return await this.messenger.call(
         'AuthenticationController:getBearerToken',
       );
     },
     isSignedIn: () => {
-      return this.messagingSystem.call('AuthenticationController:isSignedIn');
+      return this.messenger.call('AuthenticationController:isSignedIn');
     },
     signIn: async () => {
-      return await this.messagingSystem.call(
+      return await this.messenger.call(
         'AuthenticationController:performSignIn',
       );
     },
@@ -330,13 +331,13 @@ export default class NotificationServicesController extends BaseController<
     isSetup: false,
 
     subscribeToPushNotifications: async () => {
-      await this.messagingSystem.call(
+      await this.messenger.call(
         'NotificationServicesPushController:subscribeToPushNotifications',
       );
     },
     enablePushNotifications: async (addresses: string[]) => {
       try {
-        await this.messagingSystem.call(
+        await this.messenger.call(
           'NotificationServicesPushController:enablePushNotifications',
           addresses,
         );
@@ -346,7 +347,7 @@ export default class NotificationServicesController extends BaseController<
     },
     disablePushNotifications: async () => {
       try {
-        await this.messagingSystem.call(
+        await this.messenger.call(
           'NotificationServicesPushController:disablePushNotifications',
         );
       } catch (e) {
@@ -354,7 +355,7 @@ export default class NotificationServicesController extends BaseController<
       }
     },
     subscribe: () => {
-      this.messagingSystem.subscribe(
+      this.messenger.subscribe(
         'NotificationServicesPushController:onNewNotifications',
         (notification) => {
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -393,9 +394,7 @@ export default class NotificationServicesController extends BaseController<
     isNotificationAccountsSetup: false,
 
     getNotificationAccounts: () => {
-      const { keyrings } = this.messagingSystem.call(
-        'KeyringController:getState',
-      );
+      const { keyrings } = this.messenger.call('KeyringController:getState');
       const firstHDKeyring = keyrings.find(
         (k) => k.type === KeyringTypes.hd.toString(),
       );
@@ -472,7 +471,7 @@ export default class NotificationServicesController extends BaseController<
      * And call effects to subscribe/unsubscribe to notifications.
      */
     subscribe: () => {
-      this.messagingSystem.subscribe(
+      this.messenger.subscribe(
         'KeyringController:stateChange',
 
         async (totalAccounts, prevTotalAccounts) => {
@@ -506,6 +505,8 @@ export default class NotificationServicesController extends BaseController<
     },
   };
 
+  readonly #locale: () => string;
+
   readonly #featureAnnouncementEnv: FeatureAnnouncementEnv;
 
   /**
@@ -516,7 +517,7 @@ export default class NotificationServicesController extends BaseController<
    * @param args.state - Initial state to set on this controller.
    * @param args.env - environment variables for a given controller.
    * @param args.env.featureAnnouncements - env variables for feature announcements.
-   * @param args.env.isPushIntegrated - toggle push notifications on/off if client has integrated them.
+   * @param args.env.locale - users locale for better dynamic server notifications
    */
   constructor({
     messenger,
@@ -527,7 +528,7 @@ export default class NotificationServicesController extends BaseController<
     state?: Partial<NotificationServicesControllerState>;
     env: {
       featureAnnouncements: FeatureAnnouncementEnv;
-      isPushIntegrated?: boolean;
+      locale?: () => string;
     };
   }) {
     super({
@@ -538,6 +539,7 @@ export default class NotificationServicesController extends BaseController<
     });
 
     this.#featureAnnouncementEnv = env.featureAnnouncements;
+    this.#locale = env.locale ?? (() => 'en');
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
   }
@@ -556,22 +558,22 @@ export default class NotificationServicesController extends BaseController<
   }
 
   #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:updateMetamaskNotificationsList`,
       this.updateMetamaskNotificationsList.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:disableNotificationServices`,
       this.disableNotificationServices.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:getNotificationsByType`,
       this.getNotificationsByType.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:deleteNotificationsById`,
       this.deleteNotificationsById.bind(this),
     );
@@ -700,11 +702,10 @@ export default class NotificationServicesController extends BaseController<
     try {
       const { bearerToken } = await this.#getBearerToken();
       const { accounts } = this.#accounts.listAccounts();
-      const addressesWithNotifications =
-        await OnChainNotifications.getOnChainNotificationsConfigCached(
-          bearerToken,
-          accounts,
-        );
+      const addressesWithNotifications = await getNotificationsApiConfigCached(
+        bearerToken,
+        accounts,
+      );
       const addresses = addressesWithNotifications
         .filter((a) => Boolean(a.enabled))
         .map((a) => a.address);
@@ -731,11 +732,10 @@ export default class NotificationServicesController extends BaseController<
 
       // Retrieve user storage
       const { bearerToken } = await this.#getBearerToken();
-      const addressesWithNotifications =
-        await OnChainNotifications.getOnChainNotificationsConfigCached(
-          bearerToken,
-          accounts,
-        );
+      const addressesWithNotifications = await getNotificationsApiConfigCached(
+        bearerToken,
+        accounts,
+      );
 
       const result: Record<string, boolean> = {};
       addressesWithNotifications.forEach((a) => {
@@ -794,11 +794,10 @@ export default class NotificationServicesController extends BaseController<
       const { accounts } = this.#accounts.listAccounts();
 
       // 1. See if has enabled notifications before
-      const addressesWithNotifications =
-        await OnChainNotifications.getOnChainNotificationsConfigCached(
-          bearerToken,
-          accounts,
-        );
+      const addressesWithNotifications = await getNotificationsApiConfigCached(
+        bearerToken,
+        accounts,
+      );
 
       // Notifications API can return array with addresses set to false
       // So assert that at least one address is enabled
@@ -808,7 +807,7 @@ export default class NotificationServicesController extends BaseController<
 
       // 2. Enable Notifications (if no accounts subscribed or we are resetting)
       if (accountsWithNotifications.length === 0 || opts?.resetNotifications) {
-        await OnChainNotifications.updateOnChainNotifications(
+        await updateOnChainNotifications(
           bearerToken,
           accounts.map((address) => ({ address, enabled: true })),
         );
@@ -909,7 +908,7 @@ export default class NotificationServicesController extends BaseController<
       const { bearerToken } = await this.#getBearerToken();
 
       // Delete these UUIDs (Mutates User Storage)
-      await OnChainNotifications.updateOnChainNotifications(
+      await updateOnChainNotifications(
         bearerToken,
         accounts.map((address) => ({ address, enabled: false })),
       );
@@ -941,7 +940,7 @@ export default class NotificationServicesController extends BaseController<
       this.#updateUpdatingAccountsState(accounts);
 
       const { bearerToken } = await this.#getBearerToken();
-      await OnChainNotifications.updateOnChainNotifications(
+      await updateOnChainNotifications(
         bearerToken,
         accounts.map((address) => ({ address, enabled: true })),
       );
@@ -976,31 +975,29 @@ export default class NotificationServicesController extends BaseController<
       // Raw Feature Notifications
       const rawAnnouncements =
         isGlobalNotifsEnabled && this.state.isFeatureAnnouncementsEnabled
-          ? await FeatureNotifications.getFeatureAnnouncementNotifications(
+          ? await getFeatureAnnouncementNotifications(
               this.#featureAnnouncementEnv,
               previewToken,
             ).catch(() => [])
           : [];
 
       // Raw On Chain Notifications
-      const rawOnChainNotifications: OnChainRawNotification[] = [];
+      const rawOnChainNotifications: NormalisedAPINotification[] = [];
       if (isGlobalNotifsEnabled) {
         try {
           const { bearerToken } = await this.#getBearerToken();
           const { accounts } = this.#accounts.listAccounts();
           const addressesWithNotifications = (
-            await OnChainNotifications.getOnChainNotificationsConfigCached(
-              bearerToken,
-              accounts,
-            )
+            await getNotificationsApiConfigCached(bearerToken, accounts)
           )
             .filter((a) => Boolean(a.enabled))
             .map((a) => a.address);
-          const notifications =
-            await OnChainNotifications.getOnChainNotifications(
-              bearerToken,
-              addressesWithNotifications,
-            ).catch(() => []);
+          const notifications = await getAPINotifications(
+            bearerToken,
+            addressesWithNotifications,
+            this.#locale(),
+            this.#featureAnnouncementEnv.platform,
+          ).catch(() => []);
           rawOnChainNotifications.push(...notifications);
         } catch {
           // Do nothing
@@ -1033,7 +1030,7 @@ export default class NotificationServicesController extends BaseController<
         state.metamaskNotificationsList = metamaskNotifications;
       });
 
-      this.messagingSystem.publish(
+      this.messenger.publish(
         `${controllerName}:notificationsListUpdated`,
         this.state.metamaskNotificationsList,
       );
@@ -1114,7 +1111,7 @@ export default class NotificationServicesController extends BaseController<
       await this.deleteNotificationById(id);
     }
 
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:notificationsListUpdated`,
       this.state.metamaskNotificationsList,
     );
@@ -1171,7 +1168,7 @@ export default class NotificationServicesController extends BaseController<
           onchainNotificationIds = onChainNotifications.map(
             (notification) => notification.id,
           );
-          await OnChainNotifications.markNotificationsAsRead(
+          await markNotificationsAsRead(
             bearerToken,
             onchainNotificationIds,
           ).catch(() => {
@@ -1229,7 +1226,7 @@ export default class NotificationServicesController extends BaseController<
       );
     });
 
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:markNotificationsAsRead`,
       this.state.metamaskNotificationsList,
     );
@@ -1267,7 +1264,7 @@ export default class NotificationServicesController extends BaseController<
         }
       });
 
-      this.messagingSystem.publish(
+      this.messenger.publish(
         `${controllerName}:notificationsListUpdated`,
         this.state.metamaskNotificationsList,
       );

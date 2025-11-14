@@ -53,6 +53,13 @@ export const CRYPTO_PAYMENT_METHOD_ERRORS = {
 export type CryptoPaymentMethodError =
   (typeof CRYPTO_PAYMENT_METHOD_ERRORS)[keyof typeof CRYPTO_PAYMENT_METHOD_ERRORS];
 
+export const MODAL_TYPE = {
+  A: 'A',
+  B: 'B',
+} as const;
+
+export type ModalType = (typeof MODAL_TYPE)[keyof typeof MODAL_TYPE];
+
 /** only usd for now */
 export type Currency = 'usd';
 
@@ -79,6 +86,12 @@ export type Subscription = {
   trialEnd?: string; // ISO 8601
   /** Crypto payment only: next billing cycle date (e.g after 12 months) */
   endDate?: string; // ISO 8601
+  /** The date the subscription was canceled. */
+  canceledAt?: string; // ISO 8601
+  /** The date the subscription was marked as inactive (paused/past_due/canceled). */
+  inactiveAt?: string; // ISO 8601
+  /** Whether the user is eligible for support features (priority support and filing claims). True for active subscriptions and inactive subscriptions within grace period. */
+  isEligibleForSupport: boolean;
   billingCycles?: number;
 };
 
@@ -110,6 +123,8 @@ export type GetSubscriptionsResponse = {
   customerId?: string;
   subscriptions: Subscription[];
   trialedProducts: ProductType[];
+  /** The last subscription that user has subscribed to if any. */
+  lastSubscription?: Subscription;
 };
 
 export type StartSubscriptionRequest = {
@@ -117,6 +132,7 @@ export type StartSubscriptionRequest = {
   isTrialRequested: boolean;
   recurringInterval: RecurringInterval;
   successUrl?: string;
+  useTestClock?: boolean;
 };
 
 export type StartSubscriptionResponse = {
@@ -135,6 +151,8 @@ export type StartCryptoSubscriptionRequest = {
    */
   tokenSymbol: string;
   rawTransaction: Hex;
+  isSponsored?: boolean;
+  useTestClock?: boolean;
 };
 
 export type StartCryptoSubscriptionResponse = {
@@ -179,6 +197,11 @@ export type ChainPaymentInfo = {
   chainId: Hex;
   paymentAddress: Hex;
   tokens: TokenPaymentInfo[];
+  /**
+   * Whether the chain supports sponsorship for the trialed subscription approval transaction.
+   * This is used to determine if the user can be sponsored for the gas fees for the trialed subscription approval transaction.
+   */
+  isSponsorshipSupported?: boolean;
 };
 
 export type PricingPaymentMethod = {
@@ -221,15 +244,46 @@ export type GetCryptoApproveTransactionResponse = {
   chainId: Hex;
 };
 
+export const COHORT_NAMES = {
+  POST_TX: 'post_tx',
+  WALLET_HOME: 'wallet_home',
+} as const;
+
+export type CohortName = (typeof COHORT_NAMES)[keyof typeof COHORT_NAMES];
+
+export const BALANCE_CATEGORIES = {
+  RANGE_0_99: '0-99',
+  RANGE_100_999: '100-999',
+  RANGE_1K_9_9K: '1k-9.9k',
+  RANGE_10K_99_9K: '10k-99.9k',
+  RANGE_100K_999_9K: '100k-999.9k',
+  RANGE_1M_PLUS: '1M+',
+} as const;
+
+export type BalanceCategory =
+  (typeof BALANCE_CATEGORIES)[keyof typeof BALANCE_CATEGORIES];
+
+export type Cohort = {
+  cohort: string;
+  eligibilityRate: number; // 0-1 probability of being assigned to this cohort
+  priority: number; // lower number = higher priority
+  eligible: boolean;
+};
+
 export type SubscriptionEligibility = {
   product: ProductType;
   canSubscribe: boolean;
   minBalanceUSD: number;
   canViewEntryModal: boolean;
+  modalType?: ModalType;
+  cohorts: Cohort[];
+  assignedCohort: string | null;
+  hasAssignedCohortExpired: boolean;
 };
 
 export const SubscriptionUserEvent = {
   ShieldEntryModalViewed: 'shield_entry_modal_viewed',
+  ShieldCohortAssigned: 'shield_cohort_assigned',
 } as const;
 
 export type SubscriptionUserEventType =
@@ -237,7 +291,33 @@ export type SubscriptionUserEventType =
 
 export type SubmitUserEventRequest = {
   event: SubscriptionUserEventType;
+  cohort?: string;
 };
+
+export type AssignCohortRequest = {
+  cohort: string;
+};
+
+export type GetSubscriptionsEligibilitiesRequest = {
+  balanceCategory?: BalanceCategory;
+};
+
+/**
+ * Request object for submitting sponsorship intents.
+ */
+export type SubmitSponsorshipIntentsRequest = {
+  chainId: Hex;
+  address: Hex;
+  products: ProductType[];
+  paymentTokenSymbol: string;
+  recurringInterval: RecurringInterval;
+  billingCycles: number;
+};
+
+export type SubmitSponsorshipIntentsMethodParams = Pick<
+  SubmitSponsorshipIntentsRequest,
+  'chainId' | 'address' | 'products'
+>;
 
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
@@ -261,8 +341,29 @@ export type ISubscriptionService = {
   updatePaymentMethodCrypto(
     request: UpdatePaymentMethodCryptoRequest,
   ): Promise<void>;
-  getSubscriptionsEligibilities(): Promise<SubscriptionEligibility[]>;
+  getSubscriptionsEligibilities(
+    request?: GetSubscriptionsEligibilitiesRequest,
+  ): Promise<SubscriptionEligibility[]>;
   submitUserEvent(request: SubmitUserEventRequest): Promise<void>;
+  assignUserToCohort(request: AssignCohortRequest): Promise<void>;
+
+  /**
+   * Submit sponsorship intents to the Subscription Service backend.
+   *
+   * This is intended to be used together with the crypto subscription flow.
+   * When the user has enabled the smart transaction feature, we will sponsor the gas fees for the subscription approval transaction.
+   *
+   * @param request - Request object containing the address and products.
+   * @example {
+   *   address: '0x1234567890123456789012345678901234567890',
+   *   products: [ProductType.Shield],
+   *   recurringInterval: RecurringInterval.Month,
+   *   billingCycles: 1,
+   * }
+   */
+  submitSponsorshipIntents(
+    request: SubmitSponsorshipIntentsRequest,
+  ): Promise<void>;
 };
 
 export type UpdatePaymentMethodOpts =
@@ -306,4 +407,16 @@ export type UpdatePaymentMethodCryptoRequest = {
 
 export type BillingPortalResponse = {
   url: string;
+};
+
+/**
+ * The cached result of last selected payment methods for the user.
+ * These details are being cached to be used internally to track the last selected payment method for the user. (e.g. for crypto subscriptions)
+ */
+export type CachedLastSelectedPaymentMethod = {
+  type: PaymentType;
+  paymentTokenAddress?: Hex;
+  paymentTokenSymbol?: string;
+  plan: RecurringInterval;
+  useTestClock?: boolean;
 };

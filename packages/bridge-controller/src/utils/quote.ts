@@ -16,6 +16,7 @@ import type {
   QuoteMetadata,
   QuoteResponse,
   NonEvmFees,
+  TxData,
 } from '../types';
 
 export const isValidQuoteRequest = (
@@ -157,9 +158,10 @@ export const calcSentAmount = (
 };
 
 export const calcRelayerFee = (
-  { quote, trade }: QuoteResponse,
+  quoteResponse: QuoteResponse<TxData, TxData>,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
+  const { quote, trade } = quoteResponse;
   const relayerFeeAmount = new BigNumber(
     convertHexToDecimal(trade.value || '0x0'),
   );
@@ -235,7 +237,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
-  bridgeQuote: QuoteResponse & L1GasFees;
+  bridgeQuote: QuoteResponse<TxData, TxData> & L1GasFees;
   estimatedBaseFeeInDecGwei: string;
   maxFeePerGasInDecGwei: string;
   maxPriorityFeePerGasInDecGwei: string;

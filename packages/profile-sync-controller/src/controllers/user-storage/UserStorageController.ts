@@ -6,13 +6,12 @@ import type {
   AddressBookControllerSetAction,
   AddressBookControllerDeleteAction,
 } from '@metamask/address-book-controller';
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedMessenger,
-  StateMetadata,
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+  type StateMetadata,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
 import type {
   TraceCallback,
   TraceContext,
@@ -24,6 +23,7 @@ import {
   type KeyringControllerLockEvent,
   type KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
 import { BACKUPANDSYNC_FEATURES } from './constants';
@@ -83,31 +83,31 @@ const metadata: StateMetadata<UserStorageControllerState> = {
   isBackupAndSyncEnabled: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   isBackupAndSyncUpdateLoading: {
     includeInStateLogs: false,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   isAccountSyncingEnabled: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   isContactSyncingEnabled: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   isContactSyncingInProgress: {
     includeInStateLogs: false,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -209,12 +209,10 @@ export type AllowedEvents =
   | AddressBookControllerContactDeletedEvent;
 
 // Messenger
-export type UserStorageControllerMessenger = RestrictedMessenger<
+export type UserStorageControllerMessenger = Messenger<
   typeof controllerName,
   Actions | AllowedActions,
-  Events | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  Events | AllowedEvents
 >;
 
 /**
@@ -234,17 +232,17 @@ export default class UserStorageController extends BaseController<
 
   readonly #auth = {
     getProfileId: async (entropySourceId?: string) => {
-      const sessionProfile = await this.messagingSystem.call(
+      const sessionProfile = await this.messenger.call(
         'AuthenticationController:getSessionProfile',
         entropySourceId,
       );
       return sessionProfile?.profileId;
     },
     isSignedIn: () => {
-      return this.messagingSystem.call('AuthenticationController:isSignedIn');
+      return this.messenger.call('AuthenticationController:isSignedIn');
     },
     signIn: async () => {
-      return await this.messagingSystem.call(
+      return await this.messenger.call(
         'AuthenticationController:performSignIn',
       );
     },
@@ -262,16 +260,14 @@ export default class UserStorageController extends BaseController<
 
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
-      const { isUnlocked } = this.messagingSystem.call(
-        'KeyringController:getState',
-      );
+      const { isUnlocked } = this.messenger.call('KeyringController:getState');
       this.#isUnlocked = isUnlocked;
 
-      this.messagingSystem.subscribe('KeyringController:unlock', () => {
+      this.messenger.subscribe('KeyringController:unlock', () => {
         this.#isUnlocked = true;
       });
 
-      this.messagingSystem.subscribe('KeyringController:lock', () => {
+      this.messenger.subscribe('KeyringController:lock', () => {
         this.#isUnlocked = false;
       });
     },
@@ -322,12 +318,12 @@ export default class UserStorageController extends BaseController<
         env: this.#config.env,
         auth: {
           getAccessToken: (entropySourceId?: string) =>
-            this.messagingSystem.call(
+            this.messenger.call(
               'AuthenticationController:getBearerToken',
               entropySourceId,
             ),
           getUserProfile: async (entropySourceId?: string) => {
-            return await this.messagingSystem.call(
+            return await this.messenger.call(
               'AuthenticationController:getSessionProfile',
               entropySourceId,
             );
@@ -357,7 +353,7 @@ export default class UserStorageController extends BaseController<
     // Contact Syncing
     setupContactSyncingSubscriptions({
       getUserStorageControllerInstance: () => this,
-      getMessenger: () => this.messagingSystem,
+      getMessenger: () => this.messenger,
       trace: this.#trace,
     });
   }
@@ -367,37 +363,37 @@ export default class UserStorageController extends BaseController<
    * actions.
    */
   #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'UserStorageController:performGetStorage',
       this.performGetStorage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'UserStorageController:performGetStorageAllFeatureEntries',
       this.performGetStorageAllFeatureEntries.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'UserStorageController:performSetStorage',
       this.performSetStorage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'UserStorageController:performBatchSetStorage',
       this.performBatchSetStorage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'UserStorageController:performDeleteStorage',
       this.performDeleteStorage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'UserStorageController:performBatchDeleteStorage',
       this.performBatchDeleteStorage.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       'UserStorageController:getStorageKey',
       this.getStorageKey.bind(this),
     );
@@ -565,9 +561,7 @@ export default class UserStorageController extends BaseController<
       );
     }
 
-    const { keyrings } = this.messagingSystem.call(
-      'KeyringController:getState',
-    );
+    const { keyrings } = this.messenger.call('KeyringController:getState');
     return keyrings
       .filter((keyring) => keyring.type === KeyringTypes.hd.toString())
       .map((keyring) => keyring.metadata.id);
@@ -598,7 +592,7 @@ export default class UserStorageController extends BaseController<
       );
     }
 
-    const result = (await this.messagingSystem.call(
+    const result = (await this.messenger.call(
       'SnapController:handleRequest',
       createSnapSignMessageRequest(message, entropySourceId),
     )) as string;
@@ -697,7 +691,7 @@ export default class UserStorageController extends BaseController<
     };
 
     await syncContactsWithUserStorage(config, {
-      getMessenger: () => this.messagingSystem,
+      getMessenger: () => this.messenger,
       getUserStorageControllerInstance: () => this,
       trace: this.#trace,
     });

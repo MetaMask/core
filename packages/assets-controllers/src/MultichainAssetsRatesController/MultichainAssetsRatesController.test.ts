@@ -1,20 +1,36 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { SolScope } from '@metamask/keyring-api';
 import { SolMethod } from '@metamask/keyring-api';
 import { SolAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type { OnAssetHistoricalPriceResponse } from '@metamask/snaps-sdk';
 import { useFakeTimers } from 'sinon';
 import { v4 as uuidv4 } from 'uuid';
 
 import { MultichainAssetsRatesController } from '.';
-import {
-  type AllowedActions,
-  type AllowedEvents,
-} from './MultichainAssetsRatesController';
+import { type MultichainAssetsRatesControllerMessenger } from './MultichainAssetsRatesController';
 import { advanceTime } from '../../../../tests/helpers';
+
+type AllMultichainAssetsRateControllerActions =
+  MessengerActions<MultichainAssetsRatesControllerMessenger>;
+
+type AllMultichainAssetsRateControllerEvents =
+  MessengerEvents<MultichainAssetsRatesControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllMultichainAssetsRateControllerActions,
+  AllMultichainAssetsRateControllerEvents
+>;
 
 // A fake non‑EVM account (with Snap metadata) that meets the controller’s criteria.
 const fakeNonEvmAccount: InternalAccount = {
@@ -71,6 +87,20 @@ const fakeEvmAccountWithoutMetadata: InternalAccount = {
   methods: [],
 };
 
+const fakeNonEvmAccount2: InternalAccount = {
+  id: 'account5',
+  type: 'solana:data-account',
+  address: '0x123',
+  metadata: {
+    name: 'Test Account',
+    // @ts-expect-error-next-line
+    snap: { id: 'test-snap-2', enabled: true },
+  },
+  scopes: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+  options: {},
+  methods: [],
+};
+
 const fakeMarketData = {
   price: 202.11,
   priceChange: 0,
@@ -118,7 +148,9 @@ const setupController = ({
   >;
   accountsAssets?: InternalAccount[];
 } = {}) => {
-  const messenger = new Messenger<AllowedActions, AllowedEvents>();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   messenger.registerActionHandler(
     'MultichainAssetsController:getState',
@@ -127,6 +159,9 @@ const setupController = ({
         account1: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
         account2: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
         account3: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+        account5: [
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        ],
       },
       assetsMetadata: {
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
@@ -136,7 +171,16 @@ const setupController = ({
           iconUrl: 'https://example.com/solana.png',
           units: [{ symbol: 'SOL', name: 'Solana', decimals: 9 }],
         },
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v':
+          {
+            name: 'USDC',
+            symbol: 'USDC',
+            fungible: true,
+            iconUrl: 'https://example.com/usdc.png',
+            units: [{ symbol: 'USDC', name: 'USDC', decimals: 2 }],
+          },
       },
+      allIgnoredAssets: {},
     }),
   );
 
@@ -155,16 +199,25 @@ const setupController = ({
     currentCurrency: 'USD',
   }));
 
-  const multichainAssetsRatesControllerMessenger = messenger.getRestricted({
-    name: 'MultichainAssetsRatesController',
-    allowedActions: [
+  const multichainAssetsRatesControllerMessenger: Messenger<
+    'MultichainAssetsRatesController',
+    AllMultichainAssetsRateControllerActions,
+    AllMultichainAssetsRateControllerEvents,
+    RootMessenger
+  > = new Messenger({
+    namespace: 'MultichainAssetsRatesController',
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: multichainAssetsRatesControllerMessenger,
+    actions: [
       'AccountsController:listMultichainAccounts',
       'SnapController:handleRequest',
       'CurrencyRateController:getState',
       'MultichainAssetsController:getState',
       'AccountsController:getSelectedMultichainAccount',
     ],
-    allowedEvents: [
+    events: [
       'AccountsController:accountAdded',
       'KeyringController:lock',
       'KeyringController:unlock',
@@ -356,8 +409,8 @@ describe('MultichainAssetsRatesController', () => {
             type: KeyringTypes.snap,
           },
           snap: {
-            id: 'mock-sol-snap',
-            name: 'mock-sol-snap',
+            id: 'mock-sol-snap-1',
+            name: 'mock-sol-snap-1',
             enabled: true,
           },
           lastSelected: 0,
@@ -377,8 +430,8 @@ describe('MultichainAssetsRatesController', () => {
             type: KeyringTypes.snap,
           },
           snap: {
-            id: 'mock-sol-snap',
-            name: 'mock-sol-snap',
+            id: 'mock-sol-snap-2',
+            name: 'mock-sol-snap-2',
             enabled: true,
           },
           lastSelected: 0,
@@ -393,42 +446,49 @@ describe('MultichainAssetsRatesController', () => {
       accountsAssets: testAccounts,
     });
 
-    const snapSpy = jest
-      .fn()
-      .mockResolvedValueOnce({
-        conversionRates: {
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
-            'swift:0/iso4217:USD': {
-              rate: '100',
-              conversionTime: 1738539923277,
+    const mockResponses = {
+      onAssetsConversion: [
+        {
+          conversionRates: {
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+              'swift:0/iso4217:USD': {
+                rate: '100',
+                conversionTime: 1738539923277,
+              },
             },
           },
         },
-      })
-      .mockResolvedValueOnce({
-        marketData: {
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
-            'swift:0/iso4217:USD': fakeMarketData,
-          },
-        },
-      })
-      .mockResolvedValueOnce({
-        conversionRates: {
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token1:501': {
-            'swift:0/iso4217:USD': {
-              rate: '200',
-              conversionTime: 1738539923277,
+        {
+          conversionRates: {
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token1:501': {
+              'swift:0/iso4217:USD': {
+                rate: '200',
+                conversionTime: 1738539923277,
+              },
             },
           },
         },
-      })
-      .mockResolvedValueOnce({
-        marketData: {
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token1:501': {
+      ],
+      onAssetsMarketData: [
+        {
+          marketData: {
             'swift:0/iso4217:USD': fakeMarketData,
           },
         },
-      });
+        {
+          marketData: {
+            'swift:0/iso4217:USD': fakeMarketData,
+          },
+        },
+      ],
+    };
+
+    const snapSpy = jest.fn().mockImplementation((args) => {
+      const { handler } = args;
+      return Promise.resolve(
+        mockResponses[handler as keyof typeof mockResponses].shift(),
+      );
+    });
     messenger.registerActionHandler('SnapController:handleRequest', snapSpy);
 
     messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
@@ -443,6 +503,7 @@ describe('MultichainAssetsRatesController', () => {
         },
       },
     });
+
     // Wait for the asynchronous subscriber to run.
     await Promise.resolve();
     await advanceTime({ clock, duration: 10 });
@@ -625,7 +686,7 @@ describe('MultichainAssetsRatesController', () => {
 
     it('handles mixed success and failure scenarios', async () => {
       const { controller, messenger } = setupController({
-        accountsAssets: [fakeNonEvmAccount, fakeEvmAccount2],
+        accountsAssets: [fakeNonEvmAccount, fakeNonEvmAccount2],
       });
 
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -913,7 +974,9 @@ describe('MultichainAssetsRatesController', () => {
       };
 
       // Set up controller with custom accounts and assets configuration
-      const messenger = new Messenger<AllowedActions, AllowedEvents>();
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
 
       // Mock MultichainAssetsController state with one account having no assets
       messenger.registerActionHandler(
@@ -932,6 +995,7 @@ describe('MultichainAssetsRatesController', () => {
               units: [{ symbol: 'SOL', name: 'Solana', decimals: 9 }],
             },
           },
+          allIgnoredAssets: {},
         }),
       );
 
@@ -957,7 +1021,7 @@ describe('MultichainAssetsRatesController', () => {
       const snapHandler = jest.fn().mockResolvedValue({
         conversionRates: {
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
-            USD: {
+            'swift:0/iso4217:USD': {
               rate: '100.50',
               conversionTime: Date.now(),
             },
@@ -970,24 +1034,35 @@ describe('MultichainAssetsRatesController', () => {
         snapHandler,
       );
 
+      const multichainAssetsRatesControllerMessenger = new Messenger<
+        'MultichainAssetsRatesController',
+        AllMultichainAssetsRateControllerActions,
+        AllMultichainAssetsRateControllerEvents,
+        RootMessenger
+      >({
+        namespace: 'MultichainAssetsRatesController',
+        parent: messenger,
+      });
+      messenger.delegate({
+        messenger: multichainAssetsRatesControllerMessenger,
+        actions: [
+          'MultichainAssetsController:getState',
+          'AccountsController:listMultichainAccounts',
+          'AccountsController:getSelectedMultichainAccount',
+          'CurrencyRateController:getState',
+          'SnapController:handleRequest',
+        ],
+        events: [
+          'KeyringController:lock',
+          'KeyringController:unlock',
+          'AccountsController:accountAdded',
+          'CurrencyRateController:stateChange',
+          'MultichainAssetsController:accountAssetListUpdated',
+        ],
+      });
+
       const controller = new MultichainAssetsRatesController({
-        messenger: messenger.getRestricted({
-          name: 'MultichainAssetsRatesController',
-          allowedActions: [
-            'MultichainAssetsController:getState',
-            'AccountsController:listMultichainAccounts',
-            'AccountsController:getSelectedMultichainAccount',
-            'CurrencyRateController:getState',
-            'SnapController:handleRequest',
-          ],
-          allowedEvents: [
-            'KeyringController:lock',
-            'KeyringController:unlock',
-            'AccountsController:accountAdded',
-            'CurrencyRateController:stateChange',
-            'MultichainAssetsController:accountAssetListUpdated',
-          ],
-        }),
+        messenger: multichainAssetsRatesControllerMessenger,
       });
 
       await controller.updateAssetsRates();
@@ -1040,7 +1115,7 @@ describe('MultichainAssetsRatesController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
         Object {

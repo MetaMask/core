@@ -1,3 +1,5 @@
+import { SUBSCRIPTION_STATUSES } from './types';
+
 export const controllerName = 'SubscriptionController';
 
 export enum Env {
@@ -40,6 +42,15 @@ export enum SubscriptionControllerErrorMessage {
   UserAlreadySubscribed = `${controllerName} - User is already subscribed`,
   UserNotSubscribed = `${controllerName} - User is not subscribed`,
   SubscriptionProductsEmpty = `${controllerName} - Subscription products array cannot be empty`,
+  PaymentTokenAddressAndSymbolRequiredForCrypto = `${controllerName} - Payment token address and symbol are required for crypto payment`,
+  PaymentMethodNotCrypto = `${controllerName} - Payment method is not crypto`,
+  ProductPriceNotFound = `${controllerName} - Product price not found`,
 }
 
 export const DEFAULT_POLLING_INTERVAL = 5 * 60 * 1_000; // 5 minutes
+
+export const ACTIVE_SUBSCRIPTION_STATUSES = [
+  SUBSCRIPTION_STATUSES.active,
+  SUBSCRIPTION_STATUSES.trialing,
+  SUBSCRIPTION_STATUSES.provisional,
+] as string[];

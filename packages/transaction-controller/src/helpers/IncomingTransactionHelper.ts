@@ -45,6 +45,8 @@ export class IncomingTransactionHelper {
 
   #isRunning: boolean;
 
+  #isUpdating: boolean;
+
   readonly #messenger: TransactionControllerMessenger;
 
   readonly #remoteTransactionSource: RemoteTransactionSource;
@@ -88,6 +90,7 @@ export class IncomingTransactionHelper {
     this.#includeTokenTransfers = includeTokenTransfers;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
+    this.#isUpdating = false;
     this.#messenger = messenger;
     this.#remoteTransactionSource = remoteTransactionSource;
     this.#trimTransactions = trimTransactions;
@@ -109,6 +112,10 @@ export class IncomingTransactionHelper {
 
     this.#isRunning = true;
 
+    if (this.#isUpdating) {
+      return;
+    }
+
     this.#onInterval().catch((error) => {
       log('Initial polling failed', error);
     });
@@ -129,13 +136,21 @@ export class IncomingTransactionHelper {
   }
 
   async #onInterval() {
+    this.#isUpdating = true;
+
     try {
       await this.update({ isInterval: true });
     } catch (error) {
       console.error('Error while checking incoming transactions', error);
     }
 
+    this.#isUpdating = false;
+
     if (this.#isRunning) {
+      if (this.#timeoutId) {
+        clearTimeout(this.#timeoutId as number);
+      }
+
       this.#timeoutId = setTimeout(
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         () => this.#onInterval(),

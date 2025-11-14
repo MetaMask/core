@@ -3,9 +3,14 @@ import type {
   AccountsControllerGetStateAction,
   AccountsControllerState,
 } from '@metamask/accounts-controller';
-import { Messenger } from '@metamask/base-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  type MessengerActions,
+  type MockAnyNamespace,
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+} from '@metamask/messenger';
 import type {
   AutoManagedNetworkClient,
   CustomNetworkClientConfiguration,
@@ -49,6 +54,10 @@ const REQUEST_MOCK = {
   params: [SEND_CALLS_MOCK],
 } as JsonRpcRequest<SendCallsParams> & { networkClientId: string };
 
+type AllActions = MessengerActions<EIP5792Messenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions>;
+
 describe('EIP-5792', () => {
   const addTransactionBatchMock: jest.MockedFn<
     TransactionController['addTransactionBatch']
@@ -84,7 +93,9 @@ describe('EIP-5792', () => {
 
   const isAuxiliaryFundsSupportedMock: jest.Mock = jest.fn();
 
-  let messenger: EIP5792Messenger;
+  let rootMessenger: RootMessenger;
+
+  let messenger: Messenger<'EIP5792', AllActions, never, RootMessenger>;
 
   const sendCallsHooks = {
     addTransactionBatch: addTransactionBatchMock,
@@ -99,22 +110,41 @@ describe('EIP-5792', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    messenger = new Messenger();
+    rootMessenger = new Messenger<MockAnyNamespace, AllActions>({
+      namespace: MOCK_ANY_NAMESPACE,
+    });
 
-    messenger.registerActionHandler(
+    rootMessenger.registerActionHandler(
       'NetworkController:getNetworkClientById',
       getNetworkClientByIdMock,
     );
 
-    messenger.registerActionHandler(
+    rootMessenger.registerActionHandler(
       'AccountsController:getSelectedAccount',
       getSelectedAccountMock,
     );
 
-    messenger.registerActionHandler(
+    rootMessenger.registerActionHandler(
       'AccountsController:getState',
       getAccountsStateMock,
     );
+
+    messenger = new Messenger({
+      namespace: 'EIP5792',
+      parent: rootMessenger,
+    });
+
+    rootMessenger.delegate({
+      messenger,
+      actions: [
+        'AccountsController:getState',
+        'AccountsController:getSelectedAccount',
+        'PreferencesController:getState',
+        'NetworkController:getNetworkClientById',
+        'NetworkController:getState',
+        'TransactionController:getState',
+      ],
+    });
 
     getNetworkClientByIdMock.mockReturnValue({
       configuration: {

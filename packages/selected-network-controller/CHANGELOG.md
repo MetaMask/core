@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
+  - The controller expects a network client with an `InternalProvider` instead of a `SafeEventEmitterProvider`.
+
+## [25.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6500](https://github.com/MetaMask/core/pull/6500))
+  - Previously, `SelectedNetworkController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6500](https://github.com/MetaMask/core/pull/6500))
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/permission-controller` from `^11.0.0` to `^12.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [24.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
 - Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
 
 ## [24.0.1]
@@ -393,7 +412,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@24.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@25.0.0...HEAD
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@24.0.2...@metamask/selected-network-controller@25.0.0
+[24.0.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@24.0.1...@metamask/selected-network-controller@24.0.2
 [24.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@24.0.0...@metamask/selected-network-controller@24.0.1
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@23.0.0...@metamask/selected-network-controller@24.0.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@22.1.0...@metamask/selected-network-controller@23.0.0

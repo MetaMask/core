@@ -1,9 +1,9 @@
-import { BaseController } from '@metamask/base-controller';
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedMessenger,
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
 } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type {
@@ -18,7 +18,7 @@ import {
 
 // === GENERAL ===
 
-export const controllerName = 'RemoteFeatureFlagController';
+const controllerName = 'RemoteFeatureFlagController';
 export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
 
 // === STATE ===
@@ -32,13 +32,13 @@ const remoteFeatureFlagControllerMetadata = {
   remoteFeatureFlags: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   cacheTimestamp: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
 };
@@ -63,8 +63,6 @@ export type RemoteFeatureFlagControllerActions =
   | RemoteFeatureFlagControllerGetStateAction
   | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction;
 
-export type AllowedActions = never;
-
 export type RemoteFeatureFlagControllerStateChangeEvent =
   ControllerStateChangeEvent<
     typeof controllerName,
@@ -74,14 +72,10 @@ export type RemoteFeatureFlagControllerStateChangeEvent =
 export type RemoteFeatureFlagControllerEvents =
   RemoteFeatureFlagControllerStateChangeEvent;
 
-export type AllowedEvents = never;
-
-export type RemoteFeatureFlagControllerMessenger = RestrictedMessenger<
+export type RemoteFeatureFlagControllerMessenger = Messenger<
   typeof controllerName,
-  RemoteFeatureFlagControllerActions | AllowedActions,
-  RemoteFeatureFlagControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  RemoteFeatureFlagControllerActions,
+  RemoteFeatureFlagControllerEvents
 >;
 
 /**
@@ -115,7 +109,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   #inProgressFlagUpdate?: Promise<ServiceResponse>;
 
-  #getMetaMetricsId: () => string;
+  readonly #getMetaMetricsId: () => string;
 
   /**
    * Constructs a new RemoteFeatureFlagController instance.
@@ -163,7 +157,6 @@ export class RemoteFeatureFlagController extends BaseController<
    * Checks if the cached feature flags are expired based on the fetch interval.
    *
    * @returns Whether the cache is expired (`true`) or still valid (`false`).
-   * @private
    */
   #isCacheExpired(): boolean {
     return Date.now() - this.state.cacheTimestamp > this.#fetchInterval;
@@ -203,7 +196,6 @@ export class RemoteFeatureFlagController extends BaseController<
    * Updates the controller's state with new feature flags and resets the cache timestamp.
    *
    * @param remoteFeatureFlags - The new feature flags to cache.
-   * @private
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags) {
     const processedRemoteFeatureFlags =

@@ -283,6 +283,7 @@ export type SignUserOperationResponse = {
 export type SmartContractAccount = {
   /**
    * Retrieve the initial values required to create a user operation.
+   *
    * @param request - The data needed by the smart contract account to provide the initial user operation values.
    * @returns The initial values required to create a user operation.
    */
@@ -293,6 +294,7 @@ export type SmartContractAccount = {
   /**
    * Retrieve additional data required to create a user operation, such as the paymasterAndData value.
    * If gas values were not provided in the prepare response, this will be called after estimating gas using the bundler.
+   *
    * @param request - The data needed by the smart contract account to provide the additional user operation values.
    * @returns The additional values required to create a user operation.
    */
@@ -302,6 +304,7 @@ export type SmartContractAccount = {
 
   /**
    * Sign the final user operation.
+   *
    * @param request - The data needed by the smart contract account to generate the signature.
    * @returns The final values required to sign a user operation.
    */

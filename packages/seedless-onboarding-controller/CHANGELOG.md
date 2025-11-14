@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `SeedlessOnboardingController` now accepts an optional `SupportedKeyDerivationOptions` type parameter ([#7127](https://github.com/MetaMask/core/pull/7127))
+  - The type parameter can be used to specify which key derivation algorithms are supported by the controller instance.
+
+## [6.1.0]
+
+### Changed
+
+- Revert `revokeToken` value as optional in `authenticate` method. ([#7012](https://github.com/MetaMask/core/pull/7012))
+- Renamed `checkIsSeedlessOnboardingUserAuthenticated` to `getIsUserAuthenticated`. ([#7012](https://github.com/MetaMask/core/pull/7012))
+
+### Fixed
+
+- Fixed `InvalidRevokeToken` issue in `refreshAuthTokens` method. ([#7012](https://github.com/MetaMask/core/pull/7012))
+
+## [6.0.0]
+
+### Added
+
+- Added new public method, `checkIsSeedlessOnboardingUserAuthenticated` to validate the controller authenticate tokens state. ([#6998](https://github.com/MetaMask/core/pull/6998))
+
+### Changed
+
+- **BREAKING** Update `refreshToken` and `revokeToken` params as required in `Authenticate` method. ([#6998](https://github.com/MetaMask/core/pull/6998))
+- Refactor `refreshAuthTokens` method, separately catch refreshJWTToken and authenticate errors. ([#6998](https://github.com/MetaMask/core/pull/6998))
+- Bump `@metamask/toprf-secure-backup` package to `0.10.0`. ([#6998](https://github.com/MetaMask/core/pull/6998))
+
+### Fixed
+
+- Fixed `Invalid Access Token` error during rehydration. ([#6998](https://github.com/MetaMask/core/pull/6998))
+
+## [5.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6364](https://github.com/MetaMask/core/pull/6364))
+  - Previously, `SeedlessOnboardingController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6364](https://github.com/MetaMask/core/pull/6364))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^23.0.0` to `^24.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [4.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
 ## [4.1.0]
 
 ### Added
@@ -186,7 +234,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@6.1.0...HEAD
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@6.0.0...@metamask/seedless-onboarding-controller@6.1.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@5.0.0...@metamask/seedless-onboarding-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.1.1...@metamask/seedless-onboarding-controller@5.0.0
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.1.0...@metamask/seedless-onboarding-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@4.0.0...@metamask/seedless-onboarding-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@3.0.0...@metamask/seedless-onboarding-controller@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.6.0...@metamask/seedless-onboarding-controller@3.0.0

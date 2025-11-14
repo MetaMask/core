@@ -1,9 +1,16 @@
-import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import {
+  JsonRpcEngineV2,
+  type JsonRpcMiddleware,
+  type MiddlewareContext,
+  type ResultConstraint,
+} from '@metamask/json-rpc-engine/v2';
+import type { Provider } from '@metamask/network-controller';
 import type {
   Json,
   JsonRpcId,
   JsonRpcParams,
+  JsonRpcRequest,
   JsonRpcResponse,
   JsonRpcVersion2,
 } from '@metamask/utils';
@@ -91,23 +98,35 @@ type FakeProviderEngineOptions = {
   stubs?: FakeProviderStub[];
 };
 
+type Context = MiddlewareContext<
+  { origin: string; skipCache: boolean } & Record<string, unknown>
+>;
+type Middleware = JsonRpcMiddleware<
+  JsonRpcRequest,
+  ResultConstraint<JsonRpcRequest>,
+  Context
+>;
+
 /**
  * An implementation of the provider that NetworkController exposes, which is
- * actually an instance of SafeEventEmitterProvider (from the
+ * actually an instance of InternalProvider (from the
  * `@metamask/eth-json-rpc-provider` package). Hence it supports the same
- * interface as SafeEventEmitterProvider, except that fake responses for any RPC
+ * interface as InternalProvider, except that fake responses for any RPC
  * methods that are accessed can be supplied via an API that is more succinct
  * than using Jest's mocking API.
  */
 // NOTE: We shouldn't need to extend from the "real" provider here, but
-// we'd need a `SafeEventEmitterProvider` _interface_ and that doesn't exist (at
+// we'd need a `InternalProvider` _interface_ and that doesn't exist (at
 // least not yet).
-export class FakeProvider extends SafeEventEmitterProvider {
+export class FakeProvider
+  extends InternalProvider<Context>
+  implements Provider
+{
   calledStubs: FakeProviderStub[];
 
-  #originalStubs: FakeProviderStub[];
+  readonly #originalStubs: FakeProviderStub[];
 
-  #stubs: FakeProviderStub[];
+  readonly #stubs: FakeProviderStub[];
 
   /**
    * Makes a new instance of the fake provider.
@@ -117,7 +136,15 @@ export class FakeProvider extends SafeEventEmitterProvider {
    * of specific invocations of `request` matching a `method`.
    */
   constructor({ stubs = [] }: FakeProviderEngineOptions = {}) {
-    super({ engine: new JsonRpcEngine() });
+    super({
+      engine: JsonRpcEngineV2.create<Middleware>({
+        middleware: [
+          () => {
+            throw new Error('FakeProvider received unstubbed method call');
+          },
+        ],
+      }),
+    });
     this.#originalStubs = stubs;
     this.#stubs = this.#originalStubs.slice();
     this.calledStubs = [];

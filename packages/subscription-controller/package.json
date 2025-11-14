@@ -1,6 +1,6 @@
 {
   "name": "@metamask/subscription-controller",
-  "version": "2.0.0",
+  "version": "4.2.2",
   "description": "Handle user subscription",
   "keywords": [
     "MetaMask",
@@ -36,25 +36,30 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/subscription-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/subscription-controller",
-    "since-latest-release": "../../scripts/since-latest-release.sh",
     "publish:preview": "yarn npm publish --tag preview",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.4.1",
-    "@metamask/controller-utils": "^11.14.1",
-    "@metamask/polling-controller": "^14.0.1",
-    "@metamask/utils": "^11.8.1"
+    "@metamask/base-controller": "^9.0.0",
+    "@metamask/controller-utils": "^11.15.0",
+    "@metamask/messenger": "^0.3.0",
+    "@metamask/polling-controller": "^15.0.0",
+    "@metamask/transaction-controller": "^61.3.0",
+    "@metamask/utils": "^11.8.1",
+    "bignumber.js": "^9.1.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/profile-sync-controller": "^25.1.1",
+    "@metamask/profile-sync-controller": "^26.0.0",
+    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -62,10 +67,10 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "peerDependencies": {
-    "@metamask/profile-sync-controller": "^25.0.0"
+    "@metamask/profile-sync-controller": "^26.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

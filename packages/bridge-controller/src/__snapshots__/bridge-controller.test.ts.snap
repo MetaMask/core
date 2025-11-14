@@ -369,13 +369,6 @@ Array [
 exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the QuotesReceived event 1`] = `
 Array [
   Array [
-    "NetworkController:getState",
-  ],
-  Array [
-    "NetworkController:getNetworkClientById",
-    "selectedNetworkClientId",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0x123",
   ],

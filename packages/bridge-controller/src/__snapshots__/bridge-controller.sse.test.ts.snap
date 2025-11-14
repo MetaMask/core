@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`BridgeController SSE should publish validation failures 3`] = `
+exports[`BridgeController SSE should publish validation failures 4`] = `
 Array [
   Array [
     "Unified SwapBridge Quotes Failed Validation",
@@ -18,6 +18,21 @@ Array [
         "lifi|trade.gasLimit",
         "lifi|trade.unsignedPsbtBase64",
         "lifi|trade.inputsToSign",
+        "lifi|trade.raw_data_hex",
+      ],
+      "refresh_count": 1,
+      "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "token_address_source": "eip155:1/slip44:60",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Quotes Failed Validation",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "eip155:1",
+      "failures": Array [
+        "unknown|unknown",
       ],
       "refresh_count": 1,
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
@@ -33,7 +48,7 @@ Array [
       "failures": Array [
         "unknown|quote",
       ],
-      "refresh_count": 2,
+      "refresh_count": 1,
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
     },
@@ -120,6 +135,114 @@ Array [
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
       "error_message": "Network error",
+      "has_sufficient_funds": true,
+      "is_hardware_wallet": false,
+      "security_warnings": Array [],
+      "slippage_limit": 0.5,
+      "stx_enabled": true,
+      "swap_type": "crosschain",
+      "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
+      "warnings": Array [],
+    },
+  ],
+]
+`;
+
+exports[`BridgeController SSE should rethrow error from server 1`] = `
+Object {
+  "assetExchangeRates": Object {
+    "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": Object {
+      "exchangeRate": undefined,
+      "usdExchangeRate": "100",
+    },
+  },
+  "minimumBalanceForRentExemptionInLamports": "0",
+  "quoteFetchError": null,
+  "quoteRequest": Object {
+    "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+    "destTokenAddress": "123d1",
+    "destWalletAddress": "SolanaWalletAddres1234",
+    "insufficientBal": false,
+    "slippage": 0.5,
+    "srcChainId": "0x1",
+    "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+    "srcTokenAmount": "1000000000000000000",
+    "walletAddress": "0x30E8ccaD5A980BDF30447f8c2C48e70989D9d294",
+  },
+  "quotes": Array [],
+  "quotesInitialLoadTime": null,
+  "quotesLoadingStatus": 0,
+  "quotesRefreshCount": 0,
+}
+`;
+
+exports[`BridgeController SSE should rethrow error from server 3`] = `
+Array [
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "input": "chain_source",
+      "input_value": "eip155:1",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "input": "chain_destination",
+      "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "input": "token_destination",
+      "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "input": "slippage",
+      "input_value": 0.5,
+    },
+  ],
+  Array [
+    "Unified SwapBridge Quotes Requested",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "eip155:1",
+      "custom_slippage": true,
+      "has_sufficient_funds": true,
+      "is_hardware_wallet": false,
+      "security_warnings": Array [],
+      "slippage_limit": 0.5,
+      "stx_enabled": true,
+      "swap_type": "crosschain",
+      "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
+      "warnings": Array [],
+    },
+  ],
+  Array [
+    "Unified SwapBridge Quotes Error",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "eip155:1",
+      "custom_slippage": true,
+      "error_message": "Bridge-api error: timeout from server",
       "has_sufficient_funds": true,
       "is_hardware_wallet": false,
       "security_warnings": Array [],

@@ -1,7 +1,6 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type {
   QuoteResponse,
-  TxData,
   QuoteMetadata,
   QuoteFetchData,
 } from '@metamask/bridge-controller';
@@ -146,7 +145,7 @@ export const getRequestParamFromHistory = (
 };
 
 export const getTradeDataFromQuote = (
-  quoteResponse: QuoteResponse<TxData | string> & Partial<QuoteMetadata>,
+  quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
 ): TradeData => {
   return {
     usd_quoted_gas: Number(quoteResponse.gasFee?.effective?.usd ?? 0),
@@ -176,7 +175,7 @@ export const getPriceImpactFromQuote = (
  * @returns The properties for the pre-confirmation event
  */
 export const getPreConfirmationPropertiesFromQuote = (
-  quoteResponse: QuoteResponse<TxData | string> & Partial<QuoteMetadata>,
+  quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
   isStxEnabledOnClient: boolean,
   isHardwareAccount: boolean,
 ) => {

@@ -1,4 +1,4 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { InfuraNetworkType } from '@metamask/controller-utils';
 import type { AnyAccountType } from '@metamask/keyring-api';
 import {
@@ -12,6 +12,13 @@ import {
   EthScope,
   TrxAccountType,
 } from '@metamask/keyring-api';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type {
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
@@ -26,13 +33,7 @@ import { createMockInternalAccount } from '../../tests/utils';
 import { type ActiveNetworksResponse } from '../api/accounts-api';
 import { getDefaultMultichainNetworkControllerState } from '../constants';
 import type { AbstractMultichainNetworkService } from '../MultichainNetworkService/AbstractMultichainNetworkService';
-import {
-  type AllowedActions,
-  type AllowedEvents,
-  type MultichainNetworkControllerAllowedActions,
-  type MultichainNetworkControllerAllowedEvents,
-  MULTICHAIN_NETWORK_CONTROLLER_NAME,
-} from '../types';
+import type { MultichainNetworkControllerMessenger } from '../types';
 
 // We exclude the generic account type, since it's used for testing purposes.
 type TestKeyringAccountType = Exclude<
@@ -54,6 +55,32 @@ function createMockNetworkService(
       .fn<Promise<ActiveNetworksResponse>, [CaipAccountId[]]>()
       .mockResolvedValue(mockResponse),
   };
+}
+
+const controllerName = 'MultichainNetworkController';
+
+type AllMultichainNetworkControllerActions =
+  MessengerActions<MultichainNetworkControllerMessenger>;
+
+type AllMultichainNetworkControllerEvents =
+  MessengerEvents<MultichainNetworkControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllMultichainNetworkControllerActions,
+  AllMultichainNetworkControllerEvents,
+  RootMessenger
+>;
+
+/**
+ * Creates and returns a root messenger for testing
+ *
+ * @returns A messenger instance
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 }
 
 /**
@@ -103,12 +130,7 @@ function setupController({
   >;
   mockNetworkService?: AbstractMultichainNetworkService;
 } = {}) {
-  const messenger = new Messenger<
-    MultichainNetworkControllerAllowedActions,
-    MultichainNetworkControllerAllowedEvents
-  >();
-
-  const publishSpy = jest.spyOn(messenger, 'publish');
+  const messenger = getRootMessenger();
 
   // Register action handlers
   const mockGetNetworkState =
@@ -168,13 +190,19 @@ function setupController({
     mockFindNetworkClientIdByChainId,
   );
 
-  const controllerMessenger = messenger.getRestricted<
-    typeof MULTICHAIN_NETWORK_CONTROLLER_NAME,
-    AllowedActions['type'],
-    AllowedEvents['type']
+  const controllerMessenger = new Messenger<
+    typeof controllerName,
+    AllMultichainNetworkControllerActions,
+    AllMultichainNetworkControllerEvents,
+    RootMessenger
   >({
-    name: MULTICHAIN_NETWORK_CONTROLLER_NAME,
-    allowedActions: [
+    namespace: controllerName,
+    parent: messenger,
+  });
+
+  messenger.delegate({
+    messenger: controllerMessenger,
+    actions: [
       'NetworkController:setActiveNetwork',
       'NetworkController:getState',
       'NetworkController:removeNetwork',
@@ -182,7 +210,7 @@ function setupController({
       'NetworkController:findNetworkClientIdByChainId',
       'AccountsController:listMultichainAccounts',
     ],
-    allowedEvents: ['AccountsController:selectedAccountChange'],
+    events: ['AccountsController:selectedAccountChange'],
   });
 
   const defaultNetworkService = createMockNetworkService();
@@ -223,6 +251,8 @@ function setupController({
     });
     messenger.publish('AccountsController:selectedAccountChange', mockAccount);
   };
+
+  const publishSpy = jest.spyOn(controllerMessenger, 'publish');
 
   return {
     messenger,
@@ -662,7 +692,7 @@ describe('MultichainNetworkController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
         Object {

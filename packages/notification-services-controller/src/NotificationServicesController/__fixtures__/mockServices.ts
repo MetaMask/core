@@ -49,7 +49,7 @@ export const mockGetOnChainNotificationsConfig = (mockReply?: MockReply) => {
   return mockEndpoint;
 };
 
-export const mockGetOnChainNotifications = (mockReply?: MockReply) => {
+export const mockGetAPINotifications = (mockReply?: MockReply) => {
   const mockResponse = getMockListNotificationsResponse();
   const reply = mockReply ?? { status: 200, body: mockResponse.response };
 

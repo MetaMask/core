@@ -1,18 +1,14 @@
-import { Messenger } from '@metamask/base-controller';
 import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
 
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import * as createNetworkClientModule from './create-network-client';
-import type {
-  NetworkControllerActions,
-  NetworkControllerEvents,
-} from './NetworkController';
 import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
 } from './types';
 import { NetworkClientType } from './types';
 import { mockNetwork } from '../../../tests/mock-network';
+import { buildNetworkControllerMessenger } from '../tests/helpers';
 
 describe('createAutoManagedNetworkClient', () => {
   const networkClientConfigurations: [
@@ -44,7 +40,7 @@ describe('createAutoManagedNetworkClient', () => {
             fetch,
             btoa,
           }),
-          messenger: getNetworkControllerMessenger(),
+          messenger: buildNetworkControllerMessenger(),
           isRpcFailoverEnabled: false,
         });
 
@@ -60,7 +56,7 @@ describe('createAutoManagedNetworkClient', () => {
               fetch,
               btoa,
             }),
-            messenger: getNetworkControllerMessenger(),
+            messenger: buildNetworkControllerMessenger(),
             isRpcFailoverEnabled: false,
           });
         }).not.toThrow();
@@ -73,26 +69,11 @@ describe('createAutoManagedNetworkClient', () => {
             fetch,
             btoa,
           }),
-          messenger: getNetworkControllerMessenger(),
+          messenger: buildNetworkControllerMessenger(),
           isRpcFailoverEnabled: false,
         });
 
         // This also tests the `has` trap in the proxy
-        expect('addListener' in provider).toBe(true);
-        expect('on' in provider).toBe(true);
-        expect('once' in provider).toBe(true);
-        expect('removeListener' in provider).toBe(true);
-        expect('off' in provider).toBe(true);
-        expect('removeAllListeners' in provider).toBe(true);
-        expect('setMaxListeners' in provider).toBe(true);
-        expect('getMaxListeners' in provider).toBe(true);
-        expect('listeners' in provider).toBe(true);
-        expect('rawListeners' in provider).toBe(true);
-        expect('emit' in provider).toBe(true);
-        expect('listenerCount' in provider).toBe(true);
-        expect('prependListener' in provider).toBe(true);
-        expect('prependOnceListener' in provider).toBe(true);
-        expect('eventNames' in provider).toBe(true);
         expect('send' in provider).toBe(true);
         expect('sendAsync' in provider).toBe(true);
         expect('request' in provider).toBe(true);
@@ -121,7 +102,7 @@ describe('createAutoManagedNetworkClient', () => {
               fetch,
               btoa,
             }),
-            messenger: getNetworkControllerMessenger(),
+            messenger: buildNetworkControllerMessenger(),
             isRpcFailoverEnabled: false,
           });
 
@@ -161,7 +142,7 @@ describe('createAutoManagedNetworkClient', () => {
           const getBlockTrackerOptions = () => ({
             pollingInterval: 5000,
           });
-          const messenger = getNetworkControllerMessenger();
+          const messenger = buildNetworkControllerMessenger();
 
           const { provider } = createAutoManagedNetworkClient({
             networkClientConfiguration,
@@ -220,7 +201,7 @@ describe('createAutoManagedNetworkClient', () => {
           const getBlockTrackerOptions = () => ({
             pollingInterval: 5000,
           });
-          const messenger = getNetworkControllerMessenger();
+          const messenger = buildNetworkControllerMessenger();
 
           const autoManagedNetworkClient = createAutoManagedNetworkClient({
             networkClientConfiguration,
@@ -288,7 +269,7 @@ describe('createAutoManagedNetworkClient', () => {
           const getBlockTrackerOptions = () => ({
             pollingInterval: 5000,
           });
-          const messenger = getNetworkControllerMessenger();
+          const messenger = buildNetworkControllerMessenger();
 
           const autoManagedNetworkClient = createAutoManagedNetworkClient({
             networkClientConfiguration,
@@ -337,7 +318,7 @@ describe('createAutoManagedNetworkClient', () => {
             fetch,
             btoa,
           }),
-          messenger: getNetworkControllerMessenger(),
+          messenger: buildNetworkControllerMessenger(),
           isRpcFailoverEnabled: false,
         });
 
@@ -396,7 +377,7 @@ describe('createAutoManagedNetworkClient', () => {
               fetch,
               btoa,
             }),
-            messenger: getNetworkControllerMessenger(),
+            messenger: buildNetworkControllerMessenger(),
             isRpcFailoverEnabled: false,
           });
 
@@ -457,7 +438,7 @@ describe('createAutoManagedNetworkClient', () => {
           const getBlockTrackerOptions = () => ({
             pollingInterval: 5000,
           });
-          const messenger = getNetworkControllerMessenger();
+          const messenger = buildNetworkControllerMessenger();
 
           const { blockTracker } = createAutoManagedNetworkClient({
             networkClientConfiguration,
@@ -512,7 +493,7 @@ describe('createAutoManagedNetworkClient', () => {
           const getBlockTrackerOptions = () => ({
             pollingInterval: 5000,
           });
-          const messenger = getNetworkControllerMessenger();
+          const messenger = buildNetworkControllerMessenger();
 
           const autoManagedNetworkClient = createAutoManagedNetworkClient({
             networkClientConfiguration,
@@ -574,7 +555,7 @@ describe('createAutoManagedNetworkClient', () => {
           const getBlockTrackerOptions = () => ({
             pollingInterval: 5000,
           });
-          const messenger = getNetworkControllerMessenger();
+          const messenger = buildNetworkControllerMessenger();
 
           const autoManagedNetworkClient = createAutoManagedNetworkClient({
             networkClientConfiguration,
@@ -632,7 +613,7 @@ describe('createAutoManagedNetworkClient', () => {
           fetch,
           btoa,
         }),
-        messenger: getNetworkControllerMessenger(),
+        messenger: buildNetworkControllerMessenger(),
         isRpcFailoverEnabled: false,
       });
       // Start the block tracker
@@ -646,19 +627,3 @@ describe('createAutoManagedNetworkClient', () => {
     });
   }
 });
-
-/**
- * Constructs a NetworkController messenger.
- *
- * @returns The NetworkController messenger.
- */
-function getNetworkControllerMessenger() {
-  return new Messenger<
-    NetworkControllerActions,
-    NetworkControllerEvents
-  >().getRestricted({
-    name: 'NetworkController',
-    allowedActions: [],
-    allowedEvents: [],
-  });
-}

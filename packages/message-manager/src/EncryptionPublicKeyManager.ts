@@ -1,16 +1,16 @@
 import type {
-  ActionConstraint,
-  EventConstraint,
-  RestrictedMessenger,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 
 import type {
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   MessageManagerState,
-  OriginalRequest,
+  MessageRequest,
   SecurityProviderRequest,
 } from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
@@ -31,14 +31,23 @@ export type EncryptionPublicKeyManagerUpdateBadgeEvent = {
   payload: [];
 };
 
-export type EncryptionPublicKeyManagerMessenger = RestrictedMessenger<
+type EncryptionPublicKeyManagerActions = ControllerGetStateAction<
   typeof managerName,
-  ActionConstraint,
-  | EventConstraint
+  EncryptionPublicKeyManagerState
+>;
+
+type EncryptionPublicKeyManagerEvents =
+  | ControllerStateChangeEvent<
+      typeof managerName,
+      EncryptionPublicKeyManagerState
+    >
   | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent
-  | EncryptionPublicKeyManagerUpdateBadgeEvent,
-  string,
-  string
+  | EncryptionPublicKeyManagerUpdateBadgeEvent;
+
+export type EncryptionPublicKeyManagerMessenger = Messenger<
+  typeof managerName,
+  EncryptionPublicKeyManagerActions,
+  EncryptionPublicKeyManagerEvents
 >;
 
 type EncryptionPublicKeyManagerOptions = {
@@ -53,6 +62,7 @@ type EncryptionPublicKeyManagerOptions = {
  *
  * Represents and contains data about a 'eth_getEncryptionPublicKey' type request.
  * These are created when an encryption public key is requested.
+ *
  * @property id - An id to track and identify the message object
  * @property messageParams - The parameters to pass to the eth_getEncryptionPublicKey method once the request is approved
  * @property type - The json-prc method for which an encryption public key request has been made.
@@ -77,6 +87,7 @@ export type EncryptionPublicKeyParams = AbstractMessageParams;
  *
  * Represents the parameters to pass to the eth_getEncryptionPublicKey method once the request is approved
  * plus data added by MetaMask.
+ *
  * @property metamaskId - Added for tracking and identification within MetaMask
  * @property data - Encryption public key
  * @property from - Address from which to extract the encryption public key
@@ -95,10 +106,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
   EncryptionPublicKey,
   EncryptionPublicKeyParams,
   EncryptionPublicKeyParamsMetamask,
-  ActionConstraint,
-  | EventConstraint
-  | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent
-  | EncryptionPublicKeyManagerUpdateBadgeEvent
+  EncryptionPublicKeyManagerMessenger
 > {
   constructor({
     additionalFinishStatuses,
@@ -125,7 +133,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
    */
   async addUnapprovedMessageAsync(
     messageParams: EncryptionPublicKeyParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ): Promise<string> {
     validateEncryptionPublicKeyMessageData(messageParams);
     const messageId = await this.addUnapprovedMessage(messageParams, req);
@@ -169,7 +177,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
    */
   async addUnapprovedMessage(
     messageParams: EncryptionPublicKeyParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ): Promise<string> {
     const updatedMessageParams = this.addRequestToMessageParams(
       messageParams,
@@ -185,7 +193,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
     const messageId = messageData.id;
 
     await this.addMessage(messageData);
-    this.messagingSystem.publish(`${this.name}:unapprovedMessage`, {
+    this.messenger.publish(`${this.name}:unapprovedMessage` as const, {
       ...updatedMessageParams,
       metamaskId: messageId,
     });

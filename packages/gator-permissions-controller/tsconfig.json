@@ -3,6 +3,10 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [{ "path": "../base-controller" }],
+  "references": [
+    { "path": "../base-controller" },
+    { "path": "../messenger" },
+    { "path": "../transaction-controller" }
+  ],
   "include": ["../../types", "./src"]
 }

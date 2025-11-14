@@ -2,7 +2,6 @@ import type { JSONRPCResponse } from '@json-rpc-specification/meta-schema';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import { BUILT_IN_NETWORKS } from '@metamask/controller-utils';
 import type { BlockTracker } from '@metamask/eth-block-tracker';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
 import nock, { isDone as nockIsDone } from 'nock';
@@ -11,7 +10,7 @@ import { useFakeTimers } from 'sinon';
 
 import { createNetworkClient } from '../../src/create-network-client';
 import type { NetworkControllerOptions } from '../../src/NetworkController';
-import type { NetworkClientConfiguration } from '../../src/types';
+import type { NetworkClientConfiguration, Provider } from '../../src/types';
 import { NetworkClientType } from '../../src/types';
 import type { RootMessenger } from '../helpers';
 import {
@@ -390,7 +389,7 @@ export async function withMockedCommunications(
 
 type MockNetworkClient = {
   blockTracker: BlockTracker;
-  provider: SafeEventEmitterProvider;
+  provider: Provider;
   clock: sinon.SinonFakeTimers;
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -431,8 +430,6 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
   let hasPromiseBeenFulfilled = false;
   let numTimesClockHasBeenAdvanced = 0;
 
-  // This is a mistake, we are catching this promise.
-  // eslint-disable-next-line promise/catch-or-return
   promise
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

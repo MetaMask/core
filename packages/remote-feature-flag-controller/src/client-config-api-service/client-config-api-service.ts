@@ -21,15 +21,15 @@ import type {
  * This service is responsible for fetching feature flags from the ClientConfig API.
  */
 export class ClientConfigApiService implements AbstractClientConfigApiService {
-  #fetch: typeof fetch;
+  readonly #fetch: typeof fetch;
 
   readonly #policy: ServicePolicy;
 
-  #client: ClientType;
+  readonly #client: ClientType;
 
-  #distribution: DistributionType;
+  readonly #distribution: DistributionType;
 
-  #environment: EnvironmentType;
+  readonly #environment: EnvironmentType;
 
   /**
    * Constructs a new ClientConfigApiService object.
@@ -172,6 +172,7 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
   /**
    * Fetches feature flags from the API with specific client, distribution, and environment parameters.
    * Provides structured error handling, including fallback to cached data if available.
+   *
    * @returns An object of feature flags and their boolean values or a structured error object.
    */
   public async fetchRemoteFeatureFlags(): Promise<ServiceResponse> {
@@ -203,6 +204,7 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
 
   /**
    * Flattens an array of feature flag objects into a single feature flags object.
+   *
    * @param responseData - Array of objects containing feature flag key-value pairs
    * @returns A single object containing all feature flags merged together
    * @example

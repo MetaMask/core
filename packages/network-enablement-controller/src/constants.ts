@@ -11,4 +11,5 @@ export const POPULAR_NETWORKS = [
   '0x144', // zkSync Era (324)
   '0x2a15c308d', // Palm (11297108109)
   '0x3e7', // HyperEVM (999)
+  '0x8f', // Monad (143)
 ];

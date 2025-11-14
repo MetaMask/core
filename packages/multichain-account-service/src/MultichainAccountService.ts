@@ -12,21 +12,28 @@ import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { areUint8ArraysEqual } from '@metamask/utils';
 
+import { traceFallback } from './analytics';
 import { projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import type {
   EvmAccountProviderConfig,
-  NamedAccountProvider,
-  SolAccountProviderConfig,
+  Bip44AccountProvider,
 } from './providers';
 import {
   AccountProviderWrapper,
   isAccountProviderWrapper,
 } from './providers/AccountProviderWrapper';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
-import { SolAccountProvider } from './providers/SolAccountProvider';
-import type { MultichainAccountServiceMessenger } from './types';
+import {
+  SolAccountProvider,
+  type SolAccountProviderConfig,
+} from './providers/SolAccountProvider';
+import type {
+  MultichainAccountServiceConfig,
+  MultichainAccountServiceMessenger,
+} from './types';
+import { createSentryError } from './utils';
 
 export const serviceName = 'MultichainAccountService';
 
@@ -35,11 +42,12 @@ export const serviceName = 'MultichainAccountService';
  */
 export type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
-  providers?: NamedAccountProvider[];
+  providers?: Bip44AccountProvider[];
   providerConfigs?: {
     [EvmAccountProvider.NAME]?: EvmAccountProviderConfig;
     [SolAccountProvider.NAME]?: SolAccountProviderConfig;
   };
+  config?: MultichainAccountServiceConfig;
 };
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
@@ -54,7 +62,7 @@ type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  readonly #providers: NamedAccountProvider[];
+  readonly #providers: Bip44AccountProvider[];
 
   readonly #wallets: Map<
     MultichainAccountWalletId,
@@ -79,28 +87,35 @@ export class MultichainAccountService {
    * MultichainAccountService.
    * @param options.providers - Optional list of account
    * @param options.providerConfigs - Optional provider configs
-   * providers.
+   * @param options.config - Optional config.
    */
   constructor({
     messenger,
     providers = [],
     providerConfigs,
+    config,
   }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
+
+    // Pass trace callback directly to preserve original 'this' context
+    // This avoids binding the callback to the MultichainAccountService instance
+    const traceCallback = config?.trace ?? traceFallback;
 
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
       new EvmAccountProvider(
         this.#messenger,
         providerConfigs?.[EvmAccountProvider.NAME],
+        traceCallback,
       ),
       new AccountProviderWrapper(
         this.#messenger,
         new SolAccountProvider(
           this.#messenger,
           providerConfigs?.[SolAccountProvider.NAME],
+          traceCallback,
         ),
       ),
       // Custom account providers that can be provided by the MetaMask client.
@@ -147,6 +162,10 @@ export class MultichainAccountService {
       'MultichainAccountService:createMultichainAccountWallet',
       (...args) => this.createMultichainAccountWallet(...args),
     );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:resyncAccounts',
+      (...args) => this.resyncAccounts(...args),
+    );
 
     this.#messenger.subscribe('AccountsController:accountAdded', (account) =>
       this.#handleOnAccountAdded(account),
@@ -160,7 +179,7 @@ export class MultichainAccountService {
    * Initialize the service and constructs the internal reprensentation of
    * multichain accounts and wallets.
    */
-  init(): void {
+  async init(): Promise<void> {
     log('Initializing...');
 
     this.#wallets.clear();
@@ -197,6 +216,50 @@ export class MultichainAccountService {
     }
 
     log('Initialized');
+  }
+
+  /**
+   * Re-synchronize MetaMask accounts and the providers accounts if needed.
+   *
+   * NOTE: This is mostly required if one of the providers (keyrings or Snaps)
+   * have different sets of accounts. This method would ensure that both are
+   * in-sync and use the same accounts (and same IDs).
+   *
+   * READ THIS CAREFULLY (State inconsistency bugs/de-sync)
+   * We've seen some problems were keyring accounts on some Snaps were not synchronized
+   * with the accounts on MM side. This causes problems where we cannot interact with
+   * those accounts because the Snap does know about them.
+   * To "workaround" this de-sync problem for now, we make sure that both parties are
+   * in-sync when the service boots up.
+   * ----------------------------------------------------------------------------------
+   */
+  async resyncAccounts(): Promise<void> {
+    log('Re-sync provider accounts if needed...');
+    const accounts = this.#messenger
+      .call('AccountsController:listMultichainAccounts')
+      .filter(isBip44Account);
+    // We use `Promise.all` + `try-catch` combo, since we don't wanna block the wallet
+    // from being used even if some accounts are not sync (best-effort).
+    await Promise.all(
+      this.#providers.map(async (provider) => {
+        try {
+          await provider.resyncAccounts(accounts);
+        } catch (error) {
+          const errorMessage = `Unable to re-sync provider "${provider.getName()}"`;
+          log(errorMessage);
+          console.error(errorMessage);
+
+          const sentryError = createSentryError(errorMessage, error as Error, {
+            provider: provider.getName(),
+          });
+          this.#messenger.call(
+            'ErrorReportingService:captureException',
+            sentryError,
+          );
+        }
+      }),
+    );
+    log('Providers got re-synced!');
   }
 
   #handleOnAccountAdded(account: KeyringAccount): void {

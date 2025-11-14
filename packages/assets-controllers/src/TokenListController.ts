@@ -1,9 +1,10 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
+  StateMetadata,
 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerStateChangeEvent,
   NetworkState,
@@ -68,25 +69,23 @@ type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
 
 type AllowedEvents = NetworkControllerStateChangeEvent;
 
-export type TokenListControllerMessenger = RestrictedMessenger<
+export type TokenListControllerMessenger = Messenger<
   typeof name,
   TokenListControllerActions | AllowedActions,
-  TokenListControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  TokenListControllerEvents | AllowedEvents
 >;
 
-const metadata = {
+const metadata: StateMetadata<TokenListState> = {
   tokensChainsCache: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   preventPollingOnNetworkRestart: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
 };
@@ -173,7 +172,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         await this.#onNetworkControllerStateChange(networkControllerState);
       });
     } else {
-      this.messagingSystem.subscribe(
+      this.messenger.subscribe(
         'NetworkController:stateChange',
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -191,7 +190,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @param networkControllerState - The updated network controller state.
    */
   async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
-    const selectedNetworkClient = this.messagingSystem.call(
+    const selectedNetworkClient = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkControllerState.selectedNetworkClientId,
     );
