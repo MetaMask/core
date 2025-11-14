@@ -6,7 +6,7 @@ import { BigNumber } from 'bignumber.js';
 
 import { getNativeToken, getTokenFiatRate } from './token';
 import type { TransactionPayControllerMessenger } from '..';
-import type { FiatValue } from '../types';
+import type { Amount } from '../types';
 
 /**
  *
@@ -14,14 +14,24 @@ import type { FiatValue } from '../types';
  *
  * @param transaction - Transaction to calculate gas cost for
  * @param messenger - Controller messenger.
+ * @param options - Calculation options.
+ * @param options.isMax - Whether to calculate the maximum fee.
  * @returns Estimated gas cost for the transaction.
  */
 export function calculateTransactionGasCost(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-): FiatValue {
-  const { chainId, gasUsed, gasLimitNoBuffer, txParams } = transaction;
+  { isMax }: { isMax?: boolean } = {},
+): Amount {
+  const {
+    chainId,
+    gasUsed: gasUsedOriginal,
+    gasLimitNoBuffer,
+    txParams,
+  } = transaction;
+
   const { gas, maxFeePerGas, maxPriorityFeePerGas } = txParams;
+  const gasUsed = isMax ? undefined : gasUsedOriginal;
   const finalGas = gasUsed || gasLimitNoBuffer || gas || '0x0';
 
   return calculateGasCost({
@@ -39,21 +49,25 @@ export function calculateTransactionGasCost(
  * @param request - Gas cost calculation parameters.
  * @param request.chainId - ID of the chain.
  * @param request.gas - Amount of gas the transaction will use.
+ * @param request.isMax - Whether to calculate the maximum fee.
  * @param request.maxFeePerGas - Max fee to pay per gas.
  * @param request.maxPriorityFeePerGas - Max priority fee to pay per gas.
  * @param request.messenger - Controller messenger.
+ 
  * @returns Estimated gas cost for the transaction.
  */
 export function calculateGasCost(request: {
   chainId: number | Hex;
   gas: BigNumber.Value;
+  isMax?: boolean;
   maxFeePerGas?: BigNumber.Value;
   maxPriorityFeePerGas?: BigNumber.Value;
   messenger: TransactionPayControllerMessenger;
-}): FiatValue {
+}): Amount {
   const {
     chainId: chainIdInput,
     gas,
+    isMax,
     maxFeePerGas: maxFeePerGasInput,
     maxPriorityFeePerGas: maxPriorityFeePerGasInput,
     messenger,
@@ -73,13 +87,15 @@ export function calculateGasCost(request: {
     maxPriorityFeePerGasInput || maxPriorityFeePerGasEstimate;
 
   const feePerGas =
-    estimatedBaseFee && maxPriorityFeePerGas
+    estimatedBaseFee && maxPriorityFeePerGas && !isMax
       ? new BigNumber(estimatedBaseFee).plus(maxPriorityFeePerGas)
       : new BigNumber(maxFeePerGas || '0x0');
 
-  const gasCostNative = new BigNumber(gas)
-    .multipliedBy(feePerGas)
-    .shiftedBy(-18);
+  const rawValue = new BigNumber(gas).multipliedBy(feePerGas);
+  const raw = rawValue.toString(10);
+
+  const humanValue = rawValue.shiftedBy(-18);
+  const human = humanValue.toString(10);
 
   const fiatRate = getTokenFiatRate(
     messenger,
@@ -91,12 +107,14 @@ export function calculateGasCost(request: {
     throw new Error('Could not fetch fiat rate for native token');
   }
 
-  const usd = gasCostNative.multipliedBy(fiatRate.usdRate).toString(10);
-  const fiat = gasCostNative.multipliedBy(fiatRate.fiatRate).toString(10);
+  const usd = humanValue.multipliedBy(fiatRate.usdRate).toString(10);
+  const fiat = humanValue.multipliedBy(fiatRate.fiatRate).toString(10);
 
   return {
-    usd,
     fiat,
+    human,
+    raw,
+    usd,
   };
 }
 
