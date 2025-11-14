@@ -295,7 +295,7 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].estimatedDuration).toBe(300);
     });
 
-    it('includes provider fee in quote', async () => {
+    it('includes provider fee from relayer fee', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as never);
@@ -309,6 +309,26 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].fees.provider).toStrictEqual({
         usd: '1.11',
         fiat: '2.22',
+      });
+    });
+
+    it('includes provider fee from usd change if greater', async () => {
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.details.currencyIn.amountUsd = '3.00';
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quote,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.provider).toStrictEqual({
+        usd: '1.77',
+        fiat: '3.54',
       });
     });
 
