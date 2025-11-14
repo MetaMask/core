@@ -11,6 +11,7 @@ import type {
 import {
   BNToHex,
   isValidHexAddress,
+  safelyExecuteWithTimeout,
   toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
@@ -32,6 +33,7 @@ import type {
   PreferencesControllerGetStateAction,
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { Hex } from '@metamask/utils';
 import {
   isCaipAssetType,
@@ -130,7 +132,8 @@ export type AllowedActions =
   | AccountsControllerListAccountsAction
   | AccountTrackerControllerGetStateAction
   | AccountTrackerUpdateNativeBalancesAction
-  | AccountTrackerUpdateStakedBalancesAction;
+  | AccountTrackerUpdateStakedBalancesAction
+  | AuthenticationController.AuthenticationControllerGetBearerToken;
 
 export type AllowedEvents =
   | TokensControllerStateChangeEvent
@@ -640,6 +643,14 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
     const allAccounts = this.messenger.call('AccountsController:listAccounts');
 
+    const jwtToken = await safelyExecuteWithTimeout<string | undefined>(
+      () => {
+        return this.messenger.call('AuthenticationController:getBearerToken');
+      },
+      false,
+      5000,
+    );
+
     const aggregated: ProcessedBalance[] = [];
     let remainingChains = [...targetChains];
 
@@ -658,6 +669,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           queryAllAccounts: queryAllAccounts ?? this.#queryAllAccounts,
           selectedAccount: selected as ChecksumAddress,
           allAccounts,
+          jwtToken,
         });
 
         if (result.balances && result.balances.length > 0) {
