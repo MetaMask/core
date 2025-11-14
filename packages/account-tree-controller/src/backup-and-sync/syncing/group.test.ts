@@ -239,7 +239,6 @@ describe('BackupAndSync - Syncing - Group', () => {
         async (
           options: Parameters<typeof metadataExports.compareAndSyncMetadata>[0],
         ) => {
-          /* eslint-disable jest/no-conditional-in-test */
           if (
             options.userStorageMetadata &&
             'value' in options.userStorageMetadata &&
@@ -249,7 +248,6 @@ describe('BackupAndSync - Syncing - Group', () => {
             applyNameUpdate = options.applyLocalUpdate;
           }
           return false;
-          /* eslint-enable jest/no-conditional-in-test */
         },
       );
 
@@ -265,7 +263,6 @@ describe('BackupAndSync - Syncing - Group', () => {
 
       expect(validateNameFunction).toBeDefined();
       expect(applyNameUpdate).toBeDefined();
-      /* eslint-disable jest/no-conditional-in-test */
       /* eslint-disable jest/no-conditional-expect */
       if (validateNameFunction) {
         expect(validateNameFunction('New Name')).toBe(true);
@@ -281,7 +278,6 @@ describe('BackupAndSync - Syncing - Group', () => {
           true,
         );
       }
-      /* eslint-enable jest/no-conditional-in-test */
       /* eslint-enable jest/no-conditional-expect */
     });
 
@@ -305,7 +301,6 @@ describe('BackupAndSync - Syncing - Group', () => {
         async (
           options: Parameters<typeof metadataExports.compareAndSyncMetadata>[0],
         ) => {
-          /* eslint-disable jest/no-conditional-in-test */
           if (
             options.userStorageMetadata &&
             'value' in options.userStorageMetadata &&
@@ -315,7 +310,6 @@ describe('BackupAndSync - Syncing - Group', () => {
             applyPinnedUpdate = options.applyLocalUpdate;
           }
           return false;
-          /* eslint-enable jest/no-conditional-in-test */
         },
       );
 
@@ -331,7 +325,6 @@ describe('BackupAndSync - Syncing - Group', () => {
 
       expect(validatePinnedFunction).toBeDefined();
       expect(applyPinnedUpdate).toBeDefined();
-      /* eslint-disable jest/no-conditional-in-test */
       /* eslint-disable jest/no-conditional-expect */
       if (validatePinnedFunction) {
         expect(validatePinnedFunction(true)).toBe(true);
@@ -346,7 +339,6 @@ describe('BackupAndSync - Syncing - Group', () => {
           mockContext.controller.setAccountGroupPinned,
         ).toHaveBeenCalledWith(mockLocalGroup.id, true);
       }
-      /* eslint-enable jest/no-conditional-in-test */
       /* eslint-enable jest/no-conditional-expect */
     });
 
@@ -370,7 +362,6 @@ describe('BackupAndSync - Syncing - Group', () => {
         async (
           options: Parameters<typeof metadataExports.compareAndSyncMetadata>[0],
         ) => {
-          /* eslint-disable jest/no-conditional-in-test */
           if (
             options.userStorageMetadata &&
             'value' in options.userStorageMetadata &&
@@ -380,7 +371,6 @@ describe('BackupAndSync - Syncing - Group', () => {
             applyHiddenUpdate = options.applyLocalUpdate;
           }
           return false;
-          /* eslint-enable jest/no-conditional-in-test */
         },
       );
 
@@ -396,7 +386,6 @@ describe('BackupAndSync - Syncing - Group', () => {
 
       expect(validateHiddenFunction).toBeDefined();
       expect(applyHiddenUpdate).toBeDefined();
-      /* eslint-disable jest/no-conditional-in-test */
       /* eslint-disable jest/no-conditional-expect */
       if (validateHiddenFunction) {
         expect(validateHiddenFunction(true)).toBe(true);
@@ -411,7 +400,6 @@ describe('BackupAndSync - Syncing - Group', () => {
           mockContext.controller.setAccountGroupHidden,
         ).toHaveBeenCalledWith(mockLocalGroup.id, false);
       }
-      /* eslint-enable jest/no-conditional-in-test */
       /* eslint-enable jest/no-conditional-expect */
     });
   });

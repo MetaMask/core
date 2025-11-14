@@ -1,0 +1,87 @@
+name: Check release
+description: Check for conflicts in packages being released in this PR.
+
+inputs:
+  pull-request:
+    description: 'The pull request number to get changed files from.'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get target reference
+      id: get-target
+      shell: bash
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+      run: |
+        if [ "$EVENT_NAME" = "pull_request" ]; then
+          echo "TARGET=$(git merge-base HEAD refs/remotes/origin/main)" >> "$GITHUB_OUTPUT"
+        elif [ "$EVENT_NAME" = "merge_group" ]; then
+          echo "TARGET=$(git rev-parse HEAD^)" >> "$GITHUB_OUTPUT"
+        else
+          echo "::error::This action only supports \`pull_request\` and \`merge_group\` events."
+          exit 1
+        fi
+
+    - name: Check commits for changes in released packages
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PULL_REQUEST: ${{ inputs.pull-request }}
+        TARGET: ${{ steps.get-target.outputs.TARGET }}
+      run: |
+        set -euo pipefail
+        git fetch origin main
+
+        mapfile -t PACKAGES < <(find packages -maxdepth 2 -name "package.json" -not -path "*/node_modules/*")
+        RELEASED_PACKAGES=()
+
+        # Get all packages being released in this PR
+        MERGE_BASE=$(git merge-base HEAD refs/remotes/origin/main)
+        for package in "${PACKAGES[@]}"; do
+          MAIN_VERSION=$(git show "$MERGE_BASE:$package" | jq -r .version)
+          HEAD_VERSION=$(jq -r .version "$package")
+
+          if [ "$HEAD_VERSION" != "$MAIN_VERSION" ]; then
+            package_name=$(jq -r ".name" "$package")
+            echo "📦 Package \`$package_name\` is being released (version \`$MAIN_VERSION\` -> \`$HEAD_VERSION\`)"
+            RELEASED_PACKAGES+=("$package")
+          fi
+        done
+
+        # Fetch the pull request branch to compare changes.
+        PULL_REQUEST_BRANCH=$(gh pr view "$PULL_REQUEST" --json headRefName --template "{{ .headRefName }}")
+        echo "🔍 Checking for release conflicts with files changed ahead of PR branch \`$PULL_REQUEST_BRANCH\`..."
+        git fetch origin "$PULL_REQUEST_BRANCH"
+
+        # Get all files changed ahead of this PR.
+        BEFORE=$(git merge-base "refs/remotes/origin/main" "origin/$PULL_REQUEST_BRANCH")
+        git diff --name-only "$BEFORE..$TARGET" > changed-files.txt
+
+        CONFLICTS=()
+        for package in "${RELEASED_PACKAGES[@]}"; do
+          package_directory=$(dirname "$package")
+          if grep -q "^$package_directory/" changed-files.txt; then
+            CONFLICTS+=("$package_directory")
+          fi
+        done
+
+        if [ ${#CONFLICTS[@]} -ne 0 ]; then
+          mapfile -t CONFLICTS < <(printf "%s\n" "${CONFLICTS[@]}" | sort -u)
+        fi
+
+        if [ ${#CONFLICTS[@]} -ne 0 ]; then
+          for conflict in "${CONFLICTS[@]}"; do
+            package_name=$(jq -r ".name" "$conflict/package.json")
+            echo "::error::Release conflict detected in \`$package_name\`. This package is being released in this PR, but files in the package were also modified ahead of this PR. Please ensure that all changes are included in the release."
+          done
+          exit 1
+        else
+          echo "✅ No release conflicts detected."
+        fi

@@ -11,7 +11,6 @@ describe('inflight cache', () => {
         createInflightCacheMiddleware(),
         async () => {
           hitCount += 1;
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (hitCount === 1) {
             await new Promise((resolve) => setTimeout(resolve, 100));
           }

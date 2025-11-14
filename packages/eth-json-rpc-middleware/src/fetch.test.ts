@@ -33,11 +33,9 @@ describe('createFetchMiddleware', () => {
       });
 
       const context = new MiddlewareContext<{ origin: string }>(
-        // eslint-disable-next-line jest/no-conditional-in-test
         origin ? { origin } : [],
       );
       const expectedHeaders =
-        // eslint-disable-next-line jest/no-conditional-in-test
         originHttpHeaderKey && origin ? { [originHttpHeaderKey]: origin } : {};
 
       await engine.handle(

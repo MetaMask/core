@@ -77,7 +77,7 @@ describe('TransactionPayController', () => {
       createController();
 
       expect(
-        await messenger.call(
+        messenger.call(
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
@@ -87,12 +87,12 @@ describe('TransactionPayController', () => {
     it('returns callback value if provided', async () => {
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
-        getStrategy: async () => TransactionPayStrategy.Test,
+        getStrategy: () => TransactionPayStrategy.Test,
         messenger,
       });
 
       expect(
-        await messenger.call(
+        messenger.call(
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),

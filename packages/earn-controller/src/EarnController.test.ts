@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-conditional-in-test */
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';

@@ -3348,7 +3348,6 @@ describe('NftController', () => {
 
       const { nftController } = setupController({
         getERC721TokenURI: jest.fn().mockImplementation((tokenAddress) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           switch (tokenAddress) {
             case '0x01':
               return 'https://testtokenuri-1.com';
@@ -3359,7 +3358,6 @@ describe('NftController', () => {
           }
         }),
         getERC1155TokenURI: jest.fn().mockImplementation((tokenAddress) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           switch (tokenAddress) {
             case '0x03':
               return 'https://testtokenuri-3.com';

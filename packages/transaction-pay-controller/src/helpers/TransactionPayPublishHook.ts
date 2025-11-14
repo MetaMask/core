@@ -68,7 +68,7 @@ export class TransactionPayPublishHook {
       return EMPTY_RESULT;
     }
 
-    const strategy = await getStrategy(this.#messenger, transactionMeta);
+    const strategy = getStrategy(this.#messenger, transactionMeta);
 
     return await strategy.execute({
       isSmartTransaction: this.#isSmartTransaction,

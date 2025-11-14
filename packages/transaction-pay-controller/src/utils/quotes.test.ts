@@ -114,7 +114,7 @@ describe('Quotes Utils', () => {
     jest.resetAllMocks();
     jest.clearAllTimers();
 
-    getStrategyMock.mockResolvedValue({
+    getStrategyMock.mockReturnValue({
       execute: jest.fn(),
       getQuotes: getQuotesMock,
       getBatchTransactions: getBatchTransactionsMock,

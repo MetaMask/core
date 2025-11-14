@@ -241,8 +241,6 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 > {
   readonly #subscriptionService: ISubscriptionService;
 
-  #shouldCallRefreshAuthToken: boolean = false;
-
   /**
    * Creates a new SubscriptionController instance.
    *
@@ -391,7 +389,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         state.trialedProducts = newTrialedProducts;
         state.lastSubscription = newLastSubscription;
       });
-      this.#shouldCallRefreshAuthToken = true;
+      // trigger access token refresh to ensure the user has the latest access token if subscription state change
+      this.triggerAccessTokenRefresh();
     }
 
     return newSubscriptions;
@@ -466,8 +465,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
     const response =
       await this.#subscriptionService.startSubscriptionWithCard(request);
-
-    this.triggerAccessTokenRefresh();
+    // note: no need to trigger access token refresh after startSubscriptionWithCard request because this only return stripe checkout session url, subscription not created yet
 
     return response;
   }
@@ -476,7 +474,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.#assertIsUserNotSubscribed({ products: request.products });
     const response =
       await this.#subscriptionService.startSubscriptionWithCrypto(request);
-    this.triggerAccessTokenRefresh();
+
     return response;
   }
 
@@ -730,10 +728,6 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
   async _executePoll(): Promise<void> {
     await this.getSubscriptions();
-    if (this.#shouldCallRefreshAuthToken) {
-      this.triggerAccessTokenRefresh();
-      this.#shouldCallRefreshAuthToken = false;
-    }
   }
 
   /**

@@ -95,8 +95,6 @@ export const isSupportedAccount = (
   const isSupportedNonEvmAccount = () =>
     getNonEvmAccountAddresses(chainId).includes(account);
 
-  // We are trying to discern the type of `namespace`.
-  /* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
   switch (namespace) {
     case KnownCaipNamespace.Wallet:
       if (reference === KnownCaipNamespace.Eip155) {
@@ -108,7 +106,6 @@ export const isSupportedAccount = (
     default:
       return isSupportedNonEvmAccount();
   }
-  /* eslint-enable @typescript-eslint/no-unsafe-enum-comparison */
 };
 
 /**
@@ -139,8 +136,6 @@ export const isSupportedMethod = (
     isCaipChainId(scopeString) &&
     getNonEvmSupportedMethods(scopeString).includes(method);
 
-  // We are trying to discern the type of `namespace`.
-  /* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
   if (namespace === KnownCaipNamespace.Wallet) {
     if (!reference) {
       return KnownWalletRpcMethods.includes(method);
@@ -156,7 +151,6 @@ export const isSupportedMethod = (
   if (namespace === KnownCaipNamespace.Eip155) {
     return KnownRpcMethods[namespace].includes(method);
   }
-  /* eslint-enable @typescript-eslint/no-unsafe-enum-comparison */
 
   return isSupportedNonEvmMethod();
 };

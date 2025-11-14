@@ -13,11 +13,11 @@ import type { PayStrategy, TransactionPayControllerMessenger } from '../types';
  * @param transaction - Transaction to get the strategy for.
  * @returns The payment strategy instance.
  */
-export async function getStrategy(
+export function getStrategy(
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
-): Promise<PayStrategy<unknown>> {
-  const strategyName = await messenger.call(
+): PayStrategy<unknown> {
+  const strategyName = messenger.call(
     'TransactionPayController:getStrategy',
     transaction,
   );

@@ -1896,7 +1896,6 @@ export class KeyringController<
       throw new Error(KeyringControllerError.KeyringNotFound);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
     if (keyring.type !== KeyringTypes.hd) {
       throw new Error(KeyringControllerError.UnsupportedVerifySeedPhrase);
     }

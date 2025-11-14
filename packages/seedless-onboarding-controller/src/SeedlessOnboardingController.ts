@@ -1983,9 +1983,7 @@ export class SeedlessOnboardingController<
   #isAuthTokenError(error: unknown): boolean {
     if (error instanceof TOPRFError) {
       return (
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         error.code === TOPRFErrorCode.AuthTokenExpired ||
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         error.code === TOPRFErrorCode.InvalidAuthToken
       );
     }

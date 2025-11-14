@@ -253,7 +253,6 @@ export function assertIsInternalScopeString(
     typeof scopeString !== 'string' ||
     // `InternalScopeString` is defined as either `KnownCaipNamespace.Wallet` or
     // `CaipChainId`, so our conditions intentionally match the type.
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
     (scopeString !== KnownCaipNamespace.Wallet && !isCaipChainId(scopeString))
   ) {
     throw new Error('scopeString is not a valid InternalScopeString');
