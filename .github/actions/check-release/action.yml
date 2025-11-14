@@ -30,6 +30,7 @@ runs:
         fi
 
     - name: Check commits for changes in released packages
+      id: check-release
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
@@ -77,11 +78,75 @@ runs:
         fi
 
         if [ ${#CONFLICTS[@]} -ne 0 ]; then
+          PACKAGE_NAMES=()
+
           for conflict in "${CONFLICTS[@]}"; do
             package_name=$(jq -r ".name" "$conflict/package.json")
+            PACKAGE_NAMES+=("$package_name")
             echo "::error::Release conflict detected in \`$package_name\`. This package is being released in this PR, but files in the package were also modified ahead of this PR. Please ensure that all changes are included in the release."
           done
-          exit 1
+
+          PACKAGE_NAMES_JSON=$(printf '%s\n' "${PACKAGE_NAMES[@]}" | jq -R . | jq -s -c .)
+          echo "package-names=$PACKAGE_NAMES_JSON" >> "$GITHUB_OUTPUT"
+          echo "has-conflicts=true" >> "$GITHUB_OUTPUT"
         else
           echo "✅ No release conflicts detected."
         fi
+
+    - name: Hide previous comments
+      uses: actions/github-script@v8
+      with:
+        script: |
+          const { data } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+
+          for (const comment of data) {
+            if (comment.body.includes('<!-- Pull request release conflict comment -->')) {
+              await github.graphql(`
+                mutation($commentId: ID!, $classifier: ReportedContentClassifiers!) {
+                  minimizeComment(input: {subjectId: $commentId, classifier: $classifier}) {
+                    minimizedComment {
+                      isMinimized
+                    }
+                  }
+                }
+              `, {
+                commentId: comment.node_id,
+                classifier: 'OUTDATED',
+              });
+            }
+          }
+
+    - name: Reply on pull request
+      if: steps.check-release.outputs.has-conflicts == 'true'
+      uses: actions/github-script@v8
+      env:
+        PACKAGE_NAMES: ${{ steps.check-release.outputs.package-names }}
+      with:
+        script: |
+          const packageNames = JSON.parse(process.env.PACKAGE_NAMES);
+          const packageList = packageNames.map(name => `- \`${name}\``).join('\n');
+
+          const mergeQueueNote = context.eventName === 'merge_group' ? ' while this pull request was in the merge queue' : '';
+
+          const body = `
+            ## Release conflict detected
+
+            The following packages are being released in this pull request, but files in these packages were also modified ahead of this pull request${mergeQueueNote}:
+
+            ${packageList}
+
+            Please ensure that all changes are included in the release by updating this pull request, and adjusting the changelogs and version bumps as necessary.
+
+            <!-- Pull request release conflict comment -->
+          `;
+
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body: body.split('\n').map(line => line.trim()).join('\n'),
+          });
