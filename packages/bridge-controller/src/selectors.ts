@@ -5,7 +5,7 @@ import type {
   TokenRatesControllerState,
 } from '@metamask/assets-controllers';
 import type { GasFeeEstimates } from '@metamask/gas-fee-controller';
-import type { CaipAssetType } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { orderBy } from 'lodash';
@@ -154,34 +154,29 @@ const getExchangeRateByChainIdAndAddress = (
   }
   // If the chain is an EVM chain, use the conversion rate from the currency rates controller
   if (isNativeAddress(address)) {
-    const { symbol } = getNativeAssetForChainId(chainId);
-    const evmNativeExchangeRate = currencyRates?.[symbol];
+    const evmExchangeRates = marketData?.[formatChainIdToHex(chainId)];
+    const evmNativeExchangeRate = isStrictHexString(address)
+      ? evmExchangeRates?.[address]
+      : null;
     if (evmNativeExchangeRate) {
       return {
         // TODO This needs to be updated to use market data instead of currency rates
-        exchangeRate: evmNativeExchangeRate?.conversionRate?.toString(),
-        usdExchangeRate: evmNativeExchangeRate?.usdConversionRate?.toString(),
+        exchangeRate: evmNativeExchangeRate?.price?.toString(),
+        usdExchangeRate: undefined,
       };
     }
     return {};
   }
   // If the chain is an EVM chain and the asset is not the native asset, use the conversion rate from the token rates controller
   if (!isNonEvmChainId(chainId)) {
-    const evmTokenExchangeRates = marketData?.[formatChainIdToHex(chainId)];
+    const evmExchangeRates = marketData?.[formatChainIdToHex(chainId)];
     const evmTokenExchangeRateForAddress = isStrictHexString(address)
-      ? evmTokenExchangeRates?.[address]
+      ? evmExchangeRates?.[address]
       : null;
-    const nativeCurrencyRate = evmTokenExchangeRateForAddress
-      ? currencyRates[evmTokenExchangeRateForAddress?.currency]
-      : undefined;
-    if (evmTokenExchangeRateForAddress && nativeCurrencyRate) {
+    if (evmTokenExchangeRateForAddress) {
       return {
-        exchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
-          .multipliedBy(nativeCurrencyRate.conversionRate ?? 0)
-          .toString(),
-        usdExchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
-          .multipliedBy(nativeCurrencyRate.usdConversionRate ?? 0)
-          .toString(),
+        exchangeRate: evmTokenExchangeRateForAddress?.price?.toString(),
+        usdExchangeRate: undefined,
       };
     }
   }
