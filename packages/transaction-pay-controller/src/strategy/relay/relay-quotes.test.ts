@@ -41,6 +41,9 @@ const QUOTE_REQUEST_MOCK: QuoteRequest = {
 
 const QUOTE_MOCK = {
   details: {
+    currencyIn: {
+      amountUsd: '1.24',
+    },
     currencyOut: {
       amountFormatted: '1.0',
       amountUsd: '1.23',
@@ -122,13 +125,17 @@ describe('Relay Quotes Utils', () => {
     });
 
     calculateTransactionGasCostMock.mockReturnValue({
-      usd: '1.23',
       fiat: '2.34',
+      human: '0.615',
+      raw: '6150000000000000',
+      usd: '1.23',
     });
 
     calculateGasCostMock.mockReturnValue({
-      usd: '3.45',
       fiat: '4.56',
+      human: '1.725',
+      raw: '1725000000000000',
+      usd: '3.45',
     });
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
@@ -334,8 +341,10 @@ describe('Relay Quotes Utils', () => {
       });
 
       expect(result[0].fees.sourceNetwork).toStrictEqual({
-        usd: '3.45',
         fiat: '4.56',
+        human: '1.725',
+        raw: '1725000000000000',
+        usd: '3.45',
       });
     });
 

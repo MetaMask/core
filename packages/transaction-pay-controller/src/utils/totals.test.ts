@@ -29,6 +29,8 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
     },
     sourceNetwork: {
       fiat: '3.33',
+      human: '3.33',
+      raw: '333000000000000',
       usd: '4.44',
     },
     targetNetwork: {
@@ -38,6 +40,12 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
   },
   original: undefined,
   request: {} as QuoteRequest,
+  sourceAmount: {
+    human: '7.77',
+    fiat: '7.77',
+    raw: '777000000000000',
+    usd: '8.88',
+  },
   strategy: TransactionPayStrategy.Test,
 };
 
@@ -64,6 +72,8 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
     },
     sourceNetwork: {
       fiat: '9.99',
+      human: '9.99',
+      raw: '999000000000000',
       usd: '10.10',
     },
     targetNetwork: {
@@ -73,6 +83,12 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
   },
   original: undefined,
   request: {} as QuoteRequest,
+  sourceAmount: {
+    human: '13.13',
+    fiat: '13.13',
+    raw: '1313000000000000',
+    usd: '14.14',
+  },
   strategy: TransactionPayStrategy.Test,
 };
 
@@ -88,6 +104,8 @@ describe('Totals Utils', () => {
 
     calculateTransactionGasCostMock.mockReturnValue({
       fiat: '1.23',
+      human: '1.23',
+      raw: '1230000000000000',
       usd: '2.34',
     });
   });
