@@ -614,33 +614,35 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       }
     }
 
-    for (const [nativeCurrency, assets] of Object.entries(
-      assetsByNativeCurrency,
-    )) {
-      await reduceInBatchesSerially<
-        { chainId: Hex; tokenAddress: Hex },
-        Record<Hex, Record<Hex, MarketDataDetails>>
-      >({
-        values: assets,
-        batchSize: TOKEN_PRICES_BATCH_SIZE,
-        eachBatch: async (partialMarketData, assetsBatch) => {
-          const batchMarketData =
-            await this.#tokenPricesService.fetchTokenPrices({
-              assets: assetsBatch,
-              currency: nativeCurrency,
-            });
+    await Promise.allSettled(
+      Object.entries(assetsByNativeCurrency).map(
+        async ([nativeCurrency, assets]) => {
+          return await reduceInBatchesSerially<
+            { chainId: Hex; tokenAddress: Hex },
+            Record<Hex, Record<Hex, MarketDataDetails>>
+          >({
+            values: assets,
+            batchSize: TOKEN_PRICES_BATCH_SIZE,
+            eachBatch: async (partialMarketData, assetsBatch) => {
+              const batchMarketData =
+                await this.#tokenPricesService.fetchTokenPrices({
+                  assets: assetsBatch,
+                  currency: nativeCurrency,
+                });
 
-          for (const tokenPrice of batchMarketData) {
-            (partialMarketData[tokenPrice.chainId] ??= {})[
-              tokenPrice.tokenAddress
-            ] = tokenPrice;
-          }
+              for (const tokenPrice of batchMarketData) {
+                (partialMarketData[tokenPrice.chainId] ??= {})[
+                  tokenPrice.tokenAddress
+                ] = tokenPrice;
+              }
 
-          return partialMarketData;
+              return partialMarketData;
+            },
+            initialResult: marketData,
+          });
         },
-        initialResult: marketData,
-      });
-    }
+      ),
+    );
 
     if (Object.keys(marketData).length > 0) {
       this.update((state) => {
@@ -801,7 +803,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * @param input.chainIds - The chain ids to poll token rates on.
    */
   async _executePoll({ chainIds }: TokenRatesPollingInput): Promise<void> {
-    await this.updateExchangeRatesToCurrency(chainIds);
+    await this.updateExchangeRatesToNative(chainIds);
   }
 
   /**

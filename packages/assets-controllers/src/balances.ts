@@ -113,6 +113,7 @@ const isNonNaNNumber = (value: unknown): value is number =>
  * @param tokenBalancesState - Token balances state.
  * @param tokensState - Tokens state.
  * @param tokenRatesState - Token rates state.
+ * @param currencyRateState - Currency rate state.
  * @param isEvmChainEnabled - Predicate to check EVM chain enablement.
  * @returns token calculation data
  */
@@ -121,6 +122,7 @@ function getEvmTokenBalances(
   tokenBalancesState: TokenBalancesControllerState,
   tokensState: TokensControllerState,
   tokenRatesState: TokenRatesControllerState,
+  currencyRateState: CurrencyRateState,
   isEvmChainEnabled: (chainId: Hex) => boolean,
 ) {
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Hex;
@@ -169,6 +171,14 @@ function getEvmTokenBalances(
         return null;
       }
 
+      // Get conversion rate
+      const nativeToUserRate =
+        currencyRateState.currencyRates[tokenMarketData.currency]
+          ?.conversionRate;
+      if (!nativeToUserRate) {
+        return null;
+      }
+
       // Calculate values
       let decimals = 18;
       if (!isNative && !isStakedNative) {
@@ -185,7 +195,9 @@ function getEvmTokenBalances(
       }
 
       const userCurrencyValue =
-        (decimalBalance / Math.pow(10, decimals)) * tokenMarketData.price;
+        (decimalBalance / Math.pow(10, decimals)) *
+        tokenMarketData.price *
+        nativeToUserRate;
 
       return {
         userCurrencyValue,
@@ -257,6 +269,7 @@ function getNonEvmAssetBalances(
  * @param tokenBalancesState - Token balances state.
  * @param tokensState - Tokens state.
  * @param tokenRatesState - Token rates state.
+ * @param currencyRateState - Currency rate state.
  * @param isEvmChainEnabled - Predicate to check EVM chain enablement.
  * @returns Total value in user currency.
  */
@@ -265,6 +278,7 @@ function sumEvmAccountBalanceInUserCurrency(
   tokenBalancesState: TokenBalancesControllerState,
   tokensState: TokensControllerState,
   tokenRatesState: TokenRatesControllerState,
+  currencyRateState: CurrencyRateState,
   isEvmChainEnabled: (chainId: Hex) => boolean,
 ): number {
   const tokenBalances = getEvmTokenBalances(
@@ -272,6 +286,7 @@ function sumEvmAccountBalanceInUserCurrency(
     tokenBalancesState,
     tokensState,
     tokenRatesState,
+    currencyRateState,
     isEvmChainEnabled,
   );
   return tokenBalances.reduce((a, b) => a + b.userCurrencyValue, 0);
@@ -346,6 +361,7 @@ export function calculateBalanceForAllWallets(
         tokenBalancesState,
         tokensState,
         tokenRatesState,
+        currencyRateState,
         isEvmChainEnabled,
       ),
     nonEvm: (account: InternalAccount) =>
@@ -497,6 +513,7 @@ export function calculateBalanceChangeForAllWallets(
         tokenBalancesState,
         tokensState,
         tokenRatesState,
+        currencyRateState,
         isEvmChainEnabled,
       ),
     nonEvm: (account: InternalAccount) =>
@@ -581,6 +598,7 @@ export function calculateBalanceChangeForAllWallets(
  * @param tokenBalancesState - Token balances controller state.
  * @param tokensState - Tokens controller state.
  * @param tokenRatesState - Token rates controller state.
+ * @param currencyRateState - Currency rate controller state.
  * @param isEvmChainEnabled - Predicate that returns true if the EVM chain is enabled.
  * @returns Object with current and previous totals in user currency.
  */
@@ -590,6 +608,7 @@ function sumEvmAccountChangeForPeriod(
   tokenBalancesState: TokenBalancesControllerState,
   tokensState: TokensControllerState,
   tokenRatesState: TokenRatesControllerState,
+  currencyRateState: CurrencyRateState,
   isEvmChainEnabled: (chainId: Hex) => boolean,
 ): { current: number; previous: number } {
   const tokenBalances = getEvmTokenBalances(
@@ -597,6 +616,7 @@ function sumEvmAccountChangeForPeriod(
     tokenBalancesState,
     tokensState,
     tokenRatesState,
+    currencyRateState,
     isEvmChainEnabled,
   );
 
@@ -736,6 +756,7 @@ export function calculateBalanceChangeForAccountGroup(
         tokenBalancesState,
         tokensState,
         tokenRatesState,
+        currencyRateState,
         isEvmChainEnabled,
       ),
     nonEvm: (account: InternalAccount) =>
