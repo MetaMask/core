@@ -161,10 +161,6 @@ export function getTokenFiatRate(
 
   const rateControllerState = messenger.call('TokenRatesController:getState');
 
-  const currencyRateControllerState = messenger.call(
-    'CurrencyRateController:getState',
-  );
-
   const normalizedTokenAddress = toChecksumHexAddress(tokenAddress) as Hex;
   const isNative = normalizedTokenAddress === getNativeToken(chainId);
 
@@ -175,25 +171,9 @@ export function getTokenFiatRate(
     return undefined;
   }
 
-  const {
-    conversionRate: nativeToFiatRate,
-    usdConversionRate: nativeToUsdRate,
-  } = currencyRateControllerState.currencyRates?.[ticker] ?? {
-    conversionRate: null,
-    usdConversionRate: null,
-  };
+  const usdRate = new BigNumber(tokenToNativeRate ?? 1).toString(10);
 
-  if (nativeToFiatRate === null || nativeToUsdRate === null) {
-    return undefined;
-  }
-
-  const usdRate = new BigNumber(tokenToNativeRate ?? 1)
-    .multipliedBy(nativeToUsdRate)
-    .toString(10);
-
-  const fiatRate = new BigNumber(tokenToNativeRate ?? 1)
-    .multipliedBy(nativeToFiatRate)
-    .toString(10);
+  const fiatRate = new BigNumber(tokenToNativeRate ?? 1).toString(10);
 
   return { usdRate, fiatRate };
 }

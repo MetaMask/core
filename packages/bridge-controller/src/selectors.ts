@@ -158,6 +158,7 @@ const getExchangeRateByChainIdAndAddress = (
     const evmNativeExchangeRate = currencyRates?.[symbol];
     if (evmNativeExchangeRate) {
       return {
+        // TODO This needs to be updated to use market data instead of currency rates
         exchangeRate: evmNativeExchangeRate?.conversionRate?.toString(),
         usdExchangeRate: evmNativeExchangeRate?.usdConversionRate?.toString(),
       };

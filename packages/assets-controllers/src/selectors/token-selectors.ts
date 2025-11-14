@@ -71,7 +71,6 @@ export type AssetListState = {
   allIgnoredTokens: TokensControllerState['allIgnoredTokens'];
   tokenBalances: TokenBalancesControllerState['tokenBalances'];
   marketData: TokenRatesControllerState['marketData'];
-  currencyRates: CurrencyRateState['currencyRates'];
   accountsAssets: MultichainAssetsControllerState['accountsAssets'];
   allIgnoredAssets: MultichainAssetsControllerState['allIgnoredAssets'];
   assetsMetadata: MultichainAssetsControllerState['assetsMetadata'];
@@ -131,7 +130,6 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
     selectAccountsToGroupIdMap,
     (state) => state.accountsByChainId,
     (state) => state.marketData,
-    (state) => state.currencyRates,
     (state) => state.currentCurrency,
     (state) => state.networkConfigurationsByChainId,
   ],
@@ -139,7 +137,6 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
     accountsMap,
     accountsByChainId,
     marketData,
-    currencyRates,
     currentCurrency,
     networkConfigurationsByChainId,
   ) => {
@@ -181,7 +178,6 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
           rawBalance,
           nativeToken.decimals,
           marketData,
-          currencyRates,
           chainId,
           nativeToken.address,
         );
@@ -224,7 +220,6 @@ const selectAllEvmAssets = createAssetListSelector(
     (state) => state.allIgnoredTokens,
     (state) => state.tokenBalances,
     (state) => state.marketData,
-    (state) => state.currencyRates,
     (state) => state.currentCurrency,
   ],
   (
@@ -233,7 +228,6 @@ const selectAllEvmAssets = createAssetListSelector(
     ignoredEvmTokens,
     tokenBalances,
     marketData,
-    currencyRates,
     currentCurrency,
   ) => {
     const groupAssets: AssetsByAccountGroup = {};
@@ -275,7 +269,6 @@ const selectAllEvmAssets = createAssetListSelector(
             rawBalance,
             token.decimals,
             marketData,
-            currencyRates,
             chainId,
             tokenAddress,
           );
@@ -484,7 +477,6 @@ function mergeAssets(
  * @param rawBalance - The balance of the token
  * @param decimals - The decimals of the token
  * @param marketData - The market data for the token
- * @param currencyRates - The currency rates for the token
  * @param chainId - The chain id of the token
  * @param tokenAddress - The address of the token
  * @returns The price and currency of the token in the current currency. Returns undefined if the asset is not found in the market data or currency rates.
@@ -493,7 +485,6 @@ function getFiatBalanceForEvmToken(
   rawBalance: Hex,
   decimals: number,
   marketData: TokenRatesControllerState['marketData'],
-  currencyRates: CurrencyRateState['currencyRates'],
   chainId: Hex,
   tokenAddress: Hex,
 ) {
@@ -503,20 +494,12 @@ function getFiatBalanceForEvmToken(
     return undefined;
   }
 
-  const currencyRate = currencyRates[tokenMarketData.currency];
-
-  if (!currencyRate?.conversionRate) {
-    return undefined;
-  }
-
   const fiatBalance =
-    (convertHexToDecimal(rawBalance) / 10 ** decimals) *
-    tokenMarketData.price *
-    currencyRate.conversionRate;
+    (convertHexToDecimal(rawBalance) / 10 ** decimals) * tokenMarketData.price;
 
   return {
     balance: fiatBalance,
-    conversionRate: currencyRate.conversionRate,
+    conversionRate: tokenMarketData.price,
   };
 }
 
