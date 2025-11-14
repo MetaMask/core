@@ -60,6 +60,13 @@ const { safelyExecuteWithTimeout } = jest.requireMock(
 );
 const mockedSafelyExecuteWithTimeout = safelyExecuteWithTimeout as jest.Mock;
 
+
+type SetupControllerConfig = Partial<
+  ConstructorParameters<typeof TokenBalancesController>[0]
+> & {
+  mockBearerToken?: string;
+};
+
 const setupController = ({
   config,
   tokens = { allTokens: {}, allDetectedTokens: {}, allIgnoredTokens: {} },
@@ -95,6 +102,7 @@ const setupController = ({
       'AccountTrackerController:getState',
       'AccountTrackerController:updateNativeBalances',
       'AccountTrackerController:updateStakedBalances',
+      'AuthenticationController:getBearerToken',
     ],
     events: [
       'NetworkController:stateChange',
