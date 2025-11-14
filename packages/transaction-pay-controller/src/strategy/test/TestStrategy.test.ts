@@ -40,10 +40,18 @@ describe('TestStrategy', () => {
               usd: expect.any(String),
             },
             sourceNetwork: {
-              fiat: expect.any(String),
-              human: expect.any(String),
-              raw: expect.any(String),
-              usd: expect.any(String),
+              estimate: {
+                fiat: expect.any(String),
+                human: expect.any(String),
+                raw: expect.any(String),
+                usd: expect.any(String),
+              },
+              max: {
+                fiat: expect.any(String),
+                human: expect.any(String),
+                raw: expect.any(String),
+                usd: expect.any(String),
+              },
             },
             targetNetwork: {
               fiat: expect.any(String),

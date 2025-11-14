@@ -361,10 +361,18 @@ describe('Relay Quotes Utils', () => {
       });
 
       expect(result[0].fees.sourceNetwork).toStrictEqual({
-        fiat: '4.56',
-        human: '1.725',
-        raw: '1725000000000000',
-        usd: '3.45',
+        estimate: {
+          fiat: '4.56',
+          human: '1.725',
+          raw: '1725000000000000',
+          usd: '3.45',
+        },
+        max: {
+          fiat: '4.56',
+          human: '1.725',
+          raw: '1725000000000000',
+          usd: '3.45',
+        },
       });
     });
 

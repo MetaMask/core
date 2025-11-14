@@ -28,10 +28,18 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
       usd: '2.22',
     },
     sourceNetwork: {
-      fiat: '3.33',
-      human: '3.33',
-      raw: '333000000000000',
-      usd: '4.44',
+      estimate: {
+        fiat: '3.33',
+        human: '3.33',
+        raw: '333000000000000',
+        usd: '4.44',
+      },
+      max: {
+        fiat: '3.34',
+        human: '3.34',
+        raw: '334000000000000',
+        usd: '4.45',
+      },
     },
     targetNetwork: {
       fiat: '5.55',
@@ -71,10 +79,18 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
       usd: '8.88',
     },
     sourceNetwork: {
-      fiat: '9.99',
-      human: '9.99',
-      raw: '999000000000000',
-      usd: '10.10',
+      estimate: {
+        fiat: '9.99',
+        human: '9.99',
+        raw: '999000000000000',
+        usd: '10.10',
+      },
+      max: {
+        fiat: '9.999',
+        human: '9.999',
+        raw: '999900000000000',
+        usd: '10.11',
+      },
     },
     targetNetwork: {
       fiat: '11.11',
@@ -174,8 +190,10 @@ describe('Totals Utils', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result.fees.sourceNetwork.fiat).toBe('13.32');
-      expect(result.fees.sourceNetwork.usd).toBe('14.54');
+      expect(result.fees.sourceNetwork.estimate.fiat).toBe('13.32');
+      expect(result.fees.sourceNetwork.estimate.usd).toBe('14.54');
+      expect(result.fees.sourceNetwork.max.fiat).toBe('13.339');
+      expect(result.fees.sourceNetwork.max.usd).toBe('14.56');
     });
 
     it('returns target network fees', () => {
@@ -200,6 +218,18 @@ describe('Totals Utils', () => {
 
       expect(result.fees.targetNetwork.fiat).toBe('1.23');
       expect(result.fees.targetNetwork.usd).toBe('2.34');
+    });
+
+    it('returns source amount', () => {
+      const result = calculateTotals({
+        quotes: [QUOTE_1_MOCK, QUOTE_2_MOCK],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.sourceAmount.fiat).toBe('20.9');
+      expect(result.sourceAmount.usd).toBe('23.02');
     });
   });
 });

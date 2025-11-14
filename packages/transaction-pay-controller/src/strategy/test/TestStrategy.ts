@@ -28,10 +28,18 @@ export class TestStrategy implements PayStrategy<void> {
         fees: {
           provider: { fiat: '1.23', usd: '1.23' },
           sourceNetwork: {
-            human: '2.34',
-            fiat: '2.34',
-            usd: '2.34',
-            raw: '234000',
+            estimate: {
+              human: '2.34',
+              fiat: '2.34',
+              usd: '2.34',
+              raw: '234000',
+            },
+            max: {
+              human: '2.35',
+              fiat: '2.35',
+              usd: '2.35',
+              raw: '235000',
+            },
           },
           targetNetwork: {
             fiat: '3.45',

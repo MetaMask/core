@@ -519,7 +519,11 @@ function normalizeQuote(
   );
 
   const targetNetwork = calculateTransactionGasCost(transaction, messenger);
-  const sourceNetwork = calculateSourceNetworkFee(quote, messenger);
+
+  const sourceNetwork = {
+    estimate: calculateSourceNetworkFee(quote, messenger),
+    max: calculateSourceNetworkFee(quote, messenger, { isMax: true }),
+  };
 
   return {
     estimatedDuration: quote.estimatedProcessingTimeInSeconds,
@@ -579,19 +583,24 @@ function calculateAmount(
  *
  * @param quote - Bridge quote response.
  * @param messenger - Controller messenger.
+ * @param options - Calculation options.
+ * @param options.isMax - Whether to calculate the maximum cost.
  * @returns Estimated gas cost for the source network.
  */
 function calculateSourceNetworkFee(
   quote: TransactionPayBridgeQuote,
   messenger: TransactionPayControllerMessenger,
+  { isMax = false } = {},
 ): Amount {
   const { approval, trade } = quote;
 
   const approvalCost = approval
-    ? calculateTransactionCost(approval as TxData, messenger)
+    ? calculateTransactionCost(approval as TxData, messenger, { isMax })
     : { fiat: '0', human: '0', raw: '0', usd: '0' };
 
-  const tradeCost = calculateTransactionCost(trade as TxData, messenger);
+  const tradeCost = calculateTransactionCost(trade as TxData, messenger, {
+    isMax,
+  });
 
   return {
     fiat: new BigNumber(approvalCost.fiat).plus(tradeCost.fiat).toString(10),
@@ -606,17 +615,22 @@ function calculateSourceNetworkFee(
  *
  * @param transaction - Transaction parameters.
  * @param messenger - Controller messenger
+ * @param options - Calculation options.
+ * @param options.isMax - Whether to calculate the maximum cost.
  * @returns Estimated gas cost for a bridge transaction.
  */
 function calculateTransactionCost(
   transaction: TxData,
   messenger: TransactionPayControllerMessenger,
+  { isMax }: { isMax: boolean },
 ): Amount {
-  const { effectiveGas, gasLimit } = transaction;
+  const { effectiveGas: effectiveGasOriginal, gasLimit } = transaction;
+  const effectiveGas = isMax ? undefined : effectiveGasOriginal;
 
   return calculateGasCost({
     ...transaction,
     gas: effectiveGas || gasLimit || '0x0',
     messenger,
+    isMax,
   });
 }
