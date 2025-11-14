@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The network client middleware, via `@metamask/eth-json-rpc-middleware`, will now throw an error if it encounters an
     `undefined` result when dispatching a request with a later block number than the originally requested block number.
   - In practice, this should happen rarely if ever.
+- **BREAKING:** Migrate `NetworkClient` to `JsonRpcEngineV2` ([#7065](https://github.com/MetaMask/core/pull/7065))
+  - This ought to be unobservable, but we mark it as breaking out of an abundance of caution.
 - Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
 
 ### Fixed

@@ -21,7 +21,6 @@ describe('PollingWithCockatielPolicy', () => {
         invocationCount += 1;
         return new Promise((resolve, reject) => {
           setTimeout(() => {
-            // eslint-disable-next-line jest/no-conditional-in-test
             if (invocationCount < 3) {
               reject(new HttpError(412, 'Results are not available yet'));
             }
@@ -79,7 +78,6 @@ describe('PollingWithCockatielPolicy', () => {
       .mockImplementation(async (abortSignal: AbortSignal) => {
         return new Promise((_resolve, reject) => {
           setTimeout(() => {
-            // eslint-disable-next-line jest/no-conditional-in-test
             if (abortSignal.aborted) {
               reject(new Error('test error'));
             }
@@ -103,7 +101,6 @@ describe('PollingWithCockatielPolicy', () => {
       .mockImplementation(async (abortSignal: AbortSignal) => {
         return new Promise((resolve, reject) => {
           setTimeout(() => {
-            // eslint-disable-next-line jest/no-conditional-in-test
             if (abortSignal.aborted) {
               reject(new Error('test error'));
             }
@@ -125,7 +122,6 @@ describe('PollingWithCockatielPolicy', () => {
     const requestFn = (result: string) =>
       jest.fn().mockImplementation(async (abortSignal: AbortSignal) => {
         return new Promise((resolve, reject) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (abortSignal.aborted) {
             reject(new Error('test error'));
           }
