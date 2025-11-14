@@ -1,3 +1,7 @@
+import {
+  CircuitState,
+  CockatielEventEmitter,
+} from '@metamask/controller-utils';
 import type {
   Json,
   JsonRpcParams,
@@ -7,17 +11,79 @@ import type {
 
 import { RpcService } from './rpc-service';
 import type { RpcServiceOptions } from './rpc-service';
-import type { RpcServiceRequestable } from './rpc-service-requestable';
-import type { FetchOptions } from './shared';
+import type {
+  CockatielEventToEventEmitterWithData,
+  CockatielEventToEventListenerWithData,
+  ExtendCockatielEventData,
+  ExtractCockatielEventData,
+  FetchOptions,
+} from './shared';
+import { projectLogger, createModuleLogger } from '../logger';
+
+const log = createModuleLogger(projectLogger, 'RpcServiceChain');
 
 /**
- * This class constructs a chain of RpcService objects which represent a
- * particular network. The first object in the chain is intended to be the
- * primary way of reaching the network and the remaining objects are used as
- * failovers.
+ * Possible states of the RPC service chain.
  */
-export class RpcServiceChain implements RpcServiceRequestable {
+const STATES = {
+  Initial: 'initial',
+  Available: 'available',
+  Degraded: 'degraded',
+  Unavailable: 'unavailable',
+} as const;
+
+type RpcServiceConfiguration = Omit<RpcServiceOptions, 'failoverService'>;
+
+/**
+ * The state of the service.
+ */
+type State = (typeof STATES)[keyof typeof STATES];
+
+/**
+ * This class constructs and manages requests to a chain of RpcService objects
+ * which represent an RPC endpoint on a particular network. The first service in
+ * the chain is intended to be the primary way of hitting the endpoint and the
+ * remaining services are used as failovers.
+ */
+export class RpcServiceChain {
+  /**
+   * The event emitter for the `onBreak` event.
+   */
+  readonly #onAvailableEventEmitter: CockatielEventToEventEmitterWithData<
+    RpcService['onAvailable'],
+    { primaryEndpointUrl: string }
+  >;
+
+  /**
+   * The event emitter for the `onBreak` event.
+   */
+  readonly #onBreakEventEmitter: CockatielEventToEventEmitterWithData<
+    RpcService['onBreak'],
+    { primaryEndpointUrl: string }
+  >;
+
+  /**
+   * The event emitter for the `onBreak` event.
+   */
+  readonly #onDegradedEventEmitter: CockatielEventToEventEmitterWithData<
+    RpcService['onDegraded'],
+    { primaryEndpointUrl: string }
+  >;
+
+  /**
+   * The first RPC service that requests will be sent to.
+   */
+  readonly #primaryService: RpcService;
+
+  /**
+   * The RPC services in the chain.
+   */
   readonly #services: RpcService[];
+
+  /**
+   * The state of the RPC service chain.
+   */
+  #state: State;
 
   /**
    * Constructs a new RpcServiceChain object.
@@ -27,20 +93,75 @@ export class RpcServiceChain implements RpcServiceRequestable {
    * {@link RpcServiceOptions}.
    */
   constructor(
-    rpcServiceConfigurations: Omit<RpcServiceOptions, 'failoverService'>[],
+    rpcServiceConfigurations: [
+      RpcServiceConfiguration,
+      ...RpcServiceConfiguration[],
+    ],
   ) {
-    this.#services = this.#buildRpcServiceChain(rpcServiceConfigurations);
+    this.#services = rpcServiceConfigurations.map(
+      (rpcServiceConfiguration) => new RpcService(rpcServiceConfiguration),
+    );
+    this.#primaryService = this.#services[0];
+
+    this.#state = STATES.Initial;
+    this.#onBreakEventEmitter = new CockatielEventEmitter<
+      ExtendCockatielEventData<
+        ExtractCockatielEventData<RpcService['onBreak']>,
+        { primaryEndpointUrl: string }
+      >
+    >();
+
+    this.#onDegradedEventEmitter = new CockatielEventEmitter();
+    for (const service of this.#services) {
+      service.onDegraded((data) => {
+        if (this.#state !== STATES.Degraded) {
+          log('Updating state to "degraded"', data);
+          this.#state = STATES.Degraded;
+          this.#onDegradedEventEmitter.emit({
+            ...data,
+            primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),
+          });
+        }
+      });
+    }
+
+    this.#onAvailableEventEmitter = new CockatielEventEmitter();
+    for (const service of this.#services) {
+      service.onAvailable((data) => {
+        if (this.#state !== STATES.Available) {
+          log('Updating state to "available"', data);
+          this.#state = STATES.Available;
+          this.#onAvailableEventEmitter.emit({
+            ...data,
+            primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),
+          });
+        }
+      });
+    }
   }
 
   /**
-   * Listens for when any of the RPC services retry a request.
+   * Calls the provided callback when any of the RPC services is retried.
    *
-   * @param listener - The callback to be called when the retry occurs.
-   * @returns What {@link RpcService.onRetry} returns.
+   * This is mainly useful for tests.
+   *
+   * @param listener - The callback to be called.
+   * @returns An object with a `dispose` method which can be used to unregister
+   * the event listener.
    */
-  onRetry(listener: Parameters<RpcService['onRetry']>[0]) {
+  onServiceRetry(
+    listener: CockatielEventToEventListenerWithData<
+      RpcService['onRetry'],
+      { primaryEndpointUrl: string }
+    >,
+  ) {
     const disposables = this.#services.map((service) =>
-      service.onRetry(listener),
+      service.onRetry((data) => {
+        listener({
+          ...data,
+          primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),
+        });
+      }),
     );
 
     return {
@@ -51,15 +172,51 @@ export class RpcServiceChain implements RpcServiceRequestable {
   }
 
   /**
-   * Listens for when any of the RPC services retry the request too many times
-   * in a row.
+   * Calls the provided callback only when the maximum number of failed
+   * consecutive attempts to receive a 2xx response has been reached for all
+   * RPC services in the chain, and all services' underlying circuits have
+   * broken.
    *
-   * @param listener - The callback to be called when the retry occurs.
-   * @returns What {@link RpcService.onBreak} returns.
+   * The callback will not be called if a service's circuit breaks but its
+   * failover does not. Use `onServiceBreak` if you'd like a lower level of
+   * granularity.
+   *
+   * @param listener - The callback to be called.
+   * @returns An object with a `dispose` method which can be used to unregister
+   * the callback.
    */
-  onBreak(listener: Parameters<RpcService['onBreak']>[0]) {
+  onBreak(
+    listener: CockatielEventToEventListenerWithData<
+      RpcService['onBreak'],
+      { primaryEndpointUrl: string }
+    >,
+  ) {
+    return this.#onBreakEventEmitter.addListener(listener);
+  }
+
+  /**
+   * Calls the provided callback each time when, for *any* of the RPC services
+   * in this chain, the maximum number of failed consecutive attempts to receive
+   * a 2xx response has been reached and the underlying circuit has broken. A
+   * more granular version of `onBreak`.
+   *
+   * @param listener - The callback to be called.
+   * @returns An object with a `dispose` method which can be used to unregister
+   * the callback.
+   */
+  onServiceBreak(
+    listener: CockatielEventToEventListenerWithData<
+      RpcService['onBreak'],
+      { primaryEndpointUrl: string }
+    >,
+  ) {
     const disposables = this.#services.map((service) =>
-      service.onBreak(listener),
+      service.onBreak((data) => {
+        listener({
+          ...data,
+          primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),
+        });
+      }),
     );
 
     return {
@@ -70,14 +227,70 @@ export class RpcServiceChain implements RpcServiceRequestable {
   }
 
   /**
-   * Listens for when any of the RPC services send a slow request.
+   * Calls the provided callback if no requests have been initiated yet or
+   * all requests to RPC services in this chain have responded successfully in a
+   * timely fashion, and then one of the two conditions apply:
    *
-   * @param listener - The callback to be called when the retry occurs.
-   * @returns What {@link RpcService.onRetry} returns.
+   * 1. When a retriable error is encountered making a request to an RPC
+   * service, and the request is retried until a set maximum is reached.
+   * 2. When a RPC service responds successfully, but the request takes longer
+   * than a set number of seconds to complete.
+   *
+   * Note that the callback will be called even if there are local connectivity
+   * issues which prevent requests from being initiated. This is intentional.
+   *
+   * Also note this callback will only be called if the RPC service chain as a
+   * whole is in a "degraded" state, and will then only be called once (e.g., it
+   * will not be called if a failover service falls into a degraded state, then
+   * the primary comes back online, but it is slow). Use `onServiceDegraded` if
+   * you'd like a lower level of granularity.
+   *
+   * @param listener - The callback to be called.
+   * @returns An object with a `dispose` method which can be used to unregister
+   * the callback.
    */
-  onDegraded(listener: Parameters<RpcService['onDegraded']>[0]) {
+  onDegraded(
+    listener: CockatielEventToEventListenerWithData<
+      RpcService['onDegraded'],
+      { primaryEndpointUrl: string }
+    >,
+  ) {
+    return this.#onDegradedEventEmitter.addListener(listener);
+  }
+
+  /**
+   * Calls the provided callback each time one of the two conditions apply:
+   *
+   * 1. When a retriable error is encountered making a request to an RPC
+   * service, and the request is retried until a set maximum is reached.
+   * 2. When a RPC service responds successfully, but the request takes longer
+   * than a set number of seconds to complete.
+   *
+   * Note that the callback will be called even if there are local connectivity
+   * issues which prevent requests from being initiated. This is intentional.
+   *
+   * This is a more granular version of `onDegraded`. The callback will be
+   * called for each slow request to an RPC service. It may also be called again
+   * if a failover service falls into a degraded state, then the primary comes
+   * back online, but it is slow.
+   *
+   * @param listener - The callback to be called.
+   * @returns An object with a `dispose` method which can be used to unregister
+   * the callback.
+   */
+  onServiceDegraded(
+    listener: CockatielEventToEventListenerWithData<
+      RpcService['onDegraded'],
+      { primaryEndpointUrl: string }
+    >,
+  ) {
     const disposables = this.#services.map((service) =>
-      service.onDegraded(listener),
+      service.onDegraded((data) => {
+        listener({
+          ...data,
+          primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),
+        });
+      }),
     );
 
     return {
@@ -88,8 +301,33 @@ export class RpcServiceChain implements RpcServiceRequestable {
   }
 
   /**
-   * Makes a request to the first RPC service in the chain. If this service is
-   * down, then the request is forwarded to the next service in the chain, etc.
+   * Calls the provided callback in one of the following two conditions:
+   *
+   * 1. The first time that a 2xx request is made to any of the RPC services in
+   * this chain.
+   * 2. When requests to any the failover RPC services in this chain were
+   * failing such that they were degraded or their underyling circuits broke,
+   * but the first request to the primary succeeds again.
+   *
+   * Note this callback will only be called if the RPC service chain as a whole
+   * is in an "available" state.
+   *
+   * @param listener - The callback to be called.
+   * @returns An object with a `dispose` method which can be used to unregister
+   * the callback.
+   */
+  onAvailable(
+    listener: CockatielEventToEventListenerWithData<
+      RpcService['onAvailable'],
+      { primaryEndpointUrl: string }
+    >,
+  ) {
+    return this.#onAvailableEventEmitter.addListener(listener);
+  }
+
+  /**
+   * Uses the RPC services in the chain to make a request, using each service
+   * after the first as a fallback to the previous one as necessary.
    *
    * This overload is specifically designed for `eth_getBlockByNumber`, which
    * can return a `result` of `null` despite an expected `Result` being
@@ -111,8 +349,8 @@ export class RpcServiceChain implements RpcServiceRequestable {
   ): Promise<JsonRpcResponse<Result> | JsonRpcResponse<null>>;
 
   /**
-   * Makes a request to the first RPC service in the chain. If this service is
-   * down, then the request is forwarded to the next service in the chain, etc.
+   * Uses the RPC services in the chain to make a request, using each service
+   * after the first as a fallback to the previous one as necessary.
    *
    * This overload is designed for all RPC methods except for
    * `eth_getBlockByNumber`, which are expected to return a `result` of the
@@ -137,31 +375,103 @@ export class RpcServiceChain implements RpcServiceRequestable {
     jsonRpcRequest: JsonRpcRequest<Params>,
     fetchOptions: FetchOptions = {},
   ): Promise<JsonRpcResponse<Result | null>> {
-    return this.#services[0].request(jsonRpcRequest, fetchOptions);
-  }
+    // Start with the primary (first) service and switch to failovers as the
+    // need arises. This is a bit confusing, so keep reading for more on how
+    // this works.
 
-  /**
-   * Constructs the chain of RPC services. The second RPC service is
-   * configured as the failover for the first, the third service is
-   * configured as the failover for the second, etc.
-   *
-   * @param rpcServiceConfigurations - The options for the RPC services that
-   * you want to construct. Each object in this array is the same as
-   * {@link RpcServiceOptions}.
-   * @returns The constructed chain of RPC services.
-   */
-  #buildRpcServiceChain(
-    rpcServiceConfigurations: Omit<RpcServiceOptions, 'failoverService'>[],
-  ): RpcService[] {
-    return [...rpcServiceConfigurations]
-      .reverse()
-      .reduce((workingServices: RpcService[], serviceConfiguration, index) => {
-        const failoverService = index > 0 ? workingServices[0] : undefined;
-        const service = new RpcService({
-          ...serviceConfiguration,
-          failoverService,
-        });
-        return [service, ...workingServices];
-      }, []);
+    let availableServiceIndex: number | undefined;
+    let response: JsonRpcResponse<Result> | undefined;
+
+    for (const [i, service] of this.#services.entries()) {
+      log(`Trying service #${i + 1}...`);
+      const previousCircuitState = service.getCircuitState();
+
+      try {
+        // Try making the request through the service.
+        response = await service.request<Params, Result>(
+          jsonRpcRequest,
+          fetchOptions,
+        );
+        log('Service successfully received request.');
+        availableServiceIndex = i;
+        break;
+      } catch (error) {
+        // Oops, that didn't work.
+        // Capture this error so that we can handle it later.
+
+        const lastFailureReason = service.getLastInnerFailureReason();
+        const isCircuitOpen = service.getCircuitState() === CircuitState.Open;
+
+        log('Service failed!', error, lastFailureReason);
+        log(
+          'Circuit state',
+          service.getCircuitState(),
+          'Previous circuit state',
+          previousCircuitState,
+          'state',
+          this.#state,
+        );
+
+        if (isCircuitOpen) {
+          if (i < this.#services.length - 1) {
+            log(
+              "This service's circuit is open. Proceeding to next service...",
+            );
+            continue;
+          }
+
+          if (
+            previousCircuitState !== CircuitState.Open &&
+            this.#state !== STATES.Unavailable &&
+            lastFailureReason !== undefined
+          ) {
+            // If the service's circuit just broke and it's the last one in the
+            // chain, then trigger the onBreak event. (But if for some reason we
+            // have already done this, then don't do it.)
+            log(
+              'This service\'s circuit just opened and it is the last service. Updating state to "unavailable" and triggering onBreak.',
+            );
+            this.#state = STATES.Unavailable;
+            this.#onBreakEventEmitter.emit({
+              ...lastFailureReason,
+              primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),
+              endpointUrl: service.endpointUrl.toString(),
+            });
+          }
+        }
+
+        // The service failed, and we throw whatever the error is. The calling
+        // code can try again if it so desires.
+        log(
+          `${isCircuitOpen ? "This service's circuit is open, but for some reason it wasn't handled above. " : "This service's circuit is closed. "}Re-throwing error.`,
+        );
+        throw error;
+      }
+    }
+
+    if (response) {
+      // If one of the services returned a successful response, assume that we
+      // won't need to hit any of the failover services following it and reset
+      // all of the policies of the following services. In particularly this
+      // means that if any of the failover services' circuits was open when
+      // requests were diverted back to the available service, that circuit will
+      // now be reset so that if we start hitting it again we don't get a
+      // "circuit broken" error.
+      if (availableServiceIndex !== undefined) {
+        for (const [i, service] of [...this.#services.entries()].slice(
+          availableServiceIndex + 1,
+        )) {
+          log(`Resetting policy for service #${i + 1}.`);
+          service.resetPolicy();
+        }
+      }
+
+      return response;
+    }
+
+    // The only way we can end up here is if there are no services to loop over.
+    // That is not possible due to the types on the constructor, but TypeScript
+    // doesn't know this, so we have to appease it.
+    throw new Error('Nothing to return');
   }
 }
