@@ -7,7 +7,7 @@ import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
 import { type KeyringObject } from '@metamask/keyring-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 
-import type { MultichainAccountServiceOptions } from './MultichainAccountService';
+import type { CreateWalletParams, MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
 import type { Bip44AccountProvider } from './providers';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
@@ -961,15 +961,6 @@ describe('MultichainAccountService', () => {
   });
 
   describe('createMultichainAccountWallet', () => {
-    it('throws an error if the create wallet parameters are invalid', async () => {
-      const { service } = await setup({ accounts: [], keyrings: [] });
-      await expect(() =>
-        service.createMultichainAccountWallet({
-          type: 'create',
-        }),
-      ).rejects.toThrow('Invalid create wallet parameters.');
-    });
-
     describe('createWalletByImport', () => {
       it('creates a new multichain account wallet by the import flow', async () => {
         const { mocks, service } = await setup({

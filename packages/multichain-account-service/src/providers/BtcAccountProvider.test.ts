@@ -129,6 +129,14 @@ function setup({
     () => accounts,
   );
 
+  const mockGetAccount = jest.fn().mockImplementation((id) => {
+    return keyring.accounts.find((account) => account.id === id);
+  });
+  messenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mockGetAccount,
+  );
+
   const mockHandleRequest = jest
     .fn()
     .mockImplementation((address: string) =>
@@ -151,10 +159,10 @@ function setup({
   );
 
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
-  const provider = new AccountProviderWrapper(
-    multichainMessenger,
-    new BtcAccountProvider(multichainMessenger),
-  );
+  const btcProvider = new BtcAccountProvider(multichainMessenger);
+  const accountIds = accounts.map((account) => account.id);
+  btcProvider.init(accountIds);
+  const provider = new AccountProviderWrapper(multichainMessenger, btcProvider);
 
   return {
     provider,

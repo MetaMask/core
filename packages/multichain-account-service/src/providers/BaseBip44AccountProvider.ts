@@ -41,16 +41,37 @@ export function assertAreBip44Accounts(
 export type Bip44AccountProvider<
   Account extends Bip44Account<KeyringAccount> = Bip44Account<KeyringAccount>,
 > = AccountProvider<Account> & {
+  /**
+   * Get the name of the provider.
+   *
+   * @returns The name of the provider.
+   */
   getName(): string;
+  /**
+   * Initialize the provider with the given accounts.
+   *
+   * @param accounts - The accounts to initialize the provider with.
+   */
   init(accounts: Bip44Account<KeyringAccount>['id'][]): void;
+  /**
+   * Check if the account is compatible with the provider.
+   */
   isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
+  /**
+   * Align the accounts with the given entropy source and group index.
+   *
+   * @param options - The options for aligning the accounts.
+   * @param options.entropySource - The entropy source.
+   * @param options.groupIndex - The group index.
+   * @returns A tuple containing a boolean indicating if the accounts were aligned and the accounts IDs.
+   */
   alignAccounts({
     entropySource,
     groupIndex,
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }): Promise<[boolean, Account['id'][]]>;
+  }): Promise<Account['id'][]>;
   /**
    * Re-synchronize MetaMask accounts and the providers accounts if needed.
    *
@@ -67,7 +88,7 @@ export abstract class BaseBip44AccountProvider<
 {
   protected readonly messenger: MultichainAccountServiceMessenger;
 
-  accountsList: Set<Bip44Account<KeyringAccount>['id']> = new Set();
+  protected accounts: Set<Bip44Account<KeyringAccount>['id']> = new Set();
 
   constructor(messenger: MultichainAccountServiceMessenger) {
     this.messenger = messenger;
@@ -80,7 +101,7 @@ export abstract class BaseBip44AccountProvider<
    */
   init(accounts: Account['id'][]): void {
     for (const account of accounts) {
-      this.accountsList.add(account);
+      this.accounts.add(account);
     }
   }
 
@@ -90,7 +111,7 @@ export abstract class BaseBip44AccountProvider<
    * @returns The accounts list.
    */
   #getAccountIds(): Account['id'][] {
-    return [...this.accountsList];
+    return [...this.accounts];
   }
 
   /**
@@ -116,13 +137,16 @@ export abstract class BaseBip44AccountProvider<
    * @throws If the account is not found.
    */
   getAccount(id: Account['id']): Account {
-    const found = this.getAccounts().find((account) => account.id === id);
+    const hasAccount = this.accounts.has(id);
 
-    if (!found) {
+    if (!hasAccount) {
       throw new Error(`Unable to find account: ${id}`);
     }
 
-    return found;
+    return this.messenger.call(
+      'AccountsController:getAccount',
+      id,
+    ) as unknown as Account;
   }
 
   protected async withKeyring<SelectedKeyring, CallbackResult = void>(
@@ -154,13 +178,13 @@ export abstract class BaseBip44AccountProvider<
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }): Promise<[boolean, Account['id'][]]> {
+  }): Promise<Account['id'][]> {
     const accounts = await this.createAccounts({
       entropySource,
       groupIndex,
     });
     const accountIds = accounts.map((account) => account.id);
-    return [true, accountIds];
+    return accountIds;
   }
 
   abstract getName(): string;

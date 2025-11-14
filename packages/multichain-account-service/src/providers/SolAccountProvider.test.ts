@@ -113,6 +113,14 @@ function setup({
     () => accounts,
   );
 
+  const mockGetAccount = jest.fn().mockImplementation((id) => {
+    return keyring.accounts.find((account) => account.id === id);
+  });
+  messenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mockGetAccount,
+  );
+
   const mockHandleRequest = jest
     .fn()
     .mockImplementation((address: string) =>
@@ -144,10 +152,14 @@ function setup({
   );
 
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
-  const provider = new AccountProviderWrapper(
+  const solProvider = new SolAccountProvider(
     multichainMessenger,
-    new SolAccountProvider(multichainMessenger, undefined, mockTrace),
+    undefined,
+    mockTrace,
   );
+  const accountIds = accounts.map((account) => account.id);
+  solProvider.init(accountIds);
+  const provider = new AccountProviderWrapper(multichainMessenger, solProvider);
 
   return {
     provider,

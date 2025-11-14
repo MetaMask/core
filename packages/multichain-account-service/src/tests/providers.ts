@@ -10,8 +10,8 @@ import {
 } from '../providers';
 
 export type MockAccountProvider = {
-  accounts: KeyringAccount[];
-  accountsList: Set<KeyringAccount['id']>;
+  mockAccounts: KeyringAccount[];
+  accounts: Set<KeyringAccount['id']>;
   constructor: jest.Mock;
   alignAccounts: jest.Mock;
   init: jest.Mock;
@@ -31,8 +31,8 @@ export function makeMockAccountProvider(
   accounts: KeyringAccount[] = [],
 ): MockAccountProvider {
   return {
-    accounts,
-    accountsList: new Set(),
+    mockAccounts: accounts,
+    accounts: new Set(),
     constructor: jest.fn(),
     alignAccounts: jest.fn(),
     init: jest.fn(),
@@ -63,8 +63,8 @@ export function setupBip44AccountProvider({
 }): MockAccountProvider {
   // You can mock this and all other mocks will re-use that list
   // of accounts.
-  mocks.accounts = accounts;
-  mocks.accountsList = new Set(accounts.map((account) => account.id));
+  mocks.mockAccounts = accounts;
+  mocks.accounts = new Set(accounts.map((account) => account.id));
   // Toggle enabled state only
   mocks.setEnabled.mockImplementation((enabled: boolean) => {
     mocks.isEnabled = enabled;
@@ -72,8 +72,8 @@ export function setupBip44AccountProvider({
   mocks.isDisabled.mockImplementation(() => !mocks.isEnabled);
 
   const getAccounts = () =>
-    mocks.accounts.filter((account) =>
-      [...mocks.accountsList].includes(account.id),
+    mocks.mockAccounts.filter((account) =>
+      [...mocks.accounts].includes(account.id),
     );
 
   mocks.getName.mockImplementation(() => name);
@@ -94,26 +94,25 @@ export function setupBip44AccountProvider({
       groupIndex: number;
     }) => {
       if (mocks.isDisabled()) {
-        // Execute AccountProviderWrapper disabled path to cover line 58
         const wrapperAlign = (
           AccountProviderWrapper.prototype as unknown as {
             alignAccounts: (
               this: { isEnabled: boolean },
               opts: { entropySource: EntropySourceId; groupIndex: number },
-            ) => Promise<[boolean, string[]]>;
+            ) => Promise<string[]>;
           }
         ).alignAccounts;
-        const [disabled, ids] = await wrapperAlign.call(
+        const ids = await wrapperAlign.call(
           { isEnabled: false, isDisabled: () => true },
           { entropySource, groupIndex },
         );
-        return [disabled, ids];
+        return ids;
       }
       const createdAccounts = await mocks.createAccounts({
         entropySource,
         groupIndex,
       });
-      // Execute BaseBip44AccountProvider's mapping path to cover 149-154
+
       const baseAlign = (
         BaseBip44AccountProvider.prototype as unknown as {
           alignAccounts: (
@@ -124,20 +123,20 @@ export function setupBip44AccountProvider({
               }) => Promise<unknown[]>;
             },
             opts: { entropySource: EntropySourceId; groupIndex: number },
-          ) => Promise<[boolean, string[]]>;
+          ) => Promise<string[]>;
         }
       ).alignAccounts;
-      const [, ids] = await baseAlign.call(
+      const ids = await baseAlign.call(
         { createAccounts: async () => createdAccounts },
         { entropySource, groupIndex },
       );
-      // Normalize tuple to the expected [disabled=false, ids]
-      return [false, ids];
+
+      return ids;
     },
   );
   mocks.init.mockImplementation(
     (accountIds: Bip44Account<KeyringAccount>['id'][]) => {
-      accountIds.forEach((id) => mocks.accountsList.add(id));
+      accountIds.forEach((id) => mocks.accounts.add(id));
     },
   );
 
@@ -168,14 +167,14 @@ export function mockCreateAccountsOnce(
   provider.createAccounts.mockImplementationOnce(async () => {
     // Add newly created accounts to the provider's internal store
     for (const acc of created) {
-      if (!provider.accounts.some((a) => a.id === acc.id)) {
-        provider.accounts.push(acc);
+      if (!provider.mockAccounts.some((a) => a.id === acc.id)) {
+        provider.mockAccounts.push(acc);
       }
     }
     // Merge IDs into the visible list used by getAccounts/getAccount
     const ids = created.map((a) => a.id);
     for (const id of ids) {
-      provider.accountsList.add(id);
+      provider.accounts.add(id);
     }
 
     return created;

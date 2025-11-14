@@ -68,9 +68,9 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
   override async alignAccounts(options: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }): Promise<[boolean, Bip44Account<KeyringAccount>['id'][]]> {
+  }): Promise<Bip44Account<KeyringAccount>['id'][]> {
     if (this.isDisabled()) {
-      return [true, []];
+      return [];
     }
     return await this.provider.alignAccounts(options);
   }

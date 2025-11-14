@@ -73,7 +73,7 @@ export class BtcAccountProvider extends SnapAccountProvider {
       );
 
       assertIsBip44Account(account);
-      this.accountsList.add(account.id);
+      this.accounts.add(account.id);
       return [account];
     });
   }

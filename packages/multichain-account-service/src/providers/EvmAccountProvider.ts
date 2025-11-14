@@ -186,7 +186,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     const accountsArray = [account];
     assertAreBip44Accounts(accountsArray);
 
-    this.accountsList.add(account.id);
+    this.accounts.add(account.id);
     return accountsArray;
   }
 
@@ -296,13 +296,15 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
           'Created account does not match address from group index.',
         );
 
+        const accoundId = this.#getAccountId(address);
+
         const account = this.messenger.call(
-          'AccountsController:getAccountByAddress',
-          address,
+          'AccountsController:getAccount',
+          accoundId,
         );
         assertInternalAccountExists(account);
         assertIsBip44Account(account);
-        this.accountsList.add(account.id);
+        this.accounts.add(account.id);
         return [account];
       },
     );

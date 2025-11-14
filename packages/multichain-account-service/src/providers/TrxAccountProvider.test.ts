@@ -102,6 +102,14 @@ function setup({
     () => accounts,
   );
 
+  const mockGetAccount = jest.fn().mockImplementation((id) => {
+    return keyring.accounts.find((account) => account.id === id);
+  });
+  messenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mockGetAccount,
+  );
+
   const mockHandleRequest = jest.fn().mockImplementation((request) => {
     // Handle KeyringClient discoverAccounts calls
     if (request.request?.method === 'keyring_discoverAccounts') {
@@ -130,10 +138,10 @@ function setup({
   );
 
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
-  const provider = new AccountProviderWrapper(
-    multichainMessenger,
-    new TrxAccountProvider(multichainMessenger),
-  );
+  const trxProvider = new TrxAccountProvider(multichainMessenger);
+  const accountIds = accounts.map((account) => account.id);
+  trxProvider.init(accountIds);
+  const provider = new AccountProviderWrapper(multichainMessenger, trxProvider);
 
   return {
     provider,

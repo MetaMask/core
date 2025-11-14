@@ -16,7 +16,10 @@ import {
 } from './logger';
 import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { Bip44AccountProvider } from './providers';
+import {
+  isAccountProviderWrapper,
+  type Bip44AccountProvider,
+} from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
 import { createSentryError } from './utils';
 
@@ -52,8 +55,6 @@ export class MultichainAccountGroup<
 
   readonly #log: Logger;
 
-  #initialized = false;
-
   constructor({
     groupIndex,
     wallet,
@@ -77,15 +78,11 @@ export class MultichainAccountGroup<
   }
 
   /**
-   * Initialize the multichain account group and construct the internal representation of accounts.
-   *
-   * Note: This method can be called multiple times to update the group state.
+   * Update the internal representation of accounts with the given group state.
    *
    * @param groupState - The group state.
-   * @param update - Whether the call is a update operation.
    */
-  init(groupState: GroupState, update = false) {
-    this.#log('Initializing group state...');
+  #setState(groupState: GroupState) {
     for (const provider of this.#providers) {
       const accountIds = groupState[provider.getName()];
 
@@ -98,18 +95,21 @@ export class MultichainAccountGroup<
       }
     }
 
-    if (!this.#initialized) {
-      this.#initialized = true;
-    } else {
-      this.#messenger.publish(
-        'MultichainAccountService:multichainAccountGroupUpdated',
-        this,
-      );
-    }
+    this.#messenger.publish(
+      'MultichainAccountService:multichainAccountGroupUpdated',
+      this,
+    );
+  }
 
-    update
-      ? this.#log('Finished updating group state...')
-      : this.#log('Finished initializing group state...');
+  /**
+   * Initialize the multichain account group and construct the internal representation of accounts.
+   *
+   * @param groupState - The group state.
+   */
+  init(groupState: GroupState) {
+    this.#log('Initializing group state...');
+    this.#setState(groupState);
+    this.#log('Finished initializing group state...');
   }
 
   /**
@@ -118,7 +118,9 @@ export class MultichainAccountGroup<
    * @param groupState - The group state.
    */
   update(groupState: GroupState) {
-    this.init(groupState, true);
+    this.#log('Updating group state...');
+    this.#setState(groupState);
+    this.#log('Finished updating group state...');
   }
 
   /**
@@ -197,7 +199,7 @@ export class MultichainAccountGroup<
    * @returns The account IDs.
    */
   getAccountIds(): Account['id'][] {
-    return [...this.#providerToAccounts.values()].flat();
+    return [...this.#accountToProvider.keys()];
   }
 
   /**
@@ -253,12 +255,15 @@ export class MultichainAccountGroup<
     const results = await Promise.allSettled(
       this.#providers.map(async (provider) => {
         try {
-          const [disabled, accounts] = await provider.alignAccounts({
+          const accounts = await provider.alignAccounts({
             entropySource: this.wallet.entropySource,
             groupIndex: this.groupIndex,
           });
 
-          if (disabled) {
+          const isDisabled =
+            isAccountProviderWrapper(provider) && provider.isDisabled();
+
+          if (isDisabled) {
             this.#log(
               `Account provider "${provider.getName()}" is disabled, skipping alignment...`,
             );

@@ -2,6 +2,7 @@
 import type { Bip44Account } from '@metamask/account-api';
 import {
   AccountGroupType,
+  isBip44Account,
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
@@ -80,9 +81,7 @@ function setup({
   // Initialize group state from provided accounts so that constructor tests
   // observe accounts immediately
   const groupState = providers.reduce<GroupState>((state, provider, idx) => {
-    const ids = accounts[idx]
-      .filter((a) => 'options' in a && a.options?.entropy)
-      .map((a) => a.id);
+    const ids = accounts[idx].filter(isBip44Account).map((a) => a.id);
     if (ids.length > 0) {
       state[provider.getName()] = ids;
     }

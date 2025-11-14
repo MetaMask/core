@@ -72,30 +72,18 @@ export type ServiceState = {
   };
 };
 
-export type CreateWalletType = 'restore' | 'import' | 'create';
-
-type RestoreType = Extract<CreateWalletType, 'restore'>;
-type ImportType = Extract<CreateWalletType, 'import'>;
-type CreateType = Extract<CreateWalletType, 'create'>;
-
-type CreateWalletParams = {
-  type: CreateWalletType;
-  password?: string;
-  mnemonic?: Uint8Array;
-};
-
-type CreateWalletValidatedParams =
+export type CreateWalletParams =
   | {
-      type: RestoreType;
+      type: 'restore';
       password: string;
       mnemonic: Uint8Array;
     }
   | {
-      type: ImportType;
+      type: 'import';
       mnemonic: Uint8Array;
     }
   | {
-      type: CreateType;
+      type: 'create';
       password: string;
     };
 
@@ -236,29 +224,19 @@ export class MultichainAccountService {
     );
 
     const serviceState: ServiceState = {};
-    const { keyrings } = this.#messenger.call('KeyringController:getState');
 
-    // We set up the wallet level keys for this constructed state object
-    for (const keyring of keyrings) {
-      if (keyring.type === (KeyringTypes.hd as string)) {
-        serviceState[keyring.metadata.id] = {};
-      }
-    }
-
-    const providerState = this.#providers.reduce<
-      Record<string, Bip44Account<KeyringAccount>['id'][]>
-    >((acc, provider) => {
-      acc[provider.getName()] = [];
-      return acc;
-    }, {});
+    const providerState: Record<string, Bip44Account<KeyringAccount>['id'][]> =
+      {};
 
     for (const account of accounts) {
       const keys = this.#getStateKeys(account);
       if (keys) {
         const { entropySource, groupIndex, providerName } = keys;
+        serviceState[entropySource] ??= {};
         serviceState[entropySource][groupIndex] ??= {};
         serviceState[entropySource][groupIndex][providerName] ??= [];
         serviceState[entropySource][groupIndex][providerName].push(account.id);
+        providerState[providerName] ??= [];
         providerState[providerName].push(account.id);
       }
     }
@@ -276,11 +254,12 @@ export class MultichainAccountService {
 
     const { serviceState, providerState } = this.#constructServiceState();
 
-    // Add the accounts to the providers' internal list of account IDs
-    for (const [providerName, accountIds] of Object.entries(providerState)) {
-      this.#providers
-        .find((p) => p.getName() === providerName)
-        ?.init(accountIds);
+    for (const provider of this.#providers) {
+      const providerName = provider.getName();
+      // Initialize providers even if there are no accounts yet.
+      // Passing an empty array ensures providers start in a valid state.
+      const state = providerState[providerName] ?? [];
+      provider.init(state);
     }
 
     for (const entropySource of Object.keys(serviceState)) {
@@ -388,37 +367,13 @@ export class MultichainAccountService {
     return Array.from(this.#wallets.values());
   }
 
-  /**
-   * Gets the validated create wallet parameters.
-   *
-   * @param options - Options.
-   * @param options.mnemonic - The mnemonic to use to create the new wallet.
-   * @param options.password - The password to encrypt the vault with.
-   * @param options.type - The flow type to use to create the new wallet.
-   * @returns The validated create wallet parameters.
-   */
-  #getValidatedCreateWalletParams({
-    mnemonic,
-    password,
-    type,
-  }: CreateWalletParams): CreateWalletValidatedParams {
-    if (type === 'restore' && password && mnemonic) {
-      return {
-        password,
-        mnemonic,
-        type: 'restore',
-      };
-    }
-
-    if (type === 'import' && mnemonic) {
-      return { mnemonic, type: 'import' };
-    }
-
-    if (type === 'create' && password) {
-      return { password, type: 'create' };
-    }
-
-    throw new Error('Invalid create wallet parameters.');
+  #getPrimaryEntropySourceId(): EntropySourceId {
+    const { keyrings } = this.#messenger.call('KeyringController:getState');
+    const primaryKeyring = keyrings.find(
+      (keyring) => keyring.type === 'HD Key Tree',
+    );
+    assert(primaryKeyring, 'Primary keyring not found');
+    return primaryKeyring.metadata.id;
   }
 
   /**
@@ -476,13 +431,7 @@ export class MultichainAccountService {
       password,
     );
 
-    const entropySourceId = (await this.#messenger.call(
-      'KeyringController:withKeyring',
-      { type: KeyringTypes.hd },
-      async ({ metadata }) => {
-        return metadata.id;
-      },
-    )) as string;
+    const entropySourceId = this.#getPrimaryEntropySourceId();
 
     // The wallet is ripe for discovery
     return new MultichainAccountWallet({
@@ -510,13 +459,7 @@ export class MultichainAccountService {
       mnemonic,
     );
 
-    const entropySourceId = (await this.#messenger.call(
-      'KeyringController:withKeyring',
-      { type: KeyringTypes.hd },
-      async ({ metadata }) => {
-        return metadata.id;
-      },
-    )) as string;
+    const entropySourceId = this.#getPrimaryEntropySourceId();
 
     // The wallet is ripe for discovery
     return new MultichainAccountWallet({
@@ -533,27 +476,16 @@ export class MultichainAccountService {
    * NOTE: This method should only be called in client code where a mutex lock is acquired.
    * `discoverAccounts` should be called after this method to discover and create accounts.
    *
-   * @param options - Options.
-   * @param options.mnemonic - The mnemonic to use to create the new wallet.
-   * @param options.password - The password to encrypt the vault with.
-   * @param options.type - The flow type to use to create the new wallet.
+   * @param params - The parameters to use to create the new wallet.
+   * @param params.mnemonic - The mnemonic to use to create the new wallet.
+   * @param params.password - The password to encrypt the vault with.
+   * @param params.type - The flow type to use to create the new wallet.
    * @throws If the mnemonic has already been imported.
    * @returns The new multichain account wallet.
    */
-  async createMultichainAccountWallet({
-    mnemonic,
-    password,
-    type,
-  }: CreateWalletParams): Promise<
-    MultichainAccountWallet<Bip44Account<KeyringAccount>>
-  > {
-    const params: CreateWalletValidatedParams =
-      this.#getValidatedCreateWalletParams({
-        mnemonic,
-        password,
-        type,
-      });
-
+  async createMultichainAccountWallet(
+    params: CreateWalletParams,
+  ): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
     let wallet:
       | MultichainAccountWallet<Bip44Account<KeyringAccount>>
       | undefined;

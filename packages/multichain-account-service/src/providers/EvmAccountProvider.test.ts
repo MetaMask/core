@@ -211,6 +211,9 @@ function setup({
     getMultichainAccountServiceMessenger(messenger),
   );
 
+  const accountIds = accounts.map((account) => account.id);
+  provider.init(accountIds);
+
   return {
     provider,
     messenger,
