@@ -3,7 +3,10 @@ import type { Logger } from 'loglevel';
 
 import type { NetworkClient } from './create-network-client';
 import { createNetworkClient } from './create-network-client';
-import type { NetworkControllerMessenger } from './NetworkController';
+import type {
+  NetworkClientId,
+  NetworkControllerMessenger,
+} from './NetworkController';
 import type { RpcServiceOptions } from './rpc-service/rpc-service';
 import type {
   BlockTracker,
@@ -65,6 +68,8 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  * then cached for subsequent usages.
  *
  * @param args - The arguments.
+ * @param args.networkClientId - The ID that will be assigned to the new network
+ * client in the registry.
  * @param args.networkClientConfiguration - The configuration object that will be
  * used to instantiate the network client when it is needed.
  * @param args.getRpcServiceOptions - Factory for constructing RPC service
@@ -81,6 +86,7 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
 export function createAutoManagedNetworkClient<
   Configuration extends NetworkClientConfiguration,
 >({
+  networkClientId,
   networkClientConfiguration,
   getRpcServiceOptions,
   getBlockTrackerOptions = () => ({}),
@@ -88,6 +94,7 @@ export function createAutoManagedNetworkClient<
   isRpcFailoverEnabled: givenIsRpcFailoverEnabled,
   logger,
 }: {
+  networkClientId: NetworkClientId;
   networkClientConfiguration: Configuration;
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
@@ -104,6 +111,7 @@ export function createAutoManagedNetworkClient<
 
   const ensureNetworkClientCreated = (): NetworkClient => {
     networkClient ??= createNetworkClient({
+      id: networkClientId,
       configuration: networkClientConfiguration,
       getRpcServiceOptions,
       getBlockTrackerOptions,
