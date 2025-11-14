@@ -6,7 +6,7 @@ import { BigNumber } from 'bignumber.js';
 
 import { getNativeToken, getTokenFiatRate } from './token';
 import type { TransactionPayControllerMessenger } from '..';
-import type { FiatValue } from '../types';
+import type { Amount } from '../types';
 
 /**
  *
@@ -19,7 +19,7 @@ import type { FiatValue } from '../types';
 export function calculateTransactionGasCost(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-): FiatValue {
+): Amount {
   const { chainId, gasUsed, gasLimitNoBuffer, txParams } = transaction;
   const { gas, maxFeePerGas, maxPriorityFeePerGas } = txParams;
   const finalGas = gasUsed || gasLimitNoBuffer || gas || '0x0';
@@ -50,7 +50,7 @@ export function calculateGasCost(request: {
   maxFeePerGas?: BigNumber.Value;
   maxPriorityFeePerGas?: BigNumber.Value;
   messenger: TransactionPayControllerMessenger;
-}): FiatValue {
+}): Amount {
   const {
     chainId: chainIdInput,
     gas,
@@ -77,9 +77,11 @@ export function calculateGasCost(request: {
       ? new BigNumber(estimatedBaseFee).plus(maxPriorityFeePerGas)
       : new BigNumber(maxFeePerGas || '0x0');
 
-  const gasCostNative = new BigNumber(gas)
-    .multipliedBy(feePerGas)
-    .shiftedBy(-18);
+  const rawValue = new BigNumber(gas).multipliedBy(feePerGas);
+  const raw = rawValue.toString(10);
+
+  const humanValue = rawValue.shiftedBy(-18);
+  const human = humanValue.toString(10);
 
   const fiatRate = getTokenFiatRate(
     messenger,
@@ -91,12 +93,14 @@ export function calculateGasCost(request: {
     throw new Error('Could not fetch fiat rate for native token');
   }
 
-  const usd = gasCostNative.multipliedBy(fiatRate.usdRate).toString(10);
-  const fiat = gasCostNative.multipliedBy(fiatRate.fiatRate).toString(10);
+  const usd = humanValue.multipliedBy(fiatRate.usdRate).toString(10);
+  const fiat = humanValue.multipliedBy(fiatRate.fiatRate).toString(10);
 
   return {
-    usd,
     fiat,
+    human,
+    raw,
+    usd,
   };
 }
 

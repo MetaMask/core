@@ -50,6 +50,16 @@ export function calculateTotals({
     (quote) => quote.fees.sourceNetwork.usd,
   );
 
+  const sourceNetworkFeeRaw = sumProperty(
+    quotes,
+    (quote) => quote.fees.sourceNetwork.raw,
+  );
+
+  const sourceNetworkFeeHuman = sumProperty(
+    quotes,
+    (quote) => quote.fees.sourceNetwork.human,
+  );
+
   const transactionNetworkFee = calculateTransactionGasCost(
     transaction,
     messenger,
@@ -92,6 +102,8 @@ export function calculateTotals({
       },
       sourceNetwork: {
         fiat: sourceNetworkFeeFiat,
+        human: sourceNetworkFeeHuman,
+        raw: sourceNetworkFeeRaw,
         usd: sourceNetworkFeeUsd,
       },
       targetNetwork: {

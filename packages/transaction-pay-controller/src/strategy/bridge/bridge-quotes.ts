@@ -21,7 +21,7 @@ import type {
 import { TransactionPayStrategy } from '../..';
 import { projectLogger } from '../../logger';
 import type {
-  FiatValue,
+  Amount,
   PayStrategyGetBatchRequest,
   PayStrategyGetQuotesRequest,
   PayStrategyGetRefreshIntervalRequest,
@@ -497,21 +497,21 @@ function normalizeQuote(
     );
   }
 
-  const targetAmountMinimumFiat = calculateFiatValue(
+  const targetAmountMinimumFiat = calculateAmount(
     quote.quote.minDestTokenAmount,
     quote.quote.destAsset.decimals,
     targetFiatRate.fiatRate,
     targetFiatRate.usdRate,
   );
 
-  const sourceAmountFiat = calculateFiatValue(
+  const sourceAmount = calculateAmount(
     quote.quote.srcTokenAmount,
     quote.quote.srcAsset.decimals,
     sourceFiatRate.fiatRate,
     sourceFiatRate.usdRate,
   );
 
-  const targetAmountGoal = calculateFiatValue(
+  const targetAmount = calculateAmount(
     request.targetAmountMinimum,
     quote.quote.destAsset.decimals,
     targetFiatRate.fiatRate,
@@ -525,18 +525,18 @@ function normalizeQuote(
     estimatedDuration: quote.estimatedProcessingTimeInSeconds,
     dust: {
       fiat: new BigNumber(targetAmountMinimumFiat.fiat)
-        .minus(targetAmountGoal.fiat)
+        .minus(targetAmount.fiat)
         .toString(10),
       usd: new BigNumber(targetAmountMinimumFiat.usd)
-        .minus(targetAmountGoal.usd)
+        .minus(targetAmount.usd)
         .toString(10),
     },
     fees: {
       provider: {
-        fiat: new BigNumber(sourceAmountFiat.fiat)
+        fiat: new BigNumber(sourceAmount.fiat)
           .minus(targetAmountMinimumFiat.fiat)
           .toString(10),
-        usd: new BigNumber(sourceAmountFiat.usd)
+        usd: new BigNumber(sourceAmount.usd)
           .minus(targetAmountMinimumFiat.usd)
           .toString(10),
       },
@@ -545,30 +545,33 @@ function normalizeQuote(
     },
     original: quote,
     request,
+    sourceAmount,
     strategy: TransactionPayStrategy.Bridge,
   };
 }
 
 /**
- * Calculate fiat value from amount and fiat rates.
+ * Calculate amount from raw value and fiat rates.
  *
- * @param amount - Amount to convert.
+ * @param raw - Amount to convert.
  * @param decimals - Token decimals.
  * @param fiatRateFiat - Fiat rate.
  * @param fiatRateUsd - USD rate.
- * @returns Fiat value.
+ * @returns Amount object.
  */
-function calculateFiatValue(
-  amount: string,
+function calculateAmount(
+  raw: string,
   decimals: number,
   fiatRateFiat: string,
   fiatRateUsd: string,
-): FiatValue {
-  const amountHuman = new BigNumber(amount).shiftedBy(-decimals);
-  const usd = amountHuman.multipliedBy(fiatRateUsd).toString(10);
-  const fiat = amountHuman.multipliedBy(fiatRateFiat).toString(10);
+): Amount {
+  const humanValue = new BigNumber(raw).shiftedBy(-decimals);
+  const human = humanValue.toString(10);
 
-  return { fiat, usd };
+  const usd = humanValue.multipliedBy(fiatRateUsd).toString(10);
+  const fiat = humanValue.multipliedBy(fiatRateFiat).toString(10);
+
+  return { fiat, human, raw, usd };
 }
 
 /**
@@ -581,17 +584,19 @@ function calculateFiatValue(
 function calculateSourceNetworkFee(
   quote: TransactionPayBridgeQuote,
   messenger: TransactionPayControllerMessenger,
-): FiatValue {
+): Amount {
   const { approval, trade } = quote;
 
   const approvalCost = approval
     ? calculateTransactionCost(approval as TxData, messenger)
-    : { fiat: '0', usd: '0' };
+    : { fiat: '0', human: '0', raw: '0', usd: '0' };
 
   const tradeCost = calculateTransactionCost(trade as TxData, messenger);
 
   return {
     fiat: new BigNumber(approvalCost.fiat).plus(tradeCost.fiat).toString(10),
+    human: new BigNumber(approvalCost.human).plus(tradeCost.human).toString(10),
+    raw: new BigNumber(approvalCost.raw).plus(tradeCost.raw).toString(10),
     usd: new BigNumber(approvalCost.usd).plus(tradeCost.usd).toString(10),
   };
 }
@@ -606,7 +611,7 @@ function calculateSourceNetworkFee(
 function calculateTransactionCost(
   transaction: TxData,
   messenger: TransactionPayControllerMessenger,
-): FiatValue {
+): Amount {
   const { effectiveGas, gasLimit } = transaction;
 
   return calculateGasCost({
