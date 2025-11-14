@@ -54,7 +54,7 @@
     "@metamask/keyring-snap-client": "^8.0.0",
     "@metamask/messenger": "^0.3.0",
     "@metamask/polling-controller": "^15.0.0",
-    "@metamask/snaps-sdk": "^9.0.0",
+    "@metamask/snaps-sdk": "^10.1.0",
     "@metamask/snaps-utils": "^11.0.0",
     "@metamask/utils": "^11.8.1",
     "@types/uuid": "^8.3.0",
