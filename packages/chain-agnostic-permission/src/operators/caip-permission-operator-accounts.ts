@@ -37,8 +37,6 @@ const isEip155ScopeString = (scopeString: InternalScopeString) => {
 
   return (
     namespace === KnownCaipNamespace.Eip155 ||
-    // We are trying to discern the type of `scopeString`.
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
     scopeString === KnownWalletScopeString.Eip155
   );
 };
@@ -321,7 +319,6 @@ function isAddressWithParsedScopesInPermittedAccountIds(
     return parsedAccountScopes.some(({ namespace, reference }) => {
       if (
         namespace !== parsedPermittedAccount.chain.namespace &&
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         parsedPermittedAccount.chain.namespace !== KnownCaipNamespace.Wallet
       ) {
         return false;
@@ -330,7 +327,6 @@ function isAddressWithParsedScopesInPermittedAccountIds(
       // handle wallet:<namespace>:<address> case where namespaces are mismatched but addresses match
       // i.e. wallet:notSolana:12389812309123 and solana:0:12389812309123
       if (
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         parsedPermittedAccount.chain.namespace === KnownCaipNamespace.Wallet &&
         namespace !== parsedPermittedAccount.chain.reference
       ) {
@@ -348,7 +344,6 @@ function isAddressWithParsedScopesInPermittedAccountIds(
 
       // handle wallet:<namespace>:<address> case
       if (
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         parsedPermittedAccount.chain.namespace === KnownCaipNamespace.Wallet
       ) {
         return address === parsedPermittedAccount.address;
