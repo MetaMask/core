@@ -5,7 +5,7 @@ import type {
   TokenRatesControllerState,
 } from '@metamask/assets-controllers';
 import type { GasFeeEstimates } from '@metamask/gas-fee-controller';
-import type { CaipAssetType, Hex } from '@metamask/utils';
+import type { CaipAssetType } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { orderBy } from 'lodash';
@@ -24,7 +24,6 @@ import type {
 } from './types';
 import { RequestStatus, SortOrder } from './types';
 import {
-  getNativeAssetForChainId,
   isEvmQuoteResponse,
   isNativeAddress,
   isNonEvmChainId,
@@ -130,7 +129,7 @@ const getExchangeRateByChainIdAndAddress = (
     return {};
   }
 
-  const { assetExchangeRates, currencyRates, marketData, conversionRates } =
+  const { assetExchangeRates, marketData, conversionRates } =
     exchangeRateSources;
 
   // If the asset exchange rate is available in the bridge controller, use it
