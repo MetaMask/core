@@ -96,6 +96,7 @@ const formatQueryParams = (request: GenericQuoteRequest): URLSearchParams => {
   Object.entries(normalizedRequest).forEach(([key, value]) => {
     queryParams.append(key, value.toString());
   });
+
   return queryParams;
 };
 

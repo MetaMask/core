@@ -553,7 +553,9 @@ export class PendingTransactionTracker {
       (tx) =>
         tx.status === TransactionStatus.submitted &&
         !tx.verifiedOnBlockchain &&
-        !tx.isUserOperation,
+        !tx.isUserOperation &&
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        !(tx as any).swapMetaData?.isIntentTx, // Exclude intent transactions from pending tracking
     );
   }
 
