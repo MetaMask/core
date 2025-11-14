@@ -4,11 +4,6 @@
       "count": 1
     }
   },
-  "packages/accounts-controller/src/utils.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": {
-      "count": 8
-    }
-  },
   "packages/assets-controllers/jest.environment.js": {
     "n/prefer-global/text-decoder": {
       "count": 1
@@ -33,11 +28,6 @@
   "packages/assets-controllers/src/MultichainAssetsController/MultichainAssetsController.ts": {
     "@typescript-eslint/no-misused-promises": {
       "count": 3
-    }
-  },
-  "packages/assets-controllers/src/MultichainAssetsController/utils.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": {
-      "count": 1
     }
   },
   "packages/assets-controllers/src/MultichainAssetsRatesController/MultichainAssetsRatesController.ts": {
@@ -108,16 +98,6 @@
   "packages/base-controller/src/BaseController.test.ts": {
     "import-x/namespace": {
       "count": 13
-    }
-  },
-  "packages/bridge-status-controller/src/utils/transaction.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": {
-      "count": 2
-    }
-  },
-  "packages/build-utils/src/transforms/remove-fenced-code.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": {
-      "count": 1
     }
   },
   "packages/composable-controller/src/ComposableController.test.ts": {
@@ -210,9 +190,6 @@
     }
   },
   "packages/keyring-controller/src/KeyringController.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": {
-      "count": 2
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
@@ -227,19 +204,9 @@
       "count": 1
     }
   },
-  "packages/multichain-api-middleware/src/handlers/wallet-invokeMethod.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": {
-      "count": 1
-    }
-  },
   "packages/multichain-transactions-controller/src/MultichainTransactionsController.ts": {
     "@typescript-eslint/no-misused-promises": {
       "count": 2
-    }
-  },
-  "packages/name-controller/src/NameController.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": {
-      "count": 1
     }
   },
   "packages/name-controller/src/util.ts": {
@@ -255,11 +222,6 @@
   "packages/phishing-controller/src/utils.test.ts": {
     "import-x/namespace": {
       "count": 5
-    }
-  },
-  "packages/phishing-controller/src/utils.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": {
-      "count": 1
     }
   },
   "packages/remote-feature-flag-controller/src/client-config-api-service/client-config-api-service.test.ts": {
@@ -280,26 +242,6 @@
   "packages/seedless-onboarding-controller/jest.environment.js": {
     "n/no-unsupported-features/node-builtins": {
       "count": 1
-    }
-  },
-  "packages/seedless-onboarding-controller/src/errors.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": {
-      "count": 1
-    }
-  },
-  "packages/shield-controller/src/ShieldController.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": {
-      "count": 1
-    }
-  },
-  "packages/shield-controller/src/backend.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": {
-      "count": 3
-    }
-  },
-  "packages/signature-controller/src/SignatureController.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": {
-      "count": 4
     }
   },
   "packages/signature-controller/src/utils/normalize.ts": {
@@ -329,16 +271,8 @@
     }
   },
   "scripts/create-package/utils.test.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": {
-      "count": 3
-    },
     "import-x/no-named-as-default-member": {
       "count": 2
-    }
-  },
-  "scripts/create-package/utils.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": {
-      "count": 5
     }
   },
   "tests/fake-block-tracker.ts": {
@@ -348,11 +282,6 @@
   },
   "tests/fake-provider.ts": {
     "@typescript-eslint/prefer-promise-reject-errors": {
-      "count": 1
-    }
-  },
-  "tests/mock-network.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": {
       "count": 1
     }
   },
