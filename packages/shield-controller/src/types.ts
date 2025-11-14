@@ -6,6 +6,9 @@ export type CoverageResult = {
   message?: string;
   reasonCode?: string;
   status: CoverageStatus;
+  metrics: {
+    latency?: number;
+  };
 };
 
 export const coverageStatuses = ['covered', 'malicious', 'unknown'] as const;

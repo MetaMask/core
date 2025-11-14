@@ -1,26 +1,29 @@
-import * as OnChainNotifications from './onchain-notifications';
+import * as OnChainNotifications from './api-notifications';
 import {
   mockGetOnChainNotificationsConfig,
   mockUpdateOnChainNotifications,
-  mockGetOnChainNotifications,
+  mockGetAPINotifications,
   mockMarkNotificationsAsRead,
 } from '../__fixtures__/mockServices';
+import {
+  createMockNotificationERC20Sent,
+  createMockPlatformNotification,
+} from '../mocks';
 
 const MOCK_BEARER_TOKEN = 'MOCK_BEARER_TOKEN';
 const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];
 
-describe('On Chain Notifications - getOnChainNotificationsConfig()', () => {
+describe('On Chain Notifications - getAPINotificationsConfig()', () => {
   it('should return notification config for addresses', async () => {
     const mockEndpoint = mockGetOnChainNotificationsConfig({
       status: 200,
       body: [{ address: '0xTestAddress', enabled: true }],
     });
 
-    const result =
-      await OnChainNotifications.getOnChainNotificationsConfigCached(
-        MOCK_BEARER_TOKEN,
-        MOCK_ADDRESSES,
-      );
+    const result = await OnChainNotifications.getNotificationsApiConfigCached(
+      MOCK_BEARER_TOKEN,
+      MOCK_ADDRESSES,
+    );
 
     expect(mockEndpoint.isDone()).toBe(true);
     expect(result).toStrictEqual([{ address: '0xTestAddress', enabled: true }]);
@@ -29,11 +32,10 @@ describe('On Chain Notifications - getOnChainNotificationsConfig()', () => {
   it('should bail early if given a list of empty addresses', async () => {
     const mockEndpoint = mockGetOnChainNotificationsConfig();
 
-    const result =
-      await OnChainNotifications.getOnChainNotificationsConfigCached(
-        MOCK_BEARER_TOKEN,
-        [],
-      );
+    const result = await OnChainNotifications.getNotificationsApiConfigCached(
+      MOCK_BEARER_TOKEN,
+      [],
+    );
 
     expect(mockEndpoint.isDone()).toBe(false); // bailed early before API was called
     expect(result).toStrictEqual([]);
@@ -45,11 +47,10 @@ describe('On Chain Notifications - getOnChainNotificationsConfig()', () => {
       body: { error: 'mock api failure' },
     });
 
-    const result =
-      await OnChainNotifications.getOnChainNotificationsConfigCached(
-        MOCK_BEARER_TOKEN,
-        MOCK_ADDRESSES,
-      );
+    const result = await OnChainNotifications.getNotificationsApiConfigCached(
+      MOCK_BEARER_TOKEN,
+      MOCK_ADDRESSES,
+    );
 
     expect(mockBadEndpoint.isDone()).toBe(true);
     expect(result).toStrictEqual([]);
@@ -112,13 +113,15 @@ describe('On Chain Notifications - updateOnChainNotifications()', () => {
   });
 });
 
-describe('On Chain Notifications - getOnChainNotifications()', () => {
+describe('On Chain Notifications - getAPINotifications()', () => {
   it('should return a list of notifications', async () => {
-    const mockEndpoint = mockGetOnChainNotifications();
+    const mockEndpoint = mockGetAPINotifications();
 
-    const result = await OnChainNotifications.getOnChainNotifications(
+    const result = await OnChainNotifications.getAPINotifications(
       MOCK_BEARER_TOKEN,
       MOCK_ADDRESSES,
+      'en',
+      'extension',
     );
 
     expect(mockEndpoint.isDone()).toBe(true);
@@ -126,10 +129,12 @@ describe('On Chain Notifications - getOnChainNotifications()', () => {
   });
 
   it('should bail early when a list of empty addresses is provided', async () => {
-    const mockEndpoint = mockGetOnChainNotifications();
-    const result = await OnChainNotifications.getOnChainNotifications(
+    const mockEndpoint = mockGetAPINotifications();
+    const result = await OnChainNotifications.getAPINotifications(
       MOCK_BEARER_TOKEN,
       [],
+      'en',
+      'extension',
     );
 
     expect(mockEndpoint.isDone()).toBe(false); // API was not called
@@ -137,14 +142,16 @@ describe('On Chain Notifications - getOnChainNotifications()', () => {
   });
 
   it('should return an empty array if endpoint fails', async () => {
-    const mockBadEndpoint = mockGetOnChainNotifications({
+    const mockBadEndpoint = mockGetAPINotifications({
       status: 500,
       body: { error: 'mock api failure' },
     });
 
-    const result = await OnChainNotifications.getOnChainNotifications(
+    const result = await OnChainNotifications.getAPINotifications(
       MOCK_BEARER_TOKEN,
       MOCK_ADDRESSES,
+      'en',
+      'extension',
     );
 
     expect(mockBadEndpoint.isDone()).toBe(true);
@@ -153,43 +160,41 @@ describe('On Chain Notifications - getOnChainNotifications()', () => {
   });
 
   it('should send correct request body format with addresses', async () => {
-    const mockEndpoint = mockGetOnChainNotifications();
+    const mockEndpoint = mockGetAPINotifications();
 
-    const result = await OnChainNotifications.getOnChainNotifications(
+    const result = await OnChainNotifications.getAPINotifications(
       MOCK_BEARER_TOKEN,
       MOCK_ADDRESSES,
+      'en',
+      'extension',
     );
 
     expect(mockEndpoint.isDone()).toBe(true);
     expect(result.length > 0).toBe(true);
   });
 
-  it('should filter out notifications without data.kind', async () => {
-    const mockEndpoint = mockGetOnChainNotifications({
+  it('should filter out notifications invalid notifications', async () => {
+    const mockEndpoint = mockGetAPINotifications({
       status: 200,
       body: [
-        {
-          id: '1',
-          data: { kind: 'eth_sent' },
-        },
+        createMockNotificationERC20Sent(),
         {
           id: '2',
           data: {}, // missing kind
         },
-        {
-          id: '3',
-          data: { kind: 'eth_received' },
-        },
+        createMockPlatformNotification(),
       ],
     });
 
-    const result = await OnChainNotifications.getOnChainNotifications(
+    const result = await OnChainNotifications.getAPINotifications(
       MOCK_BEARER_TOKEN,
       MOCK_ADDRESSES,
+      'en',
+      'extension',
     );
 
     expect(mockEndpoint.isDone()).toBe(true);
-    expect(result).toHaveLength(2); // Should filter out the one without kind
+    expect(result).toHaveLength(2); // Should filter out the invalid notification
   });
 });
 

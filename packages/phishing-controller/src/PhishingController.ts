@@ -572,6 +572,22 @@ export class PhishingController extends BaseController<
   }
 
   /**
+   * Checks if a patch represents a simulation data change
+   *
+   * @param patch - Immer patch to check
+   * @returns True if patch represents a simulation data change
+   */
+  #isSimulationDataPatch(patch: Patch): boolean {
+    const { path } = patch;
+    return (
+      path.length === 3 &&
+      path[0] === 'transactions' &&
+      typeof path[1] === 'number' &&
+      path[2] === 'simulationData'
+    );
+  }
+
+  /**
    * Handle transaction controller state changes using Immer patches
    * Extracts token addresses from simulation data and groups them by chain for bulk scanning
    *
@@ -594,6 +610,10 @@ export class PhishingController extends BaseController<
         // Handle transaction-level patches (includes simulation data updates)
         if (this.#isTransactionPatch(patch)) {
           const transaction = patch.value as TransactionMeta;
+          this.#getTokensFromTransaction(transaction, tokensByChain);
+        } else if (this.#isSimulationDataPatch(patch)) {
+          const transactionIndex = patch.path[1] as number;
+          const transaction = _state.transactions?.[transactionIndex];
           this.#getTokensFromTransaction(transaction, tokensByChain);
         }
       }

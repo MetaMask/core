@@ -41,7 +41,7 @@ export class TransactionPayController extends BaseController<
 
   readonly #getStrategy?: (
     transaction: TransactionMeta,
-  ) => Promise<TransactionPayStrategy>;
+  ) => TransactionPayStrategy;
 
   constructor({
     getDelegationTransaction,
@@ -139,7 +139,7 @@ export class TransactionPayController extends BaseController<
 
     this.messenger.registerActionHandler(
       'TransactionPayController:getStrategy',
-      this.#getStrategy ?? (async () => TransactionPayStrategy.Relay),
+      this.#getStrategy ?? (() => TransactionPayStrategy.Relay),
     );
 
     this.messenger.registerActionHandler(
