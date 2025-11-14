@@ -41,6 +41,8 @@ describe('TestStrategy', () => {
             },
             sourceNetwork: {
               fiat: expect.any(String),
+              human: expect.any(String),
+              raw: expect.any(String),
               usd: expect.any(String),
             },
             targetNetwork: {
@@ -50,6 +52,12 @@ describe('TestStrategy', () => {
           },
           original: undefined,
           request: REQUEST_MOCK,
+          sourceAmount: {
+            human: expect.any(String),
+            fiat: expect.any(String),
+            raw: expect.any(String),
+            usd: expect.any(String),
+          },
           strategy: TransactionPayStrategy.Test,
         },
       ]);
