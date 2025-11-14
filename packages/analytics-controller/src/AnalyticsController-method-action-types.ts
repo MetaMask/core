@@ -21,7 +21,6 @@ export type AnalyticsControllerTrackEventAction = {
 /**
  * Identify a user for analytics.
  *
- * @param userId - The user identifier (e.g., metametrics ID)
  * @param traits - User traits/properties
  */
 export type AnalyticsControllerIdentifyAction = {
@@ -32,12 +31,12 @@ export type AnalyticsControllerIdentifyAction = {
 /**
  * Track a page view.
  *
- * @param pageName - The name of the page
- * @param properties - Page properties
+ * @param name - The name of the UI item being viewed (pages for web, screen for mobile)
+ * @param properties - UI item properties
  */
-export type AnalyticsControllerTrackPageAction = {
-  type: `AnalyticsController:trackPage`;
-  handler: AnalyticsController['trackPage'];
+export type AnalyticsControllerTrackViewAction = {
+  type: `AnalyticsController:trackView`;
+  handler: AnalyticsController['trackView'];
 };
 
 /**
@@ -73,13 +72,46 @@ export type AnalyticsControllerOptOutAction = {
 };
 
 /**
+ * Get the analytics ID from the controller state.
+ *
+ * @returns The current analytics ID.
+ */
+export type AnalyticsControllerGetAnalyticsIdAction = {
+  type: `AnalyticsController:getAnalyticsId`;
+  handler: AnalyticsController['getAnalyticsId'];
+};
+
+/**
+ * Get the enabled status from the controller state.
+ *
+ * @returns The current enabled status.
+ */
+export type AnalyticsControllerIsEnabledAction = {
+  type: `AnalyticsController:isEnabled`;
+  handler: AnalyticsController['isEnabled'];
+};
+
+/**
+ * Get the opted in status from the controller state.
+ *
+ * @returns The current opted in status.
+ */
+export type AnalyticsControllerIsOptedInAction = {
+  type: `AnalyticsController:isOptedIn`;
+  handler: AnalyticsController['isOptedIn'];
+};
+
+/**
  * Union of all AnalyticsController action types.
  */
 export type AnalyticsControllerMethodActions =
   | AnalyticsControllerTrackEventAction
   | AnalyticsControllerIdentifyAction
-  | AnalyticsControllerTrackPageAction
+  | AnalyticsControllerTrackViewAction
   | AnalyticsControllerEnableAction
   | AnalyticsControllerDisableAction
   | AnalyticsControllerOptInAction
-  | AnalyticsControllerOptOutAction;
+  | AnalyticsControllerOptOutAction
+  | AnalyticsControllerGetAnalyticsIdAction
+  | AnalyticsControllerIsEnabledAction
+  | AnalyticsControllerIsOptedInAction;
