@@ -27,7 +27,7 @@ export enum DecodingDataChangeType {
 /** Original client request that triggered the signature request. */
 export type OriginalRequest = {
   /** Unique ID to identify the client request. */
-  id?: number;
+  id?: number | string;
 
   /** Method of signature request */
   method?: string;

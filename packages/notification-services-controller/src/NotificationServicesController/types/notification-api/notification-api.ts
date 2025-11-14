@@ -23,52 +23,74 @@ export type Data_ERC20Received = components['schemas']['Data_ERC20Received'];
 export type Data_ERC721Sent = components['schemas']['Data_ERC721Sent'];
 export type Data_ERC721Received = components['schemas']['Data_ERC721Received'];
 
-// Web3Notifications
-export type Data_AaveV3HealthFactor =
-  components['schemas']['Data_AaveV3HealthFactor'];
-export type Data_EnsExpiration = components['schemas']['Data_EnsExpiration'];
-export type Data_LidoStakingRewards =
-  components['schemas']['Data_LidoStakingRewards'];
-export type Data_RocketpoolStakingRewards =
-  components['schemas']['Data_RocketpoolStakingRewards'];
-export type Data_NotionalLoanExpiration =
-  components['schemas']['Data_NotionalLoanExpiration'];
-export type Data_SparkFiHealthFactor =
-  components['schemas']['Data_SparkFiHealthFactor'];
+type Notification = components['schemas']['NotificationOutputV3'][number];
+type PlatformNotification = Extract<
+  Notification,
+  { notification_type: 'platform' }
+>;
+type OnChainNotification = Extract<
+  Notification,
+  { notification_type: 'on-chain' }
+>;
 
-type Notification =
-  | components['schemas']['WalletNotification']
-  | components['schemas']['Web3Notification'];
 type ConvertToEnum<Kind> = {
   [K in TRIGGER_TYPES]: Kind extends `${K}` ? K : never;
 }[TRIGGER_TYPES];
 
 /**
  * Type-Computation.
- * 1. Adds a `type` field to the notification, it converts the schema type into the ENUM we use.
- * 2. It ensures that the `data` field is the correct Notification data for this `type`
- * - The `Compute` utility merges the intersections (`&`) for a prettier type.
+ * Adds a `type` field to on-chain notifications for easier enum checking.
+ * Preserves the original nested payload structure.
  */
-type NormalizeNotification<
-  N extends Notification,
-  NotificationDataKinds extends string = NonNullable<N['data']>['kind'],
+type NormalizeOnChainNotification<
+  N extends OnChainNotification = OnChainNotification,
+  NotificationDataKinds extends string = NonNullable<
+    N['payload']['data']
+  >['kind'],
 > = {
   [K in NotificationDataKinds]: Compute<
-    Omit<N, 'data'> & {
+    Omit<N, 'payload'> & {
       type: ConvertToEnum<K>;
-      data: Extract<N['data'], { kind: K }>;
+      payload: Compute<
+        Omit<N['payload'], 'data'> & {
+          data: Extract<NonNullable<N['payload']['data']>, { kind: K }>;
+        }
+      >;
     }
   >;
 }[NotificationDataKinds];
 
+/**
+ * Type-Computation.
+ * Adds a `type` field to platform notifications for easier enum checking.
+ * Preserves the original nested payload structure.
+ */
+type NormalizePlatformNotification<
+  N extends PlatformNotification = PlatformNotification,
+  NotificationKind extends string = N['notification_type'],
+> = {
+  [K in NotificationKind]: Compute<
+    N & {
+      type: ConvertToEnum<K>;
+    }
+  >;
+}[NotificationKind];
+
 export type OnChainRawNotification = Compute<
-  | NormalizeNotification<components['schemas']['WalletNotification']>
-  | NormalizeNotification<components['schemas']['Web3Notification']>
+  NormalizeOnChainNotification<OnChainNotification>
 >;
 
-export type UnprocessedOnChainRawNotification = Notification;
+export type PlatformRawNotification = Compute<
+  NormalizePlatformNotification<PlatformNotification>
+>;
+
+export type UnprocessedRawNotification = Notification;
+
+export type NormalisedAPINotification =
+  | OnChainRawNotification
+  | PlatformRawNotification;
 
 export type OnChainRawNotificationsWithNetworkFields = Extract<
   OnChainRawNotification,
-  { data: { network_fee: unknown } }
+  { payload: { data: { network_fee: unknown } } }
 >;

@@ -1,8 +1,6 @@
-// We use conditions exclusively in this file.
-/* eslint-disable jest/no-conditional-in-test */
-
 import { HttpError } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
+import deepFreeze from 'deep-freeze-strict';
 import nock from 'nock';
 import { FetchError } from 'node-fetch';
 import { useFakeTimers } from 'sinon';
@@ -931,6 +929,42 @@ describe('RpcService', () => {
           ],
           baseFeePerGas: '0x7',
         },
+      });
+    });
+
+    it('handles deeply frozen JSON-RPC requests', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        })
+        .reply(200, {
+          id: 1,
+          jsonrpc: '2.0',
+          result: '0x1',
+        });
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+      });
+
+      const response = await service.request(
+        deepFreeze({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        }),
+      );
+
+      expect(response).toStrictEqual({
+        id: 1,
+        jsonrpc: '2.0',
+        result: '0x1',
       });
     });
 

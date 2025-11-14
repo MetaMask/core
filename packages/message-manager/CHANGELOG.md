@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Rename `OriginalRequest` type to `MessageRequest` and permit string `id` values ([#7065](https://github.com/MetaMask/core/pull/7065))
+  - Previously, only number values were permitted for the `id` property.
+
 ## [14.0.0]
 
 ### Changed

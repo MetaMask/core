@@ -18,9 +18,11 @@ import {
   SubscriptionControllerErrorMessage,
 } from './constants';
 import type {
+  AssignCohortRequest,
   BillingPortalResponse,
   GetCryptoApproveTransactionRequest,
   GetCryptoApproveTransactionResponse,
+  GetSubscriptionsEligibilitiesRequest,
   ProductPrice,
   SubscriptionEligibility,
   StartCryptoSubscriptionRequest,
@@ -239,8 +241,6 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 > {
   readonly #subscriptionService: ISubscriptionService;
 
-  #shouldCallRefreshAuthToken: boolean = false;
-
   /**
    * Creates a new SubscriptionController instance.
    *
@@ -389,7 +389,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         state.trialedProducts = newTrialedProducts;
         state.lastSubscription = newLastSubscription;
       });
-      this.#shouldCallRefreshAuthToken = true;
+      // trigger access token refresh to ensure the user has the latest access token if subscription state change
+      this.triggerAccessTokenRefresh();
     }
 
     return newSubscriptions;
@@ -410,10 +411,15 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   /**
    * Get the subscriptions eligibilities.
    *
+   * @param request - Optional request object containing user balance to check cohort eligibility.
    * @returns The subscriptions eligibilities.
    */
-  async getSubscriptionsEligibilities(): Promise<SubscriptionEligibility[]> {
-    return await this.#subscriptionService.getSubscriptionsEligibilities();
+  async getSubscriptionsEligibilities(
+    request?: GetSubscriptionsEligibilitiesRequest,
+  ): Promise<SubscriptionEligibility[]> {
+    return await this.#subscriptionService.getSubscriptionsEligibilities(
+      request,
+    );
   }
 
   async cancelSubscription(request: { subscriptionId: string }) {
@@ -459,8 +465,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
     const response =
       await this.#subscriptionService.startSubscriptionWithCard(request);
-
-    this.triggerAccessTokenRefresh();
+    // note: no need to trigger access token refresh after startSubscriptionWithCard request because this only return stripe checkout session url, subscription not created yet
 
     return response;
   }
@@ -469,7 +474,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.#assertIsUserNotSubscribed({ products: request.products });
     const response =
       await this.#subscriptionService.startSubscriptionWithCrypto(request);
-    this.triggerAccessTokenRefresh();
+
     return response;
   }
 
@@ -521,6 +526,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
       rawTransaction: rawTx as Hex,
       isSponsored,
+      useTestClock: lastSelectedPaymentMethodShield.useTestClock,
     };
     await this.startSubscriptionWithCrypto(params);
     // update the subscriptions state after subscription created in server
@@ -704,18 +710,24 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * Submit a user event from the UI. (e.g. shield modal viewed)
    *
    * @param request - Request object containing the event to submit.
-   * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed }
+   * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed, cohort: 'post_tx' }
    */
   async submitUserEvent(request: SubmitUserEventRequest) {
     await this.#subscriptionService.submitUserEvent(request);
   }
 
+  /**
+   * Assign user to a cohort.
+   *
+   * @param request - Request object containing the cohort to assign the user to.
+   * @example { cohort: 'post_tx' }
+   */
+  async assignUserToCohort(request: AssignCohortRequest): Promise<void> {
+    await this.#subscriptionService.assignUserToCohort(request);
+  }
+
   async _executePoll(): Promise<void> {
     await this.getSubscriptions();
-    if (this.#shouldCallRefreshAuthToken) {
-      this.triggerAccessTokenRefresh();
-      this.#shouldCallRefreshAuthToken = false;
-    }
   }
 
   /**

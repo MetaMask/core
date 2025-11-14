@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0]
 
-### Uncategorized
-
-- ci: Fix `claims-controller` errors in `tsconfig.json` ([#7092](https://github.com/MetaMask/core/pull/7092))
-
 ### Added
 
 - Added new public method, `fetchClaimsConfigurations` to fetch the claims configuration from the Claims backend. ([#7109](https://github.com/MetaMask/core/pull/7109))

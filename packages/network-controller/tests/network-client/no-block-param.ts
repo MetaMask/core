@@ -128,7 +128,6 @@ export function testsForRpcMethodAssumingNoBlockParam(
             // Start the block tracker
             blockTracker.on('latest', () => {
               numberOfBlocks += 1;
-              // eslint-disable-next-line jest/no-conditional-in-test
               if (numberOfBlocks === 2) {
                 resolve();
               }
@@ -283,8 +282,6 @@ export function testsForRpcMethodAssumingNoBlockParam(
         },
       );
 
-      // This is not ideal, but we can refactor this later.
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (providerType === NetworkClientType.Infura) {
         // This is not ideal, but we can refactor this later.
         // eslint-disable-next-line jest/no-conditional-expect

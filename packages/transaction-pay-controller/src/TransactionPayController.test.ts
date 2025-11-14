@@ -37,6 +37,7 @@ describe('TransactionPayController', () => {
    */
   function createController() {
     return new TransactionPayController({
+      getDelegationTransaction: jest.fn(),
       messenger,
     });
   }
@@ -76,7 +77,7 @@ describe('TransactionPayController', () => {
       createController();
 
       expect(
-        await messenger.call(
+        messenger.call(
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
@@ -85,12 +86,13 @@ describe('TransactionPayController', () => {
 
     it('returns callback value if provided', async () => {
       new TransactionPayController({
-        getStrategy: async () => TransactionPayStrategy.Test,
+        getDelegationTransaction: jest.fn(),
+        getStrategy: () => TransactionPayStrategy.Test,
         messenger,
       });
 
       expect(
-        await messenger.call(
+        messenger.call(
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
