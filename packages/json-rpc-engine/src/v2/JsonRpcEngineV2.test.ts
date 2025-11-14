@@ -765,7 +765,6 @@ describe('JsonRpcEngineV2', () => {
           Json,
           Context
         > = async ({ context, next, request }) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           context.set('id', context.get('id') ?? request.id);
 
           inFlight += 1;
@@ -1221,7 +1220,6 @@ describe('JsonRpcEngineV2', () => {
 
       it('constructs a mixed engine', async () => {
         const mixedMiddleware: JsonRpcMiddleware = ({ request }) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           return isRequest(request) ? null : undefined;
         };
         const engine = JsonRpcEngineV2.create({
@@ -1245,7 +1243,6 @@ describe('JsonRpcEngineV2', () => {
         const orchestratorEngine = JsonRpcEngineV2.create({
           middleware: [
             ({ request, context }) =>
-              // eslint-disable-next-line jest/no-conditional-in-test
               isRequest(request)
                 ? requestEngine.handle(request, { context })
                 : notificationEngine.handle(request as JsonRpcNotification, {
