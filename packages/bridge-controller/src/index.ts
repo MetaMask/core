@@ -52,6 +52,11 @@ export type {
 
 export { StatusTypes } from './types';
 
+export type {
+  BridgeAssetV2,
+  BridgeControllerGetStateAction,
+  BridgeControllerStateChangeEvent,
+} from './types';
 export {
   AssetType,
   SortOrder,
@@ -59,8 +64,6 @@ export {
   RequestStatus,
   BridgeUserAction,
   BridgeBackgroundAction,
-  type BridgeControllerGetStateAction,
-  type BridgeControllerStateChangeEvent,
 } from './types';
 
 export {
@@ -123,7 +126,12 @@ export {
 
 export { calcLatestSrcBalance } from './utils/balance';
 
-export { fetchBridgeTokens, getClientHeaders } from './utils/fetch';
+export {
+  fetchBridgeTokens,
+  getClientHeaders,
+  fetchTokensBySearchQuery,
+  fetchPopularTokens,
+} from './utils/fetch';
 
 export {
   formatChainIdToCaip,

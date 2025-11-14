@@ -357,6 +357,7 @@ describe('feature-flags', () => {
         support: false,
         minimumVersion: '0.0.0',
         chains: {},
+        chainRanking: [],
       };
       expect(result).toStrictEqual(expectedBridgeConfig);
     });
