@@ -14,14 +14,24 @@ import type { Amount } from '../types';
  *
  * @param transaction - Transaction to calculate gas cost for
  * @param messenger - Controller messenger.
+ * @param options - Calculation options.
+ * @param options.isMax - Whether to calculate the maximum fee.
  * @returns Estimated gas cost for the transaction.
  */
 export function calculateTransactionGasCost(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
+  { isMax }: { isMax?: boolean } = {},
 ): Amount {
-  const { chainId, gasUsed, gasLimitNoBuffer, txParams } = transaction;
+  const {
+    chainId,
+    gasUsed: gasUsedOriginal,
+    gasLimitNoBuffer,
+    txParams,
+  } = transaction;
+
   const { gas, maxFeePerGas, maxPriorityFeePerGas } = txParams;
+  const gasUsed = isMax ? undefined : gasUsedOriginal;
   const finalGas = gasUsed || gasLimitNoBuffer || gas || '0x0';
 
   return calculateGasCost({
@@ -39,14 +49,17 @@ export function calculateTransactionGasCost(
  * @param request - Gas cost calculation parameters.
  * @param request.chainId - ID of the chain.
  * @param request.gas - Amount of gas the transaction will use.
+ * @param request.isMax - Whether to calculate the maximum fee.
  * @param request.maxFeePerGas - Max fee to pay per gas.
  * @param request.maxPriorityFeePerGas - Max priority fee to pay per gas.
  * @param request.messenger - Controller messenger.
+ 
  * @returns Estimated gas cost for the transaction.
  */
 export function calculateGasCost(request: {
   chainId: number | Hex;
   gas: BigNumber.Value;
+  isMax?: boolean;
   maxFeePerGas?: BigNumber.Value;
   maxPriorityFeePerGas?: BigNumber.Value;
   messenger: TransactionPayControllerMessenger;
@@ -54,6 +67,7 @@ export function calculateGasCost(request: {
   const {
     chainId: chainIdInput,
     gas,
+    isMax,
     maxFeePerGas: maxFeePerGasInput,
     maxPriorityFeePerGas: maxPriorityFeePerGasInput,
     messenger,
@@ -73,7 +87,7 @@ export function calculateGasCost(request: {
     maxPriorityFeePerGasInput || maxPriorityFeePerGasEstimate;
 
   const feePerGas =
-    estimatedBaseFee && maxPriorityFeePerGas
+    estimatedBaseFee && maxPriorityFeePerGas && !isMax
       ? new BigNumber(estimatedBaseFee).plus(maxPriorityFeePerGas)
       : new BigNumber(maxFeePerGas || '0x0');
 

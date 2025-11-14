@@ -14,13 +14,14 @@ const GAS_USED_MOCK = toHex(21000);
 const GAS_LIMIT_NO_BUFFER_MOCK = toHex(30000);
 const GAS_MOCK = toHex(40000);
 const MAX_PRIORITY_FEE_PER_GAS_MOCK = toHex(2500000000);
-const MAX_FEE_PER_GAS_MOCK = toHex(5500000000);
+const MAX_FEE_PER_GAS_MOCK = toHex(750000000);
 const CHAIN_ID_MOCK = '0x1' as Hex;
 
 const TRANSACTION_META_MOCK = {
   chainId: CHAIN_ID_MOCK as Hex,
   gasUsed: GAS_USED_MOCK,
   txParams: {
+    gas: GAS_MOCK,
     maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS_MOCK,
   },
 } as TransactionMeta;
@@ -31,7 +32,7 @@ const GAS_FEE_CONTROLLER_STATE_MOCK = {
       gasFeeEstimates: {
         estimatedBaseFee: '4',
         medium: {
-          suggestedMaxFeePerGas: '5',
+          suggestedMaxFeePerGas: '7',
           suggestedMaxPriorityFeePerGas: '2',
         },
       } as GasFeeEstimates,
@@ -112,10 +113,10 @@ describe('Gas Utils', () => {
       });
 
       expect(result).toStrictEqual({
-        fiat: '0.4',
-        human: '0.0002',
-        raw: '200000000000000',
-        usd: '0.8',
+        fiat: '0.56',
+        human: '0.00028',
+        raw: '280000000000000',
+        usd: '1.12',
       });
     });
 
@@ -130,10 +131,10 @@ describe('Gas Utils', () => {
       });
 
       expect(result).toStrictEqual({
-        fiat: '0.44',
-        human: '0.00022',
-        raw: '220000000000000',
-        usd: '0.88',
+        fiat: '0.06',
+        human: '0.00003',
+        raw: '30000000000000',
+        usd: '0.12',
       });
     });
 
@@ -164,6 +165,22 @@ describe('Gas Utils', () => {
           messenger,
         }),
       ).toThrow('Could not fetch fiat rate for native token');
+    });
+
+    it('returns gas cost using max fee if isMax', () => {
+      const result = calculateGasCost({
+        chainId: CHAIN_ID_MOCK,
+        gas: GAS_MOCK,
+        isMax: true,
+        messenger,
+      });
+
+      expect(result).toStrictEqual({
+        fiat: '0.56',
+        human: '0.00028',
+        raw: '280000000000000',
+        usd: '1.12',
+      });
     });
   });
 
@@ -236,6 +253,21 @@ describe('Gas Utils', () => {
         human: '0',
         raw: '0',
         usd: '0',
+      });
+    });
+
+    it('does not use gasUsed if isMax', () => {
+      const result = calculateTransactionGasCost(
+        TRANSACTION_META_MOCK,
+        messenger,
+        { isMax: true },
+      );
+
+      expect(result).toStrictEqual({
+        fiat: '0.52',
+        human: '0.00026',
+        raw: '260000000000000',
+        usd: '1.04',
       });
     });
   });
