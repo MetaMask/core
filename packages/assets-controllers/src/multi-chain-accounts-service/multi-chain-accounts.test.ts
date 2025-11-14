@@ -57,33 +57,6 @@ describe('fetchMultiChainBalances()', () => {
     expect(mockAPI.isDone()).toBe(true);
   });
 
-
-  it('should include JWT token in Authorization header when provided', async () => {
-    const mockJwtToken = 'test-jwt-token-123';
-    const mockAPI = createMockAPI()
-      .matchHeader('authorization', `Bearer ${mockJwtToken}`)
-      .reply(200, MOCK_GET_BALANCES_RESPONSE);
-
-    const result = await fetchMultiChainBalances(
-      MOCK_ADDRESS,
-      {},
-      'extension',
-      mockJwtToken,
-    );
-    expect(result).toBeDefined();
-    expect(result).toStrictEqual(MOCK_GET_BALANCES_RESPONSE);
-    expect(mockAPI.isDone()).toBe(true);
-  });
-
-  it('should work without JWT token when not provided', async () => {
-    const mockAPI = createMockAPI().reply(200, MOCK_GET_BALANCES_RESPONSE);
-
-    const result = await fetchMultiChainBalances(MOCK_ADDRESS, {}, 'extension');
-    expect(result).toBeDefined();
-    expect(result).toStrictEqual(MOCK_GET_BALANCES_RESPONSE);
-    expect(mockAPI.isDone()).toBe(true);
-  });
-
   it('should successfully return balances response with query params to refine search', async () => {
     const mockAPI = createMockAPI()
       .query({

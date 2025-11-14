@@ -23,7 +23,6 @@ import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
-import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
@@ -38,6 +37,7 @@ import type {
   PreferencesControllerGetStateAction,
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { hexToNumber } from '@metamask/utils';
