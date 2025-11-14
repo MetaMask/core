@@ -1966,8 +1966,22 @@ export class NetworkController extends BaseController<
     }
     const { EIPS } = metadata;
 
-    // may want to include some 'freshness' value - something to make sure we refetch this from time to time
-    return EIPS[1559];
+    // If EIP-1559 compatibility is already cached, return it
+    if (EIPS[1559] !== undefined) {
+      return EIPS[1559];
+    }
+
+    // Otherwise, determine it now and cache the result
+    const isEIP1559Compatible = await this.#determineEIP1559Compatibility(
+      networkClientId,
+    );
+    this.update((state) => {
+      if (isEIP1559Compatible !== undefined) {
+        state.networksMetadata[networkClientId].EIPS[1559] =
+          isEIP1559Compatible;
+      }
+    });
+    return isEIP1559Compatible;
   }
 
   /**
