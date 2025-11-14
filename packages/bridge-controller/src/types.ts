@@ -83,7 +83,7 @@ export type TokenAmountValues = {
   /**
    * The amount of the token
    *
-   * @example "1000000000000000000"
+   * @example "1.000143200000000000"
    */
   amount: string;
   /**
