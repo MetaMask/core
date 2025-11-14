@@ -7,7 +7,7 @@ import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
 import { type KeyringObject } from '@metamask/keyring-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 
-import type { CreateWalletParams, MultichainAccountServiceOptions } from './MultichainAccountService';
+import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
 import type { Bip44AccountProvider } from './providers';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
