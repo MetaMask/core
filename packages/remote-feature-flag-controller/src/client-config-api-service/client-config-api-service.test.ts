@@ -245,6 +245,139 @@ describe('ClientConfigApiService', () => {
       expect(onDegraded).toHaveBeenCalled();
     }, 7000);
   });
+
+  describe('customBackoffInterval', () => {
+    it('should accept and use custom backoff intervals', async () => {
+      const mockFetch = createMockFetch({ error: networkError });
+      const customIntervals = [1, 2, 3]; // 1s, 2s, 3s
+
+      const clientConfigApiService = new ClientConfigApiService({
+        fetch: mockFetch,
+        retries: 3,
+        customBackoffInterval: customIntervals,
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      });
+
+      await expect(
+        clientConfigApiService.fetchRemoteFeatureFlags(),
+      ).rejects.toThrow(networkError);
+
+      // Verify that fetch was called the expected number of times
+      expect(mockFetch).toHaveBeenCalledTimes(4); // Initial + 3 retries
+    });
+
+    it('should validate custom backoff intervals array', () => {
+      const mockFetch = createMockFetch();
+
+      // Test empty array
+      expect(() => {
+        new ClientConfigApiService({
+          fetch: mockFetch,
+          retries: 3,
+          customBackoffInterval: [],
+          config: {
+            client: ClientType.Extension,
+            distribution: DistributionType.Main,
+            environment: EnvironmentType.Production,
+          },
+        });
+      }).toThrow('customBackoffInterval array cannot be empty');
+
+      // Test non-positive numbers
+      expect(() => {
+        new ClientConfigApiService({
+          fetch: mockFetch,
+          retries: 3,
+          customBackoffInterval: [1, -2, 3],
+          config: {
+            client: ClientType.Extension,
+            distribution: DistributionType.Main,
+            environment: EnvironmentType.Production,
+          },
+        });
+      }).toThrow('All customBackoffInterval values must be positive numbers');
+
+      // Test array longer than retries
+      expect(() => {
+        new ClientConfigApiService({
+          fetch: mockFetch,
+          retries: 2,
+          customBackoffInterval: [1, 2, 3, 4],
+          config: {
+            client: ClientType.Extension,
+            distribution: DistributionType.Main,
+            environment: EnvironmentType.Production,
+          },
+        });
+      }).toThrow(
+        'customBackoffInterval array length (4) must be equal to maxRetries (2)',
+      );
+
+      // Test array shorter than retries
+      expect(() => {
+        new ClientConfigApiService({
+          fetch: mockFetch,
+          retries: 3,
+          customBackoffInterval: [1, 2],
+          config: {
+            client: ClientType.Extension,
+            distribution: DistributionType.Main,
+            environment: EnvironmentType.Production,
+          },
+        });
+      }).toThrow(
+        'customBackoffInterval array length (2) must be equal to maxRetries (3)',
+      );
+    });
+
+    it('should fall back to exponential backoff when no custom intervals provided', async () => {
+      const mockFetch = createMockFetch({ error: networkError });
+
+      const clientConfigApiService = new ClientConfigApiService({
+        fetch: mockFetch,
+        retries: 2,
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      });
+
+      await expect(
+        clientConfigApiService.fetchRemoteFeatureFlags(),
+      ).rejects.toThrow(networkError);
+
+      // Verify that fetch was called the expected number of times
+      expect(mockFetch).toHaveBeenCalledTimes(3); // Initial + 2 retries
+    });
+
+    it('should use custom backoff intervals that exactly match max retries', async () => {
+      const mockFetch = createMockFetch({ error: networkError });
+      const customIntervals = [1, 2, 3]; // Exactly 3 intervals for 3 retries
+
+      const clientConfigApiService = new ClientConfigApiService({
+        fetch: mockFetch,
+        retries: 3,
+        customBackoffInterval: customIntervals,
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      });
+
+      await expect(
+        clientConfigApiService.fetchRemoteFeatureFlags(),
+      ).rejects.toThrow(networkError);
+
+      // Should retry the full number of times using the custom intervals
+      expect(mockFetch).toHaveBeenCalledTimes(4); // Initial + 3 retries
+    });
+  });
 });
 
 /**
@@ -258,20 +391,26 @@ describe('ClientConfigApiService', () => {
  * @returns A Jest mock function that resolves with a fetch-like Response object (or rejects with error if provided)
  */
 function createMockFetch({
-  response,
+  response = {
+    ok: true,
+    status: 200,
+    json: async () => mockServerFeatureFlagsResponse,
+  },
   error,
   delay = 0,
 }: {
   response?: Partial<Response>;
   error?: Error;
   delay?: number;
-}) {
+} = {}) {
   if (error) {
     return jest
       .fn()
       .mockImplementation(
         () =>
-          new Promise((_, reject) => setTimeout(() => reject(error), delay)),
+          new Promise((_resolve, reject) =>
+            setTimeout(() => reject(error), delay),
+          ),
       );
   }
 
