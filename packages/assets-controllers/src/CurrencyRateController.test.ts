@@ -11,6 +11,7 @@ import {
   type MessengerEvents,
   type MockAnyNamespace,
 } from '@metamask/messenger';
+import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
@@ -104,6 +105,68 @@ function getCurrencyRateControllerMessenger(): CurrencyRateMessenger {
   messenger.delegate({
     messenger: currencyRateControllerMessenger,
     actions: ['NetworkController:getNetworkClientById'],
+  });
+  return currencyRateControllerMessenger;
+}
+
+/**
+ * Constructs a messenger for CurrencyRateController with NetworkController:getState action.
+ *
+ * @param options - Options object
+ * @param options.networkConfigurationsByChainId - Network configurations by chain ID
+ * @returns A controller messenger.
+ */
+function getCurrencyRateControllerMessengerWithNetworkState({
+  networkConfigurationsByChainId,
+}: {
+  networkConfigurationsByChainId: Record<string, NetworkConfiguration>;
+}): CurrencyRateMessenger {
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+  messenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    jest.fn().mockImplementation((networkClientId) => {
+      switch (networkClientId) {
+        case 'mainnet':
+          return {
+            configuration: {
+              type: NetworkType.mainnet,
+              chainId: ChainId.mainnet,
+              ticker: NetworksTicker.mainnet,
+            },
+          };
+        case 'sepolia':
+          return {
+            configuration: {
+              type: NetworkType.sepolia,
+              chainId: ChainId.sepolia,
+              ticker: NetworksTicker.sepolia,
+            },
+          };
+        default:
+          throw new Error('Invalid networkClientId');
+      }
+    }),
+  );
+  messenger.registerActionHandler(
+    'NetworkController:getState',
+    jest.fn().mockReturnValue({ networkConfigurationsByChainId }),
+  );
+  const currencyRateControllerMessenger = new Messenger<
+    typeof namespace,
+    AllCurrencyRateControllerActions,
+    AllCurrencyRateControllerEvents,
+    RootMessenger
+  >({
+    namespace,
+  });
+  messenger.delegate({
+    messenger: currencyRateControllerMessenger,
+    actions: [
+      'NetworkController:getNetworkClientById',
+      'NetworkController:getState',
+    ],
   });
   return currencyRateControllerMessenger;
 }
@@ -1220,6 +1283,510 @@ describe('CurrencyRateController', () => {
       expect(await controller.updateExchangeRate(['ETH'])).toBeUndefined();
 
       expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
+
+      controller.destroy();
+    });
+  });
+
+  describe('fallback to token prices service (lines 233-316)', () => {
+    it('should fallback to fetchTokenPrices when fetchExchangeRates fails and crypto compare fallback also fails', async () => {
+      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+
+      const messenger = getCurrencyRateControllerMessengerWithNetworkState({
+        networkConfigurationsByChainId: {
+          '0x1': {
+            chainId: '0x1',
+            nativeCurrency: 'ETH',
+            name: 'Ethereum Mainnet',
+            rpcEndpoints: [],
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+          },
+          '0x89': {
+            chainId: '0x89',
+            nativeCurrency: 'POL',
+            name: 'Polygon',
+            rpcEndpoints: [],
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+          },
+        },
+      });
+
+      const tokenPricesService = buildMockTokenPricesService();
+
+      // Make fetchExchangeRates fail to trigger fallback
+      jest
+        .spyOn(tokenPricesService, 'fetchExchangeRates')
+        .mockRejectedValue(new Error('Price API failed'));
+
+      // Mock fetchTokenPrices to return token prices
+      jest
+        .spyOn(tokenPricesService, 'fetchTokenPrices')
+        .mockImplementation(async ({ chainId }) => {
+          if (chainId === '0x1') {
+            return {
+              '0x0000000000000000000000000000000000000000': {
+                currency: 'usd',
+                tokenAddress: '0x0000000000000000000000000000000000000000',
+                price: 2500.5,
+                pricePercentChange1d: 0,
+                priceChange1d: 0,
+                allTimeHigh: 4000,
+                allTimeLow: 900,
+                circulatingSupply: 2000,
+                dilutedMarketCap: 100,
+                high1d: 200,
+                low1d: 100,
+                marketCap: 1000,
+                marketCapPercentChange1d: 100,
+                pricePercentChange14d: 100,
+                pricePercentChange1h: 1,
+                pricePercentChange1y: 200,
+                pricePercentChange200d: 300,
+                pricePercentChange30d: 200,
+                pricePercentChange7d: 100,
+                totalVolume: 100,
+              },
+            };
+          }
+          if (chainId === '0x89') {
+            return {
+              '0x0000000000000000000000000000000000001010': {
+                currency: 'usd',
+                tokenAddress: '0x0000000000000000000000000000000000001010',
+                price: 0.85,
+                pricePercentChange1d: 0,
+                priceChange1d: 0,
+                allTimeHigh: 4000,
+                allTimeLow: 900,
+                circulatingSupply: 2000,
+                dilutedMarketCap: 100,
+                high1d: 200,
+                low1d: 100,
+                marketCap: 1000,
+                marketCapPercentChange1d: 100,
+                pricePercentChange14d: 100,
+                pricePercentChange1h: 1,
+                pricePercentChange1y: 200,
+                pricePercentChange200d: 300,
+                pricePercentChange30d: 200,
+                pricePercentChange7d: 100,
+                totalVolume: 100,
+              },
+            };
+          }
+          return {};
+        });
+
+      // Make crypto compare also fail by not mocking it (no nock setup)
+      const controller = new CurrencyRateController({
+        messenger,
+        state: { currentCurrency: 'usd' },
+        tokenPricesService,
+      });
+
+      await controller.updateExchangeRate(['ETH', 'POL']);
+
+      const conversionDate = getStubbedDate() / 1000;
+      expect(controller.state).toStrictEqual({
+        currentCurrency: 'usd',
+        currencyRates: {
+          ETH: {
+            conversionDate,
+            conversionRate: 2500.5,
+            usdConversionRate: null, // Line 283
+          },
+          POL: {
+            conversionDate,
+            conversionRate: 0.85,
+            usdConversionRate: null,
+          },
+        },
+      });
+
+      controller.destroy();
+    });
+
+    it('should map native currencies to correct chain IDs (lines 236-262)', async () => {
+      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+
+      const messenger = getCurrencyRateControllerMessengerWithNetworkState({
+        networkConfigurationsByChainId: {
+          '0x1': {
+            chainId: '0x1',
+            nativeCurrency: 'ETH',
+            name: 'Ethereum Mainnet',
+            rpcEndpoints: [],
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+          },
+          '0xaa36a7': {
+            chainId: '0xaa36a7',
+            nativeCurrency: 'ETH', // Sepolia also uses ETH
+            name: 'Sepolia',
+            rpcEndpoints: [],
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+          },
+        },
+      });
+
+      const tokenPricesService = buildMockTokenPricesService();
+
+      jest
+        .spyOn(tokenPricesService, 'fetchExchangeRates')
+        .mockRejectedValue(new Error('Price API failed'));
+
+      const fetchTokenPricesSpy = jest
+        .spyOn(tokenPricesService, 'fetchTokenPrices')
+        .mockImplementation(async ({ chainId }) => {
+          if (chainId === '0x1' || chainId === '0xaa36a7') {
+            return {
+              '0x0000000000000000000000000000000000000000': {
+                currency: 'usd',
+                tokenAddress: '0x0000000000000000000000000000000000000000',
+                price: 2500.5,
+                pricePercentChange1d: 0,
+                priceChange1d: 0,
+                allTimeHigh: 4000,
+                allTimeLow: 900,
+                circulatingSupply: 2000,
+                dilutedMarketCap: 100,
+                high1d: 200,
+                low1d: 100,
+                marketCap: 1000,
+                marketCapPercentChange1d: 100,
+                pricePercentChange14d: 100,
+                pricePercentChange1h: 1,
+                pricePercentChange1y: 200,
+                pricePercentChange200d: 300,
+                pricePercentChange30d: 200,
+                pricePercentChange7d: 100,
+                totalVolume: 100,
+              },
+            };
+          }
+          return {};
+        });
+
+      const controller = new CurrencyRateController({
+        messenger,
+        state: { currentCurrency: 'usd' },
+        tokenPricesService,
+      });
+
+      await controller.updateExchangeRate(['ETH']);
+
+      // Should only call fetchTokenPrices once, using first matching chainId (line 255)
+      expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(1);
+      expect(fetchTokenPricesSpy).toHaveBeenCalledWith({
+        chainId: '0x1', // First chainId with ETH as native currency
+        tokenAddresses: ['0x0000000000000000000000000000000000000000'],
+        currency: 'usd',
+      });
+
+      controller.destroy();
+    });
+
+    it('should handle errors when fetchTokenPrices fails for a specific chain (lines 285-296)', async () => {
+      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+
+      const messenger = getCurrencyRateControllerMessengerWithNetworkState({
+        networkConfigurationsByChainId: {
+          '0x1': {
+            chainId: '0x1',
+            nativeCurrency: 'ETH',
+            name: 'Ethereum Mainnet',
+            rpcEndpoints: [],
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+          },
+          '0x89': {
+            chainId: '0x89',
+            nativeCurrency: 'POL',
+            name: 'Polygon',
+            rpcEndpoints: [],
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+          },
+        },
+      });
+
+      const tokenPricesService = buildMockTokenPricesService();
+
+      jest
+        .spyOn(tokenPricesService, 'fetchExchangeRates')
+        .mockRejectedValue(new Error('Price API failed'));
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      jest
+        .spyOn(tokenPricesService, 'fetchTokenPrices')
+        .mockImplementation(async ({ chainId }) => {
+          if (chainId === '0x1') {
+            // ETH succeeds
+            return {
+              '0x0000000000000000000000000000000000000000': {
+                currency: 'usd',
+                tokenAddress: '0x0000000000000000000000000000000000000000',
+                price: 2500.5,
+                pricePercentChange1d: 0,
+                priceChange1d: 0,
+                allTimeHigh: 4000,
+                allTimeLow: 900,
+                circulatingSupply: 2000,
+                dilutedMarketCap: 100,
+                high1d: 200,
+                low1d: 100,
+                marketCap: 1000,
+                marketCapPercentChange1d: 100,
+                pricePercentChange14d: 100,
+                pricePercentChange1h: 1,
+                pricePercentChange1y: 200,
+                pricePercentChange200d: 300,
+                pricePercentChange30d: 200,
+                pricePercentChange7d: 100,
+                totalVolume: 100,
+              },
+            };
+          }
+          // POL fails
+          throw new Error('Failed to fetch POL price');
+        });
+
+      const controller = new CurrencyRateController({
+        messenger,
+        state: { currentCurrency: 'usd' },
+        tokenPricesService,
+      });
+
+      await controller.updateExchangeRate(['ETH', 'POL']);
+
+      // Should log error for POL (line 286-289)
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to fetch token price for POL on chain 0x89',
+        expect.any(Error),
+      );
+
+      const conversionDate = getStubbedDate() / 1000;
+      expect(controller.state).toStrictEqual({
+        currentCurrency: 'usd',
+        currencyRates: {
+          ETH: {
+            conversionDate,
+            conversionRate: 2500.5,
+            usdConversionRate: null,
+          },
+          POL: {
+            conversionDate: null, // Lines 292-294: error case
+            conversionRate: null,
+            usdConversionRate: null,
+          },
+        },
+      });
+
+      consoleErrorSpy.mockRestore();
+      controller.destroy();
+    });
+
+    it('should set conversionDate to null when token price is not found (line 281)', async () => {
+      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+
+      const messenger = getCurrencyRateControllerMessengerWithNetworkState({
+        networkConfigurationsByChainId: {
+          '0x1': {
+            chainId: '0x1',
+            nativeCurrency: 'ETH',
+            name: 'Ethereum Mainnet',
+            rpcEndpoints: [],
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+          },
+        },
+      });
+
+      const tokenPricesService = buildMockTokenPricesService();
+
+      jest
+        .spyOn(tokenPricesService, 'fetchExchangeRates')
+        .mockRejectedValue(new Error('Price API failed'));
+
+      // Return empty object (no token price)
+      jest.spyOn(tokenPricesService, 'fetchTokenPrices').mockResolvedValue({});
+
+      const controller = new CurrencyRateController({
+        messenger,
+        state: { currentCurrency: 'usd' },
+        tokenPricesService,
+      });
+
+      await controller.updateExchangeRate(['ETH']);
+
+      expect(controller.state).toStrictEqual({
+        currentCurrency: 'usd',
+        currencyRates: {
+          ETH: {
+            conversionDate: null, // Line 281: tokenPrice is undefined
+            conversionRate: null, // Line 282: tokenPrice?.price ?? null
+            usdConversionRate: null,
+          },
+        },
+      });
+
+      controller.destroy();
+    });
+
+    it('should skip currencies not found in network configurations (lines 252-257)', async () => {
+      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+
+      const messenger = getCurrencyRateControllerMessengerWithNetworkState({
+        networkConfigurationsByChainId: {
+          '0x1': {
+            chainId: '0x1',
+            nativeCurrency: 'ETH',
+            name: 'Ethereum Mainnet',
+            rpcEndpoints: [],
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+          },
+        },
+      });
+
+      const tokenPricesService = buildMockTokenPricesService();
+
+      jest
+        .spyOn(tokenPricesService, 'fetchExchangeRates')
+        .mockRejectedValue(new Error('Price API failed'));
+
+      const fetchTokenPricesSpy = jest
+        .spyOn(tokenPricesService, 'fetchTokenPrices')
+        .mockImplementation(async ({ chainId }) => {
+          if (chainId === '0x1') {
+            return {
+              '0x0000000000000000000000000000000000000000': {
+                currency: 'usd',
+                tokenAddress: '0x0000000000000000000000000000000000000000',
+                price: 2500.5,
+                pricePercentChange1d: 0,
+                priceChange1d: 0,
+                allTimeHigh: 4000,
+                allTimeLow: 900,
+                circulatingSupply: 2000,
+                dilutedMarketCap: 100,
+                high1d: 200,
+                low1d: 100,
+                marketCap: 1000,
+                marketCapPercentChange1d: 100,
+                pricePercentChange14d: 100,
+                pricePercentChange1h: 1,
+                pricePercentChange1y: 200,
+                pricePercentChange200d: 300,
+                pricePercentChange30d: 200,
+                pricePercentChange7d: 100,
+                totalVolume: 100,
+              },
+            };
+          }
+          return {};
+        });
+
+      const controller = new CurrencyRateController({
+        messenger,
+        state: { currentCurrency: 'usd' },
+        tokenPricesService,
+      });
+
+      // Request ETH (exists) and BNB (not in network configs)
+      await controller.updateExchangeRate(['ETH', 'BNB']);
+
+      // Should only call fetchTokenPrices for ETH, not BNB (line 252: if chainIds.length > 0)
+      expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(1);
+      expect(fetchTokenPricesSpy).toHaveBeenCalledWith({
+        chainId: '0x1',
+        tokenAddresses: ['0x0000000000000000000000000000000000000000'],
+        currency: 'usd',
+      });
+
+      const conversionDate = getStubbedDate() / 1000;
+      expect(controller.state).toStrictEqual({
+        currentCurrency: 'usd',
+        currencyRates: {
+          ETH: {
+            conversionDate,
+            conversionRate: 2500.5,
+            usdConversionRate: null,
+          },
+          // BNB should not be included as it's not in network configurations
+        },
+      });
+
+      controller.destroy();
+    });
+
+    it('should use correct native token address for Polygon (line 269)', async () => {
+      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+
+      const messenger = getCurrencyRateControllerMessengerWithNetworkState({
+        networkConfigurationsByChainId: {
+          '0x89': {
+            chainId: '0x89',
+            nativeCurrency: 'POL',
+            name: 'Polygon',
+            rpcEndpoints: [],
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+          },
+        },
+      });
+
+      const tokenPricesService = buildMockTokenPricesService();
+
+      jest
+        .spyOn(tokenPricesService, 'fetchExchangeRates')
+        .mockRejectedValue(new Error('Price API failed'));
+
+      const fetchTokenPricesSpy = jest
+        .spyOn(tokenPricesService, 'fetchTokenPrices')
+        .mockResolvedValue({
+          '0x0000000000000000000000000000000000001010': {
+            currency: 'usd',
+            tokenAddress: '0x0000000000000000000000000000000000001010',
+            price: 0.85,
+            pricePercentChange1d: 0,
+            priceChange1d: 0,
+            allTimeHigh: 4000,
+            allTimeLow: 900,
+            circulatingSupply: 2000,
+            dilutedMarketCap: 100,
+            high1d: 200,
+            low1d: 100,
+            marketCap: 1000,
+            marketCapPercentChange1d: 100,
+            pricePercentChange14d: 100,
+            pricePercentChange1h: 1,
+            pricePercentChange1y: 200,
+            pricePercentChange200d: 300,
+            pricePercentChange30d: 200,
+            pricePercentChange7d: 100,
+            totalVolume: 100,
+          },
+        });
+
+      const controller = new CurrencyRateController({
+        messenger,
+        state: { currentCurrency: 'usd' },
+        tokenPricesService,
+      });
+
+      await controller.updateExchangeRate(['POL']);
+
+      // Should use Polygon's native token address (line 269)
+      expect(fetchTokenPricesSpy).toHaveBeenCalledWith({
+        chainId: '0x89',
+        tokenAddresses: ['0x0000000000000000000000000000000000001010'],
+        currency: 'usd',
+      });
 
       controller.destroy();
     });

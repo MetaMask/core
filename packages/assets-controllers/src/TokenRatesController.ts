@@ -11,7 +11,6 @@ import type {
 import {
   safelyExecute,
   toChecksumHexAddress,
-  FALL_BACK_VS_CURRENCY,
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -785,21 +784,21 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
     const nativeTokenAddress = getNativeTokenAddress(chainId);
 
-    // Step -1 & -2: Fetch prices in parallel
-    const [tokenPricesInUSD, nativeTokenPriceMap] = await Promise.all([
-      // -2: All tracked tokens priced in FALL_BACK_VS_CURRENCY (e.g. USD)
-      this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
-        tokenAddresses,
-        chainId,
-        nativeCurrency: FALL_BACK_VS_CURRENCY,
-      }),
-      // -1: Native token priced in FALL_BACK_VS_CURRENCY (e.g. USD)
-      this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
+    // Step -1: First fetch native token priced in USD
+    const nativeTokenPriceMap =
+      await this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
         tokenAddresses: [] as Hex[], // special-case: returns only native token
         chainId,
-        nativeCurrency: FALL_BACK_VS_CURRENCY,
-      }),
-    ]);
+        nativeCurrency: 'usd',
+      });
+
+    // Step -2: Then fetch all tracked tokens priced in USD
+    const tokenPricesInUSD =
+      await this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
+        tokenAddresses,
+        chainId,
+        nativeCurrency: 'usd',
+      });
 
     const nativeTokenInfo = nativeTokenPriceMap[nativeTokenAddress];
     const nativeTokenPriceInUSD = nativeTokenInfo?.price;
