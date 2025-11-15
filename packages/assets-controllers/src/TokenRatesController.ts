@@ -24,7 +24,6 @@ import { createDeferredPromise, type Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
-import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare-service';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
 import type {
@@ -165,43 +164,6 @@ export type TokenRatesControllerMessenger = Messenger<
   TokenRatesControllerActions | AllowedActions,
   TokenRatesControllerEvents | AllowedEvents
 >;
-
-/**
- * Uses the CryptoCompare API to fetch the exchange rate between one currency
- * and another, i.e., the multiplier to apply the amount of one currency in
- * order to convert it to another.
- *
- * @param args - The arguments to this function.
- * @param args.from - The currency to convert from.
- * @param args.to - The currency to convert to.
- * @returns The exchange rate between `fromCurrency` to `toCurrency` if one
- * exists, or null if one does not.
- */
-async function getCurrencyConversionRate({
-  from,
-  to,
-}: {
-  from: string;
-  to: string;
-}) {
-  const includeUSDRate = false;
-  try {
-    const result = await fetchNativeCurrencyExchangeRate(
-      to,
-      from,
-      includeUSDRate,
-    );
-    return result.conversionRate;
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes('market does not exist for this coin pair')
-    ) {
-      return null;
-    }
-    throw error;
-  }
-}
 
 const tokenRatesControllerMetadata: StateMetadata<TokenRatesControllerState> = {
   marketData: {
@@ -775,53 +737,110 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     tokenAddresses: Hex[];
     nativeCurrency: string;
   }): Promise<ContractMarketData> {
-    const [
-      contractExchangeInformations,
-      fallbackCurrencyToNativeCurrencyConversionRate,
-    ] = await Promise.all([
+    // -1: First convert the chain's native token (e.g. Gnosis native xDAI)
+    //     into the fallback currency USD
+    //     by calling the token prices service:
+    //
+    //       fetchTokenPrices({
+    //         tokenAddresses: [nativeTokenAddress],
+    //         chainId,
+    //         currency: FALL_BACK_VS_CURRENCY
+    //       })
+    //
+    //     This gives you the price of **1 native token in USD**.
+    //     Example: 1 xDAI = 1.002 USD.
+    //
+    // -2: Fetch all ERC-20 token prices in the fallback currency (USD)
+    //     using the same token prices service:
+    //
+    //       fetchTokenPrices({
+    //         tokenAddresses,
+    //         chainId,
+    //         currency: FALL_BACK_VS_CURRENCY
+    //       })
+    //
+    //     This gives every token priced in USD (e.g. 1 USDC = 1.0001 USD).
+    //
+    // -3: Convert each token price from USD → native by using the native
+    //     token's fallback price as the conversion factor.
+    //
+    //     If:
+    //       native_usd = price of 1 native token in USD
+    //       token_usd  = price of 1 token in USD
+    //
+    //     Then:
+    //       price_in_native = token_usd / native_usd
+    //
+    //     Example:
+    //       USDC price in USD  = 1.0001
+    //       xDAI price in USD  = 1.0020
+    //
+    //       USDC in xDAI = 1.0001 / 1.0020 ≈ 0.9981 xDAI
+    //
+    // -4: Apply this conversion to all fields that represent amounts
+    //     in the fallback currency (price, marketCap, volume, highs/lows, etc.).
+    //
+    // -5: Return the final structure where all tokens are expressed in the
+    //     chain's native currency (e.g. xDAI for Gnosis).
+
+    const nativeTokenAddress = getNativeTokenAddress(chainId);
+
+    // Step -1 & -2: Fetch prices in parallel
+    const [tokenPricesInUSD, nativeTokenPriceMap] = await Promise.all([
+      // -2: All tracked tokens priced in FALL_BACK_VS_CURRENCY (e.g. USD)
       this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
         tokenAddresses,
         chainId,
         nativeCurrency: FALL_BACK_VS_CURRENCY,
       }),
-      getCurrencyConversionRate({
-        from: FALL_BACK_VS_CURRENCY,
-        to: nativeCurrency,
+      // -1: Native token priced in FALL_BACK_VS_CURRENCY (e.g. USD)
+      this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
+        tokenAddresses: [] as Hex[], // special-case: returns only native token
+        chainId,
+        nativeCurrency: FALL_BACK_VS_CURRENCY,
       }),
     ]);
 
-    if (fallbackCurrencyToNativeCurrencyConversionRate === null) {
+    const nativeTokenInfo = nativeTokenPriceMap[nativeTokenAddress];
+    const nativeTokenPriceInUSD = nativeTokenInfo?.price;
+
+    if (!nativeTokenPriceInUSD || nativeTokenPriceInUSD === 0) {
+      // If we can't price the native token in the fallback currency,
+      // we can't safely convert; return empty so callers know there is no data.
       return {};
     }
 
-    // Converts the price in the fallback currency to the native currency
-    const convertFallbackToNative = (value: number | undefined) =>
-      value !== undefined && value !== null
-        ? value * fallbackCurrencyToNativeCurrencyConversionRate
+    // Step -3: Convert USD prices to native currency
+    // Formula: price_in_native = token_usd / native_usd
+    const convertUSDToNative = (valueInUSD: number | undefined) =>
+      valueInUSD !== undefined && valueInUSD !== null
+        ? valueInUSD / nativeTokenPriceInUSD
         : undefined;
 
-    const updatedContractExchangeRates = Object.entries(
-      contractExchangeInformations,
-    ).reduce((acc, [tokenAddress, token]) => {
-      acc = {
-        ...acc,
-        [tokenAddress]: {
-          ...token,
-          currency: nativeCurrency,
-          price: convertFallbackToNative(token.price),
-          marketCap: convertFallbackToNative(token.marketCap),
-          allTimeHigh: convertFallbackToNative(token.allTimeHigh),
-          allTimeLow: convertFallbackToNative(token.allTimeLow),
-          totalVolume: convertFallbackToNative(token.totalVolume),
-          high1d: convertFallbackToNative(token.high1d),
-          low1d: convertFallbackToNative(token.low1d),
-          dilutedMarketCap: convertFallbackToNative(token.dilutedMarketCap),
-        },
-      };
-      return acc;
-    }, {});
+    // Step -4 & -5: Apply conversion to all token fields and return
+    const tokenPricesInNative = Object.entries(tokenPricesInUSD).reduce(
+      (acc, [tokenAddress, tokenData]) => {
+        acc = {
+          ...acc,
+          [tokenAddress]: {
+            ...tokenData,
+            currency: nativeCurrency,
+            price: convertUSDToNative(tokenData.price),
+            marketCap: convertUSDToNative(tokenData.marketCap),
+            allTimeHigh: convertUSDToNative(tokenData.allTimeHigh),
+            allTimeLow: convertUSDToNative(tokenData.allTimeLow),
+            totalVolume: convertUSDToNative(tokenData.totalVolume),
+            high1d: convertUSDToNative(tokenData.high1d),
+            low1d: convertUSDToNative(tokenData.low1d),
+            dilutedMarketCap: convertUSDToNative(tokenData.dilutedMarketCap),
+          },
+        };
+        return acc;
+      },
+      {} as ContractMarketData,
+    );
 
-    return updatedContractExchangeRates;
+    return tokenPricesInNative;
   }
 
   /**
