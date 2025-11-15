@@ -1,0 +1,1232 @@
+import {
+  ConstantBackoff,
+  DEFAULT_DEGRADED_THRESHOLD,
+  HttpError,
+} from '@metamask/controller-utils';
+import { errorCodes } from '@metamask/rpc-errors';
+
+import { buildRootMessenger } from '../../tests/helpers';
+import {
+  withMockedCommunications,
+  withNetworkClient,
+} from '../../tests/network-client/helpers';
+import { DEFAULT_MAX_CONSECUTIVE_FAILURES } from '../rpc-service/rpc-service';
+import { NetworkClientType } from '../types';
+
+describe('createNetworkClient - RPC endpoint events', () => {
+  for (const networkClientType of Object.values(NetworkClientType)) {
+    describe(`${networkClientType}`, () => {
+      const blockNumber = '0x100';
+      const backoffDuration = 100;
+
+      it('publishes the NetworkController:rpcEndpointUnavailable event only when the max number of consecutive request failures is reached for all of the provided endpoint URLs', async () => {
+        const failoverEndpointUrl = 'https://failover.endpoint/';
+        const request = {
+          method: 'eth_gasPrice',
+          params: [],
+        };
+        const expectedError = createResourceUnavailableError(503);
+        const expectedUnavailableError = new HttpError(503);
+
+        await withMockedCommunications(
+          { providerType: networkClientType },
+          async (primaryComms) => {
+            await withMockedCommunications(
+              {
+                providerType: 'custom',
+                customRpcUrl: failoverEndpointUrl,
+              },
+              async (failoverComms) => {
+                // The first time a block-cacheable request is made, the
+                // latest block number is retrieved through the block
+                // tracker first.
+                primaryComms.mockNextBlockTrackerRequest({
+                  blockNumber,
+                });
+                primaryComms.mockRpcCall({
+                  request,
+                  times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+                  response: {
+                    httpStatus: 503,
+                  },
+                });
+                failoverComms.mockRpcCall({
+                  request,
+                  times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+                  response: {
+                    httpStatus: 503,
+                  },
+                });
+
+                const messenger = buildRootMessenger();
+                const rpcEndpointUnavailableEventHandler = jest.fn();
+                messenger.subscribe(
+                  'NetworkController:rpcEndpointUnavailable',
+                  rpcEndpointUnavailableEventHandler,
+                );
+
+                await withNetworkClient(
+                  {
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    providerType: networkClientType,
+                    isRpcFailoverEnabled: true,
+                    failoverRpcUrls: [failoverEndpointUrl],
+                    messenger,
+                    getRpcServiceOptions: () => ({
+                      fetch,
+                      btoa,
+                      policyOptions: {
+                        backoff: new ConstantBackoff(backoffDuration),
+                      },
+                    }),
+                  },
+                  async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                    messenger.subscribe(
+                      'NetworkController:rpcEndpointInstanceRetried',
+                      () => {
+                        // Ensure that we advance to the next RPC request
+                        // retry, not the next block tracker request.
+                        clock.tick(backoffDuration);
+                      },
+                    );
+
+                    // Hit the primary and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the primary and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the primary and exceed the max number of retries,
+                    // breaking the circuit; then hit the failover and exceed
+                    // the max of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the failover and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the failover and exceed the max number of retries,
+                    // breaking the circuit
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+
+                    expect(
+                      rpcEndpointUnavailableEventHandler,
+                    ).toHaveBeenCalledTimes(1);
+                    expect(
+                      rpcEndpointUnavailableEventHandler,
+                    ).toHaveBeenCalledWith({
+                      chainId,
+                      endpointUrl: failoverEndpointUrl,
+                      error: expectedUnavailableError,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      primaryEndpointUrl: rpcUrl,
+                    });
+                  },
+                );
+              },
+            );
+          },
+        );
+      });
+
+      it('publishes the NetworkController:rpcEndpointInstanceUnavailable event each time the max number of consecutive request failures is reached for any of the provided endpoint URLs', async () => {
+        const failoverEndpointUrl = 'https://failover.endpoint/';
+        const request = {
+          method: 'eth_gasPrice',
+          params: [],
+        };
+        const expectedError = createResourceUnavailableError(503);
+        const expectedUnavailableError = new HttpError(503);
+
+        await withMockedCommunications(
+          { providerType: networkClientType },
+          async (primaryComms) => {
+            await withMockedCommunications(
+              {
+                providerType: 'custom',
+                customRpcUrl: failoverEndpointUrl,
+              },
+              async (failoverComms) => {
+                // The first time a block-cacheable request is made, the
+                // latest block number is retrieved through the block
+                // tracker first.
+                primaryComms.mockNextBlockTrackerRequest({
+                  blockNumber,
+                });
+                primaryComms.mockRpcCall({
+                  request,
+                  times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+                  response: {
+                    httpStatus: 503,
+                  },
+                });
+                failoverComms.mockRpcCall({
+                  request,
+                  times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+                  response: {
+                    httpStatus: 503,
+                  },
+                });
+
+                const messenger = buildRootMessenger();
+                const rpcEndpointInstanceUnavailableEventHandler = jest.fn();
+                messenger.subscribe(
+                  'NetworkController:rpcEndpointInstanceUnavailable',
+                  rpcEndpointInstanceUnavailableEventHandler,
+                );
+
+                await withNetworkClient(
+                  {
+                    providerType: networkClientType,
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    isRpcFailoverEnabled: true,
+                    failoverRpcUrls: [failoverEndpointUrl],
+                    messenger,
+                    getRpcServiceOptions: () => ({
+                      fetch,
+                      btoa,
+                      policyOptions: {
+                        backoff: new ConstantBackoff(backoffDuration),
+                      },
+                    }),
+                  },
+                  async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                    messenger.subscribe(
+                      'NetworkController:rpcEndpointInstanceRetried',
+                      () => {
+                        // Ensure that we advance to the next RPC request
+                        // retry, not the next block tracker request.
+                        clock.tick(backoffDuration);
+                      },
+                    );
+
+                    // Hit the primary and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the primary and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the primary and exceed the max number of retries,
+                    // breaking the circuit; then hit the failover and exceed
+                    // the max of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the failover and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the failover and exceed the max number of retries,
+                    // breaking the circuit
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+
+                    expect(
+                      rpcEndpointInstanceUnavailableEventHandler,
+                    ).toHaveBeenCalledTimes(2);
+                    expect(
+                      rpcEndpointInstanceUnavailableEventHandler,
+                    ).toHaveBeenCalledWith({
+                      chainId,
+                      endpointUrl: rpcUrl,
+                      error: expectedUnavailableError,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      primaryEndpointUrl: rpcUrl,
+                    });
+                    expect(
+                      rpcEndpointInstanceUnavailableEventHandler,
+                    ).toHaveBeenCalledWith({
+                      chainId,
+                      endpointUrl: failoverEndpointUrl,
+                      error: expectedUnavailableError,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      primaryEndpointUrl: rpcUrl,
+                    });
+                  },
+                );
+              },
+            );
+          },
+        );
+      });
+
+      it('publishes the NetworkController:rpcEndpointDegraded event only once, even if the max number of retries is continually reached in making requests to the primary endpoint URL', async () => {
+        const request = {
+          method: 'eth_gasPrice',
+          params: [],
+        };
+        const expectedError = createResourceUnavailableError(503);
+        const expectedDegradedError = new HttpError(503);
+
+        await withMockedCommunications(
+          { providerType: networkClientType },
+          async (comms) => {
+            // The first time a block-cacheable request is made, the
+            // latest block number is retrieved through the block
+            // tracker first.
+            comms.mockNextBlockTrackerRequest({
+              blockNumber,
+            });
+            comms.mockRpcCall({
+              request,
+              times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+              response: {
+                httpStatus: 503,
+              },
+            });
+
+            const messenger = buildRootMessenger();
+            const rpcEndpointDegradedEventHandler = jest.fn();
+            messenger.subscribe(
+              'NetworkController:rpcEndpointDegraded',
+              rpcEndpointDegradedEventHandler,
+            );
+
+            await withNetworkClient(
+              {
+                providerType: networkClientType,
+                networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                messenger,
+                getRpcServiceOptions: () => ({
+                  fetch,
+                  btoa,
+                  policyOptions: {
+                    backoff: new ConstantBackoff(backoffDuration),
+                  },
+                }),
+              },
+              async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                messenger.subscribe(
+                  'NetworkController:rpcEndpointInstanceRetried',
+                  () => {
+                    // Ensure that we advance to the next RPC request
+                    // retry, not the next block tracker request.
+                    clock.tick(backoffDuration);
+                  },
+                );
+
+                // Hit the endpoint and exceed the max number of retries
+                await expect(makeRpcCall(request)).rejects.toThrow(
+                  expectedError,
+                );
+                // Hit the endpoint and exceed the max number of retries
+                await expect(makeRpcCall(request)).rejects.toThrow(
+                  expectedError,
+                );
+                // Hit the endpoint and exceed the max number of retries,
+                // breaking the circuit
+                await expect(makeRpcCall(request)).rejects.toThrow(
+                  expectedError,
+                );
+
+                expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledTimes(
+                  1,
+                );
+                expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
+                  chainId,
+                  endpointUrl: rpcUrl,
+                  error: expectedDegradedError,
+                  networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  primaryEndpointUrl: rpcUrl,
+                });
+              },
+            );
+          },
+        );
+      });
+
+      it('publishes the NetworkController:rpcEndpointDegraded event only once, even if the time to complete a request to the primary endpoint URL is continually too long', async () => {
+        const request = {
+          method: 'eth_gasPrice',
+          params: [],
+        };
+
+        await withMockedCommunications(
+          { providerType: networkClientType },
+          async (comms) => {
+            const messenger = buildRootMessenger();
+            const rpcEndpointDegradedEventHandler = jest.fn();
+            messenger.subscribe(
+              'NetworkController:rpcEndpointDegraded',
+              rpcEndpointDegradedEventHandler,
+            );
+
+            await withNetworkClient(
+              {
+                providerType: networkClientType,
+                networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                messenger,
+                getRpcServiceOptions: () => ({
+                  fetch,
+                  btoa,
+                  policyOptions: {
+                    backoff: new ConstantBackoff(backoffDuration),
+                  },
+                }),
+              },
+              async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                // The first time a block-cacheable request is made, the
+                // latest block number is retrieved through the block
+                // tracker first.
+                comms.mockNextBlockTrackerRequest({
+                  blockNumber,
+                });
+                comms.mockRpcCall({
+                  request,
+                  response: () => {
+                    clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                    return {
+                      result: 'ok',
+                    };
+                  },
+                  times: 2,
+                });
+
+                await makeRpcCall(request);
+                await makeRpcCall(request);
+                await makeRpcCall(request);
+
+                expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledTimes(
+                  1,
+                );
+                expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
+                  chainId,
+                  endpointUrl: rpcUrl,
+                  error: undefined,
+                  networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  primaryEndpointUrl: rpcUrl,
+                });
+              },
+            );
+          },
+        );
+      });
+
+      it('does not publish the NetworkController:rpcEndpointDegraded event again if the max number of retries is reached in making requests to a failover endpoint URL', async () => {
+        const failoverEndpointUrl = 'https://failover.endpoint/';
+        const request = {
+          method: 'eth_gasPrice',
+          params: [],
+        };
+        const expectedError = createResourceUnavailableError(503);
+        const expectedDegradedError = new HttpError(503);
+
+        await withMockedCommunications(
+          { providerType: networkClientType },
+          async (primaryComms) => {
+            await withMockedCommunications(
+              {
+                providerType: 'custom',
+                customRpcUrl: failoverEndpointUrl,
+              },
+              async (failoverComms) => {
+                const messenger = buildRootMessenger();
+                const rpcEndpointDegradedEventHandler = jest.fn();
+                messenger.subscribe(
+                  'NetworkController:rpcEndpointDegraded',
+                  rpcEndpointDegradedEventHandler,
+                );
+
+                await withNetworkClient(
+                  {
+                    providerType: networkClientType,
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    isRpcFailoverEnabled: true,
+                    failoverRpcUrls: [failoverEndpointUrl],
+                    messenger,
+                    getRpcServiceOptions: () => ({
+                      fetch,
+                      btoa,
+                      policyOptions: {
+                        backoff: new ConstantBackoff(backoffDuration),
+                      },
+                    }),
+                  },
+                  async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                    // The first time a block-cacheable request is made, the
+                    // latest block number is retrieved through the block
+                    // tracker first.
+                    primaryComms.mockNextBlockTrackerRequest({
+                      blockNumber,
+                    });
+                    primaryComms.mockRpcCall({
+                      request,
+                      times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+                      response: {
+                        httpStatus: 503,
+                      },
+                    });
+                    failoverComms.mockRpcCall({
+                      request,
+                      times: 5,
+                      response: {
+                        httpStatus: 503,
+                      },
+                    });
+
+                    messenger.subscribe(
+                      'NetworkController:rpcEndpointInstanceRetried',
+                      () => {
+                        // Ensure that we advance to the next RPC request
+                        // retry, not the next block tracker request.
+                        clock.tick(backoffDuration);
+                      },
+                    );
+
+                    // Hit the primary and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the primary and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the primary and exceed the max number of retries,
+                    // break the circuit; hit the failover and exceed the max
+                    // number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+
+                    expect(
+                      rpcEndpointDegradedEventHandler,
+                    ).toHaveBeenCalledTimes(1);
+                    expect(
+                      rpcEndpointDegradedEventHandler,
+                    ).toHaveBeenCalledWith({
+                      chainId,
+                      endpointUrl: rpcUrl,
+                      error: expectedDegradedError,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      primaryEndpointUrl: rpcUrl,
+                    });
+                  },
+                );
+              },
+            );
+          },
+        );
+      });
+
+      it('does not publish the NetworkController:rpcEndpointDegraded event again when the time to complete a request to a failover endpoint URL is too long', async () => {
+        const failoverEndpointUrl = 'https://failover.endpoint/';
+        const request = {
+          method: 'eth_gasPrice',
+          params: [],
+        };
+        const expectedError = createResourceUnavailableError(503);
+        const expectedDegradedError = new HttpError(503);
+
+        await withMockedCommunications(
+          { providerType: networkClientType },
+          async (primaryComms) => {
+            await withMockedCommunications(
+              {
+                providerType: 'custom',
+                customRpcUrl: failoverEndpointUrl,
+              },
+              async (failoverComms) => {
+                const messenger = buildRootMessenger();
+                const rpcEndpointDegradedEventHandler = jest.fn();
+                messenger.subscribe(
+                  'NetworkController:rpcEndpointDegraded',
+                  rpcEndpointDegradedEventHandler,
+                );
+
+                await withNetworkClient(
+                  {
+                    providerType: networkClientType,
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    isRpcFailoverEnabled: true,
+                    failoverRpcUrls: [failoverEndpointUrl],
+                    messenger,
+                    getRpcServiceOptions: () => ({
+                      fetch,
+                      btoa,
+                      policyOptions: {
+                        backoff: new ConstantBackoff(backoffDuration),
+                      },
+                    }),
+                  },
+                  async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                    // The first time a block-cacheable request is made, the
+                    // latest block number is retrieved through the block
+                    // tracker first.
+                    primaryComms.mockNextBlockTrackerRequest({
+                      blockNumber,
+                    });
+                    primaryComms.mockRpcCall({
+                      request,
+                      times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+                      response: {
+                        httpStatus: 503,
+                      },
+                    });
+                    failoverComms.mockRpcCall({
+                      request,
+                      response: () => {
+                        clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                        return {
+                          result: 'ok',
+                        };
+                      },
+                    });
+
+                    messenger.subscribe(
+                      'NetworkController:rpcEndpointInstanceRetried',
+                      () => {
+                        // Ensure that we advance to the next RPC request
+                        // retry, not the next block tracker request.
+                        clock.tick(backoffDuration);
+                      },
+                    );
+
+                    // Hit the primary and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the primary and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the primary and exceed the max number of retries,
+                    // break the circuit; hit the failover
+                    await makeRpcCall(request);
+
+                    expect(
+                      rpcEndpointDegradedEventHandler,
+                    ).toHaveBeenCalledTimes(1);
+                    expect(
+                      rpcEndpointDegradedEventHandler,
+                    ).toHaveBeenCalledWith({
+                      chainId,
+                      endpointUrl: rpcUrl,
+                      error: expectedDegradedError,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      primaryEndpointUrl: rpcUrl,
+                    });
+                  },
+                );
+              },
+            );
+          },
+        );
+      });
+
+      it('publishes the NetworkController:rpcEndpointInstanceDegraded event each time the max number of retries is reached in making requests to the primary endpoint URL', async () => {
+        const request = {
+          method: 'eth_gasPrice',
+          params: [],
+        };
+        const expectedError = createResourceUnavailableError(503);
+        const expectedDegradedError = new HttpError(503);
+
+        await withMockedCommunications(
+          { providerType: networkClientType },
+          async (comms) => {
+            // The first time a block-cacheable request is made, the
+            // latest block number is retrieved through the block
+            // tracker first.
+            comms.mockNextBlockTrackerRequest({
+              blockNumber,
+            });
+            comms.mockRpcCall({
+              request,
+              times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+              response: {
+                httpStatus: 503,
+              },
+            });
+
+            const messenger = buildRootMessenger();
+            const rpcEndpointInstanceDegradedEventHandler = jest.fn();
+            messenger.subscribe(
+              'NetworkController:rpcEndpointInstanceDegraded',
+              rpcEndpointInstanceDegradedEventHandler,
+            );
+
+            await withNetworkClient(
+              {
+                providerType: networkClientType,
+                networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                messenger,
+                getRpcServiceOptions: () => ({
+                  fetch,
+                  btoa,
+                  policyOptions: {
+                    backoff: new ConstantBackoff(backoffDuration),
+                  },
+                }),
+              },
+              async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                messenger.subscribe(
+                  'NetworkController:rpcEndpointInstanceRetried',
+                  () => {
+                    // Ensure that we advance to the next RPC request
+                    // retry, not the next block tracker request.
+                    clock.tick(backoffDuration);
+                  },
+                );
+
+                // Hit the endpoint and exceed the max number of retries
+                await expect(makeRpcCall(request)).rejects.toThrow(
+                  expectedError,
+                );
+                // Hit the endpoint and exceed the max number of retries
+                await expect(makeRpcCall(request)).rejects.toThrow(
+                  expectedError,
+                );
+                // Hit the endpoint and exceed the max number of retries,
+                // breaking the circuit
+                await expect(makeRpcCall(request)).rejects.toThrow(
+                  expectedError,
+                );
+
+                expect(
+                  rpcEndpointInstanceDegradedEventHandler,
+                ).toHaveBeenCalledTimes(2);
+                expect(
+                  rpcEndpointInstanceDegradedEventHandler,
+                ).toHaveBeenCalledWith({
+                  chainId,
+                  endpointUrl: rpcUrl,
+                  error: expectedDegradedError,
+                  networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  primaryEndpointUrl: rpcUrl,
+                });
+                expect(
+                  rpcEndpointInstanceDegradedEventHandler,
+                ).toHaveBeenCalledWith({
+                  chainId,
+                  endpointUrl: rpcUrl,
+                  error: expectedDegradedError,
+                  networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  primaryEndpointUrl: rpcUrl,
+                });
+              },
+            );
+          },
+        );
+      });
+
+      it('publishes the NetworkController:rpcEndpointInstanceDegraded event when the time to complete a request to the primary endpoint URL is continually too long', async () => {
+        const request = {
+          method: 'eth_gasPrice',
+          params: [],
+        };
+
+        await withMockedCommunications(
+          { providerType: networkClientType },
+          async (comms) => {
+            const messenger = buildRootMessenger();
+            const rpcEndpointInstanceDegradedEventHandler = jest.fn();
+            messenger.subscribe(
+              'NetworkController:rpcEndpointInstanceDegraded',
+              rpcEndpointInstanceDegradedEventHandler,
+            );
+
+            await withNetworkClient(
+              {
+                providerType: networkClientType,
+                networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                messenger,
+                getBlockTrackerOptions: () => ({
+                  pollingInterval: 10000,
+                }),
+                getRpcServiceOptions: () => ({
+                  fetch,
+                  btoa,
+                  policyOptions: {
+                    backoff: new ConstantBackoff(backoffDuration),
+                  },
+                }),
+              },
+              async ({ blockTracker, makeRpcCall, clock, chainId, rpcUrl }) => {
+                // The first time a block-cacheable request is made, the
+                // latest block number is retrieved through the block
+                // tracker first.
+                comms.mockNextBlockTrackerRequest({
+                  blockNumber: '0x1',
+                });
+                // We mock another block tracker request so we can clear the
+                // cache.
+                comms.mockNextBlockTrackerRequest({
+                  blockNumber: '0x2',
+                });
+                comms.mockRpcCall({
+                  request,
+                  response: () => {
+                    clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                    return {
+                      result: 'ok',
+                    };
+                  },
+                });
+                comms.mockRpcCall({
+                  request,
+                  response: () => {
+                    clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                    return {
+                      result: 'ok',
+                    };
+                  },
+                });
+
+                await makeRpcCall(request);
+                // Force another block to clear the cache on the previous
+                // request
+                await blockTracker.checkForLatestBlock();
+                await makeRpcCall(request);
+
+                expect(
+                  rpcEndpointInstanceDegradedEventHandler,
+                ).toHaveBeenCalledTimes(2);
+                expect(
+                  rpcEndpointInstanceDegradedEventHandler,
+                ).toHaveBeenCalledWith({
+                  chainId,
+                  endpointUrl: rpcUrl,
+                  error: undefined,
+                  networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  primaryEndpointUrl: rpcUrl,
+                });
+                expect(
+                  rpcEndpointInstanceDegradedEventHandler,
+                ).toHaveBeenCalledWith({
+                  chainId,
+                  endpointUrl: rpcUrl,
+                  error: undefined,
+                  networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  primaryEndpointUrl: rpcUrl,
+                });
+              },
+            );
+          },
+        );
+      });
+
+      it('publishes the NetworkController:rpcEndpointInstanceDegraded event again if the max number of retries is reached in making requests to a failover endpoint URL', async () => {
+        const failoverEndpointUrl = 'https://failover.endpoint/';
+        const request = {
+          method: 'eth_gasPrice',
+          params: [],
+        };
+        const expectedError = createResourceUnavailableError(503);
+        const expectedDegradedError = new HttpError(503);
+
+        await withMockedCommunications(
+          { providerType: networkClientType },
+          async (primaryComms) => {
+            await withMockedCommunications(
+              {
+                providerType: 'custom',
+                customRpcUrl: failoverEndpointUrl,
+              },
+              async (failoverComms) => {
+                const messenger = buildRootMessenger();
+                const rpcEndpointInstanceDegradedEventHandler = jest.fn();
+                messenger.subscribe(
+                  'NetworkController:rpcEndpointInstanceDegraded',
+                  rpcEndpointInstanceDegradedEventHandler,
+                );
+
+                await withNetworkClient(
+                  {
+                    providerType: networkClientType,
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    isRpcFailoverEnabled: true,
+                    failoverRpcUrls: [failoverEndpointUrl],
+                    messenger,
+                    getRpcServiceOptions: () => ({
+                      fetch,
+                      btoa,
+                      policyOptions: {
+                        backoff: new ConstantBackoff(backoffDuration),
+                      },
+                    }),
+                  },
+                  async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                    // The first time a block-cacheable request is made, the
+                    // latest block number is retrieved through the block
+                    // tracker first.
+                    primaryComms.mockNextBlockTrackerRequest({
+                      blockNumber,
+                    });
+                    primaryComms.mockRpcCall({
+                      request,
+                      times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+                      response: {
+                        httpStatus: 503,
+                      },
+                    });
+                    failoverComms.mockRpcCall({
+                      request,
+                      times: 5,
+                      response: {
+                        httpStatus: 503,
+                      },
+                    });
+
+                    messenger.subscribe(
+                      'NetworkController:rpcEndpointInstanceRetried',
+                      () => {
+                        // Ensure that we advance to the next RPC request
+                        // retry, not the next block tracker request.
+                        clock.tick(backoffDuration);
+                      },
+                    );
+
+                    // Hit the primary and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the primary and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the primary and exceed the max number of retries,
+                    // break the circuit; hit the failover and exceed the max
+                    // number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+
+                    expect(
+                      rpcEndpointInstanceDegradedEventHandler,
+                    ).toHaveBeenCalledTimes(3);
+                    expect(
+                      rpcEndpointInstanceDegradedEventHandler,
+                    ).toHaveBeenNthCalledWith(1, {
+                      chainId,
+                      endpointUrl: rpcUrl,
+                      error: expectedDegradedError,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      primaryEndpointUrl: rpcUrl,
+                    });
+                    expect(
+                      rpcEndpointInstanceDegradedEventHandler,
+                    ).toHaveBeenNthCalledWith(2, {
+                      chainId,
+                      endpointUrl: rpcUrl,
+                      error: expectedDegradedError,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      primaryEndpointUrl: rpcUrl,
+                    });
+                    expect(
+                      rpcEndpointInstanceDegradedEventHandler,
+                    ).toHaveBeenNthCalledWith(3, {
+                      chainId,
+                      endpointUrl: failoverEndpointUrl,
+                      error: expectedDegradedError,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      primaryEndpointUrl: rpcUrl,
+                    });
+                  },
+                );
+              },
+            );
+          },
+        );
+      });
+
+      it('publishes the NetworkController:rpcEndpointInstanceDegraded event again when the time to complete a request to a failover endpoint URL is too long', async () => {
+        const failoverEndpointUrl = 'https://failover.endpoint/';
+        const request = {
+          method: 'eth_gasPrice',
+          params: [],
+        };
+        const expectedError = createResourceUnavailableError(503);
+        const expectedDegradedError = new HttpError(503);
+
+        await withMockedCommunications(
+          { providerType: networkClientType },
+          async (primaryComms) => {
+            await withMockedCommunications(
+              {
+                providerType: 'custom',
+                customRpcUrl: failoverEndpointUrl,
+              },
+              async (failoverComms) => {
+                const messenger = buildRootMessenger();
+                const rpcEndpointInstanceDegradedEventHandler = jest.fn();
+                messenger.subscribe(
+                  'NetworkController:rpcEndpointInstanceDegraded',
+                  rpcEndpointInstanceDegradedEventHandler,
+                );
+
+                await withNetworkClient(
+                  {
+                    providerType: networkClientType,
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    isRpcFailoverEnabled: true,
+                    failoverRpcUrls: [failoverEndpointUrl],
+                    messenger,
+                    getRpcServiceOptions: () => ({
+                      fetch,
+                      btoa,
+                      policyOptions: {
+                        backoff: new ConstantBackoff(backoffDuration),
+                      },
+                    }),
+                  },
+                  async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                    // The first time a block-cacheable request is made, the
+                    // latest block number is retrieved through the block
+                    // tracker first.
+                    primaryComms.mockNextBlockTrackerRequest({
+                      blockNumber,
+                    });
+                    primaryComms.mockRpcCall({
+                      request,
+                      times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+                      response: {
+                        httpStatus: 503,
+                      },
+                    });
+                    failoverComms.mockRpcCall({
+                      request,
+                      response: () => {
+                        clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                        return {
+                          result: 'ok',
+                        };
+                      },
+                    });
+
+                    messenger.subscribe(
+                      'NetworkController:rpcEndpointInstanceRetried',
+                      () => {
+                        // Ensure that we advance to the next RPC request
+                        // retry, not the next block tracker request.
+                        clock.tick(backoffDuration);
+                      },
+                    );
+
+                    // Hit the primary and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the primary and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the primary and exceed the max number of retries,
+                    // break the circuit; hit the failover
+                    await makeRpcCall(request);
+
+                    expect(
+                      rpcEndpointInstanceDegradedEventHandler,
+                    ).toHaveBeenCalledTimes(3);
+                    expect(
+                      rpcEndpointInstanceDegradedEventHandler,
+                    ).toHaveBeenNthCalledWith(1, {
+                      chainId,
+                      endpointUrl: rpcUrl,
+                      error: expectedDegradedError,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      primaryEndpointUrl: rpcUrl,
+                    });
+                    expect(
+                      rpcEndpointInstanceDegradedEventHandler,
+                    ).toHaveBeenNthCalledWith(2, {
+                      chainId,
+                      endpointUrl: rpcUrl,
+                      error: expectedDegradedError,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      primaryEndpointUrl: rpcUrl,
+                    });
+                    expect(
+                      rpcEndpointInstanceDegradedEventHandler,
+                    ).toHaveBeenNthCalledWith(3, {
+                      chainId,
+                      endpointUrl: failoverEndpointUrl,
+                      error: undefined,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      primaryEndpointUrl: rpcUrl,
+                    });
+                  },
+                );
+              },
+            );
+          },
+        );
+      });
+
+      it('publishes the NetworkController:rpcEndpointAvailable event the first time a successful request to the RPC endpoint is made', async () => {
+        const request = {
+          method: 'eth_gasPrice',
+          params: [],
+        };
+
+        await withMockedCommunications(
+          { providerType: networkClientType },
+          async (comms) => {
+            // The first time a block-cacheable request is made, the
+            // latest block number is retrieved through the block
+            // tracker first.
+            comms.mockNextBlockTrackerRequest({
+              blockNumber,
+            });
+            comms.mockRpcCall({
+              request,
+              response: {
+                result: 'ok',
+              },
+            });
+
+            const messenger = buildRootMessenger();
+            const networkAvailableEventHandler = jest.fn();
+            messenger.subscribe(
+              'NetworkController:rpcEndpointAvailable',
+              networkAvailableEventHandler,
+            );
+
+            await withNetworkClient(
+              {
+                providerType: networkClientType,
+                networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                messenger,
+                getRpcServiceOptions: () => ({
+                  fetch,
+                  btoa,
+                  policyOptions: {
+                    backoff: new ConstantBackoff(backoffDuration),
+                  },
+                }),
+              },
+              async ({ makeRpcCall, chainId, rpcUrl }) => {
+                await makeRpcCall(request);
+
+                expect(networkAvailableEventHandler).toHaveBeenCalledWith({
+                  chainId,
+                  endpointUrl: rpcUrl,
+                  networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  primaryEndpointUrl: rpcUrl,
+                });
+              },
+            );
+          },
+        );
+      });
+
+      it('publishes the NetworkController:rpcEndpointAvailable event the first time a successful request to a failover is made', async () => {
+        const failoverEndpointUrl = 'https://failover.endpoint/';
+        const request = {
+          method: 'eth_gasPrice',
+          params: [],
+        };
+        const expectedError = createResourceUnavailableError(503);
+
+        await withMockedCommunications(
+          { providerType: networkClientType },
+          async (primaryComms) => {
+            await withMockedCommunications(
+              {
+                providerType: 'custom',
+                customRpcUrl: failoverEndpointUrl,
+              },
+              async (failoverComms) => {
+                // The first time a block-cacheable request is made, the
+                // latest block number is retrieved through the block
+                // tracker first.
+                primaryComms.mockNextBlockTrackerRequest({
+                  blockNumber,
+                });
+                primaryComms.mockRpcCall({
+                  request,
+                  times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+                  response: {
+                    httpStatus: 503,
+                  },
+                });
+                failoverComms.mockRpcCall({
+                  request,
+                  response: {
+                    result: 'ok',
+                  },
+                });
+
+                const messenger = buildRootMessenger();
+                const networkAvailableEventHandler = jest.fn();
+                messenger.subscribe(
+                  'NetworkController:rpcEndpointAvailable',
+                  networkAvailableEventHandler,
+                );
+
+                await withNetworkClient(
+                  {
+                    providerType: networkClientType,
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    isRpcFailoverEnabled: true,
+                    failoverRpcUrls: [failoverEndpointUrl],
+                    messenger,
+                    getRpcServiceOptions: () => ({
+                      fetch,
+                      btoa,
+                      policyOptions: {
+                        backoff: new ConstantBackoff(backoffDuration),
+                      },
+                    }),
+                  },
+                  async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                    messenger.subscribe(
+                      'NetworkController:rpcEndpointInstanceRetried',
+                      () => {
+                        // Ensure that we advance to the next RPC request
+                        // retry, not the next block tracker request.
+                        clock.tick(backoffDuration);
+                      },
+                    );
+
+                    // Hit the endpoint and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the endpoint and exceed the max number of retries
+                    await expect(makeRpcCall(request)).rejects.toThrow(
+                      expectedError,
+                    );
+                    // Hit the endpoint and exceed the max number of retries,
+                    // breaking the circuit; hit the failover
+                    await makeRpcCall(request);
+
+                    expect(networkAvailableEventHandler).toHaveBeenCalledWith({
+                      chainId,
+                      endpointUrl: rpcUrl,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      primaryEndpointUrl: rpcUrl,
+                    });
+                  },
+                );
+              },
+            );
+          },
+        );
+      });
+    });
+  }
+});
+
+/**
+ * Creates a "resource unavailable" RPC error for testing.
+ *
+ * @param httpStatus - The HTTP status that the error represents.
+ * @returns The RPC error.
+ */
+function createResourceUnavailableError(httpStatus: number) {
+  return expect.objectContaining({
+    code: errorCodes.rpc.resourceUnavailable,
+    message: 'RPC endpoint not found or unavailable.',
+    data: {
+      httpStatus,
+    },
+  });
+}

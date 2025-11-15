@@ -26,7 +26,10 @@ import type {
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
 import type { Logger } from 'loglevel';
 
-import type { NetworkControllerMessenger } from './NetworkController';
+import type {
+  NetworkClientId,
+  NetworkControllerMessenger,
+} from './NetworkController';
 import type { RpcServiceOptions } from './rpc-service/rpc-service';
 import { RpcServiceChain } from './rpc-service/rpc-service-chain';
 import type {
@@ -59,6 +62,8 @@ type RpcApiMiddleware = JsonRpcMiddleware<
  * Create a JSON RPC network client for a specific network.
  *
  * @param args - The arguments.
+ * @param args.id - The ID that will be assigned to the new network client in
+ * the registry.
  * @param args.configuration - The network configuration.
  * @param args.getRpcServiceOptions - Factory for constructing RPC service
  * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
@@ -74,6 +79,7 @@ type RpcApiMiddleware = JsonRpcMiddleware<
  * @returns The network client.
  */
 export function createNetworkClient({
+  id,
   configuration,
   getRpcServiceOptions,
   getBlockTrackerOptions,
@@ -81,6 +87,7 @@ export function createNetworkClient({
   isRpcFailoverEnabled,
   logger,
 }: {
+  id: NetworkClientId;
   configuration: NetworkClientConfiguration;
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
@@ -96,50 +103,14 @@ export function createNetworkClient({
     configuration.type === NetworkClientType.Infura
       ? `https://${configuration.network}.infura.io/v3/${configuration.infuraProjectId}`
       : configuration.rpcUrl;
-  const availableEndpointUrls = isRpcFailoverEnabled
-    ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
-    : [primaryEndpointUrl];
-  const rpcServiceChain = new RpcServiceChain(
-    availableEndpointUrls.map((endpointUrl) => ({
-      ...getRpcServiceOptions(endpointUrl),
-      endpointUrl,
-      logger,
-    })),
-  );
-  rpcServiceChain.onBreak(({ endpointUrl, failoverEndpointUrl, ...rest }) => {
-    let error: unknown;
-    if ('error' in rest) {
-      error = rest.error;
-    } else if ('value' in rest) {
-      error = rest.value;
-    }
-
-    messenger.publish('NetworkController:rpcEndpointUnavailable', {
-      chainId: configuration.chainId,
-      endpointUrl,
-      failoverEndpointUrl,
-      error,
-    });
-  });
-  rpcServiceChain.onDegraded(({ endpointUrl, ...rest }) => {
-    let error: unknown;
-    if ('error' in rest) {
-      error = rest.error;
-    } else if ('value' in rest) {
-      error = rest.value;
-    }
-
-    messenger.publish('NetworkController:rpcEndpointDegraded', {
-      chainId: configuration.chainId,
-      endpointUrl,
-      error,
-    });
-  });
-  rpcServiceChain.onRetry(({ endpointUrl, attempt }) => {
-    messenger.publish('NetworkController:rpcEndpointRequestRetried', {
-      endpointUrl,
-      attempt,
-    });
+  const rpcServiceChain = createRpcServiceChain({
+    id,
+    primaryEndpointUrl,
+    configuration,
+    getRpcServiceOptions,
+    messenger,
+    isRpcFailoverEnabled,
+    logger,
   });
 
   let rpcApiMiddleware: RpcApiMiddleware;
@@ -192,6 +163,149 @@ export function createNetworkClient({
   };
 
   return { configuration, provider, blockTracker, destroy };
+}
+
+/**
+ * Creates an RPC service chain, which represents the primary endpoint URL for
+ * the network as well as its failover URLs.
+ *
+ * @param args - The arguments.
+ * @param args.id - The ID that will be assigned to the new network client in
+ * the registry.
+ * @param args.primaryEndpointUrl - The primary endpoint URL.
+ * @param args.configuration - The network configuration.
+ * @param args.getRpcServiceOptions - Factory for constructing RPC service
+ * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
+ * @param args.messenger - The network controller messenger.
+ * @param args.isRpcFailoverEnabled - Whether or not requests sent to the
+ * primary RPC endpoint for this network should be automatically diverted to
+ * provided failover endpoints if the primary is unavailable. This effectively
+ * causes the `failoverRpcUrls` property of the network client configuration
+ * to be honored or ignored.
+ * @param args.logger - A `loglevel` logger.
+ * @returns The RPC service chain.
+ */
+function createRpcServiceChain({
+  id,
+  primaryEndpointUrl,
+  configuration,
+  getRpcServiceOptions,
+  messenger,
+  isRpcFailoverEnabled,
+  logger,
+}: {
+  id: NetworkClientId;
+  primaryEndpointUrl: string;
+  configuration: NetworkClientConfiguration;
+  getRpcServiceOptions: (
+    rpcEndpointUrl: string,
+  ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+  messenger: NetworkControllerMessenger;
+  isRpcFailoverEnabled: boolean;
+  logger?: Logger;
+}) {
+  const availableEndpointUrls: [string, ...string[]] = isRpcFailoverEnabled
+    ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
+    : [primaryEndpointUrl];
+  const buildRpcServiceConfiguration = (endpointUrl: string) => ({
+    ...getRpcServiceOptions(endpointUrl),
+    endpointUrl,
+    logger,
+  });
+
+  const getError = (value: object) => {
+    if ('error' in value) {
+      return value.error;
+    } else if ('value' in value) {
+      return value.value;
+    }
+    return undefined;
+  };
+
+  const rpcServiceChain = new RpcServiceChain([
+    buildRpcServiceConfiguration(availableEndpointUrls[0]),
+    ...availableEndpointUrls.slice(1).map(buildRpcServiceConfiguration),
+  ]);
+
+  rpcServiceChain.onBreak(({ endpointUrl, ...rest }) => {
+    const error = getError(rest);
+
+    if (error === undefined) {
+      // This error shouldn't happen in practice because we never call `.isolate`
+      // on the circuit breaker policy, but we need to appease TypeScript.
+      throw new Error('Could not make request to endpoint.');
+    }
+
+    messenger.publish('NetworkController:rpcEndpointUnavailable', {
+      chainId: configuration.chainId,
+      networkClientId: id,
+      primaryEndpointUrl,
+      endpointUrl,
+      error,
+    });
+  });
+
+  rpcServiceChain.onServiceBreak(
+    ({ primaryEndpointUrl: _, endpointUrl, ...rest }) => {
+      const error = getError(rest);
+      messenger.publish('NetworkController:rpcEndpointInstanceUnavailable', {
+        chainId: configuration.chainId,
+        networkClientId: id,
+        primaryEndpointUrl,
+        endpointUrl,
+        error,
+      });
+    },
+  );
+
+  rpcServiceChain.onDegraded(
+    ({ primaryEndpointUrl: _, endpointUrl, ...rest }) => {
+      const error = getError(rest);
+      messenger.publish('NetworkController:rpcEndpointDegraded', {
+        chainId: configuration.chainId,
+        networkClientId: id,
+        primaryEndpointUrl,
+        endpointUrl,
+        error,
+      });
+    },
+  );
+
+  rpcServiceChain.onServiceDegraded(
+    ({ primaryEndpointUrl: _, endpointUrl, ...rest }) => {
+      const error = getError(rest);
+      messenger.publish('NetworkController:rpcEndpointInstanceDegraded', {
+        chainId: configuration.chainId,
+        networkClientId: id,
+        primaryEndpointUrl,
+        endpointUrl,
+        error,
+      });
+    },
+  );
+
+  rpcServiceChain.onAvailable(({ primaryEndpointUrl: _, endpointUrl }) => {
+    messenger.publish('NetworkController:rpcEndpointAvailable', {
+      chainId: configuration.chainId,
+      networkClientId: id,
+      primaryEndpointUrl,
+      endpointUrl,
+    });
+  });
+
+  rpcServiceChain.onServiceRetry(
+    ({ primaryEndpointUrl: _, endpointUrl, attempt }) => {
+      messenger.publish('NetworkController:rpcEndpointInstanceRetried', {
+        chainId: configuration.chainId,
+        networkClientId: id,
+        primaryEndpointUrl,
+        endpointUrl,
+        attempt,
+      });
+    },
+  );
+
+  return rpcServiceChain;
 }
 
 /**
