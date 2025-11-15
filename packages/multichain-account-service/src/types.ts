@@ -9,6 +9,7 @@ import type {
   AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetAccountByAddressAction,
+  AccountsControllerGetAccountsAction,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
@@ -16,6 +17,8 @@ import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/erro
 import type { KeyringAccount } from '@metamask/keyring-api';
 import type {
   KeyringControllerAddNewKeyringAction,
+  KeyringControllerCreateNewVaultAndKeychainAction,
+  KeyringControllerCreateNewVaultAndRestoreAction,
   KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
@@ -135,6 +138,7 @@ export type MultichainAccountServiceEvents =
  */
 type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
+  | AccountsControllerGetAccountsAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountByAddressAction
   | SnapControllerHandleSnapRequestAction
@@ -144,6 +148,8 @@ type AllowedActions =
   | KeyringControllerAddNewKeyringAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
+  | KeyringControllerCreateNewVaultAndKeychainAction
+  | KeyringControllerCreateNewVaultAndRestoreAction
   | ErrorReportingServiceCaptureExceptionAction;
 
 /**
