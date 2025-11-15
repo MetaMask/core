@@ -24,7 +24,6 @@ import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 import assert from 'assert';
 import type { Patch } from 'immer';
-import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
@@ -1560,11 +1559,45 @@ describe('TokenRatesController', () => {
         describe('when the native currency is not supported', () => {
           const fallbackRate = 0.5;
           it('returns the exchange rates using ETH as a fallback currency', async () => {
-            nock('https://min-api.cryptocompare.com')
-              .get('/data/price?fsym=ETH&tsyms=LOL')
-              .reply(200, { LOL: fallbackRate });
+            const nativeTokenPriceInUSD = 2;
+            // For mainnet (0x1), native token address is 0x0000...0000
+            const nativeTokenAddress =
+              '0x0000000000000000000000000000000000000000';
             const tokenPricesService = buildMockTokenPricesService({
-              fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
+              fetchTokenPrices: async ({ tokenAddresses, currency }) => {
+                // Handle native token price request (empty tokenAddresses array)
+                if (tokenAddresses.length === 0 && currency === 'usd') {
+                  return {
+                    [nativeTokenAddress]: {
+                      tokenAddress: nativeTokenAddress,
+                      currency: 'usd',
+                      pricePercentChange1d: 0,
+                      priceChange1d: 0,
+                      allTimeHigh: 4000,
+                      allTimeLow: 900,
+                      circulatingSupply: 2000,
+                      dilutedMarketCap: 100,
+                      high1d: 200,
+                      low1d: 100,
+                      marketCap: 1000,
+                      marketCapPercentChange1d: 100,
+                      price: nativeTokenPriceInUSD,
+                      pricePercentChange14d: 100,
+                      pricePercentChange1h: 1,
+                      pricePercentChange1y: 200,
+                      pricePercentChange200d: 300,
+                      pricePercentChange30d: 200,
+                      pricePercentChange7d: 100,
+                      totalVolume: 100,
+                    },
+                  };
+                }
+                // Handle regular token prices
+                return fetchTokenPricesWithIncreasingPriceForEachToken({
+                  tokenAddresses,
+                  currency,
+                });
+              },
               validateCurrencySupported(currency: unknown): currency is string {
                 return currency !== 'LOL';
               },
@@ -1665,27 +1698,43 @@ describe('TokenRatesController', () => {
           });
 
           it('returns the an empty object when market does not exist for pair', async () => {
-            nock('https://min-api.cryptocompare.com')
-              .get('/data/price?fsym=ETH&tsyms=LOL')
-              .replyWithError(
-                new Error('market does not exist for this coin pair'),
-              );
-
-            const tokenPricesService = buildMockTokenPricesService();
+            // New implementation returns empty object when native token price is unavailable
+            const tokenPricesService = buildMockTokenPricesService({
+              fetchTokenPrices: async ({ tokenAddresses, currency }) => {
+                // Return empty for native token price request in USD
+                // This simulates the case where native token price is unavailable
+                if (tokenAddresses.length === 0 && currency === 'usd') {
+                  return {};
+                }
+                // For regular token requests, also return empty to simulate failure
+                if (currency === 'usd') {
+                  return fetchTokenPricesWithIncreasingPriceForEachToken({
+                    tokenAddresses,
+                    currency,
+                  });
+                }
+                // Should not get here since we use 'usd' as fallback
+                return {};
+              },
+              validateCurrencySupported(currency: unknown): currency is string {
+                return currency !== 'LOL';
+              },
+            });
             await withController(
               {
                 options: {
                   tokenPricesService,
                 },
-                mockNetworkClientConfigurationsByNetworkClientId: {
-                  'AAAA-BBBB-CCCC-DDDD': buildCustomNetworkClientConfiguration({
-                    chainId: ChainId.mainnet,
-                    ticker: 'LOL',
-                  }),
+                mockNetworkState: {
+                  networkConfigurationsByChainId: {
+                    [ChainId.mainnet]: buildNetworkConfiguration({
+                      nativeCurrency: 'LOL',
+                    }),
+                  },
                 },
                 mockTokensControllerState: {
                   allTokens: {
-                    '0x1': {
+                    [ChainId.mainnet]: {
                       [defaultSelectedAddress]: [
                         {
                           address: '0x02',
@@ -2154,30 +2203,90 @@ describe('TokenRatesController', () => {
           '0x0000000000000000000000000000000000000001',
           '0x0000000000000000000000000000000000000002',
         ];
+        const nativeTokenAddress = '0x0000000000000000000000000000000000001010';
+        const nativeTokenPriceInUSD = 2;
         const tokenPricesService = buildMockTokenPricesService({
-          fetchTokenPrices: jest.fn().mockResolvedValue({
-            [tokenAddresses[0]]: {
-              currency: 'ETH',
-              tokenAddress: tokenAddresses[0],
-              price: 0.001,
-            },
-            [tokenAddresses[1]]: {
-              currency: 'ETH',
-              tokenAddress: tokenAddresses[1],
-              price: 0.002,
-            },
-          }),
+          // @ts-expect-error - Simplified mock for testing with partial fields
+          fetchTokenPrices: async ({ tokenAddresses: addrs, currency }) => {
+            if (addrs.length === 0 && currency === 'usd') {
+              // Return native token price
+              return {
+                [nativeTokenAddress]: {
+                  currency: 'usd',
+                  tokenAddress: nativeTokenAddress,
+                  price: nativeTokenPriceInUSD,
+                  pricePercentChange1d: 0,
+                  priceChange1d: 0,
+                  allTimeHigh: undefined,
+                  allTimeLow: undefined,
+                  circulatingSupply: 0,
+                  dilutedMarketCap: undefined,
+                  high1d: undefined,
+                  low1d: undefined,
+                  marketCap: undefined,
+                  marketCapPercentChange1d: 0,
+                  pricePercentChange14d: 0,
+                  pricePercentChange1h: 0,
+                  pricePercentChange1y: 0,
+                  pricePercentChange200d: 0,
+                  pricePercentChange30d: 0,
+                  pricePercentChange7d: 0,
+                  totalVolume: undefined,
+                },
+              };
+            }
+            // Return token prices in USD
+            return {
+              [tokenAddresses[0]]: {
+                currency: 'usd',
+                tokenAddress: tokenAddresses[0],
+                price: 0.001,
+                pricePercentChange1d: 0,
+                priceChange1d: 0,
+                allTimeHigh: undefined,
+                allTimeLow: undefined,
+                circulatingSupply: 0,
+                dilutedMarketCap: undefined,
+                high1d: undefined,
+                low1d: undefined,
+                marketCap: undefined,
+                marketCapPercentChange1d: 0,
+                pricePercentChange14d: 0,
+                pricePercentChange1h: 0,
+                pricePercentChange1y: 0,
+                pricePercentChange200d: 0,
+                pricePercentChange30d: 0,
+                pricePercentChange7d: 0,
+                totalVolume: undefined,
+              },
+              [tokenAddresses[1]]: {
+                currency: 'usd',
+                tokenAddress: tokenAddresses[1],
+                price: 0.002,
+                pricePercentChange1d: 0,
+                priceChange1d: 0,
+                allTimeHigh: undefined,
+                allTimeLow: undefined,
+                circulatingSupply: 0,
+                dilutedMarketCap: undefined,
+                high1d: undefined,
+                low1d: undefined,
+                marketCap: undefined,
+                marketCapPercentChange1d: 0,
+                pricePercentChange14d: 0,
+                pricePercentChange1h: 0,
+                pricePercentChange1y: 0,
+                pricePercentChange200d: 0,
+                pricePercentChange30d: 0,
+                pricePercentChange7d: 0,
+                totalVolume: undefined,
+              },
+            };
+          },
           validateCurrencySupported(_currency: unknown): _currency is string {
             return false;
           },
         });
-        nock('https://min-api.cryptocompare.com')
-          .get('/data/price')
-          .query({
-            fsym: 'ETH',
-            tsyms: selectedNetworkClientConfiguration.ticker,
-          })
-          .reply(200, { [selectedNetworkClientConfiguration.ticker]: 0.5 }); // .5 eth to 1 matic
 
         await withController(
           {
@@ -2227,31 +2336,51 @@ describe('TokenRatesController', () => {
                               "0x0000000000000000000000000000000000000001": Object {
                                 "allTimeHigh": undefined,
                                 "allTimeLow": undefined,
+                                "circulatingSupply": 0,
                                 "currency": "UNSUPPORTED",
                                 "dilutedMarketCap": undefined,
                                 "high1d": undefined,
                                 "low1d": undefined,
                                 "marketCap": undefined,
+                                "marketCapPercentChange1d": 0,
                                 "price": 0.0005,
+                                "priceChange1d": 0,
+                                "pricePercentChange14d": 0,
+                                "pricePercentChange1d": 0,
+                                "pricePercentChange1h": 0,
+                                "pricePercentChange1y": 0,
+                                "pricePercentChange200d": 0,
+                                "pricePercentChange30d": 0,
+                                "pricePercentChange7d": 0,
                                 "tokenAddress": "0x0000000000000000000000000000000000000001",
                                 "totalVolume": undefined,
                               },
                               "0x0000000000000000000000000000000000000002": Object {
                                 "allTimeHigh": undefined,
                                 "allTimeLow": undefined,
+                                "circulatingSupply": 0,
                                 "currency": "UNSUPPORTED",
                                 "dilutedMarketCap": undefined,
                                 "high1d": undefined,
                                 "low1d": undefined,
                                 "marketCap": undefined,
+                                "marketCapPercentChange1d": 0,
                                 "price": 0.001,
+                                "priceChange1d": 0,
+                                "pricePercentChange14d": 0,
+                                "pricePercentChange1d": 0,
+                                "pricePercentChange1h": 0,
+                                "pricePercentChange1y": 0,
+                                "pricePercentChange200d": 0,
+                                "pricePercentChange30d": 0,
+                                "pricePercentChange7d": 0,
                                 "tokenAddress": "0x0000000000000000000000000000000000000002",
                                 "totalVolume": undefined,
                               },
                             },
                           },
                         }
-                    `);
+                      `);
           },
         );
       });
@@ -2266,8 +2395,45 @@ describe('TokenRatesController', () => {
         const tokenAddresses = [...new Array(200).keys()]
           .map(buildAddress)
           .sort();
+        // New implementation needs native token price in USD
+        // For chain 999 (0x3e7), native token address is 0x0000...0000 (ZERO_ADDRESS)
+        const nativeTokenAddress = '0x0000000000000000000000000000000000000000';
+        const nativeTokenPriceInUSD = 2;
         const tokenPricesService = buildMockTokenPricesService({
-          fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
+          fetchTokenPrices: async ({ tokenAddresses: addrs, currency }) => {
+            // Handle native token price request
+            if (addrs.length === 0 && currency === 'usd') {
+              return {
+                [nativeTokenAddress]: {
+                  tokenAddress: nativeTokenAddress,
+                  currency: 'usd',
+                  pricePercentChange1d: 0,
+                  priceChange1d: 0,
+                  allTimeHigh: 4000,
+                  allTimeLow: 900,
+                  circulatingSupply: 2000,
+                  dilutedMarketCap: 100,
+                  high1d: 200,
+                  low1d: 100,
+                  marketCap: 1000,
+                  marketCapPercentChange1d: 100,
+                  price: nativeTokenPriceInUSD,
+                  pricePercentChange14d: 100,
+                  pricePercentChange1h: 1,
+                  pricePercentChange1y: 200,
+                  pricePercentChange200d: 300,
+                  pricePercentChange30d: 200,
+                  pricePercentChange7d: 100,
+                  totalVolume: 100,
+                },
+              };
+            }
+            // Handle regular token prices
+            return fetchTokenPricesWithIncreasingPriceForEachToken({
+              tokenAddresses: addrs,
+              currency,
+            });
+          },
           validateCurrencySupported: (
             currency: unknown,
           ): currency is string => {
@@ -2281,13 +2447,6 @@ describe('TokenRatesController', () => {
         const tokens = tokenAddresses.map((tokenAddress) => {
           return buildToken({ address: tokenAddress });
         });
-        nock('https://min-api.cryptocompare.com')
-          .get('/data/price')
-          .query({
-            fsym: 'ETH',
-            tsyms: selectedNetworkClientConfiguration.ticker,
-          })
-          .reply(200, { [selectedNetworkClientConfiguration.ticker]: 0.5 });
         await withController(
           {
             options: {
@@ -2333,16 +2492,25 @@ describe('TokenRatesController', () => {
             const numBatches = Math.ceil(
               tokenAddresses.length / TOKEN_PRICES_BATCH_SIZE,
             );
-            expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
+            // New implementation calls fetchTokenPrices once for native token + numBatches for tokens
+            expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches + 1);
 
+            // First call is for native token price
+            expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(1, {
+              chainId: selectedNetworkClientConfiguration.chainId,
+              tokenAddresses: [],
+              currency: 'usd',
+            });
+
+            // Subsequent calls are for token batches in USD
             for (let i = 1; i <= numBatches; i++) {
-              expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
+              expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i + 1, {
                 chainId: selectedNetworkClientConfiguration.chainId,
                 tokenAddresses: tokenAddresses.slice(
                   (i - 1) * TOKEN_PRICES_BATCH_SIZE,
                   i * TOKEN_PRICES_BATCH_SIZE,
                 ),
-                currency: 'ETH',
+                currency: 'usd',
               });
             }
           },
