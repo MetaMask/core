@@ -37,8 +37,11 @@ export type {
   NetworkControllerMessenger,
   NetworkControllerOptions,
   NetworkControllerRpcEndpointUnavailableEvent,
+  NetworkControllerRpcEndpointInstanceUnavailableEvent,
   NetworkControllerRpcEndpointDegradedEvent,
-  NetworkControllerRpcEndpointInstanceRequestRetriedEvent,
+  NetworkControllerRpcEndpointInstanceDegradedEvent,
+  NetworkControllerRpcEndpointAvailableEvent,
+  NetworkControllerRpcEndpointInstanceRetriedEvent,
 } from './NetworkController';
 export {
   getDefaultNetworkControllerState,
