@@ -11,7 +11,6 @@ import type { TokenDisplayData } from './types';
 import { formatIconUrlWithProxy } from '../assetsUtil';
 import type { GetCurrencyRateState } from '../CurrencyRateController';
 import type { AbstractTokenPricesService } from '../token-prices-service';
-import type { TokenPrice } from '../token-prices-service/abstract-token-prices-service';
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
@@ -172,22 +171,18 @@ export class TokenSearchDiscoveryDataController extends BaseController<
     this.#fetchSwapsTokensThresholdMs = fetchSwapsTokensThresholdMs;
   }
 
-  async #fetchPriceData(
-    chainId: Hex,
-    address: string,
-  ): Promise<TokenPrice<Hex, string> | null> {
+  async #fetchPriceData(chainId: Hex, address: string) {
     const { currentCurrency } = this.messenger.call(
       'CurrencyRateController:getState',
     );
 
     try {
       const pricesData = await this.#tokenPricesService.fetchTokenPrices({
-        chainId,
-        tokenAddresses: [address as Hex],
+        assets: [{ chainId, tokenAddress: address as Hex }],
         currency: currentCurrency,
       });
 
-      return pricesData[address as Hex] ?? null;
+      return pricesData[0] ?? null;
     } catch (error) {
       console.error(error);
       return null;

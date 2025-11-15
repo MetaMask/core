@@ -7,15 +7,21 @@ import {
   handleFetch,
 } from '@metamask/controller-utils';
 import type { ServicePolicy } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
-import { hexToNumber } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
+import {
+  hexToNumber,
+  KnownCaipNamespace,
+  toCaipChainId,
+} from '@metamask/utils';
 
 import type {
   AbstractTokenPricesService,
+  EvmAssetAddressWithChain,
+  EvmAssetWithId,
+  EvmAssetWithMarketData,
   ExchangeRatesByCurrency,
-  TokenPrice,
-  TokenPricesByTokenAddress,
 } from './abstract-token-prices-service';
+import type { MarketDataDetails } from '../TokenRatesController';
 
 /**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to
@@ -76,6 +82,8 @@ export const SUPPORTED_CURRENCIES = [
   'eur',
   // British Pound Sterling
   'gbp',
+  // Georgian Lari
+  'gel',
   // Hong Kong Dollar
   'hkd',
   // Hungarian Forint
@@ -144,6 +152,52 @@ export const SUPPORTED_CURRENCIES = [
   'bits',
   // Satoshi
   'sats',
+  // Colombian Peso
+  'cop',
+  // Kenyan Shilling
+  'kes',
+  // Romanian Leu
+  'ron',
+  // Dominican Peso
+  'dop',
+  // Costa Rican Colón
+  'crc',
+  // Honduran Lempira
+  'hnl',
+  // Zambian Kwacha
+  'zmw',
+  // Salvadoran Colón
+  'svc',
+  // Bosnia-Herzegovina Convertible Mark
+  'bam',
+  // Peruvian Sol
+  'pen',
+  // Guatemalan Quetzal
+  'gtq',
+  // Lebanese Pound
+  'lbp',
+  // Armenian Dram
+  'amd',
+  // Solana
+  'sol',
+  // Sei
+  'sei',
+  // Sonic
+  'sonic',
+  // Tron
+  'trx',
+  // Taiko
+  'taiko',
+  // Pepu
+  'pepu',
+  // Polygon
+  'pol',
+  // Mantle
+  'mnt',
+  // Onomy
+  'nom',
+  // Avalanche
+  'avax',
 ] as const;
 
 /**
@@ -173,6 +227,50 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
  */
 export const getNativeTokenAddress = (chainId: Hex): Hex =>
   chainIdToNativeTokenAddress[chainId] ?? ZERO_ADDRESS;
+
+// We can only support PricesAPI V3 for EVM chains that have a CAIP-19 native asset mapping.
+export const HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP: Record<
+  Hex,
+  CaipAssetType
+> = {
+  '0x1': 'eip155:1/slip44:60', // Ethereum Mainnet
+  '0xa': 'eip155:10/slip44:60', // OP Mainnet
+  '0x19': 'eip155:25/slip44:394', // Cronos Mainnet
+  '0x38': 'eip155:56/slip44:714', // BNB Smart Chain Mainnet
+  '0x39': 'eip155:57/slip44:57', // Syscoin Mainnet
+  //   '0x42': 'eip155:1/slip44:60', // OKXChain Mainnet
+  //   '0x46': 'eip155:1/slip44:60', // Hoo Smart Chain
+  //   '0x52': 'eip155:1/slip44:60', // Meter Mainnet
+  //   '0x58': 'eip155:1/slip44:60', // TomoChain
+  //   '0x64': 'eip155:1/slip44:60', // Gnosis
+  //   '0x6a': 'eip155:1/slip44:60', // Velas EVM Mainnet
+  //   '0x7a': 'eip155:1/slip44:60', // Fuse Mainnet
+  //   '0x80': 'eip155:1/slip44:60', // Huobi ECO Chain Mainnet
+  '0x89': 'eip155:137/slip44:966', // Polygon Mainnet
+  '0x8f': 'eip155:143/slip44:268435779', // Monad Mainnet
+  //   '0x92': 'eip155:1/slip44:60', // Sonic Mainnet
+  //   '0xfa': 'eip155:1/slip44:60', // Fantom Opera
+  //   '0x120': 'eip155:1/slip44:60', // Boba Network
+  //   '0x141': 'eip155:1/slip44:60', // KCC Mainnet
+  //   '0x144': 'eip155:1/slip44:60', // zkSync Era Mainnet
+  //   '0x150': 'eip155:1/slip44:60', // Shiden
+  //   '0x169': 'eip155:1/slip44:60', // Theta Mainnet
+  //   '0x440': 'eip155:1/slip44:60', // Metis Andromeda Mainnet
+  //   '0x504': 'eip155:1/slip44:60', // Moonbeam
+  //   '0x505': 'eip155:1/slip44:60', // Moonriver
+  '0x531': 'eip155:1329/slip44:19000118', // Sei Mainnet
+  //   '0x1388': 'eip155:1/slip44:60', // Mantle
+  '0x2105': 'eip155:8453/slip44:60', // Base
+  //   '0x2710': 'eip155:1/slip44:60', // Smart Bitcoin Cash
+  '0xa4b1': 'eip155:42161/slip44:60', // Arbitrum One
+  //   '0xa4ec': 'eip155:1/slip44:60', // Celo Mainnet
+  //   '0xa516': 'eip155:1/slip44:60', // Oasis Emerald
+  '0xa86a': 'eip155:43114/slip44:9000', // Avalanche C-Chain
+  '0xe708': 'eip155:59144/slip44:60', // Linea Mainnet
+  //   '0x518af': 'eip155:1/slip44:60', // Polis Mainnet
+  //   '0x4e454152': 'eip155:1/slip44:60', // Aurora Mainnet
+  //   '0x63564c40': 'eip155:1/slip44:60', // Harmony Mainnet Shard 0
+};
 
 /**
  * A currency that can be supplied as the `vsCurrency` parameter to
@@ -276,96 +374,16 @@ type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
 /**
  * All requests to V2 of the Price API start with this.
  */
-const BASE_URL = 'https://price.api.cx.metamask.io/v2';
-
 const BASE_URL_V1 = 'https://price.api.cx.metamask.io/v1';
 
-/**
- * The shape of the data that the /spot-prices endpoint returns.
- */
-type MarketData = {
-  /**
-   * The all-time highest price of the token.
-   */
-  allTimeHigh: number;
-  /**
-   * The all-time lowest price of the token.
-   */
-  allTimeLow: number;
-  /**
-   * The number of tokens currently in circulation.
-   */
-  circulatingSupply: number;
-  /**
-   * The market cap calculated using the diluted supply.
-   */
-  dilutedMarketCap: number;
-  /**
-   * The highest price of the token in the last 24 hours.
-   */
-  high1d: number;
-  /**
-   * The lowest price of the token in the last 24 hours.
-   */
-  low1d: number;
-  /**
-   * The current market capitalization of the token.
-   */
-  marketCap: number;
-  /**
-   * The percentage change in market capitalization over the last 24 hours.
-   */
-  marketCapPercentChange1d: number;
-  /**
-   * The current price of the token.
-   */
-  price: number;
-  /**
-   * The absolute change in price over the last 24 hours.
-   */
-  priceChange1d: number;
-  /**
-   * The percentage change in price over the last 24 hours.
-   */
-  pricePercentChange1d: number;
-  /**
-   * The percentage change in price over the last hour.
-   */
-  pricePercentChange1h: number;
-  /**
-   * The percentage change in price over the last year.
-   */
-  pricePercentChange1y: number;
-  /**
-   * The percentage change in price over the last 7 days.
-   */
-  pricePercentChange7d: number;
-  /**
-   * The percentage change in price over the last 14 days.
-   */
-  pricePercentChange14d: number;
-  /**
-   * The percentage change in price over the last 30 days.
-   */
-  pricePercentChange30d: number;
-  /**
-   * The percentage change in price over the last 200 days.
-   */
-  pricePercentChange200d: number;
-  /**
-   * The total trading volume of the token in the last 24 hours.
-   */
-  totalVolume: number;
-};
+const BASE_URL_V3 = 'https://price.api.cx.metamask.io/v3';
 
-type MarketDataByTokenAddress = { [address: Hex]: MarketData };
 /**
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
  */
 export class CodefiTokenPricesServiceV2
-  implements
-    AbstractTokenPricesService<SupportedChainId, Hex, SupportedCurrency>
+  implements AbstractTokenPricesService<SupportedChainId, SupportedCurrency>
 {
   readonly #policy: ServicePolicy;
 
@@ -474,64 +492,68 @@ export class CodefiTokenPricesServiceV2
    * given addresses which are expected to live on the given chain.
    *
    * @param args - The arguments to function.
-   * @param args.chainId - An EIP-155 chain ID.
-   * @param args.tokenAddresses - Addresses for tokens that live on the chain.
+   * @param args.assets - The assets to get prices for.
    * @param args.currency - The desired currency of the token prices.
    * @returns The prices for the requested tokens.
    */
   async fetchTokenPrices({
-    chainId,
-    tokenAddresses,
+    assets,
     currency,
   }: {
-    chainId: SupportedChainId;
-    tokenAddresses: Hex[];
+    assets: EvmAssetAddressWithChain<SupportedChainId>[];
     currency: SupportedCurrency;
-  }): Promise<Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>> {
-    const chainIdAsNumber = hexToNumber(chainId);
+  }): Promise<EvmAssetWithMarketData<SupportedChainId, SupportedCurrency>[]> {
+    const assetsWithIds: EvmAssetWithId<SupportedChainId>[] = assets.map(
+      (asset) => {
+        const caipChainId = toCaipChainId(
+          KnownCaipNamespace.Eip155,
+          hexToNumber(asset.chainId).toString(),
+        );
 
-    const url = new URL(`${BASE_URL}/chains/${chainIdAsNumber}/spot-prices`);
+        const nativeAddress = getNativeTokenAddress(asset.chainId);
+
+        return {
+          ...asset,
+          assetId:
+            nativeAddress.toLowerCase() === asset.tokenAddress.toLowerCase()
+              ? HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP[asset.chainId]
+              : `${caipChainId}/erc20:${asset.tokenAddress.toLowerCase()}`,
+        };
+      },
+    );
+
+    const url = new URL(`${BASE_URL_V3}/spot-prices`);
     url.searchParams.append(
-      'tokenAddresses',
-      [getNativeTokenAddress(chainId), ...tokenAddresses].join(','),
+      'assetIds',
+      assetsWithIds.map((asset) => asset.assetId).join(','),
     );
     url.searchParams.append('vsCurrency', currency);
     url.searchParams.append('includeMarketData', 'true');
 
-    const addressCryptoDataMap: MarketDataByTokenAddress =
-      await this.#policy.execute(() =>
-        handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
-      );
+    const addressCryptoDataMap: {
+      [assetId: CaipAssetType]: Omit<
+        MarketDataDetails,
+        'currency' | 'tokenAddress'
+      >;
+    } = await this.#policy.execute(() =>
+      handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
+    );
 
-    return [getNativeTokenAddress(chainId), ...tokenAddresses].reduce(
-      (
-        obj: Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>,
-        tokenAddress,
-      ) => {
-        // The Price API lowercases both currency and token addresses, so we have
-        // to keep track of them and make sure we return the original versions.
-        const lowercasedTokenAddress =
-          tokenAddress.toLowerCase() as Lowercase<Hex>;
-
-        const marketData = addressCryptoDataMap[lowercasedTokenAddress];
+    return assetsWithIds
+      .map((assetWithId) => {
+        const marketData = addressCryptoDataMap[assetWithId.assetId];
 
         if (!marketData) {
-          return obj;
+          return undefined;
         }
 
-        const token: TokenPrice<Hex, SupportedCurrency> = {
-          tokenAddress,
-          currency,
-          ...marketData,
-        };
-
         return {
-          ...obj,
-          [tokenAddress]: token,
+          ...marketData,
+          ...assetWithId,
+          currency,
         };
-      },
-      {},
-    ) as Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>;
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
   }
 
   /**
