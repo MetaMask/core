@@ -23,6 +23,7 @@ import type {
 
 export {
   BrokenCircuitError,
+  CockatielEventEmitter,
   CircuitState,
   ConstantBackoff,
   ExponentialBackoff,
@@ -30,7 +31,7 @@ export {
   handleWhen,
 };
 
-export type { CockatielEvent };
+export type { CockatielEvent, FailureReason as CockatielFailureReason };
 
 /**
  * The options for `createServicePolicy`.
@@ -86,11 +87,25 @@ export type ServicePolicy = IPolicy & {
    */
   circuitBreakDuration: number;
   /**
+   * @returns The state of the underlying circuit.
+   */
+  getCircuitState: () => CircuitState;
+  /**
+   * @returns The last failure reason that the retry policy captured (or
+   * `undefined` if the last execution of the service was successful).
+   */
+  getLastInnerFailureReason: () => FailureReason<unknown> | undefined;
+  /**
    * If the circuit is open and ongoing requests are paused, returns the number
    * of milliseconds before the requests will be attempted again. If the circuit
    * is not open, returns null.
    */
   getRemainingCircuitOpenDuration: () => number | null;
+  /**
+   * Resets the internal circuit breaker policy (if it is open, it will now be
+   * closed).
+   */
+  reset: () => void;
   /**
    * The Cockatiel retry policy that the service policy uses internally.
    */
@@ -108,6 +123,12 @@ export type ServicePolicy = IPolicy & {
    * number of consecutive failures has been reached.
    */
   onDegraded: CockatielEvent<FailureReason<unknown> | void>;
+  /**
+   * A function which is called when the service succeeds for the first time,
+   * or when the service fails enough times to cause the circuit to break and
+   * then recovers.
+   */
+  onAvailable: CockatielEvent<void>;
   /**
    * A function which will be called by the retry policy each time the service
    * fails and the policy kicks off a timer to re-run the service. This is
@@ -249,6 +270,8 @@ export function createServicePolicy(
     backoff = new ExponentialBackoff(),
   } = options;
 
+  let availabilityStatus: 'unknown' | 'available' = 'unknown';
+
   const retryPolicy = retry(retryFilterPolicy, {
     // Note that although the option here is called "max attempts", it's really
     // maximum number of *retries* (attempts past the initial attempt).
@@ -259,6 +282,7 @@ export function createServicePolicy(
   });
   const onRetry = retryPolicy.onRetry.bind(retryPolicy);
 
+  const consecutiveBreaker = new ConsecutiveBreaker(maxConsecutiveFailures);
   const circuitBreakerPolicy = circuitBreaker(handleWhen(isServiceFailure), {
     // While the circuit is open, any additional invocations of the service
     // passed to the policy (either via automatic retries or by manually
@@ -267,36 +291,67 @@ export function createServicePolicy(
     // service will be allowed to run again. If the service succeeds, the
     // circuit will close, otherwise it will remain open.
     halfOpenAfter: circuitBreakDuration,
-    breaker: new ConsecutiveBreaker(maxConsecutiveFailures),
+    breaker: consecutiveBreaker,
   });
 
   let internalCircuitState: InternalCircuitState = getInternalCircuitState(
     circuitBreakerPolicy.state,
   );
-  circuitBreakerPolicy.onStateChange((state) => {
-    internalCircuitState = getInternalCircuitState(state);
+  circuitBreakerPolicy.onStateChange((circuitState) => {
+    internalCircuitState = getInternalCircuitState(circuitState);
   });
   const onBreak = circuitBreakerPolicy.onBreak.bind(circuitBreakerPolicy);
 
   const onDegradedEventEmitter =
     new CockatielEventEmitter<FailureReason<unknown> | void>();
+  const onDegraded = onDegradedEventEmitter.addListener;
+
+  const onAvailableEventEmitter = new CockatielEventEmitter<void>();
+  const onAvailable = onAvailableEventEmitter.addListener;
+
+  let lastInnerFailureReason: FailureReason<unknown> | undefined;
   retryPolicy.onGiveUp((data) => {
     if (circuitBreakerPolicy.state === CircuitState.Closed) {
       onDegradedEventEmitter.emit(data);
     }
   });
-  retryPolicy.onSuccess(({ duration }) => {
-    if (
-      circuitBreakerPolicy.state === CircuitState.Closed &&
-      duration > degradedThreshold
-    ) {
-      onDegradedEventEmitter.emit();
+  retryPolicy.onSuccess((data) => {
+    lastInnerFailureReason = undefined;
+
+    if (circuitBreakerPolicy.state === CircuitState.Closed) {
+      if (data.duration > degradedThreshold) {
+        onDegradedEventEmitter.emit();
+      } else if (availabilityStatus !== 'available') {
+        availabilityStatus = 'available';
+        onAvailableEventEmitter.emit();
+      }
     }
   });
-  const onDegraded = onDegradedEventEmitter.addListener;
+  retryPolicy.onFailure((event) => {
+    lastInnerFailureReason = event.reason;
+  });
 
   // Every time the retry policy makes an attempt, it executes the circuit
   // breaker policy, which executes the service.
+  //
+  // Calling:
+  //
+  //   policy.execute(() => {
+  //     // do what the service does
+  //   })
+  //
+  // is equivalent to:
+  //
+  //   retryPolicy.execute(() => {
+  //     circuitBreakerPolicy.execute(() => {
+  //       // do what the service does
+  //     });
+  //   });
+  //
+  // So if the retry policy succeeds or fails, it is because the circuit breaker
+  // policy succeeded or failed. And if there are any event listeners registered
+  // on the retry policy, by the time they are called, the state of the circuit
+  // breaker will have already changed.
   const policy = wrap(retryPolicy, circuitBreakerPolicy);
 
   const getRemainingCircuitOpenDuration = () => {
@@ -306,14 +361,40 @@ export function createServicePolicy(
     return null;
   };
 
+  const getCircuitState = () => {
+    return circuitBreakerPolicy.state;
+  };
+
+  const getLastInnerFailureReason = () => {
+    return lastInnerFailureReason;
+  };
+
+  const reset = () => {
+    // Set the state of the policy to "isolated" regardless of its current state
+    const { dispose } = circuitBreakerPolicy.isolate();
+    // Reset the state to "closed"
+    dispose();
+
+    // Reset the counter on the breaker as well
+    consecutiveBreaker.success();
+
+    // Re-initialize the availability status so that if the service is executed
+    // successfully, onAvailable listeners will be called again
+    availabilityStatus = 'unknown';
+  };
+
   return {
     ...policy,
     circuitBreakerPolicy,
     circuitBreakDuration,
+    getCircuitState,
+    getLastInnerFailureReason,
     getRemainingCircuitOpenDuration,
+    reset,
     retryPolicy,
     onBreak,
     onDegraded,
+    onAvailable,
     onRetry,
   };
 }
