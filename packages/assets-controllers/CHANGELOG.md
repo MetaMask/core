@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Refactor `getBalancesInSingleCall` to use `getTokenBalancesForMultipleAddresses` for improved chain coverage via Multicall3 ([#7121](https://github.com/MetaMask/core/pull/7121))
+
 ### Fixed
 
 - Enable RPC fallback when Accounts API fails or times out in `TokenBalancesController` ([#7155](https://github.com/MetaMask/core/pull/7155))
