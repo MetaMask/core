@@ -13,7 +13,7 @@ import type { FiatRates, TransactionPayControllerMessenger } from '../types';
  * @param account - Address of the account.
  * @param chainId - Id of the chain.
  * @param tokenAddress - Address of the token contract.
- * @returns The token balance as a BigNumber.
+ * @returns Raw token balance as a decimal string.
  */
 export function getTokenBalance(
   messenger: TransactionPayControllerMessenger,

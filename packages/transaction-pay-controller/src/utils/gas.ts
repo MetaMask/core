@@ -4,9 +4,17 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getNativeToken, getTokenFiatRate } from './token';
+import {
+  getNativeToken,
+  getTokenBalance,
+  getTokenFiatRate,
+  getTokenInfo,
+} from './token';
 import type { TransactionPayControllerMessenger } from '..';
+import { createModuleLogger, projectLogger } from '../logger';
 import type { Amount } from '../types';
+
+const log = createModuleLogger(projectLogger, 'gas');
 
 /**
  *
@@ -22,7 +30,7 @@ export function calculateTransactionGasCost(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
   { isMax }: { isMax?: boolean } = {},
-): Amount {
+): Amount & { isGasFeeToken?: boolean } {
   const {
     chainId,
     gasUsed: gasUsedOriginal,
@@ -30,17 +38,46 @@ export function calculateTransactionGasCost(
     txParams,
   } = transaction;
 
-  const { gas, maxFeePerGas, maxPriorityFeePerGas } = txParams;
+  const { from, gas, maxFeePerGas, maxPriorityFeePerGas } = txParams;
   const gasUsed = isMax ? undefined : gasUsedOriginal;
   const finalGas = gasUsed || gasLimitNoBuffer || gas || '0x0';
 
-  return calculateGasCost({
+  const result = calculateGasCost({
     chainId,
     gas: finalGas,
+    isMax,
     maxFeePerGas,
     maxPriorityFeePerGas,
     messenger,
   });
+
+  const max = calculateGasCost({
+    chainId,
+    gas: finalGas,
+    isMax: true,
+    messenger,
+  });
+
+  const nativeBalance = getTokenBalance(
+    messenger,
+    from as Hex,
+    chainId,
+    getNativeToken(chainId),
+  );
+
+  const hasBalance = new BigNumber(nativeBalance).gte(max.raw);
+
+  const gasFeeTokenCost = calculateGasFeeTokenCost({
+    hasBalance,
+    messenger,
+    transaction,
+  });
+
+  if (gasFeeTokenCost) {
+    return gasFeeTokenCost;
+  }
+
+  return result;
 }
 
 /**
@@ -149,4 +186,83 @@ function getGasFee(chainId: Hex, messenger: TransactionPayControllerMessenger) {
     : undefined;
 
   return { estimatedBaseFee, maxFeePerGas, maxPriorityFeePerGas };
+}
+
+/**
+ * Calculate the cost of a gas fee token on a transaction.
+ *
+ * @param request - Request parameters.
+ * @param request.hasBalance - Whether the user has enough balance to cover the gas fee.
+ * @param request.messenger - Controller messenger.
+ * @param request.transaction - Transaction to calculate gas fee token cost for.
+ * @returns Cost of the gas fee token.
+ */
+function calculateGasFeeTokenCost({
+  hasBalance,
+  messenger,
+  transaction,
+}: {
+  hasBalance: boolean;
+  messenger: TransactionPayControllerMessenger;
+  transaction: TransactionMeta;
+}): (Amount & { isGasFeeToken?: boolean }) | undefined {
+  const {
+    chainId,
+    gasFeeTokens,
+    isGasFeeTokenIgnoredIfBalance,
+    selectedGasFeeToken,
+  } = transaction;
+
+  if (
+    !gasFeeTokens ||
+    !selectedGasFeeToken ||
+    (isGasFeeTokenIgnoredIfBalance && hasBalance)
+  ) {
+    return undefined;
+  }
+
+  log('Calculating gas fee token cost', { selectedGasFeeToken, chainId });
+
+  const gasFeeToken = gasFeeTokens?.find(
+    (t) => t.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
+  );
+
+  if (!gasFeeToken) {
+    log('Gas fee token not found', {
+      gasFeeTokens,
+      selectedGasFeeToken,
+    });
+
+    return undefined;
+  }
+
+  const tokenInfo = getTokenInfo(messenger, selectedGasFeeToken, chainId);
+
+  const tokenFiatRate = getTokenFiatRate(
+    messenger,
+    selectedGasFeeToken,
+    chainId,
+  );
+
+  if (!tokenFiatRate || !tokenInfo) {
+    log('Cannot get gas fee token info');
+    return undefined;
+  }
+
+  const rawValue = new BigNumber(gasFeeToken.amount);
+  const raw = rawValue.toString(10);
+
+  const humanValue = rawValue.shiftedBy(-tokenInfo.decimals);
+  const human = humanValue.toString(10);
+
+  const fiat = humanValue.multipliedBy(tokenFiatRate.fiatRate).toString(10);
+  const usd = humanValue.multipliedBy(tokenFiatRate.usdRate).toString(10);
+
+  return {
+    isGasFeeToken: true,
+    fiat,
+    human,
+    raw,
+    usd,
+  };
 }
