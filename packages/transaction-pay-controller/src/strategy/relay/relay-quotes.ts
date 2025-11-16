@@ -5,17 +5,14 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import {
-  ARBITRUM_USDC_ADDRESS,
-  CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
-  CHAIN_ID_POLYGON,
   RELAY_FALLBACK_GAS_LIMIT,
   RELAY_URL_QUOTE,
 } from './constants';
 import type { RelayQuote } from './types';
 import { TransactionPayStrategy } from '../..';
 import type { TransactionMeta } from '../../../../transaction-controller/src';
-import { NATIVE_TOKEN_ADDRESS } from '../../constants';
+import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM, CHAIN_ID_POLYGON, NATIVE_TOKEN_ADDRESS } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   Amount,

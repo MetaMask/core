@@ -3,15 +3,15 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
+import { RELAY_URL_QUOTE } from './constants';
+import { getRelayQuotes } from './relay-quotes';
+import type { RelayQuote } from './types';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_POLYGON,
-  RELAY_URL_QUOTE,
-} from './constants';
-import { getRelayQuotes } from './relay-quotes';
-import type { RelayQuote } from './types';
-import { NATIVE_TOKEN_ADDRESS } from '../../constants';
+  NATIVE_TOKEN_ADDRESS,
+} from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   GetDelegationTransactionCallback,
