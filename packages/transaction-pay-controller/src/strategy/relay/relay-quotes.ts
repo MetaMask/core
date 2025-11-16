@@ -12,7 +12,12 @@ import {
 import type { RelayQuote } from './types';
 import { TransactionPayStrategy } from '../..';
 import type { TransactionMeta } from '../../../../transaction-controller/src';
-import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM, CHAIN_ID_POLYGON, NATIVE_TOKEN_ADDRESS } from '../../constants';
+import {
+  ARBITRUM_USDC_ADDRESS,
+  CHAIN_ID_ARBITRUM,
+  CHAIN_ID_POLYGON,
+  NATIVE_TOKEN_ADDRESS,
+} from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   Amount,
