@@ -48,7 +48,10 @@ export function calculateTotals({
   );
 
   const targetNetworkFee = quotes?.length
-    ? sumFiat(quotes.map((quote) => quote.fees.targetNetwork))
+    ? {
+        ...sumFiat(quotes.map((quote) => quote.fees.targetNetwork)),
+        isGasFeeToken: false,
+      }
     : transactionNetworkFee;
 
   const sourceAmount = sumAmounts(quotes.map((quote) => quote.sourceAmount));
@@ -72,9 +75,14 @@ export function calculateTotals({
     sumProperty(quotes, (quote) => quote.estimatedDuration),
   );
 
+  const isTargetGasFeeToken =
+    targetNetworkFee.isGasFeeToken ||
+    quotes.some((quote) => quote.fees.isTargetGasFeeToken);
+
   return {
     estimatedDuration,
     fees: {
+      isTargetGasFeeToken,
       provider: providerFee,
       sourceNetwork: {
         estimate: sourceNetworkFeeEstimate,

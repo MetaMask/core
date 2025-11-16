@@ -273,6 +273,9 @@ export type QuoteRequest = {
 
 /** Fees associated with a transaction pay quote. */
 export type TransactionPayFees = {
+  /** Whether a gas fee token is used to pay target network fees. */
+  isTargetGasFeeToken?: boolean;
+
   /** Fee charged by the quote provider. */
   provider: FiatValue;
 

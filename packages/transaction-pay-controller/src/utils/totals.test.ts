@@ -119,6 +119,7 @@ describe('Totals Utils', () => {
     jest.resetAllMocks();
 
     calculateTransactionGasCostMock.mockReturnValue({
+      isGasFeeToken: true,
       fiat: '1.23',
       human: '1.23',
       raw: '1230000000000000',
@@ -218,6 +219,7 @@ describe('Totals Utils', () => {
 
       expect(result.fees.targetNetwork.fiat).toBe('1.23');
       expect(result.fees.targetNetwork.usd).toBe('2.34');
+      expect(result.fees.isTargetGasFeeToken).toBe(true);
     });
 
     it('returns source amount', () => {
