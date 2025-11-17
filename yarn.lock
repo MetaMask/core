@@ -2663,7 +2663,7 @@ __metadata:
     "@metamask/multichain-account-service": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^25.0.0"
     "@metamask/permission-controller": "npm:^12.1.0"
-    "@metamask/phishing-controller": "npm:^15.0.0"
+    "@metamask/phishing-controller": "npm:^15.0.1"
     "@metamask/polling-controller": "npm:^15.0.0"
     "@metamask/preferences-controller": "npm:^21.0.0"
     "@metamask/providers": "npm:^22.1.0"
@@ -3093,7 +3093,6 @@ __metadata:
     "@typescript-eslint/parser": "npm:^8.7.0"
     "@yarnpkg/types": "npm:^4.0.0"
     babel-jest: "npm:^29.7.0"
-    chalk: "npm:^4.1.2"
     depcheck: "npm:^1.4.7"
     eslint: "npm:^9.39.1"
     eslint-config-prettier: "npm:^9.1.0"
@@ -4463,7 +4462,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/phishing-controller@npm:^15.0.0, @metamask/phishing-controller@workspace:packages/phishing-controller":
+"@metamask/phishing-controller@npm:^15.0.1, @metamask/phishing-controller@workspace:packages/phishing-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/phishing-controller@workspace:packages/phishing-controller"
   dependencies:
