@@ -10,7 +10,7 @@ jest.mock('./utils', () => ({
 }));
 
 // January 2 to avoid time zone issues.
-jest.useFakeTimers({ now: new Date('2023-01-02') });
+jest.useFakeTimers().setSystemTime(new Date('2023-01-02'));
 
 describe('create-package/commands', () => {
   describe('createPackageHandler', () => {
