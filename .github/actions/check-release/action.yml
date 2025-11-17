@@ -129,6 +129,7 @@ runs:
         fi
 
     - name: Hide previous comments
+      if: steps.is-release.outputs.IS_RELEASE == 'true'
       uses: actions/github-script@v8
       env:
         PR_NUMBER: ${{ inputs.pull-request }}
