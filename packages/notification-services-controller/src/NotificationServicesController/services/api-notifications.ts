@@ -16,26 +16,54 @@ export type NotificationTrigger = {
   address: string;
 };
 
-export const TRIGGER_API = 'https://trigger.api.cx.metamask.io';
-export const NOTIFICATION_API = 'https://notification.api.cx.metamask.io';
+export type ENV = 'prd' | 'uat' | 'dev';
+
+export const TRIGGER_API = (env: ENV = 'prd') => {
+  const domain = 'api.cx.metamask.io';
+  switch (env) {
+    case 'dev':
+      return `https://trigger.dev-${domain}`;
+    case 'uat':
+      return `https://trigger.uat-${domain}`;
+    default:
+      return `https://trigger.${domain}`;
+  }
+};
+
+export const NOTIFICATION_API = (env: ENV = 'prd') => {
+  const domain = 'api.cx.metamask.io';
+  switch (env) {
+    case 'dev':
+      return `https://notification.dev-${domain}`;
+    case 'uat':
+      return `https://notification.uat-${domain}`;
+    default:
+      return `https://notification.${domain}`;
+  }
+};
 
 // Gets notification settings for each account provided
-export const TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT = `${TRIGGER_API}/api/v2/notifications/query`;
+export const TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT = (env: ENV = 'prd') =>
+  `${TRIGGER_API(env)}/api/v2/notifications/query`;
 
 // Used to create/update account notifications for each account provided
-export const TRIGGER_API_NOTIFICATIONS_ENDPOINT = `${TRIGGER_API}/api/v2/notifications`;
+export const TRIGGER_API_NOTIFICATIONS_ENDPOINT = (env: ENV = 'prd') =>
+  `${TRIGGER_API(env)}/api/v2/notifications`;
 
 // Lists notifications for each account provided
-export const NOTIFICATION_API_LIST_ENDPOINT = `${NOTIFICATION_API}/api/v3/notifications`;
+export const NOTIFICATION_API_LIST_ENDPOINT = (env: ENV = 'prd') =>
+  `${NOTIFICATION_API(env)}/api/v3/notifications`;
 
 // Makrs notifications as read
-export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = `${NOTIFICATION_API}/api/v3/notifications/mark-as-read`;
+export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = (env: ENV = 'prd') =>
+  `${NOTIFICATION_API(env)}/api/v3/notifications/mark-as-read`;
 
 /**
  * fetches notification config (accounts enabled vs disabled)
  *
  * @param bearerToken - jwt
  * @param addresses - list of addresses to check
+ * @param env - the environment to use for the API call
  * NOTE the API will return addresses config with false if they have not been created before.
  * NOTE this is cached for 1s to prevent multiple update calls
  * @returns object of notification config, or null if missing
@@ -43,6 +71,7 @@ export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = `${NOTIFICATION_API}/a
 export async function getNotificationsApiConfigCached(
   bearerToken: string,
   addresses: string[],
+  env: ENV = 'prd',
 ) {
   if (addresses.length === 0) {
     return [];
@@ -60,7 +89,7 @@ export async function getNotificationsApiConfigCached(
   const body: RequestBody = addresses.map((address) => ({ address }));
   const data = await makeApiCall(
     bearerToken,
-    TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT,
+    TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(env),
     'POST',
     body,
   )
@@ -81,11 +110,13 @@ export async function getNotificationsApiConfigCached(
  *
  * @param bearerToken - jwt
  * @param addresses - list of addresses to check
+ * @param env - the environment to use for the API call
  * @returns void
  */
 export async function updateOnChainNotifications(
   bearerToken: string,
   addresses: { address: string; enabled: boolean }[],
+  env: ENV = 'prd',
 ) {
   if (addresses.length === 0) {
     return;
@@ -100,7 +131,7 @@ export async function updateOnChainNotifications(
   const body: RequestBody = addresses;
   await makeApiCall(
     bearerToken,
-    TRIGGER_API_NOTIFICATIONS_ENDPOINT,
+    TRIGGER_API_NOTIFICATIONS_ENDPOINT(env),
     'POST',
     body,
   )
@@ -115,6 +146,7 @@ export async function updateOnChainNotifications(
  * @param addresses - List of addresses
  * @param locale - to generate translated notifications
  * @param platform - filter notifications for specific platforms ('extension' | 'mobile')
+ * @param env - the environment to use for the API call
  * @returns A promise that resolves to an array of NormalisedAPINotification objects. If no notifications are enabled or an error occurs, it may return an empty array.
  */
 export async function getAPINotifications(
@@ -122,6 +154,7 @@ export async function getAPINotifications(
   addresses: string[],
   locale: string,
   platform: 'extension' | 'mobile',
+  env: ENV = 'prd',
 ): Promise<NormalisedAPINotification[]> {
   if (addresses.length === 0) {
     return [];
@@ -139,7 +172,7 @@ export async function getAPINotifications(
   };
   const notifications = await makeApiCall(
     bearerToken,
-    NOTIFICATION_API_LIST_ENDPOINT,
+    NOTIFICATION_API_LIST_ENDPOINT(env),
     'POST',
     body,
   )
@@ -171,11 +204,13 @@ export async function getAPINotifications(
  *
  * @param bearerToken - The JSON Web Token used for authentication in the API call.
  * @param notificationIds - An array of notification IDs to be marked as read.
+ * @param env - the environment to use for the API call
  * @returns A promise that resolves to void. The promise will reject if there's an error during the API call or if the response status is not 200.
  */
 export async function markNotificationsAsRead(
   bearerToken: string,
   notificationIds: string[],
+  env: ENV = 'prd',
 ): Promise<void> {
   if (notificationIds.length === 0) {
     return;
@@ -190,7 +225,7 @@ export async function markNotificationsAsRead(
   try {
     await makeApiCall(
       bearerToken,
-      NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT,
+      NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT(env),
       'POST',
       body,
     );

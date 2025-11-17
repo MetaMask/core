@@ -8,6 +8,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
+import type { ENV } from './services/endpoints';
 import {
   activatePushNotifications,
   deactivatePushNotifications,
@@ -171,17 +172,21 @@ export default class NotificationServicesPushController extends BaseController<
 
   readonly #config: ControllerConfig;
 
+  readonly #controllerEnv: ENV;
+
   constructor({
     messenger,
     state,
     env,
     config,
+    controllerEnv,
   }: {
     messenger: NotificationServicesPushControllerMessenger;
     state: NotificationServicesPushControllerState;
     /** Push Environment is only required for extension */
     env?: PushNotificationEnv;
     config: ControllerConfig;
+    controllerEnv?: ENV;
   }) {
     super({
       messenger,
@@ -192,6 +197,7 @@ export default class NotificationServicesPushController extends BaseController<
 
     this.#env = env ?? defaultPushEnv;
     this.#config = config;
+    this.#controllerEnv = controllerEnv ?? 'prd';
 
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
@@ -321,6 +327,7 @@ export default class NotificationServicesPushController extends BaseController<
             locale: this.#config.getLocale?.() ?? 'en',
             oldToken: this.state.fcmToken,
           },
+          controllerEnv: this.#controllerEnv,
         });
 
         if (fcmToken) {
@@ -411,6 +418,7 @@ export default class NotificationServicesPushController extends BaseController<
           locale: this.#config.getLocale?.() ?? 'en',
           oldToken: this.state.fcmToken,
         },
+        controllerEnv: this.#controllerEnv,
       });
 
       // update the state with the new FCM token

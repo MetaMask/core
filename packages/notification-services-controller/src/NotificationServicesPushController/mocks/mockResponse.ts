@@ -10,7 +10,7 @@ export const MOCK_REG_TOKEN = 'REG_TOKEN';
 
 export const getMockUpdatePushNotificationLinksResponse = () => {
   return {
-    url: REGISTRATION_TOKENS_ENDPOINT,
+    url: REGISTRATION_TOKENS_ENDPOINT(),
     requestMethod: 'POST',
     response: null,
   } satisfies MockResponse;
