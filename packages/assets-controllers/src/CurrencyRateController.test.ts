@@ -13,7 +13,6 @@ import {
 } from '@metamask/messenger';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
-import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
 import type { CurrencyRateMessenger } from './CurrencyRateController';
@@ -232,19 +231,21 @@ describe('CurrencyRateController', () => {
   });
 
   it('should not poll before being started', async () => {
-    const fetchMultiExchangeRateStub = jest.fn();
     const tokenPricesService = buildMockTokenPricesService();
+    const fetchExchangeRatesSpy = jest.spyOn(
+      tokenPricesService,
+      'fetchExchangeRates',
+    );
     const messenger = getCurrencyRateControllerMessenger();
     const controller = new CurrencyRateController({
       interval: 100,
-      fetchMultiExchangeRate: fetchMultiExchangeRateStub,
       messenger,
       tokenPricesService,
     });
 
     await advanceTime({ clock, duration: 200 });
 
-    expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
+    expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
 
     controller.destroy();
   });
@@ -256,17 +257,6 @@ describe('CurrencyRateController', () => {
       .spyOn(global.Date, 'now')
       .mockReturnValueOnce(10000)
       .mockReturnValueOnce(20000);
-    const fetchMultiExchangeRateStub = jest
-      .fn()
-      .mockResolvedValueOnce({
-        eth: { [currentCurrency]: 1, usd: 11 },
-      })
-      .mockResolvedValueOnce({
-        eth: {
-          [currentCurrency]: 2,
-          usd: 22,
-        },
-      });
     const tokenPricesService = buildMockTokenPricesService();
 
     const fetchExchangeRatesSpy = jest
@@ -282,7 +272,6 @@ describe('CurrencyRateController', () => {
     const messenger = getCurrencyRateControllerMessenger();
     const controller = new CurrencyRateController({
       interval: 100,
-      fetchMultiExchangeRate: fetchMultiExchangeRateStub,
       messenger,
       state: { currentCurrency },
       tokenPricesService,
@@ -290,7 +279,6 @@ describe('CurrencyRateController', () => {
 
     controller.startPolling({ nativeCurrencies: ['ETH'] });
     await advanceTime({ clock, duration: 0 });
-    expect(fetchMultiExchangeRateStub).toHaveBeenCalledTimes(0);
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
     expect(controller.state.currencyRates).toStrictEqual({
@@ -302,12 +290,10 @@ describe('CurrencyRateController', () => {
     });
     await advanceTime({ clock, duration: 99 });
 
-    expect(fetchMultiExchangeRateStub).toHaveBeenCalledTimes(0);
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
     await advanceTime({ clock, duration: 1 });
 
-    expect(fetchMultiExchangeRateStub).toHaveBeenCalledTimes(0);
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(2);
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
@@ -321,7 +307,6 @@ describe('CurrencyRateController', () => {
   });
 
   it('should not poll after being stopped', async () => {
-    const fetchMultiExchangeRateStub = jest.fn();
     const tokenPricesService = buildMockTokenPricesService();
 
     const fetchExchangeRatesSpy = jest
@@ -337,7 +322,6 @@ describe('CurrencyRateController', () => {
     const messenger = getCurrencyRateControllerMessenger();
     const controller = new CurrencyRateController({
       interval: 100,
-      fetchMultiExchangeRate: fetchMultiExchangeRateStub,
       messenger,
       tokenPricesService,
     });
@@ -349,20 +333,16 @@ describe('CurrencyRateController', () => {
     controller.stopAllPolling();
 
     // called once upon initial start
-    expect(fetchMultiExchangeRateStub).toHaveBeenCalledTimes(0);
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
     await advanceTime({ clock, duration: 150, stepSize: 50 });
 
-    expect(fetchMultiExchangeRateStub).toHaveBeenCalledTimes(0);
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
     controller.destroy();
   });
 
   it('should poll correctly after being started, stopped, and started again', async () => {
-    const fetchMultiExchangeRateStub = jest.fn();
-
     const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
 
@@ -378,7 +358,6 @@ describe('CurrencyRateController', () => {
       });
     const controller = new CurrencyRateController({
       interval: 100,
-      fetchMultiExchangeRate: fetchMultiExchangeRateStub,
       messenger,
       tokenPricesService,
     });
@@ -388,18 +367,15 @@ describe('CurrencyRateController', () => {
     controller.stopAllPolling();
 
     // called once upon initial start
-    expect(fetchMultiExchangeRateStub).toHaveBeenCalledTimes(0);
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
     controller.startPolling({ nativeCurrencies: ['ETH'] });
     await advanceTime({ clock, duration: 0 });
 
-    expect(fetchMultiExchangeRateStub).toHaveBeenCalledTimes(0);
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(2);
 
     await advanceTime({ clock, duration: 100 });
 
-    expect(fetchMultiExchangeRateStub).toHaveBeenCalledTimes(0);
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(3);
   });
 
@@ -407,9 +383,6 @@ describe('CurrencyRateController', () => {
     const currentCurrency = 'cad';
 
     jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-    const fetchMultiExchangeRateStub = jest
-      .fn()
-      .mockResolvedValue({ eth: { [currentCurrency]: 10, usd: 111 } });
     const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
     const fetchExchangeRatesSpy = jest
@@ -425,7 +398,6 @@ describe('CurrencyRateController', () => {
       });
     const controller = new CurrencyRateController({
       interval: 10,
-      fetchMultiExchangeRate: fetchMultiExchangeRateStub,
       messenger,
       state: { currentCurrency },
       tokenPricesService,
@@ -442,8 +414,6 @@ describe('CurrencyRateController', () => {
     await controller.updateExchangeRate(['ETH']);
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
-    expect(fetchMultiExchangeRateStub).toHaveBeenCalledTimes(0);
-
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
         conversionDate: getStubbedDate() / 1000,
@@ -459,25 +429,6 @@ describe('CurrencyRateController', () => {
     const currentCurrency = 'cad';
 
     jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-    const fetchMultiExchangeRateStub = jest
-      .fn()
-      .mockImplementation((_, cryptocurrencies) => {
-        const nativeCurrency = cryptocurrencies[0];
-        if (nativeCurrency === 'ETH') {
-          return {
-            [nativeCurrency.toLowerCase()]: {
-              [currentCurrency.toLowerCase()]: 10,
-              usd: 110,
-            },
-          };
-        }
-        return {
-          [nativeCurrency.toLowerCase()]: {
-            [currentCurrency.toLowerCase()]: 0,
-            usd: 100,
-          },
-        };
-      });
 
     const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
@@ -494,7 +445,6 @@ describe('CurrencyRateController', () => {
         },
       });
     const controller = new CurrencyRateController({
-      fetchMultiExchangeRate: fetchMultiExchangeRateStub,
       messenger,
       state: { currentCurrency },
       tokenPricesService,
@@ -511,8 +461,6 @@ describe('CurrencyRateController', () => {
     await controller.updateExchangeRate(['SepoliaETH']);
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
-    expect(fetchMultiExchangeRateStub).toHaveBeenCalledTimes(0);
-
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
         conversionDate: 0,
@@ -532,10 +480,6 @@ describe('CurrencyRateController', () => {
   it('should update current currency then clear and refetch rates', async () => {
     const currentCurrency = 'cad';
     jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-    const fetchMultiExchangeRateStub = jest.fn().mockResolvedValue({
-      eth: { [currentCurrency]: 10, usd: 11 },
-      btc: { [currentCurrency]: 10, usd: 11 },
-    });
     const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
     jest.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
@@ -556,7 +500,6 @@ describe('CurrencyRateController', () => {
     });
     const controller = new CurrencyRateController({
       interval: 10,
-      fetchMultiExchangeRate: fetchMultiExchangeRateStub,
       messenger,
       state: {
         currencyRates: {
@@ -609,7 +552,6 @@ describe('CurrencyRateController', () => {
     controller.destroy();
   });
   it('should add usd rate to state when includeUsdRate is configured true', async () => {
-    const fetchMultiExchangeRateStub = jest.fn().mockResolvedValue({});
     const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
     const fetchExchangeRatesSpy = jest
@@ -625,14 +567,12 @@ describe('CurrencyRateController', () => {
       });
     const controller = new CurrencyRateController({
       includeUsdRate: true,
-      fetchMultiExchangeRate: fetchMultiExchangeRateStub,
       messenger,
       state: { currentCurrency: 'xyz' },
       tokenPricesService,
     });
     await controller.updateExchangeRate(['SepoliaETH']);
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
-    expect(fetchMultiExchangeRateStub).toHaveBeenCalledTimes(0);
     expect(fetchExchangeRatesSpy.mock.calls).toMatchObject([
       [
         {
@@ -686,16 +626,7 @@ describe('CurrencyRateController', () => {
     controller.destroy();
   });
 
-  it('should throw unexpected errors when both price api and crypto-compare fail', async () => {
-    const cryptoCompareHost = 'https://min-api.cryptocompare.com';
-    nock(cryptoCompareHost)
-      .get('/data/pricemulti?fsyms=ETH&tsyms=xyz')
-      .reply(200, {
-        Response: 'Error',
-        Message: 'this method has been deprecated',
-      })
-      .persist();
-
+  it('should return null state when price api fails', async () => {
     const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
     const fetchExchangeRatesSpy = jest
@@ -707,22 +638,24 @@ describe('CurrencyRateController', () => {
       tokenPricesService,
     });
 
-    await expect(controller.updateExchangeRate(['ETH'])).rejects.toThrow(
-      'this method has been deprecated',
-    );
+    await controller.updateExchangeRate(['ETH']);
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
+    expect(controller.state).toStrictEqual({
+      currentCurrency: 'xyz',
+      currencyRates: {
+        ETH: {
+          conversionDate: null,
+          conversionRate: null,
+          usdConversionRate: null,
+        },
+      },
+    });
 
     controller.destroy();
   });
 
-  it('should not update state on unexpected / transient errors', async () => {
-    const cryptoCompareHost = 'https://min-api.cryptocompare.com';
-    nock(cryptoCompareHost)
-      .get('/data/pricemulti?fsyms=ETH&tsyms=xyz')
-      .reply(500) // HTTP 500 transient error
-      .persist();
-
+  it('should update state with null values when price api fails', async () => {
     const state = {
       currentCurrency: 'xyz',
       currencyRates: {
@@ -744,13 +677,19 @@ describe('CurrencyRateController', () => {
       tokenPricesService,
     });
 
-    // Error should still be thrown
-    await expect(controller.updateExchangeRate(['ETH'])).rejects.toThrow(
-      `Fetch failed with status '500' for request 'https://min-api.cryptocompare.com/data/pricemulti?fsyms=ETH&tsyms=xyz'`,
-    );
+    await controller.updateExchangeRate(['ETH']);
 
-    // But state should not be changed
-    expect(controller.state).toStrictEqual(state);
+    // State should be updated with null values
+    expect(controller.state).toStrictEqual({
+      currentCurrency: 'xyz',
+      currencyRates: {
+        ETH: {
+          conversionDate: null,
+          conversionRate: null,
+          usdConversionRate: null,
+        },
+      },
+    });
 
     controller.destroy();
   });
@@ -817,72 +756,21 @@ describe('CurrencyRateController', () => {
     controller.destroy();
   });
 
-  it('fallback to crypto compare when price api fails and fetches exchange rates for multiple native currencies', async () => {
+  it('skips updating empty or undefined native currencies', async () => {
     jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-    const cryptoCompareHost = 'https://min-api.cryptocompare.com';
-    nock(cryptoCompareHost)
-      .get('/data/pricemulti?fsyms=ETH,POL,BNB&tsyms=xyz')
-      .reply(200, {
-        BNB: { XYZ: 500.1 },
-        ETH: { XYZ: 4000.42 },
-        POL: { XYZ: 0.3 },
-      })
-      .persist();
+
     const messenger = getCurrencyRateControllerMessenger();
+
     const tokenPricesService = buildMockTokenPricesService();
-    jest
-      .spyOn(tokenPricesService, 'fetchExchangeRates')
-      .mockRejectedValue(new Error('Failed to fetch'));
-    const controller = new CurrencyRateController({
-      messenger,
-      state: { currentCurrency: 'xyz' },
-      tokenPricesService,
-    });
 
-    await controller.updateExchangeRate(['ETH', 'POL', 'BNB']);
-
-    const conversionDate = getStubbedDate() / 1000;
-    expect(controller.state).toStrictEqual({
-      currentCurrency: 'xyz',
-      currencyRates: {
-        BNB: {
-          conversionDate,
-          conversionRate: 500.1,
-          usdConversionRate: null,
-        },
-        ETH: {
-          conversionDate,
-          conversionRate: 4000.42,
-          usdConversionRate: null,
-        },
-        POL: {
-          conversionDate,
-          conversionRate: 0.3,
-          usdConversionRate: null,
-        },
+    jest.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
+      eth: {
+        name: 'Ethereum',
+        ticker: 'eth',
+        value: 0,
+        currencyType: 'crypto',
       },
     });
-
-    controller.destroy();
-  });
-
-  it('skips updating empty or undefined native currencies when calling crypto compare', async () => {
-    jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-    const cryptoCompareHost = 'https://min-api.cryptocompare.com';
-    nock(cryptoCompareHost)
-      .get('/data/pricemulti?fsyms=ETH&tsyms=xyz') // fsyms query only includes non-empty native currencies
-      .reply(200, {
-        ETH: { XYZ: 1000 },
-      })
-      .persist();
-
-    const messenger = getCurrencyRateControllerMessenger();
-
-    const tokenPricesService = buildMockTokenPricesService();
-
-    jest
-      .spyOn(tokenPricesService, 'fetchExchangeRates')
-      .mockRejectedValue(new Error('Failed to fetch'));
     const controller = new CurrencyRateController({
       messenger,
       state: { currentCurrency: 'xyz' },
@@ -899,7 +787,7 @@ describe('CurrencyRateController', () => {
       currencyRates: {
         ETH: {
           conversionDate,
-          conversionRate: 1000,
+          conversionRate: null,
           usdConversionRate: null,
         },
       },
@@ -995,61 +883,12 @@ describe('CurrencyRateController', () => {
     controller.destroy();
   });
 
-  it('should set conversionDate to null when currency not found in crypto compare response (lines 231-232)', async () => {
-    jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-    const cryptoCompareHost = 'https://min-api.cryptocompare.com';
-    nock(cryptoCompareHost)
-      .get('/data/pricemulti?fsyms=ETH,BNB&tsyms=xyz')
-      .reply(200, {
-        ETH: { XYZ: 4000.42 },
-        // BNB is missing from the response
-      })
-      .persist();
-
-    const messenger = getCurrencyRateControllerMessenger();
-    const tokenPricesService = buildMockTokenPricesService();
-
-    // Make price API fail so it falls back to CryptoCompare
-    jest
-      .spyOn(tokenPricesService, 'fetchExchangeRates')
-      .mockRejectedValue(new Error('Failed to fetch'));
-
-    const controller = new CurrencyRateController({
-      messenger,
-      state: { currentCurrency: 'xyz' },
-      tokenPricesService,
-    });
-
-    await controller.updateExchangeRate(['ETH', 'BNB']);
-
-    const conversionDate = getStubbedDate() / 1000;
-    expect(controller.state).toStrictEqual({
-      currentCurrency: 'xyz',
-      currencyRates: {
-        ETH: {
-          conversionDate,
-          conversionRate: 4000.42,
-          usdConversionRate: null,
-        },
-        BNB: {
-          conversionDate: null, // Line 231: rate === undefined
-          conversionRate: null, // Line 232
-          usdConversionRate: null,
-        },
-      },
-    });
-
-    controller.destroy();
-  });
-
   describe('useExternalServices', () => {
     it('should not fetch exchange rates when useExternalServices is false', async () => {
-      const fetchMultiExchangeRateStub = jest.fn();
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
         useExternalServices: () => false,
-        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
         state: { currentCurrency: 'usd' },
         tokenPricesService,
@@ -1057,7 +896,6 @@ describe('CurrencyRateController', () => {
 
       await controller.updateExchangeRate(['ETH']);
 
-      expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
       expect(controller.state.currencyRates).toStrictEqual({
         ETH: {
           conversionDate: 0,
@@ -1070,13 +908,15 @@ describe('CurrencyRateController', () => {
     });
 
     it('should not poll when useExternalServices is false', async () => {
-      const fetchMultiExchangeRateStub = jest.fn();
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
+      const fetchExchangeRatesSpy = jest.spyOn(
+        tokenPricesService,
+        'fetchExchangeRates',
+      );
       const controller = new CurrencyRateController({
         useExternalServices: () => false,
         interval: 100,
-        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
         state: { currentCurrency: 'usd' },
         tokenPricesService,
@@ -1085,22 +925,20 @@ describe('CurrencyRateController', () => {
       controller.startPolling({ nativeCurrencies: ['ETH'] });
       await advanceTime({ clock, duration: 0 });
 
-      expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
+      expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
 
       await advanceTime({ clock, duration: 100 });
 
-      expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
+      expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
 
       controller.destroy();
     });
 
     it('should not fetch exchange rates when useExternalServices is false even with multiple currencies', async () => {
-      const fetchMultiExchangeRateStub = jest.fn();
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
         useExternalServices: () => false,
-        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
         state: { currentCurrency: 'eur' },
         tokenPricesService,
@@ -1108,7 +946,6 @@ describe('CurrencyRateController', () => {
 
       await controller.updateExchangeRate(['ETH', 'BTC', 'BNB']);
 
-      expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
       expect(controller.state.currencyRates).toStrictEqual({
         ETH: {
           conversionDate: 0,
@@ -1121,12 +958,10 @@ describe('CurrencyRateController', () => {
     });
 
     it('should not fetch exchange rates when useExternalServices is false even with testnet currencies', async () => {
-      const fetchMultiExchangeRateStub = jest.fn();
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
         useExternalServices: () => false,
-        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
         state: { currentCurrency: 'cad' },
         tokenPricesService,
@@ -1134,7 +969,6 @@ describe('CurrencyRateController', () => {
 
       await controller.updateExchangeRate(['SepoliaETH', 'GoerliETH']);
 
-      expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
       expect(controller.state.currencyRates).toStrictEqual({
         ETH: {
           conversionDate: 0,
@@ -1147,13 +981,11 @@ describe('CurrencyRateController', () => {
     });
 
     it('should not fetch exchange rates when useExternalServices is false even with includeUsdRate true', async () => {
-      const fetchMultiExchangeRateStub = jest.fn();
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
         useExternalServices: () => false,
         includeUsdRate: true,
-        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
         state: { currentCurrency: 'jpy' },
         tokenPricesService,
@@ -1161,7 +993,6 @@ describe('CurrencyRateController', () => {
 
       await controller.updateExchangeRate(['ETH']);
 
-      expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
       expect(controller.state.currencyRates).toStrictEqual({
         ETH: {
           conversionDate: 0,
@@ -1175,9 +1006,6 @@ describe('CurrencyRateController', () => {
 
     it('should fetch exchange rates when useExternalServices is true (default behavior)', async () => {
       jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-      const fetchMultiExchangeRateStub = jest
-        .fn()
-        .mockResolvedValue({ eth: { usd: 2000, eur: 1800 } });
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
       const fetchExchangeRatesSpy = jest
@@ -1193,7 +1021,6 @@ describe('CurrencyRateController', () => {
         });
       const controller = new CurrencyRateController({
         useExternalServices: () => true,
-        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
         state: { currentCurrency: 'eur' },
         tokenPricesService,
@@ -1201,7 +1028,6 @@ describe('CurrencyRateController', () => {
 
       await controller.updateExchangeRate(['ETH']);
 
-      expect(fetchMultiExchangeRateStub).toHaveBeenCalledTimes(0);
       expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
       expect(fetchExchangeRatesSpy).toHaveBeenCalledWith({
         baseCurrency: 'eur',
@@ -1221,9 +1047,6 @@ describe('CurrencyRateController', () => {
 
     it('should default useExternalServices to true when not specified', async () => {
       jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-      const fetchMultiExchangeRateStub = jest
-        .fn()
-        .mockResolvedValue({ eth: { usd: 2000, gbp: 1600 } });
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
 
@@ -1239,7 +1062,6 @@ describe('CurrencyRateController', () => {
           },
         });
       const controller = new CurrencyRateController({
-        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
         state: { currentCurrency: 'gbp' },
         tokenPricesService,
@@ -1247,7 +1069,6 @@ describe('CurrencyRateController', () => {
 
       await controller.updateExchangeRate(['ETH']);
 
-      expect(fetchMultiExchangeRateStub).toHaveBeenCalledTimes(0);
       expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
       expect(fetchExchangeRatesSpy).toHaveBeenCalledWith({
         baseCurrency: 'gbp',
@@ -1266,14 +1087,10 @@ describe('CurrencyRateController', () => {
     });
 
     it('should not throw errors when useExternalServices is false even if fetchMultiExchangeRate would fail', async () => {
-      const fetchMultiExchangeRateStub = jest
-        .fn()
-        .mockRejectedValue(new Error('API Error'));
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
         useExternalServices: () => false,
-        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
         messenger,
         state: { currentCurrency: 'usd' },
         tokenPricesService,
@@ -1281,8 +1098,6 @@ describe('CurrencyRateController', () => {
 
       // Should not throw an error
       expect(await controller.updateExchangeRate(['ETH'])).toBeUndefined();
-
-      expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
 
       controller.destroy();
     });
