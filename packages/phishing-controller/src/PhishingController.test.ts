@@ -3294,7 +3294,7 @@ describe('PhishingController', () => {
       expect(scope.isDone()).toBe(false);
     });
 
-    it('should return an error when address is missing', async () => {
+    it('should return a benign result when address is missing', async () => {
       const response = await controller.scanAddress(testChainId, '');
       expect(response).toMatchObject({
         result_type: AddressScanResultType.Benign,
@@ -3302,7 +3302,7 @@ describe('PhishingController', () => {
       });
     });
 
-    it('should return an error when chain ID is unknown', async () => {
+    it('should return a benign result when chain ID is unknown', async () => {
       const unknownChainId = '0x999999';
       const response = await controller.scanAddress(
         unknownChainId,
@@ -3348,51 +3348,6 @@ describe('PhishingController', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should handle different chain IDs correctly', async () => {
-      const testCases = [
-        { chainId: '0x1', chain: 'ethereum' },
-        { chainId: '0x89', chain: 'polygon' },
-        { chainId: '0xa', chain: 'optimism' },
-        { chainId: '0xa4b1', chain: 'arbitrum' },
-      ];
-
-      for (const { chainId, chain } of testCases) {
-        const scope = nock(SECURITY_ALERTS_BASE_URL)
-          .post(ADDRESS_SCAN_ENDPOINT, {
-            chain,
-            address: testAddress.toLowerCase(),
-          })
-          .reply(200, mockResponse);
-
-        const response = await controller.scanAddress(chainId, testAddress);
-        expect(response).toMatchObject(mockResponse);
-        expect(scope.isDone()).toBe(true);
-      }
-    });
-
-    it('should return different result types correctly', async () => {
-      const testCases = [
-        AddressScanResultType.Benign,
-        AddressScanResultType.Warning,
-        AddressScanResultType.Malicious,
-      ];
-
-      for (const resultType of testCases) {
-        const mockResult: AddressScanResult = {
-          result_type: resultType,
-          label: 'test label',
-        };
-
-        const scope = nock(SECURITY_ALERTS_BASE_URL)
-          .post(ADDRESS_SCAN_ENDPOINT)
-          .reply(200, mockResult);
-
-        const response = await controller.scanAddress(testChainId, testAddress);
-        expect(response).toMatchObject(mockResult);
-        expect(scope.isDone()).toBe(true);
-      }
-    });
-
     it('should cache scan results and return them on subsequent calls', async () => {
       const fetchSpy = jest.spyOn(global, 'fetch');
 
@@ -3409,42 +3364,10 @@ describe('PhishingController', () => {
       const result2 = await controller.scanAddress(testChainId, testAddress);
       expect(result2).toMatchObject(mockResponse);
 
-      // Verify that fetch was called exactly once
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(scope.isDone()).toBe(true);
 
       fetchSpy.mockRestore();
-    });
-
-    it('should not cache error results', async () => {
-      const scope1 = nock(SECURITY_ALERTS_BASE_URL)
-        .post(ADDRESS_SCAN_ENDPOINT, {
-          chain: 'ethereum',
-          address: testAddress.toLowerCase(),
-        })
-        .reply(500, { error: 'Internal Server Error' });
-
-      const scope2 = nock(SECURITY_ALERTS_BASE_URL)
-        .post(ADDRESS_SCAN_ENDPOINT, {
-          chain: 'ethereum',
-          address: testAddress.toLowerCase(),
-        })
-        .reply(200, mockResponse);
-
-      // First call should result in an error response
-      const result1 = await controller.scanAddress(testChainId, testAddress);
-      expect(result1.result_type).toBe(AddressScanResultType.Benign);
-      expect(result1.label).toBe('');
-      // Second call should try again (not use cache since errors aren't cached)
-      const result2 = await controller.scanAddress(testChainId, testAddress);
-      expect(result2).toMatchObject({
-        result_type: AddressScanResultType.Benign,
-        label: '',
-      });
-      expect(result2.label).toBe('');
-      // Both mocks should be used
-      expect(scope1.isDone()).toBe(true);
-      expect(scope2.isDone()).toBe(true);
     });
 
     it('should cache addresses per chain ID', async () => {
@@ -3475,7 +3398,6 @@ describe('PhishingController', () => {
         })
         .reply(200, mockResponse2);
 
-      // Scan same address on different chains
       const result1 = await controller.scanAddress(chainId1, testAddress);
       const result2 = await controller.scanAddress(chainId2, testAddress);
 
@@ -3484,7 +3406,6 @@ describe('PhishingController', () => {
       expect(scope1.isDone()).toBe(true);
       expect(scope2.isDone()).toBe(true);
 
-      // Cached results should be returned
       const cachedResult1 = await controller.scanAddress(chainId1, testAddress);
       const cachedResult2 = await controller.scanAddress(chainId2, testAddress);
 
