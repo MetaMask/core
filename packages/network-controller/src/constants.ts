@@ -1,26 +1,29 @@
 /**
- * Represents the availability state of the currently selected network.
+ * Represents the availability state of an RPC endpoint. (Yes, this is a
+ * misnomer.)
  */
 export enum NetworkStatus {
   /**
-   * The network may or may not be able to receive requests, but either no
-   * attempt has been made to determine this, or an attempt was made but was
-   * unsuccessful.
+   * It is not determined yet whether the RPC endpoint is available.
    */
   Unknown = 'unknown',
   /**
-   * The network is able to receive and respond to requests.
+   * The RPC endpoint is consistently returning successful responses.
    */
   Available = 'available',
   /**
-   * The network was unable to receive and respond to requests for unknown
-   * reasons.
+   * Requests to the RPC endpoint are either slow or are beginning to
+   * consistently respond with errors.
+   */
+  Degraded = 'degraded',
+  /**
+   * Requests to the RPC endpoint have responded with enough errors that it is
+   * determined to be unavailable.
    */
   Unavailable = 'unavailable',
   /**
-   * The network is not only unavailable, but is also inaccessible for the user
-   * specifically based on their location. This state only applies to Infura
-   * networks.
+   * The RPC endpoint is inaccessible for the user based on their location. This
+   * status only applies to Infura networks.
    */
   Blocked = 'blocked',
 }

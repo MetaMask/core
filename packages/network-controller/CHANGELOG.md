@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The event payload has been changed as well: `failoverEndpointUrl` has been renamed to `endpointUrl`, and `endpointUrl` has been renamed to `primaryEndpointUrl`. In addition, `networkClientId` and `attempt` have been added to the payload.
 - **BREAKING:** Update `AbstractRpcService`/`RpcServiceRequestable` to remove `{ isolated: true }` from the `onBreak` event data type ([#7166](https://github.com/MetaMask/core/pull/7166))
   - This represented the error produced when `.isolate` is called on a Cockatiel circuit breaker policy, which we never do.
+- Statuses of networks (captured in the NetworkController `networksMetadata` state property) are now kept up to date as requests are made ([#7186](https://github.com/MetaMask/core/pull/7186))
 - Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
 
 ### Fixed
