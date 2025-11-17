@@ -91,11 +91,6 @@ export type ServicePolicy = IPolicy & {
    */
   getCircuitState: () => CircuitState;
   /**
-   * @returns The last failure reason that the retry policy captured (or
-   * `undefined` if the last execution of the service was successful).
-   */
-  getLastInnerFailureReason: () => FailureReason<unknown> | undefined;
-  /**
    * If the circuit is open and ongoing requests are paused, returns the number
    * of milliseconds before the requests will be attempted again. If the circuit
    * is not open, returns null.
@@ -309,15 +304,12 @@ export function createServicePolicy(
   const onAvailableEventEmitter = new CockatielEventEmitter<void>();
   const onAvailable = onAvailableEventEmitter.addListener;
 
-  let lastInnerFailureReason: FailureReason<unknown> | undefined;
   retryPolicy.onGiveUp((data) => {
     if (circuitBreakerPolicy.state === CircuitState.Closed) {
       onDegradedEventEmitter.emit(data);
     }
   });
   retryPolicy.onSuccess((data) => {
-    lastInnerFailureReason = undefined;
-
     if (circuitBreakerPolicy.state === CircuitState.Closed) {
       if (data.duration > degradedThreshold) {
         onDegradedEventEmitter.emit();
@@ -326,9 +318,6 @@ export function createServicePolicy(
         onAvailableEventEmitter.emit();
       }
     }
-  });
-  retryPolicy.onFailure((event) => {
-    lastInnerFailureReason = event.reason;
   });
 
   // Every time the retry policy makes an attempt, it executes the circuit
@@ -365,10 +354,6 @@ export function createServicePolicy(
     return circuitBreakerPolicy.state;
   };
 
-  const getLastInnerFailureReason = () => {
-    return lastInnerFailureReason;
-  };
-
   const reset = () => {
     // Set the state of the policy to "isolated" regardless of its current state
     const { dispose } = circuitBreakerPolicy.isolate();
@@ -388,7 +373,6 @@ export function createServicePolicy(
     circuitBreakerPolicy,
     circuitBreakDuration,
     getCircuitState,
-    getLastInnerFailureReason,
     getRemainingCircuitOpenDuration,
     reset,
     retryPolicy,

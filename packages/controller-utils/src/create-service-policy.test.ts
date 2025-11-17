@@ -3293,7 +3293,7 @@ describe('createServicePolicy', () => {
     });
   });
 
-  describe.only('getRemainingCircuitOpenDuration', () => {
+  describe('getRemainingCircuitOpenDuration', () => {
     it('returns the number of milliseconds before the circuit will transition from open to half-open', async () => {
       const mockService = () => {
         throw new Error('failure');
@@ -3320,7 +3320,7 @@ describe('createServicePolicy', () => {
     });
   });
 
-  describe.only('getCircuitState', () => {
+  describe('getCircuitState', () => {
     it('returns the state of the circuit', async () => {
       const mockService = () => {
         throw new Error('failure');

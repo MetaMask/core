@@ -11,8 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `getCircuitState` method to `ServicePolicy` ([#7164](https://github.com/MetaMask/core/pull/7164))
   - This can be used when working with a chain of services to know whether a service's underlying circuit is open or closed.
-- Add `getLastInnerFailureReason` method to `ServicePolicy` ([#7164](https://github.com/MetaMask/core/pull/7164))
-  - This can be used when working with a chain of services to obtain the last error that the circuit breaker policy captured after executing the service.
 - Add `onAvailable` method to `ServicePolicy` ([#7164](https://github.com/MetaMask/core/pull/7164))
   - This can be used to listen for the initial successful execution of the service, or the first successful execution after the service becomes degraded or the circuit breaks.
 - Add `reset` method to `ServicePolicy` ([#7164](https://github.com/MetaMask/core/pull/7164))
