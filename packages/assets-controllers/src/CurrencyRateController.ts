@@ -253,33 +253,28 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
       );
 
       // Step 3: Fetch token prices for each chainId
+      const currencyToChainIdsEntries = Object.entries(currencyToChainIds);
       const ratesResults = await Promise.allSettled(
-        Object.entries(currencyToChainIds).map(
-          async ([nativeCurrency, { chainId }]) => {
-            const nativeTokenAddress = getNativeTokenAddress(chainId);
-            const tokenPrices = await this.#tokenPricesService.fetchTokenPrices(
-              {
-                chainId,
-                tokenAddresses: [nativeTokenAddress],
-                currency: currentCurrency,
-              },
-            );
+        currencyToChainIdsEntries.map(async ([nativeCurrency, { chainId }]) => {
+          const nativeTokenAddress = getNativeTokenAddress(chainId);
+          const tokenPrices = await this.#tokenPricesService.fetchTokenPrices({
+            chainId,
+            tokenAddresses: [nativeTokenAddress],
+            currency: currentCurrency,
+          });
 
-            const tokenPrice = tokenPrices[nativeTokenAddress];
+          const tokenPrice = tokenPrices[nativeTokenAddress];
 
-            return {
-              nativeCurrency,
-              conversionDate: tokenPrice ? Date.now() / 1000 : null,
-              conversionRate: tokenPrice?.price ?? null,
-              usdConversionRate: null, // Token prices service doesn't provide USD rate in this context
-            };
-          },
-        ),
+          return {
+            nativeCurrency,
+            conversionDate: tokenPrice ? Date.now() / 1000 : null,
+            conversionRate: tokenPrice?.price ?? null,
+            usdConversionRate: null, // Token prices service doesn't provide USD rate in this context
+          };
+        }),
       );
-
       const ratesFromTokenPrices = ratesResults.map((result, index) => {
-        const [nativeCurrency, { chainId }] =
-          Object.entries(currencyToChainIds)[index];
+        const [nativeCurrency, { chainId }] = currencyToChainIdsEntries[index];
         if (result.status === 'fulfilled') {
           return result.value;
         }
