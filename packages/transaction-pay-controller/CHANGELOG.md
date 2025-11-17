@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `sourceAmount` to `TransactionPayQuote` ([#7159](https://github.com/MetaMask/core/pull/7159))
+  - Add `estimate` and `max` properties to `fee.sourceNetwork` in `TransactionPayQuote`.
+  - Add `isTargetGasFeeToken` to `fee` in `TransactionPayQuote`.
+  - Add matching properties to `TransactionPayTotals`.
+  - Use fixed fiat rate for Polygon USDCe and Arbitrum USDC.
+
 ## [6.0.0]
 
 ### Fixed

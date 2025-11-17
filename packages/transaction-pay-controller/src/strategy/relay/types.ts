@@ -3,6 +3,7 @@ import type { Hex } from '@metamask/utils';
 export type RelayQuote = {
   details: {
     currencyIn: {
+      amount: string;
       amountFormatted: string;
       amountUsd: string;
       currency: {
