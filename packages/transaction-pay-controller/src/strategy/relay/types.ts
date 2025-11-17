@@ -2,10 +2,20 @@ import type { Hex } from '@metamask/utils';
 
 export type RelayQuote = {
   details: {
+    currencyIn: {
+      amount: string;
+      amountFormatted: string;
+      amountUsd: string;
+      currency: {
+        chainId: number;
+        decimals: number;
+      };
+    };
     currencyOut: {
       amountFormatted: string;
       amountUsd: string;
       currency: {
+        chainId: number;
         decimals: number;
       };
       minimumAmount: string;
@@ -37,7 +47,6 @@ export type RelayQuote = {
     }[];
     kind: 'transaction';
   }[];
-  skipTransaction?: boolean;
 };
 
 export type RelayStatus = {

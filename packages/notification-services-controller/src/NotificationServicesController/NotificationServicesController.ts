@@ -21,19 +21,24 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import { assert } from '@metamask/utils';
 import log from 'loglevel';
 
+import type { NormalisedAPINotification } from '.';
 import { TRIGGER_TYPES } from './constants/notification-schema';
 import {
   processAndFilterNotifications,
   safeProcessNotification,
 } from './processors/process-notifications';
-import * as FeatureNotifications from './services/feature-announcements';
-import * as OnChainNotifications from './services/onchain-notifications';
+import {
+  getAPINotifications,
+  getNotificationsApiConfigCached,
+  markNotificationsAsRead,
+  updateOnChainNotifications,
+} from './services/api-notifications';
+import { getFeatureAnnouncementNotifications } from './services/feature-announcements';
 import { createPerpOrderNotification } from './services/perp-notifications';
 import type {
   INotification,
   MarkAsReadNotificationsParam,
 } from './types/notification/notification';
-import type { OnChainRawNotification } from './types/on-chain-notification/on-chain-notification';
 import type { OrderInput } from './types/perps';
 import type {
   NotificationServicesPushControllerEnablePushNotificationsAction,
@@ -500,6 +505,8 @@ export default class NotificationServicesController extends BaseController<
     },
   };
 
+  readonly #locale: () => string;
+
   readonly #featureAnnouncementEnv: FeatureAnnouncementEnv;
 
   /**
@@ -510,7 +517,7 @@ export default class NotificationServicesController extends BaseController<
    * @param args.state - Initial state to set on this controller.
    * @param args.env - environment variables for a given controller.
    * @param args.env.featureAnnouncements - env variables for feature announcements.
-   * @param args.env.isPushIntegrated - toggle push notifications on/off if client has integrated them.
+   * @param args.env.locale - users locale for better dynamic server notifications
    */
   constructor({
     messenger,
@@ -521,7 +528,7 @@ export default class NotificationServicesController extends BaseController<
     state?: Partial<NotificationServicesControllerState>;
     env: {
       featureAnnouncements: FeatureAnnouncementEnv;
-      isPushIntegrated?: boolean;
+      locale?: () => string;
     };
   }) {
     super({
@@ -532,6 +539,7 @@ export default class NotificationServicesController extends BaseController<
     });
 
     this.#featureAnnouncementEnv = env.featureAnnouncements;
+    this.#locale = env.locale ?? (() => 'en');
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
   }
@@ -694,11 +702,10 @@ export default class NotificationServicesController extends BaseController<
     try {
       const { bearerToken } = await this.#getBearerToken();
       const { accounts } = this.#accounts.listAccounts();
-      const addressesWithNotifications =
-        await OnChainNotifications.getOnChainNotificationsConfigCached(
-          bearerToken,
-          accounts,
-        );
+      const addressesWithNotifications = await getNotificationsApiConfigCached(
+        bearerToken,
+        accounts,
+      );
       const addresses = addressesWithNotifications
         .filter((a) => Boolean(a.enabled))
         .map((a) => a.address);
@@ -725,11 +732,10 @@ export default class NotificationServicesController extends BaseController<
 
       // Retrieve user storage
       const { bearerToken } = await this.#getBearerToken();
-      const addressesWithNotifications =
-        await OnChainNotifications.getOnChainNotificationsConfigCached(
-          bearerToken,
-          accounts,
-        );
+      const addressesWithNotifications = await getNotificationsApiConfigCached(
+        bearerToken,
+        accounts,
+      );
 
       const result: Record<string, boolean> = {};
       addressesWithNotifications.forEach((a) => {
@@ -788,11 +794,10 @@ export default class NotificationServicesController extends BaseController<
       const { accounts } = this.#accounts.listAccounts();
 
       // 1. See if has enabled notifications before
-      const addressesWithNotifications =
-        await OnChainNotifications.getOnChainNotificationsConfigCached(
-          bearerToken,
-          accounts,
-        );
+      const addressesWithNotifications = await getNotificationsApiConfigCached(
+        bearerToken,
+        accounts,
+      );
 
       // Notifications API can return array with addresses set to false
       // So assert that at least one address is enabled
@@ -802,7 +807,7 @@ export default class NotificationServicesController extends BaseController<
 
       // 2. Enable Notifications (if no accounts subscribed or we are resetting)
       if (accountsWithNotifications.length === 0 || opts?.resetNotifications) {
-        await OnChainNotifications.updateOnChainNotifications(
+        await updateOnChainNotifications(
           bearerToken,
           accounts.map((address) => ({ address, enabled: true })),
         );
@@ -903,7 +908,7 @@ export default class NotificationServicesController extends BaseController<
       const { bearerToken } = await this.#getBearerToken();
 
       // Delete these UUIDs (Mutates User Storage)
-      await OnChainNotifications.updateOnChainNotifications(
+      await updateOnChainNotifications(
         bearerToken,
         accounts.map((address) => ({ address, enabled: false })),
       );
@@ -935,7 +940,7 @@ export default class NotificationServicesController extends BaseController<
       this.#updateUpdatingAccountsState(accounts);
 
       const { bearerToken } = await this.#getBearerToken();
-      await OnChainNotifications.updateOnChainNotifications(
+      await updateOnChainNotifications(
         bearerToken,
         accounts.map((address) => ({ address, enabled: true })),
       );
@@ -970,31 +975,29 @@ export default class NotificationServicesController extends BaseController<
       // Raw Feature Notifications
       const rawAnnouncements =
         isGlobalNotifsEnabled && this.state.isFeatureAnnouncementsEnabled
-          ? await FeatureNotifications.getFeatureAnnouncementNotifications(
+          ? await getFeatureAnnouncementNotifications(
               this.#featureAnnouncementEnv,
               previewToken,
             ).catch(() => [])
           : [];
 
       // Raw On Chain Notifications
-      const rawOnChainNotifications: OnChainRawNotification[] = [];
+      const rawOnChainNotifications: NormalisedAPINotification[] = [];
       if (isGlobalNotifsEnabled) {
         try {
           const { bearerToken } = await this.#getBearerToken();
           const { accounts } = this.#accounts.listAccounts();
           const addressesWithNotifications = (
-            await OnChainNotifications.getOnChainNotificationsConfigCached(
-              bearerToken,
-              accounts,
-            )
+            await getNotificationsApiConfigCached(bearerToken, accounts)
           )
             .filter((a) => Boolean(a.enabled))
             .map((a) => a.address);
-          const notifications =
-            await OnChainNotifications.getOnChainNotifications(
-              bearerToken,
-              addressesWithNotifications,
-            ).catch(() => []);
+          const notifications = await getAPINotifications(
+            bearerToken,
+            addressesWithNotifications,
+            this.#locale(),
+            this.#featureAnnouncementEnv.platform,
+          ).catch(() => []);
           rawOnChainNotifications.push(...notifications);
         } catch {
           // Do nothing
@@ -1165,7 +1168,7 @@ export default class NotificationServicesController extends BaseController<
           onchainNotificationIds = onChainNotifications.map(
             (notification) => notification.id,
           );
-          await OnChainNotifications.markNotificationsAsRead(
+          await markNotificationsAsRead(
             bearerToken,
             onchainNotificationIds,
           ).catch(() => {

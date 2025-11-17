@@ -14,6 +14,7 @@ import type {
 } from './JsonRpcEngine';
 import { type JsonRpcMiddleware as LegacyMiddleware } from './JsonRpcEngine';
 import { mergeMiddleware } from './mergeMiddleware';
+import type { ContextConstraint, MiddlewareContext } from './v2';
 import {
   deepClone,
   fromLegacyRequest,
@@ -47,12 +48,13 @@ export function asV2Middleware<
  * @returns The {@link JsonRpcEngineV2} middleware.
  */
 export function asV2Middleware<
-  Params extends JsonRpcParams,
-  Request extends JsonRpcRequest<Params>,
-  Result extends Json,
+  Params extends JsonRpcParams = JsonRpcParams,
+  Request extends JsonRpcRequest<Params> = JsonRpcRequest<Params>,
+  Result extends ResultConstraint<Request> = ResultConstraint<Request>,
+  Context extends ContextConstraint = MiddlewareContext,
 >(
   ...middleware: LegacyMiddleware<Params, Result>[]
-): JsonRpcMiddleware<Request>;
+): JsonRpcMiddleware<Request, Result, Context>;
 
 /**
  * The asV2Middleware implementation.

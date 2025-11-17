@@ -13,8 +13,10 @@ import {
   ChainId,
   ERC20,
   safelyExecute,
+  safelyExecuteWithTimeout,
   isEqualCaseInsensitive,
   toChecksumHexAddress,
+  toHex,
 } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
@@ -60,6 +62,7 @@ import type {
 } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
+const ACCOUNTS_API_TIMEOUT_MS = 30000;
 
 type LegacyToken = {
   name: string;
@@ -265,7 +268,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         this.platform,
       );
 
-      return result.balances;
+      // Return the full response including unprocessedNetworks
+      return result;
     },
   };
 
@@ -603,11 +607,23 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     addressToDetect: string,
     supportedNetworks: number[] | null,
   ) {
-    return await this.#addDetectedTokensViaAPI({
-      chainIds: chainsToDetectUsingAccountAPI,
-      selectedAddress: addressToDetect,
-      supportedNetworks,
-    });
+    const result = await safelyExecuteWithTimeout(
+      async () => {
+        return this.#addDetectedTokensViaAPI({
+          chainIds: chainsToDetectUsingAccountAPI,
+          selectedAddress: addressToDetect,
+          supportedNetworks,
+        });
+      },
+      false,
+      ACCOUNTS_API_TIMEOUT_MS,
+    );
+
+    if (!result) {
+      return { result: 'failed' } as const;
+    }
+
+    return result;
   }
 
   #addChainsToRpcDetection(
@@ -720,11 +736,25 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         supportedNetworks,
       );
 
-      // If the account API call failed, have those chains fall back to RPC detection
-      if (apiResult?.result === 'failed') {
+      // If the account API call failed or returned undefined, have those chains fall back to RPC detection
+      if (!apiResult || apiResult.result === 'failed') {
         this.#addChainsToRpcDetection(
           chainsToDetectUsingRpc,
           chainsToDetectUsingAccountAPI,
+          clientNetworks,
+        );
+      } else if (
+        apiResult?.result === 'success' &&
+        apiResult.unprocessedNetworks &&
+        apiResult.unprocessedNetworks.length > 0
+      ) {
+        // Handle unprocessed networks by adding them to RPC detection
+        const unprocessedChainIds = apiResult.unprocessedNetworks.map(
+          (chainId: number) => toHex(chainId),
+        ) as Hex[];
+        this.#addChainsToRpcDetection(
+          chainsToDetectUsingRpc,
+          unprocessedChainIds,
           clientNetworks,
         );
       }
@@ -826,13 +856,15 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }) {
     return await safelyExecute(async () => {
       // Fetch balances for multiple chain IDs at once
-      const tokenBalancesByChain = await this.#accountsAPI
+      const apiResponse = await this.#accountsAPI
         .getMultiNetworksBalances(selectedAddress, chainIds, supportedNetworks)
         .catch(() => null);
 
-      if (tokenBalancesByChain === null) {
+      if (apiResponse === null) {
         return { result: 'failed' } as const;
       }
+
+      const tokenBalancesByChain = apiResponse.balances;
 
       // Process each chain ID individually
       for (const chainId of chainIds) {
@@ -893,7 +925,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         }
       }
 
-      return { result: 'success' } as const;
+      return {
+        result: 'success',
+        unprocessedNetworks: apiResponse.unprocessedNetworks,
+      } as const;
     });
   }
 

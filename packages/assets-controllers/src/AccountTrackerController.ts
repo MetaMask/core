@@ -91,14 +91,19 @@ function createAccountTrackerRpcBalanceFetcher(
     },
 
     async fetch(params) {
-      const balances = await rpcBalanceFetcher.fetch(params);
+      const result = await rpcBalanceFetcher.fetch(params);
 
       if (!includeStakedAssets) {
         // Filter out staked balances from the results
-        return balances.filter((balance) => balance.token === ZERO_ADDRESS);
+        return {
+          balances: result.balances.filter(
+            (balance) => balance.token === ZERO_ADDRESS,
+          ),
+          unprocessedChainIds: result.unprocessedChainIds,
+        };
       }
 
-      return balances;
+      return result;
     },
   };
 }
@@ -630,20 +635,37 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         }
 
         try {
-          const balances = await fetcher.fetch({
+          const result = await fetcher.fetch({
             chainIds: supportedChains,
             queryAllAccounts,
             selectedAccount,
             allAccounts,
           });
 
-          if (balances && balances.length > 0) {
-            aggregated.push(...balances);
+          if (result.balances && result.balances.length > 0) {
+            aggregated.push(...result.balances);
             // Remove chains that were successfully processed
-            const processedChains = new Set(balances.map((b) => b.chainId));
+            const processedChains = new Set(
+              result.balances.map((b) => b.chainId),
+            );
             remainingChains = remainingChains.filter(
               (chain) => !processedChains.has(chain),
             );
+          }
+
+          // Add unprocessed chains back to remainingChains for next fetcher
+          if (
+            result.unprocessedChainIds &&
+            result.unprocessedChainIds.length > 0
+          ) {
+            // Only add chains that were originally requested and aren't already in remainingChains
+            const currentRemainingChains = remainingChains;
+            const chainsToAdd = result.unprocessedChainIds.filter(
+              (chainId) =>
+                supportedChains.includes(chainId) &&
+                !currentRemainingChains.includes(chainId),
+            );
+            remainingChains.push(...chainsToAdd);
           }
         } catch (error) {
           console.warn(

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/core-backend` from `^4.0.0` to `^4.1.0`
+
+### Fixed
+
+- Enable RPC fallback when Accounts API fails or times out in `TokenBalancesController` ([#7155](https://github.com/MetaMask/core/pull/7155))
+  - Add 30-second timeout protection for Accounts API balance fetching requests
+  - Propagate API errors to `TokenBalancesController` to trigger automatic RPC fallback
+  - Remove error catching that prevented RPC fetcher from processing failed chains
+  - Ensures native and staked balances are always fetched via RPC when API is unavailable
+- Add 30-second timeout protection for Accounts API calls in `TokenDetectionController` to prevent hanging requests ([#7106](https://github.com/MetaMask/core/pull/7106))
+  - Prevents token detection from hanging indefinitely on slow or unresponsive API requests
+  - Automatically falls back to RPC-based token detection when API call times out or fails
+  - Includes error logging for debugging timeout and failure events
+- Handle `unprocessedNetworks` from Accounts API responses to ensure complete token detection coverage ([#7106](https://github.com/MetaMask/core/pull/7106))
+  - When Accounts API returns networks it cannot process, those networks are automatically added to RPC detection
+  - Applies to both `TokenDetectionController` and `TokenBalancesController`
+  - Ensures all requested networks are processed even if API has partial support
+
 ## [88.0.0]
 
 ### Changed

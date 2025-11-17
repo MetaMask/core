@@ -27,11 +27,33 @@ export class TestStrategy implements PayStrategy<void> {
         estimatedDuration: 5,
         fees: {
           provider: { fiat: '1.23', usd: '1.23' },
-          sourceNetwork: { fiat: '2.34', usd: '2.34' },
-          targetNetwork: { fiat: '3.45', usd: '3.45' },
+          sourceNetwork: {
+            estimate: {
+              human: '2.34',
+              fiat: '2.34',
+              usd: '2.34',
+              raw: '234000',
+            },
+            max: {
+              human: '2.35',
+              fiat: '2.35',
+              usd: '2.35',
+              raw: '235000',
+            },
+          },
+          targetNetwork: {
+            fiat: '3.45',
+            usd: '3.45',
+          },
         },
         original: undefined,
         request: requests[0],
+        sourceAmount: {
+          human: '4.56',
+          fiat: '4.56',
+          raw: '456000',
+          usd: '4.56',
+        },
         strategy: TransactionPayStrategy.Test,
       },
     ];

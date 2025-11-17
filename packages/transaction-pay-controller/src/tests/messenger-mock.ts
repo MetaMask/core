@@ -21,7 +21,10 @@ import type { TransactionControllerUpdateTransactionAction } from '@metamask/tra
 
 import type { TransactionPayControllerMessenger } from '..';
 import type { BridgeStatusControllerSubmitTxAction } from '../../../bridge-status-controller/src/types';
-import type { TransactionPayControllerGetStrategyAction } from '../types';
+import type {
+  TransactionPayControllerGetDelegationTransactionAction,
+  TransactionPayControllerGetStrategyAction,
+} from '../types';
 import { type TransactionPayControllerGetStateAction } from '../types';
 
 type AllActions = MessengerActions<TransactionPayControllerMessenger>;
@@ -102,6 +105,10 @@ export function getMessengerMock({
 
   const getNetworkClientByIdMock: jest.MockedFn<
     NetworkControllerGetNetworkClientByIdAction['handler']
+  > = jest.fn();
+
+  const getDelegationTransactionMock: jest.MockedFn<
+    TransactionPayControllerGetDelegationTransactionAction['handler']
   > = jest.fn();
 
   const messenger: RootMessenger = new Messenger({
@@ -198,6 +205,11 @@ export function getMessengerMock({
       'NetworkController:getNetworkClientById',
       getNetworkClientByIdMock,
     );
+
+    messenger.registerActionHandler(
+      'TransactionPayController:getDelegationTransaction',
+      getDelegationTransactionMock,
+    );
   }
 
   const publish = messenger.publish.bind(messenger);
@@ -211,6 +223,7 @@ export function getMessengerMock({
     getBridgeStatusControllerStateMock,
     getControllerStateMock,
     getCurrencyRateControllerStateMock,
+    getDelegationTransactionMock,
     getGasFeeControllerStateMock,
     getNetworkClientByIdMock,
     getRemoteFeatureFlagControllerStateMock,

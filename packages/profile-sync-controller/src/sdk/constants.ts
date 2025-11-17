@@ -1,0 +1,3 @@
+export const HTTP_STATUS_CODES = {
+  TOO_MANY_REQUESTS: 429,
+};

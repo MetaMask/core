@@ -2,7 +2,7 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import type { ExportableKeyEncryptor } from '@metamask/keyring-controller';
+import type { Encryptor } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
@@ -216,8 +216,8 @@ export type SeedlessOnboardingControllerMessenger = Messenger<
 /**
  * Encryptor interface for encrypting and decrypting seedless onboarding vault.
  */
-export type VaultEncryptor<EncryptionKey> = Omit<
-  ExportableKeyEncryptor<EncryptionKey>,
+export type VaultEncryptor<EncryptionKey, SupportedKeyDerivationParams> = Omit<
+  Encryptor<EncryptionKey, SupportedKeyDerivationParams>,
   'encryptWithKey'
 >;
 
@@ -270,7 +270,10 @@ export type RenewRefreshToken = (params: {
  * @param state - The initial state to set on this controller.
  * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
  */
-export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
+export type SeedlessOnboardingControllerOptions<
+  EncryptionKey,
+  SupportedKeyDerivationParams,
+> = {
   messenger: SeedlessOnboardingControllerMessenger;
 
   /**
@@ -283,7 +286,7 @@ export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
    *
    * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
    */
-  encryptor: VaultEncryptor<EncryptionKey>;
+  encryptor: VaultEncryptor<EncryptionKey, SupportedKeyDerivationParams>;
 
   /**
    * A function to get a new jwt token using refresh token.

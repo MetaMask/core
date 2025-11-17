@@ -1,9 +1,8 @@
 import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
-import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
-import type { Json, JsonRpcParams } from '@metamask/utils';
-import { klona } from 'klona/full';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
+import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
+import { klona } from 'klona';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
 import type { Block } from './types';
@@ -16,10 +15,19 @@ type BlockRefMiddlewareOptions = {
 
 const log = createModuleLogger(projectLogger, 'block-ref');
 
+/**
+ * Creates a middleware that rewrites "latest" block references to the known
+ * latest block number from a block tracker.
+ *
+ * @param options - The options for the middleware.
+ * @param options.provider - The provider to use.
+ * @param options.blockTracker - The block tracker to use.
+ * @returns The middleware.
+ */
 export function createBlockRefMiddleware({
   provider,
   blockTracker,
-}: BlockRefMiddlewareOptions = {}): JsonRpcMiddleware<JsonRpcParams, Json> {
+}: BlockRefMiddlewareOptions = {}): JsonRpcMiddleware<JsonRpcRequest, Json> {
   if (!provider) {
     throw Error('BlockRefMiddleware - mandatory "provider" option is missing.');
   }
@@ -30,16 +38,16 @@ export function createBlockRefMiddleware({
     );
   }
 
-  return createAsyncMiddleware(async (req, res, next) => {
-    const blockRefIndex = blockTagParamIndex(req.method);
+  return async ({ request, next }) => {
+    const blockRefIndex = blockTagParamIndex(request.method);
 
     // skip if method does not include blockRef
     if (blockRefIndex === undefined) {
       return next();
     }
 
-    const blockRef = Array.isArray(req.params)
-      ? (req.params[blockRefIndex] ?? 'latest')
+    const blockRef = Array.isArray(request.params)
+      ? (request.params[blockRefIndex] ?? 'latest')
       : 'latest';
 
     // skip if not "latest"
@@ -55,7 +63,7 @@ export function createBlockRefMiddleware({
     );
 
     // create child request with specific block-ref
-    const childRequest = klona(req);
+    const childRequest = klona(request);
 
     if (Array.isArray(childRequest.params)) {
       childRequest.params[blockRefIndex] = latestBlockNumber;
@@ -64,8 +72,6 @@ export function createBlockRefMiddleware({
     // perform child request
     log('Performing another request %o', childRequest);
     // copy child result onto original response
-    res.result = await provider.request<JsonRpcParams, Block>(childRequest);
-
-    return undefined;
-  });
+    return await provider.request<JsonRpcParams, Block>(childRequest);
+  };
 }

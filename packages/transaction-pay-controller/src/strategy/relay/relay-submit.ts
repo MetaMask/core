@@ -11,7 +11,11 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { RELAY_FALLBACK_GAS_LIMIT, RELAY_URL_BASE } from './constants';
+import {
+  RELAY_FALLBACK_GAS_LIMIT,
+  RELAY_POLLING_INTERVAL,
+  RELAY_URL_BASE,
+} from './constants';
 import type { RelayQuote, RelayStatus } from './types';
 import { projectLogger } from '../../logger';
 import type {
@@ -24,6 +28,8 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+
+const FALLBACK_HASH = '0x0' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
@@ -50,14 +56,7 @@ export async function submitRelayQuotes(
     ));
   }
 
-  const isSkipTransaction = quotes.some((q) => q.original.skipTransaction);
-
-  if (isSkipTransaction) {
-    log('Skipping original transaction', transactionHash);
-    return { transactionHash };
-  }
-
-  return { transactionHash: undefined };
+  return { transactionHash };
 }
 
 /**
@@ -85,47 +84,35 @@ async function executeSingleQuote(
   const chainId = toHex(transactionParams.chainId);
   const from = transactionParams.from as Hex;
 
-  if (quote.skipTransaction) {
-    updateTransaction(
-      {
-        transactionId: transaction.id,
-        messenger,
-        note: 'Remove nonce from skipped transaction',
-      },
-      (tx) => {
-        tx.txParams.nonce = undefined;
-      },
-    );
-  }
-
-  const transactionHash = await submitTransactions(
-    quote,
-    chainId,
-    from,
-    transaction.id,
-    messenger,
+  updateTransaction(
+    {
+      transactionId: transaction.id,
+      messenger,
+      note: 'Remove nonce from skipped transaction',
+    },
+    (tx) => {
+      tx.txParams.nonce = undefined;
+    },
   );
 
-  await waitForRelayCompletion(quote);
+  await submitTransactions(quote, chainId, from, transaction.id, messenger);
 
-  log('Relay request completed');
+  const targetHash = await waitForRelayCompletion(quote);
 
-  if (quote.skipTransaction) {
-    log('Updating intent complete flag on transaction', transaction.id);
+  log('Relay request completed', targetHash);
 
-    updateTransaction(
-      {
-        transactionId: transaction.id,
-        messenger,
-        note: 'Intent complete after Relay completion',
-      },
-      (tx) => {
-        tx.isIntentComplete = true;
-      },
-    );
-  }
+  updateTransaction(
+    {
+      transactionId: transaction.id,
+      messenger,
+      note: 'Intent complete after Relay completion',
+    },
+    (tx) => {
+      tx.isIntentComplete = true;
+    },
+  );
 
-  return { transactionHash };
+  return { transactionHash: targetHash };
 }
 
 /**
@@ -134,7 +121,15 @@ async function executeSingleQuote(
  * @param quote - Relay quote associated with the request.
  * @returns A promise that resolves when the Relay request is complete.
  */
-async function waitForRelayCompletion(quote: RelayQuote) {
+async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
+  if (
+    quote.details.currencyIn.currency.chainId ===
+    quote.details.currencyOut.currency.chainId
+  ) {
+    log('Skipping polling as same chain');
+    return FALLBACK_HASH;
+  }
+
   const { endpoint, method } = quote.steps
     .slice(-1)[0]
     .items.slice(-1)[0].check;
@@ -148,14 +143,15 @@ async function waitForRelayCompletion(quote: RelayQuote) {
     log('Polled status', status.status, status);
 
     if (status.status === 'success') {
-      return;
+      const targetHash = status.txHashes?.slice(-1)[0] as Hex;
+      return targetHash ?? FALLBACK_HASH;
     }
 
-    if (['failure', 'refund'].includes(status.status)) {
+    if (['failure', 'refund', 'fallback'].includes(status.status)) {
       throw new Error(`Relay request failed with status: ${status.status}`);
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, RELAY_POLLING_INTERVAL));
   }
 }
 
