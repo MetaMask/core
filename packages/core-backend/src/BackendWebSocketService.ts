@@ -95,7 +95,11 @@ export function getCloseReason(code: number): string {
 export enum WebSocketState {
   CONNECTING = 'connecting',
   CONNECTED = 'connected',
+  /** @deprecated This value is no longer used internally and will be removed in a future major release */
+  DISCONNECTING = 'disconnecting',
   DISCONNECTED = 'disconnected',
+  /** @deprecated TThis value is no longer used internally and will be removed in a future major release */
+  ERROR = 'error',
 }
 
 /**
