@@ -139,6 +139,7 @@ runs:
             repo: context.repo.repo,
             issue_number: process.env.PR_NUMBER,
           });
+
           for (const comment of comments) {
             if (comment.body.includes('<!-- Pull request release conflict comment -->')) {
               await github.graphql(`
