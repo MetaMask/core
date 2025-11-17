@@ -23,21 +23,21 @@ import { projectLogger, createModuleLogger } from '../logger';
 const log = createModuleLogger(projectLogger, 'RpcServiceChain');
 
 /**
- * Possible states of the RPC service chain.
+ * Statuses that the RPC service chain can be in.
  */
-const STATES = {
-  Initial: 'initial',
+const STATUSES = {
   Available: 'available',
   Degraded: 'degraded',
+  Unknown: 'unknown',
   Unavailable: 'unavailable',
 } as const;
 
-type RpcServiceConfiguration = Omit<RpcServiceOptions, 'failoverService'>;
-
 /**
- * The state of the service.
+ * Statuses that the RPC service chain can be in.
  */
-type State = (typeof STATES)[keyof typeof STATES];
+type Status = (typeof STATUSES)[keyof typeof STATUSES];
+
+type RpcServiceConfiguration = Omit<RpcServiceOptions, 'failoverService'>;
 
 /**
  * This class constructs and manages requests to a chain of RpcService objects
@@ -81,9 +81,9 @@ export class RpcServiceChain {
   readonly #services: RpcService[];
 
   /**
-   * The state of the RPC service chain.
+   * The status of the RPC service chain.
    */
-  #state: State;
+  #status: Status;
 
   /**
    * Constructs a new RpcServiceChain object.
@@ -103,7 +103,7 @@ export class RpcServiceChain {
     );
     this.#primaryService = this.#services[0];
 
-    this.#state = STATES.Initial;
+    this.#status = STATUSES.Unknown;
     this.#onBreakEventEmitter = new CockatielEventEmitter<
       ExtendCockatielEventData<
         ExtractCockatielEventData<RpcService['onBreak']>,
@@ -114,9 +114,9 @@ export class RpcServiceChain {
     this.#onDegradedEventEmitter = new CockatielEventEmitter();
     for (const service of this.#services) {
       service.onDegraded((data) => {
-        if (this.#state !== STATES.Degraded) {
-          log('Updating state to "degraded"', data);
-          this.#state = STATES.Degraded;
+        if (this.#status !== STATUSES.Degraded) {
+          log('Updating status to "degraded"', data);
+          this.#status = STATUSES.Degraded;
           this.#onDegradedEventEmitter.emit({
             ...data,
             primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),
@@ -128,9 +128,9 @@ export class RpcServiceChain {
     this.#onAvailableEventEmitter = new CockatielEventEmitter();
     for (const service of this.#services) {
       service.onAvailable((data) => {
-        if (this.#state !== STATES.Available) {
-          log('Updating state to "available"', data);
-          this.#state = STATES.Available;
+        if (this.#status !== STATUSES.Available) {
+          log('Updating status to "available"', data);
+          this.#status = STATUSES.Available;
           this.#onAvailableEventEmitter.emit({
             ...data,
             primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),
@@ -409,7 +409,7 @@ export class RpcServiceChain {
           'Previous circuit state',
           previousCircuitState,
           'state',
-          this.#state,
+          this.#status,
         );
 
         if (isCircuitOpen) {
@@ -422,16 +422,16 @@ export class RpcServiceChain {
 
           if (
             previousCircuitState !== CircuitState.Open &&
-            this.#state !== STATES.Unavailable &&
+            this.#status !== STATUSES.Unavailable &&
             lastFailureReason !== undefined
           ) {
             // If the service's circuit just broke and it's the last one in the
             // chain, then trigger the onBreak event. (But if for some reason we
             // have already done this, then don't do it.)
             log(
-              'This service\'s circuit just opened and it is the last service. Updating state to "unavailable" and triggering onBreak.',
+              'This service\'s circuit just opened and it is the last service. Updating status to "unavailable" and triggering onBreak.',
             );
-            this.#state = STATES.Unavailable;
+            this.#status = STATUSES.Unavailable;
             this.#onBreakEventEmitter.emit({
               ...lastFailureReason,
               primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),

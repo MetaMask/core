@@ -144,7 +144,7 @@ type InternalCircuitState =
   | { state: Exclude<CircuitState, CircuitState.Open> };
 
 /**
- * List of avalability statuses.
+ * Statuses that the RPC service chain can be in.
  *
  * Used to keep track of whether the `onAvailable` event should be fired.
  */
