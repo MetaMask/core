@@ -7,13 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
 ### Added
 
 - **BREAKING:** Added error reporting around account creation with the `ErrorReportingService` ([#7044](https://github.com/MetaMask/core/pull/7044))
   - The `@metamask/error-reporting-service` is now a peer dependency.
+- Add `MultichainAccountService.resyncAccounts` method and action ([#7087](https://github.com/MetaMask/core/pull/7087)), ([#7093](https://github.com/MetaMask/core/pull/7093))
+- Add `*AccountProvider.resyncAccounts` method ([#7087](https://github.com/MetaMask/core/pull/7087))
 
 ### Changed
 
+- **BREAKING:** Make `init` method `async` ([#7087](https://github.com/MetaMask/core/pull/7087))
+  - While this is not yet really used, we might want to make some `async` calls (like `resyncAccounts`) in `init` directly at some point.
+- Add optional tracing configuration ([#7006](https://github.com/MetaMask/core/pull/7006))
+  - For now, only the account discovery is being traced.
 - Limit Bitcoin and Tron providers to 3 concurrent account creations by default when creating multichain account groups ([#7052](https://github.com/MetaMask/core/pull/7052))
 
 ## [2.1.0]
@@ -267,7 +275,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@2.1.0...@metamask/multichain-account-service@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@2.0.1...@metamask/multichain-account-service@2.1.0
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@2.0.0...@metamask/multichain-account-service@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@1.6.2...@metamask/multichain-account-service@2.0.0

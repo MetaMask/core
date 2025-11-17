@@ -145,15 +145,11 @@ export class SubjectMetadataController extends BaseController<
     this.subjectsWithoutPermissionsEncounteredSinceStartup = new Set();
 
     this.messenger.registerActionHandler(
-      // ESLint is confused by the string literal type.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getSubjectMetadata`,
       this.getSubjectMetadata.bind(this),
     );
 
     this.messenger.registerActionHandler(
-      // ESLint is confused by the string literal type.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:addSubjectMetadata`,
       this.addSubjectMetadata.bind(this),
     );
@@ -216,6 +212,7 @@ export class SubjectMetadataController extends BaseController<
     this.subjectsWithoutPermissionsEncounteredSinceStartup.add(origin);
 
     this.update((draftState) => {
+      // @ts-expect-error TS2589: Type instantiation is excessively deep and possibly infinite
       draftState.subjectMetadata[origin] = newMetadata;
       if (typeof originToForget === 'string') {
         delete draftState.subjectMetadata[originToForget];
@@ -237,10 +234,9 @@ export class SubjectMetadataController extends BaseController<
    * Deletes all subjects without permissions from the controller's state.
    */
   trimMetadataState(): void {
-    this.update((draftState) => {
-      // @ts-expect-error ts(2589)
+    this.update(() => {
       return SubjectMetadataController.getTrimmedState(
-        draftState,
+        this.state,
         this.subjectHasPermissions,
       );
     });

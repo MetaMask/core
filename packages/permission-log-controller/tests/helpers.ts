@@ -23,14 +23,8 @@ const SUBJECTS = {
 };
 
 const PERM_NAMES = Object.freeze({
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   eth_accounts: 'eth_accounts',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   test_method: 'test_method',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   does_not_exist: 'does_not_exist',
 });
 
@@ -59,8 +53,6 @@ const CAVEATS = {
    * @param accounts - The accounts for the caveat
    * @returns An eth_accounts restrictReturnedAccounts caveats
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   eth_accounts: (accounts: string[]) => {
     return [
       {
@@ -85,11 +77,7 @@ const PERMS = {
      *
      * @returns A permissions request object with eth_accounts
      */
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     eth_accounts: () => {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       return { eth_accounts: {} };
     },
 
@@ -98,11 +86,7 @@ const PERMS = {
      *
      * @returns A permissions request object with test_method
      */
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     test_method: () => {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       return { test_method: {} };
     },
 
@@ -111,11 +95,7 @@ const PERMS = {
      *
      * @returns A permissions request object with does_not_exist
      */
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     does_not_exist: () => {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       return { does_not_exist: {} };
     },
   },
@@ -132,8 +112,6 @@ const PERMS = {
      * @param accounts - The accounts for the eth_accounts permission caveat
      * @returns A granted permissions object with eth_accounts and its caveat
      */
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     eth_accounts: (accounts: string[]) => {
       return {
         parentCapability: PERM_NAMES.eth_accounts,
@@ -146,8 +124,6 @@ const PERMS = {
      *
      * @returns A granted permissions object with test_method
      */
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     test_method: () => {
       return {
         parentCapability: PERM_NAMES.test_method,
@@ -193,8 +169,6 @@ export const getters = deepFreeze({
      * @param origin - The origin of the request
      * @returns An RPC request object
      */
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     eth_accounts: (origin: string) => {
       return {
         ...JsonRpcRequestStruct.TYPE,
@@ -211,8 +185,6 @@ export const getters = deepFreeze({
      * @param param - The request param
      * @returns An RPC request object
      */
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     test_method: (origin: string, param = false) => {
       return {
         ...JsonRpcRequestStruct.TYPE,
@@ -228,8 +200,6 @@ export const getters = deepFreeze({
      * @param origin - The origin of the request
      * @returns An RPC request object
      */
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     eth_requestAccounts: (origin: string) => {
       return {
         ...JsonRpcRequestStruct.TYPE,
@@ -284,8 +254,6 @@ export const getters = deepFreeze({
      * @param args - Any other data for the request's subjectMetadata
      * @returns An RPC request object
      */
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     metamask_sendDomainMetadata: (
       origin: string,
       name: string,

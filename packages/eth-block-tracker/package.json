@@ -44,7 +44,7 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eth-block-tracker",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies",
     "lint:dependencies": "depcheck",
-    "lint:eslint": "eslint . --cache --ext js,ts",
+    "lint:eslint": "eslint .  --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "publish:preview": "yarn npm publish --tag preview",
@@ -71,7 +71,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "engines": {
     "node": "^18.18 || >=20"

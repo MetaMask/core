@@ -565,6 +565,38 @@ describe('PendingTransactionTracker', () => {
 
           expect(listener).not.toHaveBeenCalled();
         });
+
+        it('unless incoming transaction', async () => {
+          const listener = jest.fn();
+
+          const confirmedTransactionMetaMock = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+            id: `${ID_MOCK}2`,
+            status: TransactionStatus.confirmed,
+            isTransfer: false,
+          } as unknown as TransactionMeta;
+
+          const submittedTransactionMetaMock = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+          };
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: () => [
+              confirmedTransactionMetaMock,
+              submittedTransactionMetaMock,
+            ],
+          });
+
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
+
+          await onPoll();
+
+          expect(listener).not.toHaveBeenCalled();
+        });
       });
 
       describe('fires confirmed event', () => {
