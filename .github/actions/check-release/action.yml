@@ -13,12 +13,19 @@ runs:
       id: merge-base
       shell: bash
       env:
-        # `pull_request.base.ref` needs to be prefixed, but `github.event.merge_group.base_ref` already has a prefix
-        BASE_REF: ${{ github.event.pull_request.base.ref && format('refs/remotes/origin/{0}', github.event.pull_request.base.ref) || github.event.merge_group.base_ref }}
+        BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
       run: |
         set -euo pipefail
 
-        MERGE_BASE=$(git merge-base HEAD "$BASE_REF")
+        # Strip invalid prefix from `github.event.merge_group.base_ref`
+        # It comes prefixed with `refs/heads/`, but the branch is not checked out in this context
+        # We need to express it as a remote branch
+        PREFIXED_REF_REGEX='refs/heads/(.+)'
+        if [[ "BASE_REF" =~ $PREFIXED_REF_REGEX ]]; then
+          BASE_REF="${BASH_REMATCH[1]}"
+        fi
+
+        MERGE_BASE=$(git merge-base HEAD "refs/remotes/origin/$BASE_REF")
         echo "MERGE_BASE=$MERGE_BASE" >> "$GITHUB_OUTPUT"
 
     - name: Check if the commit or pull request is a release
