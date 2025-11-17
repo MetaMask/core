@@ -89,6 +89,7 @@ module.exports = {
       // so in that case use their published versions
       '<rootDir>/../../node_modules/@metamask/$1',
     ],
+    '^uuid$': require.resolve('uuid'),
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
