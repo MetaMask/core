@@ -35,7 +35,6 @@ import {
   type TokenScanApiResponse,
   type AddressScanCacheData,
   type AddressScanResult,
-  type AddressScanApiResponse,
   AddressScanResultType,
 } from './types';
 import {
@@ -1213,9 +1212,8 @@ export class PhishingController extends BaseController<
   ): Promise<AddressScanResult> => {
     if (!address) {
       return {
-        result_type: AddressScanResultType.ErrorResult,
+        result_type: AddressScanResultType.Benign,
         label: '',
-        fetchError: 'address is required',
       };
     }
 
@@ -1225,9 +1223,8 @@ export class PhishingController extends BaseController<
 
     if (!chain) {
       return {
-        result_type: AddressScanResultType.ErrorResult,
+        result_type: AddressScanResultType.Benign,
         label: '',
-        fetchError: `Unknown chain ID: ${chainId}`,
       };
     }
 
@@ -1261,7 +1258,7 @@ export class PhishingController extends BaseController<
             error: `${res.status} ${res.statusText}`,
           };
         }
-        const data: AddressScanApiResponse = await res.json();
+        const data: AddressScanResult = await res.json();
         return data;
       },
       true,
@@ -1270,15 +1267,13 @@ export class PhishingController extends BaseController<
 
     if (!apiResponse) {
       return {
-        result_type: AddressScanResultType.ErrorResult,
+        result_type: AddressScanResultType.Benign,
         label: '',
-        fetchError: 'timeout of 5000ms exceeded',
       };
     } else if ('error' in apiResponse) {
       return {
-        result_type: AddressScanResultType.ErrorResult,
+        result_type: AddressScanResultType.Benign,
         label: '',
-        fetchError: apiResponse.error,
       };
     }
 

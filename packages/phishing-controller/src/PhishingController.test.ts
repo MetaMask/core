@@ -24,6 +24,8 @@ import {
   PHISHING_DETECTION_BULK_SCAN_ENDPOINT,
   type BulkPhishingDetectionScanResponse,
   type PhishingControllerMessenger,
+  SECURITY_ALERTS_BASE_URL,
+  ADDRESS_SCAN_ENDPOINT,
 } from './PhishingController';
 import {
   createMockStateChangePayload,
@@ -31,8 +33,12 @@ import {
   formatHostnameToUrl,
   TEST_ADDRESSES,
 } from './tests/utils';
-import type { PhishingDetectionScanResult } from './types';
-import { PhishingDetectorResultType, RecommendedAction } from './types';
+import type { PhishingDetectionScanResult, AddressScanResult } from './types';
+import {
+  PhishingDetectorResultType,
+  RecommendedAction,
+  AddressScanResultType,
+} from './types';
 import { getHostnameFromUrl } from './utils';
 
 const controllerName = 'PhishingController';
@@ -3208,6 +3214,284 @@ describe('PhishingController', () => {
       expect(nock.pendingMocks()).toHaveLength(0);
     });
   });
+
+  describe('scanAddress', () => {
+    let controller: PhishingController;
+    let clock: sinon.SinonFakeTimers;
+    const testChainId = '0x1';
+    const testAddress = '0x1234567890123456789012345678901234567890';
+    const mockResponse: AddressScanResult = {
+      result_type: AddressScanResultType.Benign,
+      label: '',
+    };
+
+    beforeEach(() => {
+      controller = getPhishingController();
+      clock = sinon.useFakeTimers();
+    });
+
+    afterEach(() => {
+      clock.restore();
+    });
+
+    it('should return the scan result for a valid address', async () => {
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const response = await controller.scanAddress(testChainId, testAddress);
+      expect(response).toMatchObject(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it.each([
+      [400, 'Bad Request'],
+      [401, 'Unauthorized'],
+      [403, 'Forbidden'],
+      [404, 'Not Found'],
+      [500, 'Internal Server Error'],
+      [502, 'Bad Gateway'],
+      [503, 'Service Unavailable'],
+      [504, 'Gateway Timeout'],
+    ])(
+      'should return an AddressScanResult with a benign result on %i status code',
+      async (statusCode) => {
+        const scope = nock(SECURITY_ALERTS_BASE_URL)
+          .post(ADDRESS_SCAN_ENDPOINT, {
+            chain: 'ethereum',
+            address: testAddress.toLowerCase(),
+          })
+          .reply(statusCode);
+
+        const response = await controller.scanAddress(testChainId, testAddress);
+        expect(response).toMatchObject({
+          result_type: AddressScanResultType.Benign,
+          label: '',
+        });
+        expect(scope.isDone()).toBe(true);
+      },
+    );
+
+    it('should return an AddressScanResult with a benign result on timeout', async () => {
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .delayConnection(10000)
+        .reply(200, {});
+
+      const promise = controller.scanAddress(testChainId, testAddress);
+      clock.tick(5000);
+      const response = await promise;
+      expect(response).toMatchObject({
+        result_type: AddressScanResultType.Benign,
+        label: '',
+      });
+      expect(scope.isDone()).toBe(false);
+    });
+
+    it('should return an error when address is missing', async () => {
+      const response = await controller.scanAddress(testChainId, '');
+      expect(response).toMatchObject({
+        result_type: AddressScanResultType.Benign,
+        label: '',
+      });
+    });
+
+    it('should return an error when chain ID is unknown', async () => {
+      const unknownChainId = '0x999999';
+      const response = await controller.scanAddress(
+        unknownChainId,
+        testAddress,
+      );
+      expect(response).toMatchObject({
+        result_type: AddressScanResultType.Benign,
+        label: '',
+      });
+    });
+
+    it('should normalize address to lowercase', async () => {
+      const mixedCaseAddress = '0xAbCdEf1234567890123456789012345678901234';
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: mixedCaseAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const response = await controller.scanAddress(
+        testChainId,
+        mixedCaseAddress,
+      );
+      expect(response).toMatchObject(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should normalize chain ID to lowercase', async () => {
+      const mixedCaseChainId = '0xA';
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'optimism',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const response = await controller.scanAddress(
+        mixedCaseChainId,
+        testAddress,
+      );
+      expect(response).toMatchObject(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should handle different chain IDs correctly', async () => {
+      const testCases = [
+        { chainId: '0x1', chain: 'ethereum' },
+        { chainId: '0x89', chain: 'polygon' },
+        { chainId: '0xa', chain: 'optimism' },
+        { chainId: '0xa4b1', chain: 'arbitrum' },
+      ];
+
+      for (const { chainId, chain } of testCases) {
+        const scope = nock(SECURITY_ALERTS_BASE_URL)
+          .post(ADDRESS_SCAN_ENDPOINT, {
+            chain,
+            address: testAddress.toLowerCase(),
+          })
+          .reply(200, mockResponse);
+
+        const response = await controller.scanAddress(chainId, testAddress);
+        expect(response).toMatchObject(mockResponse);
+        expect(scope.isDone()).toBe(true);
+      }
+    });
+
+    it('should return different result types correctly', async () => {
+      const testCases = [
+        AddressScanResultType.Benign,
+        AddressScanResultType.Warning,
+        AddressScanResultType.Malicious,
+      ];
+
+      for (const resultType of testCases) {
+        const mockResult: AddressScanResult = {
+          result_type: resultType,
+          label: 'test label',
+        };
+
+        const scope = nock(SECURITY_ALERTS_BASE_URL)
+          .post(ADDRESS_SCAN_ENDPOINT)
+          .reply(200, mockResult);
+
+        const response = await controller.scanAddress(testChainId, testAddress);
+        expect(response).toMatchObject(mockResult);
+        expect(scope.isDone()).toBe(true);
+      }
+    });
+
+    it('should cache scan results and return them on subsequent calls', async () => {
+      const fetchSpy = jest.spyOn(global, 'fetch');
+
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const result1 = await controller.scanAddress(testChainId, testAddress);
+      expect(result1).toMatchObject(mockResponse);
+
+      const result2 = await controller.scanAddress(testChainId, testAddress);
+      expect(result2).toMatchObject(mockResponse);
+
+      // Verify that fetch was called exactly once
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(scope.isDone()).toBe(true);
+
+      fetchSpy.mockRestore();
+    });
+
+    it('should not cache error results', async () => {
+      const scope1 = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(500, { error: 'Internal Server Error' });
+
+      const scope2 = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      // First call should result in an error response
+      const result1 = await controller.scanAddress(testChainId, testAddress);
+      expect(result1.result_type).toBe(AddressScanResultType.Benign);
+      expect(result1.label).toBe('');
+      // Second call should try again (not use cache since errors aren't cached)
+      const result2 = await controller.scanAddress(testChainId, testAddress);
+      expect(result2).toMatchObject({
+        result_type: AddressScanResultType.Benign,
+        label: '',
+      });
+      expect(result2.label).toBe('');
+      // Both mocks should be used
+      expect(scope1.isDone()).toBe(true);
+      expect(scope2.isDone()).toBe(true);
+    });
+
+    it('should cache addresses per chain ID', async () => {
+      const chainId1 = '0x1';
+      const chainId2 = '0x89';
+
+      const mockResponse1: AddressScanResult = {
+        result_type: AddressScanResultType.Benign,
+        label: 'ethereum result',
+      };
+
+      const mockResponse2: AddressScanResult = {
+        result_type: AddressScanResultType.Warning,
+        label: 'polygon result',
+      };
+
+      const scope1 = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse1);
+
+      const scope2 = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'polygon',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse2);
+
+      // Scan same address on different chains
+      const result1 = await controller.scanAddress(chainId1, testAddress);
+      const result2 = await controller.scanAddress(chainId2, testAddress);
+
+      expect(result1).toMatchObject(mockResponse1);
+      expect(result2).toMatchObject(mockResponse2);
+      expect(scope1.isDone()).toBe(true);
+      expect(scope2.isDone()).toBe(true);
+
+      // Cached results should be returned
+      const cachedResult1 = await controller.scanAddress(chainId1, testAddress);
+      const cachedResult2 = await controller.scanAddress(chainId2, testAddress);
+
+      expect(cachedResult1).toMatchObject(mockResponse1);
+      expect(cachedResult2).toMatchObject(mockResponse2);
+    });
+  });
 });
 
 describe('URL Scan Cache', () => {
@@ -3571,6 +3855,7 @@ describe('URL Scan Cache', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
+          "addressScanCache": Object {},
           "c2DomainBlocklistLastFetched": 0,
           "hotlistLastFetched": 0,
           "phishingLists": Array [],
@@ -3594,6 +3879,7 @@ describe('URL Scan Cache', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
+          "addressScanCache": Object {},
           "tokenScanCache": Object {},
           "urlScanCache": Object {},
         }

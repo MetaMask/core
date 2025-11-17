@@ -207,10 +207,6 @@ export type ChainIdToNameMap = typeof DEFAULT_CHAIN_ID_TO_NAME;
  */
 export enum AddressScanResultType {
   /**
-   * Address is loading/being processed
-   */
-  Loading = 'Loading',
-  /**
    * Address is benign/safe
    */
   Benign = 'Benign',
@@ -222,10 +218,6 @@ export enum AddressScanResultType {
    * Address is malicious
    */
   Malicious = 'Malicious',
-  /**
-   * Error occurred during scanning
-   */
-  ErrorResult = 'ErrorResult',
 }
 
 /**
@@ -240,24 +232,12 @@ export type AddressScanResult = {
    * Additional label or description for the result
    */
   label: string;
-  /**
-   * Optional error message if scanning failed
-   */
-  fetchError?: string;
 };
 
 /**
  * Address data stored in cache (minimal data needed)
  */
 export type AddressScanCacheData = {
-  result_type: AddressScanResultType;
-  label: string;
-};
-
-/**
- * API response from the address scanning endpoint
- */
-export type AddressScanApiResponse = {
   result_type: AddressScanResultType;
   label: string;
 };
