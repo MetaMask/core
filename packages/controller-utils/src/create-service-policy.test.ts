@@ -3319,9 +3319,9 @@ describe('createServicePolicy', () => {
           {
             desc: 'a custom circuit break duration',
             circuitBreakDuration: DEFAULT_CIRCUIT_BREAK_DURATION,
-            options: {
+            optionsWithCircuitBreakDuration: {
               // This has to be high enough to exceed the exponential backoff
-              optionsWithCircuitBreakDuration: 5_000,
+              circuitBreakDuration: 5_000,
             },
           },
         ])(
