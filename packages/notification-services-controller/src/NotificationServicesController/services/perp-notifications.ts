@@ -20,7 +20,6 @@ export async function createPerpOrderNotification(
 ) {
   try {
     await createServicePolicy().execute(async () => {
-      // console.log('called');
       return successfulFetch(PERPS_API_CREATE_ORDERS, {
         method: 'POST',
         headers: {

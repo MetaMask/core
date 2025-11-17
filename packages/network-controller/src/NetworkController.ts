@@ -705,8 +705,6 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
     }
 
     const rpcEndpointUrl =
-      // False positive - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const;
 
     const networkConfiguration: NetworkConfiguration = {
@@ -2446,6 +2444,8 @@ export class NetworkController extends BaseController<
    *
    * In-progress requests will not be aborted.
    */
+  // We're intentionally changing the signature of an extended method.
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   async destroy() {
     await this.#blockTrackerProxy?.destroy();
   }

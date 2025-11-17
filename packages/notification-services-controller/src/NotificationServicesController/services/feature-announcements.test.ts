@@ -2,6 +2,7 @@ import {
   getFeatureAnnouncementNotifications,
   getFeatureAnnouncementUrl,
 } from './feature-announcements';
+import type { INotification } from '..';
 import { mockFetchFeatureAnnouncementNotifications } from '../__fixtures__/mockServices';
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import { createMockFeatureAnnouncementAPIResult } from '../mocks/mock-feature-announcements';
@@ -85,7 +86,10 @@ describe('Feature Announcement Notifications', () => {
     expect(notifications).toHaveLength(1);
     mockEndpoint.done();
 
-    const resultNotification = notifications[0];
+    const resultNotification = notifications[0] as Extract<
+      INotification,
+      { type: TRIGGER_TYPES.FEATURES_ANNOUNCEMENT }
+    >;
     expect(resultNotification).toStrictEqual(
       expect.objectContaining({
         id: 'dont-miss-out-on-airdrops-and-new-nft-mints',

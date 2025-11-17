@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-services-controller",
-  "version": "19.0.0",
+  "version": "20.0.0",
   "description": "Manages New MetaMask decentralized Notification system",
   "keywords": [
     "MetaMask",
@@ -139,7 +139,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "peerDependencies": {
     "@metamask/keyring-controller": "^24.0.0",

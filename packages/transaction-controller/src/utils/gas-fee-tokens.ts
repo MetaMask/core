@@ -1,7 +1,9 @@
+import type EthQuery from '@metamask/eth-query';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
+import { isNativeBalanceSufficientForGas } from './balance';
 import { ERROR_MESSAGE_NO_UPGRADE_CONTRACT } from './batch';
 import { ERROR_MESSGE_PUBLIC_KEY, doesChainSupportEIP7702 } from './eip7702';
 import { getEIP7702UpgradeContractAddress } from './feature-flags';
@@ -112,6 +114,81 @@ export async function getGasFeeTokens({
   } catch (error) {
     log('Failed to gas fee tokens', error);
     return { gasFeeTokens: [], isGasFeeSponsored: false };
+  }
+}
+
+/**
+ * Check and update gas fee token selection before publishing a transaction.
+ *
+ * @param request - Request object.
+ * @param request.ethQuery - EthQuery instance.
+ * @param request.fetchGasFeeTokens - Function to fetch gas fee tokens.
+ * @param request.transaction - Transaction metadata.
+ * @param request.updateTransaction - Function to update the transaction.
+ */
+export async function checkGasFeeTokenBeforePublish({
+  ethQuery,
+  fetchGasFeeTokens,
+  transaction,
+  updateTransaction,
+}: {
+  ethQuery: EthQuery;
+  fetchGasFeeTokens: (transaction: TransactionMeta) => Promise<GasFeeToken[]>;
+  transaction: TransactionMeta;
+  updateTransaction: (
+    transactionId: string,
+    fn: (tx: TransactionMeta) => void,
+  ) => void;
+}) {
+  const { gasFeeTokens, isGasFeeTokenIgnoredIfBalance, selectedGasFeeToken } =
+    transaction;
+
+  if (!selectedGasFeeToken || !isGasFeeTokenIgnoredIfBalance) {
+    return;
+  }
+
+  const hasNativeBalance = await isNativeBalanceSufficientForGas(
+    transaction,
+    ethQuery,
+  );
+
+  if (hasNativeBalance) {
+    log(
+      'Ignoring gas fee token before publish due to sufficient native balance',
+    );
+
+    updateTransaction(transaction.id, (tx) => {
+      tx.isExternalSign = false;
+      tx.selectedGasFeeToken = undefined;
+    });
+
+    return;
+  }
+
+  updateTransaction(transaction.id, (tx) => {
+    tx.isExternalSign = true;
+  });
+
+  let finalGasFeeTokens = gasFeeTokens;
+
+  if (finalGasFeeTokens === undefined) {
+    const newGasFeeTokens = await fetchGasFeeTokens(transaction);
+
+    updateTransaction(transaction.id, (tx) => {
+      tx.gasFeeTokens = newGasFeeTokens;
+    });
+
+    log('Updated gas fee tokens before publish', newGasFeeTokens);
+
+    finalGasFeeTokens = newGasFeeTokens;
+  }
+
+  if (
+    !finalGasFeeTokens?.some(
+      (t) => t.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
+    )
+  ) {
+    throw new Error('Gas fee token not found and insufficient native balance');
   }
 }
 

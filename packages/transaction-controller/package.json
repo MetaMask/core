@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "61.1.0",
+  "version": "61.3.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -64,6 +64,7 @@
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.8.1",
     "async-mutex": "^0.5.0",
+    "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",
     "eth-method-registry": "^4.0.0",
     "fast-json-patch": "^3.1.1",
@@ -93,7 +94,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "peerDependencies": {
     "@babel/runtime": "^7.0.0",
