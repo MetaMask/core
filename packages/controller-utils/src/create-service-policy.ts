@@ -297,8 +297,8 @@ export function createServicePolicy(
   let internalCircuitState: InternalCircuitState = getInternalCircuitState(
     circuitBreakerPolicy.state,
   );
-  circuitBreakerPolicy.onStateChange((circuitState) => {
-    internalCircuitState = getInternalCircuitState(circuitState);
+  circuitBreakerPolicy.onStateChange((state) => {
+    internalCircuitState = getInternalCircuitState(state);
   });
 
   circuitBreakerPolicy.onBreak(() => {
@@ -318,9 +318,9 @@ export function createServicePolicy(
       onDegradedEventEmitter.emit(data);
     }
   });
-  retryPolicy.onSuccess((data) => {
+  retryPolicy.onSuccess(({ duration }) => {
     if (circuitBreakerPolicy.state === CircuitState.Closed) {
-      if (data.duration > degradedThreshold) {
+      if (duration > degradedThreshold) {
         onDegradedEventEmitter.emit();
       } else if (availabilityStatus !== 'available') {
         availabilityStatus = 'available';
