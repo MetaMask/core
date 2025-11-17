@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove fallback to CryptoCompare on `CurrencyRatesController` and `TokenRatesController` ([#7167](https://github.com/MetaMask/core/pull/7167))
+
 ### Fixed
 
 - Enable RPC fallback when Accounts API fails or times out in `TokenBalancesController` ([#7155](https://github.com/MetaMask/core/pull/7155))
