@@ -3,8 +3,19 @@ import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { uniq } from 'lodash';
 
-import { NATIVE_TOKEN_ADDRESS } from '../constants';
+import {
+  ARBITRUM_USDC_ADDRESS,
+  CHAIN_ID_ARBITRUM,
+  CHAIN_ID_POLYGON,
+  NATIVE_TOKEN_ADDRESS,
+  POLYGON_USDCE_ADDRESS,
+} from '../constants';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types';
+
+const STABLECOINS: Record<Hex, Hex[]> = {
+  [CHAIN_ID_ARBITRUM]: [ARBITRUM_USDC_ADDRESS.toLowerCase() as Hex],
+  [CHAIN_ID_POLYGON]: [POLYGON_USDCE_ADDRESS.toLowerCase() as Hex],
+};
 
 /**
  * Get the token balance for a specific account and token.
@@ -13,7 +24,7 @@ import type { FiatRates, TransactionPayControllerMessenger } from '../types';
  * @param account - Address of the account.
  * @param chainId - Id of the chain.
  * @param tokenAddress - Address of the token contract.
- * @returns The token balance as a BigNumber.
+ * @returns Raw token balance as a decimal string.
  */
 export function getTokenBalance(
   messenger: TransactionPayControllerMessenger,
@@ -186,10 +197,15 @@ export function getTokenFiatRate(
   if (nativeToFiatRate === null || nativeToUsdRate === null) {
     return undefined;
   }
+  const isStablecoin = STABLECOINS[chainId]?.includes(
+    tokenAddress.toLowerCase() as Hex,
+  );
 
-  const usdRate = new BigNumber(tokenToNativeRate ?? 1)
-    .multipliedBy(nativeToUsdRate)
-    .toString(10);
+  const usdRate = isStablecoin
+    ? '1'
+    : new BigNumber(tokenToNativeRate ?? 1)
+        .multipliedBy(nativeToUsdRate)
+        .toString(10);
 
   const fiatRate = new BigNumber(tokenToNativeRate ?? 1)
     .multipliedBy(nativeToFiatRate)
