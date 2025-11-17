@@ -817,7 +817,9 @@ describe('GatorPermissionsController', () => {
 
   describe('addPendingRevocation', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
     });
 
     afterEach(() => {

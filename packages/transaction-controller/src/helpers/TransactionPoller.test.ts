@@ -5,7 +5,9 @@ import { flushPromises } from '../../../../tests/helpers';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
 
-jest.useFakeTimers();
+jest.useFakeTimers({
+  legacyFakeTimers: true,
+});
 
 const BLOCK_NUMBER_MOCK = '0x123';
 const CHAIN_ID_MOCK = '0x1';

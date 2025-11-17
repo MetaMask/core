@@ -571,7 +571,9 @@ const getMessengerMock = ({
 
 const executePollingWithPendingStatus = async () => {
   // Setup
-  jest.useFakeTimers();
+  jest.useFakeTimers({
+    legacyFakeTimers: true,
+  });
   const fetchBridgeTxStatusSpy = jest
     .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
     .mockResolvedValueOnce({
@@ -701,7 +703,9 @@ describe('BridgeStatusController', () => {
 
     it('restarts polling for history items that are not complete', async () => {
       // Setup
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
       const fetchBridgeTxStatusSpy = jest.spyOn(
         bridgeStatusUtils,
         'fetchBridgeTxStatus',
@@ -753,7 +757,9 @@ describe('BridgeStatusController', () => {
 
     it('should handle network errors during fetchBridgeTxStatus', async () => {
       // Setup
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
       const fetchBridgeTxStatusSpy = jest.spyOn(
         bridgeStatusUtils,
         'fetchBridgeTxStatus',
@@ -814,7 +820,9 @@ describe('BridgeStatusController', () => {
 
     it('should stop polling after max attempts are reached', async () => {
       // Setup
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
       const fetchBridgeTxStatusSpy = jest.spyOn(
         bridgeStatusUtils,
         'fetchBridgeTxStatus',
@@ -941,7 +949,9 @@ describe('BridgeStatusController', () => {
 
     it('stops polling when the status response is complete', async () => {
       // Setup
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
       jest.spyOn(Date, 'now').mockImplementation(() => {
         return MockTxHistory.getComplete().bridgeTxMetaId1.completionTime ?? 10;
       });
@@ -993,7 +1003,9 @@ describe('BridgeStatusController', () => {
 
     it('does not poll if the srcTxHash is not available', async () => {
       // Setup
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
 
       const messengerMock = {
         call: jest.fn((method: string) => {
@@ -1068,7 +1080,9 @@ describe('BridgeStatusController', () => {
 
     it('emits bridgeTransactionComplete event when the status response is complete', async () => {
       // Setup
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
       jest.spyOn(Date, 'now').mockImplementation(() => {
         return MockTxHistory.getComplete().bridgeTxMetaId1.completionTime ?? 10;
       });
@@ -1109,7 +1123,9 @@ describe('BridgeStatusController', () => {
 
     it('emits bridgeTransactionFailed event when the status response is failed', async () => {
       // Setup
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
       jest.spyOn(Date, 'now').mockImplementation(() => {
         return MockTxHistory.getComplete().bridgeTxMetaId1.completionTime ?? 10;
       });
@@ -1153,7 +1169,9 @@ describe('BridgeStatusController', () => {
 
     it('updates the srcTxHash when one is available', async () => {
       // Setup
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
       let getStateCallCount = 0;
 
       const messengerMock = {
@@ -1342,7 +1360,9 @@ describe('BridgeStatusController', () => {
   describe('wipeBridgeStatus', () => {
     it('wipes the bridge status for the given address', async () => {
       // Setup
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
 
       let getSelectedMultichainAccountCalledTimes = 0;
       const messengerMock = {
@@ -1451,7 +1471,9 @@ describe('BridgeStatusController', () => {
 
     it('wipes the bridge status for all networks if ignoreNetwork is true', () => {
       // Setup
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
       const messengerMock = {
         call: jest.fn((method: string) => {
           if (method === 'AccountsController:getSelectedMultichainAccount') {
@@ -1563,7 +1585,9 @@ describe('BridgeStatusController', () => {
 
     it('wipes the bridge status only for the current network if ignoreNetwork is false', () => {
       // Setup
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
       const messengerMock = {
         call: jest.fn((method: string) => {
           if (method === 'AccountsController:getSelectedMultichainAccount') {
@@ -3511,7 +3535,9 @@ describe('BridgeStatusController', () => {
 
       it('should restart polling for bridge transaction when attempts are reset', async () => {
         // Setup - use the same pattern as "restarts polling for history items that are not complete"
-        jest.useFakeTimers();
+        jest.useFakeTimers({
+          legacyFakeTimers: true,
+        });
         const fetchBridgeTxStatusSpy = jest.spyOn(
           bridgeStatusUtils,
           'fetchBridgeTxStatus',
@@ -3979,7 +4005,9 @@ describe('BridgeStatusController', () => {
       });
 
       it('should start polling for bridge tx if status response is invalid', async () => {
-        jest.useFakeTimers();
+        jest.useFakeTimers({
+          legacyFakeTimers: true,
+        });
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
 
         mockFetchFn.mockClear();
@@ -4027,7 +4055,9 @@ describe('BridgeStatusController', () => {
       });
 
       it('should start polling for completed bridge tx with featureId', async () => {
-        jest.useFakeTimers();
+        jest.useFakeTimers({
+          legacyFakeTimers: true,
+        });
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
 
         mockFetchFn.mockClear();
@@ -4064,7 +4094,9 @@ describe('BridgeStatusController', () => {
       });
 
       it('should start polling for failed bridge tx with featureId', async () => {
-        jest.useFakeTimers();
+        jest.useFakeTimers({
+          legacyFakeTimers: true,
+        });
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
 
         mockFetchFn.mockClear();

@@ -651,7 +651,9 @@ describe('MultichainAccountWallet', () => {
       // Avoid side-effects from alignment for this orchestrator behavior test
       jest.spyOn(wallet, 'alignAccounts').mockResolvedValue(undefined);
 
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
       const discovery = wallet.discoverAccounts();
       // Allow fast provider microtasks to run and advance maxGroupIndex first
       await Promise.resolve(); // Mutex lock.

@@ -2441,7 +2441,9 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({ tokens });
 
       // Use fake timers for precise control
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
 
       // Mock safelyExecuteWithTimeout to simulate timeout by returning undefined
       mockedSafelyExecuteWithTimeout.mockImplementation(
@@ -4092,7 +4094,9 @@ describe('TokenBalancesController', () => {
       });
 
       // Use fake timers to control polling intervals
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
 
       // Mock _executePoll to track calls
       const executePollSpy = jest.spyOn(controller, '_executePoll');
@@ -4518,7 +4522,9 @@ describe('TokenBalancesController', () => {
     });
 
     it('should handle status change to "up" and increase polling interval', async () => {
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
 
       const { controller, messenger } = setupController();
 
@@ -4554,7 +4560,9 @@ describe('TokenBalancesController', () => {
     });
 
     it('should handle status change to "down" and restore default polling interval', async () => {
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
 
       const { controller, messenger } = setupController();
 
@@ -4589,7 +4597,9 @@ describe('TokenBalancesController', () => {
     });
 
     it('should debounce rapid status changes', async () => {
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
 
       const { controller, messenger } = setupController();
 
@@ -4755,7 +4765,9 @@ describe('TokenBalancesController', () => {
     });
 
     it('should handle status changes with hex chain ID format', async () => {
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
 
       const { controller, messenger } = setupController();
       const updateConfigSpy = jest.spyOn(
@@ -5195,7 +5207,9 @@ describe('TokenBalancesController', () => {
     });
 
     it('should cleanup debouncing timer on destroy', () => {
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
 
       const { controller, messenger } = setupController();
       const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');

@@ -1240,7 +1240,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
   describe('handleApprovalDelay', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
       jest.clearAllMocks();
     });
 
@@ -1362,7 +1364,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
   describe('handleMobileHardwareWalletDelay', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
       jest.clearAllMocks();
     });
 

@@ -20,7 +20,9 @@ const originalSetTimeout = globalThis.setTimeout;
 
 describe('createRetryOnEmptyMiddleware', () => {
   beforeAll(() => {
-    jest.useFakeTimers();
+    jest.useFakeTimers({
+      legacyFakeTimers: true,
+    });
   });
 
   let provider: ReturnType<typeof createProviderAndBlockTracker>['provider'];

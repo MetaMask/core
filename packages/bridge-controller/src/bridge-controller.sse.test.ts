@@ -126,7 +126,9 @@ describe('BridgeController SSE', function () {
       clientVersion: '13.8.0',
     });
 
-    jest.useFakeTimers();
+    jest.useFakeTimers({
+      legacyFakeTimers: true,
+    });
     stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
     startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
     hasSufficientBalanceSpy = jest

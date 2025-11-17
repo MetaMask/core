@@ -308,7 +308,9 @@ describe('BridgeController', function () {
   });
 
   it('updateBridgeQuoteRequestParams should not call fetchBridgeQuotes if SSE is not enabled', async function () {
-    jest.useFakeTimers();
+    jest.useFakeTimers({
+      legacyFakeTimers: true,
+    });
     const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
     const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
     const hasSufficientBalanceSpy = jest
@@ -387,7 +389,9 @@ describe('BridgeController', function () {
   });
 
   it('updateBridgeQuoteRequestParams should trigger quote polling if request is valid', async function () {
-    jest.useFakeTimers();
+    jest.useFakeTimers({
+      legacyFakeTimers: true,
+    });
     const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
     const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
     const hasSufficientBalanceSpy = jest
@@ -629,7 +633,9 @@ describe('BridgeController', function () {
   });
 
   it('updateBridgeQuoteRequestParams should reset minimumBalanceForRentExemptionInLamports if getMinimumBalanceForRentExemption call fails', async function () {
-    jest.useFakeTimers();
+    jest.useFakeTimers({
+      legacyFakeTimers: true,
+    });
     jest.clearAllMocks();
     jest.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(false);
     const consoleErrorSpy = jest
@@ -918,7 +924,9 @@ describe('BridgeController', function () {
   });
 
   it('updateBridgeQuoteRequestParams should only poll once if insufficientBal=true', async function () {
-    jest.useFakeTimers();
+    jest.useFakeTimers({
+      legacyFakeTimers: true,
+    });
     const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
     const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
     const hasSufficientBalanceSpy = jest
@@ -1085,7 +1093,9 @@ describe('BridgeController', function () {
   });
 
   it('updateBridgeQuoteRequestParams should set insufficientBal=true if RPC provider is tenderly', async function () {
-    jest.useFakeTimers();
+    jest.useFakeTimers({
+      legacyFakeTimers: true,
+    });
     const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
     const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
     const hasSufficientBalanceSpy = jest
@@ -1430,7 +1440,9 @@ describe('BridgeController', function () {
       const errorSpy = jest
         .spyOn(console, 'error')
         .mockImplementation(jest.fn());
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
       const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
       const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
       const hasSufficientBalanceSpy = jest
@@ -1574,7 +1586,9 @@ describe('BridgeController', function () {
   );
 
   it('should handle errors from fetchBridgeQuotes', async () => {
-    jest.useFakeTimers();
+    jest.useFakeTimers({
+      legacyFakeTimers: true,
+    });
     const fetchBridgeQuotesSpy = jest.spyOn(fetchUtils, 'fetchBridgeQuotes');
     messengerMock.call.mockReturnValue({
       address: '0x123',
@@ -1685,7 +1699,9 @@ describe('BridgeController', function () {
   });
 
   it('returns early on AbortError without updating post-fetch state', async () => {
-    jest.useFakeTimers();
+    jest.useFakeTimers({
+      legacyFakeTimers: true,
+    });
 
     const abortError = new Error('Aborted');
     // Make it look like an AbortError to hit the early return
@@ -1800,7 +1816,9 @@ describe('BridgeController', function () {
       expectedMinBalance: string | undefined,
       isEvmAccount = false,
     ) => {
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
       const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
       const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
       const hasSufficientBalanceSpy = jest
@@ -1988,7 +2006,9 @@ describe('BridgeController', function () {
   );
 
   it('should handle BTC chain fees correctly', async () => {
-    jest.useFakeTimers();
+    jest.useFakeTimers({
+      legacyFakeTimers: true,
+    });
     // Use the actual Solana mock which already has string trade type
     const btcQuoteResponse = mockBridgeQuotesSolErc20.map((quote) => ({
       ...quote,

@@ -5,7 +5,9 @@ describe('timeoutWithRetry', () => {
   const timeout = 1000;
 
   beforeEach(() => {
-    jest.useFakeTimers();
+    jest.useFakeTimers({
+      legacyFakeTimers: true,
+    });
   });
 
   afterEach(() => {

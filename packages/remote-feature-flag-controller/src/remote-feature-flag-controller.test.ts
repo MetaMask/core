@@ -210,7 +210,9 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     it('creates a new fetch, and correctly updates state, when called sequentially with awaiting and sufficient delay', async () => {
-      jest.useFakeTimers();
+      jest.useFakeTimers({
+        legacyFakeTimers: true,
+      });
       const initialTime = Date.now();
       const fetchSpy = jest
         .fn()
