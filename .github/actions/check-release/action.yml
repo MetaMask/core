@@ -13,7 +13,8 @@ runs:
       id: merge-base
       shell: bash
       env:
-        BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+        # `pull_request.base.ref` needs to be prefixed, but `github.event.merge_group.base_ref` already has a prefix
+        BASE_REF: ${{ github.event.pull_request.base.ref && format('refs/remotes/origin/{0}', github.event.pull_request.base.ref) || github.event.merge_group.base_ref }}
       run: |
         set -euo pipefail
 
