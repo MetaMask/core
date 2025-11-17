@@ -13,9 +13,12 @@ runs:
       id: merge-base
       shell: bash
       env:
-        BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+        # `pull_request.base.ref` needs to be prefixed, but `github.event.merge_group.base_ref` already has a prefix
+        BASE_REF: ${{ github.event.pull_request.base.ref && format('refs/remotes/origin/{0}', github.event.pull_request.base.ref) || github.event.merge_group.base_ref }}
       run: |
-        echo "MERGE_BASE=$(git merge-base HEAD "refs/remotes/origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
+        set -euo pipefail
+
+        echo "MERGE_BASE=$(git merge-base HEAD "$BASE_REF")" >> "$GITHUB_OUTPUT"
 
     - name: Check if the commit or pull request is a release
       id: is-release
