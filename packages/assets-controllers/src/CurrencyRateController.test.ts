@@ -1395,7 +1395,7 @@ describe('CurrencyRateController', () => {
           ETH: {
             conversionDate,
             conversionRate: 2500.5,
-            usdConversionRate: null, // Line 283
+            usdConversionRate: null,
           },
           POL: {
             conversionDate,
@@ -1563,7 +1563,6 @@ describe('CurrencyRateController', () => {
 
       await controller.updateExchangeRate(['ETH', 'POL']);
 
-      // Should log error for POL (line 286-289)
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Failed to fetch token price for POL on chain 0x89',
         expect.any(Error),
@@ -1579,7 +1578,7 @@ describe('CurrencyRateController', () => {
             usdConversionRate: null,
           },
           POL: {
-            conversionDate: null, // Lines 292-294: error case
+            conversionDate: null,
             conversionRate: null,
             usdConversionRate: null,
           },

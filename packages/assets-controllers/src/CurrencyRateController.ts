@@ -17,9 +17,9 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
+import { reduceInBatchesSerially } from './assetsUtil';
 import { fetchMultiExchangeRate as defaultFetchMultiExchangeRate } from './crypto-compare-service';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
-import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
 
 /**
  * currencyRates - Object keyed by native currency
@@ -95,6 +95,9 @@ const defaultState = {
     },
   },
 };
+
+// Maximum number of cryptocurrencies that can be sent to the exchange rates API in a single request
+const EXCHANGE_RATES_BATCH_SIZE = 20;
 
 /** The input to start polling for the {@link CurrencyRateController} */
 type CurrencyRatePollingInput = {
@@ -261,50 +264,47 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
         {} as Record<string, { fetchedCurrency: string; chainId: Hex }>,
       );
 
-      // Step 3: Fetch token prices for each chainId
-      const ratesFromTokenPrices = await Promise.all(
-        Object.entries(currencyToChainIds).map(
-          async ([nativeCurrency, { chainId }]) => {
-            try {
-              const nativeTokenAddress = getNativeTokenAddress(chainId);
-              const tokenPrices =
-                await this.#tokenPricesService.fetchTokenPrices({
-                  chainId,
-                  tokenAddresses: [nativeTokenAddress],
-                  currency: currentCurrency,
-                });
+      // Step 3: Fetch exchange rates for all native currencies using batch processing
+      const nativeCurrencies = Object.keys(currencyToChainIds);
 
-              const tokenPrice = tokenPrices[nativeTokenAddress];
+      type ExchangeRatesResult = Awaited<
+        ReturnType<AbstractTokenPricesService['fetchExchangeRates']>
+      >;
 
-              return {
-                nativeCurrency,
-                conversionDate: tokenPrice ? Date.now() / 1000 : null,
-                conversionRate: tokenPrice?.price ?? null,
-                usdConversionRate: null, // Token prices service doesn't provide USD rate in this context
-              };
-            } catch (error) {
-              console.error(
-                `Failed to fetch token price for ${nativeCurrency} on chain ${chainId}`,
-                error,
-              );
-              return {
-                nativeCurrency,
-                conversionDate: null,
-                conversionRate: null,
-                usdConversionRate: null,
-              };
-            }
-          },
-        ),
-      );
+      const allExchangeRates = await reduceInBatchesSerially<
+        string,
+        ExchangeRatesResult
+      >({
+        values: nativeCurrencies,
+        batchSize: EXCHANGE_RATES_BATCH_SIZE,
+        eachBatch: async (workingResult, batch) => {
+          try {
+            const batchRates =
+              await this.#tokenPricesService.fetchExchangeRates({
+                baseCurrency: currentCurrency,
+                includeUsdRate: true,
+                cryptocurrencies: batch,
+              });
+            return { ...(workingResult || {}), ...batchRates };
+          } catch (error) {
+            console.error(
+              `Failed to fetch exchange rates for currencies: ${batch.join(', ')}`,
+              error,
+            );
+            return workingResult || {};
+          }
+        },
+        initialResult: {},
+      });
 
       // Step 4: Convert to the expected format
-      const ratesFromTokenPricesService = ratesFromTokenPrices.reduce(
-        (acc, rate) => {
-          acc[rate.nativeCurrency] = {
-            conversionDate: rate.conversionDate,
-            conversionRate: rate.conversionRate,
-            usdConversionRate: rate.usdConversionRate,
+      const ratesFromTokenPricesService = nativeCurrencies.reduce(
+        (acc, nativeCurrency) => {
+          const rate = allExchangeRates[nativeCurrency.toLowerCase()];
+          acc[nativeCurrency] = {
+            conversionDate: rate ? Date.now() / 1000 : null,
+            conversionRate: rate?.value ?? null,
+            usdConversionRate: rate?.usd ?? null,
           };
           return acc;
         },
