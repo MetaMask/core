@@ -298,7 +298,6 @@ describe('AuthenticationController', () => {
       const { messenger } = createMockAuthenticationMessenger();
       mockAuthenticationFlowEndpoints();
       const originalState = mockSignedInState();
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (originalState.srpSessionData) {
         originalState.srpSessionData[
           MOCK_ENTROPY_SOURCE_IDS[0]
@@ -332,7 +331,6 @@ describe('AuthenticationController', () => {
 
       // Invalid/old state
       const originalState = mockSignedInState();
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (originalState.srpSessionData) {
         originalState.srpSessionData[
           MOCK_ENTROPY_SOURCE_IDS[0]
@@ -406,7 +404,6 @@ describe('AuthenticationController', () => {
       const { messenger } = createMockAuthenticationMessenger();
       mockAuthenticationFlowEndpoints();
       const originalState = mockSignedInState();
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (originalState.srpSessionData) {
         originalState.srpSessionData[
           MOCK_ENTROPY_SOURCE_IDS[0]
@@ -443,7 +440,6 @@ describe('AuthenticationController', () => {
 
       // Invalid/old state
       const originalState = mockSignedInState();
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (originalState.srpSessionData) {
         originalState.srpSessionData[
           MOCK_ENTROPY_SOURCE_IDS[0]

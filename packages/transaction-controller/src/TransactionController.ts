@@ -137,7 +137,10 @@ import {
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
-import { getGasFeeTokens } from './utils/gas-fee-tokens';
+import {
+  checkGasFeeTokenBeforePublish,
+  getGasFeeTokens,
+} from './utils/gas-fee-tokens';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
 import {
@@ -1215,7 +1218,9 @@ export class TransactionController extends BaseController<
       batchId,
       deviceConfirmedOn,
       disableGasBuffer,
+      gasFeeToken,
       isGasFeeIncluded,
+      isGasFeeSponsored,
       method,
       nestedTransactions,
       networkClientId,
@@ -1314,12 +1319,15 @@ export class TransactionController extends BaseController<
           deviceConfirmedOn,
           disableGasBuffer,
           id: random(),
+          isGasFeeTokenIgnoredIfBalance: Boolean(gasFeeToken),
           isGasFeeIncluded,
+          isGasFeeSponsored,
           isFirstTimeInteraction: undefined,
           nestedTransactions,
           networkClientId,
           origin,
           securityAlertResponse,
+          selectedGasFeeToken: gasFeeToken,
           status: TransactionStatus.unapproved as const,
           time: Date.now(),
           txParams,
@@ -3112,6 +3120,20 @@ export class TransactionController extends BaseController<
       clearApprovingTransactionId = () =>
         this.#approvingTransactionIds.delete(transactionId);
 
+      const { networkClientId } = transactionMeta;
+      const ethQuery = this.#getEthQuery({ networkClientId });
+
+      await checkGasFeeTokenBeforePublish({
+        ethQuery,
+        fetchGasFeeTokens: async (tx) =>
+          (await this.#getGasFeeTokens(tx)).gasFeeTokens,
+        transaction: transactionMeta,
+        updateTransaction: (txId, fn) =>
+          this.#updateTransactionInternal({ transactionId: txId }, fn),
+      });
+
+      transactionMeta = this.#getTransactionOrThrow(transactionId);
+
       const [nonce, releaseNonce] = await getNextNonce(
         transactionMeta,
         (address: string) =>
@@ -3162,9 +3184,6 @@ export class TransactionController extends BaseController<
       if (!rawTx && !transactionMeta.isExternalSign) {
         return ApprovalState.NotApproved;
       }
-
-      const { networkClientId } = transactionMeta;
-      const ethQuery = this.#getEthQuery({ networkClientId });
 
       let preTxBalance: string | undefined;
       const shouldUpdatePreTxBalance =
@@ -4253,14 +4272,8 @@ export class TransactionController extends BaseController<
         };
       }
 
-      const gasFeeTokensResponse = await getGasFeeTokens({
-        chainId,
-        getSimulationConfig: this.#getSimulationConfig,
-        isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
-        messenger: this.messenger,
-        publicKeyEIP7702: this.#publicKeyEIP7702,
-        transactionMeta,
-      });
+      const gasFeeTokensResponse = await this.#getGasFeeTokens(transactionMeta);
+
       gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
       isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
     }
@@ -4634,5 +4647,18 @@ export class TransactionController extends BaseController<
     log('Publish successful', transactionHash);
 
     return { transactionHash };
+  }
+
+  async #getGasFeeTokens(transaction: TransactionMeta) {
+    const { chainId } = transaction;
+
+    return await getGasFeeTokens({
+      chainId,
+      getSimulationConfig: this.#getSimulationConfig,
+      isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
+      messenger: this.messenger,
+      publicKeyEIP7702: this.#publicKeyEIP7702,
+      transactionMeta: transaction,
+    });
   }
 }

@@ -219,6 +219,7 @@ export type TraceCallback = <ReturnType>(
   /**
    * Callback to trace.
    * Thrown errors will not be caught, but the trace will still be recorded.
+   *
    * @param context - The context in which the operation is running.
    */
   fn?: (context?: TraceContext) => ReturnType,

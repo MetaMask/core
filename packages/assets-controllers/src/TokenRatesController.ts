@@ -37,6 +37,7 @@ import type {
  * @type Token
  *
  * Token representation
+ *
  * @property address - Hex address of the token contract
  * @property decimals - Number of decimals the token uses
  * @property symbol - Symbol of the token
@@ -123,6 +124,7 @@ export const controllerName = 'TokenRatesController';
  * @type TokenRatesState
  *
  * Token rates controller state
+ *
  * @property marketData - Market data for tokens, keyed by chain ID and then token contract address.
  */
 export type TokenRatesControllerState = {
@@ -246,7 +248,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
   #disabled: boolean;
 
-  #interval: number;
+  readonly #interval: number;
 
   #allTokens: TokensControllerState['allTokens'];
 

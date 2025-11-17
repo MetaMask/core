@@ -11,7 +11,7 @@ import type {
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   MessageManagerState,
-  OriginalRequest,
+  MessageRequest,
   SecurityProviderRequest,
 } from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
@@ -59,6 +59,7 @@ type DecryptMessageManagerOptions = {
  *
  * Represents and contains data about a 'eth_decrypt' type signature request.
  * These are created when a signature for an eth_decrypt call is requested.
+ *
  * @property id - An id to track and identify the message object
  * @property messageParams - The parameters to pass to the eth_decrypt method once the request is approved
  * @property type - The json-prc signing method for which a signature request has been made.
@@ -83,6 +84,7 @@ export type DecryptMessageParams = AbstractMessageParams & {
  *
  * Represents the parameters to pass to the eth_decrypt method once the request is approved
  * plus data added by MetaMask.
+ *
  * @property metamaskId - Added for tracking and identification within MetaMask
  * @property data - A hex string conversion of the raw buffer data of the signature request
  * @property from - Address to sign this message from
@@ -131,7 +133,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
    */
   async addUnapprovedMessageAsync(
     messageParams: DecryptMessageParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ): Promise<string> {
     validateDecryptedMessageData(messageParams);
     const messageId = await this.addUnapprovedMessage(messageParams, req);
@@ -181,7 +183,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
    */
   async addUnapprovedMessage(
     messageParams: DecryptMessageParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ) {
     const updatedMessageParams = this.addRequestToMessageParams(
       messageParams,

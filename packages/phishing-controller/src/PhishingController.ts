@@ -95,6 +95,7 @@ export type ListTypes =
  *
  * Configuration response from the eth-phishing-detect package
  * consisting of approved and unapproved website origins
+ *
  * @property blacklist - List of unapproved origins
  * @property fuzzylist - List of fuzzy-matched unapproved origins
  * @property tolerance - Fuzzy match tolerance level
@@ -113,6 +114,7 @@ export type EthPhishingResponse = {
  * @type C2DomainBlocklistResponse
  *
  * Response for blocklist update requests
+ *
  * @property recentlyAdded - List of c2 domains recently added to the blocklist
  * @property recentlyRemoved - List of c2 domains recently removed from the blocklist
  * @property lastFetchedAt - Timestamp of the last fetch request
@@ -148,6 +150,7 @@ export type PhishingStalelist = {
  * @type PhishingListState
  *
  * type defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
+ *
  * @property allowlist - List of approved origins (legacy naming "whitelist")
  * @property blocklist - List of unapproved origins (legacy naming "blacklist")
  * @property blocklistPaths - Trie of unapproved origins with paths (hostname + path, no query params).
@@ -174,6 +177,7 @@ export type PhishingListState = {
  * @type HotlistDiff
  *
  * type defining the expected type of the diffs in hotlist.json file.
+ *
  * @property url - Url of the diff entry.
  * @property timestamp - Timestamp at which the diff was identified.
  * @property targetList - The list name where the diff was identified.
@@ -194,6 +198,7 @@ export type DataResultWrapper<T> = {
  * @type Hotlist
  *
  * Type defining expected hotlist.json file.
+ *
  * @property url - Url of the diff entry.
  * @property timestamp - Timestamp at which the diff was identified.
  * @property targetList - The list name where the diff was identified.
@@ -567,6 +572,22 @@ export class PhishingController extends BaseController<
   }
 
   /**
+   * Checks if a patch represents a simulation data change
+   *
+   * @param patch - Immer patch to check
+   * @returns True if patch represents a simulation data change
+   */
+  #isSimulationDataPatch(patch: Patch): boolean {
+    const { path } = patch;
+    return (
+      path.length === 3 &&
+      path[0] === 'transactions' &&
+      typeof path[1] === 'number' &&
+      path[2] === 'simulationData'
+    );
+  }
+
+  /**
    * Handle transaction controller state changes using Immer patches
    * Extracts token addresses from simulation data and groups them by chain for bulk scanning
    *
@@ -589,6 +610,10 @@ export class PhishingController extends BaseController<
         // Handle transaction-level patches (includes simulation data updates)
         if (this.#isTransactionPatch(patch)) {
           const transaction = patch.value as TransactionMeta;
+          this.#getTokensFromTransaction(transaction, tokensByChain);
+        } else if (this.#isSimulationDataPatch(patch)) {
+          const transactionIndex = patch.path[1] as number;
+          const transaction = _state.transactions?.[transactionIndex];
           this.#getTokensFromTransaction(transaction, tokensByChain);
         }
       }

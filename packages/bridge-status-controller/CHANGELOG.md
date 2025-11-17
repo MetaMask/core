@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [60.1.0]
+
+### Added
+
+- Added support for bridging and swapping tokens on the Tron blockchain ([#6862](https://github.com/MetaMask/core/pull/6862))
+
+## [60.0.0]
+
+### Added
+
+- Add isGasFeeSponsored field in transaction batch params ([#7064](https://github.com/MetaMask/core/pull/7064))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/bridge-controller` from `^59.0.0` to `^60.0.0` ([#7100](https://github.com/MetaMask/core/pull/7100))
+
 ## [59.0.0]
 
 ### Changed
@@ -736,7 +752,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@59.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@60.1.0...HEAD
+[60.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@60.0.0...@metamask/bridge-status-controller@60.1.0
+[60.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@59.0.0...@metamask/bridge-status-controller@60.0.0
 [59.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@58.0.0...@metamask/bridge-status-controller@59.0.0
 [58.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@57.0.0...@metamask/bridge-status-controller@58.0.0
 [57.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@56.0.0...@metamask/bridge-status-controller@57.0.0

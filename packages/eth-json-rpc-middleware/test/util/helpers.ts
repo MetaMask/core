@@ -1,12 +1,16 @@
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { InternalProvider } from '@metamask/eth-json-rpc-provider';
-import {
-  JsonRpcEngine,
-  type JsonRpcMiddleware,
-} from '@metamask/json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import type {
+  JsonRpcMiddleware,
+  ResultConstraint,
+} from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
+
+import type { WalletMiddlewareKeyValues } from '../../src/wallet';
 
 export const createRequest = <
   Input extends Partial<JsonRpcRequest<Json[]>>,
@@ -18,10 +22,30 @@ export const createRequest = <
     jsonrpc: '2.0',
     id: request.id ?? '1',
     method: request.method ?? 'test_request',
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     params: request.params === undefined ? [] : request.params,
   } as Output;
 };
+
+const createHandleOptions = (
+  keyValues: Partial<WalletMiddlewareKeyValues> = {},
+): { context: WalletMiddlewareKeyValues } => ({
+  context: {
+    networkClientId: 'test-client-id',
+    origin: 'test-origin',
+    ...keyValues,
+  },
+});
+
+export const createHandleParams = <
+  InputReq extends Partial<JsonRpcRequest<Json[]>>,
+  OutputReq extends InputReq & JsonRpcRequest<Json[]>,
+>(
+  request: InputReq,
+  keyValues: Partial<WalletMiddlewareKeyValues> = {},
+): [OutputReq, ReturnType<typeof createHandleOptions>] => [
+  createRequest(request),
+  createHandleOptions(keyValues),
+];
 
 /**
  * An object that can be used to assign a canned result to a request made via
@@ -66,22 +90,15 @@ export type ProviderRequestStub<
  * @template Result - The type that represents the result.
  * @returns The created middleware, as a mock function.
  */
-export function createFinalMiddlewareWithDefaultResult<
-  Params extends JsonRpcParams,
-  Result extends Json,
->(): JsonRpcMiddleware<Params, Result | 'default result'> {
-  return jest.fn((req, res, _next, end) => {
-    if (res.id === undefined) {
-      res.id = req.id;
+export function createFinalMiddlewareWithDefaultResult(): JsonRpcMiddleware<JsonRpcRequest> {
+  return jest.fn(async ({ next }) => {
+    // Not a Node.js callback
+    // eslint-disable-next-line n/callback-return
+    const result = await next();
+    if (result === undefined) {
+      return 'default result';
     }
-
-    res.jsonrpc ??= '2.0';
-
-    if (res.result === undefined) {
-      res.result = 'default result';
-    }
-
-    end();
+    return result;
   });
 }
 
@@ -91,7 +108,10 @@ export function createFinalMiddlewareWithDefaultResult<
  *
  * @returns The provider and block tracker.
  */
-export function createProviderAndBlockTracker() {
+export function createProviderAndBlockTracker(): {
+  provider: InternalProvider;
+  blockTracker: PollingBlockTracker;
+} {
   const engine = new JsonRpcEngine();
   const provider = new InternalProvider({ engine });
 
@@ -101,6 +121,10 @@ export function createProviderAndBlockTracker() {
 
   return { provider, blockTracker };
 }
+
+// An expedient for use with createEngine below.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyMiddleware = JsonRpcMiddleware<any, ResultConstraint<any>, any>;
 
 /**
  * Creates a JSON-RPC engine with the middleware under test and any
@@ -112,29 +136,16 @@ export function createProviderAndBlockTracker() {
  * @returns The created engine.
  */
 export function createEngine(
-  middlewareUnderTest: JsonRpcMiddleware<any, any>,
-  ...otherMiddleware: JsonRpcMiddleware<any, any>[]
-): JsonRpcEngine {
-  const engine = new JsonRpcEngine();
-  engine.push(middlewareUnderTest);
-  if (otherMiddleware.length === 0) {
-    otherMiddleware.push(createFinalMiddlewareWithDefaultResult());
-  }
-  for (const middleware of otherMiddleware) {
-    engine.push(middleware);
-  }
-  return engine;
-}
-
-/**
- * Creates a middleware function that just ends the request, but is also a Jest
- * mock function so that you can make assertions on it.
- *
- * @returns The created middleware, as a mock function.
- */
-export function createSimpleFinalMiddleware() {
-  return jest.fn((_req, _res, _next, end) => {
-    end();
+  middlewareUnderTest: AnyMiddleware,
+  ...otherMiddleware: AnyMiddleware[]
+): JsonRpcEngineV2 {
+  return JsonRpcEngineV2.create({
+    middleware: [
+      middlewareUnderTest,
+      ...(otherMiddleware.length === 0
+        ? [createFinalMiddlewareWithDefaultResult()]
+        : otherMiddleware),
+    ],
   });
 }
 
@@ -260,10 +271,10 @@ export function expectProviderRequestNotToHaveBeenMade(
  * @returns The Jest spy object that represents `provider.request` (so that
  * you can make assertions on the method later, if you like).
  */
-export function stubProviderRequests(
-  provider: InternalProvider,
-  stubs: ProviderRequestStub<any, Json>[],
-) {
+export function stubProviderRequests<
+  Params extends JsonRpcParams = JsonRpcParams,
+  Result extends Json = Json,
+>(provider: InternalProvider, stubs: ProviderRequestStub<Params, Result>[]) {
   const remainingStubs = klona(stubs);
   const callNumbersByRequest = new Map<Partial<JsonRpcRequest>, number>();
   return jest.spyOn(provider, 'request').mockImplementation(async (request) => {
