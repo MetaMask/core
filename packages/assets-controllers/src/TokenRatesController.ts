@@ -11,7 +11,6 @@ import type {
 import {
   safelyExecute,
   toChecksumHexAddress,
-  FALL_BACK_VS_CURRENCY,
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -20,15 +19,11 @@ import type {
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import { createDeferredPromise, type Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
-import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare-service';
-import type {
-  AbstractTokenPricesService,
-  EvmAssetWithMarketData,
-} from './token-prices-service/abstract-token-prices-service';
+import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
 import type {
   TokensControllerGetStateAction,
@@ -174,43 +169,6 @@ export type TokenRatesControllerMessenger = Messenger<
   TokenRatesControllerEvents | AllowedEvents
 >;
 
-/**
- * Uses the CryptoCompare API to fetch the exchange rate between one currency
- * and another, i.e., the multiplier to apply the amount of one currency in
- * order to convert it to another.
- *
- * @param args - The arguments to this function.
- * @param args.from - The currency to convert from.
- * @param args.to - The currency to convert to.
- * @returns The exchange rate between `fromCurrency` to `toCurrency` if one
- * exists, or null if one does not.
- */
-async function getCurrencyConversionRate({
-  from,
-  to,
-}: {
-  from: string;
-  to: string;
-}) {
-  const includeUSDRate = false;
-  try {
-    const result = await fetchNativeCurrencyExchangeRate(
-      to,
-      from,
-      includeUSDRate,
-    );
-    return result.conversionRate;
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes('market does not exist for this coin pair')
-    ) {
-      return null;
-    }
-    throw error;
-  }
-}
-
 const tokenRatesControllerMetadata: StateMetadata<TokenRatesControllerState> = {
   marketData: {
     includeInStateLogs: false,
@@ -252,13 +210,9 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
   readonly #tokenPricesService: AbstractTokenPricesService;
 
-  #inProcessExchangeRateUpdates: Record<`${Hex}:${string}`, Promise<void>> = {};
-
   #disabled: boolean;
 
   readonly #interval: number;
-
-  readonly #getSelectedCurrency: () => string;
 
   #allTokens: TokensControllerState['allTokens'];
 
@@ -273,7 +227,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * @param options.tokenPricesService - An object in charge of retrieving token price
    * @param options.messenger - The messenger instance for communication
    * @param options.state - Initial state to set on this controller
-   * @param options.getSelectedCurrency - A function to fetch the selected currency
    */
   constructor({
     interval = DEFAULT_INTERVAL,
@@ -281,14 +234,12 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     tokenPricesService,
     messenger,
     state,
-    getSelectedCurrency,
   }: {
     interval?: number;
     disabled?: boolean;
     tokenPricesService: AbstractTokenPricesService;
     messenger: TokenRatesControllerMessenger;
     state?: Partial<TokenRatesControllerState>;
-    getSelectedCurrency: () => string;
   }) {
     super({
       name: controllerName,
@@ -301,7 +252,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.#tokenPricesService = tokenPricesService;
     this.#disabled = disabled;
     this.#interval = interval;
-    this.#getSelectedCurrency = getSelectedCurrency;
 
     const { allTokens, allDetectedTokens } = this.#getTokensControllerState();
     this.#allTokens = allTokens;
@@ -520,75 +470,14 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
   }
 
-  async updateExchangeRatesToCurrency(chainIds: Hex[]): Promise<void> {
-    if (this.#disabled) {
-      return;
-    }
-
-    const currency = this.#getSelectedCurrency();
-
-    const marketData: Record<Hex, Record<Hex, MarketDataDetails>> = {};
-    const assets: {
-      chainId: Hex;
-      tokenAddress: Hex;
-    }[] = [];
-    for (const chainId of chainIds) {
-      if (this.#tokenPricesService.validateChainIdSupported(chainId)) {
-        this.#getTokenAddresses(chainId).forEach((tokenAddress) => {
-          assets.push({
-            chainId,
-            tokenAddress,
-          });
-        });
-      } else {
-        marketData[chainId] = {};
-      }
-    }
-
-    await reduceInBatchesSerially<
-      { chainId: Hex; tokenAddress: Hex },
-      Record<Hex, Record<Hex, MarketDataDetails>>
-    >({
-      values: assets,
-      batchSize: TOKEN_PRICES_BATCH_SIZE,
-      eachBatch: async (partialMarketData, assetsBatch) => {
-        const batchMarketData = await this.#tokenPricesService.fetchTokenPrices(
-          {
-            assets: assetsBatch,
-            currency,
-          },
-        );
-
-        for (const tokenPrice of batchMarketData) {
-          (partialMarketData[tokenPrice.chainId] ??= {})[
-            tokenPrice.tokenAddress
-          ] = tokenPrice;
-        }
-
-        return partialMarketData;
-      },
-      initialResult: marketData,
-    });
-
-    if (Object.keys(marketData).length > 0) {
-      this.update((state) => {
-        state.marketData = {
-          ...state.marketData,
-          ...marketData,
-        };
-      });
-    }
-  }
-
-  async updateExchangeRatesToNative(chainIds: Hex[]): Promise<void> {
-    if (this.#disabled) {
-      return;
-    }
-
-    const { networkConfigurationsByChainId } = this.messenger.call(
-      'NetworkController:getState',
-    );
-
+  /**
+   * Updates exchange rates for all tokens.
+   *
+   * @param chainIdAndNativeCurrency - The chain ID and native currency.
+   */
+  async updateExchangeRatesByChainId(
+    chainIdAndNativeCurrency: ChainIdAndNativeCurrency[],
+  ): Promise<void> {
     const marketData: Record<Hex, Record<Hex, MarketDataDetails>> = {};
     const assetsByNativeCurrency: Record<
       string,
@@ -597,10 +486,8 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
         tokenAddress: Hex;
       }[]
     > = {};
-    for (const chainId of chainIds) {
+    for (const { chainId, nativeCurrency } of chainIdAndNativeCurrency) {
       if (this.#tokenPricesService.validateChainIdSupported(chainId)) {
-        const { nativeCurrency } = networkConfigurationsByChainId[chainId];
-
         this.#getTokenAddresses(chainId).forEach((tokenAddress) => {
           (assetsByNativeCurrency[nativeCurrency] ??= []).push({
             chainId,
@@ -653,279 +540,34 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   /**
-   * Updates exchange rates for all tokens.
-   *
-   * @param chainIds - The chain IDs.
-   * @returns A promise that resolves when all chain updates complete.
-   */
-  /**
-   * Updates exchange rates for all tokens.
-   *
-   * @param chainIdAndNativeCurrency - The chain ID and native currency.
-   */
-  async updateExchangeRatesByChainId(
-    chainIdAndNativeCurrency: ChainIdAndNativeCurrency[],
-  ): Promise<void> {
-    if (this.#disabled) {
-      return;
-    }
-
-    // Create a promise for each chainId to fetch exchange rates.
-    const updatePromises = chainIdAndNativeCurrency.map(
-      async ({ chainId, nativeCurrency }) => {
-        const tokenAddresses = this.#getTokenAddresses(chainId);
-        // Build a unique key based on chainId, nativeCurrency, and the number of token addresses.
-        const updateKey: `${Hex}:${string}` = `${chainId}:${nativeCurrency}:${tokenAddresses.length}`;
-
-        if (updateKey in this.#inProcessExchangeRateUpdates) {
-          // Await any ongoing update to avoid redundant work.
-          await this.#inProcessExchangeRateUpdates[updateKey];
-          return null;
-        }
-
-        // Create a deferred promise to track this update.
-        const {
-          promise: inProgressUpdate,
-          resolve: updateSucceeded,
-          reject: updateFailed,
-        } = createDeferredPromise({ suppressUnhandledRejection: true });
-        this.#inProcessExchangeRateUpdates[updateKey] = inProgressUpdate;
-
-        try {
-          const contractInformations = await this.#fetchAndMapExchangeRates({
-            tokenAddresses,
-            chainId,
-            nativeCurrency,
-          });
-
-          // Each promise returns an object with the market data for the chain.
-          const marketData = {
-            [chainId]: {
-              ...(contractInformations ?? {}),
-            },
-          };
-
-          updateSucceeded();
-          return marketData;
-        } catch (error: unknown) {
-          updateFailed(error);
-          throw error;
-        } finally {
-          // Cleanup the tracking for this update.
-          delete this.#inProcessExchangeRateUpdates[updateKey];
-        }
-      },
-    );
-
-    // Wait for all update promises to settle.
-    const results = await Promise.allSettled(updatePromises);
-
-    // Merge all successful market data updates into one object.
-    const combinedMarketData = results.reduce((acc, result) => {
-      if (result.status === 'fulfilled' && result.value) {
-        acc = { ...acc, ...result.value };
-      }
-      return acc;
-    }, {});
-
-    // Call this.update only once with the combined market data to reduce the number of state changes and re-renders
-    if (Object.keys(combinedMarketData).length > 0) {
-      this.update((state) => {
-        state.marketData = {
-          ...state.marketData,
-          ...combinedMarketData,
-        };
-      });
-    }
-  }
-
-  /**
-   * Uses the token prices service to retrieve exchange rates for tokens in a
-   * particular currency.
-   *
-   * If the price API does not support the given chain ID, returns an empty
-   * object.
-   *
-   * If the price API does not support the given currency, retrieves exchange
-   * rates in a known currency instead, then converts those rates using the
-   * exchange rate between the known currency and desired currency.
-   *
-   * @param args - The arguments to this function.
-   * @param args.tokenAddresses - Addresses for tokens.
-   * @param args.chainId - The EIP-155 ID of the chain where the tokens live.
-   * @param args.nativeCurrency - The native currency in which to request
-   * exchange rates.
-   * @returns A map from token address to its exchange rate in the native
-   * currency, or an empty map if no exchange rates can be obtained for the
-   * chain ID.
-   */
-  async #fetchAndMapExchangeRates({
-    tokenAddresses,
-    chainId,
-    nativeCurrency,
-  }: {
-    tokenAddresses: Hex[];
-    chainId: Hex;
-    nativeCurrency: string;
-  }): Promise<ContractMarketData> {
-    if (!this.#tokenPricesService.validateChainIdSupported(chainId)) {
-      return tokenAddresses.reduce((obj, tokenAddress) => {
-        obj = {
-          ...obj,
-          [tokenAddress]: undefined,
-        };
-
-        return obj;
-      }, {});
-    }
-
-    if (this.#tokenPricesService.validateCurrencySupported(nativeCurrency)) {
-      return await this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
-        tokenAddresses,
-        chainId,
-        nativeCurrency,
-      });
-    }
-
-    return await this.#fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
-      chainId,
-      tokenAddresses,
-      nativeCurrency,
-    });
-  }
-
-  /**
    * Updates token rates for the given networkClientId
    *
    * @param input - The input for the poll.
    * @param input.chainIds - The chain ids to poll token rates on.
    */
   async _executePoll({ chainIds }: TokenRatesPollingInput): Promise<void> {
-    await this.updateExchangeRatesToNative(chainIds);
-  }
+    const { networkConfigurationsByChainId } = this.messenger.call(
+      'NetworkController:getState',
+    );
 
-  /**
-   * Retrieves prices in the given currency for the given tokens on the given
-   * chain. Ensures that token addresses are checksum addresses.
-   *
-   * @param args - The arguments to this function.
-   * @param args.tokenAddresses - Addresses for tokens.
-   * @param args.chainId - The EIP-155 ID of the chain where the tokens live.
-   * @param args.nativeCurrency - The native currency in which to request
-   * prices.
-   * @returns A map of the token addresses (as checksums) to their prices in the
-   * native currency.
-   */
-  async #fetchAndMapExchangeRatesForSupportedNativeCurrency({
-    tokenAddresses,
-    chainId,
-    nativeCurrency,
-  }: {
-    tokenAddresses: Hex[];
-    chainId: Hex;
-    nativeCurrency: string;
-  }): Promise<ContractMarketData> {
-    return await reduceInBatchesSerially<
-      Hex,
-      Record<Hex, EvmAssetWithMarketData>
-    >({
-      values: [...tokenAddresses, getNativeTokenAddress(chainId)].sort(),
-      batchSize: TOKEN_PRICES_BATCH_SIZE,
-      eachBatch: async (allTokenPricesByTokenAddress, batch) => {
-        const tokenPricesByTokenAddressForBatch = (
-          await this.#tokenPricesService.fetchTokenPrices({
-            assets: batch.map((tokenAddress) => ({
-              chainId,
-              tokenAddress,
-            })),
-            currency: nativeCurrency,
-          })
-        ).reduce(
-          (acc, tokenPrice) => {
-            acc[tokenPrice.tokenAddress] = tokenPrice;
-            return acc;
-          },
-          {} as Record<Hex, EvmAssetWithMarketData>,
+    const chainIdAndNativeCurrency = chainIds.reduce<
+      { chainId: Hex; nativeCurrency: string }[]
+    >((acc, chainId) => {
+      const networkConfiguration = networkConfigurationsByChainId[chainId];
+      if (!networkConfiguration) {
+        console.error(
+          `TokenRatesController: No network configuration found for chainId ${chainId}`,
         );
-
-        return {
-          ...allTokenPricesByTokenAddress,
-          ...tokenPricesByTokenAddressForBatch,
-        };
-      },
-      initialResult: {},
-    });
-  }
-
-  /**
-   * If the price API does not support a given native currency, then we need to
-   * convert it to a fallback currency and feed that currency into the price
-   * API, then convert the prices to our desired native currency.
-   *
-   * @param args - The arguments to this function.
-   * @param args.chainId - The chain id to fetch prices for.
-   * @param args.tokenAddresses - Addresses for tokens.
-   * @param args.nativeCurrency - The native currency in which to request
-   * prices.
-   * @returns A map of the token addresses (as checksums) to their prices in the
-   * native currency.
-   */
-  async #fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
-    chainId,
-    tokenAddresses,
-    nativeCurrency,
-  }: {
-    chainId: Hex;
-    tokenAddresses: Hex[];
-    nativeCurrency: string;
-  }): Promise<ContractMarketData> {
-    const [
-      contractExchangeInformations,
-      fallbackCurrencyToNativeCurrencyConversionRate,
-    ] = await Promise.all([
-      this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
-        tokenAddresses,
+        return acc;
+      }
+      acc.push({
         chainId,
-        nativeCurrency: FALL_BACK_VS_CURRENCY,
-      }),
-      getCurrencyConversionRate({
-        from: FALL_BACK_VS_CURRENCY,
-        to: nativeCurrency,
-      }),
-    ]);
-
-    if (fallbackCurrencyToNativeCurrencyConversionRate === null) {
-      return {};
-    }
-
-    // Converts the price in the fallback currency to the native currency
-    const convertFallbackToNative = (value: number | undefined) =>
-      value !== undefined && value !== null
-        ? value * fallbackCurrencyToNativeCurrencyConversionRate
-        : undefined;
-
-    const updatedContractExchangeRates = Object.entries(
-      contractExchangeInformations,
-    ).reduce((acc, [tokenAddress, token]) => {
-      acc = {
-        ...acc,
-        [tokenAddress]: {
-          ...token,
-          currency: nativeCurrency,
-          price: convertFallbackToNative(token.price),
-          marketCap: convertFallbackToNative(token.marketCap),
-          allTimeHigh: convertFallbackToNative(token.allTimeHigh),
-          allTimeLow: convertFallbackToNative(token.allTimeLow),
-          totalVolume: convertFallbackToNative(token.totalVolume),
-          high1d: convertFallbackToNative(token.high1d),
-          low1d: convertFallbackToNative(token.low1d),
-          dilutedMarketCap: convertFallbackToNative(token.dilutedMarketCap),
-        },
-      };
+        nativeCurrency: networkConfiguration.nativeCurrency,
+      });
       return acc;
-    }, {});
+    }, []);
 
-    return updatedContractExchangeRates;
+    await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
   }
 
   /**
