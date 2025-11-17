@@ -8,6 +8,7 @@ import { AuthType } from './types';
 import type { Env, Platform } from '../../shared/env';
 import { getEnvUrls, getOidcClientId } from '../../shared/env';
 import type { MetaMetricsAuth } from '../../shared/types/services';
+import { HTTP_STATUS_CODES } from '../constants';
 import {
   NonceRetrievalError,
   PairError,
@@ -65,9 +66,9 @@ async function handleErrorResponse(
       : responseBody.error_description;
   const { error } = responseBody;
 
-  if (status === 429) {
+  if (status === HTTP_STATUS_CODES.TOO_MANY_REQUESTS) {
     throw new RateLimitedError(
-      `HTTP 429: ${message} (error: ${error})`,
+      `HTTP ${HTTP_STATUS_CODES.TOO_MANY_REQUESTS}: ${message} (error: ${error})`,
       retryAfterMs ?? undefined,
     );
   }

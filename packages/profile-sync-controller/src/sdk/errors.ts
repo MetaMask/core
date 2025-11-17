@@ -1,3 +1,5 @@
+import { HTTP_STATUS_CODES } from './constants';
+
 export class NonceRetrievalError extends Error {
   constructor(message: string) {
     super(message);
@@ -48,7 +50,7 @@ export class NotFoundError extends Error {
 }
 
 export class RateLimitedError extends Error {
-  readonly status = 429;
+  readonly status = HTTP_STATUS_CODES.TOO_MANY_REQUESTS;
 
   readonly retryAfterMs?: number;
 
@@ -70,7 +72,7 @@ export class RateLimitedError extends Error {
       (typeof e === 'object' &&
         e !== null &&
         'status' in e &&
-        (e as { status: number }).status === 429)
+        e.status === HTTP_STATUS_CODES.TOO_MANY_REQUESTS)
     );
   }
 }

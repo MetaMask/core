@@ -33,6 +33,7 @@ type JwtBearerAuth_SRP_Options = {
   signing?: AuthSigningOptions;
   rateLimitRetry?: {
     cooldownDefaultMs?: number; // default cooldown when 429 has no Retry-After
+    maxLoginRetries?: number; // maximum number of login retries on rate limit
   };
 };
 
@@ -81,6 +82,9 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   // Default cooldown when 429 has no Retry-After header
   readonly #cooldownDefaultMs: number;
 
+  // Maximum number of login retries on rate limit errors
+  readonly #maxLoginRetries: number;
+
   #customProvider?: Eip1193Provider;
 
   constructor(
@@ -103,6 +107,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     // Apply rate limit retry config if provided
     this.#cooldownDefaultMs =
       options.rateLimitRetry?.cooldownDefaultMs ?? 10000;
+    this.#maxLoginRetries = options.rateLimitRetry?.maxLoginRetries ?? 1;
   }
 
   setCustomProvider(provider: Eip1193Provider) {
@@ -255,8 +260,8 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   }
 
   async #loginWithRetry(entropySourceId?: string): Promise<LoginResponse> {
-    // Allow max 2 attempts: initial + one retry on 429
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    // Allow max attempts: initial + maxLoginRetries on 429
+    for (let attempt = 0; attempt < 1 + this.#maxLoginRetries; attempt += 1) {
       try {
         return await this.#performLogin(entropySourceId);
       } catch (e) {
@@ -265,14 +270,13 @@ export class SRPJwtBearerAuth implements IBaseAuth {
           throw e;
         }
 
-        // If we've exhausted attempts (>= 1 retry), rethrow
-        if (attempt >= 1) {
+        // If we've exhausted attempts, rethrow
+        if (attempt >= this.#maxLoginRetries) {
           throw e;
         }
 
         // Wait for Retry-After or default cooldown
-        const waitMs =
-          (e as RateLimitedError).retryAfterMs ?? this.#cooldownDefaultMs;
+        const waitMs = e.retryAfterMs ?? this.#cooldownDefaultMs;
         await timeUtils.delay(waitMs);
 
         // Loop continues to retry

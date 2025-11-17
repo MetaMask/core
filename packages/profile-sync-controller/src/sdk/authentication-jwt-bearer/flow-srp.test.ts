@@ -68,7 +68,10 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
   const createRateLimitError = (retryAfterMs?: number) =>
     new RateLimitedError('rate limited', retryAfterMs);
 
-  const createAuth = (overrides?: { cooldownDefaultMs?: number }) => {
+  const createAuth = (overrides?: {
+    cooldownDefaultMs?: number;
+    maxLoginRetries?: number;
+  }) => {
     const store: { value: LoginResponse | null } = { value: null };
 
     const auth = new SRPJwtBearerAuth(config, {
@@ -115,17 +118,13 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
   });
 
   it('applies cooldown and retries once on 429 with Retry-After', async () => {
-    const { auth } = createAuth({ cooldownDefaultMs: 20 });
+    const cooldownDefaultMs = 20;
+    const maxLoginRetries = 1;
+    const { auth } = createAuth({ cooldownDefaultMs, maxLoginRetries });
 
-    let first = true;
-    mockAuthenticate.mockImplementation(async () => {
-      // eslint-disable-next-line jest/no-conditional-in-test
-      if (first) {
-        first = false;
-        throw createRateLimitError(20);
-      }
-      return MOCK_AUTH_RESPONSE;
-    });
+    mockAuthenticate
+      .mockRejectedValueOnce(createRateLimitError(cooldownDefaultMs))
+      .mockResolvedValueOnce(MOCK_AUTH_RESPONSE);
 
     const p1 = auth.getAccessToken();
     const p2 = auth.getAccessToken();
@@ -135,22 +134,23 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
     expect(t2).toBe('access');
 
     // Should retry after rate limit error
-    expect(mockAuthenticate).toHaveBeenCalledTimes(2);
+    expect(mockAuthenticate).toHaveBeenCalledTimes(maxLoginRetries + 1);
     // Should apply cooldown delay
-    expect(mockDelay).toHaveBeenCalledWith(20);
+    expect(mockDelay).toHaveBeenCalledWith(cooldownDefaultMs);
   });
 
-  it('throws 429 after exhausting one retry', async () => {
-    const { auth } = createAuth({ cooldownDefaultMs: 20 });
+  it('throws 429 after exhausting all retries', async () => {
+    const cooldownDefaultMs = 20;
+    const maxLoginRetries = 1;
+    const { auth } = createAuth({ cooldownDefaultMs, maxLoginRetries });
 
-    mockAuthenticate.mockRejectedValue(createRateLimitError(20));
-
+    mockAuthenticate.mockRejectedValue(createRateLimitError(cooldownDefaultMs));
     await expect(auth.getAccessToken()).rejects.toThrow('rate limited');
 
-    // Should attempt initial + one retry = 2 attempts
-    expect(mockAuthenticate).toHaveBeenCalledTimes(2);
-    // Should apply cooldown delay once
-    expect(mockDelay).toHaveBeenCalledTimes(1);
+    // Should attempt initial + maxLoginRetries
+    expect(mockAuthenticate).toHaveBeenCalledTimes(1 + maxLoginRetries);
+    // Should apply cooldown delay
+    expect(mockDelay).toHaveBeenCalledTimes(maxLoginRetries);
   });
 
   it('throws transient errors immediately without retry', async () => {
