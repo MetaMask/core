@@ -11,6 +11,9 @@ import {
   encryptWithDetail,
   decryptWithKey as decryptWithKeyBrowserPassworder,
   importKey as importKeyBrowserPassworder,
+  exportKey as exportKeyBrowserPassworder,
+  generateSalt as generateSaltBrowserPassworder,
+  keyFromPassword as keyFromPasswordBrowserPassworder,
 } from '@metamask/browser-passworder';
 import {
   TOPRFError,
@@ -163,6 +166,9 @@ function getDefaultSeedlessOnboardingVaultEncryptor() {
       payload: unknown,
     ) => Promise<unknown>,
     importKey: importKeyBrowserPassworder,
+    exportKey: exportKeyBrowserPassworder,
+    generateSalt: generateSaltBrowserPassworder,
+    keyFromPassword: keyFromPasswordBrowserPassworder,
   };
 }
 
@@ -2451,7 +2457,7 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should throw an error if vault unlocked has invalid authentication data', async () => {
-      const mockVault = JSON.stringify({ foo: 'bar' });
+      const mockVault = JSON.stringify({ foo: 'bar', salt: 'baz' });
 
       await withController(
         {
