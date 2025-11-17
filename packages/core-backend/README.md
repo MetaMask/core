@@ -311,7 +311,7 @@ sequenceDiagram
 #### Key Flow Characteristics
 
 1. **Initial Setup**: BackendWebSocketService establishes connection, then AccountActivityService subscribes to selected account. Backend automatically sends a system notification with all chains that are currently up. AccountActivityService tracks these chains internally and notifies TokenBalancesController, which increases polling interval to 5 min
-2. **Chain Status Tracking**: AccountActivityService maintains an internal set of chains that are 'up' based on system notifications. On disconnect/error, it marks all tracked chains as 'down' before clearing the set
+2. **Chain Status Tracking**: AccountActivityService maintains an internal set of chains that are 'up' based on system notifications. On disconnect, it marks all tracked chains as 'down' before clearing the set
 3. **System Notifications**: Backend automatically sends chain status updates (up/down) upon subscription and when status changes. AccountActivityService forwards these to TokenBalancesController, which adjusts polling intervals (up: 5min, down: 30s + immediate fetch)
 4. **User Account Changes**: When users switch accounts, AccountActivityService unsubscribes from old account and subscribes to new account. Backend sends fresh system notification with current chain status for the new account
 5. **Connection Resilience**: On reconnection, AccountActivityService resubscribes to selected account and receives fresh chain status via system notification. Automatic reconnection with exponential backoff
