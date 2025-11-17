@@ -3293,6 +3293,59 @@ describe('createServicePolicy', () => {
     });
   });
 
+  describe.only('getRemainingCircuitOpenDuration', () => {
+    it('returns the number of milliseconds before the circuit will transition from open to half-open', async () => {
+      const mockService = () => {
+        throw new Error('failure');
+      };
+      const policy = createServicePolicy();
+      policy.onRetry(() => {
+        clock.next();
+      });
+      // Retry until we break the circuit
+      await ignoreRejection(policy.execute(mockService));
+      await ignoreRejection(policy.execute(mockService));
+      await ignoreRejection(policy.execute(mockService));
+      clock.tick(1000);
+
+      expect(policy.getRemainingCircuitOpenDuration()).toBe(
+        DEFAULT_CIRCUIT_BREAK_DURATION - 1000,
+      );
+    });
+
+    it('returns null if the circuit is closed', () => {
+      const policy = createServicePolicy();
+
+      expect(policy.getRemainingCircuitOpenDuration()).toBeNull();
+    });
+  });
+
+  describe.only('getCircuitState', () => {
+    it('returns the state of the circuit', async () => {
+      const mockService = () => {
+        throw new Error('failure');
+      };
+      const policy = createServicePolicy();
+      policy.onRetry(() => {
+        clock.next();
+      });
+
+      expect(policy.getCircuitState()).toBe(CircuitState.Closed);
+
+      // Retry until we break the circuit
+      await ignoreRejection(policy.execute(mockService));
+      await ignoreRejection(policy.execute(mockService));
+      await ignoreRejection(policy.execute(mockService));
+      expect(policy.getCircuitState()).toBe(CircuitState.Open);
+
+      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      const promise = ignoreRejection(policy.execute(mockService));
+      expect(policy.getCircuitState()).toBe(CircuitState.HalfOpen);
+      await promise;
+      expect(policy.getCircuitState()).toBe(CircuitState.Open);
+    });
+  });
+
   describe('reset', () => {
     it('resets the state of the circuit to "closed"', async () => {
       let invocationCounter = 0;
