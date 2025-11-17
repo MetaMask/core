@@ -1210,7 +1210,7 @@ export class PhishingController extends BaseController<
     chainId: string,
     address: string,
   ): Promise<AddressScanResult> => {
-    if (!address) {
+    if (!address || !chainId) {
       return {
         result_type: AddressScanResultType.Benign,
         label: '',
