@@ -262,41 +262,47 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
       );
 
       // Step 3: Fetch token prices for each chainId
-      const ratesFromTokenPrices = await Promise.all(
+      const ratesResults = await Promise.allSettled(
         Object.entries(currencyToChainIds).map(
           async ([nativeCurrency, { chainId }]) => {
-            try {
-              const nativeTokenAddress = getNativeTokenAddress(chainId);
-              const tokenPrices =
-                await this.#tokenPricesService.fetchTokenPrices({
-                  chainId,
-                  tokenAddresses: [nativeTokenAddress],
-                  currency: currentCurrency,
-                });
+            const nativeTokenAddress = getNativeTokenAddress(chainId);
+            const tokenPrices = await this.#tokenPricesService.fetchTokenPrices(
+              {
+                chainId,
+                tokenAddresses: [nativeTokenAddress],
+                currency: currentCurrency,
+              },
+            );
 
-              const tokenPrice = tokenPrices[nativeTokenAddress];
+            const tokenPrice = tokenPrices[nativeTokenAddress];
 
-              return {
-                nativeCurrency,
-                conversionDate: tokenPrice ? Date.now() / 1000 : null,
-                conversionRate: tokenPrice?.price ?? null,
-                usdConversionRate: null, // Token prices service doesn't provide USD rate in this context
-              };
-            } catch (error) {
-              console.error(
-                `Failed to fetch token price for ${nativeCurrency} on chain ${chainId}`,
-                error,
-              );
-              return {
-                nativeCurrency,
-                conversionDate: null,
-                conversionRate: null,
-                usdConversionRate: null,
-              };
-            }
+            return {
+              nativeCurrency,
+              conversionDate: tokenPrice ? Date.now() / 1000 : null,
+              conversionRate: tokenPrice?.price ?? null,
+              usdConversionRate: null, // Token prices service doesn't provide USD rate in this context
+            };
           },
         ),
       );
+
+      const ratesFromTokenPrices = ratesResults.map((result, index) => {
+        const [nativeCurrency, { chainId }] =
+          Object.entries(currencyToChainIds)[index];
+        if (result.status === 'fulfilled') {
+          return result.value;
+        }
+        console.error(
+          `Failed to fetch token price for ${nativeCurrency} on chain ${chainId}`,
+          result.reason,
+        );
+        return {
+          nativeCurrency,
+          conversionDate: null,
+          conversionRate: null,
+          usdConversionRate: null,
+        };
+      });
 
       // Step 4: Convert to the expected format
       const ratesFromTokenPricesService = ratesFromTokenPrices.reduce(
