@@ -10,9 +10,9 @@ import type { AnalyticsControllerState } from './AnalyticsController';
  * **State Computer Computations:**
  *
  * 1. **Enabled State** (`computeEnabledState`):
- *    - Determines whether analytics tracking is active
- *    - Rules: `controller_enabled = user_optedIn || user_socialOptedIn`
- *    - Analytics is enabled if the user has opted in through regular account OR social account
+ * - Determines whether analytics tracking is active
+ * - Rules: `controller_enabled = user_optedIn || user_socialOptedIn`
+ * - Analytics is enabled if the user has opted in through regular account OR social account
  *
  * 2. **Future computations** (e.g., feature flags, permissions, etc.)
  *
@@ -33,9 +33,7 @@ import type { AnalyticsControllerState } from './AnalyticsController';
  * @param state - The current controller state
  * @returns `true` if analytics tracking should be enabled, `false` otherwise
  */
-export function computeEnabledState(
-  state: AnalyticsControllerState,
-): boolean {
+export function computeEnabledState(state: AnalyticsControllerState): boolean {
   // Analytics is enabled if user has opted in through regular account OR social account
   // Rules:
   // - optIn==true && socialOptIn==true -> enabled=true
@@ -44,4 +42,3 @@ export function computeEnabledState(
   // - optIn==false && socialOptIn==false -> enabled=false
   return state.user_optedIn || state.user_socialOptedIn;
 }
-

@@ -1,5 +1,5 @@
-import { computeEnabledState } from './analyticsStateComputer';
 import type { AnalyticsControllerState } from './AnalyticsController';
+import { computeEnabledState } from './analyticsStateComputer';
 
 describe('analyticsStateComputer', () => {
   describe('computeEnabledState', () => {
@@ -85,4 +85,3 @@ describe('analyticsStateComputer', () => {
     });
   });
 });
-

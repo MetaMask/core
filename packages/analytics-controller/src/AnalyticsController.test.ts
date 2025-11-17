@@ -109,7 +109,8 @@ function createTestEvent(
   return {
     name,
     properties: properties as AnalyticsTrackingEvent['properties'],
-    sensitiveProperties: sensitiveProperties as AnalyticsTrackingEvent['sensitiveProperties'],
+    sensitiveProperties:
+      sensitiveProperties as AnalyticsTrackingEvent['sensitiveProperties'],
     saveDataRecording,
     isAnonymous: isAnon,
     hasProperties: hasProps,
@@ -183,7 +184,9 @@ describe('AnalyticsController', () => {
       });
 
       // The restored controller should have the same state as the original controller
-      expect(restoredController.state.user_analyticsId).toBe(originalAnalyticsId);
+      expect(restoredController.state.user_analyticsId).toBe(
+        originalAnalyticsId,
+      );
       expect(restoredController.isEnabled()).toBe(firstController.isEnabled());
       expect(restoredController.state.user_optedIn).toBe(
         firstController.state.user_optedIn,
@@ -750,9 +753,7 @@ describe('AnalyticsController', () => {
         state: { user_optedIn: false, user_socialOptedIn: false },
       });
 
-      expect(messenger.call('AnalyticsController:isSocialOptedIn')).toBe(
-        false,
-      );
+      expect(messenger.call('AnalyticsController:isSocialOptedIn')).toBe(false);
 
       controller.socialOptIn();
 
@@ -760,9 +761,7 @@ describe('AnalyticsController', () => {
 
       controller.socialOptOut();
 
-      expect(messenger.call('AnalyticsController:isSocialOptedIn')).toBe(
-        false,
-      );
+      expect(messenger.call('AnalyticsController:isSocialOptedIn')).toBe(false);
     });
   });
 });
