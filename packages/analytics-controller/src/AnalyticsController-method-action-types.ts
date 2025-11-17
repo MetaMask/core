@@ -10,8 +10,7 @@ import type { AnalyticsController } from './AnalyticsController';
  *
  * Events are only tracked if analytics is enabled.
  *
- * @param eventName - The name of the event
- * @param properties - Event properties
+ * @param event - Analytics event with properties and sensitive properties
  */
 export type AnalyticsControllerTrackEventAction = {
   type: `AnalyticsController:trackEvent`;
