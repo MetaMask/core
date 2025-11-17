@@ -9,13 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.1.0]
 
-### Uncategorized
-
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- chore(dev-deps): Bump `@ts-bridge/cli` from `^0.6.1` to `^0.6.4` ([#7039](https://github.com/MetaMask/core/pull/7039))
-- Release/650.0.0 ([#7003](https://github.com/MetaMask/core/pull/7003))
-
 ### Changed
 
 - Improve WebSocket connection lifecycle tracing in `BackendWebSocketService` ([#7101](https://github.com/MetaMask/core/pull/7101))
@@ -29,10 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Centralize all disconnection logic in `ws.onclose` handler for single source of truth
   - Centralize all state changes within `#establishConnection` method - state transitions only occur in `onopen` (CONNECTING → CONNECTED) and `onclose` (any state → DISCONNECTED)
   - Add `MANUAL_DISCONNECT_CODE` (4999) and `MANUAL_DISCONNECT_REASON` constants to distinguish manual from unexpected disconnects
+- Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
+- Bump `@ts-bridge/cli` from `^0.6.1` to `^0.6.4` ([#7039](https://github.com/MetaMask/core/pull/7039))
 
 ### Removed
 
 - Remove `BackendWebSocketService Channel Message` trace as it provided no useful performance insights ([#7101](https://github.com/MetaMask/core/pull/7101))
+
+### Fixed
+
+- Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
 
 ## [4.0.0]
 
