@@ -13,6 +13,7 @@ import {
   type AnalyticsPlatformAdapter,
   AnalyticsPlatformAdapterSetupError,
   getDefaultAnalyticsControllerState,
+  type AnalyticsTrackingEvent,
 } from '.';
 import type { AnalyticsControllerState } from '.';
 
@@ -85,6 +86,36 @@ function isValidUUIDv4(value: string): boolean {
   return uuidValidate(value) && uuidVersion(value) === 4;
 }
 
+/**
+ * Creates a test analytics tracking event.
+ *
+ * @param name - Event name
+ * @param properties - Event properties
+ * @param sensitiveProperties - Sensitive properties
+ * @param saveDataRecording - Whether to save data recording flag
+ * @returns A test tracking event
+ */
+function createTestEvent(
+  name: string,
+  properties: Record<string, unknown> = {},
+  sensitiveProperties: Record<string, unknown> = {},
+  saveDataRecording = true,
+): AnalyticsTrackingEvent {
+  const hasProps =
+    Object.keys(properties).length > 0 ||
+    Object.keys(sensitiveProperties).length > 0;
+  const isAnon = Object.keys(sensitiveProperties).length > 0;
+
+  return {
+    name,
+    properties: properties as AnalyticsTrackingEvent['properties'],
+    sensitiveProperties: sensitiveProperties as AnalyticsTrackingEvent['sensitiveProperties'],
+    saveDataRecording,
+    isAnonymous: isAnon,
+    hasProperties: hasProps,
+  };
+}
+
 describe('AnalyticsController', () => {
   const createMockAdapter = (): AnalyticsPlatformAdapter => ({
     track: jest.fn(),
@@ -99,9 +130,12 @@ describe('AnalyticsController', () => {
 
       const defaultState = getDefaultAnalyticsControllerState();
 
-      expect(controller.state.enabled).toBe(defaultState.enabled);
-      expect(controller.state.optedIn).toBe(defaultState.optedIn);
-      expect(isValidUUIDv4(controller.state.analyticsId)).toBe(true);
+      expect(controller.isEnabled()).toBe(false);
+      expect(controller.state.user_optedIn).toBe(defaultState.user_optedIn);
+      expect(controller.state.user_socialOptedIn).toBe(
+        defaultState.user_socialOptedIn,
+      );
+      expect(isValidUUIDv4(controller.state.user_analyticsId)).toBe(true);
     });
 
     it('generates a new UUID when no state is provided (first-time initialization)', () => {
@@ -109,10 +143,10 @@ describe('AnalyticsController', () => {
       const { controller: controller1 } = setupController();
       const { controller: controller2 } = setupController();
 
-      expect(isValidUUIDv4(controller1.state.analyticsId)).toBe(true);
-      expect(isValidUUIDv4(controller2.state.analyticsId)).toBe(true);
-      expect(controller1.state.analyticsId).not.toBe(
-        controller2.state.analyticsId,
+      expect(isValidUUIDv4(controller1.state.user_analyticsId)).toBe(true);
+      expect(isValidUUIDv4(controller2.state.user_analyticsId)).toBe(true);
+      expect(controller1.state.user_analyticsId).not.toBe(
+        controller2.state.user_analyticsId,
       );
     });
 
@@ -120,64 +154,64 @@ describe('AnalyticsController', () => {
       const customId = '550e8400-e29b-41d4-a716-446655440000';
       const { controller } = setupController({
         state: {
-          enabled: false,
-          optedIn: true,
-          analyticsId: customId,
+          user_optedIn: true,
+          user_socialOptedIn: false,
+          user_analyticsId: customId,
         },
       });
 
-      expect(controller.state.enabled).toBe(false);
-      expect(controller.state.optedIn).toBe(true);
-      expect(controller.state.analyticsId).toBe(customId);
+      expect(controller.isEnabled()).toBe(true);
+      expect(controller.state.user_optedIn).toBe(true);
+      expect(controller.state.user_socialOptedIn).toBe(false);
+      expect(controller.state.user_analyticsId).toBe(customId);
     });
 
     it('restores analyticsId from persisted state', () => {
       // First, create a controller (generates UUID)
       const { controller: firstController } = setupController();
-      const originalAnalyticsId = firstController.state.analyticsId;
+      const originalAnalyticsId = firstController.state.user_analyticsId;
 
       expect(isValidUUIDv4(originalAnalyticsId)).toBe(true);
 
       // Simulate restoration: create a new controller with the previous state
       const { controller: restoredController } = setupController({
         state: {
-          enabled: firstController.state.enabled,
-          optedIn: firstController.state.optedIn,
-          analyticsId: firstController.state.analyticsId,
+          user_optedIn: firstController.state.user_optedIn,
+          user_socialOptedIn: firstController.state.user_socialOptedIn,
+          user_analyticsId: firstController.state.user_analyticsId,
         },
       });
 
       // The restored controller should have the same state as the original controller
-      expect(restoredController.state.analyticsId).toBe(originalAnalyticsId);
-      expect(restoredController.state.enabled).toBe(
-        firstController.state.enabled,
-      );
-      expect(restoredController.state.optedIn).toBe(
-        firstController.state.optedIn,
+      expect(restoredController.state.user_analyticsId).toBe(originalAnalyticsId);
+      expect(restoredController.isEnabled()).toBe(firstController.isEnabled());
+      expect(restoredController.state.user_optedIn).toBe(
+        firstController.state.user_optedIn,
       );
     });
 
-    it('initializes with custom enabled/optedIn', () => {
+    it('initializes with custom optedIn', () => {
       const { controller } = setupController({
         state: {
-          enabled: false,
-          optedIn: true,
+          user_optedIn: true,
+          user_socialOptedIn: false,
         },
       });
 
-      expect(controller.state.enabled).toBe(false);
-      expect(controller.state.optedIn).toBe(true);
+      expect(controller.isEnabled()).toBe(true);
+      expect(controller.state.user_optedIn).toBe(true);
+      expect(controller.state.user_socialOptedIn).toBe(false);
     });
 
     it('uses default analyticsId when not provided in partial state', () => {
       const { controller } = setupController({
         state: {
-          enabled: false,
-          optedIn: true,
+          user_optedIn: true,
+          user_socialOptedIn: false,
         },
       });
 
-      expect(isValidUUIDv4(controller.state.analyticsId)).toBe(true);
+      expect(isValidUUIDv4(controller.state.user_analyticsId)).toBe(true);
     });
 
     it('initializes with default values when options are undefined', () => {
@@ -204,11 +238,14 @@ describe('AnalyticsController', () => {
       });
 
       const defaultState = getDefaultAnalyticsControllerState();
-      expect(controller.state.enabled).toBe(defaultState.enabled);
-      expect(controller.state.optedIn).toBe(defaultState.optedIn);
+      expect(controller.isEnabled()).toBe(false);
+      expect(controller.state.user_optedIn).toBe(defaultState.user_optedIn);
+      expect(controller.state.user_socialOptedIn).toBe(
+        defaultState.user_socialOptedIn,
+      );
       // analyticsId is auto-generated (UUIDv4)
-      expect(typeof controller.state.analyticsId).toBe('string');
-      expect(isValidUUIDv4(controller.state.analyticsId)).toBe(true);
+      expect(typeof controller.state.user_analyticsId).toBe('string');
+      expect(isValidUUIDv4(controller.state.user_analyticsId)).toBe(true);
     });
   });
 
@@ -218,7 +255,7 @@ describe('AnalyticsController', () => {
       const customId = '550e8400-e29b-41d4-a716-446655440000';
 
       setupController({
-        state: { analyticsId: customId },
+        state: { user_analyticsId: customId },
         platformAdapter: mockAdapter,
       });
 
@@ -235,9 +272,9 @@ describe('AnalyticsController', () => {
 
       expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
       expect(mockAdapter.onSetupCompleted).toHaveBeenCalledWith(
-        controller.state.analyticsId,
+        controller.state.user_analyticsId,
       );
-      expect(isValidUUIDv4(controller.state.analyticsId)).toBe(true);
+      expect(isValidUUIDv4(controller.state.user_analyticsId)).toBe(true);
     });
 
     it('throws error when analyticsId is empty string', () => {
@@ -245,7 +282,7 @@ describe('AnalyticsController', () => {
 
       expect(() => {
         setupController({
-          state: { analyticsId: '' },
+          state: { user_analyticsId: '' },
           platformAdapter: mockAdapter,
         });
       }).toThrow('Invalid analyticsId: expected a valid UUIDv4, but got ""');
@@ -258,7 +295,7 @@ describe('AnalyticsController', () => {
 
       expect(() => {
         setupController({
-          state: { analyticsId: undefined as unknown as string },
+          state: { user_analyticsId: undefined as unknown as string },
           platformAdapter: mockAdapter,
         });
       }).toThrow(
@@ -273,7 +310,7 @@ describe('AnalyticsController', () => {
 
       expect(() => {
         setupController({
-          state: { analyticsId: null as unknown as string },
+          state: { user_analyticsId: null as unknown as string },
           platformAdapter: mockAdapter,
         });
       }).toThrow('Invalid analyticsId: expected a valid UUIDv4, but got null');
@@ -286,7 +323,7 @@ describe('AnalyticsController', () => {
 
       expect(() => {
         setupController({
-          state: { analyticsId: 'not-a-uuid' },
+          state: { user_analyticsId: 'not-a-uuid' },
           platformAdapter: mockAdapter,
         });
       }).toThrow(
@@ -303,7 +340,7 @@ describe('AnalyticsController', () => {
 
       expect(() => {
         setupController({
-          state: { analyticsId: uuidV5 },
+          state: { user_analyticsId: uuidV5 },
           platformAdapter: mockAdapter,
         });
       }).toThrow(
@@ -329,17 +366,18 @@ describe('AnalyticsController', () => {
 
       // Controller should initialize successfully despite the error
       const { controller } = setupController({
-        state: { analyticsId: '550e8400-e29b-41d4-a716-446655440000' },
+        state: { user_analyticsId: '550e8400-e29b-41d4-a716-446655440000' },
         platformAdapter: mockAdapter,
       });
 
       // Controller should still be initialized with correct state
       expect(controller).toBeDefined();
-      expect(controller.state.analyticsId).toBe(
+      expect(controller.state.user_analyticsId).toBe(
         '550e8400-e29b-41d4-a716-446655440000',
       );
-      expect(controller.state.enabled).toBe(true);
-      expect(controller.state.optedIn).toBe(false);
+      expect(controller.isEnabled()).toBe(false);
+      expect(controller.state.user_optedIn).toBe(false);
+      expect(controller.state.user_socialOptedIn).toBe(false);
     });
 
     it('calls onSetupCompleted with analyticsId', () => {
@@ -347,44 +385,98 @@ describe('AnalyticsController', () => {
       const customId = '550e8400-e29b-41d4-a716-446655440000';
 
       const { controller } = setupController({
-        state: { analyticsId: customId },
+        state: { user_analyticsId: customId },
         platformAdapter: mockAdapter,
       });
 
       expect(mockAdapter.onSetupCompleted).toHaveBeenCalledWith(customId);
-      expect(controller.state.analyticsId).toBe(customId);
+      expect(controller.state.user_analyticsId).toBe(customId);
     });
   });
 
   describe('trackEvent', () => {
-    it('tracks event when enabled', () => {
+    it('tracks event when enabled via regular opt-in', () => {
       const mockAdapter = createMockAdapter();
-      const { controller } = setupController({ platformAdapter: mockAdapter });
+      const { controller } = setupController({
+        state: { user_optedIn: true, user_socialOptedIn: false },
+        platformAdapter: mockAdapter,
+      });
 
-      controller.trackEvent('test_event', { prop: 'value' });
+      const event = createTestEvent('test_event', { prop: 'value' });
+      controller.trackEvent(event);
 
       expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
+        anonymous: false,
         prop: 'value',
       });
     });
 
-    it('tracks event with default empty properties when properties not provided', () => {
+    it('tracks event when enabled via social opt-in', () => {
       const mockAdapter = createMockAdapter();
-      const { controller } = setupController({ platformAdapter: mockAdapter });
+      const { controller } = setupController({
+        state: { user_optedIn: false, user_socialOptedIn: true },
+        platformAdapter: mockAdapter,
+      });
 
-      controller.trackEvent('test_event');
+      const event = createTestEvent('test_event', { prop: 'value' });
+      controller.trackEvent(event);
 
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {});
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
+        anonymous: false,
+        prop: 'value',
+      });
+    });
+
+    it('tracks event with no properties when hasProperties is false', () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = setupController({
+        state: { user_optedIn: true, user_socialOptedIn: false },
+        platformAdapter: mockAdapter,
+      });
+
+      const event = createTestEvent('test_event', {}, {}, true);
+      controller.trackEvent(event);
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
+        anonymous: false,
+      });
+    });
+
+    it('tracks anonymous event when isAnonymous is true', () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = setupController({
+        state: { user_optedIn: true, user_socialOptedIn: false },
+        platformAdapter: mockAdapter,
+      });
+
+      const event = createTestEvent(
+        'test_event',
+        { prop: 'value' },
+        { sensitive: 'data' },
+      );
+      controller.trackEvent(event);
+
+      expect(mockAdapter.track).toHaveBeenCalledTimes(2);
+      expect(mockAdapter.track).toHaveBeenNthCalledWith(1, 'test_event', {
+        anonymous: false,
+        prop: 'value',
+      });
+      expect(mockAdapter.track).toHaveBeenNthCalledWith(2, 'test_event', {
+        anonymous: true,
+        prop: 'value',
+        sensitive: 'data',
+      });
     });
 
     it('does not track event when disabled', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
-        state: { enabled: false },
+        state: { user_optedIn: false, user_socialOptedIn: false },
         platformAdapter: mockAdapter,
       });
 
-      controller.trackEvent('test_event', { prop: 'value' });
+      const event = createTestEvent('test_event', { prop: 'value' });
+      controller.trackEvent(event);
 
       expect(mockAdapter.track).not.toHaveBeenCalled();
     });
@@ -395,7 +487,11 @@ describe('AnalyticsController', () => {
       const mockAdapter = createMockAdapter();
       const customId = '550e8400-e29b-41d4-a716-446655440000';
       const { controller } = setupController({
-        state: { analyticsId: customId },
+        state: {
+          user_analyticsId: customId,
+          user_optedIn: true,
+          user_socialOptedIn: false,
+        },
         platformAdapter: mockAdapter,
       });
 
@@ -406,14 +502,14 @@ describe('AnalyticsController', () => {
 
       controller.identify(traits);
 
-      expect(controller.state.analyticsId).toBe(customId);
+      expect(controller.state.user_analyticsId).toBe(customId);
       expect(mockAdapter.identify).toHaveBeenCalledWith(customId, traits);
     });
 
     it('does not identify when disabled', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
-        state: { enabled: false },
+        state: { user_optedIn: false, user_socialOptedIn: false },
         platformAdapter: mockAdapter,
       });
 
@@ -431,7 +527,10 @@ describe('AnalyticsController', () => {
   describe('trackView', () => {
     it('tracks view', () => {
       const mockAdapter = createMockAdapter();
-      const { controller } = setupController({ platformAdapter: mockAdapter });
+      const { controller } = setupController({
+        state: { user_optedIn: true, user_socialOptedIn: false },
+        platformAdapter: mockAdapter,
+      });
 
       controller.trackView('home', { referrer: 'test' });
 
@@ -443,7 +542,7 @@ describe('AnalyticsController', () => {
     it('does not track view when disabled', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
-        state: { enabled: false },
+        state: { user_optedIn: false, user_socialOptedIn: false },
         platformAdapter: mockAdapter,
       });
 
@@ -453,57 +552,91 @@ describe('AnalyticsController', () => {
     });
   });
 
-  describe('enable', () => {
-    it('enables analytics tracking', () => {
-      const { controller } = setupController({
-        state: { enabled: false },
-      });
-
-      expect(controller.state.enabled).toBe(false);
-
-      controller.enable();
-
-      expect(controller.state.enabled).toBe(true);
-    });
-  });
-
-  describe('disable', () => {
-    it('disables analytics tracking', () => {
-      const { controller } = setupController({
-        state: { enabled: true },
-      });
-
-      expect(controller.state.enabled).toBe(true);
-
-      controller.disable();
-
-      expect(controller.state.enabled).toBe(false);
-    });
-  });
-
   describe('optIn', () => {
-    it('opts in to analytics', () => {
+    it('opts in to analytics and enables tracking', () => {
       const { controller } = setupController();
 
-      expect(controller.state.optedIn).toBe(false);
+      expect(controller.state.user_optedIn).toBe(false);
+      expect(controller.isEnabled()).toBe(false);
 
       controller.optIn();
 
-      expect(controller.state.optedIn).toBe(true);
+      expect(controller.state.user_optedIn).toBe(true);
+      expect(controller.isEnabled()).toBe(true);
     });
   });
 
   describe('optOut', () => {
-    it('opts out of analytics', () => {
+    it('opts out of analytics and disables tracking when social opt-in is false', () => {
       const { controller } = setupController({
-        state: { optedIn: true },
+        state: { user_optedIn: true, user_socialOptedIn: false },
       });
 
-      expect(controller.state.optedIn).toBe(true);
+      expect(controller.state.user_optedIn).toBe(true);
+      expect(controller.isEnabled()).toBe(true);
 
       controller.optOut();
 
-      expect(controller.state.optedIn).toBe(false);
+      expect(controller.state.user_optedIn).toBe(false);
+      expect(controller.isEnabled()).toBe(false);
+    });
+
+    it('opts out of analytics but keeps tracking enabled when social opt-in is true', () => {
+      const { controller } = setupController({
+        state: { user_optedIn: true, user_socialOptedIn: true },
+      });
+
+      expect(controller.state.user_optedIn).toBe(true);
+      expect(controller.isEnabled()).toBe(true);
+
+      controller.optOut();
+
+      expect(controller.state.user_optedIn).toBe(false);
+      expect(controller.isEnabled()).toBe(true);
+    });
+  });
+
+  describe('socialOptIn', () => {
+    it('opts in to analytics through social account and enables tracking', () => {
+      const { controller } = setupController();
+
+      expect(controller.state.user_socialOptedIn).toBe(false);
+      expect(controller.isEnabled()).toBe(false);
+
+      controller.socialOptIn();
+
+      expect(controller.state.user_socialOptedIn).toBe(true);
+      expect(controller.isEnabled()).toBe(true);
+    });
+  });
+
+  describe('socialOptOut', () => {
+    it('opts out of analytics through social account and disables tracking when regular opt-in is false', () => {
+      const { controller } = setupController({
+        state: { user_optedIn: false, user_socialOptedIn: true },
+      });
+
+      expect(controller.state.user_socialOptedIn).toBe(true);
+      expect(controller.isEnabled()).toBe(true);
+
+      controller.socialOptOut();
+
+      expect(controller.state.user_socialOptedIn).toBe(false);
+      expect(controller.isEnabled()).toBe(false);
+    });
+
+    it('opts out of analytics through social account but keeps tracking enabled when regular opt-in is true', () => {
+      const { controller } = setupController({
+        state: { user_optedIn: true, user_socialOptedIn: true },
+      });
+
+      expect(controller.state.user_socialOptedIn).toBe(true);
+      expect(controller.isEnabled()).toBe(true);
+
+      controller.socialOptOut();
+
+      expect(controller.state.user_socialOptedIn).toBe(false);
+      expect(controller.isEnabled()).toBe(true);
     });
   });
 
@@ -511,40 +644,59 @@ describe('AnalyticsController', () => {
     it('returns analytics ID', () => {
       const customId = '550e8400-e29b-41d4-a716-446655440000';
       const { controller, messenger } = setupController({
-        state: { analyticsId: customId },
+        state: { user_analyticsId: customId },
       });
 
       const analyticsId = messenger.call('AnalyticsController:getAnalyticsId');
 
       expect(analyticsId).toBe(customId);
-      expect(analyticsId).toBe(controller.state.analyticsId);
+      expect(analyticsId).toBe(controller.state.user_analyticsId);
     });
   });
 
   describe('isEnabled', () => {
-    it('returns enabled status from state', () => {
+    it('returns enabled status computed from user state', () => {
       const { controller, messenger } = setupController({
-        state: { enabled: true },
+        state: { user_optedIn: true, user_socialOptedIn: false },
       });
 
       const isEnabled = messenger.call('AnalyticsController:isEnabled');
 
       expect(isEnabled).toBe(true);
-      expect(isEnabled).toBe(controller.state.enabled);
+      expect(isEnabled).toBe(controller.isEnabled());
     });
 
-    it('returns updated value when state changes', () => {
+    it('returns true when only social opt-in is true', () => {
       const { controller, messenger } = setupController({
-        state: { enabled: false },
+        state: { user_optedIn: false, user_socialOptedIn: true },
+      });
+
+      const isEnabled = messenger.call('AnalyticsController:isEnabled');
+
+      expect(isEnabled).toBe(true);
+      expect(isEnabled).toBe(controller.isEnabled());
+    });
+
+    it('returns updated value when user state changes', () => {
+      const { controller, messenger } = setupController({
+        state: { user_optedIn: false, user_socialOptedIn: false },
       });
 
       expect(messenger.call('AnalyticsController:isEnabled')).toBe(false);
 
-      controller.enable();
+      controller.optIn();
 
       expect(messenger.call('AnalyticsController:isEnabled')).toBe(true);
 
-      controller.disable();
+      controller.optOut();
+
+      expect(messenger.call('AnalyticsController:isEnabled')).toBe(false);
+
+      controller.socialOptIn();
+
+      expect(messenger.call('AnalyticsController:isEnabled')).toBe(true);
+
+      controller.socialOptOut();
 
       expect(messenger.call('AnalyticsController:isEnabled')).toBe(false);
     });
@@ -553,18 +705,18 @@ describe('AnalyticsController', () => {
   describe('isOptedIn', () => {
     it('returns opted in status from state', () => {
       const { controller, messenger } = setupController({
-        state: { optedIn: true },
+        state: { user_optedIn: true, user_socialOptedIn: false },
       });
 
       const isOptedIn = messenger.call('AnalyticsController:isOptedIn');
 
       expect(isOptedIn).toBe(true);
-      expect(isOptedIn).toBe(controller.state.optedIn);
+      expect(isOptedIn).toBe(controller.state.user_optedIn);
     });
 
     it('returns updated value when state changes', () => {
       const { controller, messenger } = setupController({
-        state: { optedIn: false },
+        state: { user_optedIn: false, user_socialOptedIn: false },
       });
 
       expect(messenger.call('AnalyticsController:isOptedIn')).toBe(false);
@@ -576,6 +728,41 @@ describe('AnalyticsController', () => {
       controller.optOut();
 
       expect(messenger.call('AnalyticsController:isOptedIn')).toBe(false);
+    });
+  });
+
+  describe('isSocialOptedIn', () => {
+    it('returns social opted in status from state', () => {
+      const { controller, messenger } = setupController({
+        state: { user_optedIn: false, user_socialOptedIn: true },
+      });
+
+      const isSocialOptedIn = messenger.call(
+        'AnalyticsController:isSocialOptedIn',
+      );
+
+      expect(isSocialOptedIn).toBe(true);
+      expect(isSocialOptedIn).toBe(controller.state.user_socialOptedIn);
+    });
+
+    it('returns updated value when state changes', () => {
+      const { controller, messenger } = setupController({
+        state: { user_optedIn: false, user_socialOptedIn: false },
+      });
+
+      expect(messenger.call('AnalyticsController:isSocialOptedIn')).toBe(
+        false,
+      );
+
+      controller.socialOptIn();
+
+      expect(messenger.call('AnalyticsController:isSocialOptedIn')).toBe(true);
+
+      controller.socialOptOut();
+
+      expect(messenger.call('AnalyticsController:isSocialOptedIn')).toBe(
+        false,
+      );
     });
   });
 });

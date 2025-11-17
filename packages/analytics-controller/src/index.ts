@@ -10,6 +10,7 @@ export type {
   AnalyticsEventProperties,
   AnalyticsUserTraits,
   AnalyticsPlatformAdapter,
+  AnalyticsTrackingEvent,
 } from './AnalyticsPlatformAdapter.types';
 
 // Export state types and utilities
@@ -31,11 +32,13 @@ export type {
   AnalyticsControllerTrackEventAction,
   AnalyticsControllerIdentifyAction,
   AnalyticsControllerTrackViewAction,
-  AnalyticsControllerEnableAction,
-  AnalyticsControllerDisableAction,
   AnalyticsControllerOptInAction,
   AnalyticsControllerOptOutAction,
+  AnalyticsControllerSocialOptInAction,
+  AnalyticsControllerSocialOptOutAction,
   AnalyticsControllerGetAnalyticsIdAction,
   AnalyticsControllerIsEnabledAction,
+  AnalyticsControllerIsOptedInAction,
+  AnalyticsControllerIsSocialOptedInAction,
   AnalyticsControllerMethodActions,
 } from './AnalyticsController-method-action-types';

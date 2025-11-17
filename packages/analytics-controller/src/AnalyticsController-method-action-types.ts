@@ -40,23 +40,8 @@ export type AnalyticsControllerTrackViewAction = {
 };
 
 /**
- * Enable analytics tracking.
- */
-export type AnalyticsControllerEnableAction = {
-  type: `AnalyticsController:enable`;
-  handler: AnalyticsController['enable'];
-};
-
-/**
- * Disable analytics tracking.
- */
-export type AnalyticsControllerDisableAction = {
-  type: `AnalyticsController:disable`;
-  handler: AnalyticsController['disable'];
-};
-
-/**
  * Opt in to analytics.
+ * This updates the user's opt-in status.
  */
 export type AnalyticsControllerOptInAction = {
   type: `AnalyticsController:optIn`;
@@ -65,10 +50,29 @@ export type AnalyticsControllerOptInAction = {
 
 /**
  * Opt out of analytics.
+ * This updates the user's opt-in status.
  */
 export type AnalyticsControllerOptOutAction = {
   type: `AnalyticsController:optOut`;
   handler: AnalyticsController['optOut'];
+};
+
+/**
+ * Opt in to analytics through social account.
+ * This updates the user's social opt-in status.
+ */
+export type AnalyticsControllerSocialOptInAction = {
+  type: `AnalyticsController:socialOptIn`;
+  handler: AnalyticsController['socialOptIn'];
+};
+
+/**
+ * Opt out of analytics through social account.
+ * This updates the user's social opt-in status.
+ */
+export type AnalyticsControllerSocialOptOutAction = {
+  type: `AnalyticsController:socialOptOut`;
+  handler: AnalyticsController['socialOptOut'];
 };
 
 /**
@@ -83,6 +87,7 @@ export type AnalyticsControllerGetAnalyticsIdAction = {
 
 /**
  * Get the enabled status from the controller state.
+ * This is computed from user state via the state machine.
  *
  * @returns The current enabled status.
  */
@@ -102,16 +107,27 @@ export type AnalyticsControllerIsOptedInAction = {
 };
 
 /**
+ * Get the social opted in status from the controller state.
+ *
+ * @returns The current social opted in status.
+ */
+export type AnalyticsControllerIsSocialOptedInAction = {
+  type: `AnalyticsController:isSocialOptedIn`;
+  handler: AnalyticsController['isSocialOptedIn'];
+};
+
+/**
  * Union of all AnalyticsController action types.
  */
 export type AnalyticsControllerMethodActions =
   | AnalyticsControllerTrackEventAction
   | AnalyticsControllerIdentifyAction
   | AnalyticsControllerTrackViewAction
-  | AnalyticsControllerEnableAction
-  | AnalyticsControllerDisableAction
   | AnalyticsControllerOptInAction
   | AnalyticsControllerOptOutAction
+  | AnalyticsControllerSocialOptInAction
+  | AnalyticsControllerSocialOptOutAction
   | AnalyticsControllerGetAnalyticsIdAction
   | AnalyticsControllerIsEnabledAction
-  | AnalyticsControllerIsOptedInAction;
+  | AnalyticsControllerIsOptedInAction
+  | AnalyticsControllerIsSocialOptedInAction;

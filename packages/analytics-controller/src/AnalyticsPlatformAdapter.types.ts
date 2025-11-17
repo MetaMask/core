@@ -1,6 +1,28 @@
 import type { Json } from '@metamask/utils';
 
 /**
+ * Represents values that can be passed as properties to the event tracking function.
+ * Similar to JsonValue from Segment SDK but decoupled for platform agnosticism.
+ */
+type AnalyticsJsonValue =
+  | boolean
+  | number
+  | string
+  | null
+  | AnalyticsJsonValue[]
+  | AnalyticsJsonMap
+  | undefined;
+
+/**
+ * Represents the map object used to pass properties to the event tracking function.
+ * Similar to JsonMap from Segment SDK but decoupled for platform agnosticism.
+ */
+type AnalyticsJsonMap = {
+  [key: string]: AnalyticsJsonValue;
+  [index: number]: AnalyticsJsonValue;
+};
+
+/**
  * Analytics event properties
  */
 export type AnalyticsEventProperties = Record<string, Json>;
@@ -9,6 +31,19 @@ export type AnalyticsEventProperties = Record<string, Json>;
  * User traits/properties for analytics identification
  */
 export type AnalyticsUserTraits = Record<string, Json>;
+
+/**
+ * Event properties structure with two distinct properties lists for anonymous and non-anonymous data.
+ * Similar to ITrackingEvent from legacy analytics but decoupled for platform agnosticism.
+ */
+export type AnalyticsTrackingEvent = {
+  readonly name: string;
+  properties: AnalyticsJsonMap;
+  sensitiveProperties: AnalyticsJsonMap;
+  saveDataRecording: boolean;
+  readonly isAnonymous: boolean;
+  readonly hasProperties: boolean;
+};
 
 /**
  * Platform adapter interface for analytics tracking

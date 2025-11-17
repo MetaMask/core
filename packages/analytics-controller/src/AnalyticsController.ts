@@ -17,7 +17,9 @@ import type {
   AnalyticsPlatformAdapter,
   AnalyticsEventProperties,
   AnalyticsUserTraits,
+  AnalyticsTrackingEvent,
 } from './AnalyticsPlatformAdapter.types';
+import { computeEnabledState } from './analyticsStateComputer';
 
 // === GENERAL ===
 
@@ -35,38 +37,38 @@ export const controllerName = 'AnalyticsController';
  */
 export type AnalyticsControllerState = {
   /**
-   * Whether analytics tracking is enabled
+   * User domain: Whether the user has opted in to analytics.
    */
-  enabled: boolean;
+  user_optedIn: boolean;
 
   /**
-   * Whether the user has opted in to analytics
+   * User domain: Whether the user has opted in to analytics through social account.
    */
-  optedIn: boolean;
+  user_socialOptedIn: boolean;
 
   /**
-   * User's UUIDv4 analytics identifier
+   * User domain: User's UUIDv4 analytics identifier.
    */
-  analyticsId: string;
+  user_analyticsId: string;
 };
 
 /**
  * The metadata for each property in {@link AnalyticsControllerState}.
  */
 const analyticsControllerMetadata = {
-  enabled: {
+  user_optedIn: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
-  optedIn: {
+  user_socialOptedIn: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
-  analyticsId: {
+  user_analyticsId: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
@@ -84,9 +86,9 @@ const analyticsControllerMetadata = {
  */
 export function getDefaultAnalyticsControllerState(): AnalyticsControllerState {
   return {
-    enabled: true,
-    optedIn: false,
-    analyticsId: uuidv4(),
+    user_optedIn: false,
+    user_socialOptedIn: false,
+    user_analyticsId: uuidv4(),
   };
 }
 
@@ -96,13 +98,14 @@ const MESSENGER_EXPOSED_METHODS = [
   'trackEvent',
   'identify',
   'trackView',
-  'enable',
-  'disable',
   'optIn',
   'optOut',
+  'socialOptIn',
+  'socialOptOut',
   'getAnalyticsId',
   'isEnabled',
   'isOptedIn',
+  'isSocialOptedIn',
 ] as const;
 
 /**
@@ -189,7 +192,7 @@ export class AnalyticsController extends BaseController<
    *
    * @param options - Controller options
    * @param options.state - Initial controller state (defaults from getDefaultAnalyticsControllerState).
-   * For migration from a previous system, pass the existing analytics ID via state.analyticsId.
+   * For migration from a previous system, pass the existing analytics ID via state.user_analyticsId.
    * @param options.messenger - Messenger used to communicate with BaseController
    * @param options.platformAdapter - Platform adapter implementation for tracking
    */
@@ -198,13 +201,15 @@ export class AnalyticsController extends BaseController<
     messenger,
     platformAdapter,
   }: AnalyticsControllerOptions) {
+    const initialState = {
+      ...getDefaultAnalyticsControllerState(),
+      ...state,
+    };
+
     super({
       name: controllerName,
       metadata: analyticsControllerMetadata,
-      state: {
-        ...getDefaultAnalyticsControllerState(),
-        ...state,
-      },
+      state: initialState,
       messenger,
     });
 
@@ -216,20 +221,21 @@ export class AnalyticsController extends BaseController<
     );
 
     projectLogger('AnalyticsController initialized and ready', {
-      enabled: this.state.enabled,
-      optedIn: this.state.optedIn,
-      analyticsId: this.state.analyticsId,
+      enabled: computeEnabledState(this.state),
+      optedIn: this.state.user_optedIn,
+      socialOptedIn: this.state.user_socialOptedIn,
+      analyticsId: this.state.user_analyticsId,
     });
 
     // Call onSetupCompleted lifecycle hook after initialization
     // Only call if analyticsId is set and is a valid UUIDv4 (this is the definition of "completed" setup)
     if (
-      this.state.analyticsId &&
-      uuidValidate(this.state.analyticsId) &&
-      uuidVersion(this.state.analyticsId) === 4
+      this.state.user_analyticsId &&
+      uuidValidate(this.state.user_analyticsId) &&
+      uuidVersion(this.state.user_analyticsId) === 4
     ) {
       try {
-        this.#platformAdapter.onSetupCompleted(this.state.analyticsId);
+        this.#platformAdapter.onSetupCompleted(this.state.user_analyticsId);
       } catch (error) {
         // Log error but don't throw - adapter setup failure shouldn't break controller
         projectLogger('Error calling platformAdapter.onSetupCompleted', error);
@@ -237,7 +243,7 @@ export class AnalyticsController extends BaseController<
     } else {
       // analyticsId is undefined, null, empty string, or not a valid UUIDv4
       throw new Error(
-        `Invalid analyticsId: expected a valid UUIDv4, but got ${JSON.stringify(this.state.analyticsId)}`,
+        `Invalid analyticsId: expected a valid UUIDv4, but got ${JSON.stringify(this.state.user_analyticsId)}`,
       );
     }
   }
@@ -247,20 +253,38 @@ export class AnalyticsController extends BaseController<
    *
    * Events are only tracked if analytics is enabled.
    *
-   * @param eventName - The name of the event
-   * @param properties - Event properties
+   * @param event - Analytics event with properties and sensitive properties
    */
-  trackEvent(
-    eventName: string,
-    properties: AnalyticsEventProperties = {},
-  ): void {
+  trackEvent(event: AnalyticsTrackingEvent): void {
     // Don't track if analytics is disabled
-    if (!this.state.enabled) {
+    if (!computeEnabledState(this.state)) {
       return;
     }
 
-    // Delegate to platform adapter
-    this.#platformAdapter.track(eventName, properties);
+    // if event does not have properties, only send the non-anonymous empty event
+    // and return to prevent any additional processing
+    if (!event.hasProperties) {
+      this.#platformAdapter.track(event.name, {
+        anonymous: false,
+      } as AnalyticsEventProperties);
+
+      return;
+    }
+
+    // Log all non-anonymous properties, or an empty event if there's no non-anon props.
+    this.#platformAdapter.track(event.name, {
+      anonymous: false,
+      ...event.properties,
+    } as AnalyticsEventProperties);
+
+    // Track all sensitive properties in an anonymous event
+    if (event.isAnonymous) {
+      this.#platformAdapter.track(event.name, {
+        anonymous: true,
+        ...event.properties,
+        ...event.sensitiveProperties,
+      } as AnalyticsEventProperties);
+    }
   }
 
   /**
@@ -269,13 +293,13 @@ export class AnalyticsController extends BaseController<
    * @param traits - User traits/properties
    */
   identify(traits?: AnalyticsUserTraits): void {
-    if (!this.state.enabled) {
+    if (!computeEnabledState(this.state)) {
       return;
     }
 
     // Delegate to platform adapter if supported, using the current analytics ID
     if (this.#platformAdapter.identify) {
-      this.#platformAdapter.identify(this.state.analyticsId, traits);
+      this.#platformAdapter.identify(this.state.user_analyticsId, traits);
     }
   }
 
@@ -286,7 +310,7 @@ export class AnalyticsController extends BaseController<
    * @param properties - UI item properties
    */
   trackView(name: string, properties?: AnalyticsEventProperties): void {
-    if (!this.state.enabled) {
+    if (!computeEnabledState(this.state)) {
       return;
     }
 
@@ -295,38 +319,42 @@ export class AnalyticsController extends BaseController<
   }
 
   /**
-   * Enable analytics tracking.
-   */
-  enable(): void {
-    this.update((state) => {
-      state.enabled = true;
-    });
-  }
-
-  /**
-   * Disable analytics tracking.
-   */
-  disable(): void {
-    this.update((state) => {
-      state.enabled = false;
-    });
-  }
-
-  /**
    * Opt in to analytics.
+   * This updates the user's opt-in status.
    */
   optIn(): void {
     this.update((state) => {
-      state.optedIn = true;
+      state.user_optedIn = true;
     });
   }
 
   /**
    * Opt out of analytics.
+   * This updates the user's opt-in status.
    */
   optOut(): void {
     this.update((state) => {
-      state.optedIn = false;
+      state.user_optedIn = false;
+    });
+  }
+
+  /**
+   * Opt in to analytics through social account.
+   * This updates the user's social opt-in status.
+   */
+  socialOptIn(): void {
+    this.update((state) => {
+      state.user_socialOptedIn = true;
+    });
+  }
+
+  /**
+   * Opt out of analytics through social account.
+   * This updates the user's social opt-in status.
+   */
+  socialOptOut(): void {
+    this.update((state) => {
+      state.user_socialOptedIn = false;
     });
   }
 
@@ -336,16 +364,17 @@ export class AnalyticsController extends BaseController<
    * @returns The current analytics ID.
    */
   getAnalyticsId(): string {
-    return this.state.analyticsId;
+    return this.state.user_analyticsId;
   }
 
   /**
    * Get the enabled status from the controller state.
+   * This is computed from user state via the state machine.
    *
    * @returns The current enabled status.
    */
   isEnabled(): boolean {
-    return this.state.enabled;
+    return computeEnabledState(this.state);
   }
 
   /**
@@ -354,6 +383,15 @@ export class AnalyticsController extends BaseController<
    * @returns The current opted in status.
    */
   isOptedIn(): boolean {
-    return this.state.optedIn;
+    return this.state.user_optedIn;
+  }
+
+  /**
+   * Get the social opted in status from the controller state.
+   *
+   * @returns The current social opted in status.
+   */
+  isSocialOptedIn(): boolean {
+    return this.state.user_socialOptedIn;
   }
 }
