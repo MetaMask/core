@@ -156,7 +156,9 @@ const AVAILABILITY_STATUSES = {
 } as const;
 
 /**
- * An availability status that the service can be in.
+ * Availability statuses that the service can be in.
+ *
+ * Used to keep track of whether the `onAvailable` event should be fired.
  */
 type AvailabilityStatus =
   (typeof AVAILABILITY_STATUSES)[keyof typeof AVAILABILITY_STATUSES];
