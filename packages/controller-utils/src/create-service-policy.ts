@@ -144,9 +144,23 @@ type InternalCircuitState =
   | { state: Exclude<CircuitState, CircuitState.Open> };
 
 /**
- * Used to keep track of whether the onAvailable event should be fired.
+ * List of avalability statuses.
+ *
+ * Used to keep track of whether the `onAvailable` event should be fired.
  */
-type AvailabilityStatus = 'unknown' | 'available' | 'unavailable';
+const AVAILABILITY_STATUSES = {
+  Unknown: 'unknown',
+  Available: 'available',
+  Unavailable: 'unavailable',
+};
+
+/**
+ * An availability status.
+ *
+ * Used to keep track of whether the `onAvailable` event should be fired.
+ */
+type AvailabilityStatus =
+  (typeof AVAILABILITY_STATUSES)[keyof typeof AVAILABILITY_STATUSES];
 
 /**
  * The maximum number of times that a failing service should be re-run before
@@ -270,7 +284,7 @@ export function createServicePolicy(
     backoff = new ExponentialBackoff(),
   } = options;
 
-  let availabilityStatus: AvailabilityStatus = 'unknown';
+  let availabilityStatus: AvailabilityStatus = AVAILABILITY_STATUSES.Unknown;
 
   const retryPolicy = retry(retryFilterPolicy, {
     // Note that although the option here is called "max attempts", it's really
@@ -302,7 +316,7 @@ export function createServicePolicy(
   });
 
   circuitBreakerPolicy.onBreak(() => {
-    availabilityStatus = 'unavailable';
+    availabilityStatus = AVAILABILITY_STATUSES.Unavailable;
   });
   const onBreak = circuitBreakerPolicy.onBreak.bind(circuitBreakerPolicy);
 
@@ -322,8 +336,8 @@ export function createServicePolicy(
     if (circuitBreakerPolicy.state === CircuitState.Closed) {
       if (duration > degradedThreshold) {
         onDegradedEventEmitter.emit();
-      } else if (availabilityStatus !== 'available') {
-        availabilityStatus = 'available';
+      } else if (availabilityStatus !== AVAILABILITY_STATUSES.Available) {
+        availabilityStatus = AVAILABILITY_STATUSES.Available;
         onAvailableEventEmitter.emit();
       }
     }
@@ -374,7 +388,7 @@ export function createServicePolicy(
 
     // Re-initialize the availability status so that if the service is executed
     // successfully, onAvailable listeners will be called again
-    availabilityStatus = 'unknown';
+    availabilityStatus = AVAILABILITY_STATUSES.Unknown;
   };
 
   return {
