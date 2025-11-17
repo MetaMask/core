@@ -14,16 +14,6 @@ export type ExchangeRate = {
   usd?: number;
 };
 
-// /**
-//  * A map of token address to its price.
-//  */
-// export type TokenPricesByTokenAddress<
-//   ChainId extends Hex = Hex,
-//   Currency extends string = string,
-// > = {
-//   [A in Hex]: EvmAssetWithMarketData<ChainId, Currency>;
-// };
-
 /**
  * A map of currency to its exchange rate.
  */
