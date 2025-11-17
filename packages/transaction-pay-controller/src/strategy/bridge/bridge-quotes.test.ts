@@ -135,6 +135,8 @@ describe('Bridge Quotes Utils', () => {
 
     calculateGasCostMock.mockReturnValue({
       fiat: '0.1',
+      human: '0.051',
+      raw: '51000000000000',
       usd: '0.2',
     });
 
@@ -715,6 +717,8 @@ describe('Bridge Quotes Utils', () => {
     it('returns target network fee in quote', async () => {
       calculateTransactionGasCostMock.mockReturnValue({
         fiat: '1.23',
+        human: '0.000123',
+        raw: '123000000000000',
         usd: '2.34',
       });
 
@@ -735,6 +739,8 @@ describe('Bridge Quotes Utils', () => {
       it('for trade only', async () => {
         calculateGasCostMock.mockReturnValue({
           fiat: '1.23',
+          human: '0.000123',
+          raw: '123000000000000',
           usd: '2.34',
         });
 
@@ -756,8 +762,7 @@ describe('Bridge Quotes Utils', () => {
 
         expect(quotes[0].fees).toMatchObject({
           sourceNetwork: {
-            fiat: '1.23',
-            usd: '2.34',
+            estimate: { fiat: '1.23', usd: '2.34' },
           },
         });
       });
@@ -765,6 +770,8 @@ describe('Bridge Quotes Utils', () => {
       it('for trade and approval', async () => {
         calculateGasCostMock.mockReturnValue({
           fiat: '1.23',
+          human: '0.000123',
+          raw: '123000000000000',
           usd: '2.34',
         });
 
@@ -790,8 +797,10 @@ describe('Bridge Quotes Utils', () => {
 
         expect(quotes[0].fees).toMatchObject({
           sourceNetwork: {
-            fiat: '2.46',
-            usd: '4.68',
+            estimate: {
+              fiat: '2.46',
+              usd: '4.68',
+            },
           },
         });
       });

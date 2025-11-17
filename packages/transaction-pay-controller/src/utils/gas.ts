@@ -4,9 +4,17 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getNativeToken, getTokenFiatRate } from './token';
+import {
+  getNativeToken,
+  getTokenBalance,
+  getTokenFiatRate,
+  getTokenInfo,
+} from './token';
 import type { TransactionPayControllerMessenger } from '..';
-import type { FiatValue } from '../types';
+import { createModuleLogger, projectLogger } from '../logger';
+import type { Amount } from '../types';
+
+const log = createModuleLogger(projectLogger, 'gas');
 
 /**
  *
@@ -14,23 +22,62 @@ import type { FiatValue } from '../types';
  *
  * @param transaction - Transaction to calculate gas cost for
  * @param messenger - Controller messenger.
+ * @param options - Calculation options.
+ * @param options.isMax - Whether to calculate the maximum fee.
  * @returns Estimated gas cost for the transaction.
  */
 export function calculateTransactionGasCost(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-): FiatValue {
-  const { chainId, gasUsed, gasLimitNoBuffer, txParams } = transaction;
-  const { gas, maxFeePerGas, maxPriorityFeePerGas } = txParams;
+  { isMax }: { isMax?: boolean } = {},
+): Amount & { isGasFeeToken?: boolean } {
+  const {
+    chainId,
+    gasUsed: gasUsedOriginal,
+    gasLimitNoBuffer,
+    txParams,
+  } = transaction;
+
+  const { from, gas, maxFeePerGas, maxPriorityFeePerGas } = txParams;
+  const gasUsed = isMax ? undefined : gasUsedOriginal;
   const finalGas = gasUsed || gasLimitNoBuffer || gas || '0x0';
 
-  return calculateGasCost({
+  const result = calculateGasCost({
     chainId,
     gas: finalGas,
+    isMax,
     maxFeePerGas,
     maxPriorityFeePerGas,
     messenger,
   });
+
+  const max = calculateGasCost({
+    chainId,
+    gas: finalGas,
+    isMax: true,
+    messenger,
+  });
+
+  const nativeBalance = getTokenBalance(
+    messenger,
+    from as Hex,
+    chainId,
+    getNativeToken(chainId),
+  );
+
+  const hasBalance = new BigNumber(nativeBalance).gte(max.raw);
+
+  const gasFeeTokenCost = calculateGasFeeTokenCost({
+    hasBalance,
+    messenger,
+    transaction,
+  });
+
+  if (gasFeeTokenCost) {
+    return gasFeeTokenCost;
+  }
+
+  return result;
 }
 
 /**
@@ -39,21 +86,25 @@ export function calculateTransactionGasCost(
  * @param request - Gas cost calculation parameters.
  * @param request.chainId - ID of the chain.
  * @param request.gas - Amount of gas the transaction will use.
+ * @param request.isMax - Whether to calculate the maximum fee.
  * @param request.maxFeePerGas - Max fee to pay per gas.
  * @param request.maxPriorityFeePerGas - Max priority fee to pay per gas.
  * @param request.messenger - Controller messenger.
+ 
  * @returns Estimated gas cost for the transaction.
  */
 export function calculateGasCost(request: {
   chainId: number | Hex;
   gas: BigNumber.Value;
+  isMax?: boolean;
   maxFeePerGas?: BigNumber.Value;
   maxPriorityFeePerGas?: BigNumber.Value;
   messenger: TransactionPayControllerMessenger;
-}): FiatValue {
+}): Amount {
   const {
     chainId: chainIdInput,
     gas,
+    isMax,
     maxFeePerGas: maxFeePerGasInput,
     maxPriorityFeePerGas: maxPriorityFeePerGasInput,
     messenger,
@@ -73,13 +124,15 @@ export function calculateGasCost(request: {
     maxPriorityFeePerGasInput || maxPriorityFeePerGasEstimate;
 
   const feePerGas =
-    estimatedBaseFee && maxPriorityFeePerGas
+    estimatedBaseFee && maxPriorityFeePerGas && !isMax
       ? new BigNumber(estimatedBaseFee).plus(maxPriorityFeePerGas)
       : new BigNumber(maxFeePerGas || '0x0');
 
-  const gasCostNative = new BigNumber(gas)
-    .multipliedBy(feePerGas)
-    .shiftedBy(-18);
+  const rawValue = new BigNumber(gas).multipliedBy(feePerGas);
+  const raw = rawValue.toString(10);
+
+  const humanValue = rawValue.shiftedBy(-18);
+  const human = humanValue.toString(10);
 
   const fiatRate = getTokenFiatRate(
     messenger,
@@ -91,12 +144,14 @@ export function calculateGasCost(request: {
     throw new Error('Could not fetch fiat rate for native token');
   }
 
-  const usd = gasCostNative.multipliedBy(fiatRate.usdRate).toString(10);
-  const fiat = gasCostNative.multipliedBy(fiatRate.fiatRate).toString(10);
+  const usd = humanValue.multipliedBy(fiatRate.usdRate).toString(10);
+  const fiat = humanValue.multipliedBy(fiatRate.fiatRate).toString(10);
 
   return {
-    usd,
     fiat,
+    human,
+    raw,
+    usd,
   };
 }
 
@@ -131,4 +186,83 @@ function getGasFee(chainId: Hex, messenger: TransactionPayControllerMessenger) {
     : undefined;
 
   return { estimatedBaseFee, maxFeePerGas, maxPriorityFeePerGas };
+}
+
+/**
+ * Calculate the cost of a gas fee token on a transaction.
+ *
+ * @param request - Request parameters.
+ * @param request.hasBalance - Whether the user has enough balance to cover the gas fee.
+ * @param request.messenger - Controller messenger.
+ * @param request.transaction - Transaction to calculate gas fee token cost for.
+ * @returns Cost of the gas fee token.
+ */
+function calculateGasFeeTokenCost({
+  hasBalance,
+  messenger,
+  transaction,
+}: {
+  hasBalance: boolean;
+  messenger: TransactionPayControllerMessenger;
+  transaction: TransactionMeta;
+}): (Amount & { isGasFeeToken?: boolean }) | undefined {
+  const {
+    chainId,
+    gasFeeTokens,
+    isGasFeeTokenIgnoredIfBalance,
+    selectedGasFeeToken,
+  } = transaction;
+
+  if (
+    !gasFeeTokens ||
+    !selectedGasFeeToken ||
+    (isGasFeeTokenIgnoredIfBalance && hasBalance)
+  ) {
+    return undefined;
+  }
+
+  log('Calculating gas fee token cost', { selectedGasFeeToken, chainId });
+
+  const gasFeeToken = gasFeeTokens?.find(
+    (t) => t.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
+  );
+
+  if (!gasFeeToken) {
+    log('Gas fee token not found', {
+      gasFeeTokens,
+      selectedGasFeeToken,
+    });
+
+    return undefined;
+  }
+
+  const tokenInfo = getTokenInfo(messenger, selectedGasFeeToken, chainId);
+
+  const tokenFiatRate = getTokenFiatRate(
+    messenger,
+    selectedGasFeeToken,
+    chainId,
+  );
+
+  if (!tokenFiatRate || !tokenInfo) {
+    log('Cannot get gas fee token info');
+    return undefined;
+  }
+
+  const rawValue = new BigNumber(gasFeeToken.amount);
+  const raw = rawValue.toString(10);
+
+  const humanValue = rawValue.shiftedBy(-tokenInfo.decimals);
+  const human = humanValue.toString(10);
+
+  const fiat = humanValue.multipliedBy(tokenFiatRate.fiatRate).toString(10);
+  const usd = humanValue.multipliedBy(tokenFiatRate.usdRate).toString(10);
+
+  return {
+    isGasFeeToken: true,
+    fiat,
+    human,
+    raw,
+    usd,
+  };
 }

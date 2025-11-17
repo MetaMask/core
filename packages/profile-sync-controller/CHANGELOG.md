@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add rate limit (429) handling with automatic retry in authentication flow ([#6993](https://github.com/MetaMask/core/pull/6993))
+  - Update authentication services to throw `RateLimitedError` when encountering 429 responses.
+  - Improve Authentication errors by adding the HTTP code in error messages.
+  - Add rate limit retry logic to `SRPJwtBearerAuth` with configurable cooldown via `rateLimitRetry.cooldownDefaultMs` option (defaults to 10 seconds).
+  - Non-429 errors are thrown immediately without retry, delegating retry logic to consumers.
+
 ## [26.0.0]
 
 ### Changed

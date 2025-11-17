@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0]
+
+### Changed
+
+- Improve WebSocket connection lifecycle tracing in `BackendWebSocketService` ([#7101](https://github.com/MetaMask/core/pull/7101))
+  - WebSocket connection duration is now properly reflected in trace span duration instead of only in custom data
+  - Trace all disconnections (both manual and unexpected) to provide complete connection lifecycle visibility in traces
+  - Omit `connectionDuration_ms` from disconnection traces when connection never established (onClose without onOpen)
+- Update `BackendWebSocketService` default exponential backoff options for reconnection ([#7101](https://github.com/MetaMask/core/pull/7101))
+  - Increase default `reconnectDelay` from 500 milliseconds to 10 seconds
+  - Increase default `maxReconnectDelay` from 30 seconds to 60 seconds
+- Simplify WebSocket disconnection code in `BackendWebSocketService` ([#7101](https://github.com/MetaMask/core/pull/7101))
+  - Centralize all disconnection logic in `ws.onclose` handler for single source of truth
+  - Centralize all state changes within `#establishConnection` method - state transitions only occur in `onopen` (CONNECTING → CONNECTED) and `onclose` (any state → DISCONNECTED)
+  - Add `MANUAL_DISCONNECT_CODE` (4999) and `MANUAL_DISCONNECT_REASON` constants to distinguish manual from unexpected disconnects
+- Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
+- Bump `@ts-bridge/cli` from `^0.6.1` to `^0.6.4` ([#7039](https://github.com/MetaMask/core/pull/7039))
+
+### Removed
+
+- Remove `BackendWebSocketService Channel Message` trace as it provided no useful performance insights ([#7101](https://github.com/MetaMask/core/pull/7101))
+
+### Fixed
+
+- Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
+
 ## [4.0.0]
 
 ### Changed
@@ -133,7 +159,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@4.1.0...HEAD
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@4.0.0...@metamask/core-backend@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@3.0.0...@metamask/core-backend@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.1.0...@metamask/core-backend@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@2.0.0...@metamask/core-backend@2.1.0
