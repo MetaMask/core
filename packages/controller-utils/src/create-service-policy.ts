@@ -144,20 +144,19 @@ type InternalCircuitState =
   | { state: Exclude<CircuitState, CircuitState.Open> };
 
 /**
- * List of avalability statuses.
+ * Availability statuses that the service can be in.
  *
  * Used to keep track of whether the `onAvailable` event should be fired.
  */
 const AVAILABILITY_STATUSES = {
-  Unknown: 'unknown',
   Available: 'available',
+  Degraded: 'degraded',
   Unavailable: 'unavailable',
-};
+  Unknown: 'unknown',
+} as const;
 
 /**
- * An availability status.
- *
- * Used to keep track of whether the `onAvailable` event should be fired.
+ * An availability status that the service can be in.
  */
 type AvailabilityStatus =
   (typeof AVAILABILITY_STATUSES)[keyof typeof AVAILABILITY_STATUSES];
@@ -329,12 +328,14 @@ export function createServicePolicy(
 
   retryPolicy.onGiveUp((data) => {
     if (circuitBreakerPolicy.state === CircuitState.Closed) {
+      availabilityStatus = AVAILABILITY_STATUSES.Degraded;
       onDegradedEventEmitter.emit(data);
     }
   });
   retryPolicy.onSuccess(({ duration }) => {
     if (circuitBreakerPolicy.state === CircuitState.Closed) {
       if (duration > degradedThreshold) {
+        availabilityStatus = AVAILABILITY_STATUSES.Degraded;
         onDegradedEventEmitter.emit();
       } else if (availabilityStatus !== AVAILABILITY_STATUSES.Available) {
         availabilityStatus = AVAILABILITY_STATUSES.Available;
