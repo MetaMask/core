@@ -736,52 +736,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     tokenAddresses: Hex[];
     nativeCurrency: string;
   }): Promise<ContractMarketData> {
-    // -1: First convert the chain's native token (e.g. Gnosis native xDAI)
-    //     into the fallback currency USD
-    //     by calling the token prices service:
-    //
-    //       fetchTokenPrices({
-    //         tokenAddresses: [nativeTokenAddress],
-    //         chainId,
-    //         currency: FALL_BACK_VS_CURRENCY
-    //       })
-    //
-    //     This gives you the price of **1 native token in USD**.
-    //     Example: 1 xDAI = 1.002 USD.
-    //
-    // -2: Fetch all ERC-20 token prices in the fallback currency (USD)
-    //     using the same token prices service:
-    //
-    //       fetchTokenPrices({
-    //         tokenAddresses,
-    //         chainId,
-    //         currency: FALL_BACK_VS_CURRENCY
-    //       })
-    //
-    //     This gives every token priced in USD (e.g. 1 USDC = 1.0001 USD).
-    //
-    // -3: Convert each token price from USD → native by using the native
-    //     token's fallback price as the conversion factor.
-    //
-    //     If:
-    //       native_usd = price of 1 native token in USD
-    //       token_usd  = price of 1 token in USD
-    //
-    //     Then:
-    //       price_in_native = token_usd / native_usd
-    //
-    //     Example:
-    //       USDC price in USD  = 1.0001
-    //       xDAI price in USD  = 1.0020
-    //
-    //       USDC in xDAI = 1.0001 / 1.0020 ≈ 0.9981 xDAI
-    //
-    // -4: Apply this conversion to all fields that represent amounts
-    //     in the fallback currency (price, marketCap, volume, highs/lows, etc.).
-    //
-    // -5: Return the final structure where all tokens are expressed in the
-    //     chain's native currency (e.g. xDAI for Gnosis).
-
     const nativeTokenAddress = getNativeTokenAddress(chainId);
 
     // Step -1: First fetch native token priced in USD
