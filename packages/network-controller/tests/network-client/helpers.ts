@@ -212,9 +212,6 @@ function mockRpcCall({
       return [httpStatus, resolvedResponse];
     }
 
-    // It is very dumb that we have to do all of these shenanigans.
-    // Perhaps we can simplify this in the future.
-
     const {
       id: jsonRpcId = jsonRpcRequest.id,
       jsonrpc: jsonRpcVersion = jsonRpcRequest.jsonrpc,
