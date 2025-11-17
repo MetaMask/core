@@ -3172,6 +3172,8 @@ export class TransactionController extends BaseController<
         () => this.#signTransaction(transactionMeta),
       );
 
+      transactionMeta = this.#getTransactionOrThrow(transactionId);
+
       if (!(await this.#beforePublish(transactionMeta))) {
         log('Skipping publishing transaction based on hook');
         this.messenger.publish(
@@ -3772,14 +3774,41 @@ export class TransactionController extends BaseController<
   }
 
   async #signTransaction(
-    transactionMeta: TransactionMeta,
+    originalTransactionMeta: TransactionMeta,
   ): Promise<string | undefined> {
-    const {
-      chainId,
-      id: transactionId,
-      isExternalSign,
-      txParams,
-    } = transactionMeta;
+    let transactionMeta = originalTransactionMeta;
+    const { id: transactionId } = transactionMeta;
+
+    log('Calling before sign hook', transactionMeta);
+
+    const { updateTransaction } =
+      (await this.#beforeSign({ transactionMeta })) ?? {};
+
+    if (updateTransaction) {
+      this.#updateTransactionInternal(
+        { transactionId, skipResimulateCheck: true, note: 'beforeSign Hook' },
+        updateTransaction,
+      );
+
+      log('Updated transaction after before sign hook');
+    }
+
+    transactionMeta = this.#getTransactionOrThrow(transactionId);
+
+    const { networkClientId } = transactionMeta;
+    const ethQuery = this.#getEthQuery({ networkClientId });
+
+    await checkGasFeeTokenBeforePublish({
+      ethQuery,
+      fetchGasFeeTokens: async (tx) =>
+        (await this.#getGasFeeTokens(tx)).gasFeeTokens,
+      transaction: transactionMeta,
+      updateTransaction: (txId, fn) =>
+        this.#updateTransactionInternal({ transactionId: txId }, fn),
+    });
+
+    transactionMeta = this.#getTransactionOrThrow(transactionId);
+    const { chainId, isExternalSign, txParams } = transactionMeta;
 
     if (isExternalSign) {
       log('Skipping sign as signed externally');
@@ -3800,19 +3829,7 @@ export class TransactionController extends BaseController<
       });
     }
 
-    log('Calling before sign hook', transactionMeta);
-
-    const { updateTransaction } =
-      (await this.#beforeSign({ transactionMeta })) ?? {};
-
-    if (updateTransaction) {
-      this.#updateTransactionInternal(
-        { transactionId, skipResimulateCheck: true, note: 'beforeSign Hook' },
-        updateTransaction,
-      );
-
-      log('Updated transaction after before sign hook');
-    }
+    transactionMeta = this.#getTransactionOrThrow(transactionId);
 
     const finalTransactionMeta = this.#getTransactionOrThrow(transactionId);
     const { txParams: finalTxParams } = finalTransactionMeta;
