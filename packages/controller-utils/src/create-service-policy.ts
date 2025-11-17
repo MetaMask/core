@@ -144,6 +144,11 @@ type InternalCircuitState =
   | { state: Exclude<CircuitState, CircuitState.Open> };
 
 /**
+ * Used to keep track of whether the onAvailable event should be fired.
+ */
+type AvailabilityStatus = 'unknown' | 'available' | 'unavailable';
+
+/**
  * The maximum number of times that a failing service should be re-run before
  * giving up.
  */
@@ -265,7 +270,7 @@ export function createServicePolicy(
     backoff = new ExponentialBackoff(),
   } = options;
 
-  let availabilityStatus: 'unknown' | 'available' = 'unknown';
+  let availabilityStatus: AvailabilityStatus = 'unknown';
 
   const retryPolicy = retry(retryFilterPolicy, {
     // Note that although the option here is called "max attempts", it's really
@@ -294,6 +299,10 @@ export function createServicePolicy(
   );
   circuitBreakerPolicy.onStateChange((circuitState) => {
     internalCircuitState = getInternalCircuitState(circuitState);
+  });
+
+  circuitBreakerPolicy.onBreak(() => {
+    availabilityStatus = 'unavailable';
   });
   const onBreak = circuitBreakerPolicy.onBreak.bind(circuitBreakerPolicy);
 

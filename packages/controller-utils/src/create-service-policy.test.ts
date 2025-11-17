@@ -2034,19 +2034,19 @@ describe('createServicePolicy', () => {
           describe('after the circuit break duration has elapsed', () => {
             describe.each([
               {
-                desc: `using the default circuit break duration (${DEFAULT_CIRCUIT_BREAK_DURATION})`,
+                desc: `the default circuit break duration (${DEFAULT_CIRCUIT_BREAK_DURATION})`,
                 duration: DEFAULT_CIRCUIT_BREAK_DURATION,
                 options: {},
               },
               {
-                desc: 'using a custom circuit break duration',
-                duration: DEFAULT_CIRCUIT_BREAK_DURATION,
+                desc: 'a custom circuit break duration',
+                duration: 5_000,
                 options: {
                   // This has to be high enough to exceed the exponential backoff
                   circuitBreakDuration: 5_000,
                 },
               },
-            ])('$desc', ({ duration, options }) => {
+            ])('using $desc', ({ duration, options }) => {
               it('returns what the service returns', async () => {
                 const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
                 let invocationCounter = 0;
@@ -2608,7 +2608,7 @@ describe('createServicePolicy', () => {
               },
               {
                 desc: 'a custom circuit break duration',
-                duration: DEFAULT_CIRCUIT_BREAK_DURATION,
+                duration: 5_000,
                 options: {
                   // This has to be high enough to exceed the exponential backoff
                   circuitBreakDuration: 50_000,
@@ -3217,7 +3217,7 @@ describe('createServicePolicy', () => {
               },
               {
                 desc: 'a custom circuit break duration',
-                duration: DEFAULT_CIRCUIT_BREAK_DURATION,
+                duration: 5_000,
                 options: {
                   // This has to be high enough to exceed the exponential backoff
                   circuitBreakDuration: 5_000,
@@ -3291,6 +3291,117 @@ describe('createServicePolicy', () => {
         });
       });
     });
+  });
+
+  describe('wrapping a service that succeeds at first and then fails enough to break the circuit', () => {
+    describe.each([
+      {
+        desc: `the default max number of consecutive failures (${DEFAULT_MAX_CONSECUTIVE_FAILURES})`,
+        maxConsecutiveFailures: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+        optionsWithMaxConsecutiveFailures: {},
+      },
+      {
+        desc: 'a custom max number of consecutive failures',
+        maxConsecutiveFailures: DEFAULT_MAX_RETRIES + 1,
+        optionsWithMaxConsecutiveFailures: {
+          maxConsecutiveFailures: DEFAULT_MAX_RETRIES + 1,
+        },
+      },
+    ])(
+      'using $desc',
+      ({ maxConsecutiveFailures, optionsWithMaxConsecutiveFailures }) => {
+        describe.each([
+          {
+            desc: `the default circuit break duration (${DEFAULT_CIRCUIT_BREAK_DURATION})`,
+            circuitBreakDuration: DEFAULT_CIRCUIT_BREAK_DURATION,
+            optionsWithCircuitBreakDuration: {},
+          },
+          {
+            desc: 'a custom circuit break duration',
+            circuitBreakDuration: DEFAULT_CIRCUIT_BREAK_DURATION,
+            options: {
+              // This has to be high enough to exceed the exponential backoff
+              optionsWithCircuitBreakDuration: 5_000,
+            },
+          },
+        ])(
+          'using $desc',
+          ({ circuitBreakDuration, optionsWithCircuitBreakDuration }) => {
+            it('calls onAvailable listeners if the service finally succeeds', async () => {
+              let invocationCounter = 0;
+              const mockService = jest.fn(() => {
+                invocationCounter += 1;
+                if (
+                  invocationCounter === 1 ||
+                  invocationCounter === maxConsecutiveFailures + 2
+                ) {
+                  return { some: 'data' };
+                }
+                throw new Error('failure');
+              });
+              const onAvailableListener = jest.fn();
+              const policy = createServicePolicy({
+                ...optionsWithMaxConsecutiveFailures,
+                ...optionsWithCircuitBreakDuration,
+              });
+              policy.onRetry(() => {
+                clock.next();
+              });
+              policy.onAvailable(onAvailableListener);
+
+              // Execute the service successfully once
+              await policy.execute(mockService);
+              expect(onAvailableListener).toHaveBeenCalledTimes(1);
+
+              // Execute and retry until we break the circuit
+              await ignoreRejection(policy.execute(mockService));
+              await ignoreRejection(policy.execute(mockService));
+              await ignoreRejection(policy.execute(mockService));
+              clock.tick(circuitBreakDuration);
+
+              await policy.execute(mockService);
+              expect(onAvailableListener).toHaveBeenCalledTimes(2);
+            });
+
+            it('does not call onAvailable listeners if the service finally fails', async () => {
+              let invocationCounter = 0;
+              const mockService = jest.fn(() => {
+                invocationCounter += 1;
+                if (
+                  invocationCounter === 1 ||
+                  invocationCounter === maxConsecutiveFailures + 2
+                ) {
+                  return { some: 'data' };
+                }
+                throw new Error('failure');
+              });
+              const onAvailableListener = jest.fn();
+              const policy = createServicePolicy({
+                ...optionsWithMaxConsecutiveFailures,
+                ...optionsWithCircuitBreakDuration,
+              });
+              policy.onRetry(() => {
+                clock.next();
+              });
+              policy.onAvailable(onAvailableListener);
+
+              // Execute the service successfully once
+              await policy.execute(mockService);
+              expect(onAvailableListener).toHaveBeenCalledTimes(1);
+
+              // Execute and retry until we break the circuit
+              await ignoreRejection(policy.execute(mockService));
+              await ignoreRejection(policy.execute(mockService));
+              await ignoreRejection(policy.execute(mockService));
+              clock.tick(circuitBreakDuration);
+
+              await policy.execute(mockService);
+              expect(onAvailableListener).toHaveBeenCalledTimes(2);
+            });
+          },
+        );
+      },
+    );
   });
 
   describe('getRemainingCircuitOpenDuration', () => {
@@ -3371,7 +3482,7 @@ describe('createServicePolicy', () => {
       expect(policy.getCircuitState()).toBe(CircuitState.Closed);
     });
 
-    it('allows the service to be executed successfully again if its circuit has broken', async () => {
+    it('allows the service to be executed successfully again if its circuit has broken after resetting', async () => {
       let invocationCounter = 0;
       const mockService = jest.fn(() => {
         invocationCounter += 1;
@@ -3394,7 +3505,7 @@ describe('createServicePolicy', () => {
       expect(await policy.execute(mockService)).toStrictEqual({ some: 'data' });
     });
 
-    it('calls onAvailable listeners if the service was executed successfully, its circuit broke, it was reset, and executes successfully again', async () => {
+    it('calls onAvailable listeners if the service was executed successfully, its circuit broke, it was reset, and executes again, successfully', async () => {
       let invocationCounter = 0;
       const mockService = jest.fn(() => {
         invocationCounter += 1;
@@ -3428,7 +3539,7 @@ describe('createServicePolicy', () => {
       expect(onAvailableListener).toHaveBeenCalledTimes(2);
     });
 
-    it('allows the service to be executed unsuccessfully again if its circuit has broken', async () => {
+    it('allows the service to be executed unsuccessfully again if its circuit has broken after resetting', async () => {
       const mockService = jest.fn(() => {
         throw new Error('failure');
       });
