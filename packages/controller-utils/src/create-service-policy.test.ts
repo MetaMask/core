@@ -3367,10 +3367,7 @@ describe('createServicePolicy', () => {
               let invocationCounter = 0;
               const mockService = jest.fn(() => {
                 invocationCounter += 1;
-                if (
-                  invocationCounter === 1 ||
-                  invocationCounter === maxConsecutiveFailures + 2
-                ) {
+                if (invocationCounter === 1) {
                   return { some: 'data' };
                 }
                 throw new Error('failure');
@@ -3395,8 +3392,8 @@ describe('createServicePolicy', () => {
               await ignoreRejection(policy.execute(mockService));
               clock.tick(circuitBreakDuration);
 
-              await policy.execute(mockService);
-              expect(onAvailableListener).toHaveBeenCalledTimes(2);
+              await ignoreRejection(policy.execute(mockService));
+              expect(onAvailableListener).toHaveBeenCalledTimes(1);
             });
           },
         );
