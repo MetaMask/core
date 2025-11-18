@@ -41,9 +41,9 @@ type RpcServiceConfiguration = Omit<RpcServiceOptions, 'failoverService'>;
 
 /**
  * This class constructs and manages requests to a chain of RpcService objects
- * which represent an RPC endpoint on a particular network. The first service in
- * the chain is intended to be the primary way of hitting the endpoint and the
- * remaining services are used as failovers.
+ * which represent RPC endpoints with which to access a particular network. The
+ * first service in the chain is intended to be the primary way of hitting the
+ * network and the remaining services are used as failovers.
  */
 export class RpcServiceChain {
   /**

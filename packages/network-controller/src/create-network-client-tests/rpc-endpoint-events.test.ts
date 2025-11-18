@@ -19,7 +19,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
       const blockNumber = '0x100';
       const backoffDuration = 100;
 
-      it('publishes the NetworkController:rpcEndpointUnavailable event only when the max number of consecutive request failures is reached for all of the provided endpoint URLs', async () => {
+      it('publishes the NetworkController:rpcEndpointUnavailable event only when the max number of consecutive request failures is reached for all of the endpoints in a group of endpoints', async () => {
         const failoverEndpointUrl = 'https://failover.endpoint/';
         const request = {
           method: 'eth_gasPrice',
@@ -134,7 +134,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointInstanceUnavailable event each time the max number of consecutive request failures is reached for any of the provided endpoint URLs', async () => {
+      it('publishes the NetworkController:rpcEndpointInstanceUnavailable event each time the max number of consecutive request failures is reached for any of the endpoints in a group of endpoints', async () => {
         const failoverEndpointUrl = 'https://failover.endpoint/';
         const request = {
           method: 'eth_gasPrice',
@@ -258,7 +258,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointDegraded event only once, even if the max number of retries is continually reached in making requests to the primary endpoint URL', async () => {
+      it('publishes the NetworkController:rpcEndpointDegraded event only once, even if the max number of retries is continually reached in making requests to a primary endpoint', async () => {
         const request = {
           method: 'eth_gasPrice',
           params: [],
@@ -343,7 +343,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointDegraded event only once, even if the time to complete a request to the primary endpoint URL is continually too long', async () => {
+      it('publishes the NetworkController:rpcEndpointDegraded event only once, even if the time to complete a request to a primary endpoint is continually too long', async () => {
         const request = {
           method: 'eth_gasPrice',
           params: [],
@@ -410,7 +410,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('does not publish the NetworkController:rpcEndpointDegraded event again if the max number of retries is reached in making requests to a failover endpoint URL', async () => {
+      it('does not publish the NetworkController:rpcEndpointDegraded event again if the max number of retries is reached in making requests to a failover endpoint', async () => {
         const failoverEndpointUrl = 'https://failover.endpoint/';
         const request = {
           method: 'eth_gasPrice',
@@ -516,7 +516,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('does not publish the NetworkController:rpcEndpointDegraded event again when the time to complete a request to a failover endpoint URL is too long', async () => {
+      it('does not publish the NetworkController:rpcEndpointDegraded event again when the time to complete a request to a failover endpoint is too long', async () => {
         const failoverEndpointUrl = 'https://failover.endpoint/';
         const request = {
           method: 'eth_gasPrice',
@@ -621,7 +621,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointInstanceDegraded event each time the max number of retries is reached in making requests to the primary endpoint URL', async () => {
+      it('publishes the NetworkController:rpcEndpointInstanceDegraded event each time the max number of retries is reached in making requests to a primary endpoint', async () => {
         const request = {
           method: 'eth_gasPrice',
           params: [],
@@ -717,7 +717,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointInstanceDegraded event when the time to complete a request to the primary endpoint URL is continually too long', async () => {
+      it('publishes the NetworkController:rpcEndpointInstanceDegraded event when the time to complete a request to a primary endpoint is continually too long', async () => {
         const request = {
           method: 'eth_gasPrice',
           params: [],
@@ -813,7 +813,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointInstanceDegraded event again if the max number of retries is reached in making requests to a failover endpoint URL', async () => {
+      it('publishes the NetworkController:rpcEndpointInstanceDegraded event again if the max number of retries is reached in making requests to a failover endpoint', async () => {
         const failoverEndpointUrl = 'https://failover.endpoint/';
         const request = {
           method: 'eth_gasPrice',
@@ -937,7 +937,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointInstanceDegraded event again when the time to complete a request to a failover endpoint URL is too long', async () => {
+      it('publishes the NetworkController:rpcEndpointInstanceDegraded event again when the time to complete a request to a failover endpoint is too long', async () => {
         const failoverEndpointUrl = 'https://failover.endpoint/';
         const request = {
           method: 'eth_gasPrice',
@@ -1060,7 +1060,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointAvailable event the first time a successful request to the RPC endpoint is made', async () => {
+      it('publishes the NetworkController:rpcEndpointAvailable event the first time a successful request to a (primary) RPC endpoint is made', async () => {
         const request = {
           method: 'eth_gasPrice',
           params: [],
@@ -1117,7 +1117,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointAvailable event the first time a successful request to a failover is made', async () => {
+      it('publishes the NetworkController:rpcEndpointAvailable event the first time a successful request to a failover endpoint is made', async () => {
         const failoverEndpointUrl = 'https://failover.endpoint/';
         const request = {
           method: 'eth_gasPrice',

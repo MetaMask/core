@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `NetworkController:rpcEndpointAvailable` messenger event ([#7166](https://github.com/MetaMask/core/pull/7166))
-  - These are counterparts to the (new) `NetworkController:rpcEndpointUnavailable` and `NetworkController:rpcEndpointDegraded` events, but are published when a request to an RPC endpoint URL is made either initially or following a previously established degraded or unavailable status.
+  - These are counterparts to the (new) `NetworkController:rpcEndpointUnavailable` and `NetworkController:rpcEndpointDegraded` events, but is published when a successful network client request is made either initially or following a previously established degraded or unavailable status.
 
 ### Changed
 
@@ -24,13 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - In practice, this should happen rarely if ever.
 - **BREAKING:** Migrate `NetworkClient` to `JsonRpcEngineV2` ([#7065](https://github.com/MetaMask/core/pull/7065))
   - This ought to be unobservable, but we mark it as breaking out of an abundance of caution.
-- **BREAKING:** Split up and update payload data for `NetworkController:rpcEndpoint{Degraded,Unavailable}` ([#7166](https://github.com/MetaMask/core/pull/7166))
-  - The existing events are now called `NetworkController:rpcEndpointInstance{Degraded,Unavailable}` and retain their present behavior.
-  - `NetworkController:rpcEndpointInstance{Degraded,Unavailable}` do still exist, but they are now designed to represent the entire RPC endpoint and are guaranteed to not be published multiple times in a row. In particular, `NetworkController:rpcEndpointUnavailable` is published only after trying all of the designated URLs for a particular RPC endpoint and the underlying circuit for the last URL breaks, not as each primary's or failover's circuit breaks.
-  - The event payloads have been changed as well: `failoverEndpointUrl` has been renamed to `endpointUrl`, and `endpointUrl` has been renamed to `primaryEndpointUrl`. In addition, `networkClientId` has been added.
+- **BREAKING:** Split up and update payload data for `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointUnavailable` ([#7166](https://github.com/MetaMask/core/pull/7166))
+  - The existing events are now called `NetworkController:rpcEndpointInstanceDegraded` and `NetworkController:rpcEndpointInstanceUnavailable` and retain their present behavior.
+  - `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointUnavailable` do still exist, but they are now designed to represent a network client rather than an RPC endpoint and are guaranteed to not be published multiple times in a row. In particular, `NetworkController:rpcEndpointUnavailable` is published only after trying all of the defined endpoints for a network client and the underlying circuit for the last endpoint breaks, not as each primary's or failover's circuit breaks.
+  - The event payloads have been changed as well: `failoverEndpointUrl` has been renamed to `endpointUrl`, and `endpointUrl` has been renamed to `primaryEndpointUrl`. In addition, `networkClientId` has been added to the payload.
 - **BREAKING:** Rename and update payload data for `NetworkController:rpcEndpointRequestRetried` ([#7166](https://github.com/MetaMask/core/pull/7166))
-  - This event is now called `NetworkController:rpcEndpointInstanceRequestRetried`
-  - The event payload has been changed as well: `failoverEndpointUrl` has been renamed to `endpointUrl`, and `endpointUrl` has been renamed to `primaryEndpointUrl`. In addition, `networkClientId` and `attempt` have been added.
+  - This event is now called `NetworkController:rpcEndpointInstanceRequestRetried`.
+  - The event payload has been changed as well: `failoverEndpointUrl` has been renamed to `endpointUrl`, and `endpointUrl` has been renamed to `primaryEndpointUrl`. In addition, `networkClientId` and `attempt` have been added to the payload.
 - **BREAKING:** Update `AbstractRpcService`/`RpcServiceRequestable` to remove `{ isolated: true }` from the `onBreak` event data type ([#7166](https://github.com/MetaMask/core/pull/7166))
   - This represented the error produced when `.isolate` is called on a Cockatiel circuit breaker policy, which we never do.
 - Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
