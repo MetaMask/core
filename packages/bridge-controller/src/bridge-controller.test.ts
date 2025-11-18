@@ -1050,7 +1050,7 @@ describe('BridgeController', function () {
     bridgeController.trackUnifiedSwapBridgeEvent(
       UnifiedSwapBridgeEventName.QuotesReceived,
       {
-        warnings: ['warning1'],
+        warnings: ['low_return'],
         usd_quoted_gas: 0,
         gas_included: false,
         gas_included_7702: false,
@@ -2267,7 +2267,7 @@ describe('BridgeController', function () {
       bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.QuotesReceived,
         {
-          warnings: ['warning1'],
+          warnings: ['insufficient_balance'],
           usd_quoted_gas: 0,
           gas_included: false,
           gas_included_7702: false,
@@ -2569,7 +2569,7 @@ describe('BridgeController', function () {
       bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.QuotesReceived,
         {
-          warnings: ['warning1'],
+          warnings: ['low_return'],
           usd_quoted_gas: 0,
           gas_included: false,
           gas_included_7702: false,
