@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Remove fallback to CryptoCompare on `CurrencyRatesController` and `TokenRatesController` ([#7167](https://github.com/MetaMask/core/pull/7167))
 - Bump `@metamask/core-backend` from `^4.0.0` to `^4.1.0`
 
 ### Fixed
