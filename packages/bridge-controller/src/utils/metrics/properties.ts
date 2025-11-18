@@ -3,7 +3,7 @@ import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { MetricsSwapType } from './constants';
 import type { InputKeys, InputValues, RequestParams } from './types';
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
-import type { QuoteResponse, TxData } from '../../types';
+import type { QuoteMetadata, QuoteResponse, TxData } from '../../types';
 import {
   ChainId,
   type GenericQuoteRequest,
@@ -113,4 +113,26 @@ export const isHardwareWallet = (
  */
 export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
   return slippage !== DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest.slippage;
+};
+
+export const getQuotesReceivedProperties = (
+  activeQuote: QuoteResponse & Partial<QuoteMetadata>,
+  warnings: string[] = [],
+  recommendedQuote?: QuoteResponse & Partial<QuoteMetadata>,
+) => {
+  const provider =activeQuote ? formatProviderLabel(activeQuote.quote) : '_'
+  return {
+    can_submit: true,
+    gas_included: Boolean(activeQuote?.quote?.gasIncluded),
+    gas_included_7702: Boolean(activeQuote?.quote?.gasIncluded7702),
+    quoted_time_minutes: activeQuote?.estimatedProcessingTimeInSeconds
+      ? activeQuote.estimatedProcessingTimeInSeconds / 60
+      : 0,
+    usd_quoted_gas: Number(activeQuote?.gasFee?.effective?.usd ?? 0),
+    usd_quoted_return: Number(activeQuote?.toTokenAmount?.usd ?? 0),
+      best_quote_provider: recommendedQuote ? formatProviderLabel(recommendedQuote.quote) : provider,
+    provider,
+    warnings,
+    price_impact: Number(activeQuote?.quote.priceData?.priceImpact ?? 0),
+  };
 };

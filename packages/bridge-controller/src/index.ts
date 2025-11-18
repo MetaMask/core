@@ -21,6 +21,7 @@ export {
   getSwapType,
   isHardwareWallet,
   isCustomSlippage,
+  getQuotesReceivedProperties,
 } from './utils/metrics/properties';
 
 export type {
