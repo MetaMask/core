@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix duplicate native token address in `CurrencyRateController` spot price fallback API requests ([#7181](https://github.com/MetaMask/core/pull/7181))
+
 ## [89.0.0]
 
 ### Changed
