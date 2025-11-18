@@ -229,48 +229,50 @@ export const getNativeTokenAddress = (chainId: Hex): Hex =>
   chainIdToNativeTokenAddress[chainId] ?? ZERO_ADDRESS;
 
 // We can only support PricesAPI V3 for EVM chains that have a CAIP-19 native asset mapping.
-export const HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP: Record<
-  Hex,
-  CaipAssetType
-> = {
-  '0x1': 'eip155:1/slip44:60', // Ethereum Mainnet
-  '0xa': 'eip155:10/slip44:60', // OP Mainnet
-  '0x19': 'eip155:25/slip44:394', // Cronos Mainnet
-  '0x38': 'eip155:56/slip44:714', // BNB Smart Chain Mainnet
-  '0x39': 'eip155:57/slip44:57', // Syscoin Mainnet
-  //   '0x42': 'eip155:1/slip44:60', // OKXChain Mainnet
-  //   '0x46': 'eip155:1/slip44:60', // Hoo Smart Chain
-  //   '0x52': 'eip155:1/slip44:60', // Meter Mainnet
-  //   '0x58': 'eip155:1/slip44:60', // TomoChain
-  //   '0x64': 'eip155:1/slip44:60', // Gnosis
-  //   '0x6a': 'eip155:1/slip44:60', // Velas EVM Mainnet
-  //   '0x7a': 'eip155:1/slip44:60', // Fuse Mainnet
-  //   '0x80': 'eip155:1/slip44:60', // Huobi ECO Chain Mainnet
-  '0x89': 'eip155:137/slip44:966', // Polygon Mainnet
-  '0x8f': 'eip155:143/slip44:268435779', // Monad Mainnet
-  //   '0x92': 'eip155:1/slip44:60', // Sonic Mainnet
-  //   '0xfa': 'eip155:1/slip44:60', // Fantom Opera
-  //   '0x120': 'eip155:1/slip44:60', // Boba Network
-  //   '0x141': 'eip155:1/slip44:60', // KCC Mainnet
-  //   '0x144': 'eip155:1/slip44:60', // zkSync Era Mainnet
-  //   '0x150': 'eip155:1/slip44:60', // Shiden
-  //   '0x169': 'eip155:1/slip44:60', // Theta Mainnet
-  //   '0x440': 'eip155:1/slip44:60', // Metis Andromeda Mainnet
-  //   '0x504': 'eip155:1/slip44:60', // Moonbeam
-  //   '0x505': 'eip155:1/slip44:60', // Moonriver
-  '0x531': 'eip155:1329/slip44:19000118', // Sei Mainnet
-  //   '0x1388': 'eip155:1/slip44:60', // Mantle
-  '0x2105': 'eip155:8453/slip44:60', // Base
-  //   '0x2710': 'eip155:1/slip44:60', // Smart Bitcoin Cash
-  '0xa4b1': 'eip155:42161/slip44:60', // Arbitrum One
-  //   '0xa4ec': 'eip155:1/slip44:60', // Celo Mainnet
-  //   '0xa516': 'eip155:1/slip44:60', // Oasis Emerald
-  '0xa86a': 'eip155:43114/slip44:9000', // Avalanche C-Chain
-  '0xe708': 'eip155:59144/slip44:60', // Linea Mainnet
-  //   '0x518af': 'eip155:1/slip44:60', // Polis Mainnet
-  //   '0x4e454152': 'eip155:1/slip44:60', // Aurora Mainnet
-  //   '0x63564c40': 'eip155:1/slip44:60', // Harmony Mainnet Shard 0
-};
+export const HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP = {
+  '0x1': 'eip155:1/slip44:60', // Ethereum Mainnet - Native symbol: ETH
+  '0xa': 'eip155:10/slip44:60', // OP Mainnet - Native symbol: ETH
+  '0x19': 'eip155:25/slip44:394', // Cronos Mainnet - Native symbol: CRO
+  '0x38': 'eip155:56/slip44:714', // BNB Smart Chain Mainnet - Native symbol: BNB
+  '0x39': 'eip155:57/slip44:57', // Syscoin Mainnet - Native symbol: SYS
+  '0x42': 'eip155:66/slip44:996', // OKXChain Mainnet - Native symbol: OKT
+  '0x46': 'eip155:70/slip44:1170', // Hoo Smart Chain - Native symbol: HOO
+  '0x52': 'eip155:82/slip44:18000', // Meter Mainnet - Native symbol: MTR
+  '0x58': 'eip155:88/slip44:889', // TomoChain - Native symbol: TOMO
+  '0x64': 'eip155:100/slip44:700', // Gnosis (formerly xDAI Chain) - Native symbol: xDAI
+  '0x6a': 'eip155:106/slip44:5655640', // Velas EVM Mainnet - Native symbol: VLX
+  '0x7a': 'eip155:122/slip44:XXX', // Fuse Mainnet - Native symbol: FUSE
+  '0x80': 'eip155:128/slip44:1010', // Huobi ECO Chain Mainnet - Native symbol: HT
+  '0x89': 'eip155:137/slip44:966', // Polygon Mainnet - Native symbol: POL
+  '0x8f': 'eip155:143/slip44:268435779', // Monad Mainnet - Native symbol: MONAD
+  '0x92': 'eip155:146/slip44:10007', // Sonic Mainnet - Native symbol: S
+  '0xfa': 'eip155:250/slip44:1007', // Fantom Opera - Native symbol: FTM
+  '0x120': 'eip155:288/slip44:60', // Boba Network (Ethereum L2) - Native symbol: ETH
+  '0x141': 'eip155:321/slip44:641', // KCC Mainnet - Native symbol: KCS
+  '0x144': 'eip155:324/slip44:60', // zkSync Era Mainnet (Ethereum L2) - Native symbol: ETH
+  '0x150': 'eip155:336/slip44:809', // Shiden - Native symbol: SDN
+  '0x169': 'eip155:361/slip44:589', // Theta Mainnet - Native symbol: TFUEL
+  '0x440': 'eip155:1088/slip44:60', // Metis Andromeda Mainnet (Ethereum L2) - Native symbol: ETH
+  '0x44d': 'eip155:1101/slip44:60', // Polygon zkEVM mainnet - Native symbol: ETH
+  '0x504': 'eip155:1284/slip44:1284', // Moonbeam - Native symbol: GLMR
+  '0x505': 'eip155:1285/slip44:1285', // Moonriver - Native symbol: MOVR
+  '0x531': 'eip155:1329/slip44:19000118', // Sei Mainnet - Native symbol: SEI
+  '0x1388': 'eip155:5000/slip44:XXX', // Mantle - Native symbol: MNT
+  '0x2105': 'eip155:8453/slip44:60', // Base - Native symbol: ETH
+  '0x2710': 'eip155:10000/slip44:145', // Smart Bitcoin Cash - Native symbol: BCH
+  '0xa4b1': 'eip155:42161/slip44:60', // Arbitrum One - Native symbol: ETH
+  '0xa4ec': 'eip155:42220/slip44:52752', // Celo Mainnet - Native symbol: CELO
+  '0xa516': 'eip155:42262/slip44:474', // Oasis Emerald - Native symbol: ROSE
+  '0xa86a': 'eip155:43114/slip44:9000', // Avalanche C-Chain - Native symbol: AVAX
+  '0xe708': 'eip155:59144/slip44:60', // Linea Mainnet - Native symbol: ETH
+  '0x13c31': 'eip155:81457/slip44:60', // Blast Mainnet - Native symbol: ETH
+  '0x17dcd': 'eip155:97741/slip44:XXX', // Pepe Unchained Mainnet - Native symbol: PEPU
+  '0x28c58': 'eip155:167000/slip44:60', // Taiko Mainnet - Native symbol: ETH
+  '0x518af': 'eip155:333999/slip44:1997', // Polis Mainnet - Native symbol: POLIS
+  '0x82750': 'eip155:534352/slip44:60', // Scroll Mainnet - Native symbol: ETH
+  '0x4e454152': 'eip155:1313161554/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
+  '0x63564c40': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
+} as const;
 
 /**
  * A currency that can be supplied as the `vsCurrency` parameter to
@@ -287,82 +289,9 @@ type SupportedCurrency =
  *
  * @see Used by {@link CodefiTokenPricesServiceV2} to validate that a given chain ID is supported by V2 of the Codefi Price API.
  */
-export const SUPPORTED_CHAIN_IDS = [
-  // Ethereum Mainnet
-  '0x1',
-  // OP Mainnet
-  '0xa',
-  // Cronos Mainnet
-  '0x19',
-  // BNB Smart Chain Mainnet
-  '0x38',
-  // Syscoin Mainnet
-  '0x39',
-  // OKXChain Mainnet
-  '0x42',
-  // Hoo Smart Chain
-  '0x46',
-  // Meter Mainnet
-  '0x52',
-  // TomoChain
-  '0x58',
-  // Gnosis
-  '0x64',
-  // Velas EVM Mainnet
-  '0x6a',
-  // Fuse Mainnet
-  '0x7a',
-  // Huobi ECO Chain Mainnet
-  '0x80',
-  // Polygon Mainnet
-  '0x89',
-  // Fantom Opera
-  '0xfa',
-  // Boba Network
-  '0x120',
-  // KCC Mainnet
-  '0x141',
-  // zkSync Era Mainnet
-  '0x144',
-  // Theta Mainnet
-  '0x169',
-  // Metis Andromeda Mainnet
-  '0x440',
-  // Moonbeam
-  '0x504',
-  // Moonriver
-  '0x505',
-  // Mantle
-  '0x1388',
-  // Base
-  '0x2105',
-  // Shiden
-  '0x150',
-  // Smart Bitcoin Cash
-  '0x2710',
-  // Arbitrum One
-  '0xa4b1',
-  // Celo Mainnet
-  '0xa4ec',
-  // Oasis Emerald
-  '0xa516',
-  // Avalanche C-Chain
-  '0xa86a',
-  // Polis Mainnet
-  '0x518af',
-  // Aurora Mainnet
-  '0x4e454152',
-  // Harmony Mainnet Shard 0
-  '0x63564c40',
-  // Linea Mainnet
-  '0xe708',
-  // Sei Mainnet
-  '0x531',
-  // Sonic Mainnet
-  '0x92',
-  // Monad Mainnet
-  '0x8f',
-] as const;
+export const SUPPORTED_CHAIN_IDS = Object.keys(
+  HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP,
+) as (keyof typeof HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP)[];
 
 /**
  * A chain ID that can be supplied in the URL for the `/spot-prices` endpoint,
