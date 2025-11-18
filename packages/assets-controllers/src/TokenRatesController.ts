@@ -536,11 +536,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       for (const [tokenAddress, tokenData] of Object.entries(
         marketDataByTokenAddress,
       ) as [Hex, MarketDataDetails][]) {
-        // eslint-disable-next-line no-eq-null -- Checking for null or undefined only
-        if (tokenData.price == null) {
-          continue;
-        }
-
         (marketData[chainId] ??= {})[tokenAddress] = {
           ...tokenData,
           currency,
