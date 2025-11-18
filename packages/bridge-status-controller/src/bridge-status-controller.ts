@@ -7,6 +7,7 @@ import  {
   type QuoteResponse,
   type Trade,
   getQuotesReceivedProperties,
+  QuoteWarning,
 } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
@@ -1042,7 +1043,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
     isLoading?: boolean,
-    warnings?: string[],
+    warnings?: QuoteWarning[],
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     // If trade is submitted before all quotes are loaded, publish QuotesReceived event
     if(isLoading) {

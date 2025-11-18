@@ -1,7 +1,7 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 
 import { MetricsSwapType } from './constants';
-import type { InputKeys, InputValues, RequestParams } from './types';
+import type { InputKeys, InputValues, QuoteWarning, RequestParams } from './types';
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
 import type { QuoteMetadata, QuoteResponse, TxData } from '../../types';
 import {
@@ -117,7 +117,7 @@ export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
 
 export const getQuotesReceivedProperties = (
   activeQuote: QuoteResponse & Partial<QuoteMetadata>,
-  warnings: string[] = [],
+  warnings: QuoteWarning[] = [],
   recommendedQuote?: QuoteResponse & Partial<QuoteMetadata>,
 ) => {
   const provider =activeQuote ? formatProviderLabel(activeQuote.quote) : '_'
