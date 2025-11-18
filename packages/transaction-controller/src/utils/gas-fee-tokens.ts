@@ -140,12 +140,13 @@ export async function checkGasFeeTokenBeforePublish({
     fn: (tx: TransactionMeta) => void,
   ) => void;
 }) {
-  const { gasFeeTokens, isGasFeeTokenIgnoredIfBalance, selectedGasFeeToken } =
-    transaction;
+  const { isGasFeeTokenIgnoredIfBalance, selectedGasFeeToken } = transaction;
 
   if (!selectedGasFeeToken || !isGasFeeTokenIgnoredIfBalance) {
     return;
   }
+
+  log('Checking gas fee token before publish', { selectedGasFeeToken });
 
   const hasNativeBalance = await isNativeBalanceSufficientForGas(
     transaction,
@@ -165,31 +166,25 @@ export async function checkGasFeeTokenBeforePublish({
     return;
   }
 
+  const gasFeeTokens = await fetchGasFeeTokens(transaction);
+
   updateTransaction(transaction.id, (tx) => {
+    tx.gasFeeTokens = gasFeeTokens;
     tx.isExternalSign = true;
+    tx.txParams.nonce = undefined;
   });
 
-  let finalGasFeeTokens = gasFeeTokens;
-
-  if (finalGasFeeTokens === undefined) {
-    const newGasFeeTokens = await fetchGasFeeTokens(transaction);
-
-    updateTransaction(transaction.id, (tx) => {
-      tx.gasFeeTokens = newGasFeeTokens;
-    });
-
-    log('Updated gas fee tokens before publish', newGasFeeTokens);
-
-    finalGasFeeTokens = newGasFeeTokens;
-  }
+  log('Updated gas fee tokens before publish', gasFeeTokens);
 
   if (
-    !finalGasFeeTokens?.some(
+    !gasFeeTokens?.some(
       (t) => t.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
     )
   ) {
     throw new Error('Gas fee token not found and insufficient native balance');
   }
+
+  log('Publishing with selected gas fee token', { selectedGasFeeToken });
 }
 
 /**

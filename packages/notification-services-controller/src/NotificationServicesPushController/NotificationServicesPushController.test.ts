@@ -103,6 +103,7 @@ describe('NotificationServicesPushController', () => {
           locale: 'en',
           oldToken: 'existing-token',
         },
+        controllerEnv: 'prd',
       });
     });
 
@@ -204,6 +205,7 @@ describe('NotificationServicesPushController', () => {
           locale: 'en',
           oldToken: '',
         },
+        controllerEnv: 'prd',
       });
 
       // Assert - state
@@ -268,6 +270,7 @@ describe('NotificationServicesPushController', () => {
           locale: 'en',
           oldToken: 'existing-fcm-token',
         },
+        controllerEnv: 'prd',
       });
     });
   });
