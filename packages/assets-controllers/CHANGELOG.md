@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/681.0.0 ([#7168](https://github.com/MetaMask/core/pull/7168))
+- Release/680.0.0 ([#7163](https://github.com/MetaMask/core/pull/7163))
+- chore: Remove unused ESLint ignore directives ([#7154](https://github.com/MetaMask/core/pull/7154))
+- Release 679.0.0 ([#7153](https://github.com/MetaMask/core/pull/7153))
+- Release/671.0.0 ([#7126](https://github.com/MetaMask/core/pull/7126))
+- chore: Fix all auto-fixable ESLint warnings ([#7105](https://github.com/MetaMask/core/pull/7105))
+
 ### Changed
 
 - **BREAKING:** Remove fallback to CryptoCompare on `CurrencyRatesController` and `TokenRatesController` ([#7167](https://github.com/MetaMask/core/pull/7167))
