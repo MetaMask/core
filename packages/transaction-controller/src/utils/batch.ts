@@ -257,15 +257,21 @@ async function getNestedTransactionMeta(
   const { from } = request;
   const { params, type: requestedType } = singleRequest;
 
+  if (requestedType) {
+    return {
+      ...params,
+      type: requestedType,
+    };
+  }
+
   const { type: determinedType } = await determineTransactionType(
     { from, ...params },
     ethQuery,
   );
 
-  const type = requestedType ?? determinedType;
   return {
     ...params,
-    type,
+    type: determinedType,
   };
 }
 
@@ -288,6 +294,7 @@ async function addTransactionBatchWith7702(
 
   const {
     batchId: batchIdOverride,
+    disableUpgrade,
     from,
     gasFeeToken,
     networkClientId,
@@ -311,19 +318,25 @@ async function addTransactionBatchWith7702(
     throw rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY);
   }
 
-  const { delegationAddress, isSupported } = await isAccountUpgradedToEIP7702(
-    from,
-    chainId,
-    publicKeyEIP7702,
-    messenger,
-    ethQuery,
-  );
+  let requiresUpgrade = false;
 
-  log('Account', { delegationAddress, isSupported });
+  if (!disableUpgrade) {
+    const { delegationAddress, isSupported } = await isAccountUpgradedToEIP7702(
+      from,
+      chainId,
+      publicKeyEIP7702,
+      messenger,
+      ethQuery,
+    );
 
-  if (!isSupported && delegationAddress) {
-    log('Account upgraded to unsupported contract', from, delegationAddress);
-    throw rpcErrors.internal('Account upgraded to unsupported contract');
+    log('Account', { delegationAddress, isSupported });
+
+    if (!isSupported && delegationAddress) {
+      log('Account upgraded to unsupported contract', from, delegationAddress);
+      throw rpcErrors.internal('Account upgraded to unsupported contract');
+    }
+
+    requiresUpgrade = !isSupported;
   }
 
   const nestedTransactions = await Promise.all(
@@ -339,7 +352,7 @@ async function addTransactionBatchWith7702(
     ...batchParams,
   };
 
-  if (!isSupported) {
+  if (requiresUpgrade) {
     const upgradeContractAddress = getEIP7702UpgradeContractAddress(
       chainId,
       messenger,
