@@ -1,28 +1,6 @@
 import type { Json } from '@metamask/utils';
 
 /**
- * Represents values that can be passed as properties to the event tracking function.
- * Similar to JsonValue from Segment SDK but decoupled for platform agnosticism.
- */
-type AnalyticsJsonValue =
-  | boolean
-  | number
-  | string
-  | null
-  | AnalyticsJsonValue[]
-  | AnalyticsJsonMap
-  | undefined;
-
-/**
- * Represents the map object used to pass properties to the event tracking function.
- * Similar to JsonMap from Segment SDK but decoupled for platform agnosticism.
- */
-type AnalyticsJsonMap = {
-  [key: string]: AnalyticsJsonValue;
-  [index: number]: AnalyticsJsonValue;
-};
-
-/**
  * Analytics event properties
  */
 export type AnalyticsEventProperties = Record<string, Json>;
@@ -33,15 +11,15 @@ export type AnalyticsEventProperties = Record<string, Json>;
 export type AnalyticsUserTraits = Record<string, Json>;
 
 /**
- * Event properties structure with two distinct properties lists for anonymous and non-anonymous data.
+ * Event properties structure with two distinct properties lists for regular and sensitive data.
  * Similar to ITrackingEvent from legacy analytics but decoupled for platform agnosticism.
+ * Sensitivity is derived from the presence of sensitiveProperties (if sensitiveProperties has keys, the event is sensitive).
  */
 export type AnalyticsTrackingEvent = {
   readonly name: string;
-  properties: AnalyticsJsonMap;
-  sensitiveProperties: AnalyticsJsonMap;
+  properties: AnalyticsEventProperties;
+  sensitiveProperties: AnalyticsEventProperties;
   saveDataRecording: boolean;
-  readonly isAnonymous: boolean;
   readonly hasProperties: boolean;
 };
 
@@ -56,9 +34,10 @@ export type AnalyticsPlatformAdapter = {
    * This is the same as trackEvent in the old analytics system
    *
    * @param eventName - The name of the event
-   * @param properties - Event properties
+   * @param properties - Event properties. If not provided, the event has no properties.
+   * The privacy plugin should check for `isSensitive === true` to determine if an event contains sensitive data.
    */
-  track(eventName: string, properties: AnalyticsEventProperties): void;
+  track(eventName: string, properties?: AnalyticsEventProperties): void;
 
   /**
    * Identify a user with traits.
@@ -71,12 +50,12 @@ export type AnalyticsPlatformAdapter = {
   /**
    * Track a UI unit (page or screen) view depending on the platform
    *
-   * This is the same as page in Segment web SDK and screen in Segment mobile SDK.
-   * Each platform adapter should implement this method to track UI views
-   * using the appropriate method for the platform: "pages" for web, "screen" for mobile.
+   * This method delegates to platform-specific Segment SDK methods:
+   * - Web adapters should call `analytics.page(name, properties)`
+   * - Mobile adapters should call `analytics.screen(name, properties)`
    *
-   * @param name - The name of the UI item being viewed (pages for web, screen for mobile)
-   * @param properties - Page properties
+   * @param name - The identifier/name of the page or screen being viewed (e.g., "home", "settings", "wallet")
+   * @param properties - Optional properties associated with the view
    */
   view(name: string, properties?: AnalyticsEventProperties): void;
 

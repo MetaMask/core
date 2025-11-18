@@ -17,6 +17,9 @@ export type {
 export type { AnalyticsControllerState } from './AnalyticsController';
 export { getDefaultAnalyticsControllerState } from './AnalyticsController';
 
+// Export selectors
+export { analyticsControllerSelectors } from './selectors';
+
 // Export messenger types
 export type { AnalyticsControllerMessenger } from './AnalyticsController';
 
@@ -32,13 +35,9 @@ export type {
   AnalyticsControllerTrackEventAction,
   AnalyticsControllerIdentifyAction,
   AnalyticsControllerTrackViewAction,
-  AnalyticsControllerOptInAction,
-  AnalyticsControllerOptOutAction,
-  AnalyticsControllerSocialOptInAction,
-  AnalyticsControllerSocialOptOutAction,
-  AnalyticsControllerGetAnalyticsIdAction,
-  AnalyticsControllerIsEnabledAction,
-  AnalyticsControllerIsOptedInAction,
-  AnalyticsControllerIsSocialOptedInAction,
+  AnalyticsControllerOptInForRegularAccountAction,
+  AnalyticsControllerOptOutForRegularAccountAction,
+  AnalyticsControllerOptInForSocialAccountAction,
+  AnalyticsControllerOptOutForSocialAccountAction,
   AnalyticsControllerMethodActions,
 } from './AnalyticsController-method-action-types';

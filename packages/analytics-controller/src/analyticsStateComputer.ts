@@ -11,15 +11,15 @@ import type { AnalyticsControllerState } from './AnalyticsController';
  *
  * 1. **Enabled State** (`computeEnabledState`):
  * - Determines whether analytics tracking is active
- * - Rules: `controller_enabled = user_optedIn || user_socialOptedIn`
- * - Analytics is enabled if the user has opted in through regular account OR social account
+ * - Rules: `controller_enabled = optedInForRegularAccount || optedInForSocialAccount`
+ * - Analytics is enabled if the user has opted in for regular account OR social account
  *
  * 2. **Future computations** (e.g., feature flags, permissions, etc.)
  *
  * **Usage:**
  * These functions are called:
  * - During controller initialization to set initial values
- * - Whenever user state changes (e.g., in `optIn()`, `optOut()`)
+ * - Whenever user state changes (e.g., in `optInForRegularAccount()`, `optOutForRegularAccount()`, `optInForSocialAccount()`, `optOutForSocialAccount()`)
  *
  * **Extensibility:**
  * To add new computations, add new functions that take `AnalyticsControllerState` as input.
@@ -34,11 +34,11 @@ import type { AnalyticsControllerState } from './AnalyticsController';
  * @returns `true` if analytics tracking should be enabled, `false` otherwise
  */
 export function computeEnabledState(state: AnalyticsControllerState): boolean {
-  // Analytics is enabled if user has opted in through regular account OR social account
+  // Analytics is enabled if user has opted in for regular account OR social account
   // Rules:
-  // - optIn==true && socialOptIn==true -> enabled=true
-  // - optIn==false && socialOptIn==true -> enabled=true
-  // - optIn==true && socialOptIn==false -> enabled=true
-  // - optIn==false && socialOptIn==false -> enabled=false
-  return state.user_optedIn || state.user_socialOptedIn;
+  // - optedInForRegularAccount==true && optedInForSocialAccount==true -> enabled=true
+  // - optedInForRegularAccount==false && optedInForSocialAccount==true -> enabled=true
+  // - optedInForRegularAccount==true && optedInForSocialAccount==false -> enabled=true
+  // - optedInForRegularAccount==false && optedInForSocialAccount==false -> enabled=false
+  return state.optedInForRegularAccount || state.optedInForSocialAccount;
 }

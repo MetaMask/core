@@ -39,80 +39,39 @@ export type AnalyticsControllerTrackViewAction = {
 };
 
 /**
- * Opt in to analytics.
- * This updates the user's opt-in status.
+ * Opt in to analytics for regular account.
+ * This updates the user's opt-in status for regular account.
  */
-export type AnalyticsControllerOptInAction = {
-  type: `AnalyticsController:optIn`;
-  handler: AnalyticsController['optIn'];
+export type AnalyticsControllerOptInForRegularAccountAction = {
+  type: `AnalyticsController:optInForRegularAccount`;
+  handler: AnalyticsController['optInForRegularAccount'];
 };
 
 /**
- * Opt out of analytics.
- * This updates the user's opt-in status.
+ * Opt out of analytics for regular account.
+ * This updates the user's opt-in status for regular account.
  */
-export type AnalyticsControllerOptOutAction = {
-  type: `AnalyticsController:optOut`;
-  handler: AnalyticsController['optOut'];
+export type AnalyticsControllerOptOutForRegularAccountAction = {
+  type: `AnalyticsController:optOutForRegularAccount`;
+  handler: AnalyticsController['optOutForRegularAccount'];
 };
 
 /**
- * Opt in to analytics through social account.
- * This updates the user's social opt-in status.
+ * Opt in to analytics for social account.
+ * This updates the user's opt-in status for social account.
  */
-export type AnalyticsControllerSocialOptInAction = {
-  type: `AnalyticsController:socialOptIn`;
-  handler: AnalyticsController['socialOptIn'];
+export type AnalyticsControllerOptInForSocialAccountAction = {
+  type: `AnalyticsController:optInForSocialAccount`;
+  handler: AnalyticsController['optInForSocialAccount'];
 };
 
 /**
- * Opt out of analytics through social account.
- * This updates the user's social opt-in status.
+ * Opt out of analytics for social account.
+ * This updates the user's opt-in status for social account.
  */
-export type AnalyticsControllerSocialOptOutAction = {
-  type: `AnalyticsController:socialOptOut`;
-  handler: AnalyticsController['socialOptOut'];
-};
-
-/**
- * Get the analytics ID from the controller state.
- *
- * @returns The current analytics ID.
- */
-export type AnalyticsControllerGetAnalyticsIdAction = {
-  type: `AnalyticsController:getAnalyticsId`;
-  handler: AnalyticsController['getAnalyticsId'];
-};
-
-/**
- * Get the enabled status from the controller state.
- * This is computed from user state via the state machine.
- *
- * @returns The current enabled status.
- */
-export type AnalyticsControllerIsEnabledAction = {
-  type: `AnalyticsController:isEnabled`;
-  handler: AnalyticsController['isEnabled'];
-};
-
-/**
- * Get the opted in status from the controller state.
- *
- * @returns The current opted in status.
- */
-export type AnalyticsControllerIsOptedInAction = {
-  type: `AnalyticsController:isOptedIn`;
-  handler: AnalyticsController['isOptedIn'];
-};
-
-/**
- * Get the social opted in status from the controller state.
- *
- * @returns The current social opted in status.
- */
-export type AnalyticsControllerIsSocialOptedInAction = {
-  type: `AnalyticsController:isSocialOptedIn`;
-  handler: AnalyticsController['isSocialOptedIn'];
+export type AnalyticsControllerOptOutForSocialAccountAction = {
+  type: `AnalyticsController:optOutForSocialAccount`;
+  handler: AnalyticsController['optOutForSocialAccount'];
 };
 
 /**
@@ -122,11 +81,7 @@ export type AnalyticsControllerMethodActions =
   | AnalyticsControllerTrackEventAction
   | AnalyticsControllerIdentifyAction
   | AnalyticsControllerTrackViewAction
-  | AnalyticsControllerOptInAction
-  | AnalyticsControllerOptOutAction
-  | AnalyticsControllerSocialOptInAction
-  | AnalyticsControllerSocialOptOutAction
-  | AnalyticsControllerGetAnalyticsIdAction
-  | AnalyticsControllerIsEnabledAction
-  | AnalyticsControllerIsOptedInAction
-  | AnalyticsControllerIsSocialOptedInAction;
+  | AnalyticsControllerOptInForRegularAccountAction
+  | AnalyticsControllerOptOutForRegularAccountAction
+  | AnalyticsControllerOptInForSocialAccountAction
+  | AnalyticsControllerOptOutForSocialAccountAction;

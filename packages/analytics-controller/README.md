@@ -134,9 +134,13 @@ controller.trackView('home', {
 controller.enable();
 controller.disable();
 
-// Opt in/out
-controller.optIn();
-controller.optOut();
+// Opt in/out for regular account
+controller.optInForRegularAccount();
+controller.optOutForRegularAccount();
+
+// Opt in/out for social account
+controller.optInForSocialAccount();
+controller.optOutForSocialAccount();
 ```
 
 ### 7. Use Messenger Actions
@@ -157,10 +161,10 @@ messenger.call(
   },
 );
 
-messenger.call('AnalyticsController:enable');
-messenger.call('AnalyticsController:disable');
-messenger.call('AnalyticsController:optIn');
-messenger.call('AnalyticsController:optOut');
+messenger.call('AnalyticsController:optInForRegularAccount');
+messenger.call('AnalyticsController:optOutForRegularAccount');
+messenger.call('AnalyticsController:optInForSocialAccount');
+messenger.call('AnalyticsController:optOutForSocialAccount');
 ```
 
 ### 8. Subscribe to State Changes

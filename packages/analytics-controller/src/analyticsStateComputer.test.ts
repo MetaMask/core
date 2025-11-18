@@ -5,11 +5,11 @@ describe('analyticsStateComputer', () => {
   describe('computeEnabledState', () => {
     const defaultAnalyticsId = '550e8400-e29b-41d4-a716-446655440000';
 
-    it('returns true when optIn=true and socialOptIn=true', () => {
+    it('returns true when optedInForRegularAccount=true and optedInForSocialAccount=true', () => {
       const state: AnalyticsControllerState = {
-        user_optedIn: true,
-        user_socialOptedIn: true,
-        user_analyticsId: defaultAnalyticsId,
+        optedInForRegularAccount: true,
+        optedInForSocialAccount: true,
+        analyticsId: defaultAnalyticsId,
       };
 
       const result = computeEnabledState(state);
@@ -17,11 +17,11 @@ describe('analyticsStateComputer', () => {
       expect(result).toBe(true);
     });
 
-    it('returns true when optIn=false and socialOptIn=true', () => {
+    it('returns true when optedInForRegularAccount=false and optedInForSocialAccount=true', () => {
       const state: AnalyticsControllerState = {
-        user_optedIn: false,
-        user_socialOptedIn: true,
-        user_analyticsId: defaultAnalyticsId,
+        optedInForRegularAccount: false,
+        optedInForSocialAccount: true,
+        analyticsId: defaultAnalyticsId,
       };
 
       const result = computeEnabledState(state);
@@ -29,11 +29,11 @@ describe('analyticsStateComputer', () => {
       expect(result).toBe(true);
     });
 
-    it('returns true when optIn=true and socialOptIn=false', () => {
+    it('returns true when optedInForRegularAccount=true and optedInForSocialAccount=false', () => {
       const state: AnalyticsControllerState = {
-        user_optedIn: true,
-        user_socialOptedIn: false,
-        user_analyticsId: defaultAnalyticsId,
+        optedInForRegularAccount: true,
+        optedInForSocialAccount: false,
+        analyticsId: defaultAnalyticsId,
       };
 
       const result = computeEnabledState(state);
@@ -41,11 +41,11 @@ describe('analyticsStateComputer', () => {
       expect(result).toBe(true);
     });
 
-    it('returns false when optIn=false and socialOptIn=false', () => {
+    it('returns false when optedInForRegularAccount=false and optedInForSocialAccount=false', () => {
       const state: AnalyticsControllerState = {
-        user_optedIn: false,
-        user_socialOptedIn: false,
-        user_analyticsId: defaultAnalyticsId,
+        optedInForRegularAccount: false,
+        optedInForSocialAccount: false,
+        analyticsId: defaultAnalyticsId,
       };
 
       const result = computeEnabledState(state);
@@ -53,29 +53,29 @@ describe('analyticsStateComputer', () => {
       expect(result).toBe(false);
     });
 
-    it('computes enabled state based on user_optedIn OR user_socialOptedIn', () => {
+    it('computes enabled state based on optedInForRegularAccount OR optedInForSocialAccount', () => {
       const bothOptedIn: AnalyticsControllerState = {
-        user_optedIn: true,
-        user_socialOptedIn: true,
-        user_analyticsId: defaultAnalyticsId,
+        optedInForRegularAccount: true,
+        optedInForSocialAccount: true,
+        analyticsId: defaultAnalyticsId,
       };
 
       const onlyRegularOptedIn: AnalyticsControllerState = {
-        user_optedIn: true,
-        user_socialOptedIn: false,
-        user_analyticsId: defaultAnalyticsId,
+        optedInForRegularAccount: true,
+        optedInForSocialAccount: false,
+        analyticsId: defaultAnalyticsId,
       };
 
       const onlySocialOptedIn: AnalyticsControllerState = {
-        user_optedIn: false,
-        user_socialOptedIn: true,
-        user_analyticsId: defaultAnalyticsId,
+        optedInForRegularAccount: false,
+        optedInForSocialAccount: true,
+        analyticsId: defaultAnalyticsId,
       };
 
       const neitherOptedIn: AnalyticsControllerState = {
-        user_optedIn: false,
-        user_socialOptedIn: false,
-        user_analyticsId: defaultAnalyticsId,
+        optedInForRegularAccount: false,
+        optedInForSocialAccount: false,
+        analyticsId: defaultAnalyticsId,
       };
 
       expect(computeEnabledState(bothOptedIn)).toBe(true);
