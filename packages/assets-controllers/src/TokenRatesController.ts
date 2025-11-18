@@ -390,6 +390,10 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   async updateExchangeRates(
     chainIdAndNativeCurrency: ChainIdAndNativeCurrency[],
   ): Promise<void> {
+    if (this.#disabled) {
+      return;
+    }
+
     const marketData: Record<Hex, Record<Hex, MarketDataDetails>> = {};
     const assetsByNativeCurrency: Record<
       string,

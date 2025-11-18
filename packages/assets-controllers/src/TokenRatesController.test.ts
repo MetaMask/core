@@ -87,6 +87,30 @@ describe('TokenRatesController', () => {
   });
 
   describe('updateExchangeRates', () => {
+    it('does not fetch when disabled', async () => {
+      const tokenPricesService = buildMockTokenPricesService();
+      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+
+      await withController(
+        {
+          options: {
+            tokenPricesService,
+            disabled: true,
+          },
+        },
+        async ({ controller }) => {
+          await controller.updateExchangeRates([
+            {
+              chainId: '0x1',
+              nativeCurrency: 'ETH',
+            },
+          ]);
+
+          expect(tokenPricesService.fetchTokenPrices).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('fetches rates for tokens in one batch', async () => {
       const chainId = '0x1';
       const nativeCurrency = 'ETH';
