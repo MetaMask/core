@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Update `spot-prices` endpoint to use Price API v3 ([7119](https://github.com/MetaMask/core/pull/7119))
+- **BREAKING:** Update `spot-prices` endpoint to use Price API v3 ([#7119](https://github.com/MetaMask/core/pull/7119))
   - Update `AbstractTokenPricesService.fetchTokenPrices` arguments and return type
   - Update `CodefiTokenPricesServiceV2` list of supported currencies
   - Update `TokenRatesController` to fetch prices by native currency instead of by chain
