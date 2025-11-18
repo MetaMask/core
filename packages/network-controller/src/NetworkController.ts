@@ -482,7 +482,7 @@ export type NetworkControllerRpcEndpointChainUnavailableEvent = {
 };
 
 /**
- * `NetworkController:rpcEndpointUnvailable` is published when the number of
+ * `NetworkController:rpcEndpointUnavailable` is published when the number of
  * failed consecutive attempts to receive a 2xx response from *any* of the
  * RPC endpoints within a chain of endpoints reaches a maximum.
  *
@@ -505,8 +505,8 @@ export type NetworkControllerRpcEndpointChainUnavailableEvent = {
  * @param payload.primaryEndpointUrl - The URL of the primary for the chain of
  * endpoints.
  */
-export type NetworkControllerRpcEndpointUnvailableEvent = {
-  type: 'NetworkController:rpcEndpointUnvailable';
+export type NetworkControllerRpcEndpointUnavailableEvent = {
+  type: 'NetworkController:rpcEndpointUnavailable';
   payload: [
     {
       chainId: Hex;
@@ -675,7 +675,7 @@ export type NetworkControllerEvents =
   | NetworkControllerNetworkAddedEvent
   | NetworkControllerNetworkRemovedEvent
   | NetworkControllerRpcEndpointChainUnavailableEvent
-  | NetworkControllerRpcEndpointUnvailableEvent
+  | NetworkControllerRpcEndpointUnavailableEvent
   | NetworkControllerRpcEndpointChainDegradedEvent
   | NetworkControllerRpcEndpointDegradedEvent
   | NetworkControllerRpcEndpointChainAvailableEvent

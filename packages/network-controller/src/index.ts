@@ -37,7 +37,7 @@ export type {
   NetworkControllerMessenger,
   NetworkControllerOptions,
   NetworkControllerRpcEndpointChainUnavailableEvent,
-  NetworkControllerRpcEndpointUnvailableEvent,
+  NetworkControllerRpcEndpointUnavailableEvent,
   NetworkControllerRpcEndpointChainDegradedEvent,
   NetworkControllerRpcEndpointDegradedEvent,
   NetworkControllerRpcEndpointChainAvailableEvent,

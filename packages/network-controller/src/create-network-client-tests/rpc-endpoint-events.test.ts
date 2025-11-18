@@ -134,7 +134,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointUnvailable event each time the max number of consecutive request failures is reached for any of the endpoints in a chain of endpoints', async () => {
+      it('publishes the NetworkController:rpcEndpointUnavailable event each time the max number of consecutive request failures is reached for any of the endpoints in a chain of endpoints', async () => {
         const failoverEndpointUrl = 'https://failover.endpoint/';
         const request = {
           method: 'eth_gasPrice',
@@ -174,10 +174,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
                 });
 
                 const messenger = buildRootMessenger();
-                const rpcEndpointUnvailableEventHandler = jest.fn();
+                const rpcEndpointUnavailableEventHandler = jest.fn();
                 messenger.subscribe(
-                  'NetworkController:rpcEndpointUnvailable',
-                  rpcEndpointUnvailableEventHandler,
+                  'NetworkController:rpcEndpointUnavailable',
+                  rpcEndpointUnavailableEventHandler,
                 );
 
                 await withNetworkClient(
@@ -230,10 +230,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     );
 
                     expect(
-                      rpcEndpointUnvailableEventHandler,
+                      rpcEndpointUnavailableEventHandler,
                     ).toHaveBeenCalledTimes(2);
                     expect(
-                      rpcEndpointUnvailableEventHandler,
+                      rpcEndpointUnavailableEventHandler,
                     ).toHaveBeenCalledWith({
                       chainId,
                       endpointUrl: rpcUrl,
@@ -242,7 +242,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       primaryEndpointUrl: rpcUrl,
                     });
                     expect(
-                      rpcEndpointUnvailableEventHandler,
+                      rpcEndpointUnavailableEventHandler,
                     ).toHaveBeenCalledWith({
                       chainId,
                       endpointUrl: failoverEndpointUrl,

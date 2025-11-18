@@ -248,7 +248,7 @@ function createRpcServiceChain({
   rpcServiceChain.onServiceBreak(
     ({ primaryEndpointUrl: _, endpointUrl, ...rest }) => {
       const error = getError(rest);
-      messenger.publish('NetworkController:rpcEndpointUnvailable', {
+      messenger.publish('NetworkController:rpcEndpointUnavailable', {
         chainId: configuration.chainId,
         networkClientId: id,
         primaryEndpointUrl,
