@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [89.0.0]
-
 ### Changed
 
 - **BREAKING:** Update `spot-prices` endpoint to use Price API v3 ([7119](https://github.com/MetaMask/core/pull/7119))
@@ -16,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Update `CodefiTokenPricesServiceV2` list of supported currencies
   - Update `TokenRatesController` to fetch prices by native currency instead of by chain
   - Remove legacy polling code and unused events from `TokenRatesController`
+
+## [89.0.0]
+
+### Changed
+
 - **BREAKING:** Remove fallback to CryptoCompare on `CurrencyRatesController` and `TokenRatesController` ([#7167](https://github.com/MetaMask/core/pull/7167))
 - Bump `@metamask/core-backend` from `^4.0.0` to `^4.1.0`
 
