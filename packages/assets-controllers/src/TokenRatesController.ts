@@ -1,17 +1,13 @@
 import type {
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedAccountAction,
-  AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
-import {
-  safelyExecute,
-  toChecksumHexAddress,
-} from '@metamask/controller-utils';
+import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
@@ -95,11 +91,6 @@ type ChainIdAndNativeCurrency = {
   nativeCurrency: string;
 };
 
-enum PollState {
-  Active = 'Active',
-  Inactive = 'Inactive',
-}
-
 /**
  * The external actions available to the {@link TokenRatesController}.
  */
@@ -115,8 +106,7 @@ export type AllowedActions =
  */
 export type AllowedEvents =
   | TokensControllerStateChangeEvent
-  | NetworkControllerStateChangeEvent
-  | AccountsControllerSelectedEvmAccountChangeEvent;
+  | NetworkControllerStateChangeEvent;
 
 /**
  * The name of the {@link TokenRatesController}.
@@ -204,15 +194,9 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   TokenRatesControllerState,
   TokenRatesControllerMessenger
 > {
-  #handle?: ReturnType<typeof setTimeout>;
-
-  #pollState = PollState.Inactive;
-
   readonly #tokenPricesService: AbstractTokenPricesService;
 
   #disabled: boolean;
-
-  readonly #interval: number;
 
   #allTokens: TokensControllerState['allTokens'];
 
@@ -251,7 +235,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.setIntervalLength(interval);
     this.#tokenPricesService = tokenPricesService;
     this.#disabled = disabled;
-    this.#interval = interval;
 
     const { allTokens, allDetectedTokens } = this.#getTokensControllerState();
     this.#allTokens = allTokens;
@@ -312,7 +295,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
           return acc;
         }, []);
 
-        await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
+        await this.updateExchangeRates(chainIdAndNativeCurrency);
       },
       ({ allTokens, allDetectedTokens }) => {
         return { allTokens, allDetectedTokens };
@@ -338,7 +321,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
           },
         );
 
-        if (this.#pollState === PollState.Active) {
+        if (!this.#disabled) {
           await this.updateExchangeRates(chainIdAndNativeCurrency);
         }
 
@@ -396,26 +379,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.#disabled = true;
   }
 
-  /**
-   * Start (or restart) polling.
-   *
-   * @param chainId - The chain ID.
-   * @param nativeCurrency - The native currency.
-   */
-  async start(chainId: Hex, nativeCurrency: string) {
-    this.#stopPoll();
-    this.#pollState = PollState.Active;
-    await this.#poll(chainId, nativeCurrency);
-  }
-
-  /**
-   * Stop polling.
-   */
-  stop() {
-    this.#stopPoll();
-    this.#pollState = PollState.Inactive;
-  }
-
   #getTokensControllerState(): {
     allTokens: TokensControllerState['allTokens'];
     allDetectedTokens: TokensControllerState['allDetectedTokens'];
@@ -431,51 +394,11 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   /**
-   * Clear the active polling timer, if present.
-   */
-  #stopPoll() {
-    if (this.#handle) {
-      clearTimeout(this.#handle);
-    }
-  }
-
-  /**
-   * Poll for exchange rate updates.
-   *
-   * @param chainId - The chain ID.
-   * @param nativeCurrency - The native currency.
-   */
-  async #poll(chainId: Hex, nativeCurrency: string) {
-    await safelyExecute(() =>
-      this.updateExchangeRates([{ chainId, nativeCurrency }]),
-    );
-
-    // Poll using recursive `setTimeout` instead of `setInterval` so that
-    // requests don't stack if they take longer than the polling interval
-    this.#handle = setTimeout(() => {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.#poll(chainId, nativeCurrency);
-    }, this.#interval);
-  }
-
-  /**
    * Updates exchange rates for all tokens.
    *
    * @param chainIdAndNativeCurrency - The chain ID and native currency.
    */
   async updateExchangeRates(
-    chainIdAndNativeCurrency: ChainIdAndNativeCurrency[],
-  ) {
-    await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
-  }
-
-  /**
-   * Updates exchange rates for all tokens.
-   *
-   * @param chainIdAndNativeCurrency - The chain ID and native currency.
-   */
-  async updateExchangeRatesByChainId(
     chainIdAndNativeCurrency: ChainIdAndNativeCurrency[],
   ): Promise<void> {
     const marketData: Record<Hex, Record<Hex, MarketDataDetails>> = {};
@@ -499,6 +422,11 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       }
     }
 
+    // console.log('EEEEEE', {
+    //   assetsByNativeCurrency,
+    //   chainIdAndNativeCurrency,
+    // });
+
     await Promise.allSettled(
       Object.entries(assetsByNativeCurrency).map(
         async ([nativeCurrency, assets]) => {
@@ -515,6 +443,12 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
                   currency: nativeCurrency,
                 });
 
+              // console.log('FFFFF', {
+              //   batchMarketData,
+              //   assetsBatch,
+              //   nativeCurrency,
+              // });
+
               for (const tokenPrice of batchMarketData) {
                 (partialMarketData[tokenPrice.chainId] ??= {})[
                   tokenPrice.tokenAddress
@@ -528,6 +462,17 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
         },
       ),
     );
+
+    const chainIds = new Set(
+      Object.values(chainIdAndNativeCurrency).map((chain) => chain.chainId),
+    );
+
+    for (const chainId of chainIds) {
+      if (!marketData[chainId]) {
+        marketData[chainId] = {};
+      }
+    }
+    // console.log('GGGGG', marketData);
 
     if (Object.keys(marketData).length > 0) {
       this.update((state) => {
@@ -567,7 +512,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       return acc;
     }, []);
 
-    await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
+    await this.updateExchangeRates(chainIdAndNativeCurrency);
   }
 
   /**
