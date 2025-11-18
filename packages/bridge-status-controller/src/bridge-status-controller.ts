@@ -1042,8 +1042,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     accountAddress: string,
     quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
-    isLoading?: boolean,
-    warnings?: QuoteWarning[],
+    isLoading: boolean=false,
+    warnings: QuoteWarning[]=[],
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     // If trade is submitted before all quotes are loaded, publish QuotesReceived event
     if(isLoading) {
