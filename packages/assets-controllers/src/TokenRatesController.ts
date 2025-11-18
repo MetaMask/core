@@ -1,8 +1,4 @@
 import type {
-  AccountsControllerGetAccountAction,
-  AccountsControllerGetSelectedAccountAction,
-} from '@metamask/accounts-controller';
-import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
@@ -10,7 +6,6 @@ import type {
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
-  NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
@@ -96,10 +91,7 @@ type ChainIdAndNativeCurrency = {
  */
 export type AllowedActions =
   | TokensControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetStateAction
-  | AccountsControllerGetAccountAction
-  | AccountsControllerGetSelectedAccountAction;
+  | NetworkControllerGetStateAction;
 
 /**
  * The external events available to the {@link TokenRatesController}.
@@ -309,19 +301,16 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ networkConfigurationsByChainId }, patches) => {
-        const chainIdAndNativeCurrency: {
-          chainId: Hex;
-          nativeCurrency: string;
-        }[] = Object.values(networkConfigurationsByChainId).map(
-          ({ chainId, nativeCurrency }) => {
+        if (!this.#disabled) {
+          const chainIdAndNativeCurrency = Object.values(
+            networkConfigurationsByChainId,
+          ).map(({ chainId, nativeCurrency }) => {
             return {
-              chainId: chainId as Hex,
+              chainId,
               nativeCurrency,
             };
-          },
-        );
+          });
 
-        if (!this.#disabled) {
           await this.updateExchangeRates(chainIdAndNativeCurrency);
         }
 
