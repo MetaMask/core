@@ -2116,7 +2116,7 @@ describe('BridgeController', function () {
       (
         ...args: Parameters<BridgeControllerMessenger['call']>
       ): ReturnType<BridgeControllerMessenger['call']> => {
-        const [actionType, params] = args;
+        const [actionType] = args;
 
         if (actionType === 'AccountsController:getAccountByAddress') {
           return {
@@ -2140,8 +2140,8 @@ describe('BridgeController', function () {
         }
 
         if (actionType === 'SnapController:handleRequest') {
-          return new Promise((_, reject) => {
-           reject(new Error('Failed to compute fees'));
+          return new Promise((_resolve, reject) => {
+            reject(new Error('Failed to compute fees'));
           });
         }
 

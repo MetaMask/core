@@ -881,7 +881,7 @@ describe('Bridge Selectors', () => {
         `);
       });
 
-      it('when gas is included and is taken from dest token', () => {
+      it('when gasIncluded7702=true and is taken from dest token', () => {
         const newState = getMockSwapState(
           {
             address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
