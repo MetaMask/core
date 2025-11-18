@@ -1750,6 +1750,9 @@ export type TransactionBatchRequest = {
   /** Security alert ID to persist on the transaction. */
   securityAlertId?: string;
 
+  /** Whether to skip the initial gas calculation and rely only on the polling. */
+  skipInitialGasEstimate?: boolean;
+
   /** Transactions to be submitted as part of the batch. */
   transactions: TransactionBatchSingleRequest[];
 
@@ -2102,6 +2105,9 @@ export type AddTransactionOptions = {
 
   /** Entries to add to the `sendFlowHistory`. */
   sendFlowHistory?: SendFlowHistoryEntry[];
+
+  /** Whether to skip the initial gas calculation and rely only on the polling. */
+  skipInitialGasEstimate?: boolean;
 
   /** Options for swaps transactions. */
   swaps?: {

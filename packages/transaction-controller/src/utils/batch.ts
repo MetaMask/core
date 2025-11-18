@@ -301,6 +301,7 @@ async function addTransactionBatchWith7702(
     origin,
     requireApproval,
     securityAlertId,
+    skipInitialGasEstimate,
     transactions,
     validateSecurity,
   } = userRequest;
@@ -422,6 +423,7 @@ async function addTransactionBatchWith7702(
     origin,
     requireApproval,
     securityAlertResponse,
+    skipInitialGasEstimate,
     type: TransactionType.batch,
   });
 
