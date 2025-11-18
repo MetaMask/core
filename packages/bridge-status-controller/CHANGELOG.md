@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update `submitTx` handler to accept optional `isLoading` and `warnings` arguments. When `isLoading=true`, the QuotesReceived event is published ([#7182](https://github.com/MetaMask/core/pull/7182))
+
 ## [61.0.0]
 
 ### Changed
