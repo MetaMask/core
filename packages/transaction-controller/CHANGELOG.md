@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Always run `beforeSign` hook even if using `gasFeeToken` and `isGasFeeTokenIgnoredIfBalance` ([#7172](https://github.com/MetaMask/core/pull/7172))
+
 ## [61.3.0]
 
 ### Added
