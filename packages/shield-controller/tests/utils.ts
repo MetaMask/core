@@ -34,6 +34,7 @@ export function generateMockTxMeta(): TransactionMeta {
     type: TransactionType.contractInteraction,
     origin: 'https://metamask.io',
     submittedTime: Date.now(),
+    rawTx: '0xdeadbeef',
   };
 }
 
