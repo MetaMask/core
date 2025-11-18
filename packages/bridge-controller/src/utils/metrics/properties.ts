@@ -116,9 +116,9 @@ export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
 };
 
 export const getQuotesReceivedProperties = (
-  activeQuote: QuoteResponse & Partial<QuoteMetadata>,
+  activeQuote: null |QuoteResponse & Partial<QuoteMetadata>,
   warnings: QuoteWarning[] = [],
-  recommendedQuote?: QuoteResponse & Partial<QuoteMetadata>,
+  recommendedQuote?: null | QuoteResponse & Partial<QuoteMetadata>,
 ) => {
   const provider =activeQuote ? formatProviderLabel(activeQuote.quote) : '_'
   return {
