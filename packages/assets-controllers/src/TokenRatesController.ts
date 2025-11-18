@@ -398,59 +398,53 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
         tokenAddress: Hex;
       }[]
     > = {};
+    const unsupportedAssetsByNativeCurrency: Record<
+      string,
+      {
+        chainId: Hex;
+        tokenAddress: Hex;
+      }[]
+    > = {};
     for (const { chainId, nativeCurrency } of chainIdAndNativeCurrency) {
       if (this.#tokenPricesService.validateChainIdSupported(chainId)) {
-        this.#getTokenAddresses(chainId).forEach((tokenAddress) => {
-          (assetsByNativeCurrency[nativeCurrency] ??= []).push({
-            chainId,
-            tokenAddress,
-          });
-        });
-      } else {
-        marketData[chainId] = {};
+        for (const tokenAddress of this.#getTokenAddresses(chainId)) {
+          if (
+            this.#tokenPricesService.validateCurrencySupported(nativeCurrency)
+          ) {
+            (assetsByNativeCurrency[nativeCurrency] ??= []).push({
+              chainId,
+              tokenAddress,
+            });
+          } else {
+            (unsupportedAssetsByNativeCurrency[nativeCurrency] ??= []).push({
+              chainId,
+              tokenAddress,
+            });
+          }
+        }
       }
     }
 
-    // console.log('EEEEEE', {
-    //   assetsByNativeCurrency,
-    //   chainIdAndNativeCurrency,
-    // });
-
-    await Promise.allSettled(
-      Object.entries(assetsByNativeCurrency).map(
-        async ([nativeCurrency, assets]) => {
-          return await reduceInBatchesSerially<
-            { chainId: Hex; tokenAddress: Hex },
-            Record<Hex, Record<Hex, MarketDataDetails>>
-          >({
-            values: assets,
-            batchSize: TOKEN_PRICES_BATCH_SIZE,
-            eachBatch: async (partialMarketData, assetsBatch) => {
-              const batchMarketData =
-                await this.#tokenPricesService.fetchTokenPrices({
-                  assets: assetsBatch,
-                  currency: nativeCurrency,
-                });
-
-              // console.log('FFFFF', {
-              //   batchMarketData,
-              //   assetsBatch,
-              //   nativeCurrency,
-              // });
-
-              for (const tokenPrice of batchMarketData) {
-                (partialMarketData[tokenPrice.chainId] ??= {})[
-                  tokenPrice.tokenAddress
-                ] = tokenPrice;
-              }
-
-              return partialMarketData;
-            },
-            initialResult: marketData,
-          });
-        },
+    const promises = [
+      ...Object.entries(assetsByNativeCurrency).map(
+        ([nativeCurrency, assets]) =>
+          this.#fetchAndMapExchangeRatesForSupportedNativeCurrency(
+            assets,
+            nativeCurrency,
+            marketData,
+          ),
       ),
-    );
+      ...Object.entries(unsupportedAssetsByNativeCurrency).map(
+        ([nativeCurrency, assets]) =>
+          this.#fetchAndMapExchangeRatesForUnsupportedNativeCurrency(
+            assets,
+            nativeCurrency,
+            marketData,
+          ),
+      ),
+    ];
+
+    await Promise.allSettled(promises);
 
     const chainIds = new Set(
       Object.values(chainIdAndNativeCurrency).map((chain) => chain.chainId),
@@ -461,7 +455,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
         marketData[chainId] = {};
       }
     }
-    // console.log('GGGGG', marketData);
 
     if (Object.keys(marketData).length > 0) {
       this.update((state) => {
@@ -470,6 +463,112 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
           ...marketData,
         };
       });
+    }
+  }
+
+  async #fetchAndMapExchangeRatesForSupportedNativeCurrency(
+    assets: {
+      chainId: Hex;
+      tokenAddress: Hex;
+    }[],
+    currency: string,
+    marketData: Record<Hex, Record<Hex, MarketDataDetails>> = {},
+  ) {
+    return await reduceInBatchesSerially<
+      { chainId: Hex; tokenAddress: Hex },
+      Record<Hex, Record<Hex, MarketDataDetails>>
+    >({
+      values: assets,
+      batchSize: TOKEN_PRICES_BATCH_SIZE,
+      eachBatch: async (partialMarketData, assetsBatch) => {
+        const batchMarketData = await this.#tokenPricesService.fetchTokenPrices(
+          {
+            assets: assetsBatch,
+            currency,
+          },
+        );
+
+        for (const tokenPrice of batchMarketData) {
+          (partialMarketData[tokenPrice.chainId] ??= {})[
+            tokenPrice.tokenAddress
+          ] = tokenPrice;
+        }
+
+        return partialMarketData;
+      },
+      initialResult: marketData,
+    });
+  }
+
+  async #fetchAndMapExchangeRatesForUnsupportedNativeCurrency(
+    assets: {
+      chainId: Hex;
+      tokenAddress: Hex;
+    }[],
+    currency: string,
+    marketData: Record<Hex, Record<Hex, MarketDataDetails>>,
+  ) {
+    // Step -1: Then fetch all tracked tokens priced in USD
+    const marketDataInUSD =
+      await this.#fetchAndMapExchangeRatesForSupportedNativeCurrency(
+        assets,
+        'usd', // Fallback currency when the native currency is not supported
+      );
+
+    // Formula: price_in_native = token_usd / native_usd
+    const convertUSDToNative = (
+      valueInUSD: number,
+      nativeTokenPriceInUSD: number,
+    ) => valueInUSD / nativeTokenPriceInUSD;
+
+    // Step -2: Convert USD prices to native currency
+    for (const [chainId, marketDataByTokenAddress] of Object.entries(
+      marketDataInUSD,
+    ) as [Hex, Record<Hex, MarketDataDetails>][]) {
+      const nativeTokenPriceInUSD =
+        marketDataByTokenAddress[getNativeTokenAddress(chainId)]?.price;
+
+      // Return here if it's null, undefined or 0
+      if (!nativeTokenPriceInUSD) {
+        continue;
+      }
+
+      for (const [tokenAddress, tokenData] of Object.entries(
+        marketDataByTokenAddress,
+      ) as [Hex, MarketDataDetails][]) {
+        // eslint-disable-next-line no-eq-null -- Checking for null or undefined only
+        if (tokenData.price == null) {
+          continue;
+        }
+
+        (marketData[chainId] ??= {})[tokenAddress] = {
+          ...tokenData,
+          currency,
+          price: convertUSDToNative(tokenData.price, nativeTokenPriceInUSD),
+          marketCap: convertUSDToNative(
+            tokenData.marketCap,
+            nativeTokenPriceInUSD,
+          ),
+          allTimeHigh: convertUSDToNative(
+            tokenData.allTimeHigh,
+            nativeTokenPriceInUSD,
+          ),
+          allTimeLow: convertUSDToNative(
+            tokenData.allTimeLow,
+            nativeTokenPriceInUSD,
+          ),
+          totalVolume: convertUSDToNative(
+            tokenData.totalVolume,
+            nativeTokenPriceInUSD,
+          ),
+          high1d: convertUSDToNative(tokenData.high1d, nativeTokenPriceInUSD),
+          low1d: convertUSDToNative(tokenData.low1d, nativeTokenPriceInUSD),
+          dilutedMarketCap: convertUSDToNative(
+            tokenData.dilutedMarketCap,
+            nativeTokenPriceInUSD,
+          ),
+        };
+      }
     }
   }
 
