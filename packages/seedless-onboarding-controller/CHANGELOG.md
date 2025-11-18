@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Remove unused ESLint directives about enum comparisons ([#7160](https://github.com/MetaMask/core/pull/7160))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-
 ### Changed
 
 - **BREAKING:** The `encryptor` constructor param requires `exportKey`, `keyFromPassword` and `generateSalt` methods ([#7128](https://github.com/MetaMask/core/pull/7128))
