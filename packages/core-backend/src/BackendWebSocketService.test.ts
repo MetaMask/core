@@ -889,7 +889,7 @@ describe('BackendWebSocketService', () => {
           service.connect();
 
           // Advance time past the timeout
-          await completeAsyncOperations(110);
+          await completeAsyncOperations(101);
 
           // Should have transitioned to DISCONNECTED state after timeout
           expect(service.getConnectionInfo().state).toBe(
