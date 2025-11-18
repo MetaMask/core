@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `transactionMeta.rawTx` to the `logTransaction` request body. ([#7178](https://github.com/MetaMask/core/pull/7178))
+
 ## [2.1.0]
 
 ### Added
