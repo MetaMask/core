@@ -27,5 +27,4 @@ For example:
 
 - [ ] I've updated the test suite for new or updated code as appropriate
 - [ ] I've updated documentation (JSDoc, Markdown, etc.) for new or updated code as appropriate
-- [ ] I've communicated my changes to consumers by [updating changelogs for packages I've changed](https://github.com/MetaMask/core/tree/main/docs/contributing.md#updating-changelogs), highlighting breaking changes as necessary
-- [ ] I've prepared draft pull requests for clients and consumer packages to resolve any breaking changes
+- [ ] I've introduced breaking changes and followed the [process](https://github.com/MetaMask/core/tree/main/docs/releasing-breaking-changes.md) to ensure that they do not cause problems in consuming code
