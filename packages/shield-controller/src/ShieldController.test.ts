@@ -461,6 +461,7 @@ describe('ShieldController', () => {
         txMeta: updatedTxMeta,
         status: 'shown',
         transactionHash: '0x00',
+        rawTransactionHex: '0xdeadbeef',
       });
     });
 
@@ -478,6 +479,7 @@ describe('ShieldController', () => {
       expect(components.backend.logTransaction).toHaveBeenCalledWith({
         status: 'not_shown',
         transactionHash: '0x00',
+        rawTransactionHex: '0xdeadbeef',
         txMeta: updatedTxMeta,
       });
     });
@@ -487,6 +489,17 @@ describe('ShieldController', () => {
 
       await runTest(components, {
         updateTransaction: (txMeta) => delete txMeta.hash,
+      });
+
+      // Check that backend was not called
+      expect(components.backend.logTransaction).not.toHaveBeenCalled();
+    });
+
+    it('does not log when raw transaction hex is missing', async () => {
+      const components = setup();
+
+      await runTest(components, {
+        updateTransaction: (txMeta) => delete txMeta.rawTx,
       });
 
       // Check that backend was not called

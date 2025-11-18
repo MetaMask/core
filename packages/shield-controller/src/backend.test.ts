@@ -362,6 +362,7 @@ describe('ShieldRemoteBackend', () => {
       await backend.logTransaction({
         txMeta: generateMockTxMeta(),
         transactionHash: '0x00',
+        rawTransactionHex: '0xdeadbeef',
         status: 'shown',
       });
       expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -377,6 +378,7 @@ describe('ShieldRemoteBackend', () => {
         backend.logTransaction({
           txMeta: generateMockTxMeta(),
           transactionHash: '0x00',
+          rawTransactionHex: '0xdeadbeef',
           status: 'shown',
         }),
       ).rejects.toThrow('Failed to log transaction: 500');
