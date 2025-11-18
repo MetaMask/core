@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add optional `env` parameter to the `NotificationServicesController` and `NotificationServicesPushController`
+  to support different environments (`prd`, `uat`, `dev`). ([#7175](https://github.com/MetaMask/core/pull/7175))
+
 ## [20.0.0]
 
 ### Changed
