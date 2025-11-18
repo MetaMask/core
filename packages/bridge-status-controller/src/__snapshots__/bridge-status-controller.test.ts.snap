@@ -1081,7 +1081,7 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions 1`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and publish QuotesReceived event if quotes are still loading 1`] = `
 Object {
   "batchId": "batchId1",
   "chainId": "0xa4b1",
@@ -1105,7 +1105,7 @@ Object {
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions 2`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and publish QuotesReceived event if quotes are still loading 2`] = `
 Object {
   "account": "0xaccount1",
   "approvalTxId": undefined,
@@ -1227,7 +1227,7 @@ Object {
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions 3`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and publish QuotesReceived event if quotes are still loading 3`] = `
 Array [
   Array [
     Object {
@@ -1245,7 +1245,7 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions 4`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and publish QuotesReceived event if quotes are still loading 4`] = `
 Array [
   Array [
     Object {
@@ -1279,8 +1279,27 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions 5`] = `
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and publish QuotesReceived event if quotes are still loading 5`] = `
 Array [
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Quotes Received",
+    Object {
+      "action_type": "swapbridge-v1",
+      "best_quote_provider": "lifi_across",
+      "can_submit": true,
+      "gas_included": false,
+      "gas_included_7702": false,
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quoted_time_minutes": 0.25,
+      "usd_quoted_gas": 2.5778,
+      "usd_quoted_return": 0.134214,
+      "warnings": Array [
+        "low_return",
+      ],
+    },
+  ],
   Array [
     "BridgeController:stopPollingForQuotes",
   ],
