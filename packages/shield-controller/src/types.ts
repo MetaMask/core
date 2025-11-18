@@ -23,6 +23,7 @@ export type LogSignatureRequest = {
 export type LogTransactionRequest = {
   txMeta: TransactionMeta;
   transactionHash: string;
+  rawTransactionHex: string;
   status: string;
 };
 

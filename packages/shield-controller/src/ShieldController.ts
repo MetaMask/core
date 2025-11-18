@@ -446,11 +446,17 @@ export class ShieldController extends BaseController<
       throw new Error('Transaction hash not found');
     }
 
+    const rawTransactionHex = txMeta.rawTx;
+    if (!rawTransactionHex) {
+      throw new Error('Raw transaction hex not found');
+    }
+
     const { status } = this.#getCoverageStatus(txMeta.id);
 
     await this.#backend.logTransaction({
       txMeta,
       transactionHash,
+      rawTransactionHex,
       status,
     });
   }
