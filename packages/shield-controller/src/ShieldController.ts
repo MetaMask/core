@@ -284,27 +284,30 @@ export class ShieldController extends BaseController<
     for (const transaction of transactions) {
       const previousTransaction = previousTransactionsById.get(transaction.id);
 
-      // Check if the simulation data has changed.
-      const simulationDataChanged =
-        // only check if the previous transaction has simulation data and if it has changed
-        // this is to avoid checking coverage for the `TWICE` (once when it's added to the state and once when it's simulated for the first time).
-        // we only need to update the coverage result when the simulation data has changed.
-        previousTransaction?.simulationData &&
-        !isEqual(
-          transaction.simulationData,
-          previousTransaction.simulationData,
-        );
-
-      // Check coverage if the transaction is new or if the simulation data has
-      // changed.
       if (
-        transaction.status !== TransactionStatus.submitted && // we don't need to check coverage for submitted transactions
-        (!previousTransaction || simulationDataChanged)
+        // We don't need to check coverage for submitted or confirmed transactions.
+        transaction.status !== TransactionStatus.submitted &&
+        transaction.status !== TransactionStatus.confirmed
       ) {
-        this.checkCoverage(transaction).catch(
-          // istanbul ignore next
-          (error) => log('Error checking coverage:', error),
-        );
+        // Check if the simulation data has changed.
+        const simulationDataChanged =
+          // only check if the previous transaction has simulation data and if it has changed
+          // this is to avoid checking coverage for the `TWICE` (once when it's added to the state and once when it's simulated for the first time).
+          // we only need to update the coverage result when the simulation data has changed.
+          previousTransaction?.simulationData &&
+          !isEqual(
+            transaction.simulationData,
+            previousTransaction.simulationData,
+          );
+
+        // Check coverage if the transaction is new or if the simulation data has
+        // changed.
+        if (!previousTransaction || simulationDataChanged) {
+          this.checkCoverage(transaction).catch(
+            // istanbul ignore next
+            (error) => log('Error checking coverage:', error),
+          );
+        }
       }
 
       // Log transaction once it has been submitted.
