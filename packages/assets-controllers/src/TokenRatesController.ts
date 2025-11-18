@@ -298,22 +298,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   #subscribeToNetworkStateChange() {
     this.messenger.subscribe(
       'NetworkController:stateChange',
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async ({ networkConfigurationsByChainId }, patches) => {
-        if (!this.#disabled) {
-          const chainIdAndNativeCurrency = Object.values(
-            networkConfigurationsByChainId,
-          ).map(({ chainId, nativeCurrency }) => {
-            return {
-              chainId,
-              nativeCurrency,
-            };
-          });
-
-          await this.updateExchangeRates(chainIdAndNativeCurrency);
-        }
-
+      (_state, patches) => {
         // Remove state for deleted networks
         for (const patch of patches) {
           if (

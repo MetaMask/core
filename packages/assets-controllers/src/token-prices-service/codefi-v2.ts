@@ -263,7 +263,7 @@ export const HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP = {
   '0xa4b1': 'eip155:42161/slip44:60', // Arbitrum One - Native symbol: ETH
   '0xa4ec': 'eip155:42220/slip44:52752', // Celo Mainnet - Native symbol: CELO
   '0xa516': 'eip155:42262/slip44:474', // Oasis Emerald - Native symbol: ROSE
-  '0xa86a': 'eip155:43114/slip44:9000', // Avalanche C-Chain - Native symbol: AVAX
+  '0xa86a': 'eip155:43114/slip44:9005', // Avalanche C-Chain - Native symbol: AVAX
   '0xe708': 'eip155:59144/slip44:60', // Linea Mainnet - Native symbol: ETH
   '0x13c31': 'eip155:81457/slip44:60', // Blast Mainnet - Native symbol: ETH
   '0x17dcd': 'eip155:97741/slip44:XXX', // Pepe Unchained Mainnet - Native symbol: PEPU
@@ -432,8 +432,8 @@ export class CodefiTokenPricesServiceV2
     assets: EvmAssetAddressWithChain<SupportedChainId>[];
     currency: SupportedCurrency;
   }): Promise<EvmAssetWithMarketData<SupportedChainId, SupportedCurrency>[]> {
-    const assetsWithIds: EvmAssetWithId<SupportedChainId>[] = assets.map(
-      (asset) => {
+    const assetsWithIds: EvmAssetWithId<SupportedChainId>[] = assets
+      .map((asset) => {
         const caipChainId = toCaipChainId(
           KnownCaipNamespace.Eip155,
           hexToNumber(asset.chainId).toString(),
@@ -447,9 +447,9 @@ export class CodefiTokenPricesServiceV2
             nativeAddress.toLowerCase() === asset.tokenAddress.toLowerCase()
               ? HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP[asset.chainId]
               : `${caipChainId}/erc20:${asset.tokenAddress.toLowerCase()}`,
-        };
-      },
-    );
+        } as EvmAssetWithId<SupportedChainId>;
+      })
+      .filter((asset) => asset.assetId);
 
     const url = new URL(`${BASE_URL_V3}/spot-prices`);
     url.searchParams.append(
