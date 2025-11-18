@@ -530,9 +530,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       marketDataInUSD,
     ) as [Hex, Record<Hex, MarketDataDetails>][]) {
       const nativeTokenPriceInUSD =
-        marketDataByTokenAddress[
-          getNativeTokenAddress(chainId).toLowerCase() as Hex
-        ]?.price;
+        marketDataByTokenAddress[getNativeTokenAddress(chainId)]?.price;
 
       // Return here if it's null, undefined or 0
       if (!nativeTokenPriceInUSD) {
