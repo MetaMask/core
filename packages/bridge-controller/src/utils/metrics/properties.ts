@@ -122,12 +122,13 @@ export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
 
 export const getQuotesReceivedProperties = (
   activeQuote: null | (QuoteResponse & Partial<QuoteMetadata>),
+  isSubmittable: boolean = true,
   warnings: QuoteWarning[] = [],
   recommendedQuote?: null | (QuoteResponse & Partial<QuoteMetadata>),
 ) => {
   const provider = activeQuote ? formatProviderLabel(activeQuote.quote) : '_';
   return {
-    can_submit: true,
+    can_submit: isSubmittable,
     gas_included: Boolean(activeQuote?.quote?.gasIncluded),
     gas_included_7702: Boolean(activeQuote?.quote?.gasIncluded7702),
     quoted_time_minutes: activeQuote?.estimatedProcessingTimeInSeconds
