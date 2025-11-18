@@ -86,7 +86,7 @@ export default class MockVaultEncryptor
 
   async keyFromPassword(
     password: string,
-    salt: string = this.DEFAULT_SALT,
+    salt: string,
     exportable: boolean = true,
     opts: KeyDerivationOptions = this.DEFAULT_DERIVATION_PARAMS,
   ) {
@@ -217,5 +217,9 @@ export default class MockVaultEncryptor
 
     const result = await this.decryptWithKey(key, payload);
     return result;
+  }
+
+  generateSalt(): string {
+    return this.DEFAULT_SALT;
   }
 }

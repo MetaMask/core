@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** The `KeyringController` constructor options now require an encryptor ([#7127](https://github.com/MetaMask/core/pull/7127))
   - The `encryptor` constructor option was previously optional and defaulted to an instance of `@metamask/browser-passworder`.
 - **BREAKING:** The `GenericEncryptor` and `ExportableKeyEncryptor` types have been merged into a single `Encryptor` type ([#7127](https://github.com/MetaMask/core/pull/7127))
+- **BREAKING:** The `Encryptor` type requires `exportKey`, `keyFromPassword` and `generateSalt` methods ([#7128](https://github.com/MetaMask/core/pull/7128))
 
 ### Removed
 

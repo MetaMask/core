@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/assets-controller` from `^88.0.0` to `^89.0.0` ([#7179](https://github.com/MetaMask/core/pull/7179))
+- **BREAKING:** Bump `@metamask/bridge-controller` from `^60.0.0` to `^61.0.0` ([#7179](https://github.com/MetaMask/core/pull/7179))
+- **BREAKING:** Bump `@metamask/bridge-status-controller` from `^60.0.0` to `^61.0.0` ([#7179](https://github.com/MetaMask/core/pull/7179))
+
+## [7.0.0]
+
+### Added
+
+- **BREAKING:** Add `sourceAmount` to `TransactionPayQuote` ([#7159](https://github.com/MetaMask/core/pull/7159))
+  - Add `estimate` and `max` properties to `fee.sourceNetwork` in `TransactionPayQuote`.
+  - Add `isTargetGasFeeToken` to `fee` in `TransactionPayQuote`.
+  - Add matching properties to `TransactionPayTotals`.
+  - Use fixed fiat rate for Polygon USDCe and Arbitrum USDC.
+
 ## [6.0.0]
 
 ### Fixed
@@ -90,7 +108,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@7.0.0...@metamask/transaction-pay-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@6.0.0...@metamask/transaction-pay-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@5.0.0...@metamask/transaction-pay-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@4.0.0...@metamask/transaction-pay-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@3.1.0...@metamask/transaction-pay-controller@4.0.0
