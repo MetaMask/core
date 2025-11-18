@@ -1,13 +1,13 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
-import  {
+import type { QuoteWarning } from '@metamask/bridge-controller';
+import {
   type QuoteMetadata,
   type RequiredEventContextFromClient,
   type TxData,
   type QuoteResponse,
   type Trade,
   getQuotesReceivedProperties,
-  QuoteWarning,
 } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
@@ -67,7 +67,6 @@ import {
   getEVMTxPropertiesFromTransactionMeta,
   getTxStatusesFromHistory,
   getPreConfirmationPropertiesFromQuote,
-
 } from './utils/metrics';
 import {
   findAndUpdateTransactionsInBatch,
@@ -1042,12 +1041,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     accountAddress: string,
     quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
-    isLoading: boolean=false,
-    warnings: QuoteWarning[]=[],
+    isLoading: boolean = false,
+    warnings: QuoteWarning[] = [],
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     // If trade is submitted before all quotes are loaded, publish QuotesReceived event
-    if(isLoading) {
-      this.#trackUnifiedSwapBridgeEvent(UnifiedSwapBridgeEventName.QuotesReceived, undefined, getQuotesReceivedProperties(quoteResponse, warnings));
+    if (isLoading) {
+      this.#trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.QuotesReceived,
+        undefined,
+        getQuotesReceivedProperties(quoteResponse, warnings),
+      );
     }
     this.messenger.call('BridgeController:stopPollingForQuotes');
 

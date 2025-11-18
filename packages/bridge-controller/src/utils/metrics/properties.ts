@@ -1,7 +1,12 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 
 import { MetricsSwapType } from './constants';
-import type { InputKeys, InputValues, QuoteWarning, RequestParams } from './types';
+import type {
+  InputKeys,
+  InputValues,
+  QuoteWarning,
+  RequestParams,
+} from './types';
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
 import type { QuoteMetadata, QuoteResponse, TxData } from '../../types';
 import {
@@ -116,11 +121,11 @@ export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
 };
 
 export const getQuotesReceivedProperties = (
-  activeQuote: null |QuoteResponse & Partial<QuoteMetadata>,
+  activeQuote: null | (QuoteResponse & Partial<QuoteMetadata>),
   warnings: QuoteWarning[] = [],
-  recommendedQuote?: null | QuoteResponse & Partial<QuoteMetadata>,
+  recommendedQuote?: null | (QuoteResponse & Partial<QuoteMetadata>),
 ) => {
-  const provider =activeQuote ? formatProviderLabel(activeQuote.quote) : '_'
+  const provider = activeQuote ? formatProviderLabel(activeQuote.quote) : '_';
   return {
     can_submit: true,
     gas_included: Boolean(activeQuote?.quote?.gasIncluded),
@@ -130,7 +135,9 @@ export const getQuotesReceivedProperties = (
       : 0,
     usd_quoted_gas: Number(activeQuote?.gasFee?.effective?.usd ?? 0),
     usd_quoted_return: Number(activeQuote?.toTokenAmount?.usd ?? 0),
-      best_quote_provider: recommendedQuote ? formatProviderLabel(recommendedQuote.quote) : provider,
+    best_quote_provider: recommendedQuote
+      ? formatProviderLabel(recommendedQuote.quote)
+      : provider,
     provider,
     warnings,
     price_impact: Number(activeQuote?.quote.priceData?.priceImpact ?? 0),
