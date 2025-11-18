@@ -1297,7 +1297,7 @@ describe('CurrencyRateController', () => {
       expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(1);
       expect(fetchTokenPricesSpy).toHaveBeenCalledWith({
         chainId: '0x1', // First chainId with ETH as native currency
-        tokenAddresses: ['0x0000000000000000000000000000000000000000'],
+        tokenAddresses: [],
         currency: 'usd',
       });
 
@@ -1518,7 +1518,7 @@ describe('CurrencyRateController', () => {
       expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(1);
       expect(fetchTokenPricesSpy).toHaveBeenCalledWith({
         chainId: '0x1',
-        tokenAddresses: ['0x0000000000000000000000000000000000000000'],
+        tokenAddresses: [],
         currency: 'usd',
       });
 
@@ -1598,7 +1598,7 @@ describe('CurrencyRateController', () => {
       // Should use Polygon's native token address (line 269)
       expect(fetchTokenPricesSpy).toHaveBeenCalledWith({
         chainId: '0x89',
-        tokenAddresses: ['0x0000000000000000000000000000000000001010'],
+        tokenAddresses: [],
         currency: 'usd',
       });
 

@@ -257,9 +257,10 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
       const ratesResults = await Promise.allSettled(
         currencyToChainIdsEntries.map(async ([nativeCurrency, { chainId }]) => {
           const nativeTokenAddress = getNativeTokenAddress(chainId);
+          // Pass empty array as fetchTokenPrices automatically includes the native token address
           const tokenPrices = await this.#tokenPricesService.fetchTokenPrices({
             chainId,
-            tokenAddresses: [nativeTokenAddress],
+            tokenAddresses: [],
             currency: currentCurrency,
           });
 
