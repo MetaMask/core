@@ -17,7 +17,11 @@ import {
   pattern,
   intersection,
 } from '@metamask/superstruct';
-import { CaipAssetTypeStruct, isStrictHexString } from '@metamask/utils';
+import {
+  CaipAssetTypeStruct,
+  CaipChainIdStruct,
+  isStrictHexString,
+} from '@metamask/utils';
 
 export enum FeeType {
   METABRIDGE = 'metabridge',
@@ -88,6 +92,42 @@ export const BridgeAssetSchema = type({
   iconUrl: optional(nullable(string())),
 });
 
+export const MinimalAssetSchema = type({
+  /**
+   * The assetId of the token
+   */
+  assetId: CaipAssetTypeStruct,
+  /**
+   * The symbol of token object
+   */
+  symbol: string(),
+  /**
+   * The name for the network
+   */
+  name: string(),
+  decimals: number(),
+});
+
+export const BridgeAssetV2Schema = intersection([
+  MinimalAssetSchema,
+  type({
+    /**
+     * The chainId of the token
+     */
+    chainId: CaipChainIdStruct,
+    /**
+     * URL for token icon
+     */
+    image: optional(nullable(string())),
+    noFee: optional(
+      type({
+        isDestination: nullable(optional(boolean())),
+        isSource: nullable(optional(boolean())),
+      }),
+    ),
+  }),
+]);
+
 const DefaultPairSchema = type({
   /**
    * The standard default pairs. Use this if the pair is only set once.
@@ -102,14 +142,35 @@ const DefaultPairSchema = type({
 });
 
 export const ChainConfigurationSchema = type({
+  /**
+   * @deprecated This field is no longer used, use chainRanking instead
+   */
   isActiveSrc: boolean(),
+   /**
+   * @deprecated This field is no longer used
+   */
   isActiveDest: boolean(),
   refreshRate: optional(number()),
+  /**
+   * @deprecated This field is no longer used
+   */
   topAssets: optional(array(string())),
   stablecoins: optional(array(string())),
+  /**
+   * @deprecated This field is no longer used, clients should default to true
+   */
   isUnifiedUIEnabled: optional(boolean()),
+  /**
+   * @deprecated This field is no longer used, clients should default to true
+   */
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
+  /**
+   * @deprecated This field should not be used
+   */
   isGaslessSwapEnabled: optional(boolean()),
+  /**
+   * @deprecated Use `noFee` object in `BridgeAssetV2Schema` instead
+   */
   noFeeAssets: optional(array(string())),
   defaultPairs: optional(DefaultPairSchema),
 });
@@ -127,6 +188,10 @@ const GenericQuoteRequestSchema = type({
 
 const FeatureIdSchema = enums(Object.values(FeatureId));
 
+const ChainRankingSchema = type({
+  chainId: CaipChainIdStruct,
+});
+
 /**
  * This is the schema for the feature flags response from the RemoteFeatureFlagController
  */
@@ -135,11 +200,13 @@ export const PlatformConfigSchema = type({
   quoteRequestOverrides: optional(
     record(FeatureIdSchema, optional(GenericQuoteRequestSchema)),
   ),
+
   minimumVersion: string(),
   refreshRate: number(),
   maxRefreshCount: number(),
   support: boolean(),
   chains: record(string(), ChainConfigurationSchema),
+  chainRanking: optional(array(ChainRankingSchema)),
   /**
    * The bip44 default pairs for the chains
    * Key is the CAIP chainId namespace
@@ -166,6 +233,12 @@ export const validateSwapsTokenObject = (
   data: unknown,
 ): data is Infer<typeof BridgeAssetSchema> => {
   return is(data, BridgeAssetSchema);
+};
+
+export const validateSwapsAssetV2Object = (
+  data: unknown,
+): data is Infer<typeof BridgeAssetV2Schema> => {
+  return is(data, BridgeAssetV2Schema);
 };
 
 export const FeeDataSchema = type({

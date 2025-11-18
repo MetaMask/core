@@ -1081,6 +1081,7 @@ describe('Bridge Selectors', () => {
         refreshRate: 30000,
         chains: {},
         support: false,
+        chainRanking: [],
       });
     });
 
@@ -1096,6 +1097,7 @@ describe('Bridge Selectors', () => {
         refreshRate: 30000,
         chains: {},
         support: false,
+        chainRanking: [],
       });
     });
 
@@ -1111,6 +1113,7 @@ describe('Bridge Selectors', () => {
         maxRefreshCount: 5,
         refreshRate: 30000,
         chains: {},
+        chainRanking: [],
         support: false,
       });
     });

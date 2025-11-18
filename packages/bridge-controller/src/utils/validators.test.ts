@@ -5,6 +5,16 @@ describe('validators', () => {
     it.each([
       {
         response: {
+          chainRanking: [
+            { chainId: 'eip155:1' },
+            { chainId: 'eip155:10' },
+            { chainId: 'eip155:137' },
+            { chainId: 'eip155:324' },
+            { chainId: 'eip155:42161' },
+            { chainId: 'eip155:43114' },
+            { chainId: 'eip155:56' },
+            { chainId: 'eip155:59144' },
+          ],
           chains: {
             '1': {
               isActiveDest: true,
