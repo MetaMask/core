@@ -1723,6 +1723,9 @@ export type TransactionBatchRequest = {
   /** Whether to disable batch transaction via sequential transactions. */
   disableSequential?: boolean;
 
+  /** Whether to disable upgrading the account to an EIP-7702. */
+  disableUpgrade?: boolean;
+
   /** Address of the account to submit the transaction batch. */
   from: Hex;
 
