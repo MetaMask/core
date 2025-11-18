@@ -5,83 +5,44 @@ describe('analyticsStateComputer', () => {
   describe('computeEnabledState', () => {
     const defaultAnalyticsId = '550e8400-e29b-41d4-a716-446655440000';
 
-    it('returns true when optedInForRegularAccount=true and optedInForSocialAccount=true', () => {
-      const state: AnalyticsControllerState = {
+    it.each([
+      {
         optedInForRegularAccount: true,
         optedInForSocialAccount: true,
-        analyticsId: defaultAnalyticsId,
-      };
-
-      const result = computeEnabledState(state);
-
-      expect(result).toBe(true);
-    });
-
-    it('returns true when optedInForRegularAccount=false and optedInForSocialAccount=true', () => {
-      const state: AnalyticsControllerState = {
+        expectedEnabled: true,
+        description: 'both opt-ins are true',
+      },
+      {
         optedInForRegularAccount: false,
         optedInForSocialAccount: true,
-        analyticsId: defaultAnalyticsId,
-      };
-
-      const result = computeEnabledState(state);
-
-      expect(result).toBe(true);
-    });
-
-    it('returns true when optedInForRegularAccount=true and optedInForSocialAccount=false', () => {
-      const state: AnalyticsControllerState = {
+        expectedEnabled: true,
+        description: 'only social opt-in is true',
+      },
+      {
         optedInForRegularAccount: true,
         optedInForSocialAccount: false,
-        analyticsId: defaultAnalyticsId,
-      };
-
-      const result = computeEnabledState(state);
-
-      expect(result).toBe(true);
-    });
-
-    it('returns false when optedInForRegularAccount=false and optedInForSocialAccount=false', () => {
-      const state: AnalyticsControllerState = {
+        expectedEnabled: true,
+        description: 'only regular opt-in is true',
+      },
+      {
         optedInForRegularAccount: false,
         optedInForSocialAccount: false,
-        analyticsId: defaultAnalyticsId,
-      };
+        expectedEnabled: false,
+        description: 'both opt-ins are false',
+      },
+    ])(
+      'computes enabled state based on optedInForRegularAccount OR optedInForSocialAccount when $description',
+      ({ optedInForRegularAccount, optedInForSocialAccount, expectedEnabled }) => {
+        const state: AnalyticsControllerState = {
+          optedInForRegularAccount,
+          optedInForSocialAccount,
+          analyticsId: defaultAnalyticsId,
+        };
 
-      const result = computeEnabledState(state);
+        const result = computeEnabledState(state);
 
-      expect(result).toBe(false);
-    });
-
-    it('computes enabled state based on optedInForRegularAccount OR optedInForSocialAccount', () => {
-      const bothOptedIn: AnalyticsControllerState = {
-        optedInForRegularAccount: true,
-        optedInForSocialAccount: true,
-        analyticsId: defaultAnalyticsId,
-      };
-
-      const onlyRegularOptedIn: AnalyticsControllerState = {
-        optedInForRegularAccount: true,
-        optedInForSocialAccount: false,
-        analyticsId: defaultAnalyticsId,
-      };
-
-      const onlySocialOptedIn: AnalyticsControllerState = {
-        optedInForRegularAccount: false,
-        optedInForSocialAccount: true,
-        analyticsId: defaultAnalyticsId,
-      };
-
-      const neitherOptedIn: AnalyticsControllerState = {
-        optedInForRegularAccount: false,
-        optedInForSocialAccount: false,
-        analyticsId: defaultAnalyticsId,
-      };
-
-      expect(computeEnabledState(bothOptedIn)).toBe(true);
-      expect(computeEnabledState(onlyRegularOptedIn)).toBe(true);
-      expect(computeEnabledState(onlySocialOptedIn)).toBe(true);
-      expect(computeEnabledState(neitherOptedIn)).toBe(false);
-    });
+        expect(result).toBe(expectedEnabled);
+      },
+    );
   });
 });
