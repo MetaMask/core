@@ -17,7 +17,7 @@ import {
   PhishingController,
   PHISHING_CONFIG_BASE_URL,
   type PhishingControllerOptions,
-  CLIENT_SIDE_DETECION_BASE_URL,
+  CLIENT_SIDE_DETECTION_BASE_URL,
   C2_DOMAIN_BLOCKLIST_ENDPOINT,
   PHISHING_DETECTION_BASE_URL,
   PHISHING_DETECTION_SCAN_ENDPOINT,
@@ -178,7 +178,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    nock(CLIENT_SIDE_DETECION_BASE_URL)
+    nock(CLIENT_SIDE_DETECTION_BASE_URL)
       .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
@@ -301,7 +301,7 @@ describe('PhishingController', () => {
           ],
         });
 
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [],
@@ -430,7 +430,7 @@ describe('PhishingController', () => {
     });
 
     it('should not have c2DomainBlocklist be out of date immediately after maybeUpdateState is called', async () => {
-      nockScope = nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nockScope = nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [],
@@ -820,7 +820,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    nock(CLIENT_SIDE_DETECION_BASE_URL)
+    nock(CLIENT_SIDE_DETECTION_BASE_URL)
       .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
@@ -904,7 +904,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    nock(CLIENT_SIDE_DETECION_BASE_URL)
+    nock(CLIENT_SIDE_DETECTION_BASE_URL)
       .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
@@ -938,7 +938,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    nock(CLIENT_SIDE_DETECION_BASE_URL)
+    nock(CLIENT_SIDE_DETECTION_BASE_URL)
       .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
@@ -974,7 +974,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    nock(CLIENT_SIDE_DETECION_BASE_URL)
+    nock(CLIENT_SIDE_DETECTION_BASE_URL)
       .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
@@ -1018,7 +1018,7 @@ describe('PhishingController', () => {
         ],
       });
 
-    nock(CLIENT_SIDE_DETECION_BASE_URL)
+    nock(CLIENT_SIDE_DETECTION_BASE_URL)
       .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
@@ -1085,7 +1085,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    nock(CLIENT_SIDE_DETECION_BASE_URL)
+    nock(CLIENT_SIDE_DETECTION_BASE_URL)
       .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
@@ -1119,7 +1119,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    nock(CLIENT_SIDE_DETECION_BASE_URL)
+    nock(CLIENT_SIDE_DETECTION_BASE_URL)
       .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
@@ -1181,7 +1181,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    nock(CLIENT_SIDE_DETECION_BASE_URL)
+    nock(CLIENT_SIDE_DETECTION_BASE_URL)
       .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
@@ -1221,7 +1221,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    nock(CLIENT_SIDE_DETECION_BASE_URL)
+    nock(CLIENT_SIDE_DETECTION_BASE_URL)
       .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
@@ -1262,7 +1262,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    nock(CLIENT_SIDE_DETECION_BASE_URL)
+    nock(CLIENT_SIDE_DETECTION_BASE_URL)
       .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
@@ -1302,7 +1302,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    nock(CLIENT_SIDE_DETECION_BASE_URL)
+    nock(CLIENT_SIDE_DETECTION_BASE_URL)
       .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
@@ -1448,7 +1448,7 @@ describe('PhishingController', () => {
           ],
         });
 
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [exampleRequestBlockedHash],
@@ -1510,7 +1510,7 @@ describe('PhishingController', () => {
           ],
         });
 
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [exampleRequestBlockedHash],
@@ -1630,7 +1630,7 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
         .reply(500);
 
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(500);
 
@@ -1675,7 +1675,7 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
         .replyWithError('network error');
 
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .replyWithError('network error');
 
@@ -1860,7 +1860,7 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
         .reply(200, { data: [] });
 
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .reply(200, {
           recentlyAdded: [],
@@ -1911,7 +1911,7 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
         .replyWithError('network error');
 
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .reply(200, {
           recentlyAdded: [exampleRequestBlockedHash],
@@ -1962,7 +1962,7 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
         .reply(500);
 
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .reply(200, {
           recentlyAdded: [exampleRequestBlockedHash],
@@ -2013,7 +2013,7 @@ describe('PhishingController', () => {
         '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
 
       // Mocking the request to the C2 domain blocklist endpoint
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .reply(200, {
           recentlyAdded: [exampleRequestBlockedHash],
@@ -2059,7 +2059,7 @@ describe('PhishingController', () => {
     });
 
     it('should not update the C2 domain blocklist if the fetch returns 404', async () => {
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .reply(404);
 
@@ -2106,7 +2106,7 @@ describe('PhishingController', () => {
       const exampleRequestBlockedHashTwo = 'd3bkcslj57l47pamplifyapp';
 
       // Mock the request blocklist response with additions and removals
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .reply(200, {
           recentlyAdded: [exampleRequestBlockedHash],
@@ -2155,7 +2155,7 @@ describe('PhishingController', () => {
       const exampleRequestBlockedHash =
         '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
 
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .reply(200, {
           recentlyAdded: [exampleRequestBlockedHash],
@@ -2205,7 +2205,7 @@ describe('PhishingController', () => {
     });
 
     it('should handle empty recentlyAdded and recentlyRemoved in the response', async () => {
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .reply(200, {
           recentlyAdded: [],
@@ -2251,7 +2251,7 @@ describe('PhishingController', () => {
     });
 
     it('should handle errors during C2 domain blocklist fetching gracefully', async () => {
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .replyWithError('network error');
 
@@ -2314,7 +2314,7 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
         .reply(200, { data: [] });
 
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [],
@@ -2349,7 +2349,7 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
         .reply(200, { data: [] });
 
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [exampleRequestBlockedHash],
@@ -2385,7 +2385,7 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
         .reply(200, { data: [] });
 
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [],
@@ -2418,7 +2418,7 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
         .reply(200, { data: [] });
 
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECTION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [],
@@ -2468,7 +2468,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    nock(CLIENT_SIDE_DETECION_BASE_URL)
+    nock(CLIENT_SIDE_DETECTION_BASE_URL)
       .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
