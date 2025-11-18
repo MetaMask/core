@@ -258,12 +258,15 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
         currencyToChainIdsEntries.map(async ([nativeCurrency, { chainId }]) => {
           const nativeTokenAddress = getNativeTokenAddress(chainId);
           const tokenPrices = await this.#tokenPricesService.fetchTokenPrices({
-            chainId,
-            tokenAddresses: [nativeTokenAddress],
+            assets: [{ chainId, tokenAddress: nativeTokenAddress }],
             currency: currentCurrency,
           });
 
-          const tokenPrice = tokenPrices[nativeTokenAddress];
+          const tokenPrice = tokenPrices.find(
+            (item) =>
+              item.tokenAddress.toLowerCase() ===
+              nativeTokenAddress.toLowerCase(),
+          );
 
           return {
             nativeCurrency,

@@ -1138,12 +1138,15 @@ describe('CurrencyRateController', () => {
       // Mock fetchTokenPrices to return token prices
       jest
         .spyOn(tokenPricesService, 'fetchTokenPrices')
-        .mockImplementation(async ({ chainId }) => {
-          if (chainId === '0x1') {
-            return {
-              '0x0000000000000000000000000000000000000000': {
+        .mockImplementation(async ({ assets }) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (assets.some((asset) => asset.chainId === '0x1')) {
+            return [
+              {
                 currency: 'usd',
                 tokenAddress: '0x0000000000000000000000000000000000000000',
+                chainId: assets[0].chainId,
+                assetId: 'xx:yy/aa:bb',
                 price: 2500.5,
                 pricePercentChange1d: 0,
                 priceChange1d: 0,
@@ -1163,13 +1166,16 @@ describe('CurrencyRateController', () => {
                 pricePercentChange7d: 100,
                 totalVolume: 100,
               },
-            };
+            ];
           }
-          if (chainId === '0x89') {
-            return {
-              '0x0000000000000000000000000000000000001010': {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (assets.some((asset) => asset.chainId === '0x89')) {
+            return [
+              {
                 currency: 'usd',
                 tokenAddress: '0x0000000000000000000000000000000000001010',
+                chainId: assets[0].chainId,
+                assetId: 'xx:yy/aa:bb',
                 price: 0.85,
                 pricePercentChange1d: 0,
                 priceChange1d: 0,
@@ -1189,9 +1195,9 @@ describe('CurrencyRateController', () => {
                 pricePercentChange7d: 100,
                 totalVolume: 100,
               },
-            };
+            ];
           }
-          return {};
+          return [];
         });
 
       // Make crypto compare also fail by not mocking it (no nock setup)
@@ -1255,12 +1261,21 @@ describe('CurrencyRateController', () => {
 
       const fetchTokenPricesSpy = jest
         .spyOn(tokenPricesService, 'fetchTokenPrices')
-        .mockImplementation(async ({ chainId }) => {
-          if (chainId === '0x1' || chainId === '0xaa36a7') {
-            return {
-              '0x0000000000000000000000000000000000000000': {
+        .mockImplementation(async ({ assets }) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (
+            assets.some(
+              (asset) =>
+                // eslint-disable-next-line jest/no-conditional-in-test
+                asset.chainId === '0x1' || asset.chainId === '0xaa36a7',
+            )
+          ) {
+            return [
+              {
                 currency: 'usd',
                 tokenAddress: '0x0000000000000000000000000000000000000000',
+                chainId: assets[0].chainId,
+                assetId: 'xx:yy/aa:bb',
                 price: 2500.5,
                 pricePercentChange1d: 0,
                 priceChange1d: 0,
@@ -1280,9 +1295,9 @@ describe('CurrencyRateController', () => {
                 pricePercentChange7d: 100,
                 totalVolume: 100,
               },
-            };
+            ];
           }
-          return {};
+          return [];
         });
 
       const controller = new CurrencyRateController({
@@ -1296,8 +1311,12 @@ describe('CurrencyRateController', () => {
       // Should only call fetchTokenPrices once, using first matching chainId (line 255)
       expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(1);
       expect(fetchTokenPricesSpy).toHaveBeenCalledWith({
-        chainId: '0x1', // First chainId with ETH as native currency
-        tokenAddresses: ['0x0000000000000000000000000000000000000000'],
+        assets: [
+          {
+            chainId: '0x1',
+            tokenAddress: '0x0000000000000000000000000000000000000000',
+          },
+        ],
         currency: 'usd',
       });
 
@@ -1338,13 +1357,16 @@ describe('CurrencyRateController', () => {
 
       jest
         .spyOn(tokenPricesService, 'fetchTokenPrices')
-        .mockImplementation(async ({ chainId }) => {
-          if (chainId === '0x1') {
+        .mockImplementation(async ({ assets }) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (assets.some((asset) => asset.chainId === '0x1')) {
             // ETH succeeds
-            return {
-              '0x0000000000000000000000000000000000000000': {
+            return [
+              {
                 currency: 'usd',
                 tokenAddress: '0x0000000000000000000000000000000000000000',
+                chainId: assets[0].chainId,
+                assetId: 'xx:yy/aa:bb',
                 price: 2500.5,
                 pricePercentChange1d: 0,
                 priceChange1d: 0,
@@ -1364,7 +1386,7 @@ describe('CurrencyRateController', () => {
                 pricePercentChange7d: 100,
                 totalVolume: 100,
               },
-            };
+            ];
           }
           // POL fails
           throw new Error('Failed to fetch POL price');
@@ -1427,7 +1449,7 @@ describe('CurrencyRateController', () => {
         .mockRejectedValue(new Error('Price API failed'));
 
       // Return empty object (no token price)
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices').mockResolvedValue({});
+      jest.spyOn(tokenPricesService, 'fetchTokenPrices').mockResolvedValue([]);
 
       const controller = new CurrencyRateController({
         messenger,
@@ -1475,12 +1497,15 @@ describe('CurrencyRateController', () => {
 
       const fetchTokenPricesSpy = jest
         .spyOn(tokenPricesService, 'fetchTokenPrices')
-        .mockImplementation(async ({ chainId }) => {
-          if (chainId === '0x1') {
-            return {
-              '0x0000000000000000000000000000000000000000': {
+        .mockImplementation(async ({ assets }) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (assets.some((asset) => asset.chainId === '0x1')) {
+            return [
+              {
                 currency: 'usd',
                 tokenAddress: '0x0000000000000000000000000000000000000000',
+                chainId: assets[0].chainId,
+                assetId: 'xx:yy/aa:bb',
                 price: 2500.5,
                 pricePercentChange1d: 0,
                 priceChange1d: 0,
@@ -1500,9 +1525,9 @@ describe('CurrencyRateController', () => {
                 pricePercentChange7d: 100,
                 totalVolume: 100,
               },
-            };
+            ];
           }
-          return {};
+          return [];
         });
 
       const controller = new CurrencyRateController({
@@ -1517,8 +1542,12 @@ describe('CurrencyRateController', () => {
       // Should only call fetchTokenPrices for ETH, not BNB (line 252: if chainIds.length > 0)
       expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(1);
       expect(fetchTokenPricesSpy).toHaveBeenCalledWith({
-        chainId: '0x1',
-        tokenAddresses: ['0x0000000000000000000000000000000000000000'],
+        assets: [
+          {
+            chainId: '0x1',
+            tokenAddress: '0x0000000000000000000000000000000000000000',
+          },
+        ],
         currency: 'usd',
       });
 
@@ -1562,10 +1591,12 @@ describe('CurrencyRateController', () => {
 
       const fetchTokenPricesSpy = jest
         .spyOn(tokenPricesService, 'fetchTokenPrices')
-        .mockResolvedValue({
-          '0x0000000000000000000000000000000000001010': {
+        .mockResolvedValue([
+          {
             currency: 'usd',
             tokenAddress: '0x0000000000000000000000000000000000001010',
+            chainId: '0x89',
+            assetId: 'xx:yy/aa:bb',
             price: 0.85,
             pricePercentChange1d: 0,
             priceChange1d: 0,
@@ -1585,7 +1616,7 @@ describe('CurrencyRateController', () => {
             pricePercentChange7d: 100,
             totalVolume: 100,
           },
-        });
+        ]);
 
       const controller = new CurrencyRateController({
         messenger,
@@ -1597,8 +1628,12 @@ describe('CurrencyRateController', () => {
 
       // Should use Polygon's native token address (line 269)
       expect(fetchTokenPricesSpy).toHaveBeenCalledWith({
-        chainId: '0x89',
-        tokenAddresses: ['0x0000000000000000000000000000000000001010'],
+        assets: [
+          {
+            chainId: '0x89',
+            tokenAddress: '0x0000000000000000000000000000000000001010',
+          },
+        ],
         currency: 'usd',
       });
 
