@@ -6,9 +6,11 @@ on:
       - synchronize
       - labeled
       - unlabeled
+  merge_group:
 
 jobs:
   ensure-blocking-pr-labels-absent:
+    if: ${{ github.event_name != 'merge_group' }} # Skip this step for merge_group events
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
