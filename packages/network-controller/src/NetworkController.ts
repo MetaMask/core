@@ -443,32 +443,33 @@ export type NetworkControllerNetworkRemovedEvent = {
 };
 
 /**
- * `NetworkController:rpcEndpointUnavailable` is published when the number of
- * failed consecutive attempts to receive a 2xx response from the primary URL of
- * an RPC endpoint reaches a maximum, causing further requests to be temporarily
- * paused, and when subsequent traffic to a failover URL similarly fails.
+ * `NetworkController:rpcEndpointChainUnavailable` is published when the number
+ * of failed consecutive attempts to receive a 2xx response from the primary
+ * endpoint of a chain of endpoints reaches a maximum, causing further requests
+ * to be temporarily paused, and when subsequent traffic to a failover endpoint
+ * similarly fails.
  *
  * In other words, this event will not published if a primary is deemed to be
  * unavailable but its failover is not.
  *
- * Additionally, if this was the last `NetworkController:rpcEndpoint*` event to
- * be published, the event will not be re-published (for instance, if both a
- * primary and failover are deemed to be unavailable, or if more than one
+ * Additionally, if this was the last `NetworkController:rpcEndpointChain*`
+ * event to be published, the event will not be re-published (for instance, if
+ * both a primary and failover are deemed to be unavailable, or if more than one
  * failover is deemed to be unavailable).
  *
  * @param payload - The event payload.
- * @param payload.chainId - The chain ID of the network where the RPC endpoint
- * lives.
- * @param payload.networkClientId - The ID of the network client representing
- * the RPC endpoint.
- * @param payload.primaryEndpointUrl - The primary URL of the endpoint.
- * @param payload.endpointUrl - One of the URLs defined for the endpoint which
- * has been deemed to be unavailable.
- * @param payload.error - The error from the last request to one of the URLs
- * defined for the endpoint which determined the unavailability status.
+ * @param payload.chainId - The chain ID of the target network.
+ * @param payload.endpointUrl - The URL of the endpoint among the chain of
+ * endpoints which has been deemed to be unavailable.
+ * @param payload.error - The error from the last request to `endpointUrl` which
+ * determined the unavailability status.
+ * @param payload.networkClientId - The ID of the client representing the target
+ * network.
+ * @param payload.primaryEndpointUrl - The URL of the primary for the chain of
+ * endpoints.
  */
-export type NetworkControllerRpcEndpointUnavailableEvent = {
-  type: 'NetworkController:rpcEndpointUnavailable';
+export type NetworkControllerRpcEndpointChainUnavailableEvent = {
+  type: 'NetworkController:rpcEndpointChainUnavailable';
   payload: [
     {
       chainId: Hex;
@@ -481,31 +482,31 @@ export type NetworkControllerRpcEndpointUnavailableEvent = {
 };
 
 /**
- * `NetworkController:rpcEndpointInstanceUnavailable` is published when the
- * number of failed consecutive attempts to receive a 2xx response from *any* of
- * the designated URLs of an RPC endpoint reaches a maximum.
+ * `NetworkController:rpcEndpointUnvailable` is published when the number of
+ * failed consecutive attempts to receive a 2xx response from *any* of the
+ * RPC endpoints within a chain of endpoints reaches a maximum.
  *
  * This event will still be published if a primary is deemed to be unavailable,
  * even its failover is available.
  *
- * Additionally, even if this was the last `NetworkController:rpcEndpoint*` event
- * to be published, the event may be re-published (for instance, if both a
+ * Additionally, even if this was the last `NetworkController:rpcEndpoint*`
+ * event to be published, the event may be re-published (for instance, if both a
  * primary and failover are deemed to be unavailable, or if more than one
  * failover is deemed to be unavailable).
  *
  * @param payload - The event payload.
- * @param payload.chainId - The chain ID of the network where the RPC endpoint
- * lives.
+ * @param payload.chainId - The chain ID of the target network.
+ * @param payload.endpointUrl - The URL of the endpoint among the chain of
+ * endpoints which has been deemed to be unavailable.
+ * @param payload.error - The error from the last request to `endpointUrl` which
+ * determined the unavailability status.
  * @param payload.networkClientId - The ID of the network client representing
- * the RPC endpoint.
- * @param payload.primaryEndpointUrl - The primary URL of the endpoint.
- * @param payload.endpointUrl - One of the URLs defined for the endpoint which
- * has been deemed to be unavailable.
- * @param payload.error - The error from the last request to the `endpointUrl`
- * which determined the unavailability status.
+ * the chain of endpoints.
+ * @param payload.primaryEndpointUrl - The URL of the primary for the chain of
+ * endpoints.
  */
-export type NetworkControllerRpcEndpointInstanceUnavailableEvent = {
-  type: 'NetworkController:rpcEndpointInstanceUnavailable';
+export type NetworkControllerRpcEndpointUnvailableEvent = {
+  type: 'NetworkController:rpcEndpointUnvailable';
   payload: [
     {
       chainId: Hex;
@@ -518,34 +519,78 @@ export type NetworkControllerRpcEndpointInstanceUnavailableEvent = {
 };
 
 /**
- * `NetworkController:rpcEndpointDegraded` is published in the following two
- * cases:
+ * `NetworkController:rpcEndpointChainDegraded` is published in the following
+ * two cases:
  *
- * 1. When an attempt to receive a 2xx response from any of the designated URLs
- * for an RPC endpoint is unsuccessful, and all subsequent automatic retries
- * lead to the same result.
- * 2. When a 2xx response is received from any of the endpoint URLs, but the
- * request takes longer than a set number of seconds to complete.
+ * 1. When an attempt to receive a 2xx response from any of the endpoints
+ * within a chain of endpoints is unsuccessful, and all subsequent automatic
+ * retries lead to the same result.
+ * 2. When a 2xx response is received from any of the endpoints, but the request
+ * takes longer than a set number of seconds to complete.
+ *
+ * Note that this event will be published even if there are local connectivity
+ * issues which prevent requests from being initiated. This is intentional.
+ *
+ * Additionally, if this was the last `NetworkController:rpcEndpointChain*`
+ * event to be published, the event will not be re-published (for instance: a
+ * failover is activated and successive attempts to the failover fail, then the
+ * primary comes back online, but it is slow).
+ *
+ * @param payload - The event payload.
+ * @param payload.chainId - The chain ID of the target network.
+ * @param payload.endpointUrl - The URL of the endpoint among the chain of
+ * endpoints which has been deemed to be degraded.
+ * @param payload.error - The error from the last request to `endpointUrl` which
+ * determined the degraded status (or `undefined` if the request was merely
+ * slow).
+ * @param payload.networkClientId - The ID of the client representing the target
+ * network.
+ * @param payload.primaryEndpointUrl - The URL of the primary for the chain of
+ * endpoints.
+ */
+export type NetworkControllerRpcEndpointChainDegradedEvent = {
+  type: 'NetworkController:rpcEndpointChainDegraded';
+  payload: [
+    {
+      chainId: Hex;
+      endpointUrl: string;
+      error: unknown;
+      networkClientId: NetworkClientId;
+      primaryEndpointUrl: string;
+    },
+  ];
+};
+
+/**
+ *
+ * `NetworkController:rpcEndpointDegraded` is published in the following
+ * two cases:
+ *
+ * 1. When an attempt to receive a 2xx response from any of the endpoints
+ * within a chain of endpoints is unsuccessful, and all subsequent automatic
+ * retries lead to the same result.
+ * 2. When a 2xx response is received from any of the endpoints, but the request
+ * takes longer than a set number of seconds to complete.
  *
  * Note that this event will be published even if there are local connectivity
  * issues which prevent requests from being initiated. This is intentional.
  *
  * Additionally, if this was the last `NetworkController:rpcEndpoint*` event to
- * be published, the event will not be re-published (for instance: a failover is
+ * be published, the event may be re-published (for instance: a failover is
  * activated and successive attempts to the failover fail, then the primary
  * comes back online, but it is slow).
  *
  * @param payload - The event payload.
- * @param payload.chainId - The chain ID of the network where the RPC endpoint
- * lives.
- * @param payload.networkClientId - The ID of the network client representing
- * the RPC endpoint.
- * @param payload.primaryEndpointUrl - The primary URL of the endpoint.
- * @param payload.endpointUrl - One of the URLs defined for the endpoint which
- * has been deemed to be degraded.
- * @param payload.error - The error from the last request to the `endpointUrl`
- * which determined the degraded status (or `undefined` if the request was
- * merely slow).
+ * @param payload.chainId - The chain ID of the target network.
+ * @param payload.endpointUrl - The URL of the endpoint among the chain of
+ * endpoints which has been deemed to be degraded.
+ * @param payload.error - The error from the last request to `endpointUrl` which
+ * determined the degraded status (or `undefined` if the request was merely
+ * slow).
+ * @param payload.networkClientId - The ID of the client representing the target
+ * network.
+ * @param payload.primaryEndpointUrl - The URL of the primary for the chain of
+ * endpoints.
  */
 export type NetworkControllerRpcEndpointDegradedEvent = {
   type: 'NetworkController:rpcEndpointDegraded';
@@ -561,69 +606,25 @@ export type NetworkControllerRpcEndpointDegradedEvent = {
 };
 
 /**
- *
- * `NetworkController:rpcEndpointInstanceDegraded` is published in the following
- * two cases:
- *
- * 1. When an attempt to receive a 2xx response from *any* of the designated
- * URLs for an RPC endpoint is unsuccessful, and all subsequent automatic
- * retries lead to the same result.
- * 2. When a 2xx response is received from any of the endpoint URLs, but the
- * request takes longer than a set number of seconds to complete.
- *
- * Note that this event will be published even if there are local connectivity
- * issues which prevent requests from being initiated. This is intentional.
- *
- * Additionally, if this was the last `NetworkController:rpcEndpoint*` event to
- * be published, the event may be re-published (for instance: a failover is
- * activated and successive attempts to the failover fail, then the primary
- * comes back online, but it is slow).
- *
- * @param payload - The event payload.
- * @param payload.chainId - The chain ID of the network where the RPC endpoint
- * lives.
- * @param payload.networkClientId - The ID of the network client representing
- * the RPC endpoint.
- * @param payload.primaryEndpointUrl - The primary URL of the endpoint.
- * @param payload.endpointUrl - One of the URLs defined for the endpoint which
- * has been deemed to be degraded.
- * @param payload.error - The error from the last request to the `endpointUrl`
- * which determined the degraded status (or `undefined` if the request was
- * merely slow).
- */
-export type NetworkControllerRpcEndpointInstanceDegradedEvent = {
-  type: 'NetworkController:rpcEndpointInstanceDegraded';
-  payload: [
-    {
-      chainId: Hex;
-      endpointUrl: string;
-      error: unknown;
-      networkClientId: NetworkClientId;
-      primaryEndpointUrl: string;
-    },
-  ];
-};
-
-/**
- * `NetworkController:rpcEndpointAvailable` is published in either of the
+ * `NetworkController:rpcEndpointChainAvailable` is published in either of the
  * following two cases:
  *
- * 1. The first time that a 2xx request is made to any of the designated URLs of
- * an RPC endpoint.
- * 2. When requests to any of the URLs previously failed (placing the endpoint
- * in a degraded or unavailable status), but are now succeeding again.
+ * 1. The first time that a 2xx request is made to any of the endpoints within
+ * a chain of endpoints.
+ * 2. When requests to any of the endpoints previously failed (placing the
+ * endpoint in a degraded or unavailable status), but are now succeeding again.
  *
  * @param payload - The event payload.
- * @param payload.chainId - The chain ID of the network where the RPC endpoint
- * lives.
+ * @param payload.chainId - The chain ID of the target network.
+ * @param payload.endpointUrl - The URL of the endpoint among the chain of
+ * endpoints which has been deemed to be available.
  * @param payload.networkClientId - The ID of the network client representing
- * the RPC endpoint.
- * @param payload.primaryEndpointUrl - The primary URL of the RPC endpoint.
- * @param payload.endpointUrl - The specific URL that returned a successful
- * response.
+ * the chain of endpoints.
+ * @param payload.primaryEndpointUrl - The URL of the primary for the chain of
+ * endpoints.
  */
-export type NetworkControllerRpcEndpointAvailableEvent = {
-  type: 'NetworkController:rpcEndpointAvailable';
+export type NetworkControllerRpcEndpointChainAvailableEvent = {
+  type: 'NetworkController:rpcEndpointChainAvailable';
   payload: [
     {
       chainId: Hex;
@@ -635,25 +636,25 @@ export type NetworkControllerRpcEndpointAvailableEvent = {
 };
 
 /**
- * `NetworkController:rpcEndpointInstanceRetried` is published before a
- * request to any of the designated URLs of an RPC endpoint is retried.
+ * `NetworkController:rpcEndpointRetried` is published before a request to any
+ * of the endpoints within a chain of endpoints is retried.
  *
  * This is mainly useful for tests.
  *
  * @param payload - The event payload.
- * @param payload.chainId - The chain ID of the network where the RPC endpoint
- * lives.
- * @param payload.networkClientId - The ID of the network client representing
- * the RPC endpoint.
- * @param payload.primaryEndpointUrl - The primary URL of the RPC endpoint.
- * @param payload.endpointUrl - The URL defined for the endpoint that is being
- * retried.
- * @param payload.attempt - The current attempt counter for the endpoint URL
+ * @param payload.attempt - The current attempt counter for the endpoint
  * (starting from 0).
+ * @param payload.chainId - The chain ID of the target network.
+ * @param payload.endpointUrl - The URL of the endpoint among the chain of
+ * endpoints which is being retried.
+ * @param payload.networkClientId - The ID of the network client representing
+ * the chain of endpoints.
+ * @param payload.primaryEndpointUrl - The URL of the primary for the chain of
+ * endpoints.
  * @see {@link RpcService} for the list of retriable errors.
  */
-export type NetworkControllerRpcEndpointInstanceRetriedEvent = {
-  type: 'NetworkController:rpcEndpointInstanceRetried';
+export type NetworkControllerRpcEndpointRetriedEvent = {
+  type: 'NetworkController:rpcEndpointRetried';
   payload: [
     {
       attempt: number;
@@ -673,12 +674,12 @@ export type NetworkControllerEvents =
   | NetworkControllerInfuraIsUnblockedEvent
   | NetworkControllerNetworkAddedEvent
   | NetworkControllerNetworkRemovedEvent
-  | NetworkControllerRpcEndpointUnavailableEvent
-  | NetworkControllerRpcEndpointInstanceUnavailableEvent
+  | NetworkControllerRpcEndpointChainUnavailableEvent
+  | NetworkControllerRpcEndpointUnvailableEvent
+  | NetworkControllerRpcEndpointChainDegradedEvent
   | NetworkControllerRpcEndpointDegradedEvent
-  | NetworkControllerRpcEndpointInstanceDegradedEvent
-  | NetworkControllerRpcEndpointAvailableEvent
-  | NetworkControllerRpcEndpointInstanceRetriedEvent;
+  | NetworkControllerRpcEndpointChainAvailableEvent
+  | NetworkControllerRpcEndpointRetriedEvent;
 
 /**
  * All events that {@link NetworkController} calls internally.

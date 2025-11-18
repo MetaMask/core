@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `NetworkController:rpcEndpointAvailable` messenger event ([#7166](https://github.com/MetaMask/core/pull/7166))
-  - These are counterparts to the (new) `NetworkController:rpcEndpointUnavailable` and `NetworkController:rpcEndpointDegraded` events, but is published when a successful network client request is made either initially or following a previously established degraded or unavailable status.
+- Add `NetworkController:rpcEndpointChainAvailable` messenger event ([#7166](https://github.com/MetaMask/core/pull/7166))
+  - This is a counterpart to the (new) `NetworkController:rpcEndpointChainUnavailable` and `NetworkController:rpcEndpointChainDegraded` events, but is published when a successful request to an endpoint within a chain of endpoints is made either initially or following a previously established degraded or unavailable status.
 
 ### Changed
 
@@ -25,11 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Migrate `NetworkClient` to `JsonRpcEngineV2` ([#7065](https://github.com/MetaMask/core/pull/7065))
   - This ought to be unobservable, but we mark it as breaking out of an abundance of caution.
 - **BREAKING:** Split up and update payload data for `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointUnavailable` ([#7166](https://github.com/MetaMask/core/pull/7166))
-  - The existing events are now called `NetworkController:rpcEndpointInstanceDegraded` and `NetworkController:rpcEndpointInstanceUnavailable` and retain their present behavior.
-  - `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointUnavailable` do still exist, but they are now designed to represent a network client rather than an RPC endpoint and are guaranteed to not be published multiple times in a row. In particular, `NetworkController:rpcEndpointUnavailable` is published only after trying all of the defined endpoints for a network client and the underlying circuit for the last endpoint breaks, not as each primary's or failover's circuit breaks.
-  - The event payloads have been changed as well: `failoverEndpointUrl` has been renamed to `endpointUrl`, and `endpointUrl` has been renamed to `primaryEndpointUrl`. In addition, `networkClientId` has been added to the payload.
+  - `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointUnavailable` still exist and retain the same behavior as before.
+  - New events are `NetworkController:rpcEndpointChainDegraded` and `NetworkController:rpcEndpointChainUnavailable`, and are designed to represent an entire chain of endpoints. They are also guaranteed to not be published multiple times in a row. In particular, `NetworkController:rpcEndpointUnavailable` is published only after trying all of the endpoints for a chain and when the underlying circuit for the last endpoint breaks, not as each primary's or failover's circuit breaks.
+  - The event payloads for all events have been changed as well: `failoverEndpointUrl` has been renamed to `endpointUrl`, and `endpointUrl` has been renamed to `primaryEndpointUrl`. In addition, `networkClientId` has been added to the payload.
 - **BREAKING:** Rename and update payload data for `NetworkController:rpcEndpointRequestRetried` ([#7166](https://github.com/MetaMask/core/pull/7166))
-  - This event is now called `NetworkController:rpcEndpointInstanceRequestRetried`.
+  - This event is now called `NetworkController:rpcEndpointRetried`.
   - The event payload has been changed as well: `failoverEndpointUrl` has been renamed to `endpointUrl`, and `endpointUrl` has been renamed to `primaryEndpointUrl`. In addition, `networkClientId` and `attempt` have been added to the payload.
 - **BREAKING:** Update `AbstractRpcService`/`RpcServiceRequestable` to remove `{ isolated: true }` from the `onBreak` event data type ([#7166](https://github.com/MetaMask/core/pull/7166))
   - This represented the error produced when `.isolate` is called on a Cockatiel circuit breaker policy, which we never do.

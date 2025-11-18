@@ -19,7 +19,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
       const blockNumber = '0x100';
       const backoffDuration = 100;
 
-      it('publishes the NetworkController:rpcEndpointUnavailable event only when the max number of consecutive request failures is reached for all of the endpoints in a group of endpoints', async () => {
+      it('publishes the NetworkController:rpcEndpointChainUnavailable event only when the max number of consecutive request failures is reached for all of the endpoints in a chain of endpoints', async () => {
         const failoverEndpointUrl = 'https://failover.endpoint/';
         const request = {
           method: 'eth_gasPrice',
@@ -59,10 +59,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
                 });
 
                 const messenger = buildRootMessenger();
-                const rpcEndpointUnavailableEventHandler = jest.fn();
+                const rpcEndpointChainUnavailableEventHandler = jest.fn();
                 messenger.subscribe(
-                  'NetworkController:rpcEndpointUnavailable',
-                  rpcEndpointUnavailableEventHandler,
+                  'NetworkController:rpcEndpointChainUnavailable',
+                  rpcEndpointChainUnavailableEventHandler,
                 );
 
                 await withNetworkClient(
@@ -82,7 +82,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   },
                   async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
                     messenger.subscribe(
-                      'NetworkController:rpcEndpointInstanceRetried',
+                      'NetworkController:rpcEndpointRetried',
                       () => {
                         // Ensure that we advance to the next RPC request
                         // retry, not the next block tracker request.
@@ -115,10 +115,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     );
 
                     expect(
-                      rpcEndpointUnavailableEventHandler,
+                      rpcEndpointChainUnavailableEventHandler,
                     ).toHaveBeenCalledTimes(1);
                     expect(
-                      rpcEndpointUnavailableEventHandler,
+                      rpcEndpointChainUnavailableEventHandler,
                     ).toHaveBeenCalledWith({
                       chainId,
                       endpointUrl: failoverEndpointUrl,
@@ -134,7 +134,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointInstanceUnavailable event each time the max number of consecutive request failures is reached for any of the endpoints in a group of endpoints', async () => {
+      it('publishes the NetworkController:rpcEndpointUnvailable event each time the max number of consecutive request failures is reached for any of the endpoints in a chain of endpoints', async () => {
         const failoverEndpointUrl = 'https://failover.endpoint/';
         const request = {
           method: 'eth_gasPrice',
@@ -174,10 +174,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
                 });
 
                 const messenger = buildRootMessenger();
-                const rpcEndpointInstanceUnavailableEventHandler = jest.fn();
+                const rpcEndpointUnvailableEventHandler = jest.fn();
                 messenger.subscribe(
-                  'NetworkController:rpcEndpointInstanceUnavailable',
-                  rpcEndpointInstanceUnavailableEventHandler,
+                  'NetworkController:rpcEndpointUnvailable',
+                  rpcEndpointUnvailableEventHandler,
                 );
 
                 await withNetworkClient(
@@ -197,7 +197,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   },
                   async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
                     messenger.subscribe(
-                      'NetworkController:rpcEndpointInstanceRetried',
+                      'NetworkController:rpcEndpointRetried',
                       () => {
                         // Ensure that we advance to the next RPC request
                         // retry, not the next block tracker request.
@@ -230,10 +230,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     );
 
                     expect(
-                      rpcEndpointInstanceUnavailableEventHandler,
+                      rpcEndpointUnvailableEventHandler,
                     ).toHaveBeenCalledTimes(2);
                     expect(
-                      rpcEndpointInstanceUnavailableEventHandler,
+                      rpcEndpointUnvailableEventHandler,
                     ).toHaveBeenCalledWith({
                       chainId,
                       endpointUrl: rpcUrl,
@@ -242,7 +242,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       primaryEndpointUrl: rpcUrl,
                     });
                     expect(
-                      rpcEndpointInstanceUnavailableEventHandler,
+                      rpcEndpointUnvailableEventHandler,
                     ).toHaveBeenCalledWith({
                       chainId,
                       endpointUrl: failoverEndpointUrl,
@@ -258,7 +258,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointDegraded event only once, even if the max number of retries is continually reached in making requests to a primary endpoint', async () => {
+      it('publishes the NetworkController:rpcEndpointChainDegraded event only once, even if the max number of retries is continually reached in making requests to a primary endpoint', async () => {
         const request = {
           method: 'eth_gasPrice',
           params: [],
@@ -284,10 +284,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
             });
 
             const messenger = buildRootMessenger();
-            const rpcEndpointDegradedEventHandler = jest.fn();
+            const rpcEndpointChainDegradedEventHandler = jest.fn();
             messenger.subscribe(
-              'NetworkController:rpcEndpointDegraded',
-              rpcEndpointDegradedEventHandler,
+              'NetworkController:rpcEndpointChainDegraded',
+              rpcEndpointChainDegradedEventHandler,
             );
 
             await withNetworkClient(
@@ -305,7 +305,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
               },
               async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
                 messenger.subscribe(
-                  'NetworkController:rpcEndpointInstanceRetried',
+                  'NetworkController:rpcEndpointRetried',
                   () => {
                     // Ensure that we advance to the next RPC request
                     // retry, not the next block tracker request.
@@ -327,10 +327,12 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   expectedError,
                 );
 
-                expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledTimes(
-                  1,
-                );
-                expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
+                expect(
+                  rpcEndpointChainDegradedEventHandler,
+                ).toHaveBeenCalledTimes(1);
+                expect(
+                  rpcEndpointChainDegradedEventHandler,
+                ).toHaveBeenCalledWith({
                   chainId,
                   endpointUrl: rpcUrl,
                   error: expectedDegradedError,
@@ -343,7 +345,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointDegraded event only once, even if the time to complete a request to a primary endpoint is continually too long', async () => {
+      it('publishes the NetworkController:rpcEndpointChainDegraded event only once, even if the time to complete a request to a primary endpoint is continually too long', async () => {
         const request = {
           method: 'eth_gasPrice',
           params: [],
@@ -353,10 +355,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
           { providerType: networkClientType },
           async (comms) => {
             const messenger = buildRootMessenger();
-            const rpcEndpointDegradedEventHandler = jest.fn();
+            const rpcEndpointChainDegradedEventHandler = jest.fn();
             messenger.subscribe(
-              'NetworkController:rpcEndpointDegraded',
-              rpcEndpointDegradedEventHandler,
+              'NetworkController:rpcEndpointChainDegraded',
+              rpcEndpointChainDegradedEventHandler,
             );
 
             await withNetworkClient(
@@ -394,10 +396,12 @@ describe('createNetworkClient - RPC endpoint events', () => {
                 await makeRpcCall(request);
                 await makeRpcCall(request);
 
-                expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledTimes(
-                  1,
-                );
-                expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
+                expect(
+                  rpcEndpointChainDegradedEventHandler,
+                ).toHaveBeenCalledTimes(1);
+                expect(
+                  rpcEndpointChainDegradedEventHandler,
+                ).toHaveBeenCalledWith({
                   chainId,
                   endpointUrl: rpcUrl,
                   error: undefined,
@@ -410,7 +414,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('does not publish the NetworkController:rpcEndpointDegraded event again if the max number of retries is reached in making requests to a failover endpoint', async () => {
+      it('does not publish the NetworkController:rpcEndpointChainDegraded event again if the max number of retries is reached in making requests to a failover endpoint', async () => {
         const failoverEndpointUrl = 'https://failover.endpoint/';
         const request = {
           method: 'eth_gasPrice',
@@ -429,10 +433,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
               },
               async (failoverComms) => {
                 const messenger = buildRootMessenger();
-                const rpcEndpointDegradedEventHandler = jest.fn();
+                const rpcEndpointChainDegradedEventHandler = jest.fn();
                 messenger.subscribe(
-                  'NetworkController:rpcEndpointDegraded',
-                  rpcEndpointDegradedEventHandler,
+                  'NetworkController:rpcEndpointChainDegraded',
+                  rpcEndpointChainDegradedEventHandler,
                 );
 
                 await withNetworkClient(
@@ -473,7 +477,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     });
 
                     messenger.subscribe(
-                      'NetworkController:rpcEndpointInstanceRetried',
+                      'NetworkController:rpcEndpointRetried',
                       () => {
                         // Ensure that we advance to the next RPC request
                         // retry, not the next block tracker request.
@@ -497,10 +501,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     );
 
                     expect(
-                      rpcEndpointDegradedEventHandler,
+                      rpcEndpointChainDegradedEventHandler,
                     ).toHaveBeenCalledTimes(1);
                     expect(
-                      rpcEndpointDegradedEventHandler,
+                      rpcEndpointChainDegradedEventHandler,
                     ).toHaveBeenCalledWith({
                       chainId,
                       endpointUrl: rpcUrl,
@@ -516,7 +520,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('does not publish the NetworkController:rpcEndpointDegraded event again when the time to complete a request to a failover endpoint is too long', async () => {
+      it('does not publish the NetworkController:rpcEndpointChainDegraded event again when the time to complete a request to a failover endpoint is too long', async () => {
         const failoverEndpointUrl = 'https://failover.endpoint/';
         const request = {
           method: 'eth_gasPrice',
@@ -535,10 +539,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
               },
               async (failoverComms) => {
                 const messenger = buildRootMessenger();
-                const rpcEndpointDegradedEventHandler = jest.fn();
+                const rpcEndpointChainDegradedEventHandler = jest.fn();
                 messenger.subscribe(
-                  'NetworkController:rpcEndpointDegraded',
-                  rpcEndpointDegradedEventHandler,
+                  'NetworkController:rpcEndpointChainDegraded',
+                  rpcEndpointChainDegradedEventHandler,
                 );
 
                 await withNetworkClient(
@@ -581,7 +585,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     });
 
                     messenger.subscribe(
-                      'NetworkController:rpcEndpointInstanceRetried',
+                      'NetworkController:rpcEndpointRetried',
                       () => {
                         // Ensure that we advance to the next RPC request
                         // retry, not the next block tracker request.
@@ -602,10 +606,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     await makeRpcCall(request);
 
                     expect(
-                      rpcEndpointDegradedEventHandler,
+                      rpcEndpointChainDegradedEventHandler,
                     ).toHaveBeenCalledTimes(1);
                     expect(
-                      rpcEndpointDegradedEventHandler,
+                      rpcEndpointChainDegradedEventHandler,
                     ).toHaveBeenCalledWith({
                       chainId,
                       endpointUrl: rpcUrl,
@@ -621,7 +625,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointInstanceDegraded event each time the max number of retries is reached in making requests to a primary endpoint', async () => {
+      it('publishes the NetworkController:rpcEndpointDegraded event each time the max number of retries is reached in making requests to a primary endpoint', async () => {
         const request = {
           method: 'eth_gasPrice',
           params: [],
@@ -647,10 +651,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
             });
 
             const messenger = buildRootMessenger();
-            const rpcEndpointInstanceDegradedEventHandler = jest.fn();
+            const rpcEndpointDegradedEventHandler = jest.fn();
             messenger.subscribe(
-              'NetworkController:rpcEndpointInstanceDegraded',
-              rpcEndpointInstanceDegradedEventHandler,
+              'NetworkController:rpcEndpointDegraded',
+              rpcEndpointDegradedEventHandler,
             );
 
             await withNetworkClient(
@@ -668,7 +672,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
               },
               async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
                 messenger.subscribe(
-                  'NetworkController:rpcEndpointInstanceRetried',
+                  'NetworkController:rpcEndpointRetried',
                   () => {
                     // Ensure that we advance to the next RPC request
                     // retry, not the next block tracker request.
@@ -690,21 +694,17 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   expectedError,
                 );
 
-                expect(
-                  rpcEndpointInstanceDegradedEventHandler,
-                ).toHaveBeenCalledTimes(2);
-                expect(
-                  rpcEndpointInstanceDegradedEventHandler,
-                ).toHaveBeenCalledWith({
+                expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledTimes(
+                  2,
+                );
+                expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
                   chainId,
                   endpointUrl: rpcUrl,
                   error: expectedDegradedError,
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   primaryEndpointUrl: rpcUrl,
                 });
-                expect(
-                  rpcEndpointInstanceDegradedEventHandler,
-                ).toHaveBeenCalledWith({
+                expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
                   chainId,
                   endpointUrl: rpcUrl,
                   error: expectedDegradedError,
@@ -717,7 +717,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointInstanceDegraded event when the time to complete a request to a primary endpoint is continually too long', async () => {
+      it('publishes the NetworkController:rpcEndpointDegraded event when the time to complete a request to a primary endpoint is continually too long', async () => {
         const request = {
           method: 'eth_gasPrice',
           params: [],
@@ -727,10 +727,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
           { providerType: networkClientType },
           async (comms) => {
             const messenger = buildRootMessenger();
-            const rpcEndpointInstanceDegradedEventHandler = jest.fn();
+            const rpcEndpointDegradedEventHandler = jest.fn();
             messenger.subscribe(
-              'NetworkController:rpcEndpointInstanceDegraded',
-              rpcEndpointInstanceDegradedEventHandler,
+              'NetworkController:rpcEndpointDegraded',
+              rpcEndpointDegradedEventHandler,
             );
 
             await withNetworkClient(
@@ -786,21 +786,17 @@ describe('createNetworkClient - RPC endpoint events', () => {
                 await blockTracker.checkForLatestBlock();
                 await makeRpcCall(request);
 
-                expect(
-                  rpcEndpointInstanceDegradedEventHandler,
-                ).toHaveBeenCalledTimes(2);
-                expect(
-                  rpcEndpointInstanceDegradedEventHandler,
-                ).toHaveBeenCalledWith({
+                expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledTimes(
+                  2,
+                );
+                expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
                   chainId,
                   endpointUrl: rpcUrl,
                   error: undefined,
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   primaryEndpointUrl: rpcUrl,
                 });
-                expect(
-                  rpcEndpointInstanceDegradedEventHandler,
-                ).toHaveBeenCalledWith({
+                expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
                   chainId,
                   endpointUrl: rpcUrl,
                   error: undefined,
@@ -813,7 +809,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointInstanceDegraded event again if the max number of retries is reached in making requests to a failover endpoint', async () => {
+      it('publishes the NetworkController:rpcEndpointDegraded event again if the max number of retries is reached in making requests to a failover endpoint', async () => {
         const failoverEndpointUrl = 'https://failover.endpoint/';
         const request = {
           method: 'eth_gasPrice',
@@ -832,10 +828,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
               },
               async (failoverComms) => {
                 const messenger = buildRootMessenger();
-                const rpcEndpointInstanceDegradedEventHandler = jest.fn();
+                const rpcEndpointDegradedEventHandler = jest.fn();
                 messenger.subscribe(
-                  'NetworkController:rpcEndpointInstanceDegraded',
-                  rpcEndpointInstanceDegradedEventHandler,
+                  'NetworkController:rpcEndpointDegraded',
+                  rpcEndpointDegradedEventHandler,
                 );
 
                 await withNetworkClient(
@@ -876,7 +872,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     });
 
                     messenger.subscribe(
-                      'NetworkController:rpcEndpointInstanceRetried',
+                      'NetworkController:rpcEndpointRetried',
                       () => {
                         // Ensure that we advance to the next RPC request
                         // retry, not the next block tracker request.
@@ -900,10 +896,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     );
 
                     expect(
-                      rpcEndpointInstanceDegradedEventHandler,
+                      rpcEndpointDegradedEventHandler,
                     ).toHaveBeenCalledTimes(3);
                     expect(
-                      rpcEndpointInstanceDegradedEventHandler,
+                      rpcEndpointDegradedEventHandler,
                     ).toHaveBeenNthCalledWith(1, {
                       chainId,
                       endpointUrl: rpcUrl,
@@ -912,7 +908,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       primaryEndpointUrl: rpcUrl,
                     });
                     expect(
-                      rpcEndpointInstanceDegradedEventHandler,
+                      rpcEndpointDegradedEventHandler,
                     ).toHaveBeenNthCalledWith(2, {
                       chainId,
                       endpointUrl: rpcUrl,
@@ -921,7 +917,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       primaryEndpointUrl: rpcUrl,
                     });
                     expect(
-                      rpcEndpointInstanceDegradedEventHandler,
+                      rpcEndpointDegradedEventHandler,
                     ).toHaveBeenNthCalledWith(3, {
                       chainId,
                       endpointUrl: failoverEndpointUrl,
@@ -937,7 +933,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointInstanceDegraded event again when the time to complete a request to a failover endpoint is too long', async () => {
+      it('publishes the NetworkController:rpcEndpointDegraded event again when the time to complete a request to a failover endpoint is too long', async () => {
         const failoverEndpointUrl = 'https://failover.endpoint/';
         const request = {
           method: 'eth_gasPrice',
@@ -956,10 +952,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
               },
               async (failoverComms) => {
                 const messenger = buildRootMessenger();
-                const rpcEndpointInstanceDegradedEventHandler = jest.fn();
+                const rpcEndpointDegradedEventHandler = jest.fn();
                 messenger.subscribe(
-                  'NetworkController:rpcEndpointInstanceDegraded',
-                  rpcEndpointInstanceDegradedEventHandler,
+                  'NetworkController:rpcEndpointDegraded',
+                  rpcEndpointDegradedEventHandler,
                 );
 
                 await withNetworkClient(
@@ -1002,7 +998,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     });
 
                     messenger.subscribe(
-                      'NetworkController:rpcEndpointInstanceRetried',
+                      'NetworkController:rpcEndpointRetried',
                       () => {
                         // Ensure that we advance to the next RPC request
                         // retry, not the next block tracker request.
@@ -1023,10 +1019,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     await makeRpcCall(request);
 
                     expect(
-                      rpcEndpointInstanceDegradedEventHandler,
+                      rpcEndpointDegradedEventHandler,
                     ).toHaveBeenCalledTimes(3);
                     expect(
-                      rpcEndpointInstanceDegradedEventHandler,
+                      rpcEndpointDegradedEventHandler,
                     ).toHaveBeenNthCalledWith(1, {
                       chainId,
                       endpointUrl: rpcUrl,
@@ -1035,7 +1031,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       primaryEndpointUrl: rpcUrl,
                     });
                     expect(
-                      rpcEndpointInstanceDegradedEventHandler,
+                      rpcEndpointDegradedEventHandler,
                     ).toHaveBeenNthCalledWith(2, {
                       chainId,
                       endpointUrl: rpcUrl,
@@ -1044,7 +1040,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       primaryEndpointUrl: rpcUrl,
                     });
                     expect(
-                      rpcEndpointInstanceDegradedEventHandler,
+                      rpcEndpointDegradedEventHandler,
                     ).toHaveBeenNthCalledWith(3, {
                       chainId,
                       endpointUrl: failoverEndpointUrl,
@@ -1060,7 +1056,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointAvailable event the first time a successful request to a (primary) RPC endpoint is made', async () => {
+      it('publishes the NetworkController:rpcEndpointChainAvailable event the first time a successful request to a (primary) RPC endpoint is made', async () => {
         const request = {
           method: 'eth_gasPrice',
           params: [],
@@ -1085,7 +1081,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
             const messenger = buildRootMessenger();
             const networkAvailableEventHandler = jest.fn();
             messenger.subscribe(
-              'NetworkController:rpcEndpointAvailable',
+              'NetworkController:rpcEndpointChainAvailable',
               networkAvailableEventHandler,
             );
 
@@ -1117,7 +1113,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
         );
       });
 
-      it('publishes the NetworkController:rpcEndpointAvailable event the first time a successful request to a failover endpoint is made', async () => {
+      it('publishes the NetworkController:rpcEndpointChainAvailable event the first time a successful request to a failover endpoint is made', async () => {
         const failoverEndpointUrl = 'https://failover.endpoint/';
         const request = {
           method: 'eth_gasPrice',
@@ -1157,7 +1153,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                 const messenger = buildRootMessenger();
                 const networkAvailableEventHandler = jest.fn();
                 messenger.subscribe(
-                  'NetworkController:rpcEndpointAvailable',
+                  'NetworkController:rpcEndpointChainAvailable',
                   networkAvailableEventHandler,
                 );
 
@@ -1178,7 +1174,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   },
                   async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
                     messenger.subscribe(
-                      'NetworkController:rpcEndpointInstanceRetried',
+                      'NetworkController:rpcEndpointRetried',
                       () => {
                         // Ensure that we advance to the next RPC request
                         // retry, not the next block tracker request.

@@ -236,7 +236,7 @@ function createRpcServiceChain({
       throw new Error('Could not make request to endpoint.');
     }
 
-    messenger.publish('NetworkController:rpcEndpointUnavailable', {
+    messenger.publish('NetworkController:rpcEndpointChainUnavailable', {
       chainId: configuration.chainId,
       networkClientId: id,
       primaryEndpointUrl,
@@ -248,7 +248,7 @@ function createRpcServiceChain({
   rpcServiceChain.onServiceBreak(
     ({ primaryEndpointUrl: _, endpointUrl, ...rest }) => {
       const error = getError(rest);
-      messenger.publish('NetworkController:rpcEndpointInstanceUnavailable', {
+      messenger.publish('NetworkController:rpcEndpointUnvailable', {
         chainId: configuration.chainId,
         networkClientId: id,
         primaryEndpointUrl,
@@ -261,7 +261,7 @@ function createRpcServiceChain({
   rpcServiceChain.onDegraded(
     ({ primaryEndpointUrl: _, endpointUrl, ...rest }) => {
       const error = getError(rest);
-      messenger.publish('NetworkController:rpcEndpointDegraded', {
+      messenger.publish('NetworkController:rpcEndpointChainDegraded', {
         chainId: configuration.chainId,
         networkClientId: id,
         primaryEndpointUrl,
@@ -274,7 +274,7 @@ function createRpcServiceChain({
   rpcServiceChain.onServiceDegraded(
     ({ primaryEndpointUrl: _, endpointUrl, ...rest }) => {
       const error = getError(rest);
-      messenger.publish('NetworkController:rpcEndpointInstanceDegraded', {
+      messenger.publish('NetworkController:rpcEndpointDegraded', {
         chainId: configuration.chainId,
         networkClientId: id,
         primaryEndpointUrl,
@@ -285,7 +285,7 @@ function createRpcServiceChain({
   );
 
   rpcServiceChain.onAvailable(({ primaryEndpointUrl: _, endpointUrl }) => {
-    messenger.publish('NetworkController:rpcEndpointAvailable', {
+    messenger.publish('NetworkController:rpcEndpointChainAvailable', {
       chainId: configuration.chainId,
       networkClientId: id,
       primaryEndpointUrl,
@@ -295,7 +295,7 @@ function createRpcServiceChain({
 
   rpcServiceChain.onServiceRetry(
     ({ primaryEndpointUrl: _, endpointUrl, attempt }) => {
-      messenger.publish('NetworkController:rpcEndpointInstanceRetried', {
+      messenger.publish('NetworkController:rpcEndpointRetried', {
         chainId: configuration.chainId,
         networkClientId: id,
         primaryEndpointUrl,

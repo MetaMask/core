@@ -95,7 +95,7 @@ export function testsForRpcFailoverBehavior({
               },
               async ({ makeRpcCall, clock }) => {
                 messenger.subscribe(
-                  'NetworkController:rpcEndpointInstanceRetried',
+                  'NetworkController:rpcEndpointRetried',
                   () => {
                     // Ensure that we advance to the next RPC request
                     // retry, not the next block tracker request.
@@ -207,7 +207,7 @@ export function testsForRpcFailoverBehavior({
                 },
                 async ({ makeRpcCall, clock }) => {
                   messenger.subscribe(
-                    'NetworkController:rpcEndpointInstanceRetried',
+                    'NetworkController:rpcEndpointRetried',
                     () => {
                       // Ensure that we advance to the next RPC request
                       // retry, not the next block tracker request.
@@ -269,17 +269,14 @@ export function testsForRpcFailoverBehavior({
             }),
           },
           async ({ makeRpcCall, clock, rpcUrl }) => {
-            messenger.subscribe(
-              'NetworkController:rpcEndpointInstanceRetried',
-              () => {
-                // Ensure that we advance to the next RPC request
-                // retry, not the next block tracker request.
-                // We also don't need to await this, it just needs to
-                // be added to the promise queue.
-                // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.tickAsync(backoffDuration);
-              },
-            );
+            messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
+              // Ensure that we advance to the next RPC request
+              // retry, not the next block tracker request.
+              // We also don't need to await this, it just needs to
+              // be added to the promise queue.
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
+              clock.tickAsync(backoffDuration);
+            });
 
             for (let i = 0; i < numRequestsToMake - 1; i++) {
               await ignoreRejection(makeRpcCall(request));
