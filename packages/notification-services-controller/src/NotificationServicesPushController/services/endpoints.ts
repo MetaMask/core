@@ -1,16 +1,13 @@
 export type ENV = 'prd' | 'uat' | 'dev';
 
-export const PUSH_API = (env: ENV = 'prd') => {
-  const domain = 'api.cx.metamask.io';
-  switch (env) {
-    case 'dev':
-      return `https://push.dev-${domain}`;
-    case 'uat':
-      return `https://push.uat-${domain}`;
-    default:
-      return `https://push.${domain}`;
-  }
-};
+const PUSH_API_ENV = {
+  dev: 'https://push.dev-api.cx.metamask.io',
+  uat: 'https://push.uat-api.cx.metamask.io',
+  prd: 'https://push.api.cx.metamask.io',
+} satisfies Record<ENV, string>;
+
+export const PUSH_API = (env: ENV = 'prd') =>
+  PUSH_API_ENV[env] ?? PUSH_API_ENV.prd;
 
 export const REGISTRATION_TOKENS_ENDPOINT = (env: ENV = 'prd') =>
   `${PUSH_API(env)}/api/v2/token`;

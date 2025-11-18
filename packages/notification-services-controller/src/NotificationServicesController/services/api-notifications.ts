@@ -18,29 +18,23 @@ export type NotificationTrigger = {
 
 export type ENV = 'prd' | 'uat' | 'dev';
 
-export const TRIGGER_API = (env: ENV = 'prd') => {
-  const domain = 'api.cx.metamask.io';
-  switch (env) {
-    case 'dev':
-      return `https://trigger.dev-${domain}`;
-    case 'uat':
-      return `https://trigger.uat-${domain}`;
-    default:
-      return `https://trigger.${domain}`;
-  }
+const TRIGGER_API_ENV = {
+  dev: 'https://trigger.dev-api.cx.metamask.io',
+  uat: 'https://trigger.uat-api.cx.metamask.io',
+  prd: 'https://trigger.api.cx.metamask.io',
+} satisfies Record<ENV, string>;
+
+export const TRIGGER_API = (env: ENV = 'prd') =>
+  TRIGGER_API_ENV[env] ?? TRIGGER_API_ENV.prd;
+
+const NOTIFICATION_API_ENV = {
+  dev: 'https://notification.dev-api.cx.metamask.io',
+  uat: 'https://notification.uat-api.cx.metamask.io',
+  prd: 'https://notification.api.cx.metamask.io',
 };
 
-export const NOTIFICATION_API = (env: ENV = 'prd') => {
-  const domain = 'api.cx.metamask.io';
-  switch (env) {
-    case 'dev':
-      return `https://notification.dev-${domain}`;
-    case 'uat':
-      return `https://notification.uat-${domain}`;
-    default:
-      return `https://notification.${domain}`;
-  }
-};
+export const NOTIFICATION_API = (env: ENV = 'prd') =>
+  NOTIFICATION_API_ENV[env] ?? NOTIFICATION_API_ENV.prd;
 
 // Gets notification settings for each account provided
 export const TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT = (env: ENV = 'prd') =>
