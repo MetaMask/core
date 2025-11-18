@@ -40,6 +40,7 @@ runs:
     # need to check it out again with full history.
     - name: Checkout repository
       uses: actions/checkout@v5
+      if: steps.is-release.outputs.IS_RELEASE == 'true'
       with:
         fetch-depth: 0
 
