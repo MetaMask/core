@@ -1,4 +1,4 @@
-# Releasing Breaking Changes
+# Preparing & Releasing Breaking Changes
 
 When developing packages, it is always important to be intentional about the impact that changes have on projects which use those packages. However, special consideration must be given to breaking changes.
 
