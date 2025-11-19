@@ -40,18 +40,21 @@ describe('createNetworkClient - RPC endpoint events', () => {
                 // The first time a block-cacheable request is made, the
                 // latest block number is retrieved through the block
                 // tracker first.
-                primaryComms.mockNextBlockTrackerRequest({
-                  blockNumber,
-                });
                 primaryComms.mockRpcCall({
-                  request,
+                  request: {
+                    method: 'eth_blockNumber',
+                    params: [],
+                  },
                   times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
                   response: {
                     httpStatus: 503,
                   },
                 });
                 failoverComms.mockRpcCall({
-                  request,
+                  request: {
+                    method: 'eth_blockNumber',
+                    params: [],
+                  },
                   times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
                   response: {
                     httpStatus: 503,
@@ -155,18 +158,21 @@ describe('createNetworkClient - RPC endpoint events', () => {
                 // The first time a block-cacheable request is made, the
                 // latest block number is retrieved through the block
                 // tracker first.
-                primaryComms.mockNextBlockTrackerRequest({
-                  blockNumber,
-                });
                 primaryComms.mockRpcCall({
-                  request,
+                  request: {
+                    method: 'eth_blockNumber',
+                    params: [],
+                  },
                   times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
                   response: {
                     httpStatus: 503,
                   },
                 });
                 failoverComms.mockRpcCall({
-                  request,
+                  request: {
+                    method: 'eth_blockNumber',
+                    params: [],
+                  },
                   times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
                   response: {
                     httpStatus: 503,
@@ -272,11 +278,11 @@ describe('createNetworkClient - RPC endpoint events', () => {
             // The first time a block-cacheable request is made, the
             // latest block number is retrieved through the block
             // tracker first.
-            comms.mockNextBlockTrackerRequest({
-              blockNumber,
-            });
             comms.mockRpcCall({
-              request,
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
               times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
               response: {
                 httpStatus: 503,
@@ -378,8 +384,17 @@ describe('createNetworkClient - RPC endpoint events', () => {
                 // The first time a block-cacheable request is made, the
                 // latest block number is retrieved through the block
                 // tracker first.
-                comms.mockNextBlockTrackerRequest({
-                  blockNumber,
+                comms.mockRpcCall({
+                  request: {
+                    method: 'eth_blockNumber',
+                    params: [],
+                  },
+                  response: () => {
+                    clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                    return {
+                      result: '0x1',
+                    };
+                  },
                 });
                 comms.mockRpcCall({
                   request,
@@ -392,7 +407,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   times: 2,
                 });
 
-                await makeRpcCall(request);
                 await makeRpcCall(request);
                 await makeRpcCall(request);
 
@@ -458,18 +472,21 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     // The first time a block-cacheable request is made, the
                     // latest block number is retrieved through the block
                     // tracker first.
-                    primaryComms.mockNextBlockTrackerRequest({
-                      blockNumber,
-                    });
                     primaryComms.mockRpcCall({
-                      request,
+                      request: {
+                        method: 'eth_blockNumber',
+                        params: [],
+                      },
                       times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
                       response: {
                         httpStatus: 503,
                       },
                     });
                     failoverComms.mockRpcCall({
-                      request,
+                      request: {
+                        method: 'eth_blockNumber',
+                        params: [],
+                      },
                       times: 5,
                       response: {
                         httpStatus: 503,
@@ -564,14 +581,26 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     // The first time a block-cacheable request is made, the
                     // latest block number is retrieved through the block
                     // tracker first.
-                    primaryComms.mockNextBlockTrackerRequest({
-                      blockNumber,
-                    });
                     primaryComms.mockRpcCall({
-                      request,
+                      request: {
+                        method: 'eth_blockNumber',
+                        params: [],
+                      },
                       times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
                       response: {
                         httpStatus: 503,
+                      },
+                    });
+                    failoverComms.mockRpcCall({
+                      request: {
+                        method: 'eth_blockNumber',
+                        params: [],
+                      },
+                      response: () => {
+                        clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                        return {
+                          result: '0x1',
+                        };
                       },
                     });
                     failoverComms.mockRpcCall({
@@ -639,11 +668,11 @@ describe('createNetworkClient - RPC endpoint events', () => {
             // The first time a block-cacheable request is made, the
             // latest block number is retrieved through the block
             // tracker first.
-            comms.mockNextBlockTrackerRequest({
-              blockNumber,
-            });
             comms.mockRpcCall({
-              request,
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
               times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
               response: {
                 httpStatus: 503,
@@ -749,24 +778,19 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   },
                 }),
               },
-              async ({ blockTracker, makeRpcCall, clock, chainId, rpcUrl }) => {
+              async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
                 // The first time a block-cacheable request is made, the
                 // latest block number is retrieved through the block
                 // tracker first.
-                comms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x1',
-                });
-                // We mock another block tracker request so we can clear the
-                // cache.
-                comms.mockNextBlockTrackerRequest({
-                  blockNumber: '0x2',
-                });
                 comms.mockRpcCall({
-                  request,
+                  request: {
+                    method: 'eth_blockNumber',
+                    params: [],
+                  },
                   response: () => {
                     clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
                     return {
-                      result: 'ok',
+                      result: '0x1',
                     };
                   },
                 });
@@ -780,10 +804,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   },
                 });
 
-                await makeRpcCall(request);
-                // Force another block to clear the cache on the previous
-                // request
-                await blockTracker.checkForLatestBlock();
                 await makeRpcCall(request);
 
                 expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledTimes(
@@ -853,18 +873,21 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     // The first time a block-cacheable request is made, the
                     // latest block number is retrieved through the block
                     // tracker first.
-                    primaryComms.mockNextBlockTrackerRequest({
-                      blockNumber,
-                    });
                     primaryComms.mockRpcCall({
-                      request,
+                      request: {
+                        method: 'eth_blockNumber',
+                        params: [],
+                      },
                       times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
                       response: {
                         httpStatus: 503,
                       },
                     });
                     failoverComms.mockRpcCall({
-                      request,
+                      request: {
+                        method: 'eth_blockNumber',
+                        params: [],
+                      },
                       times: 5,
                       response: {
                         httpStatus: 503,
@@ -977,14 +1000,26 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     // The first time a block-cacheable request is made, the
                     // latest block number is retrieved through the block
                     // tracker first.
-                    primaryComms.mockNextBlockTrackerRequest({
-                      blockNumber,
-                    });
                     primaryComms.mockRpcCall({
-                      request,
+                      request: {
+                        method: 'eth_blockNumber',
+                        params: [],
+                      },
                       times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
                       response: {
                         httpStatus: 503,
+                      },
+                    });
+                    failoverComms.mockRpcCall({
+                      request: {
+                        method: 'eth_blockNumber',
+                        params: [],
+                      },
+                      response: () => {
+                        clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                        return {
+                          result: '0x1',
+                        };
                       },
                     });
                     failoverComms.mockRpcCall({
@@ -1020,7 +1055,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
 
                     expect(
                       rpcEndpointDegradedEventHandler,
-                    ).toHaveBeenCalledTimes(3);
+                    ).toHaveBeenCalledTimes(4);
                     expect(
                       rpcEndpointDegradedEventHandler,
                     ).toHaveBeenNthCalledWith(1, {
@@ -1042,6 +1077,15 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     expect(
                       rpcEndpointDegradedEventHandler,
                     ).toHaveBeenNthCalledWith(3, {
+                      chainId,
+                      endpointUrl: failoverEndpointUrl,
+                      error: undefined,
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      primaryEndpointUrl: rpcUrl,
+                    });
+                    expect(
+                      rpcEndpointDegradedEventHandler,
+                    ).toHaveBeenNthCalledWith(4, {
                       chainId,
                       endpointUrl: failoverEndpointUrl,
                       error: undefined,
@@ -1079,10 +1123,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
             });
 
             const messenger = buildRootMessenger();
-            const networkAvailableEventHandler = jest.fn();
+            const rpcEndpointChainAvailableEventHandler = jest.fn();
             messenger.subscribe(
               'NetworkController:rpcEndpointChainAvailable',
-              networkAvailableEventHandler,
+              rpcEndpointChainAvailableEventHandler,
             );
 
             await withNetworkClient(
@@ -1101,7 +1145,12 @@ describe('createNetworkClient - RPC endpoint events', () => {
               async ({ makeRpcCall, chainId, rpcUrl }) => {
                 await makeRpcCall(request);
 
-                expect(networkAvailableEventHandler).toHaveBeenCalledWith({
+                expect(
+                  rpcEndpointChainAvailableEventHandler,
+                ).toHaveBeenCalledTimes(1);
+                expect(
+                  rpcEndpointChainAvailableEventHandler,
+                ).toHaveBeenCalledWith({
                   chainId,
                   endpointUrl: rpcUrl,
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -1133,14 +1182,23 @@ describe('createNetworkClient - RPC endpoint events', () => {
                 // The first time a block-cacheable request is made, the
                 // latest block number is retrieved through the block
                 // tracker first.
-                primaryComms.mockNextBlockTrackerRequest({
-                  blockNumber,
-                });
                 primaryComms.mockRpcCall({
-                  request,
+                  request: {
+                    method: 'eth_blockNumber',
+                    params: [],
+                  },
                   times: DEFAULT_MAX_CONSECUTIVE_FAILURES,
                   response: {
                     httpStatus: 503,
+                  },
+                });
+                failoverComms.mockRpcCall({
+                  request: {
+                    method: 'eth_blockNumber',
+                    params: [],
+                  },
+                  response: {
+                    result: '0x1',
                   },
                 });
                 failoverComms.mockRpcCall({
@@ -1151,10 +1209,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
                 });
 
                 const messenger = buildRootMessenger();
-                const networkAvailableEventHandler = jest.fn();
+                const rpcEndpointChainAvailableEventHandler = jest.fn();
                 messenger.subscribe(
                   'NetworkController:rpcEndpointChainAvailable',
-                  networkAvailableEventHandler,
+                  rpcEndpointChainAvailableEventHandler,
                 );
 
                 await withNetworkClient(
@@ -1194,9 +1252,14 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     // breaking the circuit; hit the failover
                     await makeRpcCall(request);
 
-                    expect(networkAvailableEventHandler).toHaveBeenCalledWith({
+                    expect(
+                      rpcEndpointChainAvailableEventHandler,
+                    ).toHaveBeenCalledTimes(1);
+                    expect(
+                      rpcEndpointChainAvailableEventHandler,
+                    ).toHaveBeenCalledWith({
                       chainId,
-                      endpointUrl: rpcUrl,
+                      endpointUrl: failoverEndpointUrl,
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                       primaryEndpointUrl: rpcUrl,
                     });
