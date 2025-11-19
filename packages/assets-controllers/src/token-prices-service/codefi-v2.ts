@@ -256,27 +256,29 @@ export const HEX_CHAIN_ID_TO_CAIP19_NATIVE_ASSET_MAP = {
   '0x3e7': 'eip155:999/slip44:2457', // HyperEVM - Native symbol: ETH
 };
 
-// MISSING CHAINS
+// MISSING CHAINS WITH NATIVE ASSET PRICES IN V2
 // '0x39': 'eip155:57/slip44:57', // Syscoin Mainnet - Native symbol: SYS
-// '0x42': 'eip155:66/slip44:996', // OKXChain Mainnet - Native symbol: OKT
-// '0x46': 'eip155:70/slip44:1170', // Hoo Smart Chain - Native symbol: HOO
 // '0x52': 'eip155:82/slip44:18000', // Meter Mainnet - Native symbol: MTR
 // '0x58': 'eip155:88/slip44:889', // TomoChain - Native symbol: TOMO
 // '0x6a': 'eip155:106/slip44:5655640', // Velas EVM Mainnet - Native symbol: VLX
-// '0x7a': 'eip155:122/slip44:XXX', // Fuse Mainnet - Native symbol: FUSE
 // '0x80': 'eip155:128/slip44:1010', // Huobi ECO Chain Mainnet - Native symbol: HT
-// '0x120': 'eip155:288/slip44:60', // Boba Network (Ethereum L2) - Native symbol: ETH
 // '0x141': 'eip155:321/slip44:641', // KCC Mainnet - Native symbol: KCS
-// '0x150': 'eip155:336/slip44:809', // Shiden - Native symbol: SDN
 // '0x169': 'eip155:361/slip44:589', // Theta Mainnet - Native symbol: TFUEL
-// '0x440': 'eip155:1088/slip44:60', // Metis Andromeda Mainnet (Ethereum L2) - Native symbol: ETH
-// '0x1388': 'eip155:5000/slip44:XXX', // Mantle - Native symbol: MNT
 // '0x2710': 'eip155:10000/slip44:145', // Smart Bitcoin Cash - Native symbol: BCH
 // '0xa516': 'eip155:42262/slip44:474', // Oasis Emerald - Native symbol: ROSE
 // '0x13c31': 'eip155:81457/slip44:60', // Blast Mainnet - Native symbol: ETH
 // '0x17dcd': 'eip155:97741/slip44:XXX', // Pepe Unchained Mainnet - Native symbol: PEPU
-// '0x28c58': 'eip155:167000/slip44:60', // Taiko Mainnet - Native symbol: ETH
 // '0x518af': 'eip155:333999/slip44:1997', // Polis Mainnet - Native symbol: POLIS
+
+// MISSING CHAINS WITH NO NATIVE ASSET PRICES IN V2
+// '0x42': 'eip155:66/slip44:996', // OKXChain Mainnet - Native symbol: OKT
+// '0x46': 'eip155:70/slip44:1170', // Hoo Smart Chain - Native symbol: HOO
+// '0x7a': 'eip155:122/slip44:XXX', // Fuse Mainnet - Native symbol: FUSE
+// '0x120': 'eip155:288/slip44:60', // Boba Network (Ethereum L2) - Native symbol: ETH
+// '0x150': 'eip155:336/slip44:809', // Shiden - Native symbol: SDN
+// '0x440': 'eip155:1088/slip44:60', // Metis Andromeda Mainnet (Ethereum L2) - Native symbol: ETH
+// '0x1388': 'eip155:5000/slip44:XXX', // Mantle - Native symbol: MNT
+// '0x28c58': 'eip155:167000/slip44:60', // Taiko Mainnet - Native symbol: ETH
 
 /**
  * A currency that can be supplied as the `vsCurrency` parameter to
