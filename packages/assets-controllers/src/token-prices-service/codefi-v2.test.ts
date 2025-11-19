@@ -238,7 +238,7 @@ describe('CodefiTokenPricesServiceV2', () => {
   describe('fetchTokenPrices', () => {
     it('uses the /v2/chains/{chainId}/spot-prices endpoint to gather prices forn chains not supported by v3', async () => {
       nock('https://price.api.cx.metamask.io')
-        .get('/v2/chains/0x39/spot-prices')
+        .get('/v2/chains/0x52/spot-prices')
         .query({
           tokenAddresses: ['0xAAA', '0xBBB'].join(','),
           vsCurrency: 'ETH',
@@ -293,11 +293,11 @@ describe('CodefiTokenPricesServiceV2', () => {
         await new CodefiTokenPricesServiceV2().fetchTokenPrices({
           assets: [
             {
-              chainId: '0x39',
+              chainId: '0x52',
               tokenAddress: '0xAAA',
             },
             {
-              chainId: '0x39',
+              chainId: '0x52',
               tokenAddress: '0xBBB',
             },
           ],
@@ -308,7 +308,7 @@ describe('CodefiTokenPricesServiceV2', () => {
         {
           allTimeHigh: 0.00060467892389492,
           allTimeLow: 0.00002303954000865728,
-          chainId: '0x39',
+          chainId: '0x52',
           circulatingSupply: 1494269733.9526057,
           currency: 'ETH',
           dilutedMarketCap: 117669.5125951733,
@@ -331,7 +331,7 @@ describe('CodefiTokenPricesServiceV2', () => {
         {
           allTimeHigh: 0.00060467892389492,
           allTimeLow: 0.00002303954000865728,
-          chainId: '0x39',
+          chainId: '0x52',
           circulatingSupply: 1494269733.9526057,
           currency: 'ETH',
           dilutedMarketCap: 117669.5125951733,
