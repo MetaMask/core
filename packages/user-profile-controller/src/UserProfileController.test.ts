@@ -8,11 +8,11 @@ import {
   type MessengerEvents,
 } from '@metamask/messenger';
 
-import type { UserProfileUpdateRequest } from './UserProfileService';
 import {
   UserProfileController,
   type UserProfileControllerMessenger,
 } from './UserProfileController';
+import type { UserProfileUpdateRequest } from './UserProfileService';
 
 /**
  * Creates a mock InternalAccount object for testing purposes.
