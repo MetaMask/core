@@ -9,13 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [62.0.0]
 
-### Uncategorized
-
-- Release/686.0.0 ([#7189](https://github.com/MetaMask/core/pull/7189))
-
 ### Added
 
 - Add and export `getQuotesReceivedProperties` utility to build the metrics payload for clients ([#7182](https://github.com/MetaMask/core/pull/7182))
+
+### Changed
+
+- Bump `@metamask/polling-controller` from `^15.0.0` to `^15.0.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/multichain-network-controller` from `^2.0.0` to `^3.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/messenger` from `^0.3.0` to `^0.3.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/gas-fee-controller` from `^25.0.0` to `^26.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.15.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^61.0.0` to `^62.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/assets-controllers` from `^89.0.0` to `^90.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^34.0.0` to `^35.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
 
 ## [61.0.0]
 

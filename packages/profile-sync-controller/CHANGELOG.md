@@ -9,14 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [27.0.0]
 
-### Uncategorized
-
-- chore: Remove unused ESLint ignore directives ([#7154](https://github.com/MetaMask/core/pull/7154))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-
 ### Changed
 
+- Bump `@metamask/messenger` from `^0.3.0` to `^0.3.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/address-book-controller` from `^7.0.0` to `^8.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - Add rate limit (429) handling with automatic retry in authentication flow ([#6993](https://github.com/MetaMask/core/pull/6993))
   - Update authentication services to throw `RateLimitedError` when encountering 429 responses.
   - Improve Authentication errors by adding the HTTP code in error messages.

@@ -9,13 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [7.0.0]
 
-### Uncategorized
-
-- chore: Remove unused ESLint directives about enum comparisons ([#7160](https://github.com/MetaMask/core/pull/7160))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-
 ### Changed
 
+- Bump `@metamask/messenger` from `^0.3.0` to `^0.3.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - **BREAKING:** The `encryptor` constructor param requires `exportKey`, `keyFromPassword` and `generateSalt` methods ([#7128](https://github.com/MetaMask/core/pull/7128))
 - `SeedlessOnboardingController` now accepts an optional `SupportedKeyDerivationOptions` type parameter ([#7127](https://github.com/MetaMask/core/pull/7127))
   - The type parameter can be used to specify which key derivation algorithms are supported by the controller instance.

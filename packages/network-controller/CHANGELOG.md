@@ -9,17 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [26.0.0]
 
-### Uncategorized
+### Added
 
-- chore: Remove unused ESLint ignore directives ([#7154](https://github.com/MetaMask/core/pull/7154))
-- chore: Fix all auto-fixable ESLint warnings ([#7105](https://github.com/MetaMask/core/pull/7105))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- Remove all `network-controller` lint warnings ([#7048](https://github.com/MetaMask/core/pull/7048))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- feat: add infura supported networks ([#6972](https://github.com/MetaMask/core/pull/6972))
+- Add infura supported networks ([#6972](https://github.com/MetaMask/core/pull/6972))
 
 ### Changed
 
+- Bump `@metamask/messenger` from `^0.3.0` to `^0.3.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.1.2` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/eth-json-rpc-provider` from `^5.0.1` to `^6.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/eth-json-rpc-middleware` from `^21.0.0` to `^22.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/eth-block-tracker` from `^14.0.0` to `^15.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
   - Providers accessible either via network clients or global proxies no longer emit events (or inherit from EventEmitter, for that matter).
 - **BREAKING:** Make `Provider` type more specific ([#7061](https://github.com/MetaMask/core/pull/7061))
@@ -30,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - In practice, this should happen rarely if ever.
 - **BREAKING:** Migrate `NetworkClient` to `JsonRpcEngineV2` ([#7065](https://github.com/MetaMask/core/pull/7065))
   - This ought to be unobservable, but we mark it as breaking out of an abundance of caution.
-- Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.15.1` ([#7003](https://github.com/MetaMask/core/pull/7003), [#7190](https://github.com/MetaMask/core/pull/7190))
 
 ### Fixed
 
@@ -1008,9 +1009,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - Everything in `src/network` (minus `NetworkType` and `NetworksChainId`, which were placed in `@metamask/controller-utils`)
 
     All changes listed after this point were applied to this package following the monorepo conversion.

@@ -9,18 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [22.0.0]
 
-### Uncategorized
-
-- chore: Remove unused ESLint ignore directives ([#7154](https://github.com/MetaMask/core/pull/7154))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- chore: Disable ESLint cache by default ([#7082](https://github.com/MetaMask/core/pull/7082))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- test(eth-json-rpc-middleware): Round out test suite ([#6967](https://github.com/MetaMask/core/pull/6967))
-- Release/642.0.0 ([#6962](https://github.com/MetaMask/core/pull/6962))
-- Release 641.0.0 ([#6940](https://github.com/MetaMask/core/pull/6940))
-
 ### Changed
 
+- Bump `@metamask/message-manager` from `^14.0.0` to `^15.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.1.2` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/eth-json-rpc-provider` from `^5.0.1` to `^6.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/eth-block-tracker` from `^14.0.0` to `^15.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - **BREAKING:** Migrate to `JsonRpcEngineV2` ([#7065](https://github.com/MetaMask/core/pull/7065))
   - Migrates all middleware from `JsonRpcEngine` to `JsonRpcEngineV2`.
   - Signatures of various middleware dependencies, e.g. `processTransaction` of `createWalletMiddleware`, have changed
