@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Does not add a pending revocation if user cancels the transaction ([#7157](https://github.com/MetaMask/core/pull/7157))
+- **BREAKING** The GatorPermissionsController messenger must allow `TransactionController:transactionApproved` and `TransactionController:transactionRejected` events ([#7157](https://github.com/MetaMask/core/pull/7157))
+
 ## [0.4.0]
 
 ### Added
