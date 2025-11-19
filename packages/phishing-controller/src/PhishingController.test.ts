@@ -3234,7 +3234,7 @@ describe('PhishingController', () => {
       clock.restore();
     });
 
-    it('should return the scan result for a valid address', async () => {
+    it('will return the scan result for a valid address', async () => {
       const scope = nock(SECURITY_ALERTS_BASE_URL)
         .post(ADDRESS_SCAN_ENDPOINT, {
           chain: 'ethereum',
@@ -3257,7 +3257,7 @@ describe('PhishingController', () => {
       [503, 'Service Unavailable'],
       [504, 'Gateway Timeout'],
     ])(
-      'should return an AddressScanResult with a benign result on %i status code',
+      'will return an AddressScanResult with an ErrorResult on %i status code',
       async (statusCode) => {
         const scope = nock(SECURITY_ALERTS_BASE_URL)
           .post(ADDRESS_SCAN_ENDPOINT, {
@@ -3268,14 +3268,14 @@ describe('PhishingController', () => {
 
         const response = await controller.scanAddress(testChainId, testAddress);
         expect(response).toMatchObject({
-          result_type: AddressScanResultType.Benign,
+          result_type: AddressScanResultType.ErrorResult,
           label: '',
         });
         expect(scope.isDone()).toBe(true);
       },
     );
 
-    it('should return an AddressScanResult with a benign result on timeout', async () => {
+    it('will return an AddressScanResult with an ErrorResult on timeout', async () => {
       const scope = nock(SECURITY_ALERTS_BASE_URL)
         .post(ADDRESS_SCAN_ENDPOINT, {
           chain: 'ethereum',
@@ -3288,33 +3288,33 @@ describe('PhishingController', () => {
       clock.tick(5000);
       const response = await promise;
       expect(response).toMatchObject({
-        result_type: AddressScanResultType.Benign,
+        result_type: AddressScanResultType.ErrorResult,
         label: '',
       });
       expect(scope.isDone()).toBe(false);
     });
 
-    it('should return a benign result when address is missing', async () => {
+    it('will return an AddressScanResult with an ErrorResult when address is missing', async () => {
       const response = await controller.scanAddress(testChainId, '');
       expect(response).toMatchObject({
-        result_type: AddressScanResultType.Benign,
+        result_type: AddressScanResultType.ErrorResult,
         label: '',
       });
     });
 
-    it('should return a benign result when chain ID is unknown', async () => {
+    it('will return an AddressScanResult with an ErrorResult when chain ID is unknown', async () => {
       const unknownChainId = '0x999999';
       const response = await controller.scanAddress(
         unknownChainId,
         testAddress,
       );
       expect(response).toMatchObject({
-        result_type: AddressScanResultType.Benign,
+        result_type: AddressScanResultType.ErrorResult,
         label: '',
       });
     });
 
-    it('should normalize address to lowercase', async () => {
+    it('will normalize address to lowercase', async () => {
       const mixedCaseAddress = '0xAbCdEf1234567890123456789012345678901234';
       const scope = nock(SECURITY_ALERTS_BASE_URL)
         .post(ADDRESS_SCAN_ENDPOINT, {
@@ -3331,7 +3331,7 @@ describe('PhishingController', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should normalize chain ID to lowercase', async () => {
+    it('will normalize chain ID to lowercase', async () => {
       const mixedCaseChainId = '0xA';
       const scope = nock(SECURITY_ALERTS_BASE_URL)
         .post(ADDRESS_SCAN_ENDPOINT, {
@@ -3348,7 +3348,7 @@ describe('PhishingController', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should cache scan results and return them on subsequent calls', async () => {
+    it('will cache scan results and return them on subsequent calls', async () => {
       const fetchSpy = jest.spyOn(global, 'fetch');
 
       const scope = nock(SECURITY_ALERTS_BASE_URL)
@@ -3370,7 +3370,7 @@ describe('PhishingController', () => {
       fetchSpy.mockRestore();
     });
 
-    it('should cache addresses per chain ID', async () => {
+    it('will cache addresses per chain ID', async () => {
       const chainId1 = '0x1';
       const chainId2 = '0x89';
 
