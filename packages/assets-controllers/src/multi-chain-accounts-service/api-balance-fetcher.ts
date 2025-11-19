@@ -23,8 +23,8 @@ import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants';
 // Maximum number of account addresses that can be sent to the accounts API in a single request
 const ACCOUNTS_API_BATCH_SIZE = 50;
 
-// Timeout for accounts API requests (30 seconds)
-const ACCOUNTS_API_TIMEOUT_MS = 30_000;
+// Timeout for accounts API requests (10 seconds)
+const ACCOUNTS_API_TIMEOUT_MS = 10_000;
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;

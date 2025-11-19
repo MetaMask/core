@@ -63,7 +63,7 @@ import type {
 } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
-const ACCOUNTS_API_TIMEOUT_MS = 30000;
+const ACCOUNTS_API_TIMEOUT_MS = 10000;
 
 type LegacyToken = {
   name: string;
