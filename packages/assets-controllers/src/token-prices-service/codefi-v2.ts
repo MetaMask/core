@@ -244,11 +244,13 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x6a': 'eip155:106/erc20:0x0000000000000000000000000000000000000000', // 'eip155:106/slip44:5655640', // Velas EVM Mainnet - Native symbol: VLX
   '0x80': 'eip155:128/erc20:0x0000000000000000000000000000000000000000', // 'eip155:128/slip44:1010', // Huobi ECO Chain Mainnet - Native symbol: HT
   '0x89': 'eip155:137/slip44:966', // Polygon Mainnet - Native symbol: POL
+  '0x8f': null, // 'eip155:143/slip44:268435779', // Monad Mainnet - Native symbol: MON
   '0x92': 'eip155:146/slip44:10007', // Sonic Mainnet - Native symbol: S
   '0xfa': 'eip155:250/slip44:1007', // Fantom Opera - Native symbol: FTM
   '0x141': 'eip155:321/erc20:0x0000000000000000000000000000000000000000', // 'eip155:321/slip44:641', // KCC Mainnet - Native symbol: KCS
   '0x144': 'eip155:324/slip44:60', // zkSync Era Mainnet (Ethereum L2) - Native symbol: ETH
   '0x169': 'eip155:361/erc20:0x0000000000000000000000000000000000000000', // 'eip155:361/slip44:589', // Theta Mainnet - Native symbol: TFUEL
+  '0x3e7': 'eip155:999/slip44:2457', // HyperEVM - Native symbol: ETH
   '0x440': 'eip155:1088/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // 'eip155:1088/slip44:XXX', // Metis Andromeda Mainnet (Ethereum L2) - Native symbol: METIS
   '0x44d': 'eip155:1101/slip44:60', // Polygon zkEVM mainnet - Native symbol: ETH
   '0x504': 'eip155:1284/slip44:1284', // Moonbeam - Native symbol: GLMR
@@ -268,8 +270,6 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x82750': 'eip155:534352/slip44:60', // Scroll Mainnet - Native symbol: ETH
   '0x4e454152': 'eip155:60/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
   '0x63564c40': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
-  '0x279f': 'eip155:143/slip44:268435779', // Monad Testnet - Native symbol: MON
-  '0x3e7': 'eip155:999/slip44:2457', // HyperEVM - Native symbol: ETH
 } as const;
 
 // MISSING CHAINS WITH NO NATIVE ASSET PRICES IN V2
