@@ -1,6 +1,9 @@
 import { toHex } from '@metamask/controller-utils';
 import type { GasFeeEstimates } from '@metamask/gas-fee-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  GasFeeToken,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -67,7 +70,7 @@ export function calculateTransactionGasCost(
 
   const hasBalance = new BigNumber(nativeBalance).gte(max.raw);
 
-  const gasFeeTokenCost = calculateGasFeeTokenCost({
+  const gasFeeTokenCost = calculateTransactionGasFeeTokenCost({
     hasBalance,
     messenger,
     transaction,
@@ -156,6 +159,55 @@ export function calculateGasCost(request: {
 }
 
 /**
+ * Calculate the cost of a gas fee token on a transaction.
+ *
+ * @param request - Request parameters.
+ * @param request.chainId - Chain ID.
+ * @param request.gasFeeToken - Gas fee token to calculate cost for.
+ * @param request.messenger - Controller messenger.
+ * @returns Cost of the gas fee token.
+ */
+export function calculateGasFeeTokenCost({
+  chainId,
+  gasFeeToken,
+  messenger,
+}: {
+  chainId: Hex;
+  gasFeeToken: GasFeeToken;
+  messenger: TransactionPayControllerMessenger;
+}): (Amount & { isGasFeeToken?: boolean }) | undefined {
+  const tokenInfo = getTokenInfo(messenger, gasFeeToken.tokenAddress, chainId);
+
+  const tokenFiatRate = getTokenFiatRate(
+    messenger,
+    gasFeeToken.tokenAddress,
+    chainId,
+  );
+
+  if (!tokenFiatRate || !tokenInfo) {
+    log('Cannot get gas fee token info');
+    return undefined;
+  }
+
+  const rawValue = new BigNumber(gasFeeToken.amount);
+  const raw = rawValue.toString(10);
+
+  const humanValue = rawValue.shiftedBy(-tokenInfo.decimals);
+  const human = humanValue.toString(10);
+
+  const fiat = humanValue.multipliedBy(tokenFiatRate.fiatRate).toString(10);
+  const usd = humanValue.multipliedBy(tokenFiatRate.usdRate).toString(10);
+
+  return {
+    isGasFeeToken: true,
+    fiat,
+    human,
+    raw,
+    usd,
+  };
+}
+
+/**
  * Get gas fee estimates for a given chain.
  *
  * @param chainId - Chain ID.
@@ -197,7 +249,7 @@ function getGasFee(chainId: Hex, messenger: TransactionPayControllerMessenger) {
  * @param request.transaction - Transaction to calculate gas fee token cost for.
  * @returns Cost of the gas fee token.
  */
-function calculateGasFeeTokenCost({
+function calculateTransactionGasFeeTokenCost({
   hasBalance,
   messenger,
   transaction,
@@ -236,33 +288,9 @@ function calculateGasFeeTokenCost({
     return undefined;
   }
 
-  const tokenInfo = getTokenInfo(messenger, selectedGasFeeToken, chainId);
-
-  const tokenFiatRate = getTokenFiatRate(
-    messenger,
-    selectedGasFeeToken,
+  return calculateGasFeeTokenCost({
     chainId,
-  );
-
-  if (!tokenFiatRate || !tokenInfo) {
-    log('Cannot get gas fee token info');
-    return undefined;
-  }
-
-  const rawValue = new BigNumber(gasFeeToken.amount);
-  const raw = rawValue.toString(10);
-
-  const humanValue = rawValue.shiftedBy(-tokenInfo.decimals);
-  const human = humanValue.toString(10);
-
-  const fiat = humanValue.multipliedBy(tokenFiatRate.fiatRate).toString(10);
-  const usd = humanValue.multipliedBy(tokenFiatRate.usdRate).toString(10);
-
-  return {
-    isGasFeeToken: true,
-    fiat,
-    human,
-    raw,
-    usd,
-  };
+    gasFeeToken,
+    messenger,
+  });
 }
