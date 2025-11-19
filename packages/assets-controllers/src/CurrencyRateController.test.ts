@@ -1596,7 +1596,6 @@ describe('CurrencyRateController', () => {
             currency: 'usd',
             tokenAddress: '0x0000000000000000000000000000000000001010',
             chainId: '0x89',
-            assetId: 'xx:yy/aa:bb',
             price: 0.85,
             pricePercentChange1d: 0,
             priceChange1d: 0,

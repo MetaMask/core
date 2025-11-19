@@ -7,7 +7,7 @@ import {
   type MessengerEvents,
   type MockAnyNamespace,
 } from '@metamask/messenger';
-import { KnownCaipNamespace, type Hex } from '@metamask/utils';
+import { type Hex } from '@metamask/utils';
 import assert from 'assert';
 import { useFakeTimers } from 'sinon';
 
@@ -83,7 +83,6 @@ function buildFoundTokenDisplayData(
     currency: 'USD',
     tokenAddress: tokenAddress as Hex,
     chainId: '0x1',
-    assetId: `${KnownCaipNamespace.Eip155}:1/erc20:${tokenAddress.toLowerCase()}`,
     allTimeHigh: 20,
     allTimeLow: 5,
     circulatingSupply: 1000000,
@@ -498,7 +497,6 @@ describe('TokenSearchDiscoveryDataController', () => {
         currency: 'USD',
         tokenAddress: tokenAddress as Hex,
         chainId: '0x1',
-        assetId: `${KnownCaipNamespace.Eip155}:1/erc20:${tokenAddress.toLowerCase()}`,
         allTimeHigh: 20,
         allTimeLow: 5,
         circulatingSupply: 1000000,
@@ -651,7 +649,6 @@ describe('TokenSearchDiscoveryDataController', () => {
           > = {
             tokenAddress: tokenAddress as Hex,
             chainId: '0x1',
-            assetId: `${KnownCaipNamespace.Eip155}:1/erc20:${tokenAddress.toLowerCase()}`,
             allTimeHigh: 20,
             allTimeLow: 5,
             circulatingSupply: 1000000,
@@ -721,7 +718,6 @@ describe('TokenSearchDiscoveryDataController', () => {
         currency: 'USD',
         tokenAddress: tokenAddress as Hex,
         chainId: '0x1',
-        assetId: `${KnownCaipNamespace.Eip155}:1/erc20:${tokenAddress.toLowerCase()}`,
         allTimeHigh: 20,
         allTimeLow: 5,
         circulatingSupply: 1000000,

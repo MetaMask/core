@@ -34,7 +34,8 @@ export type EvmAssetWithId<ChainId extends Hex = Hex> =
 export type EvmAssetWithMarketData<
   ChainId extends Hex = Hex,
   Currency extends string = string,
-> = EvmAssetWithId<ChainId> & MarketDataDetails & { currency: Currency };
+> = EvmAssetAddressWithChain<ChainId> &
+  MarketDataDetails & { currency: Currency };
 
 /**
  * An ideal token prices service. All implementations must confirm to this

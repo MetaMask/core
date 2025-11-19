@@ -5,7 +5,7 @@ import {
   toHex,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import { add0x, KnownCaipNamespace, type Hex } from '@metamask/utils';
+import { add0x, type Hex } from '@metamask/utils';
 
 import * as assetsUtil from './assetsUtil';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
@@ -629,7 +629,6 @@ describe('assetsUtil', () => {
         {
           tokenAddress: testTokenAddress,
           chainId: testChainId,
-          assetId: `${KnownCaipNamespace.Eip155}:${testChainId}/erc20:${testTokenAddress}`,
           currency: testNativeCurrency,
           allTimeHigh: 4000,
           allTimeLow: 900,
