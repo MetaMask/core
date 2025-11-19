@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 679.0.0 ([#7153](https://github.com/MetaMask/core/pull/7153))
+- Release/671.0.0 ([#7126](https://github.com/MetaMask/core/pull/7126))
+- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
+
 ### Fixed
 
 - Does not add a pending revocation if user cancels the transaction ([#7157](https://github.com/MetaMask/core/pull/7157))

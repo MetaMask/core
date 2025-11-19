@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: Remove unused types file ([#7088](https://github.com/MetaMask/core/pull/7088))
+- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
+- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
+- Release/650.0.0 ([#7003](https://github.com/MetaMask/core/pull/7003))
+
 ### Changed
 
 - Bump `@metamask/chain-agnostic-permission` from `^1.2.1` to `^1.2.2` ([#6986](https://github.com/MetaMask/core/pull/6986))
