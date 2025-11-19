@@ -3,15 +3,15 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
+import { RELAY_URL_QUOTE } from './constants';
+import { getRelayQuotes } from './relay-quotes';
+import type { RelayQuote } from './types';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_POLYGON,
-  RELAY_URL_QUOTE,
-} from './constants';
-import { getRelayQuotes } from './relay-quotes';
-import type { RelayQuote } from './types';
-import { NATIVE_TOKEN_ADDRESS } from '../../constants';
+  NATIVE_TOKEN_ADDRESS,
+} from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   GetDelegationTransactionCallback,
@@ -41,6 +41,9 @@ const QUOTE_REQUEST_MOCK: QuoteRequest = {
 
 const QUOTE_MOCK = {
   details: {
+    currencyIn: {
+      amountUsd: '1.24',
+    },
     currencyOut: {
       amountFormatted: '1.0',
       amountUsd: '1.23',
@@ -122,13 +125,17 @@ describe('Relay Quotes Utils', () => {
     });
 
     calculateTransactionGasCostMock.mockReturnValue({
-      usd: '1.23',
       fiat: '2.34',
+      human: '0.615',
+      raw: '6150000000000000',
+      usd: '1.23',
     });
 
     calculateGasCostMock.mockReturnValue({
-      usd: '3.45',
       fiat: '4.56',
+      human: '1.725',
+      raw: '1725000000000000',
+      usd: '3.45',
     });
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
@@ -288,7 +295,7 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].estimatedDuration).toBe(300);
     });
 
-    it('includes provider fee in quote', async () => {
+    it('includes provider fee from relayer fee', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as never);
@@ -302,6 +309,26 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].fees.provider).toStrictEqual({
         usd: '1.11',
         fiat: '2.22',
+      });
+    });
+
+    it('includes provider fee from usd change if greater', async () => {
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.details.currencyIn.amountUsd = '3.00';
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quote,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.provider).toStrictEqual({
+        usd: '1.77',
+        fiat: '3.54',
       });
     });
 
@@ -334,8 +361,18 @@ describe('Relay Quotes Utils', () => {
       });
 
       expect(result[0].fees.sourceNetwork).toStrictEqual({
-        usd: '3.45',
-        fiat: '4.56',
+        estimate: {
+          fiat: '4.56',
+          human: '1.725',
+          raw: '1725000000000000',
+          usd: '3.45',
+        },
+        max: {
+          fiat: '4.56',
+          human: '1.725',
+          raw: '1725000000000000',
+          usd: '3.45',
+        },
       });
     });
 
@@ -360,10 +397,26 @@ describe('Relay Quotes Utils', () => {
 
     it('includes source network fee using gas total from multiple transactions', async () => {
       const quoteMock = cloneDeep(QUOTE_MOCK);
+
       quoteMock.steps[0].items.push({
         data: {
           gas: '480000',
         },
+      } as never);
+
+      quoteMock.steps.push({
+        items: [
+          {
+            data: {
+              gas: '1000',
+            },
+          },
+          {
+            data: {
+              gas: '2000',
+            },
+          },
+        ],
       } as never);
 
       successfulFetchMock.mockResolvedValue({
@@ -377,7 +430,7 @@ describe('Relay Quotes Utils', () => {
       });
 
       expect(calculateGasCostMock).toHaveBeenCalledWith(
-        expect.objectContaining({ gas: 501000 }),
+        expect.objectContaining({ gas: 504000 }),
       );
     });
 

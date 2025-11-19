@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - JWT token is included in `Authorization: Bearer <token>` header when provided
   - Backward compatible: token parameter is optional and APIs work without authentication
 
+## [89.0.1]
+
+### Fixed
+
+- Fix duplicate native token address in `CurrencyRateController` spot price fallback API requests ([#7181](https://github.com/MetaMask/core/pull/7181))
+
+## [89.0.0]
+
+### Changed
+
+- **BREAKING:** Remove fallback to CryptoCompare on `CurrencyRatesController` and `TokenRatesController` ([#7167](https://github.com/MetaMask/core/pull/7167))
+- Bump `@metamask/core-backend` from `^4.0.0` to `^4.1.0`
+
 ### Fixed
 
 - Enable RPC fallback when Accounts API fails or times out in `TokenBalancesController` ([#7155](https://github.com/MetaMask/core/pull/7155))
@@ -2288,7 +2301,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@88.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@89.0.1...HEAD
+[89.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@89.0.0...@metamask/assets-controllers@89.0.1
+[89.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@88.0.0...@metamask/assets-controllers@89.0.0
 [88.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.1...@metamask/assets-controllers@88.0.0
 [87.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.0...@metamask/assets-controllers@87.1.1
 [87.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.0.0...@metamask/assets-controllers@87.1.0

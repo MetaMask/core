@@ -1050,7 +1050,7 @@ describe('BridgeController', function () {
     bridgeController.trackUnifiedSwapBridgeEvent(
       UnifiedSwapBridgeEventName.QuotesReceived,
       {
-        warnings: ['warning1'],
+        warnings: ['low_return'],
         usd_quoted_gas: 0,
         gas_included: false,
         gas_included_7702: false,
@@ -2101,6 +2101,99 @@ describe('BridgeController', function () {
     expect(quotes[1].nonEvmFeesInNative).toBe('0.00005'); // BTC fee as-is
   });
 
+  it('should catch BTC chain fees errors and return undefined fees', async () => {
+    jest.useFakeTimers();
+    // Use the actual Solana mock which already has string trade type
+    const btcQuoteResponse = mockBridgeQuotesSolErc20.map((quote) => ({
+      ...quote,
+      quote: {
+        ...quote.quote,
+        srcChainId: ChainId.BTC,
+      },
+    })) as unknown as QuoteResponse[];
+
+    messengerMock.call.mockImplementation(
+      (
+        ...args: Parameters<BridgeControllerMessenger['call']>
+      ): ReturnType<BridgeControllerMessenger['call']> => {
+        const [actionType] = args;
+
+        if (actionType === 'AccountsController:getAccountByAddress') {
+          return {
+            type: 'btc:p2wpkh',
+            id: 'btc-account-1',
+            scopes: [BtcScope.Mainnet],
+            methods: [],
+            address: 'bc1q...',
+            metadata: {
+              name: 'BTC Account 1',
+              importTime: 1717334400,
+              keyring: {
+                type: 'Snap Keyring',
+              },
+              snap: {
+                id: 'btc-snap-id',
+                name: 'BTC Snap',
+              },
+            },
+          } as never;
+        }
+
+        if (actionType === 'SnapController:handleRequest') {
+          return new Promise((_resolve, reject) => {
+            reject(new Error('Failed to compute fees'));
+          });
+        }
+
+        return {
+          provider: jest.fn() as never,
+        } as never;
+      },
+    );
+
+    jest.spyOn(fetchUtils, 'fetchBridgeQuotes').mockResolvedValue({
+      quotes: btcQuoteResponse,
+      validationFailures: [],
+    });
+
+    const quoteParams = {
+      srcChainId: ChainId.BTC.toString(),
+      destChainId: '1',
+      srcTokenAddress: 'NATIVE',
+      destTokenAddress: '0x0000000000000000000000000000000000000000',
+      srcTokenAmount: '100000', // satoshis
+      walletAddress: 'bc1q...',
+      destWalletAddress: '0x5342',
+      slippage: 0.5,
+    };
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteParams,
+      metricsContext,
+    );
+
+    // Wait for polling to start
+    jest.advanceTimersByTime(201);
+    await flushPromises();
+
+    // Wait for fetch to trigger
+    jest.advanceTimersByTime(295);
+    await flushPromises();
+
+    // Wait for fetch to complete
+    jest.advanceTimersByTime(2601);
+    await flushPromises();
+
+    // Final wait for fee calculation
+    jest.advanceTimersByTime(100);
+    await flushPromises();
+
+    const { quotes } = bridgeController.state;
+    expect(quotes).toHaveLength(2); // mockBridgeQuotesSolErc20 has 2 quotes
+    expect(quotes[0].nonEvmFeesInNative).toBeUndefined();
+    expect(quotes[1].nonEvmFeesInNative).toBeUndefined();
+  });
+
   describe('trackUnifiedSwapBridgeEvent client-side calls', () => {
     beforeEach(async () => {
       jest.clearAllMocks();
@@ -2267,7 +2360,7 @@ describe('BridgeController', function () {
       bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.QuotesReceived,
         {
-          warnings: ['warning1'],
+          warnings: ['insufficient_balance'],
           usd_quoted_gas: 0,
           gas_included: false,
           gas_included_7702: false,
@@ -2569,7 +2662,7 @@ describe('BridgeController', function () {
       bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.QuotesReceived,
         {
-          warnings: ['warning1'],
+          warnings: ['low_return'],
           usd_quoted_gas: 0,
           gas_included: false,
           gas_included_7702: false,

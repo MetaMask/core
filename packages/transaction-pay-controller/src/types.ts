@@ -273,11 +273,17 @@ export type QuoteRequest = {
 
 /** Fees associated with a transaction pay quote. */
 export type TransactionPayFees = {
+  /** Whether a gas fee token is used to pay target network fees. */
+  isTargetGasFeeToken?: boolean;
+
   /** Fee charged by the quote provider. */
   provider: FiatValue;
 
   /** Network fee for transactions on the source network. */
-  sourceNetwork: FiatValue;
+  sourceNetwork: {
+    estimate: Amount;
+    max: Amount;
+  };
 
   /** Network fee for transactions on the target network. */
   targetNetwork: FiatValue;
@@ -299,6 +305,9 @@ export type TransactionPayQuote<OriginalQuote> = {
 
   /** Associated quote request. */
   request: QuoteRequest;
+
+  /** Amount of source token required. */
+  sourceAmount: Amount;
 
   /** Name of the strategy used to retrieve the quote. */
   strategy: TransactionPayStrategy;
@@ -392,6 +401,9 @@ export type TransactionPayTotals = {
   /** Total fees for the target transaction and all quotes. */
   fees: TransactionPayFees;
 
+  /** Total amount of source token required. */
+  sourceAmount: Amount;
+
   /** Overall total cost for the target transaction and all quotes. */
   total: FiatValue;
 };
@@ -419,3 +431,12 @@ export type GetDelegationTransactionCallback = ({
   to: Hex;
   value: Hex;
 }>;
+
+/** Single amount in alternate formats. */
+export type Amount = FiatValue & {
+  /** Amount in human-readable format factoring token decimals. */
+  human: string;
+
+  /** Amount in atomic format without factoring token decimals. */
+  raw: string;
+};

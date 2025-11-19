@@ -8,6 +8,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
+import type { ENV } from './services/endpoints';
 import {
   activatePushNotifications,
   deactivatePushNotifications,
@@ -146,6 +147,8 @@ export type ControllerConfig = {
    * - subscribe to push notifications
    */
   pushService: PushService;
+
+  env?: ENV;
 };
 
 type StateCommand =
@@ -321,6 +324,7 @@ export default class NotificationServicesPushController extends BaseController<
             locale: this.#config.getLocale?.() ?? 'en',
             oldToken: this.state.fcmToken,
           },
+          controllerEnv: this.#config.env ?? 'prd',
         });
 
         if (fcmToken) {
@@ -411,6 +415,7 @@ export default class NotificationServicesPushController extends BaseController<
           locale: this.#config.getLocale?.() ?? 'en',
           oldToken: this.state.fcmToken,
         },
+        controllerEnv: this.#config.env ?? 'prd',
       });
 
       // update the state with the new FCM token
