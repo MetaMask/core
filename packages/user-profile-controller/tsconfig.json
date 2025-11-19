@@ -5,7 +5,7 @@
   },
   "references": [
     { "path": "../../packages/base-controller" },
-    { "path": "../../packages/messenger" },
+    { "path": "../../packages/messenger" }
   ],
   "include": ["../../types", "./src"],
   /**
