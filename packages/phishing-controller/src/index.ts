@@ -8,10 +8,10 @@ export type {
 } from './PhishingDetector';
 export { PhishingDetector } from './PhishingDetector';
 export type { PhishingDetectionScanResult, AddressScanResult } from './types';
+export type { TokenScanCacheData } from './types';
 export {
   PhishingDetectorResultType,
   RecommendedAction,
   AddressScanResultType,
-  TokenScanCacheData,
 } from './types';
 export type { CacheEntry } from './CacheManager';
