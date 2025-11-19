@@ -28,10 +28,10 @@ export type AnalyticsControllerIdentifyAction = {
 };
 
 /**
- * Track a page view.
+ * Track a page or screen view.
  *
- * @param name - The name of the UI item being viewed (pages for web, screen for mobile)
- * @param properties - UI item properties
+ * @param name - The identifier/name of the page or screen being viewed (e.g., "home", "settings", "wallet")
+ * @param properties - Optional properties associated with the view
  */
 export type AnalyticsControllerTrackViewAction = {
   type: `AnalyticsController:trackView`;
