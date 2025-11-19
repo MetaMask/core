@@ -349,7 +349,7 @@ describe('properties', () => {
         estimatedProcessingTimeInSeconds: 60,
       };
 
-      const result = getQuotesReceivedProperties(mockQuoteResponse, [], false,{
+      const result = getQuotesReceivedProperties(mockQuoteResponse, [], false, {
         ...mockQuoteResponse,
         quote: {
           ...mockQuoteResponse.quote,
