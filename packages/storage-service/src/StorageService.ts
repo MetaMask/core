@@ -3,7 +3,7 @@ import type {
   StorageServiceMessenger,
   StorageServiceOptions,
 } from './types';
-import { SERVICE_NAME } from './types';
+import { SERVICE_NAME, STORAGE_KEY_PREFIX } from './types';
 import { InMemoryStorageAdapter } from './InMemoryStorageAdapter';
 
 /**
@@ -94,12 +94,6 @@ export class StorageService {
   readonly #storage: StorageAdapter;
 
   /**
-   * In-memory registry for tracking keys per namespace.
-   * Used when storage adapter doesn't support getAllKeys().
-   */
-  readonly #keyRegistry: Map<string, Set<string>>;
-
-  /**
    * Constructs a new StorageService.
    *
    * @param options - The options.
@@ -111,7 +105,6 @@ export class StorageService {
     this.name = SERVICE_NAME;
     this.#messenger = messenger;
     this.#storage = storage ?? new InMemoryStorageAdapter();
-    this.#keyRegistry = new Map();
 
     // Warn if using in-memory storage (data won't persist)
     if (!storage) {
@@ -139,8 +132,8 @@ export class StorageService {
       this.getAllKeys.bind(this),
     );
     this.#messenger.registerActionHandler(
-      `${SERVICE_NAME}:clearNamespace`,
-      this.clearNamespace.bind(this),
+      `${SERVICE_NAME}:clear`,
+      this.clear.bind(this),
     );
   }
 
@@ -156,9 +149,6 @@ export class StorageService {
     const fullKey = this.#buildKey(namespace, key);
     const serialized = JSON.stringify(value);
     await this.#storage.setItem(fullKey, serialized);
-
-    // Track in registry for getAllKeys support
-    this.#addToRegistry(namespace, key);
 
     // Publish event so other controllers can react to changes
     // Event type: StorageService:itemSet:namespace
@@ -206,7 +196,6 @@ export class StorageService {
   async removeItem(namespace: string, key: string): Promise<void> {
     const fullKey = this.#buildKey(namespace, key);
     await this.#storage.removeItem(fullKey);
-    this.#removeFromRegistry(namespace, key);
 
     // Publish event so other controllers can react to removal
     // Event type: StorageService:itemRemoved:namespace
@@ -219,32 +208,23 @@ export class StorageService {
 
   /**
    * Get all keys for a namespace.
+   * Delegates to storage adapter which handles filtering.
    *
    * @param namespace - Controller namespace (e.g., 'SnapController').
    * @returns Array of keys (without prefix) for this namespace.
    */
   async getAllKeys(namespace: string): Promise<string[]> {
-    // Use storage's getAllKeys if available
-    if (this.#storage.getAllKeys) {
-      const allKeys = await this.#storage.getAllKeys();
-      const prefix = this.#buildKeyPrefix(namespace);
-      return allKeys
-        .filter((key) => key.startsWith(prefix))
-        .map((key) => key.slice(prefix.length));
-    }
-
-    // Fallback to internal registry
-    return Array.from(this.#keyRegistry.get(namespace) ?? []);
+    return await this.#storage.getAllKeys(namespace);
   }
 
   /**
    * Clear all data for a namespace.
+   * Delegates to storage adapter which handles clearing.
    *
    * @param namespace - Controller namespace (e.g., 'SnapController').
    */
-  async clearNamespace(namespace: string): Promise<void> {
-    const keys = await this.getAllKeys(namespace);
-    await Promise.all(keys.map((key) => this.removeItem(namespace, key)));
+  async clear(namespace: string): Promise<void> {
+    await this.#storage.clear(namespace);
   }
 
   /**
@@ -252,43 +232,10 @@ export class StorageService {
    *
    * @param namespace - The namespace.
    * @param key - The key.
-   * @returns The full key in format: storage:{namespace}:{key}
+   * @returns The full key in format: storageService:{namespace}:{key}
    */
   #buildKey(namespace: string, key: string): string {
-    return `storage:${namespace}:${key}`;
-  }
-
-  /**
-   * Build the key prefix for a namespace.
-   *
-   * @param namespace - The namespace.
-   * @returns The prefix in format: storage:{namespace}:
-   */
-  #buildKeyPrefix(namespace: string): string {
-    return `storage:${namespace}:`;
-  }
-
-  /**
-   * Add a key to the internal registry.
-   *
-   * @param namespace - The namespace.
-   * @param key - The key.
-   */
-  #addToRegistry(namespace: string, key: string): void {
-    if (!this.#keyRegistry.has(namespace)) {
-      this.#keyRegistry.set(namespace, new Set());
-    }
-    this.#keyRegistry.get(namespace)!.add(key);
-  }
-
-  /**
-   * Remove a key from the internal registry.
-   *
-   * @param namespace - The namespace.
-   * @param key - The key.
-   */
-  #removeFromRegistry(namespace: string, key: string): void {
-    this.#keyRegistry.get(namespace)?.delete(key);
+    return `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
   }
 }
 

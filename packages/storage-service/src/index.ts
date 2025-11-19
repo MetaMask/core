@@ -15,11 +15,11 @@ export type {
   StorageServiceGetItemAction,
   StorageServiceRemoveItemAction,
   StorageServiceGetAllKeysAction,
-  StorageServiceClearNamespaceAction,
+  StorageServiceClearAction,
   StorageServiceItemSetEvent,
   StorageServiceItemRemovedEvent,
 } from './types';
 
-// Export service name constant
-export { SERVICE_NAME } from './types';
+// Export service name and storage key prefix constants
+export { SERVICE_NAME, STORAGE_KEY_PREFIX } from './types';
 

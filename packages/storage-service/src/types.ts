@@ -34,18 +34,29 @@ export interface StorageAdapter {
   removeItem(key: string): Promise<void>;
 
   /**
-   * Get all keys in storage (optional).
-   * If not implemented, the service will maintain its own registry.
+   * Get all keys for a specific namespace.
+   * Should return keys without the 'storage:namespace:' prefix.
    *
-   * @returns Array of all keys in storage.
+   * Adapter is responsible for:
+   * - Filtering keys by prefix: 'storage:{namespace}:'
+   * - Stripping the prefix from returned keys
+   * - Returning only the key portion after the prefix
+   *
+   * @param namespace - The namespace to get keys for (e.g., 'SnapController').
+   * @returns Array of keys without prefix (e.g., ['snap1:sourceCode', 'snap2:sourceCode']).
    */
-  getAllKeys?(): Promise<string[]>;
+  getAllKeys(namespace: string): Promise<string[]>;
 
   /**
-   * Clear all items in storage (optional).
-   * Not typically used - prefer clearNamespace for scoped clearing.
+   * Clear all items for a specific namespace.
+   *
+   * Adapter is responsible for:
+   * - Finding all keys with prefix: 'storageService:{namespace}:'
+   * - Removing all matching keys
+   *
+   * @param namespace - The namespace to clear (e.g., 'SnapController').
    */
-  clear?(): Promise<void>;
+  clear(namespace: string): Promise<void>;
 }
 
 /**
@@ -67,6 +78,13 @@ export type StorageServiceOptions = {
 
 // Service name constant
 export const SERVICE_NAME = 'StorageService';
+
+/**
+ * Storage key prefix for all keys managed by StorageService.
+ * Keys are formatted as: {STORAGE_KEY_PREFIX}{namespace}:{key}
+ * Example: 'storageService:SnapController:snap-id:sourceCode'
+ */
+export const STORAGE_KEY_PREFIX = 'storageService:';
 
 /**
  * Action for storing data in the storage service.
@@ -103,8 +121,8 @@ export type StorageServiceGetAllKeysAction = {
 /**
  * Action for clearing all data for a namespace.
  */
-export type StorageServiceClearNamespaceAction = {
-  type: `${typeof SERVICE_NAME}:clearNamespace`;
+export type StorageServiceClearAction = {
+  type: `${typeof SERVICE_NAME}:clear`;
   handler: (namespace: string) => Promise<void>;
 };
 
@@ -116,7 +134,7 @@ export type StorageServiceActions =
   | StorageServiceGetItemAction
   | StorageServiceRemoveItemAction
   | StorageServiceGetAllKeysAction
-  | StorageServiceClearNamespaceAction;
+  | StorageServiceClearAction;
 
 /**
  * Event published when a storage item is set.

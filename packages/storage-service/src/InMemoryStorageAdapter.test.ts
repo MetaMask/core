@@ -70,64 +70,67 @@ describe('InMemoryStorageAdapter', () => {
   });
 
   describe('getAllKeys', () => {
-    it('returns all stored keys', async () => {
+    it('returns keys for a namespace', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      await adapter.setItem('key1', 'value1');
-      await adapter.setItem('key2', 'value2');
-      await adapter.setItem('key3', 'value3');
+      await adapter.setItem('storageService:TestController:key1', 'value1');
+      await adapter.setItem('storageService:TestController:key2', 'value2');
+      await adapter.setItem('storageService:OtherController:key3', 'value3');
 
-      const keys = await adapter.getAllKeys();
+      const keys = await adapter.getAllKeys('TestController');
 
-      expect(keys).toStrictEqual(expect.arrayContaining(['key1', 'key2', 'key3']));
-      expect(keys).toHaveLength(3);
+      expect(keys).toStrictEqual(expect.arrayContaining(['key1', 'key2']));
+      expect(keys).toHaveLength(2);
     });
 
-    it('returns empty array when no keys stored', async () => {
+    it('returns empty array when no keys for namespace', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      const keys = await adapter.getAllKeys();
+      const keys = await adapter.getAllKeys('EmptyNamespace');
 
       expect(keys).toStrictEqual([]);
     });
 
-    it('reflects removed keys', async () => {
+    it('strips prefix from returned keys', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      await adapter.setItem('key1', 'value1');
-      await adapter.setItem('key2', 'value2');
-      await adapter.removeItem('key1');
+      await adapter.setItem('storageService:TestController:my-key', 'value');
 
-      const keys = await adapter.getAllKeys();
+      const keys = await adapter.getAllKeys('TestController');
 
-      expect(keys).toStrictEqual(['key2']);
+      expect(keys).toStrictEqual(['my-key']);
+      expect(keys[0]).not.toContain('storage:');
+      expect(keys[0]).not.toContain('TestController:');
     });
   });
 
   describe('clear', () => {
-    it('removes all items', async () => {
+    it('removes all items for a namespace', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      await adapter.setItem('key1', 'value1');
-      await adapter.setItem('key2', 'value2');
-      await adapter.setItem('key3', 'value3');
+      await adapter.setItem('storageService:TestController:key1', 'value1');
+      await adapter.setItem('storageService:TestController:key2', 'value2');
+      await adapter.setItem('storageService:OtherController:key3', 'value3');
 
-      await adapter.clear();
+      await adapter.clear('TestController');
 
-      const keys = await adapter.getAllKeys();
+      const testKeys = await adapter.getAllKeys('TestController');
+      const otherKeys = await adapter.getAllKeys('OtherController');
 
-      expect(keys).toStrictEqual([]);
+      expect(testKeys).toStrictEqual([]);
+      expect(otherKeys).toStrictEqual(['key3']);
     });
 
-    it('makes all previously stored items return null', async () => {
+    it('does not affect other namespaces', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      await adapter.setItem('key1', 'value1');
-      await adapter.setItem('key2', 'value2');
-      await adapter.clear();
+      await adapter.setItem('storageService:Controller1:key', 'value1');
+      await adapter.setItem('storageService:Controller2:key', 'value2');
 
-      expect(await adapter.getItem('key1')).toBeNull();
-      expect(await adapter.getItem('key2')).toBeNull();
+      await adapter.clear('Controller1');
+
+      expect(await adapter.getItem('storageService:Controller1:key')).toBeNull();
+      expect(await adapter.getItem('storageService:Controller2:key')).toBe('value2');
     });
   });
 
@@ -151,11 +154,6 @@ describe('InMemoryStorageAdapter', () => {
       expect(typeof adapter.getItem).toBe('function');
       expect(typeof adapter.setItem).toBe('function');
       expect(typeof adapter.removeItem).toBe('function');
-    });
-
-    it('implements all optional methods', () => {
-      const adapter = new InMemoryStorageAdapter();
-
       expect(typeof adapter.getAllKeys).toBe('function');
       expect(typeof adapter.clear).toBe('function');
     });

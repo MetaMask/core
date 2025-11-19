@@ -1,4 +1,5 @@
 import type { StorageAdapter } from './types';
+import { STORAGE_KEY_PREFIX } from './types';
 
 /**
  * In-memory storage adapter (default fallback).
@@ -66,19 +67,30 @@ export class InMemoryStorageAdapter implements StorageAdapter {
   }
 
   /**
-   * Get all keys from in-memory storage.
+   * Get all keys for a namespace.
+   * Returns keys without the 'storage:namespace:' prefix.
    *
-   * @returns Array of all keys.
+   * @param namespace - The namespace to get keys for.
+   * @returns Array of keys (without prefix) for this namespace.
    */
-  async getAllKeys(): Promise<string[]> {
-    return Array.from(this.#storage.keys());
+  async getAllKeys(namespace: string): Promise<string[]> {
+    const prefix = `${STORAGE_KEY_PREFIX}${namespace}:`;
+    return Array.from(this.#storage.keys())
+      .filter((key) => key.startsWith(prefix))
+      .map((key) => key.slice(prefix.length));
   }
 
   /**
-   * Clear all items from in-memory storage.
+   * Clear all items for a namespace.
+   *
+   * @param namespace - The namespace to clear.
    */
-  async clear(): Promise<void> {
-    this.#storage.clear();
+  async clear(namespace: string): Promise<void> {
+    const prefix = `${STORAGE_KEY_PREFIX}${namespace}:`;
+    const keysToDelete = Array.from(this.#storage.keys()).filter((key) =>
+      key.startsWith(prefix),
+    );
+    keysToDelete.forEach((key) => this.#storage.delete(key));
   }
 }
 

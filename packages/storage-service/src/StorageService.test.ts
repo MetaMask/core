@@ -26,6 +26,8 @@ describe('StorageService', () => {
         getItem: jest.fn(),
         setItem: jest.fn(),
         removeItem: jest.fn(),
+        getAllKeys: jest.fn().mockResolvedValue([]),
+        clear: jest.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
@@ -57,13 +59,15 @@ describe('StorageService', () => {
         getItem: jest.fn(),
         setItem: jest.fn(),
         removeItem: jest.fn(),
+        getAllKeys: jest.fn().mockResolvedValue([]),
+        clear: jest.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
       await service.setItem('TestController', 'testKey', 'testValue');
 
       expect(mockStorage.setItem).toHaveBeenCalledWith(
-        'storage:TestController:testKey',
+        'storageService:TestController:testKey',
         JSON.stringify('testValue'),
       );
     });
@@ -73,6 +77,8 @@ describe('StorageService', () => {
         getItem: jest.fn(),
         setItem: jest.fn(),
         removeItem: jest.fn(),
+        getAllKeys: jest.fn().mockResolvedValue([]),
+        clear: jest.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
       const complexObject = { foo: 'bar', nested: { value: 123 } };
@@ -80,7 +86,7 @@ describe('StorageService', () => {
       await service.setItem('TestController', 'complex', complexObject);
 
       expect(mockStorage.setItem).toHaveBeenCalledWith(
-        'storage:TestController:complex',
+        'storageService:TestController:complex',
         JSON.stringify(complexObject),
       );
     });
@@ -92,6 +98,8 @@ describe('StorageService', () => {
           .fn()
           .mockRejectedValue(new Error('Storage quota exceeded')),
         removeItem: jest.fn(),
+        getAllKeys: jest.fn().mockResolvedValue([]),
+        clear: jest.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
@@ -129,6 +137,8 @@ describe('StorageService', () => {
           .mockResolvedValue('{ invalid json syntax }'),
         setItem: jest.fn(),
         removeItem: jest.fn(),
+        getAllKeys: jest.fn().mockResolvedValue([]),
+        clear: jest.fn().mockResolvedValue(undefined),
       };
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
@@ -151,6 +161,8 @@ describe('StorageService', () => {
         getItem: jest.fn().mockResolvedValue(null),
         setItem: jest.fn(),
         removeItem: jest.fn(),
+        getAllKeys: jest.fn().mockResolvedValue([]),
+        clear: jest.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
@@ -158,7 +170,7 @@ describe('StorageService', () => {
 
       expect(result).toBeNull();
       expect(mockStorage.getItem).toHaveBeenCalledWith(
-        'storage:TestController:missing',
+        'storageService:TestController:missing',
       );
     });
 
@@ -218,26 +230,24 @@ describe('StorageService', () => {
   });
 
   describe('getAllKeys', () => {
-    it('returns all keys for a namespace using storage getAllKeys', async () => {
+    it('delegates to storage adapter with namespace', async () => {
       const mockStorage: StorageAdapter = {
         getItem: jest.fn(),
         setItem: jest.fn(),
         removeItem: jest.fn(),
-        getAllKeys: jest.fn().mockResolvedValue([
-          'storage:TestController:key1',
-          'storage:TestController:key2',
-          'storage:OtherController:key3',
-        ]),
+        getAllKeys: jest.fn().mockResolvedValue(['key1', 'key2']),
+        clear: jest.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
       const keys = await service.getAllKeys('TestController');
 
+      expect(mockStorage.getAllKeys).toHaveBeenCalledWith('TestController');
       expect(keys).toStrictEqual(['key1', 'key2']);
     });
 
-    it('returns all keys for a namespace using internal registry', async () => {
-      const { service } = getService(); // No getAllKeys support
+    it('returns keys from default in-memory adapter', async () => {
+      const { service } = getService(); // Uses InMemoryAdapter
 
       await service.setItem('TestController', 'key1', 'value1');
       await service.setItem('TestController', 'key2', 'value2');
@@ -257,30 +267,47 @@ describe('StorageService', () => {
       expect(keys).toStrictEqual([]);
     });
 
-    it('returns empty array for namespace with no keys using mock storage without getAllKeys', async () => {
+    it('returns empty array for namespace with no keys', async () => {
       const mockStorage: StorageAdapter = {
         getItem: jest.fn(),
         setItem: jest.fn(),
         removeItem: jest.fn(),
-        // No getAllKeys - forces registry path
+        getAllKeys: jest.fn().mockResolvedValue([]),
+        clear: jest.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
       const keys = await service.getAllKeys('NonExistentController');
 
+      expect(mockStorage.getAllKeys).toHaveBeenCalledWith('NonExistentController');
       expect(keys).toStrictEqual([]);
     });
   });
 
-  describe('clearNamespace', () => {
-    it('removes all keys for a namespace', async () => {
+  describe('clear', () => {
+    it('delegates to storage adapter', async () => {
+      const mockStorage: StorageAdapter = {
+        getItem: jest.fn(),
+        setItem: jest.fn(),
+        removeItem: jest.fn(),
+        getAllKeys: jest.fn().mockResolvedValue([]),
+        clear: jest.fn().mockResolvedValue(undefined),
+      };
+      const { service } = getService({ storage: mockStorage });
+
+      await service.clear('TestController');
+
+      expect(mockStorage.clear).toHaveBeenCalledWith('TestController');
+    });
+
+    it('clears namespace using default in-memory adapter', async () => {
       const { service } = getService();
 
       await service.setItem('TestController', 'key1', 'value1');
       await service.setItem('TestController', 'key2', 'value2');
       await service.setItem('OtherController', 'key3', 'value3');
 
-      await service.clearNamespace('TestController');
+      await service.clear('TestController');
 
       const testKeys = await service.getAllKeys('TestController');
       const otherKeys = await service.getAllKeys('OtherController');
@@ -296,7 +323,7 @@ describe('StorageService', () => {
       await service.setItem('Controller2', 'key', 'value2');
       await service.setItem('Controller3', 'key', 'value3');
 
-      await service.clearNamespace('Controller2');
+      await service.clear('Controller2');
 
       expect(await service.getItem('Controller1', 'key')).toBe('value1');
       expect(await service.getItem('Controller2', 'key')).toBeNull();
@@ -397,14 +424,14 @@ describe('StorageService', () => {
       expect(keys).toStrictEqual(expect.arrayContaining(['key1', 'key2']));
     });
 
-    it('exposes clearNamespace as messenger action', async () => {
+    it('exposes clear as messenger action', async () => {
       const { service, rootMessenger } = getService();
 
       await service.setItem('TestController', 'key1', 'value1');
       await service.setItem('TestController', 'key2', 'value2');
 
       await rootMessenger.call(
-        'StorageService:clearNamespace',
+        'StorageService:clear',
         'TestController',
       );
 
@@ -449,36 +476,41 @@ describe('StorageService', () => {
       expect(bitcoinSource).toBe(snaps['npm:@metamask/bitcoin-wallet-snap'].sourceCode);
 
       // Clear all snap data
-      await service.clearNamespace('SnapController');
+      await service.clear('SnapController');
       const keysAfterClear = await service.getAllKeys('SnapController');
 
       expect(keysAfterClear).toStrictEqual([]);
     });
 
-    it('handles storage adapter with getAllKeys support', async () => {
+    it('delegates getAllKeys to adapter', async () => {
       const mockStorage: StorageAdapter = {
         getItem: jest.fn().mockResolvedValue(null),
         setItem: jest.fn(),
         removeItem: jest.fn(),
-        getAllKeys: jest.fn().mockResolvedValue([
-          'storage:SnapController:snap1:sourceCode',
-          'storage:SnapController:snap2:sourceCode',
-        ]),
+        getAllKeys: jest.fn().mockResolvedValue(['snap1:sourceCode', 'snap2:sourceCode']),
+        clear: jest.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
       const keys = await service.getAllKeys('SnapController');
 
-      expect(mockStorage.getAllKeys).toHaveBeenCalled();
+      expect(mockStorage.getAllKeys).toHaveBeenCalledWith('SnapController');
       expect(keys).toStrictEqual(['snap1:sourceCode', 'snap2:sourceCode']);
     });
 
-    it('handles storage adapter without getAllKeys support', async () => {
+    it('adapter handles namespace filtering', async () => {
       const mockStorage: StorageAdapter = {
         getItem: jest.fn().mockResolvedValue(null),
         setItem: jest.fn(),
         removeItem: jest.fn(),
-        // No getAllKeys method
+        getAllKeys: jest.fn().mockImplementation((namespace) => {
+          // Adapter filters by namespace
+          if (namespace === 'TestController') {
+            return Promise.resolve(['key1', 'key2']);
+          }
+          return Promise.resolve([]);
+        }),
+        clear: jest.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
@@ -487,8 +519,8 @@ describe('StorageService', () => {
 
       const keys = await service.getAllKeys('TestController');
 
-      expect(keys).toStrictEqual(expect.arrayContaining(['key1', 'key2']));
-      expect(keys).toHaveLength(2);
+      expect(mockStorage.getAllKeys).toHaveBeenCalledWith('TestController');
+      expect(keys).toStrictEqual(['key1', 'key2']);
     });
   });
 });
