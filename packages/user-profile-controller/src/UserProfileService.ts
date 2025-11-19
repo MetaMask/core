@@ -16,6 +16,14 @@ import type { UserProfileServiceMethodActions } from '.';
  */
 export const serviceName = 'UserProfileService';
 
+/**
+ * The shape of the request object for updating the user profile.
+ */
+export type UserProfileUpdateRequest = {
+  metametricsId: string;
+  accounts: string[];
+};
+
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = ['updateProfile'] as const;
@@ -163,12 +171,19 @@ export class UserProfileService {
   /**
    * Makes a request to the API in order to update the user profile.
    *
+   * @param data - The data to send in the profile update request.
    * @returns The response from the API.
    */
-  async updateProfile(): Promise<void> {
+  async updateProfile(data: UserProfileUpdateRequest): Promise<void> {
     const response = await this.#policy.execute(async () => {
       const url = new URL('https://api.example.com/update-profile');
-      const localResponse = await this.#fetch(url);
+      const localResponse = await this.#fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
       if (!localResponse.ok) {
         throw new HttpError(
           localResponse.status,

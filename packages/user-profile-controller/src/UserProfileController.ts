@@ -1,10 +1,17 @@
 import type {
+  AccountsControllerAccountAddedEvent,
+  AccountsControllerListAccountsAction,
+} from '@metamask/accounts-controller';
+import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import type { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import { Mutex } from 'async-mutex';
 
 import type { UserProfileServiceMethodActions } from '.';
 
@@ -20,6 +27,7 @@ export const controllerName = 'UserProfileController';
  */
 export type UserProfileControllerState = {
   firstSyncCompleted: boolean;
+  syncQueue: string[];
 };
 
 /**
@@ -29,6 +37,12 @@ const userProfileControllerMetadata = {
   firstSyncCompleted: {
     persist: true,
     includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: false,
+  },
+  syncQueue: {
+    persist: true,
+    includeInDebugSnapshot: false,
     includeInStateLogs: true,
     usedInUi: false,
   },
@@ -45,6 +59,7 @@ const userProfileControllerMetadata = {
 export function getDefaultUserProfileControllerState(): UserProfileControllerState {
   return {
     firstSyncCompleted: false,
+    syncQueue: [],
   };
 }
 
@@ -68,7 +83,9 @@ export type UserProfileControllerActions =
 /**
  * Actions from other messengers that {@link UserProfileControllerMessenger} calls.
  */
-type AllowedActions = UserProfileServiceMethodActions;
+type AllowedActions =
+  | UserProfileServiceMethodActions
+  | AccountsControllerListAccountsAction;
 
 /**
  * Published when the state of {@link UserProfileController} changes.
@@ -87,7 +104,9 @@ export type UserProfileControllerEvents = UserProfileControllerStateChangeEvent;
  * Events from other messengers that {@link UserProfileControllerMessenger} subscribes
  * to.
  */
-type AllowedEvents = never;
+type AllowedEvents =
+  | KeyringControllerUnlockEvent
+  | AccountsControllerAccountAddedEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -99,11 +118,17 @@ export type UserProfileControllerMessenger = Messenger<
   UserProfileControllerEvents | AllowedEvents
 >;
 
-export class UserProfileController extends BaseController<
+export class UserProfileController extends StaticIntervalPollingController()<
   typeof controllerName,
   UserProfileControllerState,
   UserProfileControllerMessenger
 > {
+  readonly #mutex = new Mutex();
+
+  readonly #assertUserOptedIn: () => boolean;
+
+  readonly #getMetaMetricsId: () => string;
+
   /**
    * Constructs a new {@link UserProfileController}.
    *
@@ -111,13 +136,26 @@ export class UserProfileController extends BaseController<
    * @param args.messenger - The messenger suited for this controller.
    * @param args.state - The desired state with which to initialize this
    * controller. Missing properties will be filled in with defaults.
+   * @param args.assertUserOptedIn - A function that asserts whether the user has
+   * opted in to user profile features. If the user has not opted in, sync
+   * operations will be no-ops.
+   * @param args.getMetaMetricsId - A function that returns the MetaMetrics ID
+   * of the user.
+   * @param args.interval - The interval, in milliseconds, at which the controller will
+   * attempt to send user profile data. Defaults to 10 seconds.
    */
   constructor({
     messenger,
     state,
+    assertUserOptedIn,
+    getMetaMetricsId,
+    interval = 10 * 1000,
   }: {
     messenger: UserProfileControllerMessenger;
     state?: Partial<UserProfileControllerState>;
+    interval?: number;
+    assertUserOptedIn: () => boolean;
+    getMetaMetricsId: () => string;
   }) {
     super({
       messenger,
@@ -129,9 +167,92 @@ export class UserProfileController extends BaseController<
       },
     });
 
+    this.#assertUserOptedIn = assertUserOptedIn;
+    this.#getMetaMetricsId = getMetaMetricsId;
+
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+
+    this.#registerSyncTriggers();
+
+    this.setIntervalLength(interval);
+    this.startPolling(null);
+  }
+
+  /**
+   * Execute a single poll to sync user profile data.
+   *
+   * The queued accounts are sent to the UserProfileService, and the sync
+   * queue is cleared. This operation is mutexed to prevent concurrent
+   * executions.
+   *
+   * @returns A promise that resolves when the poll is complete.
+   */
+  async _executePoll(): Promise<void> {
+    return this.#mutex.runExclusive(async () => {
+      await this.messenger.call('UserProfileService:updateProfile', {
+        metametricsId: this.#getMetaMetricsId(),
+        accounts: this.state.syncQueue.slice(),
+      });
+      this.update((state) => {
+        state.syncQueue = [];
+      });
+    });
+  }
+
+  /**
+   * Register triggers to initiate user profile sync.
+   *
+   * These triggers guarantee that the user profile is synced at least
+   * once per user after the first wallet unlock, and recurringly
+   * whenever a new account is added.
+   */
+  #registerSyncTriggers() {
+    this.messenger.subscribe('KeyringController:unlock', () => {
+      this.#queueFirstSyncIfNeeded().catch(console.error);
+    });
+
+    this.messenger.subscribe('AccountsController:accountAdded', (account) => {
+      this.#queueAccount(account).catch(console.error);
+    });
+  }
+
+  /**
+   * Add existing accounts to the sync queue if it has not been done yet.
+   *
+   * This method ensures that the first sync is only executed once,
+   * and only if the user has opted in to user profile features.
+   */
+  async #queueFirstSyncIfNeeded() {
+    await this.#mutex.runExclusive(async () => {
+      if (this.state.firstSyncCompleted || !this.#assertUserOptedIn()) {
+        return;
+      }
+      const accounts = this.messenger
+        .call('AccountsController:listAccounts')
+        .map((account) => account.address);
+      this.update((state) => {
+        state.firstSyncCompleted = true;
+        state.syncQueue.push(...accounts);
+      });
+    });
+  }
+
+  /**
+   * Queue the given account to be synced at the next poll.
+   *
+   * @param account - The account to sync.
+   */
+  async #queueAccount(account: InternalAccount) {
+    await this.#mutex.runExclusive(async () => {
+      if (!this.#assertUserOptedIn()) {
+        return;
+      }
+      this.update((state) => {
+        state.syncQueue.push(account.address);
+      });
+    });
   }
 }

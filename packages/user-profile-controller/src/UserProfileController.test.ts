@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   Messenger,
   MOCK_ANY_NAMESPACE,
@@ -7,12 +8,200 @@ import {
   type MessengerEvents,
 } from '@metamask/messenger';
 
+import type { UserProfileUpdateRequest } from './UserProfileService';
 import {
   UserProfileController,
   type UserProfileControllerMessenger,
 } from '@metamask/user-profile-controller';
 
+/**
+ * Creates a mock InternalAccount object for testing purposes.
+ *
+ * @param address - The address of the mock account.
+ * @returns A mock InternalAccount object.
+ */
+function createMockAccount(address: string): InternalAccount {
+  return {
+    id: `id-${address}`,
+    address,
+    options: {},
+    methods: [],
+    scopes: [],
+    type: 'any:account',
+    metadata: {
+      keyring: {
+        type: 'Test Keyring',
+      },
+      name: `Account ${address}`,
+      importTime: 1713153716,
+    },
+  };
+}
+
 describe('UserProfileController', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+  });
+
+  describe('constructor subscriptions', () => {
+    describe('when KeyringController:unlock is published', () => {
+      describe('when `firstSyncCompleted` is false', () => {
+        it('adds existing accounts to the queue if the user opted in', async () => {
+          await withController(
+            { options: { assertUserOptedIn: () => true } },
+            async ({ controller, rootMessenger }) => {
+              rootMessenger.registerActionHandler(
+                'AccountsController:listAccounts',
+                () => {
+                  return [
+                    createMockAccount('0xAccount1'),
+                    createMockAccount('0xAccount2'),
+                  ];
+                },
+              );
+
+              rootMessenger.publish('KeyringController:unlock');
+              // Wait for async operations to complete.
+              await Promise.resolve();
+
+              expect(controller.state.firstSyncCompleted).toBe(true);
+              expect(controller.state.syncQueue).toStrictEqual([
+                '0xAccount1',
+                '0xAccount2',
+              ]);
+            },
+          );
+        });
+
+        it('does not add existing accounts to the queue if the user has not opted in', async () => {
+          await withController(
+            { options: { assertUserOptedIn: () => false } },
+            async ({ controller, rootMessenger }) => {
+              rootMessenger.registerActionHandler(
+                'AccountsController:listAccounts',
+                () => {
+                  return [
+                    createMockAccount('0xAccount1'),
+                    createMockAccount('0xAccount2'),
+                  ];
+                },
+              );
+
+              rootMessenger.publish('KeyringController:unlock');
+              // Wait for async operations to complete.
+              await Promise.resolve();
+
+              expect(controller.state.firstSyncCompleted).toBe(false);
+              expect(controller.state.syncQueue).toStrictEqual([]);
+            },
+          );
+        });
+      });
+
+      describe('when `firstSyncCompleted` is true', () => {
+        it.each([{ assertUserOptedIn: true }, { assertUserOptedIn: false }])(
+          'does not add existing accounts to the queue when `assertUserOptedIn` is $assertUserOptedIn',
+          async ({ assertUserOptedIn }) => {
+            await withController(
+              {
+                options: {
+                  assertUserOptedIn: () => assertUserOptedIn,
+                  state: { firstSyncCompleted: true },
+                },
+              },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.registerActionHandler(
+                  'AccountsController:listAccounts',
+                  () => {
+                    return [
+                      createMockAccount('0xAccount1'),
+                      createMockAccount('0xAccount2'),
+                    ];
+                  },
+                );
+
+                rootMessenger.publish('KeyringController:unlock');
+                // Wait for async operations to complete.
+                await Promise.resolve();
+
+                expect(controller.state.firstSyncCompleted).toBe(true);
+                expect(controller.state.syncQueue).toStrictEqual([]);
+              },
+            );
+          },
+        );
+      });
+    });
+
+    describe('when AccountsController:accountAdded is published', () => {
+      it('adds the new account to the sync queue if the user has opted in', async () => {
+        await withController(
+          { options: { assertUserOptedIn: () => true } },
+          async ({ controller, rootMessenger }) => {
+            const newAccount = createMockAccount('0xNewAccount');
+
+            rootMessenger.publish(
+              'AccountsController:accountAdded',
+              newAccount,
+            );
+            // Wait for async operations to complete.
+            await Promise.resolve();
+
+            expect(controller.state.syncQueue).toStrictEqual(['0xNewAccount']);
+          },
+        );
+      });
+
+      it('does not add the new account to the sync queue if the user has not opted in', async () => {
+        await withController(
+          { options: { assertUserOptedIn: () => false } },
+          async ({ controller, rootMessenger }) => {
+            const newAccount = createMockAccount('0xNewAccount');
+
+            rootMessenger.publish(
+              'AccountsController:accountAdded',
+              newAccount,
+            );
+            // Wait for async operations to complete.
+            await Promise.resolve();
+
+            expect(controller.state.syncQueue).toStrictEqual([]);
+          },
+        );
+      });
+    });
+  });
+
+  describe('polling', () => {
+    it('processes the sync queue on each poll', async () => {
+      const accounts = ['0xAccount1', '0xAccount2'];
+      await withController(
+        {
+          options: { interval: 1000, state: { syncQueue: accounts } },
+        },
+        async ({ controller, getMetaMetricsId, mockUpdateProfile }) => {
+          // Advance time to trigger the first poll.
+          jest.advanceTimersByTime(1000);
+          // Wait for async operations to complete.
+          await Promise.resolve();
+          // Advance time to trigger the first poll.
+          jest.advanceTimersByTime(1000);
+          // Wait for async operations to complete.
+          await Promise.resolve();
+          console.log('first poll complete');
+
+          expect(mockUpdateProfile).toHaveBeenCalledTimes(1);
+          expect(mockUpdateProfile).toHaveBeenCalledWith({
+            metametricsId: getMetaMetricsId(),
+            accounts: ['0xAccount1', '0xAccount2'],
+          });
+          expect(controller.state.syncQueue).toStrictEqual([]);
+        },
+      );
+    });
+  });
+
   describe('metadata', () => {
     it('includes expected state in debug snapshots', async () => {
       await withController(({ controller }) => {
@@ -41,6 +230,7 @@ describe('UserProfileController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "firstSyncCompleted": false,
+            "syncQueue": Array [],
           }
         `);
       });
@@ -57,6 +247,7 @@ describe('UserProfileController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "firstSyncCompleted": false,
+            "syncQueue": Array [],
           }
         `);
       });
@@ -93,6 +284,9 @@ type WithControllerCallback<ReturnValue> = (payload: {
   controller: UserProfileController;
   rootMessenger: RootMessenger;
   messenger: UserProfileControllerMessenger;
+  assertUserOptedIn: jest.Mock<boolean, []>;
+  getMetaMetricsId: jest.Mock<string, []>;
+  mockUpdateProfile: jest.Mock<Promise<void>, [UserProfileUpdateRequest]>;
 }) => Promise<ReturnValue> | ReturnValue;
 
 /**
@@ -126,6 +320,14 @@ function getMessenger(
     namespace: 'UserProfileController',
     parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    messenger,
+    actions: [
+      'AccountsController:listAccounts',
+      'UserProfileService:updateProfile',
+    ],
+    events: ['KeyringController:unlock', 'AccountsController:accountAdded'],
+  });
   return messenger;
 }
 
@@ -147,11 +349,30 @@ async function withController<ReturnValue>(
 ): Promise<ReturnValue> {
   const [{ options = {} }, testFunction] =
     args.length === 2 ? args : [{}, args[0]];
+  const mockUpdateProfile = jest.fn();
+  const mockAssertUserOptedIn = jest.fn().mockReturnValue(true);
+  const mockGetMetaMetricsId = jest.fn().mockReturnValue('test-metrics-id');
+
   const rootMessenger = getRootMessenger();
+  rootMessenger.registerActionHandler(
+    'UserProfileService:updateProfile',
+    mockUpdateProfile,
+  );
+
   const messenger = getMessenger(rootMessenger);
   const controller = new UserProfileController({
     messenger,
+    assertUserOptedIn: mockAssertUserOptedIn,
+    getMetaMetricsId: mockGetMetaMetricsId,
     ...options,
   });
-  return await testFunction({ controller, rootMessenger, messenger });
+
+  return await testFunction({
+    controller,
+    rootMessenger,
+    messenger,
+    assertUserOptedIn: mockAssertUserOptedIn,
+    getMetaMetricsId: mockGetMetaMetricsId,
+    mockUpdateProfile,
+  });
 }
