@@ -22,7 +22,7 @@ There are many kinds of breaking changes, including but not limited to:
 - Changing a function or method so that it no longer fires an event
 - Bumping the minimum supported Node.js version of a package
 - Making any other [TypeScript-level breaking change](https://www.semver-ts.org/formal-spec/2-breaking-changes.html) not listed here
-- Upgrading a dependency used in production code to a version that causes any of the above
+- Upgrading a dependency referenced in published code to a version that causes any of the above
 
 ## Introducing breaking changes safely
 
