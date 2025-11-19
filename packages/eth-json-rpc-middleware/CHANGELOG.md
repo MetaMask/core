@@ -9,25 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [22.0.0]
 
+### Added
+
+- Add new function `providerAsMiddlewareV2` for converting an `InternalProvider` into a `JsonRpcEngine` v2-compatible middleware ([#7138](https://github.com/MetaMask/core/pull/7138))
+
 ### Changed
 
-- Bump `@metamask/message-manager` from `^14.0.0` to `^15.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
-- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
-- Bump `@metamask/eth-json-rpc-provider` from `^5.0.1` to `^6.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
-- Bump `@metamask/eth-block-tracker` from `^14.0.0` to `^15.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
-- **BREAKING:** Migrate to `JsonRpcEngineV2` ([#7065](https://github.com/MetaMask/core/pull/7065))
-  - Migrates all middleware from `JsonRpcEngine` to `JsonRpcEngineV2`.
-  - Signatures of various middleware dependencies, e.g. `processTransaction` of `createWalletMiddleware`, have changed
-    and must be updated by consumers.
-    - Be advised that request objects are now deeply frozen, and cannot be mutated.
+- **BREAKING:** Migrate all middleware from `JsonRpcEngine` to `JsonRpcEngineV2` ([#7065](https://github.com/MetaMask/core/pull/7065))
   - To continue using this package with the legacy `JsonRpcEngine`, use the `asLegacyMiddleware` backwards compatibility function.
+- **BREAKING:** Change the signatures of hooks for `createWalletMiddleware` ([#7065](https://github.com/MetaMask/core/pull/7065))
+  - To wit:
+    - `getAccounts` takes an origin argument (`string`) instead of a `JsonRpcRequest`
+    - `processDecryptMessage` and `processEncryptionPublicKey` take a `MessageRequest` from `@metamask/message-manager` instead of `JsonRpcRequest`
+    - `processPersonalMessage`, `processTransaction`, `processSignTransaction`, `processTypedMessage`, `processTypedMessageV3` and `processTypedMessageV4` take a `context` as the third argument, before any other arguments
+  - Be advised that request objects are now deeply frozen, and cannot be mutated.
 - **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
   - Wherever a `SafeEventEmitterProvider` was expected, an `InternalProvider` is now expected instead.
 - **BREAKING:** Stop retrying `undefined` results for methods that include a block tag parameter ([#7001](https://github.com/MetaMask/core/pull/7001))
   - The `retryOnEmpty` middleware will now throw an error if it encounters an `undefined` result when dispatching
     a request with a later block number than the originally requested block number.
   - In practice, this should happen rarely if ever.
-- Migrate all uses of `interface` to `type` ([#6885](https://github.com/MetaMask/core/pull/6885))
+- **BREAKING:** Migrate all uses of `interface` to `type` ([#6885](https://github.com/MetaMask/core/pull/6885))
+- Bump `@metamask/message-manager` from `^14.0.0` to `^15.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/eth-json-rpc-provider` from `^5.0.1` to `^6.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/eth-block-tracker` from `^14.0.0` to `^15.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
 
 ## [21.0.0]
 
