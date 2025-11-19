@@ -1,0 +1,294 @@
+import type {
+  StorageAdapter,
+  StorageServiceMessenger,
+  StorageServiceOptions,
+} from './types';
+import { SERVICE_NAME } from './types';
+import { InMemoryStorageAdapter } from './InMemoryStorageAdapter';
+
+/**
+ * StorageService provides a platform-agnostic way for controllers to store
+ * large, infrequently accessed data outside of memory/Redux state.
+ *
+ * **Use cases:**
+ * - Snap source code (6+ MB that's rarely accessed)
+ * - Token metadata caches (4+ MB of cached data)
+ * - Large cached responses from APIs
+ * - Any data > 100 KB that's not frequently accessed
+ *
+ * **Benefits:**
+ * - Reduces memory usage (data stays on disk)
+ * - Faster Redux persist (less data to serialize)
+ * - Faster app startup (less data to parse)
+ * - Lazy loading (data loaded only when needed)
+ *
+ * **Platform Support:**
+ * - Mobile: FilesystemStorage adapter
+ * - Extension: IndexedDB adapter
+ * - Tests/Dev: InMemoryStorageAdapter (default)
+ *
+ * @example Using the service via messenger
+ *
+ * ```typescript
+ * // In a controller
+ * type AllowedActions =
+ *   | StorageServiceSetItemAction
+ *   | StorageServiceGetItemAction;
+ *
+ * class SnapController extends BaseController {
+ *   async storeSnapSourceCode(snapId: string, sourceCode: string) {
+ *     await this.messenger.call(
+ *       'StorageService:setItem',
+ *       'SnapController',
+ *       `${snapId}:sourceCode`,
+ *       sourceCode,
+ *     );
+ *   }
+ *
+ *   async getSnapSourceCode(snapId: string): Promise<string | null> {
+ *     return await this.messenger.call(
+ *       'StorageService:getItem',
+ *       'SnapController',
+ *       `${snapId}:sourceCode`,
+ *     );
+ *   }
+ * }
+ * ```
+ *
+ * @example Initializing in a client
+ *
+ * ```typescript
+ * // Mobile
+ * const service = new StorageService({
+ *   messenger: storageServiceMessenger,
+ *   storage: filesystemStorageAdapter, // Platform-specific
+ * });
+ *
+ * // Extension
+ * const service = new StorageService({
+ *   messenger: storageServiceMessenger,
+ *   storage: indexedDBAdapter, // Platform-specific
+ * });
+ *
+ * // Tests (uses in-memory by default)
+ * const service = new StorageService({
+ *   messenger: storageServiceMessenger,
+ *   // No storage - uses InMemoryStorageAdapter
+ * });
+ * ```
+ */
+export class StorageService {
+  /**
+   * The name of the service.
+   */
+  readonly name: typeof SERVICE_NAME;
+
+  /**
+   * The messenger suited for this service.
+   */
+  readonly #messenger: StorageServiceMessenger;
+
+  /**
+   * The storage adapter for persisting data.
+   */
+  readonly #storage: StorageAdapter;
+
+  /**
+   * In-memory registry for tracking keys per namespace.
+   * Used when storage adapter doesn't support getAllKeys().
+   */
+  readonly #keyRegistry: Map<string, Set<string>>;
+
+  /**
+   * Constructs a new StorageService.
+   *
+   * @param options - The options.
+   * @param options.messenger - The messenger suited for this service.
+   * @param options.storage - Storage adapter for persisting data.
+   * If not provided, uses InMemoryStorageAdapter (data lost on restart).
+   */
+  constructor({ messenger, storage }: StorageServiceOptions) {
+    this.name = SERVICE_NAME;
+    this.#messenger = messenger;
+    this.#storage = storage ?? new InMemoryStorageAdapter();
+    this.#keyRegistry = new Map();
+
+    // Warn if using in-memory storage (data won't persist)
+    if (!storage) {
+      console.warn(
+        `${SERVICE_NAME}: No storage adapter provided. Using in-memory storage. ` +
+          'Data will be lost on restart. Provide a storage adapter for persistence.',
+      );
+    }
+
+    // Register messenger actions
+    this.#messenger.registerActionHandler(
+      `${SERVICE_NAME}:setItem`,
+      this.setItem.bind(this),
+    );
+    this.#messenger.registerActionHandler(
+      `${SERVICE_NAME}:getItem`,
+      this.getItem.bind(this),
+    );
+    this.#messenger.registerActionHandler(
+      `${SERVICE_NAME}:removeItem`,
+      this.removeItem.bind(this),
+    );
+    this.#messenger.registerActionHandler(
+      `${SERVICE_NAME}:getAllKeys`,
+      this.getAllKeys.bind(this),
+    );
+    this.#messenger.registerActionHandler(
+      `${SERVICE_NAME}:clearNamespace`,
+      this.clearNamespace.bind(this),
+    );
+  }
+
+  /**
+   * Store data in storage.
+   *
+   * @param namespace - Controller namespace (e.g., 'SnapController').
+   * @param key - Storage key (e.g., 'npm:@metamask/example-snap:sourceCode').
+   * @param value - Data to store (will be JSON stringified).
+   * @template T - The type of the value being stored.
+   */
+  async setItem<T>(namespace: string, key: string, value: T): Promise<void> {
+    const fullKey = this.#buildKey(namespace, key);
+    const serialized = JSON.stringify(value);
+    await this.#storage.setItem(fullKey, serialized);
+
+    // Track in registry for getAllKeys support
+    this.#addToRegistry(namespace, key);
+
+    // Publish event so other controllers can react to changes
+    // Event type: StorageService:itemSet:namespace
+    // Payload: [value, key]
+    this.#messenger.publish(
+      `${SERVICE_NAME}:itemSet:${namespace}` as `${typeof SERVICE_NAME}:itemSet:${string}`,
+      value,
+      key,
+    );
+  }
+
+  /**
+   * Retrieve data from storage.
+   *
+   * @param namespace - Controller namespace (e.g., 'SnapController').
+   * @param key - Storage key (e.g., 'npm:@metamask/example-snap:sourceCode').
+   * @returns Parsed data or null if not found.
+   * @template T - The type of the value being retrieved.
+   */
+  async getItem<T>(namespace: string, key: string): Promise<T | null> {
+    const fullKey = this.#buildKey(namespace, key);
+    const serialized = await this.#storage.getItem(fullKey);
+
+    if (serialized === null) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(serialized) as T;
+    } catch (error) {
+      console.error(
+        `${SERVICE_NAME}: Failed to parse storage value for ${fullKey}:`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Remove data from storage.
+   *
+   * @param namespace - Controller namespace (e.g., 'SnapController').
+   * @param key - Storage key (e.g., 'npm:@metamask/example-snap:sourceCode').
+   */
+  async removeItem(namespace: string, key: string): Promise<void> {
+    const fullKey = this.#buildKey(namespace, key);
+    await this.#storage.removeItem(fullKey);
+    this.#removeFromRegistry(namespace, key);
+
+    // Publish event so other controllers can react to removal
+    // Event type: StorageService:itemRemoved:namespace
+    // Payload: [key]
+    this.#messenger.publish(
+      `${SERVICE_NAME}:itemRemoved:${namespace}` as `${typeof SERVICE_NAME}:itemRemoved:${string}`,
+      key,
+    );
+  }
+
+  /**
+   * Get all keys for a namespace.
+   *
+   * @param namespace - Controller namespace (e.g., 'SnapController').
+   * @returns Array of keys (without prefix) for this namespace.
+   */
+  async getAllKeys(namespace: string): Promise<string[]> {
+    // Use storage's getAllKeys if available
+    if (this.#storage.getAllKeys) {
+      const allKeys = await this.#storage.getAllKeys();
+      const prefix = this.#buildKeyPrefix(namespace);
+      return allKeys
+        .filter((key) => key.startsWith(prefix))
+        .map((key) => key.slice(prefix.length));
+    }
+
+    // Fallback to internal registry
+    return Array.from(this.#keyRegistry.get(namespace) ?? []);
+  }
+
+  /**
+   * Clear all data for a namespace.
+   *
+   * @param namespace - Controller namespace (e.g., 'SnapController').
+   */
+  async clearNamespace(namespace: string): Promise<void> {
+    const keys = await this.getAllKeys(namespace);
+    await Promise.all(keys.map((key) => this.removeItem(namespace, key)));
+  }
+
+  /**
+   * Build the full storage key from namespace and key.
+   *
+   * @param namespace - The namespace.
+   * @param key - The key.
+   * @returns The full key in format: storage:{namespace}:{key}
+   */
+  #buildKey(namespace: string, key: string): string {
+    return `storage:${namespace}:${key}`;
+  }
+
+  /**
+   * Build the key prefix for a namespace.
+   *
+   * @param namespace - The namespace.
+   * @returns The prefix in format: storage:{namespace}:
+   */
+  #buildKeyPrefix(namespace: string): string {
+    return `storage:${namespace}:`;
+  }
+
+  /**
+   * Add a key to the internal registry.
+   *
+   * @param namespace - The namespace.
+   * @param key - The key.
+   */
+  #addToRegistry(namespace: string, key: string): void {
+    if (!this.#keyRegistry.has(namespace)) {
+      this.#keyRegistry.set(namespace, new Set());
+    }
+    this.#keyRegistry.get(namespace)!.add(key);
+  }
+
+  /**
+   * Remove a key from the internal registry.
+   *
+   * @param namespace - The namespace.
+   * @param key - The key.
+   */
+  #removeFromRegistry(namespace: string, key: string): void {
+    this.#keyRegistry.get(namespace)?.delete(key);
+  }
+}
+
