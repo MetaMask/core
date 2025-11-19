@@ -12,9 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/polling-controller` from `^15.0.0` to `^15.0.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
-- Bump `@metamask/messenger` from `^0.3.0` to `^0.3.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - Bump `@metamask/controller-utils` from `^11.15.0` to `^11.15.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
-- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - **BREAKING:** Bump `@metamask/profile-sync-controller` from `^26.0.0` to `^27.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - Bump `@metamask/transaction-controller` from `^61.3.0` to `^62.0.0` ([#7153](https://github.com/MetaMask/core/pull/7153), [#7190](https://github.com/MetaMask/core/pull/7190))
 
@@ -82,7 +80,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0`. ([#7003](https://github.com/MetaMask/core/pull/7003))
 - Bump `@metamask/transaction-controller` from `^61.0.0` to `^61.1.0` ([#7007](https://github.com/MetaMask/core/pull/7007))
 - Updated `submitSponsorshipIntents` method with chain validation. ([#7035](https://github.com/MetaMask/core/pull/7035))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
 
 ## [3.1.0]
 

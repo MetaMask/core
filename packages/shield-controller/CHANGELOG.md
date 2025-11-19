@@ -11,9 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/messenger` from `^0.3.0` to `^0.3.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - Bump `@metamask/controller-utils` from `^11.15.0` to `^11.15.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
-- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - **BREAKING:** Bump `@metamask/transaction-controller` from `^61.0.0` to `^62.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - **BREAKING:** Bump `@metamask/signature-controller` from `^36.0.0` to `^37.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
 
@@ -43,8 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- chore(dev-deps): Bump `@ts-bridge/cli` from `^0.6.1` to `^0.6.4` ([#7039](https://github.com/MetaMask/core/pull/7039))
 - Bump `@metamask/transaction-controller` from `61.0.0` to `61.1.0`. ([#7007](https://github.com/MetaMask/core/pull/7007))
 - Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0`. ([#7003](https://github.com/MetaMask/core/pull/7003))
 

@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [9.0.1]
-
-### Changed
-
-- Bump `@metamask/messenger` from `^0.3.0` to `^0.3.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
-
 ## [9.0.0]
 
 ### Changed
@@ -418,8 +412,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.0.1...HEAD
-[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.0.0...@metamask/base-controller@9.0.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.0.0...HEAD
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.2...@metamask/base-controller@9.0.0
 [8.4.2]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.1...@metamask/base-controller@8.4.2
 [8.4.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.0...@metamask/base-controller@8.4.1

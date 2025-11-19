@@ -11,9 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/messenger` from `^0.3.0` to `^0.3.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - Bump `@metamask/controller-utils` from `^11.15.0` to `^11.15.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
-- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - Rename `OriginalRequest` type to `MessageRequest` and permit string `id` values ([#7065](https://github.com/MetaMask/core/pull/7065))
   - Previously, only number values were permitted for the `id` property.
 

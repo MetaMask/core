@@ -101,8 +101,8 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^9.0.1",
-    "@metamask/messenger": "^0.3.1",
+    "@metamask/base-controller": "^9.0.0",
+    "@metamask/messenger": "^0.3.0",
     "@metamask/snaps-sdk": "^9.0.0",
     "@metamask/snaps-utils": "^11.0.0",
     "@metamask/utils": "^11.8.1",
