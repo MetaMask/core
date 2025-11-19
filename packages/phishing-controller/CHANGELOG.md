@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add address scanning to detect malicious addresses ([#7118](https://github.com/MetaMask/core/pull/7118))
+  - Add `scanAddress` method to scan addresses for security alerts
+  - Add `AddressScanResult` type
+  - Add `addressScanCache` to `PhishingControllerState`
+  - Add action registration for `scanAddress` method as `PhishingControllerScanAddressAction`
+
 ## [15.0.1]
 
 ### Changed
