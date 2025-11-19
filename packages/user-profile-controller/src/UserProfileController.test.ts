@@ -10,7 +10,7 @@ import {
 import {
   UserProfileController,
   type UserProfileControllerMessenger,
-} from '@metamask/user-profile-controller';
+} from './UserProfileController';
 
 describe('UserProfileController', () => {
   describe('metadata', () => {
