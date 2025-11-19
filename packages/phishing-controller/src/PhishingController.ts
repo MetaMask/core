@@ -1232,7 +1232,7 @@ export class PhishingController extends BaseController<
   ): Promise<AddressScanResult> => {
     if (!address || !chainId) {
       return {
-        result_type: AddressScanResultType.Benign,
+        result_type: AddressScanResultType.ErrorResult,
         label: '',
       };
     }
@@ -1243,7 +1243,7 @@ export class PhishingController extends BaseController<
 
     if (!chain) {
       return {
-        result_type: AddressScanResultType.Benign,
+        result_type: AddressScanResultType.ErrorResult,
         label: '',
       };
     }
@@ -1287,12 +1287,12 @@ export class PhishingController extends BaseController<
 
     if (!apiResponse) {
       return {
-        result_type: AddressScanResultType.Benign,
+        result_type: AddressScanResultType.ErrorResult,
         label: '',
       };
     } else if ('error' in apiResponse) {
       return {
-        result_type: AddressScanResultType.Benign,
+        result_type: AddressScanResultType.ErrorResult,
         label: '',
       };
     }
