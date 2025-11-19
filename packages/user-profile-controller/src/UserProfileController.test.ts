@@ -12,7 +12,7 @@ import type { UserProfileUpdateRequest } from './UserProfileService';
 import {
   UserProfileController,
   type UserProfileControllerMessenger,
-} from '@metamask/user-profile-controller';
+} from './UserProfileController';
 
 /**
  * Creates a mock InternalAccount object for testing purposes.

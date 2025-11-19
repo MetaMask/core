@@ -8,12 +8,9 @@ import {
 import nock from 'nock';
 import { type SinonFakeTimers, useFakeTimers } from 'sinon';
 
+import { UserProfileService, type UserProfileServiceMessenger } from '.';
 import type { UserProfileUpdateRequest } from './UserProfileService';
 import { HttpError } from '../../controller-utils/src/util';
-import {
-  UserProfileService,
-  type UserProfileServiceMessenger,
-} from '@metamask/user-profile-controller';
 
 /**
  * Creates a mock request object for testing purposes.
@@ -160,9 +157,7 @@ describe('UserProfileService', () => {
         .times(4)
         .reply(500);
       const { service, rootMessenger } = getService();
-      service.onRetry(async () => {
-        await clock.nextAsync();
-      });
+      service.onRetry(clock.next);
 
       await expect(
         rootMessenger.call(
@@ -180,9 +175,7 @@ describe('UserProfileService', () => {
         .times(4)
         .reply(500);
       const { service, rootMessenger } = getService();
-      service.onRetry(async () => {
-        await clock.nextAsync();
-      });
+      service.onRetry(clock.next);
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
 
@@ -203,9 +196,7 @@ describe('UserProfileService', () => {
         .times(12)
         .reply(500);
       const { service, rootMessenger } = getService();
-      service.onRetry(async () => {
-        await clock.nextAsync();
-      });
+      service.onRetry(clock.next);
       const onBreakListener = jest.fn();
       service.onBreak(onBreakListener);
 
@@ -271,9 +262,7 @@ describe('UserProfileService', () => {
           policyOptions: { circuitBreakDuration },
         },
       });
-      service.onRetry(async () => {
-        await clock.nextAsync();
-      });
+      service.onRetry(clock.next);
 
       await expect(
         rootMessenger.call(
