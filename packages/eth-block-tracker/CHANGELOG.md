@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- chore: Disable ESLint cache by default ([#7082](https://github.com/MetaMask/core/pull/7082))
-- refactor!(eth-json-rpc-provider): Migrate to `JsonRpcEngineV2` ([#7001](https://github.com/MetaMask/core/pull/7001))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-
 ### Added
 
 - Add `Context` generic parameter to `PollingBlockTracker` ([#7061](https://github.com/MetaMask/core/pull/7061))

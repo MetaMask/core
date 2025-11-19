@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Remove unused ESLint ignore directives ([#7154](https://github.com/MetaMask/core/pull/7154))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- chore: Disable ESLint cache by default ([#7082](https://github.com/MetaMask/core/pull/7082))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-
 ### Added
 
 - Add `JsonRpcEngineV2` ([#6176](https://github.com/MetaMask/core/pull/6176), [#6971](https://github.com/MetaMask/core/pull/6971), [#6975](https://github.com/MetaMask/core/pull/6975), [#6990](https://github.com/MetaMask/core/pull/6990), [#6991](https://github.com/MetaMask/core/pull/6991), [#7032](https://github.com/MetaMask/core/pull/7032), [#7001](https://github.com/MetaMask/core/pull/7001), [#7061](https://github.com/MetaMask/core/pull/7061), [#7065](https://github.com/MetaMask/core/pull/7065))
@@ -280,9 +273,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.1.1...@metamask/json-rpc-engine@7.2.0
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.1.0...@metamask/json-rpc-engine@7.1.1
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.0.0...@metamask/json-rpc-engine@7.1.0
-[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@6.1.0...@metamask/json-rpc-engine@7.0.0
-[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@6.0.0...@metamask/json-rpc-engine@6.1.0
-[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@5.4.0...@metamask/json-rpc-engine@6.0.0
-[5.4.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@5.3.0...@metamask/json-rpc-engine@5.4.0
-[5.3.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@5.2.0...@metamask/json-rpc-engine@5.3.0
-[5.2.0]: https://github.com/MetaMask/core/releases/tag/@metamask/json-rpc-engine@5.2.0
+[7.0.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@6.1.0...@metamask/json-rpc-engine@7.0.0
+[6.1.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@6.0.0...json-rpc-engine@6.1.0
+[6.0.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@5.4.0...json-rpc-engine@6.0.0
+[5.4.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@5.3.0...json-rpc-engine@5.4.0
+[5.3.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@5.2.0...json-rpc-engine@5.3.0
+[5.2.0]: https://github.com/MetaMask/core/releases/tag/json-rpc-engine@5.2.0

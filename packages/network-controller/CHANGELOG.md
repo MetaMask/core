@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Remove unused ESLint ignore directives ([#7154](https://github.com/MetaMask/core/pull/7154))
-- chore: Fix all auto-fixable ESLint warnings ([#7105](https://github.com/MetaMask/core/pull/7105))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- Remove all `network-controller` lint warnings ([#7048](https://github.com/MetaMask/core/pull/7048))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- feat: add infura supported networks ([#6972](https://github.com/MetaMask/core/pull/6972))
-
 ### Changed
 
 - **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
