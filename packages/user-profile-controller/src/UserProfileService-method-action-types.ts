@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { UserProfileService } from './user-profile-service';
+import type { UserProfileService } from './UserProfileService';
 
 /**
  * Makes a request to the API in order to update the user profile.

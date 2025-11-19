@@ -8,11 +8,11 @@ import {
 import nock from 'nock';
 import { type SinonFakeTimers, useFakeTimers } from 'sinon';
 
+import { HttpError } from '../../controller-utils/src/util';
 import {
   UserProfileService,
   type UserProfileServiceMessenger,
-} from './user-profile-service';
-import { HttpError } from '../../controller-utils/src/util';
+} from '@metamask/user-profile-controller';
 
 describe('UserProfileService', () => {
   let clock: SinonFakeTimers;

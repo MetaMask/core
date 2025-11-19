@@ -5,14 +5,15 @@ export type {
   UserProfileControllerMessenger,
   UserProfileControllerState,
   UserProfileControllerStateChangeEvent,
-} from './user-profile-controller';
+} from './UserProfileController';
 export {
   UserProfileController,
   getDefaultUserProfileControllerState,
-} from './user-profile-controller';
+} from './UserProfileController';
 export type {
   UserProfileServiceActions,
   UserProfileServiceEvents,
   UserProfileServiceMessenger,
-} from './user-profile-service';
-export { UserProfileService, serviceName } from './user-profile-service';
+} from './UserProfileService';
+export { UserProfileService, serviceName } from './UserProfileService';
+export type { UserProfileServiceMethodActions } from './UserProfileService-method-action-types';

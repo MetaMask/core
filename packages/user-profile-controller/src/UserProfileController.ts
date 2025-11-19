@@ -6,7 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { UserProfileServiceMethodActions } from './user-profile-service-method-action-types';
+import type { UserProfileServiceMethodActions } from '.';
 
 /**
  * The name of the {@link UserProfileController}, used to namespace the
