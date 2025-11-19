@@ -75,7 +75,8 @@ export type QuoteWarning =
   | 'no_quotes'
   | 'insufficient_gas_balance'
   | 'insufficient_gas_for_selected_quote'
-  | 'insufficient_balance';
+  | 'insufficient_balance'
+  | 'tx_alert';
 
 /**
  * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called
