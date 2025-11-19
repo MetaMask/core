@@ -523,7 +523,6 @@ export class CodefiTokenPricesServiceV2
       (asset) => !SUPPORTED_CHAIN_IDS_V3.includes(asset.chainId),
     );
 
-    console.log('DEBUG LEGACY ASSETS', { v2SupportedAssets, currency });
     const assetsByChainId: Record<SupportedChainId, Hex[]> =
       v2SupportedAssets.reduce(
         (acc, { chainId, tokenAddress }) => {
@@ -552,11 +551,6 @@ export class CodefiTokenPricesServiceV2
         } = await this.#policy.execute(() =>
           handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
         );
-
-        console.log('DEBUG LEGACY CHAIN', {
-          chainId,
-          tokenAddresses,
-        });
 
         return tokenAddresses
           .map((tokenAddress) => {
