@@ -5,19 +5,22 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import {
-  ARBITRUM_USDC_ADDRESS,
-  CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
-  CHAIN_ID_POLYGON,
   RELAY_FALLBACK_GAS_LIMIT,
   RELAY_URL_QUOTE,
 } from './constants';
 import type { RelayQuote } from './types';
 import { TransactionPayStrategy } from '../..';
 import type { TransactionMeta } from '../../../../transaction-controller/src';
-import { NATIVE_TOKEN_ADDRESS } from '../../constants';
+import {
+  ARBITRUM_USDC_ADDRESS,
+  CHAIN_ID_ARBITRUM,
+  CHAIN_ID_POLYGON,
+  NATIVE_TOKEN_ADDRESS,
+} from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
+  Amount,
   FiatValue,
   PayStrategyGetQuotesRequest,
   QuoteRequest,
@@ -228,7 +231,8 @@ function normalizeQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): TransactionPayQuote<RelayQuote> {
   const { messenger } = fullRequest;
-  const { details, fees } = quote;
+  const { details } = quote;
+  const { currencyIn } = details;
 
   const { usdToFiatRate } = getFiatRates(messenger, request);
 
@@ -238,7 +242,7 @@ function normalizeQuote(
   );
 
   const provider = getFiatValueFromUsd(
-    new BigNumber(fees.relayer.amountUsd),
+    calculateProviderFee(quote),
     usdToFiatRate,
   );
 
@@ -247,6 +251,12 @@ function normalizeQuote(
   const targetNetwork = {
     usd: '0',
     fiat: '0',
+  };
+
+  const sourceAmount: Amount = {
+    human: currencyIn.amountFormatted,
+    raw: currencyIn.amount,
+    ...getFiatValueFromUsd(new BigNumber(currencyIn.amountUsd), usdToFiatRate),
   };
 
   return {
@@ -259,6 +269,7 @@ function normalizeQuote(
     },
     original: quote,
     request,
+    sourceAmount,
     strategy: TransactionPayStrategy.Relay,
   };
 }
@@ -370,15 +381,25 @@ function getFeatureFlags(messenger: TransactionPayControllerMessenger) {
 function calculateSourceNetworkCost(
   quote: RelayQuote,
   messenger: TransactionPayControllerMessenger,
-) {
-  const allParams = quote.steps[0].items.map((i) => i.data);
+): TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] {
+  const allParams = quote.steps.flatMap((s) => s.items).map((i) => i.data);
+  const { chainId } = allParams[0];
   const totalGasLimit = calculateSourceNetworkGasLimit(allParams);
 
-  return calculateGasCost({
-    chainId: allParams[0].chainId,
+  const estimate = calculateGasCost({
+    chainId,
     gas: totalGasLimit,
     messenger,
   });
+
+  const max = calculateGasCost({
+    chainId,
+    gas: totalGasLimit,
+    messenger,
+    isMax: true,
+  });
+
+  return { estimate, max };
 }
 
 /**
@@ -407,4 +428,20 @@ function calculateSourceNetworkGasLimit(
       total + new BigNumber(p.gas ?? RELAY_FALLBACK_GAS_LIMIT).toNumber(),
     0,
   );
+}
+
+/**
+ * Calculate the provider fee for a Relay quote.
+ *
+ * @param quote - Relay quote.
+ * @returns - Provider fee in USD.
+ */
+function calculateProviderFee(quote: RelayQuote) {
+  const relayerFee = new BigNumber(quote.fees.relayer.amountUsd);
+
+  const valueLoss = new BigNumber(quote.details.currencyIn.amountUsd).minus(
+    quote.details.currencyOut.amountUsd,
+  );
+
+  return relayerFee.gt(valueLoss) ? relayerFee : valueLoss;
 }

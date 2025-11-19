@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - In practice, this should happen rarely if ever.
 - **BREAKING:** Migrate `NetworkClient` to `JsonRpcEngineV2` ([#7065](https://github.com/MetaMask/core/pull/7065))
   - This ought to be unobservable, but we mark it as breaking out of an abundance of caution.
+- **BREAKING:** Update signature of `request` in `AbstractRpcService` and `RpcServiceRequestable` so that the JSON-RPC request must be frozen ([#7138](https://github.com/MetaMask/core/pull/7138))
 - **BREAKING:** Split up and update payload data for `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointUnavailable` ([#7166](https://github.com/MetaMask/core/pull/7166))
   - `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointUnavailable` still exist and retain the same behavior as before.
   - New events are `NetworkController:rpcEndpointChainDegraded` and `NetworkController:rpcEndpointChainUnavailable`, and are designed to represent an entire chain of endpoints. They are also guaranteed to not be published multiple times in a row. In particular, `NetworkController:rpcEndpointUnavailable` is published only after trying all of the endpoints for a chain and when the underlying circuit for the last endpoint breaks, not as each primary's or failover's circuit breaks.

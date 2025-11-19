@@ -1,11 +1,13 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
-import type {
-  QuoteMetadata,
-  RequiredEventContextFromClient,
-  TxData,
-  QuoteResponse,
-  Trade,
+import type { QuoteWarning } from '@metamask/bridge-controller';
+import {
+  type QuoteMetadata,
+  type RequiredEventContextFromClient,
+  type TxData,
+  type QuoteResponse,
+  type Trade,
+  getQuotesReceivedProperties,
 } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
@@ -1031,13 +1033,25 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param accountAddress - The address of the account to submit the transaction for
    * @param quoteResponse - The quote response
    * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
+   * @param isLoading - Whether the trade is submitted before all quotes are loaded, publish QuotesReceived event if true
+   * @param warnings - The warnings to publish with the QuotesReceived event
    * @returns The transaction meta
    */
   submitTx = async (
     accountAddress: string,
     quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
+    isLoading: boolean = false,
+    warnings: QuoteWarning[] = [],
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
+    // If trade is submitted before all quotes are loaded, publish QuotesReceived event
+    if (isLoading) {
+      this.#trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.QuotesReceived,
+        undefined,
+        getQuotesReceivedProperties(quoteResponse, warnings),
+      );
+    }
     this.messenger.call('BridgeController:stopPollingForQuotes');
 
     const selectedAccount = this.#getMultichainSelectedAccount(accountAddress);
@@ -1252,7 +1266,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | typeof UnifiedSwapBridgeEventName.Submitted
       | typeof UnifiedSwapBridgeEventName.Failed
       | typeof UnifiedSwapBridgeEventName.Completed
-      | typeof UnifiedSwapBridgeEventName.StatusValidationFailed,
+      | typeof UnifiedSwapBridgeEventName.StatusValidationFailed
+      | typeof UnifiedSwapBridgeEventName.QuotesReceived,
   >(
     eventName: T,
     txMetaId?: string,

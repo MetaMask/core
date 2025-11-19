@@ -686,11 +686,11 @@ describe('AccountActivityService', () => {
             timestamp: 1760344704595,
           });
 
-          // Publish WebSocket ERROR state event - should flush tracked chains as down
+          // Publish WebSocket DISCONNECTED state event - should flush tracked chains as down
           rootMessenger.publish(
             'BackendWebSocketService:connectionStateChanged',
             {
-              state: WebSocketState.ERROR,
+              state: WebSocketState.DISCONNECTED,
               url: 'ws://test',
               reconnectAttempts: 2,
               timeout: 10000,
@@ -701,7 +701,7 @@ describe('AccountActivityService', () => {
           );
           await completeAsyncOperations(100);
 
-          // Verify that the ERROR state triggered the status change for tracked chains
+          // Verify that the DISCONNECTED state triggered the status change for tracked chains
           expect(statusChangedEventListener).toHaveBeenCalledWith({
             chainIds: ['eip155:1', 'eip155:137', 'eip155:56'],
             status: 'down',
@@ -720,11 +720,11 @@ describe('AccountActivityService', () => {
 
           mocks.getSelectedAccount.mockReturnValue(null);
 
-          // Publish WebSocket ERROR state event without any tracked chains
+          // Publish WebSocket DISCONNECTED state event without any tracked chains
           rootMessenger.publish(
             'BackendWebSocketService:connectionStateChanged',
             {
-              state: WebSocketState.ERROR,
+              state: WebSocketState.DISCONNECTED,
               url: 'ws://test',
               reconnectAttempts: 2,
               timeout: 10000,
