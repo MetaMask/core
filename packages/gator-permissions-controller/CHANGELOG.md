@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0]
+
 ### Fixed
 
 - Does not add a pending revocation if user cancels the transaction ([#7157](https://github.com/MetaMask/core/pull/7157))
@@ -72,7 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6033](https://github.com/MetaMask/core/pull/6033))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.5.0...HEAD
+[0.5.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.4.0...@metamask/gator-permissions-controller@0.5.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.3.0...@metamask/gator-permissions-controller@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.2.2...@metamask/gator-permissions-controller@0.3.0
 [0.2.2]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.2.1...@metamask/gator-permissions-controller@0.2.2
