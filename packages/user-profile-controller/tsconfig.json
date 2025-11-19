@@ -8,7 +8,7 @@
     { "path": "../../packages/base-controller" },
     { "path": "../../packages/keyring-controller" },
     { "path": "../../packages/messenger" },
-    { "path": "../../packages/polling-controller" },
+    { "path": "../../packages/polling-controller" }
   ],
   "include": ["../../types", "./src"],
   /**
