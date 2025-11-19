@@ -2,13 +2,13 @@
 
 When developing packages, it is always important to be intentional about the impact that changes have on projects which use those packages. However, special consideration must be given to breaking changes.
 
-This guide provides best practices for working with and adapting to breaking changes in other projects.
+This guide provides best practices for documenting, preparing, releasing, and adapting to breaking changes within `core` and in other projects.
 
 ## What is a breaking change?
 
-A change to a package is "breaking" if upgrading a project to a version containing the change requires modifications to source code or configuration in order to avoid user- or developer-facing problems (an inability to use or build the project, a loss of functionality, etc.).
+A change to a package is "breaking" if upgrading a project to a version containing the change would require modifications to source code or configuration in order to avoid user- or developer-facing problems (an inability to use or build the project, a loss of functionality, etc.).
 
-There are many ways that this can happen. Here is a non-exhaustive list of examples:
+There are many kinds of breaking changes, including but not limited to:
 
 - Changing the number of required arguments for a function or method
 - Narrowing the type of an argument in a function or method
@@ -26,15 +26,16 @@ There are many ways that this can happen. Here is a non-exhaustive list of examp
 
 ## Introducing breaking changes safely
 
-Before merging a PR that introduces breaking changes, it is important to ensure that changes are accounted for and handled correctly:
+Before merging a PR that introduces breaking changes, it is important to ensure that they are accounted for among projects.
 
 ### 1. Document breaking changes
 
-To inform other maintainers now and in the future, note breaking changes in the changelog as you introduce them:
+To inform other maintainers now and in the future, make sure that breaking changes are documented in the changelog:
 
-1. Prefix the changelog entry with `**BREAKING:**`.
-2. If relevant, provide details on how consuming code can adapt to the changes safely.
-3. Move entries for breaking changes above all other kinds of changes within the same section.
+1. Be explicit in your changelog entries about which classes, functions, types, etc. are affected.
+2. Prefix entries with `**BREAKING:**`.
+3. If relevant, provide details on how consuming code can adapt to the changes safely.
+4. Move entries for breaking changes above all other kinds of changes within the same section.
 
 For example:
 
@@ -52,20 +53,29 @@ For example:
   - Please use `GasPriceService` instead.
 ```
 
-### 2. Audit dependent projects
+### 2. Audit dependents
 
-Now that you've documented the affected symbols and exports in your package, locate all of the projects across MetaMask that use them. When you release your changes, how will those projects be affected?
+When you release your changes, which codebases will be affected?
 
-### 3. Prepare upgrade PRs
+Using the changelog as a guide, locate all of the places across MetaMask that use the affected classes, functions, types, etc.:
 
-To verify what sorts of modifications are required to dependent projects following your breaking changes:
+- To find dependents of your package within `core`, look in the package's `package.json`, or simply search across the repo.
+- To find dependents of your package across MetaMask, do a search on GitHub for import statements or, better, usages of the affected symbols.
+
+### 3. Prepare upgrade PRs for dependents
+
+Finally, how will dependent projects need to adapt to your breaking changes?
+
+For dependent packages located in `core`, you may get type errors immediately that you will have to fix in the same PR that introduces the breaking changes. Otherwise, create new PRs to migrate existing code.
+
+For other projects that live outside of `core`, you can use the following process to verify the effects:
 
 1. Create a [preview build](./contributing.md#testing-changes-to-packages-with-preview-builds) for your package.
 2. Open draft PRs in the dependent projects.
-3. In each draft PR, upgrade to the preview build.
+3. In each draft PR, upgrade your package to the preview build.
 4. Test the project, particularly the functionality that makes use of your package.
 5. If you see compile-time or runtime errors, make changes to the project as necessary.
-6. If you discover new breaking changes that you haven't listed in the changelog for your library, go back and [document them](#document-breaking-changes).
+6. If you discover new breaking changes in your package that you haven't yet listed in the changelog, go back and [document them](#document-breaking-changes).
 7. Once you've done this for all projects, check off the "I've followed the process for releasing breaking changes" item in the checklist at the bottom of your PR.
 
 This process serves as a check to help you understand the full impact of your changes. It will also save you time after you make a new release, because you can reuse the draft PRs later to complete upgrades.
