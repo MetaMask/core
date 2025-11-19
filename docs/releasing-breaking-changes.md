@@ -58,7 +58,7 @@ Now that you've documented the affected symbols and exports in your package, loc
 
 ### 3. Prepare upgrade PRs
 
-If you've determined that your changes may in fact require modifications to other projects, follow these steps:
+To verify what sorts of modifications are required to dependent projects following your breaking changes:
 
 1. Create a [preview build](./contributing.md#testing-changes-to-packages-with-preview-builds) for your package.
 2. Open draft PRs in the dependent projects.
