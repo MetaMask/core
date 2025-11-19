@@ -32,7 +32,11 @@ describe('analyticsStateComputer', () => {
       },
     ])(
       'computes enabled state based on optedInForRegularAccount OR optedInForSocialAccount when $description',
-      ({ optedInForRegularAccount, optedInForSocialAccount, expectedEnabled }) => {
+      ({
+        optedInForRegularAccount,
+        optedInForSocialAccount,
+        expectedEnabled,
+      }) => {
         const state: AnalyticsControllerState = {
           optedInForRegularAccount,
           optedInForSocialAccount,

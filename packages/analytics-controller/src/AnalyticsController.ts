@@ -341,5 +341,4 @@ export class AnalyticsController extends BaseController<
       state.optedInForSocialAccount = false;
     });
   }
-
 }

@@ -48,4 +48,3 @@ export const analyticsControllerSelectors = {
   selectSocialOptedIn,
   selectEnabled,
 };
-

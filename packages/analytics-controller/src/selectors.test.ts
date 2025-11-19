@@ -1,6 +1,6 @@
 import type { AnalyticsControllerState } from './AnalyticsController';
-import { analyticsControllerSelectors } from './selectors';
 import * as analyticsStateComputer from './analyticsStateComputer';
+import { analyticsControllerSelectors } from './selectors';
 
 describe('analyticsControllerSelectors', () => {
   const defaultAnalyticsId = '550e8400-e29b-41d4-a716-446655440000';
@@ -90,10 +90,11 @@ describe('analyticsControllerSelectors', () => {
 
         const result = analyticsControllerSelectors.selectEnabled(state);
 
-        expect(analyticsStateComputer.computeEnabledState).toHaveBeenCalledWith(state);
+        expect(analyticsStateComputer.computeEnabledState).toHaveBeenCalledWith(
+          state,
+        );
         expect(result).toBe(expectedValue);
       },
     );
   });
 });
-

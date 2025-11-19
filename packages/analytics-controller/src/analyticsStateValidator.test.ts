@@ -26,12 +26,14 @@ describe('analyticsStateValidator', () => {
     ])(
       'throws with correct error message format for invalid input: %s',
       (analyticsId) => {
-        const expectedMessage =
-          analyticsId === undefined
-            ? 'undefined'
-            : analyticsId === null
-              ? 'null'
-              : JSON.stringify(analyticsId);
+        let expectedMessage: string;
+        if (analyticsId === undefined) {
+          expectedMessage = 'undefined';
+        } else if (analyticsId === null) {
+          expectedMessage = 'null';
+        } else {
+          expectedMessage = JSON.stringify(analyticsId);
+        }
 
         const state = {
           optedInForRegularAccount: false,
@@ -61,4 +63,3 @@ describe('analyticsStateValidator', () => {
     });
   });
 });
-

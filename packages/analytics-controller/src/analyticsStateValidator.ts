@@ -1,7 +1,4 @@
-import {
-  validate as validateUuid,
-  version as getUuidVersion,
-} from 'uuid';
+import { validate as validateUuid, version as getUuidVersion } from 'uuid';
 
 import type { AnalyticsControllerState } from './AnalyticsController';
 
@@ -22,4 +19,3 @@ export function validateAnalyticsState(state: AnalyticsControllerState): void {
     );
   }
 }
-
