@@ -62,7 +62,7 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@metamask/assets-controllers": "^89.0.0",
+    "@metamask/assets-controllers": "^89.0.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/bridge-controller": "^61.0.0",
     "@metamask/bridge-status-controller": "^61.0.0",
