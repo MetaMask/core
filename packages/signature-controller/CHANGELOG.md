@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 685.0.0 ([#7188](https://github.com/MetaMask/core/pull/7188))
-- chore: Fix all auto-fixable ESLint warnings ([#7105](https://github.com/MetaMask/core/pull/7105))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-
 ### Changed
 
 - Permit string `id` values in `OriginalRequest` type ([#7065](https://github.com/MetaMask/core/pull/7065))

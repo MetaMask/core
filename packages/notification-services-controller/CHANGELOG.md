@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Replace wrapper ESLint script with error suppression ([#7148](https://github.com/MetaMask/core/pull/7148))
-
 ### Changed
 
 - Add optional `env` parameter to the `NotificationServicesController` and `NotificationServicesPushController`

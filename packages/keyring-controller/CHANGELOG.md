@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Remove unused ESLint directives about enum comparisons ([#7160](https://github.com/MetaMask/core/pull/7160))
-- chore: Fix all auto-fixable ESLint warnings ([#7105](https://github.com/MetaMask/core/pull/7105))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-
 ### Added
 
 - Added optional `EncryptionKey`, `SupportedKeyDerivationOptions` and `EncryptionResult` type parameters to the `KeyringController`, `ExportableKeyEncryptor` and `KeyringControllerOptions` types ([#7127](https://github.com/MetaMask/core/pull/7127))

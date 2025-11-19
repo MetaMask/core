@@ -68,7 +68,7 @@
   },
   "devDependencies": {
     "@metamask/accounts-controller": "^34.0.0",
-    "@metamask/assets-controllers": "^89.0.0",
+    "@metamask/assets-controllers": "^89.0.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-json-rpc-provider": "^5.0.1",
     "@metamask/network-controller": "^25.0.0",

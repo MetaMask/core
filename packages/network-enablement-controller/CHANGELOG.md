@@ -7,16 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Remove unused ESLint ignore directives ([#7154](https://github.com/MetaMask/core/pull/7154))
-- Release 679.0.0 ([#7153](https://github.com/MetaMask/core/pull/7153))
-- Release/671.0.0 ([#7126](https://github.com/MetaMask/core/pull/7126))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- Release 651.0.0 ([#7007](https://github.com/MetaMask/core/pull/7007))
-- Release/650.0.0 ([#7003](https://github.com/MetaMask/core/pull/7003))
-
 ### Fixed
 
 - include additional popular networks now enabled by default ([#7014](https://github.com/MetaMask/core/pull/7014))

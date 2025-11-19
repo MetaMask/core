@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- test(core-backend): remove tests and lower coverageThreshold ([#7184](https://github.com/MetaMask/core/pull/7184))
-- fix(core-backend): connection timeout test ([#7176](https://github.com/MetaMask/core/pull/7176))
-
 ## [4.1.0]
 
 ### Changed
