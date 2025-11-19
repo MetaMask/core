@@ -76,6 +76,7 @@ export type QuoteWarning =
   | 'insufficient_gas_balance'
   | 'insufficient_gas_for_selected_quote'
   | 'insufficient_balance'
+  | 'price_impact'
   | 'tx_alert';
 
 /**
