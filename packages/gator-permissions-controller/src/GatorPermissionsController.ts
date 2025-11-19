@@ -19,6 +19,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 
+import { DELEGATION_FRAMEWORK_VERSION } from './constants';
 import type { DecodedPermission } from './decodePermission';
 import {
   getPermissionDataAndExpiry,
@@ -64,12 +65,6 @@ const defaultGatorPermissionsMap: GatorPermissionsMap = {
   'erc20-token-periodic': {},
   other: {},
 };
-
-/**
- * Delegation framework version used to select the correct deployed enforcer
- * contract addresses from `@metamask/delegation-deployments`.
- */
-export const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
 
 /**
  * Timeout duration for pending revocations (2 hours in milliseconds).

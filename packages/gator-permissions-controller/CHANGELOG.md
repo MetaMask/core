@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Skip rules array from StoredGatorPermission sanitization
+- Export `DELEGATION_FRAMEWORK_VERSION` constant for version consistency across implementations
+
 ## [0.6.0]
 
 ### Changed
