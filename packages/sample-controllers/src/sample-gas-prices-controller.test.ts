@@ -48,9 +48,7 @@ describe('SampleGasPricesController', () => {
   describe('on NetworkController:stateChange', () => {
     beforeEach(() => {
       jest
-        .useFakeTimers({
-          legacyFakeTimers: true,
-        })
+        .useFakeTimers()
         .setSystemTime(new Date('2024-01-02'));
     });
 
@@ -211,9 +209,7 @@ describe('SampleGasPricesController', () => {
   describe('SampleGasPricesController:updateGasPrices', () => {
     beforeEach(() => {
       jest
-        .useFakeTimers({
-          legacyFakeTimers: true,
-        })
+        .useFakeTimers()
         .setSystemTime(new Date('2024-01-02'));
     });
 
@@ -260,9 +256,7 @@ describe('SampleGasPricesController', () => {
   describe('updateGasPrices', () => {
     beforeEach(() => {
       jest
-        .useFakeTimers({
-          legacyFakeTimers: true,
-        })
+        .useFakeTimers()
         .setSystemTime(new Date('2024-01-02'));
     });
 

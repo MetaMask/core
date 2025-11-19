@@ -75,9 +75,7 @@ const message = 'foo';
 
 describe('RateLimitController', () => {
   beforeEach(() => {
-    jest.useFakeTimers({
-      legacyFakeTimers: true,
-    });
+    jest.useFakeTimers();
   });
 
   afterEach(() => {

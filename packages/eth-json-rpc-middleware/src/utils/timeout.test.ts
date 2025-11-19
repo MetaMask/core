@@ -37,9 +37,7 @@ describe('timeout', () => {
 
   describe('with fake timers', () => {
     beforeAll(() => {
-      jest.useFakeTimers({
-        legacyFakeTimers: true,
-      });
+      jest.useFakeTimers();
     });
 
     afterEach(() => {

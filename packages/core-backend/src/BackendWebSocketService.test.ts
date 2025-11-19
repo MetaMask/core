@@ -325,9 +325,7 @@ const setupBackendWebSocketService = ({
   mockWebSocketOptions,
 }: TestSetupOptions = {}): TestSetup => {
   // Setup fake timers to control all async operations
-  jest.useFakeTimers({
-    legacyFakeTimers: true,
-  });
+  jest.useFakeTimers();
 
   // Create real messenger with registered actions
   const messengerSetup = getMessenger();

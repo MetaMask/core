@@ -173,9 +173,7 @@ function setupController({
 
 describe('DeFiPositionsController', () => {
   beforeEach(() => {
-    jest.useFakeTimers({
-      legacyFakeTimers: true,
-    });
+    jest.useFakeTimers();
   });
 
   afterEach(() => {

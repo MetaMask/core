@@ -110,9 +110,7 @@ describe('ResimulateHelper', () => {
   }
 
   beforeEach(() => {
-    jest.useFakeTimers({
-      legacyFakeTimers: true,
-    });
+    jest.useFakeTimers();
     getTransactionsMock = jest.fn();
     onTransactionsUpdateMock = jest.fn();
     simulateTransactionMock = jest.fn().mockResolvedValue(undefined);

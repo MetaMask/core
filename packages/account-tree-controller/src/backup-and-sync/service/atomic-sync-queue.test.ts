@@ -62,9 +62,7 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
     });
 
     it('triggers async processing after enqueueing', async () => {
-      jest.useFakeTimers({
-        legacyFakeTimers: true,
-      });
+      jest.useFakeTimers();
       const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
 
       void atomicSyncQueue.enqueue(mockSyncFunction);
@@ -203,9 +201,7 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
 
   describe('error handling in async processing', () => {
     it('handles errors in async process call', async () => {
-      jest.useFakeTimers({
-        legacyFakeTimers: true,
-      });
+      jest.useFakeTimers();
 
       const error = new Error('Process error');
       jest.spyOn(atomicSyncQueue, 'process').mockRejectedValueOnce(error);

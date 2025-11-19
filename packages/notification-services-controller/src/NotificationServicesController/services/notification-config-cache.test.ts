@@ -8,9 +8,7 @@ describe('OnChainNotificationsCache', () => {
   let cache: OnChainNotificationsCache;
 
   beforeEach(() => {
-    jest.useFakeTimers({
-      legacyFakeTimers: true,
-    });
+    jest.useFakeTimers();
     cache = new OnChainNotificationsCache();
   });
 
