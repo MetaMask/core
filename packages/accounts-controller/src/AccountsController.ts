@@ -868,12 +868,6 @@ export class AccountsController extends BaseController<
                 internalAccounts.accounts,
               ) as InternalAccount[];
 
-              // Get next account name available for this given keyring.
-              const name = this.getNextAvailableAccountName(
-                account.metadata.keyring.type,
-                accounts,
-              );
-
               // If it's the first account, we need to select it.
               const lastSelected =
                 accounts.length === 0 ? this.#getLastSelectedIndex() : 0;
@@ -882,7 +876,6 @@ export class AccountsController extends BaseController<
                 ...account,
                 metadata: {
                   ...account.metadata,
-                  name,
                   importTime: Date.now(),
                   lastSelected,
                 },

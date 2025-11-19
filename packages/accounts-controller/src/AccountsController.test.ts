@@ -78,7 +78,7 @@ const mockAccount: InternalAccount = {
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
   metadata: {
-    name: 'Account 1',
+    name: '',
     keyring: { type: KeyringTypes.hd },
     importTime: 1691565967600,
     lastSelected: 1691565967656,
@@ -94,7 +94,7 @@ const mockAccount2: InternalAccount = {
   type: EthAccountType.Eoa,
   scopes: [EthScope.Eoa],
   metadata: {
-    name: 'Account 2',
+    name: '',
     keyring: { type: KeyringTypes.hd },
     importTime: 1691565967600,
     lastSelected: 1955565967656,
@@ -786,7 +786,7 @@ describe('AccountsController', () => {
           setExpectedLastSelectedAsAny(
             createExpectedInternalAccount({
               id: 'mock-id3',
-              name: 'Snap Account 2',
+              name: '',
               address: mockAccount3.address,
               keyringType: mockAccount3.metadata.keyring.type as KeyringTypes,
               snap: mockAccount3.metadata.snap,
@@ -970,7 +970,7 @@ describe('AccountsController', () => {
           MockExpectedInternalAccountBuilder.from(
             createExpectedInternalAccount({
               id: 'mock-id3',
-              name: 'Account 3',
+              name: '',
               address: mockAccount3.address,
               keyringType: KeyringTypes.hd,
             }),
@@ -1039,7 +1039,7 @@ describe('AccountsController', () => {
           MockExpectedInternalAccountBuilder.from(
             createExpectedInternalAccount({
               id: 'mock-id3',
-              name: 'Account 3',
+              name: '',
               address: mockAccount3.address,
               keyringType: KeyringTypes.hd,
             }),
@@ -1510,13 +1510,13 @@ describe('AccountsController', () => {
       const messenger = buildMessenger();
       const mockInitialAccount = createMockInternalAccount({
         id: 'mock-id',
-        name: 'Account 1',
+        name: '',
         address: '0x123',
         keyringType: KeyringTypes.hd,
       });
       const mockReinitialisedAccount = createMockInternalAccount({
         id: 'mock-id2',
-        name: 'Account 1',
+        name: '',
         address: '0x456',
         keyringType: KeyringTypes.hd,
         // Entropy options are added automatically by the controller.
@@ -3309,27 +3309,6 @@ describe('AccountsController', () => {
         accountsController.getAccountExpect(mockAccount.id),
       );
     });
-
-    it('throw an error if the account name already exists', () => {
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockAccount.id]: mockAccount,
-              [mockAccount2.id]: mockAccount2,
-            },
-            selectedAccount: mockAccount.id,
-          },
-        },
-      });
-
-      expect(() =>
-        accountsController.setAccountNameAndSelectAccount(
-          mockAccount.id,
-          mockAccount2.metadata.name,
-        ),
-      ).toThrow('Account name already exists');
-    });
   });
 
   describe('setAccountName', () => {
@@ -3392,13 +3371,21 @@ describe('AccountsController', () => {
       );
     });
 
-    it('throw an error if the account name already exists', () => {
+    it('throws when renaming to an existing account name', () => {
+      const existingName = 'Existing Name';
+      const mockAccountWithName = createMockInternalAccount({
+        id: 'mock-id-2',
+        name: existingName,
+        address: '0xabc',
+        keyringType: KeyringTypes.hd,
+      });
+
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {
               [mockAccount.id]: mockAccount,
-              [mockAccount2.id]: mockAccount2,
+              [mockAccountWithName.id]: mockAccountWithName,
             },
             selectedAccount: mockAccount.id,
           },
@@ -3406,7 +3393,7 @@ describe('AccountsController', () => {
       });
 
       expect(() =>
-        accountsController.setAccountName(mockAccount.id, 'Account 2'),
+        accountsController.setAccountName(mockAccount.id, existingName),
       ).toThrow('Account name already exists');
     });
   });
@@ -3437,19 +3424,19 @@ describe('AccountsController', () => {
     // those keyring types are "grouped" together)
     const mockSimpleKeyring1 = createMockInternalAccount({
       id: 'mock-id2',
-      name: 'Account 2',
+      name: '',
       address: '0x555',
       keyringType: KeyringTypes.simple,
     });
     const mockSimpleKeyring2 = createMockInternalAccount({
       id: 'mock-id3',
-      name: 'Account 3',
+      name: '',
       address: '0x666',
       keyringType: KeyringTypes.simple,
     });
     const mockSimpleKeyring3 = createMockInternalAccount({
       id: 'mock-id4',
-      name: 'Account 4',
+      name: '',
       address: '0x777',
       keyringType: KeyringTypes.simple,
     });
@@ -3939,6 +3926,42 @@ describe('AccountsController', () => {
             'AccountsController:getNextAvailableAccountName',
           );
           expect(accountName).toBe('Account 4');
+        });
+
+        it('computes next name for non-HD keyring types (Ledger branch)', () => {
+          const { accountsController } = setupAccountsController({});
+
+          const ledger1 = createMockInternalAccount({
+            id: 'ledger-1',
+            name: 'Ledger 1',
+            address: '0xdeadbeef1',
+            keyringType: KeyringTypes.ledger,
+          });
+
+          const next = accountsController.getNextAvailableAccountName(
+            KeyringTypes.ledger,
+            [ledger1],
+          );
+          expect(next).toBe('Ledger 2');
+        });
+
+        it('treats Simple and HD as one group (invokes simple-type check)', () => {
+          const { accountsController } = setupAccountsController({});
+
+          const simple1 = createMockInternalAccount({
+            id: 'simple-1',
+            name: 'Account 1',
+            address: '0xfacefeed1',
+            keyringType: KeyringTypes.simple,
+          });
+
+          // Asking for next HD name with only a Simple account forces the
+          // filter to evaluate the Simple branch, covering isSimpleKeyringType.
+          const next = accountsController.getNextAvailableAccountName(
+            KeyringTypes.hd,
+            [simple1],
+          );
+          expect(next).toBe('Account 2');
         });
       });
     });

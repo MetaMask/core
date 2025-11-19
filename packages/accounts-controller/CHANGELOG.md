@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove usage of `getNextAvailableAccountName` in `handleOnKeyringStateChange` ([#7137](https://github.com/MetaMask/core/pull/7137))
+  - The function call was decided to be removed since it was taking a lot of time, we compute account names in the `AccountTreeController` regardless.
+
 ## [34.0.0]
 
 ### Changed
