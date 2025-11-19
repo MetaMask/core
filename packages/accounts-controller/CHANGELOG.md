@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [35.0.0]
+
 ### Uncategorized
 
 - chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
@@ -655,7 +657,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@34.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@35.0.0...HEAD
+[35.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@34.0.0...@metamask/accounts-controller@35.0.0
 [34.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@33.2.0...@metamask/accounts-controller@34.0.0
 [33.2.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@33.1.1...@metamask/accounts-controller@33.2.0
 [33.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@33.1.0...@metamask/accounts-controller@33.1.1

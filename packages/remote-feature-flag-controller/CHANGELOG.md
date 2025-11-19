@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1]
+
 ### Uncategorized
 
 - chore: Fix all auto-fixable ESLint warnings ([#7105](https://github.com/MetaMask/core/pull/7105))
@@ -133,7 +135,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of the RemoteFeatureFlagController. ([#4931](https://github.com/MetaMask/core/pull/4931))
   - This controller manages the retrieval and caching of remote feature flags. It fetches feature flags from a remote API, caches them, and provides methods to access and manage these flags. The controller ensures that feature flags are refreshed based on a specified interval and handles cases where the controller is disabled or the network is unavailable.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@2.0.1...HEAD
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@2.0.0...@metamask/remote-feature-flag-controller@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.9.1...@metamask/remote-feature-flag-controller@2.0.0
 [1.9.1]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.9.0...@metamask/remote-feature-flag-controller@1.9.1
 [1.9.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.8.0...@metamask/remote-feature-flag-controller@1.9.0
