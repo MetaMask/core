@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/messenger` from `^0.3.0` to `^0.3.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
-- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.1.2` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - Bump `@metamask/eth-json-rpc-provider` from `^5.0.1` to `^6.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - Bump `@metamask/eth-json-rpc-middleware` from `^21.0.0` to `^22.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - Bump `@metamask/eth-block-tracker` from `^14.0.0` to `^15.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/permission-controller` from `^12.1.0` to `^12.1.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
-- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.1.2` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - Bump `@metamask/controller-utils` from `^11.15.0` to `^11.15.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
 
 ## [1.2.4]
