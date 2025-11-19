@@ -35,14 +35,7 @@ runs:
         commit-starts-with: 'Release [version],Release v[version],Release/[version],Release/v[version],Release `[version]`'
         commit-message: ${{ github.event.pull_request.title }}
         before: ${{ steps.merge-base.outputs.MERGE_BASE }}
-
-    # `action-is-release` checks out the repository with `fetch-depth: 2`, so we
-    # need to check it out again with full history.
-    - name: Checkout repository
-      uses: actions/checkout@v5
-      if: steps.is-release.outputs.IS_RELEASE == 'true'
-      with:
-        fetch-depth: 0
+        skip-checkout: true
 
     - name: Get pull request number
       id: pr-number
