@@ -69,7 +69,8 @@
     },
     { "path": "./packages/transaction-controller/tsconfig.build.json" },
     { "path": "./packages/transaction-pay-controller/tsconfig.build.json" },
-    { "path": "./packages/user-operation-controller/tsconfig.build.json" }
+    { "path": "./packages/user-operation-controller/tsconfig.build.json" },
+    { "path": "./packages/user-profile-controller" }
   ],
   "files": [],
   "include": []
