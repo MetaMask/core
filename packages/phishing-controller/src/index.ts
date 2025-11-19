@@ -12,5 +12,6 @@ export {
   PhishingDetectorResultType,
   RecommendedAction,
   AddressScanResultType,
+  TokenScanCacheData,
 } from './types';
 export type { CacheEntry } from './CacheManager';
