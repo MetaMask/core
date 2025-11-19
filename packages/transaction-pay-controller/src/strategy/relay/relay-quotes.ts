@@ -382,7 +382,7 @@ function calculateSourceNetworkCost(
   quote: RelayQuote,
   messenger: TransactionPayControllerMessenger,
 ): TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] {
-  const allParams = quote.steps[0].items.map((i) => i.data);
+  const allParams = quote.steps.flatMap((s) => s.items).map((i) => i.data);
   const { chainId } = allParams[0];
   const totalGasLimit = calculateSourceNetworkGasLimit(allParams);
 

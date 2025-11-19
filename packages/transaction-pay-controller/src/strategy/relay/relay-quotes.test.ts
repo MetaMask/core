@@ -397,10 +397,26 @@ describe('Relay Quotes Utils', () => {
 
     it('includes source network fee using gas total from multiple transactions', async () => {
       const quoteMock = cloneDeep(QUOTE_MOCK);
+
       quoteMock.steps[0].items.push({
         data: {
           gas: '480000',
         },
+      } as never);
+
+      quoteMock.steps.push({
+        items: [
+          {
+            data: {
+              gas: '1000',
+            },
+          },
+          {
+            data: {
+              gas: '2000',
+            },
+          },
+        ],
       } as never);
 
       successfulFetchMock.mockResolvedValue({
@@ -414,7 +430,7 @@ describe('Relay Quotes Utils', () => {
       });
 
       expect(calculateGasCostMock).toHaveBeenCalledWith(
-        expect.objectContaining({ gas: 501000 }),
+        expect.objectContaining({ gas: 504000 }),
       );
     });
 
