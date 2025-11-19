@@ -106,7 +106,9 @@ export class RpcServiceChain implements RpcServiceRequestable {
    * @throws A "parse" error if the response is not valid JSON.
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
-    jsonRpcRequest: JsonRpcRequest<Params> & { method: 'eth_getBlockByNumber' },
+    jsonRpcRequest: Readonly<JsonRpcRequest<Params>> & {
+      method: 'eth_getBlockByNumber';
+    },
     fetchOptions?: FetchOptions,
   ): Promise<JsonRpcResponse<Result> | JsonRpcResponse<null>>;
 
@@ -129,12 +131,12 @@ export class RpcServiceChain implements RpcServiceRequestable {
    * @throws A "parse" error if the response is not valid JSON.
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
-    jsonRpcRequest: JsonRpcRequest<Params>,
+    jsonRpcRequest: Readonly<JsonRpcRequest<Params>>,
     fetchOptions?: FetchOptions,
   ): Promise<JsonRpcResponse<Result>>;
 
   async request<Params extends JsonRpcParams, Result extends Json>(
-    jsonRpcRequest: JsonRpcRequest<Params>,
+    jsonRpcRequest: Readonly<JsonRpcRequest<Params>>,
     fetchOptions: FetchOptions = {},
   ): Promise<JsonRpcResponse<Result | null>> {
     return this.#services[0].request(jsonRpcRequest, fetchOptions);
