@@ -1,4 +1,5 @@
 import {
+  DEFAULT_CIRCUIT_BREAK_DURATION,
   DEFAULT_DEGRADED_THRESHOLD,
   HttpError,
 } from '@metamask/controller-utils';
@@ -25,6 +26,390 @@ describe('RpcService', () => {
 
   afterEach(() => {
     clock.restore();
+  });
+
+  describe('resetPolicy', () => {
+    it('resets the state of the circuit to "closed"', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .times(15)
+        .reply(503);
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(200, {
+          id: 1,
+          jsonrpc: '2.0',
+          result: 'ok',
+        });
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+      });
+      service.onRetry(() => {
+        clock.next();
+      });
+
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+      // Get through the first two rounds of retries
+      await ignoreRejection(service.request(jsonRpcRequest));
+      await ignoreRejection(service.request(jsonRpcRequest));
+      // The last retry breaks the circuit
+      await ignoreRejection(service.request(jsonRpcRequest));
+      expect(service.getCircuitState()).toBe(CircuitState.Open);
+
+      service.resetPolicy();
+
+      expect(service.getCircuitState()).toBe(CircuitState.Closed);
+    });
+
+    it('allows making a successful request to the service if its circuit has broken', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .times(15)
+        .reply(503);
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(200, {
+          id: 1,
+          jsonrpc: '2.0',
+          result: 'ok',
+        });
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+      });
+      service.onRetry(() => {
+        clock.next();
+      });
+
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+      // Get through the first two rounds of retries
+      await ignoreRejection(service.request(jsonRpcRequest));
+      await ignoreRejection(service.request(jsonRpcRequest));
+      // The last retry breaks the circuit
+      await ignoreRejection(service.request(jsonRpcRequest));
+
+      service.resetPolicy();
+
+      expect(await service.request(jsonRpcRequest)).toStrictEqual({
+        id: 1,
+        jsonrpc: '2.0',
+        result: 'ok',
+      });
+    });
+
+    it('calls onAvailable listeners if the service was executed successfully, its circuit broke, it was reset, and executes successfully again', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(200, {
+          id: 1,
+          jsonrpc: '2.0',
+          result: 'ok',
+        });
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .times(15)
+        .reply(503);
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(200, {
+          id: 1,
+          jsonrpc: '2.0',
+          result: 'ok',
+        });
+      const onAvailableListener = jest.fn();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+      });
+      service.onRetry(() => {
+        clock.next();
+      });
+      service.onAvailable(onAvailableListener);
+
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+
+      // Make a successful requst
+      await service.request(jsonRpcRequest);
+      expect(onAvailableListener).toHaveBeenCalledTimes(1);
+
+      // Get through the first two rounds of retries
+      await ignoreRejection(service.request(jsonRpcRequest));
+      await ignoreRejection(service.request(jsonRpcRequest));
+      // The last retry breaks the circuit
+      await ignoreRejection(service.request(jsonRpcRequest));
+
+      service.resetPolicy();
+
+      // Make another successful requst
+      await service.request(jsonRpcRequest);
+      expect(onAvailableListener).toHaveBeenCalledTimes(2);
+    });
+
+    it('allows making an unsuccessful request to the service if its circuit has broken', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .times(15)
+        .reply(503);
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(500);
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+      });
+      service.onRetry(() => {
+        clock.next();
+      });
+
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+      // Get through the first two rounds of retries
+      await ignoreRejection(service.request(jsonRpcRequest));
+      await ignoreRejection(service.request(jsonRpcRequest));
+      // The last retry breaks the circuit
+      await ignoreRejection(service.request(jsonRpcRequest));
+
+      service.resetPolicy();
+
+      await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+        'RPC endpoint not found or unavailable',
+      );
+    });
+
+    it('does not call onBreak listeners', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .times(15)
+        .reply(503);
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(500);
+      const onBreakListener = jest.fn();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+      });
+      service.onRetry(() => {
+        clock.next();
+      });
+      service.onBreak(onBreakListener);
+
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+
+      // Get through the first two rounds of retries
+      await ignoreRejection(service.request(jsonRpcRequest));
+      await ignoreRejection(service.request(jsonRpcRequest));
+      // The last retry breaks the circuit
+      await ignoreRejection(service.request(jsonRpcRequest));
+      expect(onBreakListener).toHaveBeenCalledTimes(1);
+
+      service.resetPolicy();
+      expect(onBreakListener).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getCircuitState', () => {
+    it('returns the state of the underlying circuit', async () => {
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl).post('/', jsonRpcRequest).times(15).reply(503);
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(500);
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+      });
+      service.onRetry(() => {
+        clock.next();
+      });
+
+      expect(service.getCircuitState()).toBe(CircuitState.Closed);
+
+      // Retry until we break the circuit
+      await ignoreRejection(service.request(jsonRpcRequest));
+      await ignoreRejection(service.request(jsonRpcRequest));
+      await ignoreRejection(service.request(jsonRpcRequest));
+      await ignoreRejection(service.request(jsonRpcRequest));
+      expect(service.getCircuitState()).toBe(CircuitState.Open);
+
+      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      const promise = ignoreRejection(service.request(jsonRpcRequest));
+      expect(service.getCircuitState()).toBe(CircuitState.HalfOpen);
+      await promise;
+      expect(service.getCircuitState()).toBe(CircuitState.Open);
+    });
+  });
+
+  describe('getLastInnerFailureReason', () => {
+    it('returns undefined if no requests have occurred yet', () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+      });
+
+      expect(service.getLastInnerFailureReason()).toBeUndefined();
+    });
+
+    it('returns the last failure reason that the underlying policy captured', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+      nock(endpointUrl).post('/', jsonRpcRequest).reply(500);
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+      });
+      service.onRetry(() => {
+        clock.next();
+      });
+
+      await ignoreRejection(service.request(jsonRpcRequest));
+
+      expect(service.getLastInnerFailureReason()).toStrictEqual({
+        error: new HttpError(500),
+      });
+    });
+
+    it('returns undefined if the service failed, then succeeded', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+      nock(endpointUrl)
+        .post('/', jsonRpcRequest)
+        .reply(500)
+        .post('/', jsonRpcRequest)
+        .reply(200, {
+          id: 1,
+          jsonrpc: '2.0',
+          result: 'ok',
+        });
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+      });
+      service.onRetry(() => {
+        clock.next();
+      });
+
+      await ignoreRejection(service.request(jsonRpcRequest));
+      await service.request(jsonRpcRequest);
+
+      expect(service.getLastInnerFailureReason()).toBeUndefined();
+    });
   });
 
   describe('request', () => {
@@ -699,276 +1084,6 @@ describe('RpcService', () => {
       expect(onAvailableListener).toHaveBeenCalledWith({
         endpointUrl: `${endpointUrl}/`,
       });
-    });
-  });
-
-  describe('reset', () => {
-    it('resets the state of the circuit to "closed"', async () => {
-      const endpointUrl = 'https://rpc.example.chain';
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        })
-        .times(15)
-        .reply(503);
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        })
-        .reply(200, {
-          id: 1,
-          jsonrpc: '2.0',
-          result: 'ok',
-        });
-      const service = new RpcService({
-        fetch,
-        btoa,
-        endpointUrl,
-      });
-      service.onRetry(() => {
-        clock.next();
-      });
-
-      const jsonRpcRequest = {
-        id: 1,
-        jsonrpc: '2.0' as const,
-        method: 'eth_chainId',
-        params: [],
-      };
-      // Get through the first two rounds of retries
-      await ignoreRejection(service.request(jsonRpcRequest));
-      await ignoreRejection(service.request(jsonRpcRequest));
-      // The last retry breaks the circuit
-      await ignoreRejection(service.request(jsonRpcRequest));
-      expect(service.getCircuitState()).toBe(CircuitState.Open);
-
-      service.resetPolicy();
-
-      expect(service.getCircuitState()).toBe(CircuitState.Closed);
-    });
-
-    it('allows making a successful request to the service if its circuit has broken', async () => {
-      const endpointUrl = 'https://rpc.example.chain';
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        })
-        .times(15)
-        .reply(503);
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        })
-        .reply(200, {
-          id: 1,
-          jsonrpc: '2.0',
-          result: 'ok',
-        });
-      const service = new RpcService({
-        fetch,
-        btoa,
-        endpointUrl,
-      });
-      service.onRetry(() => {
-        clock.next();
-      });
-
-      const jsonRpcRequest = {
-        id: 1,
-        jsonrpc: '2.0' as const,
-        method: 'eth_chainId',
-        params: [],
-      };
-      // Get through the first two rounds of retries
-      await ignoreRejection(service.request(jsonRpcRequest));
-      await ignoreRejection(service.request(jsonRpcRequest));
-      // The last retry breaks the circuit
-      await ignoreRejection(service.request(jsonRpcRequest));
-
-      service.resetPolicy();
-
-      expect(await service.request(jsonRpcRequest)).toStrictEqual({
-        id: 1,
-        jsonrpc: '2.0',
-        result: 'ok',
-      });
-    });
-
-    it('calls onAvailable listeners if the service was executed successfully, its circuit broke, it was reset, and executes successfully again', async () => {
-      const endpointUrl = 'https://rpc.example.chain';
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        })
-        .reply(200, {
-          id: 1,
-          jsonrpc: '2.0',
-          result: 'ok',
-        });
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        })
-        .times(15)
-        .reply(503);
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        })
-        .reply(200, {
-          id: 1,
-          jsonrpc: '2.0',
-          result: 'ok',
-        });
-      const onAvailableListener = jest.fn();
-      const service = new RpcService({
-        fetch,
-        btoa,
-        endpointUrl,
-      });
-      service.onRetry(() => {
-        clock.next();
-      });
-      service.onAvailable(onAvailableListener);
-
-      const jsonRpcRequest = {
-        id: 1,
-        jsonrpc: '2.0' as const,
-        method: 'eth_chainId',
-        params: [],
-      };
-
-      // Make a successful requst
-      await service.request(jsonRpcRequest);
-      expect(onAvailableListener).toHaveBeenCalledTimes(1);
-
-      // Get through the first two rounds of retries
-      await ignoreRejection(service.request(jsonRpcRequest));
-      await ignoreRejection(service.request(jsonRpcRequest));
-      // The last retry breaks the circuit
-      await ignoreRejection(service.request(jsonRpcRequest));
-
-      service.resetPolicy();
-
-      // Make another successful requst
-      await service.request(jsonRpcRequest);
-      expect(onAvailableListener).toHaveBeenCalledTimes(2);
-    });
-
-    it('allows making an unsuccessful request to the service if its circuit has broken', async () => {
-      const endpointUrl = 'https://rpc.example.chain';
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        })
-        .times(15)
-        .reply(503);
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        })
-        .reply(500);
-      const service = new RpcService({
-        fetch,
-        btoa,
-        endpointUrl,
-      });
-      service.onRetry(() => {
-        clock.next();
-      });
-
-      const jsonRpcRequest = {
-        id: 1,
-        jsonrpc: '2.0' as const,
-        method: 'eth_chainId',
-        params: [],
-      };
-      // Get through the first two rounds of retries
-      await ignoreRejection(service.request(jsonRpcRequest));
-      await ignoreRejection(service.request(jsonRpcRequest));
-      // The last retry breaks the circuit
-      await ignoreRejection(service.request(jsonRpcRequest));
-
-      service.resetPolicy();
-
-      await expect(service.request(jsonRpcRequest)).rejects.toThrow(
-        'RPC endpoint not found or unavailable',
-      );
-    });
-
-    it('does not call onBreak listeners', async () => {
-      const endpointUrl = 'https://rpc.example.chain';
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        })
-        .times(15)
-        .reply(503);
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        })
-        .reply(500);
-      const onBreakListener = jest.fn();
-      const service = new RpcService({
-        fetch,
-        btoa,
-        endpointUrl,
-      });
-      service.onRetry(() => {
-        clock.next();
-      });
-      service.onBreak(onBreakListener);
-
-      const jsonRpcRequest = {
-        id: 1,
-        jsonrpc: '2.0' as const,
-        method: 'eth_chainId',
-        params: [],
-      };
-
-      // Get through the first two rounds of retries
-      await ignoreRejection(service.request(jsonRpcRequest));
-      await ignoreRejection(service.request(jsonRpcRequest));
-      // The last retry breaks the circuit
-      await ignoreRejection(service.request(jsonRpcRequest));
-      expect(onBreakListener).toHaveBeenCalledTimes(1);
-
-      service.resetPolicy();
-      expect(onBreakListener).toHaveBeenCalledTimes(1);
     });
   });
 });

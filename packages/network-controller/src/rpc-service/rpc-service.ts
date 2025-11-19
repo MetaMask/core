@@ -531,7 +531,7 @@ export class RpcService implements AbstractRpcService {
         `[RpcService: ${this.endpointUrl}] Circuit state`,
         this.#policy.getCircuitState(),
       );
-      return await this.#policy.execute(async (data) => {
+      const jsonDecodedResponse = await this.#policy.execute(async (data) => {
         log(
           'REQUEST INITIATED:',
           this.endpointUrl.toString(),
@@ -552,6 +552,8 @@ export class RpcService implements AbstractRpcService {
         );
         return await response.json();
       });
+      this.#lastError = undefined;
+      return jsonDecodedResponse;
     } catch (error) {
       log('REQUEST ERROR:', this.endpointUrl.toString(), error);
 
