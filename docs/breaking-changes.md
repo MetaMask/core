@@ -75,7 +75,7 @@ For other projects that live outside of `core`, you can use the following proces
 3. In each draft PR, upgrade your package to the preview build.
 4. Test the project, particularly the functionality that makes use of your package.
 5. If you see compile-time or runtime errors, make changes to the project as necessary.
-6. If you discover new breaking changes in your package that you haven't yet listed in the changelog, go back and [document them](#document-breaking-changes).
+6. If you discover new breaking changes in your package that you haven't yet listed in the changelog, go back and [document them](#1-document-breaking-changes).
 7. Once you've done this for all projects, check off the "I've followed the process for releasing breaking changes" item in the checklist at the bottom of your PR.
 
 This process serves as a check to help you understand the full impact of your changes. It will also save you time after you make a new release, because you can reuse the draft PRs later to complete upgrades.
