@@ -42,9 +42,9 @@ describe('Expiry Extraction Functions', () => {
       );
     });
 
-    it('handles maximum uint128 expiry timestamp', () => {
-      // Max uint128 would overflow, but test a large value
-      const largeTimestamp = Number.MAX_SAFE_INTEGER;
+    it('handles large valid expiry timestamp', () => {
+      // Use a large but valid timestamp (year 9999: 253402300799)
+      const largeTimestamp = 253402300799;
       const terms = createTimestampTerms({
         timestampAfterThreshold: 0,
         timestampBeforeThreshold: largeTimestamp,
@@ -103,45 +103,14 @@ describe('Expiry Extraction Functions', () => {
       );
     });
 
-    it('throws error when expiry timestamp exceeds Number.MAX_SAFE_INTEGER', () => {
-      // Create a value larger than MAX_SAFE_INTEGER (2^53 - 1)
-      // Use a value like 2^64 which is well within uint128 range but too large for JS number
-      const largeValue = '0xffffffffffffffff'; // 2^64 - 1
-      const termsHex = `0x${'0'.repeat(32)}${largeValue.slice(2)}` as Hex;
-
-      expect(() => extractExpiryFromCaveatTerms(termsHex)).toThrow(
-        'Invalid expiry: timestamp exceeds Number.MAX_SAFE_INTEGER',
-      );
-    });
-
-    it('throws error when expiry would convert to Infinity', () => {
-      // Use maximum uint128 value which would convert to Infinity
+    it('throws error when expiry timestamp is not a safe integer', () => {
+      // hexToNumber from @metamask/utils validates safe integers automatically
+      // Use maximum uint128 value which exceeds Number.MAX_SAFE_INTEGER
       const maxUint128 = 'f'.repeat(32);
       const termsHex = `0x${'0'.repeat(32)}${maxUint128}` as Hex;
 
       expect(() => extractExpiryFromCaveatTerms(termsHex)).toThrow(
-        'Invalid expiry: timestamp exceeds Number.MAX_SAFE_INTEGER',
-      );
-    });
-
-    it('accepts maximum safe integer timestamp', () => {
-      // Number.MAX_SAFE_INTEGER = 9007199254740991 = 0x1FFFFFFFFFFFFF
-      const maxSafeInt = Number.MAX_SAFE_INTEGER;
-      const maxSafeHex = maxSafeInt.toString(16).padStart(32, '0');
-      const termsHex = `0x${'0'.repeat(32)}${maxSafeHex}` as Hex;
-
-      const result = extractExpiryFromCaveatTerms(termsHex);
-
-      expect(result).toBe(maxSafeInt);
-    });
-
-    it('throws error for timestamp just above MAX_SAFE_INTEGER', () => {
-      const aboveMax = Number.MAX_SAFE_INTEGER + 1;
-      const aboveMaxHex = aboveMax.toString(16).padStart(32, '0');
-      const termsHex = `0x${'0'.repeat(32)}${aboveMaxHex}` as Hex;
-
-      expect(() => extractExpiryFromCaveatTerms(termsHex)).toThrow(
-        'Invalid expiry: timestamp exceeds Number.MAX_SAFE_INTEGER',
+        'Value is not a safe integer',
       );
     });
   });

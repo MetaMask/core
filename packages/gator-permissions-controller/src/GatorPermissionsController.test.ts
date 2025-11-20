@@ -21,10 +21,9 @@ import type { SnapId } from '@metamask/snaps-sdk';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { hexToBigInt, numberToHex, type Hex } from '@metamask/utils';
 
+import { DELEGATION_FRAMEWORK_VERSION } from './constants';
 import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController';
-import GatorPermissionsController, {
-  DELEGATION_FRAMEWORK_VERSION,
-} from './GatorPermissionsController';
+import GatorPermissionsController from './GatorPermissionsController';
 import {
   mockCustomPermissionStorageEntry,
   mockErc20TokenPeriodicStorageEntry,
