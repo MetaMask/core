@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [90.0.0]
 
+### Added
+
+- Added optional filtering of Tron staking tokens (energy, bandwidth) in asset selectors `selectAssetsBySelectedAccountGroup` (defaults to `true`) ([#7198](https://github.com/MetaMask/core/pull/7198))
+
 ### Changed
 
 - Bump `@metamask/polling-controller` from `^15.0.0` to `^16.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
