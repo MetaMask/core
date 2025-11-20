@@ -206,11 +206,8 @@ export class UserProfileController extends StaticIntervalPollingController()<
       )) {
         await this.messenger.call('UserProfileService:updateProfile', {
           metametricsId: this.#getMetaMetricsId(),
-          accounts: accounts.map((address) => ({
-            address,
-            entropySourceId:
-              entropySourceId === 'null' ? null : entropySourceId,
-          })),
+          entropySourceId: entropySourceId === 'null' ? null : entropySourceId,
+          accounts,
         });
         this.update((state) => {
           delete state.syncQueue[entropySourceId];

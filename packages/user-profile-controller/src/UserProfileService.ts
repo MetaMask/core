@@ -21,10 +21,8 @@ export const serviceName = 'UserProfileService';
  */
 export type UserProfileUpdateRequest = {
   metametricsId: string;
-  accounts: {
-    address: string;
-    entropySourceId?: string | null;
-  }[];
+  entropySourceId?: string | null;
+  accounts: string[];
 };
 
 // === MESSENGER ===
