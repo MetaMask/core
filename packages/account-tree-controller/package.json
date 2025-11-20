@@ -1,6 +1,6 @@
 {
   "name": "@metamask/account-tree-controller",
-  "version": "4.0.0",
+  "version": "3.0.0",
   "description": "Controller to group account together based on some pre-defined rules",
   "keywords": [
     "MetaMask",
@@ -59,12 +59,12 @@
   },
   "devDependencies": {
     "@metamask/account-api": "^0.12.0",
-    "@metamask/accounts-controller": "^35.0.0",
+    "@metamask/accounts-controller": "^34.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-api": "^21.0.0",
-    "@metamask/keyring-controller": "^25.0.0",
-    "@metamask/multichain-account-service": "^4.0.0",
-    "@metamask/profile-sync-controller": "^27.0.0",
+    "@metamask/keyring-controller": "^24.0.0",
+    "@metamask/multichain-account-service": "^3.0.0",
+    "@metamask/profile-sync-controller": "^26.0.0",
     "@metamask/providers": "^22.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
     "@ts-bridge/cli": "^0.6.4",
@@ -79,10 +79,10 @@
   },
   "peerDependencies": {
     "@metamask/account-api": "^0.12.0",
-    "@metamask/accounts-controller": "^35.0.0",
-    "@metamask/keyring-controller": "^25.0.0",
-    "@metamask/multichain-account-service": "^4.0.0",
-    "@metamask/profile-sync-controller": "^27.0.0",
+    "@metamask/accounts-controller": "^34.0.0",
+    "@metamask/keyring-controller": "^24.0.0",
+    "@metamask/multichain-account-service": "^3.0.0",
+    "@metamask/profile-sync-controller": "^26.0.0",
     "@metamask/providers": "^22.0.0",
     "@metamask/snaps-controllers": "^14.0.0",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"

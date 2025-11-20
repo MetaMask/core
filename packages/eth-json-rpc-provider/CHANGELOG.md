@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [6.0.0]
-
 ### Added
 
 - Add `providerFromMiddlewareV2` ([#7001](https://github.com/MetaMask/core/pull/7001))
@@ -18,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - **BREAKING:** Replace `SafeEventEmitterProvider` with `InternalProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
   - The new class is behaviorally equivalent to the previous version except it does not extend `SafeEventEmitter`.
   - `SafeEventEmitterProvider` is for now still exported as a deprecated alias of `InternalProvider` for backwards compatibility.
@@ -235,8 +232,7 @@ Release `v2.0.0` is identical to `v1.0.1` aside from Node.js version requirement
 
 - Initial release, including `providerFromEngine` and `providerFromMiddleware`.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@6.0.0...HEAD
-[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@5.0.1...@metamask/eth-json-rpc-provider@6.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@5.0.1...HEAD
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@5.0.0...@metamask/eth-json-rpc-provider@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.8...@metamask/eth-json-rpc-provider@5.0.0
 [4.1.8]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.7...@metamask/eth-json-rpc-provider@4.1.8
