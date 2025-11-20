@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [41.0.0]
+
+### Changed
+
+- Bump `@metamask/polling-controller` from `^15.0.0` to `^16.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^61.0.0` to `^62.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/gas-fee-controller` from `^25.0.0` to `^26.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
 ## [40.0.0]
 
 ### Changed
@@ -489,7 +500,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@40.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.0.0...HEAD
+[41.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@40.0.0...@metamask/user-operation-controller@41.0.0
 [40.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.2.1...@metamask/user-operation-controller@40.0.0
 [39.2.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.2.0...@metamask/user-operation-controller@39.2.1
 [39.2.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.1.0...@metamask/user-operation-controller@39.2.0

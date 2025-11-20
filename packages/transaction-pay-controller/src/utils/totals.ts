@@ -75,6 +75,10 @@ export function calculateTotals({
     sumProperty(quotes, (quote) => quote.estimatedDuration),
   );
 
+  const isSourceGasFeeToken = quotes.some(
+    (quote) => quote.fees.isSourceGasFeeToken,
+  );
+
   const isTargetGasFeeToken =
     targetNetworkFee.isGasFeeToken ||
     quotes.some((quote) => quote.fees.isTargetGasFeeToken);
@@ -82,6 +86,7 @@ export function calculateTotals({
   return {
     estimatedDuration,
     fees: {
+      isSourceGasFeeToken,
       isTargetGasFeeToken,
       provider: providerFee,
       sourceNetwork: {

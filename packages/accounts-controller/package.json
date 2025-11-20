@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "34.0.0",
+  "version": "35.0.0",
   "description": "Manages internal accounts",
   "keywords": [
     "MetaMask",
@@ -67,9 +67,9 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/controller-utils": "^11.15.0",
-    "@metamask/keyring-controller": "^24.0.0",
-    "@metamask/network-controller": "^25.0.0",
+    "@metamask/controller-utils": "^11.16.0",
+    "@metamask/keyring-controller": "^25.0.0",
+    "@metamask/network-controller": "^26.0.0",
     "@metamask/providers": "^22.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
     "@ts-bridge/cli": "^0.6.4",
@@ -83,8 +83,8 @@
     "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^24.0.0",
-    "@metamask/network-controller": "^25.0.0",
+    "@metamask/keyring-controller": "^25.0.0",
+    "@metamask/network-controller": "^26.0.0",
     "@metamask/providers": "^22.0.0",
     "@metamask/snaps-controllers": "^14.0.0",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
