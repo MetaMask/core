@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `TransactionController:getGasFeeTokens` messenger action ([#7197](https://github.com/MetaMask/core/pull/7197))
+  - Add `TransactionControllerGetGasFeeTokensAction` and `GetGasFeeTokensRequest` types.
+
 ### Fixed
 
 - Always run `beforeSign` hook even if using `gasFeeToken` and `isGasFeeTokenIgnoredIfBalance` ([#7172](https://github.com/MetaMask/core/pull/7172))
