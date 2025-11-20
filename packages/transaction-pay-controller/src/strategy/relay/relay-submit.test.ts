@@ -177,7 +177,21 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('adds batch transaction if multiple params', async () => {
+    it('adds transaction with gas fee token if isSourceGasFeeToken', async () => {
+      request.quotes[0].fees.isSourceGasFeeToken = true;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          gasFeeToken: TOKEN_ADDRESS_MOCK,
+        }),
+      );
+    });
+
+    it('adds transaction batch if multiple params', async () => {
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
       });
@@ -210,6 +224,23 @@ describe('Relay Submit Utils', () => {
           },
         ],
       });
+    });
+
+    it('adds transaction batch with gas fee token if isSourceGasFeeToken', async () => {
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      request.quotes[0].fees.isSourceGasFeeToken = true;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gasFeeToken: TOKEN_ADDRESS_MOCK,
+        }),
+      );
     });
 
     it('adds transaction if params missing', async () => {

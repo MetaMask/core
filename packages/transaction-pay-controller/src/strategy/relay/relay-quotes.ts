@@ -419,58 +419,60 @@ async function calculateSourceNetworkCost(
     getNativeToken(sourceChainId),
   );
 
-  if (nativeBalance && new BigNumber(nativeBalance).isLessThan(max.raw)) {
-    log('Checking gas fee tokens as insufficient native balance', {
-      nativeBalance,
-      max: max.raw,
-    });
-
-    const gasFeeTokens = await messenger.call(
-      'TransactionController:getGasFeeTokens',
-      {
-        chainId: sourceChainId,
-        data,
-        from,
-        to,
-        value: toHex(value ?? '0'),
-      },
-    );
-
-    log('Source gas fee tokens', { gasFeeTokens });
-
-    const gasFeeToken = gasFeeTokens.find(
-      (t) => t.tokenAddress.toLowerCase() === sourceTokenAddress.toLowerCase(),
-    );
-
-    if (!gasFeeToken) {
-      log('No matching gas fee token found', {
-        sourceTokenAddress,
-        gasFeeTokens,
-      });
-
-      return { estimate, max };
-    }
-
-    const gasFeeTokenCost = calculateGasFeeTokenCost({
-      chainId: sourceChainId,
-      gasFeeToken,
-      messenger,
-    });
-
-    if (gasFeeTokenCost) {
-      log('Using gas fee token for source network', {
-        gasFeeTokenCost,
-      });
-
-      return {
-        isGasFeeToken: true,
-        estimate: gasFeeTokenCost,
-        max: gasFeeTokenCost,
-      };
-    }
+  if (new BigNumber(nativeBalance).isGreaterThanOrEqualTo(max.raw)) {
+    return { estimate, max };
   }
 
-  return { estimate, max };
+  log('Checking gas fee tokens as insufficient native balance', {
+    nativeBalance,
+    max: max.raw,
+  });
+
+  const gasFeeTokens = await messenger.call(
+    'TransactionController:getGasFeeTokens',
+    {
+      chainId: sourceChainId,
+      data,
+      from,
+      to,
+      value: toHex(value ?? '0'),
+    },
+  );
+
+  log('Source gas fee tokens', { gasFeeTokens });
+
+  const gasFeeToken = gasFeeTokens.find(
+    (t) => t.tokenAddress.toLowerCase() === sourceTokenAddress.toLowerCase(),
+  );
+
+  if (!gasFeeToken) {
+    log('No matching gas fee token found', {
+      sourceTokenAddress,
+      gasFeeTokens,
+    });
+
+    return { estimate, max };
+  }
+
+  const gasFeeTokenCost = calculateGasFeeTokenCost({
+    chainId: sourceChainId,
+    gasFeeToken,
+    messenger,
+  });
+
+  if (!gasFeeTokenCost) {
+    return { estimate, max };
+  }
+
+  log('Using gas fee token for source network', {
+    gasFeeTokenCost,
+  });
+
+  return {
+    isGasFeeToken: true,
+    estimate: gasFeeTokenCost,
+    max: gasFeeTokenCost,
+  };
 }
 
 /**

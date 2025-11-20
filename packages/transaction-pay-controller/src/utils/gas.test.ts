@@ -2,7 +2,11 @@ import { toHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { clone, cloneDeep } from 'lodash';
 
-import { calculateGasCost, calculateTransactionGasCost } from './gas';
+import {
+  calculateGasCost,
+  calculateGasFeeTokenCost,
+  calculateTransactionGasCost,
+} from './gas';
 import { getTokenBalance, getTokenFiatRate, getTokenInfo } from './token';
 import type { GasFeeEstimates } from '../../../gas-fee-controller/src';
 import type {
@@ -382,6 +386,48 @@ describe('Gas Utils', () => {
         raw: '136500000000000',
         usd: '0.546',
       });
+    });
+  });
+
+  describe('calculateGasFeeTokenCost', () => {
+    it('returns gas fee token cost', () => {
+      const result = calculateGasFeeTokenCost({
+        chainId: CHAIN_ID_MOCK,
+        gasFeeToken: GAS_FEE_TOKEN_MOCK,
+        messenger,
+      });
+
+      expect(result).toStrictEqual({
+        isGasFeeToken: true,
+        fiat: '2460',
+        human: '1.23',
+        raw: '1230000',
+        usd: '4920',
+      });
+    });
+
+    it('returns undefined if token info is unavailable', () => {
+      getTokenInfoMock.mockReturnValue(undefined);
+
+      const result = calculateGasFeeTokenCost({
+        chainId: CHAIN_ID_MOCK,
+        gasFeeToken: GAS_FEE_TOKEN_MOCK,
+        messenger,
+      });
+
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined if fiat rate is unavailable', () => {
+      getTokenFiatRateMock.mockReturnValue(undefined);
+
+      const result = calculateGasFeeTokenCost({
+        chainId: CHAIN_ID_MOCK,
+        gasFeeToken: GAS_FEE_TOKEN_MOCK,
+        messenger,
+      });
+
+      expect(result).toBeUndefined();
     });
   });
 });
