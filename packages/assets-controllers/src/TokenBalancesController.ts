@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountsControllerGetSelectedAccountAction,
@@ -303,6 +304,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       state: { tokenBalances: {}, ...state },
     });
 
+    // Normalize all account addresses to lowercase in existing state
+    this.#normalizeAccountAddresses();
+
     this.#platform = platform ?? 'extension';
     this.#queryAllAccounts = queryMultipleAccounts;
     this.#accountsApiChainIds = accountsApiChainIds;
@@ -361,7 +365,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     // Subscribe to AccountActivityService balance updates for real-time updates
     this.messenger.subscribe(
       'AccountActivityService:balanceUpdated',
-      this.#onAccountActivityBalanceUpdate.bind(this),
+      (event) => {
+        this.#onAccountActivityBalanceUpdate(event).catch((error) => {
+          console.warn('Error handling balance update:', error);
+        });
+      },
     );
 
     // Subscribe to AccountActivityService status changes for dynamic polling management
@@ -369,6 +377,54 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       'AccountActivityService:statusChanged',
       this.#onAccountActivityStatusChanged.bind(this),
     );
+  }
+
+  /**
+   * Normalize all account addresses to lowercase and merge duplicates
+   * This handles migration from old state where addresses might be checksummed
+   */
+  #normalizeAccountAddresses() {
+    const currentState = this.state.tokenBalances;
+    const normalizedBalances: TokenBalances = {};
+
+    // Iterate through all accounts and normalize to lowercase
+    for (const address of Object.keys(currentState)) {
+      const lowercaseAddress = address.toLowerCase() as ChecksumAddress;
+      const accountBalances = currentState[address as ChecksumAddress];
+
+      if (!accountBalances) {
+        continue;
+      }
+
+      // If this lowercase address doesn't exist yet, create it
+      if (!normalizedBalances[lowercaseAddress]) {
+        normalizedBalances[lowercaseAddress] = {};
+      }
+
+      // Merge chain data
+      for (const chainId of Object.keys(accountBalances)) {
+        const chainIdKey = chainId as ChainIdHex;
+
+        if (!normalizedBalances[lowercaseAddress][chainIdKey]) {
+          normalizedBalances[lowercaseAddress][chainIdKey] = {};
+        }
+
+        // Merge token balances (later values override earlier ones if duplicates exist)
+        Object.assign(
+          normalizedBalances[lowercaseAddress][chainIdKey],
+          accountBalances[chainIdKey],
+        );
+      }
+    }
+
+    // Only update if there were changes
+    if (
+      Object.keys(currentState).length !==
+        Object.keys(normalizedBalances).length ||
+      Object.keys(currentState).some((addr) => addr !== addr.toLowerCase())
+    ) {
+      this.update(() => ({ tokenBalances: normalizedBalances }));
+    }
   }
 
   #chainIdsWithTokens(): ChainIdHex[] {
@@ -708,53 +764,65 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       // Initialize account and chain structures if they don't exist, but preserve existing balances
       for (const chainId of targetChains) {
         for (const account of accountsToProcess) {
+          const lowercaseAccount = account.toLowerCase();
           // Ensure the nested structure exists without overwriting existing balances
-          d.tokenBalances[account] ??= {};
-          d.tokenBalances[account][chainId] ??= {};
+          d.tokenBalances[lowercaseAccount as any] ??= {};
+          d.tokenBalances[lowercaseAccount as any][chainId] ??= {};
           // Initialize tokens from allTokens only if they don't exist yet
           const chainTokens = this.#allTokens[chainId];
-          if (chainTokens?.[account]) {
-            Object.values(chainTokens[account]).forEach(
+          if (chainTokens?.[lowercaseAccount]) {
+            Object.values(chainTokens[lowercaseAccount]).forEach(
               (token: { address: string }) => {
                 const tokenAddress = checksum(token.address);
                 // Only initialize if the token balance doesn't exist yet
-                if (!(tokenAddress in d.tokenBalances[account][chainId])) {
-                  d.tokenBalances[account][chainId][tokenAddress] = '0x0';
+                if (
+                  !(
+                    tokenAddress in
+                    d.tokenBalances[lowercaseAccount as any][chainId]
+                  )
+                ) {
+                  d.tokenBalances[lowercaseAccount as any][chainId][
+                    tokenAddress
+                  ] = '0x0';
                 }
               },
             );
           }
-
           // Initialize tokens from allDetectedTokens only if they don't exist yet
           const detectedChainTokens = this.#detectedTokens[chainId];
-          if (detectedChainTokens?.[account]) {
-            Object.values(detectedChainTokens[account]).forEach(
+          if (detectedChainTokens?.[lowercaseAccount]) {
+            Object.values(detectedChainTokens[lowercaseAccount]).forEach(
               (token: { address: string }) => {
                 const tokenAddress = checksum(token.address);
                 // Only initialize if the token balance doesn't exist yet
-                if (!(tokenAddress in d.tokenBalances[account][chainId])) {
-                  d.tokenBalances[account][chainId][tokenAddress] = '0x0';
+                if (
+                  !(
+                    tokenAddress in
+                    d.tokenBalances[lowercaseAccount as any][chainId]
+                  )
+                ) {
+                  d.tokenBalances[lowercaseAccount as any][chainId][
+                    tokenAddress
+                  ] = '0x0';
                 }
               },
             );
           }
         }
       }
-
       // Update with actual fetched balances only if the value has changed
       aggregated.forEach(({ success, value, account, token, chainId }) => {
         if (success && value !== undefined) {
+          const lowercaseAccount = (account as string).toLowerCase();
           const newBalance = toHex(value);
           const tokenAddress = checksum(token);
           const currentBalance =
-            d.tokenBalances[account as ChecksumAddress]?.[chainId]?.[
-              tokenAddress
-            ];
-
+            d.tokenBalances[lowercaseAccount as any]?.[chainId]?.[tokenAddress];
           // Only update if the balance has actually changed
           if (currentBalance !== newBalance) {
-            ((d.tokenBalances[account as ChecksumAddress] ??= {})[chainId] ??=
-              {})[tokenAddress] = newBalance;
+            ((d.tokenBalances[lowercaseAccount as any] ??= {})[chainId] ??= {})[
+              tokenAddress
+            ] = newBalance;
           }
         }
       });
@@ -1019,7 +1087,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       return;
     }
     this.update((s) => {
-      delete s.tokenBalances[addr as ChecksumAddress];
+      const lowercaseAddr = addr.toLowerCase() as ChecksumAddress;
+      delete s.tokenBalances[lowercaseAddr];
     });
   };
 
