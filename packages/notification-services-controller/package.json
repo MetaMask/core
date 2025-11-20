@@ -112,7 +112,7 @@
   "dependencies": {
     "@contentful/rich-text-html-renderer": "^16.5.2",
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.15.1",
+    "@metamask/controller-utils": "^11.16.0",
     "@metamask/messenger": "^0.3.0",
     "@metamask/utils": "^11.8.1",
     "bignumber.js": "^9.1.2",

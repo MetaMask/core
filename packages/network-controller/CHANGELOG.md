@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Migrate `NetworkClient` to `JsonRpcEngineV2` ([#7065](https://github.com/MetaMask/core/pull/7065))
   - This ought to be unobservable, but we mark it as breaking out of an abundance of caution.
 - **BREAKING:** Update signature of `request` in `AbstractRpcService` and `RpcServiceRequestable` so that the JSON-RPC request must be frozen ([#7138](https://github.com/MetaMask/core/pull/7138))
-- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.15.1` ([#7003](https://github.com/MetaMask/core/pull/7003), [#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7003](https://github.com/MetaMask/core/pull/7003), [#7202](https://github.com/MetaMask/core/pull/7202))
 
 ### Fixed
 
