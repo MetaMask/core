@@ -53,7 +53,7 @@
     "@metamask/controller-utils": "^11.16.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/polling-controller": "^15.0.1",
+    "@metamask/polling-controller": "^16.0.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.8.1",
