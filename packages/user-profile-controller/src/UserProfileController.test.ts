@@ -24,7 +24,14 @@ function createMockAccount(address: string): InternalAccount {
   return {
     id: `id-${address}`,
     address,
-    options: {},
+    options: {
+      entropy: {
+        id: `entropy-${address}`,
+        type: 'mnemonic',
+        derivationPath: '',
+        groupIndex: 0,
+      },
+    },
     methods: [],
     scopes: [],
     type: 'any:account',
@@ -67,8 +74,14 @@ describe('UserProfileController', () => {
 
               expect(controller.state.firstSyncCompleted).toBe(true);
               expect(controller.state.syncQueue).toStrictEqual([
-                '0xAccount1',
-                '0xAccount2',
+                {
+                  address: '0xAccount1',
+                  entropySourceId: 'entropy-0xAccount1',
+                },
+                {
+                  address: '0xAccount2',
+                  entropySourceId: 'entropy-0xAccount2',
+                },
               ]);
             },
           );
@@ -148,7 +161,12 @@ describe('UserProfileController', () => {
             // Wait for async operations to complete.
             await Promise.resolve();
 
-            expect(controller.state.syncQueue).toStrictEqual(['0xNewAccount']);
+            expect(controller.state.syncQueue).toStrictEqual([
+              {
+                address: '0xNewAccount',
+                entropySourceId: 'entropy-0xNewAccount',
+              },
+            ]);
           },
         );
       });
@@ -175,7 +193,10 @@ describe('UserProfileController', () => {
 
   describe('polling', () => {
     it('processes the sync queue on each poll', async () => {
-      const accounts = ['0xAccount1', '0xAccount2'];
+      const accounts = [
+        { address: '0xAccount1', entropySourceId: 'id1' },
+        { address: '0xAccount2', entropySourceId: 'id2' },
+      ];
       await withController(
         {
           options: { interval: 1000, state: { syncQueue: accounts } },
@@ -194,7 +215,7 @@ describe('UserProfileController', () => {
           expect(mockUpdateProfile).toHaveBeenCalledTimes(1);
           expect(mockUpdateProfile).toHaveBeenCalledWith({
             metametricsId: getMetaMetricsId(),
-            accounts: ['0xAccount1', '0xAccount2'],
+            accounts,
           });
           expect(controller.state.syncQueue).toStrictEqual([]);
         },

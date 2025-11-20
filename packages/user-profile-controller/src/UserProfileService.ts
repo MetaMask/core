@@ -21,7 +21,10 @@ export const serviceName = 'UserProfileService';
  */
 export type UserProfileUpdateRequest = {
   metametricsId: string;
-  accounts: string[];
+  accounts: {
+    address: string;
+    entropySourceId?: string;
+  }[];
 };
 
 // === MESSENGER ===

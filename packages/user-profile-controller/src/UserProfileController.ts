@@ -27,7 +27,10 @@ export const controllerName = 'UserProfileController';
  */
 export type UserProfileControllerState = {
   firstSyncCompleted: boolean;
-  syncQueue: string[];
+  syncQueue: {
+    entropySourceId?: string;
+    address: string;
+  }[];
 };
 
 /**
@@ -232,7 +235,10 @@ export class UserProfileController extends StaticIntervalPollingController()<
       }
       const accounts = this.messenger
         .call('AccountsController:listAccounts')
-        .map((account) => account.address);
+        .map((account) => ({
+          entropySourceId: getAccountEntropySourceId(account),
+          address: account.address,
+        }));
       this.update((state) => {
         state.firstSyncCompleted = true;
         state.syncQueue.push(...accounts);
@@ -251,8 +257,26 @@ export class UserProfileController extends StaticIntervalPollingController()<
         return;
       }
       this.update((state) => {
-        state.syncQueue.push(account.address);
+        state.syncQueue.push({
+          entropySourceId: getAccountEntropySourceId(account),
+          address: account.address,
+        });
       });
     });
   }
+}
+
+/**
+ * Retrieves the entropy source ID from the given account, if it exists.
+ *
+ * @param account - The account from which to retrieve the entropy source ID.
+ * @returns The entropy source ID, or undefined if it does not exist.
+ */
+function getAccountEntropySourceId(
+  account: InternalAccount,
+): string | undefined {
+  if (account.options.entropy && account.options.entropy.type === 'mnemonic') {
+    return account.options.entropy.id;
+  }
+  return undefined;
 }
