@@ -9,7 +9,7 @@ jobs:
     name: Check Changelog
     runs-on: ubuntu-latest
     steps:
-      - uses: MetaMask/github-tools/.github/actions/changelog-check@dd2d882d8cdc94e9d3d55636df05cb22de63f633
+      - uses: MetaMask/github-tools/.github/actions/changelog-check@a331f87d15712e9dd9749757ff0c78b0523f8fc9
         with:
           base-branch: ${{ github.event.pull_request.base.ref }}
           head-ref: ${{ github.head_ref }}
