@@ -2446,15 +2446,6 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
     webextension-polyfill: "npm:^0.12.0"
-  peerDependencies:
-    "@metamask/account-api": ^0.12.0
-    "@metamask/accounts-controller": ^35.0.0
-    "@metamask/keyring-controller": ^25.0.0
-    "@metamask/multichain-account-service": ^4.0.0
-    "@metamask/profile-sync-controller": ^27.0.0
-    "@metamask/providers": ^22.0.0
-    "@metamask/snaps-controllers": ^14.0.0
-    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
 
@@ -2493,12 +2484,6 @@ __metadata:
     typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
     webextension-polyfill: "npm:^0.12.0"
-  peerDependencies:
-    "@metamask/keyring-controller": ^25.0.0
-    "@metamask/network-controller": ^26.0.0
-    "@metamask/providers": ^22.0.0
-    "@metamask/snaps-controllers": ^14.0.0
-    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
 
@@ -2698,20 +2683,6 @@ __metadata:
     typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
     webextension-polyfill: "npm:^0.12.0"
-  peerDependencies:
-    "@metamask/account-tree-controller": ^4.0.0
-    "@metamask/accounts-controller": ^35.0.0
-    "@metamask/approval-controller": ^8.0.0
-    "@metamask/core-backend": ^5.0.0
-    "@metamask/keyring-controller": ^25.0.0
-    "@metamask/network-controller": ^26.0.0
-    "@metamask/permission-controller": ^12.0.0
-    "@metamask/phishing-controller": ^16.0.0
-    "@metamask/preferences-controller": ^22.0.0
-    "@metamask/providers": ^22.0.0
-    "@metamask/snaps-controllers": ^14.0.0
-    "@metamask/transaction-controller": ^62.0.0
-    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
 
@@ -2854,13 +2825,6 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
-  peerDependencies:
-    "@metamask/accounts-controller": ^35.0.0
-    "@metamask/assets-controllers": ^91.0.0
-    "@metamask/network-controller": ^26.0.0
-    "@metamask/remote-feature-flag-controller": ^2.0.0
-    "@metamask/snaps-controllers": ^14.0.0
-    "@metamask/transaction-controller": ^62.0.0
   languageName: unknown
   linkType: soft
 
@@ -2893,13 +2857,6 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
-  peerDependencies:
-    "@metamask/accounts-controller": ^35.0.0
-    "@metamask/bridge-controller": ^63.0.0
-    "@metamask/gas-fee-controller": ^26.0.0
-    "@metamask/network-controller": ^26.0.0
-    "@metamask/snaps-controllers": ^14.0.0
-    "@metamask/transaction-controller": ^62.0.0
   languageName: unknown
   linkType: soft
 
@@ -3033,8 +2990,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@babel/runtime": ^7.0.0
   languageName: unknown
   linkType: soft
 
@@ -3059,9 +3014,6 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
-  peerDependencies:
-    "@metamask/accounts-controller": ^35.0.0
-    "@metamask/keyring-controller": ^25.0.0
   languageName: unknown
   linkType: soft
 
@@ -3165,9 +3117,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/accounts-controller": ^35.0.0
-    "@metamask/keyring-controller": ^25.0.0
   languageName: unknown
   linkType: soft
 
@@ -3213,9 +3162,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/account-tree-controller": ^4.0.0
-    "@metamask/network-controller": ^26.0.0
   languageName: unknown
   linkType: soft
 
@@ -3307,8 +3253,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/network-controller": ^26.0.0
   languageName: unknown
   linkType: soft
 
@@ -3785,9 +3729,6 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
-  peerDependencies:
-    "@babel/runtime": ^7.0.0
-    "@metamask/network-controller": ^26.0.0
   languageName: unknown
   linkType: soft
 
@@ -3816,9 +3757,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/snaps-controllers": ^14.0.1
-    "@metamask/transaction-controller": ^62.0.0
   languageName: unknown
   linkType: soft
 
@@ -4109,14 +4047,6 @@ __metadata:
     typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
     webextension-polyfill: "npm:^0.12.0"
-  peerDependencies:
-    "@metamask/account-api": ^0.12.0
-    "@metamask/accounts-controller": ^35.0.0
-    "@metamask/error-reporting-service": ^3.0.0
-    "@metamask/keyring-controller": ^25.0.0
-    "@metamask/providers": ^22.0.0
-    "@metamask/snaps-controllers": ^14.0.0
-    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
 
@@ -4179,9 +4109,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/accounts-controller": ^35.0.0
-    "@metamask/network-controller": ^26.0.0
   languageName: unknown
   linkType: soft
 
@@ -4213,9 +4140,6 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
-  peerDependencies:
-    "@metamask/accounts-controller": ^35.0.0
-    "@metamask/snaps-controllers": ^14.0.0
   languageName: unknown
   linkType: soft
 
@@ -4284,8 +4208,6 @@ __metadata:
     typescript: "npm:~5.3.3"
     uri-js: "npm:^4.4.1"
     uuid: "npm:^8.3.2"
-  peerDependencies:
-    "@metamask/error-reporting-service": ^3.0.0
   languageName: unknown
   linkType: soft
 
@@ -4312,10 +4234,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/multichain-network-controller": ^3.0.0
-    "@metamask/network-controller": ^26.0.0
-    "@metamask/transaction-controller": ^62.0.0
   languageName: unknown
   linkType: soft
 
@@ -4363,9 +4281,6 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
-  peerDependencies:
-    "@metamask/keyring-controller": ^25.0.0
-    "@metamask/profile-sync-controller": ^27.0.0
   languageName: unknown
   linkType: soft
 
@@ -4432,8 +4347,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/approval-controller": ^8.0.0
   languageName: unknown
   linkType: soft
 
@@ -4499,8 +4412,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/transaction-controller": ^62.0.0
   languageName: unknown
   linkType: soft
 
@@ -4525,8 +4436,6 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
-  peerDependencies:
-    "@metamask/network-controller": ^26.0.0
   languageName: unknown
   linkType: soft
 
@@ -4559,8 +4468,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/keyring-controller": ^25.0.0
   languageName: unknown
   linkType: soft
 
@@ -4599,12 +4506,6 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
     webextension-polyfill: "npm:^0.12.0"
-  peerDependencies:
-    "@metamask/address-book-controller": ^7.0.1
-    "@metamask/keyring-controller": ^25.0.0
-    "@metamask/providers": ^22.0.0
-    "@metamask/snaps-controllers": ^14.0.0
-    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
 
@@ -4709,8 +4610,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/network-controller": ^26.0.0
   languageName: unknown
   linkType: soft
 
@@ -4754,8 +4653,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/keyring-controller": ^25.0.0
   languageName: unknown
   linkType: soft
 
@@ -4783,9 +4680,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/network-controller": ^26.0.0
-    "@metamask/permission-controller": ^12.0.0
   languageName: unknown
   linkType: soft
 
@@ -4814,9 +4708,6 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
-  peerDependencies:
-    "@metamask/signature-controller": ^37.0.0
-    "@metamask/transaction-controller": ^62.0.0
   languageName: unknown
   linkType: soft
 
@@ -4847,13 +4738,6 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
-  peerDependencies:
-    "@metamask/accounts-controller": ^35.0.0
-    "@metamask/approval-controller": ^8.0.0
-    "@metamask/gator-permissions-controller": ^0.6.0
-    "@metamask/keyring-controller": ^25.0.0
-    "@metamask/logging-controller": ^7.0.0
-    "@metamask/network-controller": ^26.0.0
   languageName: unknown
   linkType: soft
 
@@ -5007,8 +4891,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/profile-sync-controller": ^27.0.0
   languageName: unknown
   linkType: soft
 
@@ -5113,14 +4995,6 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
-  peerDependencies:
-    "@babel/runtime": ^7.0.0
-    "@metamask/accounts-controller": ^35.0.0
-    "@metamask/approval-controller": ^8.0.0
-    "@metamask/eth-block-tracker": ">=9"
-    "@metamask/gas-fee-controller": ^26.0.0
-    "@metamask/network-controller": ^26.0.0
-    "@metamask/remote-feature-flag-controller": ^2.0.0
   languageName: unknown
   linkType: soft
 
@@ -5155,14 +5029,6 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/assets-controllers": ^91.0.0
-    "@metamask/bridge-controller": ^63.0.0
-    "@metamask/bridge-status-controller": ^63.0.0
-    "@metamask/gas-fee-controller": ^26.0.0
-    "@metamask/network-controller": ^26.0.0
-    "@metamask/remote-feature-flag-controller": ^2.0.0
-    "@metamask/transaction-controller": ^62.0.0
   languageName: unknown
   linkType: soft
 
@@ -5197,13 +5063,6 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
-  peerDependencies:
-    "@metamask/approval-controller": ^8.0.0
-    "@metamask/eth-block-tracker": ">=9"
-    "@metamask/gas-fee-controller": ^26.0.0
-    "@metamask/keyring-controller": ^25.0.0
-    "@metamask/network-controller": ^26.0.0
-    "@metamask/transaction-controller": ^62.0.0
   languageName: unknown
   linkType: soft
 
