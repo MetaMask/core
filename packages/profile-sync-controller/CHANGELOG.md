@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
-- **BREAKING:** Bump `@metamask/address-book-controller` from `^7.0.0` to `^8.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/address-book-controller` from `^7.0.0` to `^7.0.1` ([#7202](https://github.com/MetaMask/core/pull/7202))
 - Add rate limit (429) handling with automatic retry in authentication flow ([#6993](https://github.com/MetaMask/core/pull/6993))
   - Update authentication services to throw `RateLimitedError` when encountering 429 responses.
   - Improve Authentication errors by adding the HTTP code in error messages.

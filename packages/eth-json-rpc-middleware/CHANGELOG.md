@@ -30,10 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     a request with a later block number than the originally requested block number.
   - In practice, this should happen rarely if ever.
 - **BREAKING:** Migrate all uses of `interface` to `type` ([#6885](https://github.com/MetaMask/core/pull/6885))
-- Bump `@metamask/message-manager` from `^14.0.0` to `^15.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
-- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
-- Bump `@metamask/eth-json-rpc-provider` from `^5.0.1` to `^6.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
-- Bump `@metamask/eth-block-tracker` from `^14.0.0` to `^15.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/message-manager` from `^14.0.0` to `^15.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/eth-json-rpc-provider` from `^5.0.1` to `^6.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/eth-block-tracker` from `^14.0.0` to `^15.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
 
 ## [21.0.0]
 

@@ -115,7 +115,7 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
-    "@metamask/address-book-controller": "^8.0.0",
+    "@metamask/address-book-controller": "^7.0.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-api": "^21.0.0",
     "@metamask/keyring-controller": "^25.0.0",
@@ -136,7 +136,7 @@
     "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {
-    "@metamask/address-book-controller": "^8.0.0",
+    "@metamask/address-book-controller": "^7.0.1",
     "@metamask/keyring-controller": "^25.0.0",
     "@metamask/providers": "^22.0.0",
     "@metamask/snaps-controllers": "^14.0.0",
