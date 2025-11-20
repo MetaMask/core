@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [15.0.0]
+## [14.1.0]
 
 ### Changed
 
@@ -426,8 +426,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@15.0.0...HEAD
-[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@14.0.0...@metamask/message-manager@15.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@14.1.0...HEAD
+[14.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@14.0.0...@metamask/message-manager@14.1.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.2...@metamask/message-manager@14.0.0
 [13.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.1...@metamask/message-manager@13.0.2
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.0...@metamask/message-manager@13.0.1

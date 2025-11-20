@@ -3466,7 +3466,7 @@ __metadata:
     "@metamask/eth-json-rpc-provider": "npm:^6.0.0"
     "@metamask/eth-sig-util": "npm:^8.2.0"
     "@metamask/json-rpc-engine": "npm:^10.2.0"
-    "@metamask/message-manager": "npm:^15.0.0"
+    "@metamask/message-manager": "npm:^14.1.0"
     "@metamask/network-controller": "npm:^26.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/superstruct": "npm:^3.1.0"
@@ -4023,7 +4023,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/message-manager@npm:^15.0.0, @metamask/message-manager@workspace:packages/message-manager":
+"@metamask/message-manager@npm:^14.1.0, @metamask/message-manager@workspace:packages/message-manager":
   version: 0.0.0-use.local
   resolution: "@metamask/message-manager@workspace:packages/message-manager"
   dependencies:
