@@ -1,3 +1,4 @@
+import * as delegationCore from '@metamask/delegation-core';
 import {
   createNativeTokenStreamingTerms,
   createTimestampTerms,
@@ -273,6 +274,18 @@ describe('Expiry Extraction Functions', () => {
       expect(result).toBeNull();
     });
 
+    it('returns null when context contains empty delegation array', () => {
+      const emptyDelegations: never[] = [];
+      const permissionContext = encodeDelegations(emptyDelegations);
+
+      const result = extractExpiryFromPermissionContext(
+        permissionContext,
+        chainIdHex,
+      );
+
+      expect(result).toBeNull();
+    });
+
     it('returns null for invalid permission context', () => {
       const invalidContext = '0x00' as Hex;
 
@@ -340,6 +353,21 @@ describe('Expiry Extraction Functions', () => {
       );
 
       expect(result).toBeNull();
+    });
+
+    it('returns null when delegation array contains undefined element', () => {
+      // This tests the defensive check: if (!delegation)
+      // Mock decodeDelegations to return array with undefined
+      const decodeDelegationsSpy = jest
+        .spyOn(delegationCore, 'decodeDelegations')
+        .mockReturnValueOnce([undefined] as never);
+
+      const context = '0x00' as Hex;
+
+      const result = extractExpiryFromPermissionContext(context, chainIdHex);
+
+      expect(result).toBeNull();
+      decodeDelegationsSpy.mockRestore();
     });
   });
 });
