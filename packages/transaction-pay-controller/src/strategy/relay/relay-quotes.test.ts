@@ -113,6 +113,7 @@ const DELEGATION_RESULT_MOCK = {
 
 const GAS_FEE_TOKEN_MOCK = {
   amount: toHex(1230000),
+  gas: toHex(21000),
   tokenAddress: '0xabc' as Hex,
 } as GasFeeToken;
 
@@ -491,6 +492,38 @@ describe('Relay Quotes Utils', () => {
             usd: '4.45',
           },
         });
+      });
+
+      it('using estimated gas fee token cost if insufficient native balance and batch', async () => {
+        const quote = cloneDeep(QUOTE_MOCK);
+
+        quote.steps[0].items.push({
+          data: {
+            gas: '21000',
+          },
+        } as never);
+
+        successfulFetchMock.mockResolvedValue({
+          json: async () => quote,
+        } as never);
+
+        getTokenBalanceMock.mockReturnValue('1724999999999999');
+        getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+        await getRelayQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(calculateGasFeeTokenCostMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            gasFeeToken: {
+              ...GAS_FEE_TOKEN_MOCK,
+              amount: toHex(1230000 * 2),
+            },
+          }),
+        );
       });
 
       it('not using gas fee token if sufficient native balance', async () => {

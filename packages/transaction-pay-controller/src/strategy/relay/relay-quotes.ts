@@ -454,9 +454,30 @@ async function calculateSourceNetworkCost(
     return { estimate, max };
   }
 
+  let finalAmount = gasFeeToken.amount;
+
+  if (allParams.length > 1) {
+    const gasRate = new BigNumber(gasFeeToken.amount, 16).dividedBy(
+      gasFeeToken.gas,
+      16,
+    );
+
+    const finalAmountValue = gasRate.multipliedBy(totalGasLimit);
+
+    finalAmount = toHex(finalAmountValue.toFixed(0));
+
+    log('Estimated gas fee token amount for batch', {
+      finalAmount: finalAmountValue.toString(10),
+      gasRate: gasRate.toString(10),
+      totalGasLimit,
+    });
+  }
+
+  const finalGasFeeToken = { ...gasFeeToken, amount: finalAmount };
+
   const gasFeeTokenCost = calculateGasFeeTokenCost({
     chainId: sourceChainId,
-    gasFeeToken,
+    gasFeeToken: finalGasFeeToken,
     messenger,
   });
 

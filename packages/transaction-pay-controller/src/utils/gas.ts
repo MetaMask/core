@@ -7,12 +7,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  getNativeToken,
-  getTokenBalance,
-  getTokenFiatRate,
-  getTokenInfo,
-} from './token';
+import { getNativeToken, getTokenBalance, getTokenFiatRate } from './token';
 import type { TransactionPayControllerMessenger } from '..';
 import { createModuleLogger, projectLogger } from '../logger';
 import type { Amount } from '../types';
@@ -176,23 +171,19 @@ export function calculateGasFeeTokenCost({
   gasFeeToken: GasFeeToken;
   messenger: TransactionPayControllerMessenger;
 }): (Amount & { isGasFeeToken?: boolean }) | undefined {
-  const tokenInfo = getTokenInfo(messenger, gasFeeToken.tokenAddress, chainId);
+  const { amount, decimals, tokenAddress } = gasFeeToken;
 
-  const tokenFiatRate = getTokenFiatRate(
-    messenger,
-    gasFeeToken.tokenAddress,
-    chainId,
-  );
+  const tokenFiatRate = getTokenFiatRate(messenger, tokenAddress, chainId);
 
-  if (!tokenFiatRate || !tokenInfo) {
+  if (!tokenFiatRate) {
     log('Cannot get gas fee token info');
     return undefined;
   }
 
-  const rawValue = new BigNumber(gasFeeToken.amount);
+  const rawValue = new BigNumber(amount);
   const raw = rawValue.toString(10);
 
-  const humanValue = rawValue.shiftedBy(-tokenInfo.decimals);
+  const humanValue = rawValue.shiftedBy(-decimals);
   const human = humanValue.toString(10);
 
   const fiat = humanValue.multipliedBy(tokenFiatRate.fiatRate).toString(10);
