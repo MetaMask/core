@@ -100,43 +100,6 @@ describe('UserProfileService', () => {
       expect(updateProfileResponse).toBeUndefined();
     });
 
-    it('throws if there is an unsuccessful response from the API', async () => {
-      nock(defaultBaseEndpoint)
-        .put('/profile/accounts')
-        .reply(200, {
-          data: {
-            success: false,
-          },
-        });
-      const { rootMessenger } = getService();
-
-      await expect(
-        rootMessenger.call(
-          'UserProfileService:updateProfile',
-          createMockRequest(),
-        ),
-      ).rejects.toThrow(
-        'API indicated that the profile update was unsuccessfu',
-      );
-    });
-
-    it.each(['not an object', { missing: 'data' }, { data: 'not an object' }])(
-      'throws if the API returns a malformed response %o',
-      async (response) => {
-        nock(defaultBaseEndpoint)
-          .put('/profile/accounts')
-          .reply(200, JSON.stringify(response));
-        const { rootMessenger } = getService();
-
-        await expect(
-          rootMessenger.call(
-            'UserProfileService:updateProfile',
-            createMockRequest(),
-          ),
-        ).rejects.toThrow('Malformed response received from gas prices API');
-      },
-    );
-
     it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
       nock(defaultBaseEndpoint)
         .put('/profile/accounts')

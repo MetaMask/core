@@ -191,7 +191,7 @@ export class UserProfileService {
       'AuthenticationController:getBearerToken',
       data.entropySourceId || undefined,
     );
-    const response = await this.#policy.execute(async () => {
+    await this.#policy.execute(async () => {
       const url = new URL(`${this.#baseURL}/profile/accounts`);
       const localResponse = await this.#fetch(url, {
         method: 'PUT',
@@ -212,23 +212,5 @@ export class UserProfileService {
       }
       return localResponse;
     });
-    const jsonResponse = await response.json();
-
-    if (
-      isPlainObject(jsonResponse) &&
-      hasProperty(jsonResponse, 'data') &&
-      isPlainObject(jsonResponse.data) &&
-      hasProperty(jsonResponse.data, 'success') &&
-      typeof jsonResponse.data.success === 'boolean'
-    ) {
-      if (!jsonResponse.data.success) {
-        throw new Error(
-          'API indicated that the profile update was unsuccessful',
-        );
-      }
-      return;
-    }
-
-    throw new Error('Malformed response received from gas prices API');
   }
 }
