@@ -21,7 +21,7 @@ import {
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants';
 
 // Maximum number of account addresses that can be sent to the accounts API in a single request
-const ACCOUNTS_API_BATCH_SIZE = 50;
+const ACCOUNTS_API_BATCH_SIZE = 20;
 
 // Timeout for accounts API requests (10 seconds)
 const ACCOUNTS_API_TIMEOUT_MS = 10_000;
