@@ -8475,5 +8475,56 @@ describe('TransactionController', () => {
         expect(controller.state.transactions[0].txParams.value).toBe('0x1');
       });
     });
+
+    describe('TransactionController:getGasFeeTokens', () => {
+      it('returns gas fee tokens', async () => {
+        const { messenger } = setupController();
+
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        const result = await messenger.call(
+          'TransactionController:getGasFeeTokens',
+          {
+            chainId: CHAIN_ID_MOCK,
+            data: DATA_MOCK,
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+            value: VALUE_MOCK,
+          },
+        );
+
+        expect(result).toStrictEqual([GAS_FEE_TOKEN_MOCK]);
+      });
+
+      it('includes delegation address in request', async () => {
+        const { messenger } = setupController();
+
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        getDelegationAddressMock.mockResolvedValue(ACCOUNT_2_MOCK);
+
+        await messenger.call('TransactionController:getGasFeeTokens', {
+          chainId: CHAIN_ID_MOCK,
+          data: DATA_MOCK,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+          value: VALUE_MOCK,
+        });
+
+        expect(getGasFeeTokensMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            transactionMeta: expect.objectContaining({
+              delegationAddress: ACCOUNT_2_MOCK,
+            }),
+          }),
+        );
+      });
+    });
   });
 });
