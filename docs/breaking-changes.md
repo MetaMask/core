@@ -8,20 +8,23 @@ This guide provides best practices for documenting, preparing, releasing, and ad
 
 A change to a package is "breaking" if upgrading a project to a version containing the change would require modifications to source code or configuration in order to avoid user- or developer-facing problems (an inability to use or build the project, a loss of functionality, etc.).
 
-There are many kinds of breaking changes, including but not limited to:
+There are many kinds of breaking changes. Here are some examples:
 
-- Changing the number of required arguments for a function or method
-- Narrowing the type of an argument in a function or method
-- Changing the number of required properties in an object type
-- Narrowing the type of a property in an object type
-- Changing the number of type parameters for a type
-- Throwing a new error in a function or method
-- Adding external actions or events to a messenger type
-- Removing a method from a class
-- Removing an export from a package
-- Changing a function or method so that it no longer fires an event
+- Removals
+  - Removing a method from a class
+  - Removing an export from a package (including a type export)
+- Functional changes that require code changes or change expectations
+  - Changing the number of required arguments for a function or method
+  - Throwing a new error in a function or method
+  - Changing a function or method so that it no longer fires an event
+- Breaking changes to types
+  - Adding external actions or events to a messenger type
+  - Narrowing the type of an argument in a function or method
+  - Changing the number of required properties in an object type
+  - Narrowing the type of a property in an object type
+  - Changing the number of type parameters for a type
+  - Making any other change listed [here](https://www.semver-ts.org/formal-spec/2-breaking-changes.html)
 - Bumping the minimum supported Node.js version of a package
-- Making any other [TypeScript-level breaking change](https://www.semver-ts.org/formal-spec/2-breaking-changes.html) not listed here
 - Upgrading a dependency referenced in published code to a version that causes any of the above
 
 ## Introducing breaking changes safely
