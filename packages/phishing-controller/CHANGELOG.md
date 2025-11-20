@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `AddressScanResult` type
   - Add `addressScanCache` to `PhishingControllerState`
   - Add action registration for `scanAddress` method as `PhishingControllerScanAddressAction`
+- Add `TokenScanCacheData` ([7208](https://github.com/MetaMask/core/pull/7208))
 
 ## [15.0.1]
 
