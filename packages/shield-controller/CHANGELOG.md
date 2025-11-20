@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^61.0.0` to `^62.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/signature-controller` from `^36.0.0` to `^37.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
 ## [2.1.1]
 
 ### Added
@@ -33,8 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- chore(dev-deps): Bump `@ts-bridge/cli` from `^0.6.1` to `^0.6.4` ([#7039](https://github.com/MetaMask/core/pull/7039))
 - Bump `@metamask/transaction-controller` from `61.0.0` to `61.1.0`. ([#7007](https://github.com/MetaMask/core/pull/7007))
 - Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0`. ([#7003](https://github.com/MetaMask/core/pull/7003))
 
@@ -140,7 +146,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@2.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@2.1.1...@metamask/shield-controller@3.0.0
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@2.1.0...@metamask/shield-controller@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@2.0.0...@metamask/shield-controller@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@1.2.0...@metamask/shield-controller@2.0.0

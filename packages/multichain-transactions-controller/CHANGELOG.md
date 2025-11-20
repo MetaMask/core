@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
+### Changed
+
+- Bump `@metamask/polling-controller` from `^15.0.0` to `^16.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^34.0.0` to `^35.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
 ## [6.0.0]
 
 ### Changed
@@ -213,7 +220,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5133](https://github.com/MetaMask/core/pull/5133)), ([#5177](https://github.com/MetaMask/core/pull/5177))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@6.0.0...@metamask/multichain-transactions-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@5.1.1...@metamask/multichain-transactions-controller@6.0.0
 [5.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@5.1.0...@metamask/multichain-transactions-controller@5.1.1
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@5.0.0...@metamask/multichain-transactions-controller@5.1.0
