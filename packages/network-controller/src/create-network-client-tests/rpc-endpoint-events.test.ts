@@ -124,7 +124,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       rpcEndpointChainUnavailableEventHandler,
                     ).toHaveBeenCalledWith({
                       chainId,
-                      endpointUrl: failoverEndpointUrl,
                       error: expectedUnavailableError,
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                       primaryEndpointUrl: rpcUrl,

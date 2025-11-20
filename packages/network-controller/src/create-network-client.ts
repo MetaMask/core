@@ -240,7 +240,6 @@ function createRpcServiceChain({
       chainId: configuration.chainId,
       networkClientId: id,
       primaryEndpointUrl,
-      endpointUrl,
       error,
     });
   });
