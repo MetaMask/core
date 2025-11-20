@@ -5,7 +5,6 @@ import type {
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import { hasProperty, isPlainObject } from '@metamask/utils';
 
 import { type UserProfileServiceMethodActions, Env, getEnvUrl } from '.';
 
