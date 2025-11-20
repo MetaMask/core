@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `TokenScanCacheData` ([7208](https://github.com/MetaMask/core/pull/7208))
+- Add `TokenScanCacheData` to allow consumers to have a type to reference if grabbing values directly from the controller's state ([#7208](https://github.com/MetaMask/core/pull/7208))
 
 ## [16.0.0]
 
