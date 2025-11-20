@@ -463,6 +463,10 @@ export type SelectAccountGroupAssetOpts = {
   filterTronStakedTokens: boolean;
 };
 
+const defaultSelectAccountGroupAssetOpts: SelectAccountGroupAssetOpts = {
+  filterTronStakedTokens: true,
+};
+
 const filterTronStakedTokens = (assetsByAccountGroup: AccountGroupAssets) => {
   const newAssetsByAccountGroup = { ...assetsByAccountGroup };
 
@@ -495,7 +499,7 @@ export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
     (state) => state.accountTree,
     (
       _state,
-      opts: SelectAccountGroupAssetOpts = { filterTronStakedTokens: true },
+      opts: SelectAccountGroupAssetOpts = defaultSelectAccountGroupAssetOpts,
     ) => opts,
   ],
   (groupAssets, accountTree, opts) => {
