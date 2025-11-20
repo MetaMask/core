@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.0.0]
 
+### Added
+
+- Use gas fee token for Relay deposit transactions if insufficient native balance ([#7193](https://github.com/MetaMask/core/pull/7193))
+  - Add optional `fees.isSourceGasFeeToken` property to `TransactionPayQuote` and `TransactionPayTotals` type.
+
+### Changed
+
 - **BREAKING:** Bump `@metamask/bridge-status-controller` from `^62.0.0` to `^63.0.0` ([#7207](https://github.com/MetaMask/core/pull/7207))
 - **BREAKING:** Bump `@metamask/bridge-controller` from `^62.0.0` to `^63.0.0` ([#7207](https://github.com/MetaMask/core/pull/7207))
 - **BREAKING:** Bump `@metamask/assets-controllers` from `^90.0.0` to `^91.0.0` ([#7207](https://github.com/MetaMask/core/pull/7207))
