@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [91.0.0]
+
 ### Changed
 
 - **BREAKING:** Update `spot-prices` endpoint to use Price API v3 ([#7119](https://github.com/MetaMask/core/pull/7119))
@@ -2314,7 +2316,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@90.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@91.0.0...HEAD
+[91.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@90.0.0...@metamask/assets-controllers@91.0.0
 [90.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@89.0.1...@metamask/assets-controllers@90.0.0
 [89.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@89.0.0...@metamask/assets-controllers@89.0.1
 [89.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@88.0.0...@metamask/assets-controllers@89.0.0
