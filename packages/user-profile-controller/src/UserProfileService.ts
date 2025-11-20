@@ -6,8 +6,7 @@ import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { hasProperty, isPlainObject } from '@metamask/utils';
 
-import type { UserProfileServiceMethodActions } from '.';
-import { Env, getEnvUrl } from './constants';
+import { type UserProfileServiceMethodActions, Env, getEnvUrl } from '.';
 
 // === GENERAL ===
 

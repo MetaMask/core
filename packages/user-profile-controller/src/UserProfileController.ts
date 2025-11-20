@@ -26,11 +26,17 @@ export const controllerName = 'UserProfileController';
  * Describes the shape of the state object for {@link UserProfileController}.
  */
 export type UserProfileControllerState = {
+  /**
+   * Whether the first sync has been completed.
+   */
   firstSyncCompleted: boolean;
-  syncQueue: {
-    entropySourceId?: string | null;
-    address: string;
-  }[];
+  /**
+   * The queue of accounts to be synced.
+   * Each key is an entropy source ID, and each value is an array of account
+   * addresses associated with that entropy source. Accounts with no entropy
+   * source ID are grouped under the key "null".
+   */
+  syncQueue: Record<string, string[]>;
 };
 
 /**
@@ -62,7 +68,7 @@ const userProfileControllerMetadata = {
 export function getDefaultUserProfileControllerState(): UserProfileControllerState {
   return {
     firstSyncCompleted: false,
-    syncQueue: [],
+    syncQueue: {},
   };
 }
 
@@ -194,14 +200,22 @@ export class UserProfileController extends StaticIntervalPollingController()<
    * @returns A promise that resolves when the poll is complete.
    */
   async _executePoll(): Promise<void> {
-    return this.#mutex.runExclusive(async () => {
-      await this.messenger.call('UserProfileService:updateProfile', {
-        metametricsId: this.#getMetaMetricsId(),
-        accounts: this.state.syncQueue.slice(),
-      });
-      this.update((state) => {
-        state.syncQueue = [];
-      });
+    await this.#mutex.runExclusive(async () => {
+      for (const [entropySourceId, accounts] of Object.entries(
+        this.state.syncQueue,
+      )) {
+        await this.messenger.call('UserProfileService:updateProfile', {
+          metametricsId: this.#getMetaMetricsId(),
+          accounts: accounts.map((address) => ({
+            address,
+            entropySourceId:
+              entropySourceId === 'null' ? null : entropySourceId,
+          })),
+        });
+        this.update((state) => {
+          delete state.syncQueue[entropySourceId];
+        });
+      }
     });
   }
 
@@ -233,15 +247,24 @@ export class UserProfileController extends StaticIntervalPollingController()<
       if (this.state.firstSyncCompleted || !this.#assertUserOptedIn()) {
         return;
       }
-      const accounts = this.messenger
-        .call('AccountsController:listAccounts')
-        .map((account) => ({
-          entropySourceId: getAccountEntropySourceId(account),
-          address: account.address,
-        }));
+      const newGroupedAccounts = groupAccountsByEntropySourceId(
+        this.messenger
+          .call('AccountsController:listAccounts')
+          .map((account) => ({
+            entropySourceId: getAccountEntropySourceId(account),
+            address: account.address,
+          })),
+      );
+      const queuedAddresses = { ...this.state.syncQueue };
+      for (const key of Object.keys(newGroupedAccounts)) {
+        if (!queuedAddresses[key]) {
+          queuedAddresses[key] = [];
+        }
+        queuedAddresses[key].push(...newGroupedAccounts[key]);
+      }
       this.update((state) => {
         state.firstSyncCompleted = true;
-        state.syncQueue.push(...accounts);
+        state.syncQueue = queuedAddresses;
       });
     });
   }
@@ -257,10 +280,11 @@ export class UserProfileController extends StaticIntervalPollingController()<
         return;
       }
       this.update((state) => {
-        state.syncQueue.push({
-          entropySourceId: getAccountEntropySourceId(account),
-          address: account.address,
-        });
+        const entropySourceId = getAccountEntropySourceId(account) || 'null';
+        if (!state.syncQueue[entropySourceId]) {
+          state.syncQueue[entropySourceId] = [];
+        }
+        state.syncQueue[entropySourceId].push(account.address);
       });
     });
   }
@@ -277,4 +301,24 @@ function getAccountEntropySourceId(account: InternalAccount): string | null {
     return account.options.entropy.id;
   }
   return null;
+}
+
+/**
+ * Groups accounts by their entropy source ID.
+ *
+ * @param accounts - The accounts to group.
+ * @returns An object where each key is an entropy source ID and each value is
+ * an array of account addresses associated with that entropy source ID.
+ */
+function groupAccountsByEntropySourceId(
+  accounts: { address: string; entropySourceId?: string | null }[],
+): Record<string, string[]> {
+  return accounts.reduce((result: Record<string, string[]>, account) => {
+    const key = account.entropySourceId ?? 'null';
+    if (!result[key]) {
+      result[key] = [];
+    }
+    result[key].push(account.address);
+    return result;
+  }, {});
 }
