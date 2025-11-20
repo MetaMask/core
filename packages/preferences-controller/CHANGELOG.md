@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [22.0.0]
-
-### Changed
-
-- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.15.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
-- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
-
 ## [21.0.0]
 
 ### Changed
@@ -474,8 +467,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.0.0...HEAD
-[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@21.0.0...@metamask/preferences-controller@22.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@21.0.0...HEAD
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.1...@metamask/preferences-controller@21.0.0
 [20.1.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.0...@metamask/preferences-controller@20.1.1
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.2...@metamask/preferences-controller@20.1.0
