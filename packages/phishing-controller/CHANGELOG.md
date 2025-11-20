@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.0.0]
+
 ### Added
 
 - Add address scanning to detect malicious addresses ([#7118](https://github.com/MetaMask/core/pull/7118))
@@ -16,17 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add action registration for `scanAddress` method as `PhishingControllerScanAddressAction`
 - Add `TokenScanCacheData` ([7208](https://github.com/MetaMask/core/pull/7208))
 
-## [15.0.1]
-
 ### Changed
 
-- Bump `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^61.0.0` to `^62.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
+## [15.0.1]
 
 ### Fixed
 
 - Fixed the Transaction Controller listener to correctly pick up state changes for mobile ([#7139](https://github.com/MetaMask/core/pull/7139))
-- Fixed auto-fixable ESLint warnings ([#7105](https://github.com/MetaMask/core/pull/7105))
-- Fixed build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
 
 ## [15.0.0]
 
@@ -487,7 +488,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@15.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@16.0.0...HEAD
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@15.0.1...@metamask/phishing-controller@16.0.0
 [15.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@15.0.0...@metamask/phishing-controller@15.0.1
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.3...@metamask/phishing-controller@15.0.0
 [14.1.3]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@14.1.2...@metamask/phishing-controller@14.1.3
