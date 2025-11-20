@@ -24,7 +24,7 @@ export type UserProfileUpdateRequest = {
   metametricsId: string;
   accounts: {
     address: string;
-    entropySourceId?: string;
+    entropySourceId?: string | null;
   }[];
 };
 

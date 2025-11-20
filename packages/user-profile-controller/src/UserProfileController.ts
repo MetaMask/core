@@ -28,7 +28,7 @@ export const controllerName = 'UserProfileController';
 export type UserProfileControllerState = {
   firstSyncCompleted: boolean;
   syncQueue: {
-    entropySourceId?: string;
+    entropySourceId?: string | null;
     address: string;
   }[];
 };
@@ -270,13 +270,11 @@ export class UserProfileController extends StaticIntervalPollingController()<
  * Retrieves the entropy source ID from the given account, if it exists.
  *
  * @param account - The account from which to retrieve the entropy source ID.
- * @returns The entropy source ID, or undefined if it does not exist.
+ * @returns The entropy source ID, or null if it does not exist.
  */
-function getAccountEntropySourceId(
-  account: InternalAccount,
-): string | undefined {
+function getAccountEntropySourceId(account: InternalAccount): string | null {
   if (account.options.entropy && account.options.entropy.type === 'mnemonic') {
     return account.options.entropy.id;
   }
-  return undefined;
+  return null;
 }

@@ -18,20 +18,26 @@ import type { UserProfileUpdateRequest } from './UserProfileService';
  * Creates a mock InternalAccount object for testing purposes.
  *
  * @param address - The address of the mock account.
+ * @param withEntropy - Whether to include entropy information in the account options. Defaults to true.
  * @returns A mock InternalAccount object.
  */
-function createMockAccount(address: string): InternalAccount {
+function createMockAccount(
+  address: string,
+  withEntropy = true,
+): InternalAccount {
   return {
     id: `id-${address}`,
     address,
-    options: {
-      entropy: {
-        id: `entropy-${address}`,
-        type: 'mnemonic',
-        derivationPath: '',
-        groupIndex: 0,
-      },
-    },
+    options: withEntropy
+      ? {
+          entropy: {
+            id: `entropy-${address}`,
+            type: 'mnemonic',
+            derivationPath: '',
+            groupIndex: 0,
+          },
+        }
+      : {},
     methods: [],
     scopes: [],
     type: 'any:account',
@@ -63,7 +69,7 @@ describe('UserProfileController', () => {
                 () => {
                   return [
                     createMockAccount('0xAccount1'),
-                    createMockAccount('0xAccount2'),
+                    createMockAccount('0xAccount2', false),
                   ];
                 },
               );
@@ -80,7 +86,7 @@ describe('UserProfileController', () => {
                 },
                 {
                   address: '0xAccount2',
-                  entropySourceId: 'entropy-0xAccount2',
+                  entropySourceId: null,
                 },
               ]);
             },
