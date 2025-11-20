@@ -8,6 +8,7 @@ export type {
 } from './PhishingDetector';
 export { PhishingDetector } from './PhishingDetector';
 export type { PhishingDetectionScanResult, AddressScanResult } from './types';
+export type { TokenScanCacheData, TokenScanResultType } from './types';
 export {
   PhishingDetectorResultType,
   RecommendedAction,
