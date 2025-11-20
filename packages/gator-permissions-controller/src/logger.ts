@@ -13,4 +13,9 @@ export const controllerLog = createModuleLogger(
 
 export const utilsLog = createModuleLogger(projectLogger, 'utils');
 
+export const decodePermissionLog = createModuleLogger(
+  projectLogger,
+  'decodePermission',
+);
+
 export { createModuleLogger };

@@ -16,6 +16,7 @@ import {
   splitHex,
 } from './utils';
 import { DELEGATION_FRAMEWORK_VERSION } from '../constants';
+import { decodePermissionLog } from '../logger';
 
 /**
  * Identifies the unique permission type that matches a given set of enforcer
@@ -304,7 +305,11 @@ export const extractExpiryFromPermissionContext = (
     }
 
     return extractExpiryFromCaveatTerms(timestampCaveat.terms);
-  } catch {
+  } catch (error) {
+    decodePermissionLog(
+      'Failed to extract expiry from permission context',
+      error,
+    );
     return null;
   }
 };
