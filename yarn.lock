@@ -5198,13 +5198,18 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/user-profile-controller@workspace:packages/user-profile-controller"
   dependencies:
+    "@metamask/accounts-controller": "npm:^34.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
     "@metamask/controller-utils": "npm:^11.15.0"
+    "@metamask/keyring-controller": "npm:^24.0.0"
+    "@metamask/keyring-internal-api": "npm:^9.0.0"
     "@metamask/messenger": "npm:^0.3.0"
+    "@metamask/polling-controller": "npm:^15.0.0"
     "@metamask/utils": "npm:^11.8.1"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^27.4.1"
+    async-mutex: "npm:^0.5.0"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
     nock: "npm:^13.3.1"
@@ -5213,6 +5218,9 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
+  peerDependencies:
+    "@metamask/accounts-controller": ^34.0.0
+    "@metamask/keyring-controller": ^24.0.0
   languageName: unknown
   linkType: soft
 
