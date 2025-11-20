@@ -1366,6 +1366,31 @@ export class TransactionController extends BaseController<
             traceContext: context,
           }),
       );
+    } else {
+      const newTransactionMeta = cloneDeep(addedTransactionMeta);
+
+      this.#updateGasProperties(newTransactionMeta)
+        .then(() => {
+          this.#updateTransactionInternal(
+            {
+              transactionId: newTransactionMeta.id,
+              skipHistory: true,
+              skipResimulateCheck: true,
+              skipValidation: true,
+            },
+            (tx) => {
+              tx.txParams.gas = newTransactionMeta.txParams.gas;
+              tx.txParams.gasPrice = newTransactionMeta.txParams.gasPrice;
+              tx.txParams.maxFeePerGas =
+                newTransactionMeta.txParams.maxFeePerGas;
+              tx.txParams.maxPriorityFeePerGas =
+                newTransactionMeta.txParams.maxPriorityFeePerGas;
+            },
+          );
+
+          return undefined;
+        })
+        .catch(noop);
     }
 
     // Checks if a transaction already exists with a given actionId
