@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
+### Changed
+
+- Bump `@metamask/polling-controller` from `^15.0.0` to `^15.0.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.15.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+
+### Fixed
+
+- Ensure `networksMetadata` never references old network client IDs ([#7047](https://github.com/MetaMask/core/pull/7047))
+
 ## [25.0.0]
 
 ### Added
@@ -455,7 +467,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@25.0.0...@metamask/gas-fee-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@24.1.1...@metamask/gas-fee-controller@25.0.0
 [24.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@24.1.0...@metamask/gas-fee-controller@24.1.1
 [24.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@24.0.0...@metamask/gas-fee-controller@24.1.0

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [90.0.0]
+
+### Changed
+
+- Bump `@metamask/polling-controller` from `^15.0.0` to `^15.0.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.15.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^61.0.0` to `^62.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/preferences-controller` from `^21.0.0` to `^22.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/phishing-controller` from `^15.0.0` to `^16.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/core-backend` from `^4.1.0` to `^5.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^34.0.0` to `^35.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/account-tree-controller` from `^3.0.0` to `^4.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+
 ## [89.0.1]
 
 ### Fixed
@@ -245,7 +260,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Change `accountsApiChainIds` parameter from `ChainIdHex[]` to `() => ChainIdHex[]` in both `AccountTrackerController` and `TokenBalancesController` ([#6776](https://github.com/MetaMask/core/pull/6776))
-
   - Enables dynamic configuration of chains that should use Accounts API strategy
   - Allows runtime determination of supported chain IDs instead of static array
 
@@ -301,7 +315,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `Monad Mainnet` support ([#6618](https://github.com/MetaMask/core/pull/6618))
-
   - Add `Monad Mainnet` balance scan contract address in `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID`
   - Add `Monad Mainnet` in `SupportedTokenDetectionNetworks`
   - Add `Monad Mainnet` in `SUPPORTED_CHAIN_IDS`
@@ -378,7 +391,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Improve balance fetching performance and resilience by parallelizing multi-chain operations and moving timeout handling to fetchers ([#6390](https://github.com/MetaMask/core/pull/6390))
-
   - Replace sequential `for` loops with `Promise.allSettled` in `RpcBalanceFetcher` and `AccountTrackerController` for parallel chain processing
   - Move timeout handling from controller-level `Promise.race` to fetcher-level `safelyExecuteWithTimeout` for better error isolation
   - Add `safelyExecuteWithTimeout` to both `RpcBalanceFetcher` and `AccountsApiBalanceFetcher` to prevent individual chain timeouts from blocking other chains
@@ -390,7 +402,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Enable `AccountTrackerController` to fetch native balances using AccountsAPI when `allowExternalServices` is enabled ([#6369](https://github.com/MetaMask/core/pull/6369))
-
   - Implement native balance fetching via AccountsAPI when `useAccountsAPI` and `allowExternalServices` are both true
   - Add fallback to RPC balance fetching when external services are disabled
   - Add comprehensive test coverage for both AccountsAPI and RPC balance fetching scenarios
@@ -415,7 +426,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add comprehensive unit tests for token address normalization scenarios
 
 - Fix TokenBalancesController timeout handling by replacing `safelyExecuteWithTimeout` with proper `Promise.race` implementation ([#6365](https://github.com/MetaMask/core/pull/6365))
-
   - Replace `safelyExecuteWithTimeout` which was silently swallowing timeout errors with direct `Promise.race` that properly throws
   - Reduce RPC timeout from 3 minutes to 15 seconds for better responsiveness and batch size
   - Enable proper fallback between API and RPC balance fetchers when timeouts occur
@@ -2292,7 +2302,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@89.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@90.0.0...HEAD
+[90.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@89.0.1...@metamask/assets-controllers@90.0.0
 [89.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@89.0.0...@metamask/assets-controllers@89.0.1
 [89.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@88.0.0...@metamask/assets-controllers@89.0.0
 [88.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@87.1.1...@metamask/assets-controllers@88.0.0

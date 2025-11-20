@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [37.0.0]
+
 ### Changed
 
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.15.1` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/gator-permissions-controller` from `^0.5.0` to `^0.6.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^34.0.0` to `^35.0.0` ([#7190](https://github.com/MetaMask/core/pull/7190))
 - Permit string `id` values in `OriginalRequest` type ([#7065](https://github.com/MetaMask/core/pull/7065))
   - Previously, only number values were permitted for the `id` property.
 
@@ -615,7 +622,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@36.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@37.0.0...HEAD
+[37.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@36.0.0...@metamask/signature-controller@37.0.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@35.0.0...@metamask/signature-controller@36.0.0
 [35.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@34.0.2...@metamask/signature-controller@35.0.0
 [34.0.2]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@34.0.1...@metamask/signature-controller@34.0.2
