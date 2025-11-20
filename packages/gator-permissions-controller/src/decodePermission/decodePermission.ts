@@ -1,6 +1,5 @@
 import type { Caveat, Hex } from '@metamask/delegation-core';
-import { decodeDelegations, ROOT_AUTHORITY } from '@metamask/delegation-core';
-import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
+import { ROOT_AUTHORITY } from '@metamask/delegation-core';
 import { getChecksumAddress, hexToNumber, numberToHex } from '@metamask/utils';
 
 import type {
@@ -15,8 +14,6 @@ import {
   isSubset,
   splitHex,
 } from './utils';
-import { DELEGATION_FRAMEWORK_VERSION } from '../constants';
-import { decodePermissionLog } from '../logger';
 
 /**
  * Identifies the unique permission type that matches a given set of enforcer
@@ -250,60 +247,6 @@ export const getPermissionDataAndExpiry = ({
   }
 
   return { expiry, data };
-};
-
-/**
- * Extracts the expiry timestamp from a delegation permission context.
- *
- * This function decodes the delegation context, locates the TimestampEnforcer
- * caveat, and extracts the expiry timestamp (timestampBeforeThreshold).
- *
- * @param permissionContext - The delegation context as a hex string
- * @param chainId - The chain ID as a hex string
- * @returns The expiry timestamp in seconds, or null if no expiry exists or on error
- */
-export const extractExpiryFromPermissionContext = (
-  permissionContext: Hex,
-  chainId: Hex,
-): number | null => {
-  try {
-    const delegations = decodeDelegations(permissionContext);
-
-    if (delegations.length !== 1) {
-      return null;
-    }
-
-    const delegation = delegations[0];
-    if (!delegation) {
-      return null;
-    }
-
-    const chainIdNumber = hexToNumber(chainId);
-    const contractsByChain = DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION];
-    const contracts = contractsByChain[chainIdNumber];
-
-    if (!contracts) {
-      return null;
-    }
-
-    const { timestampEnforcer } = getChecksumEnforcersByChainId(contracts);
-
-    const timestampCaveat = delegation.caveats.find(
-      (caveat) => getChecksumAddress(caveat.enforcer) === timestampEnforcer,
-    );
-
-    if (!timestampCaveat) {
-      return null;
-    }
-
-    return extractExpiryFromCaveatTerms(timestampCaveat.terms);
-  } catch (error) {
-    decodePermissionLog(
-      'Failed to extract expiry from permission context',
-      error,
-    );
-    return null;
-  }
 };
 
 /**
