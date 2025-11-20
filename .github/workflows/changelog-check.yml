@@ -6,12 +6,15 @@ on:
 
 jobs:
   check_changelog:
-    uses: MetaMask/github-tools/.github/actions/changelog-check@caa983d60caeaef88b420e6e2456a581f346597e
-    with:
-      base-branch: ${{ github.event.pull_request.base.ref }}
-      head-ref: ${{ github.head_ref }}
-      labels: ${{ toJSON(github.event.pull_request.labels) }}
-      pr-number: ${{ github.event.pull_request.number }}
-      repo: ${{ github.repository }}
-    secrets:
-      gh-token: ${{ secrets.GITHUB_TOKEN }}
+    name: Check Changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: MetaMask/github-tools/.github/actions/changelog-check@caa983d60caeaef88b420e6e2456a581f346597e
+        with:
+          base-branch: ${{ github.event.pull_request.base.ref }}
+          head-ref: ${{ github.head_ref }}
+          labels: ${{ toJSON(github.event.pull_request.labels) }}
+          pr-number: ${{ github.event.pull_request.number }}
+          repo: ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
