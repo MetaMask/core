@@ -79,16 +79,10 @@ describe('UserProfileController', () => {
               await Promise.resolve();
 
               expect(controller.state.firstSyncCompleted).toBe(true);
-              expect(controller.state.syncQueue).toStrictEqual([
-                {
-                  address: '0xAccount1',
-                  entropySourceId: 'entropy-0xAccount1',
-                },
-                {
-                  address: '0xAccount2',
-                  entropySourceId: null,
-                },
-              ]);
+              expect(controller.state.syncQueue).toStrictEqual({
+                'entropy-0xAccount1': ['0xAccount1'],
+                null: ['0xAccount2'],
+              });
             },
           );
         });
@@ -112,7 +106,7 @@ describe('UserProfileController', () => {
               await Promise.resolve();
 
               expect(controller.state.firstSyncCompleted).toBe(false);
-              expect(controller.state.syncQueue).toStrictEqual([]);
+              expect(controller.state.syncQueue).toStrictEqual({});
             },
           );
         });
@@ -145,7 +139,7 @@ describe('UserProfileController', () => {
                 await Promise.resolve();
 
                 expect(controller.state.firstSyncCompleted).toBe(true);
-                expect(controller.state.syncQueue).toStrictEqual([]);
+                expect(controller.state.syncQueue).toStrictEqual({});
               },
             );
           },
@@ -154,7 +148,7 @@ describe('UserProfileController', () => {
     });
 
     describe('when AccountsController:accountAdded is published', () => {
-      it('adds the new account to the sync queue if the user has opted in', async () => {
+      it('adds the new account to the sync queue if the user has opted in and the account has an entropy source id', async () => {
         await withController(
           { options: { assertUserOptedIn: () => true } },
           async ({ controller, rootMessenger }) => {
@@ -167,12 +161,29 @@ describe('UserProfileController', () => {
             // Wait for async operations to complete.
             await Promise.resolve();
 
-            expect(controller.state.syncQueue).toStrictEqual([
-              {
-                address: '0xNewAccount',
-                entropySourceId: 'entropy-0xNewAccount',
-              },
-            ]);
+            expect(controller.state.syncQueue).toStrictEqual({
+              'entropy-0xNewAccount': ['0xNewAccount'],
+            });
+          },
+        );
+      });
+
+      it('adds the new account to the sync queue under `null` if the user has opted in and the account has no entropy source id', async () => {
+        await withController(
+          { options: { assertUserOptedIn: () => true } },
+          async ({ controller, rootMessenger }) => {
+            const newAccount = createMockAccount('0xNewAccount', false);
+
+            rootMessenger.publish(
+              'AccountsController:accountAdded',
+              newAccount,
+            );
+            // Wait for async operations to complete.
+            await Promise.resolve();
+
+            expect(controller.state.syncQueue).toStrictEqual({
+              null: ['0xNewAccount'],
+            });
           },
         );
       });
@@ -187,43 +198,66 @@ describe('UserProfileController', () => {
               'AccountsController:accountAdded',
               newAccount,
             );
-            // Wait for async operations to complete.
-            await Promise.resolve();
 
-            expect(controller.state.syncQueue).toStrictEqual([]);
+            expect(controller.state.syncQueue).toStrictEqual({});
           },
         );
       });
     });
   });
 
-  describe('polling', () => {
+  describe('_executePoll', () => {
     it('processes the sync queue on each poll', async () => {
-      const accounts = [
-        { address: '0xAccount1', entropySourceId: 'id1' },
-        { address: '0xAccount2', entropySourceId: 'id2' },
-      ];
+      const accounts = {
+        id1: ['0xAccount1'],
+      };
       await withController(
         {
-          options: { interval: 1000, state: { syncQueue: accounts } },
+          options: { state: { syncQueue: accounts } },
         },
         async ({ controller, getMetaMetricsId, mockUpdateProfile }) => {
-          // Advance time to trigger the first poll.
-          jest.advanceTimersByTime(1000);
-          // Wait for async operations to complete.
-          await Promise.resolve();
-          // Advance time to trigger the first poll.
-          jest.advanceTimersByTime(1000);
-          // Wait for async operations to complete.
-          await Promise.resolve();
-          console.log('first poll complete');
+          await controller._executePoll();
 
           expect(mockUpdateProfile).toHaveBeenCalledTimes(1);
           expect(mockUpdateProfile).toHaveBeenCalledWith({
             metametricsId: getMetaMetricsId(),
-            accounts,
+            accounts: [{ address: '0xAccount1', entropySourceId: 'id1' }],
           });
-          expect(controller.state.syncQueue).toStrictEqual([]);
+          expect(controller.state.syncQueue).toStrictEqual({});
+        },
+      );
+    });
+
+    it('processes the sync queue in batches grouped by entropySourceId', async () => {
+      const accounts = {
+        id1: ['0xAccount1', '0xAccount2'],
+        id2: ['0xAccount3'],
+        null: ['0xAccount4'],
+      };
+      await withController(
+        {
+          options: { state: { syncQueue: accounts } },
+        },
+        async ({ controller, getMetaMetricsId, mockUpdateProfile }) => {
+          await controller._executePoll();
+
+          expect(mockUpdateProfile).toHaveBeenCalledTimes(3);
+          expect(mockUpdateProfile).toHaveBeenNthCalledWith(1, {
+            metametricsId: getMetaMetricsId(),
+            accounts: [
+              { address: '0xAccount1', entropySourceId: 'id1' },
+              { address: '0xAccount2', entropySourceId: 'id1' },
+            ],
+          });
+          expect(mockUpdateProfile).toHaveBeenNthCalledWith(2, {
+            metametricsId: getMetaMetricsId(),
+            accounts: [{ address: '0xAccount3', entropySourceId: 'id2' }],
+          });
+          expect(mockUpdateProfile).toHaveBeenNthCalledWith(3, {
+            metametricsId: getMetaMetricsId(),
+            accounts: [{ address: '0xAccount4', entropySourceId: null }],
+          });
+          expect(controller.state.syncQueue).toStrictEqual({});
         },
       );
     });
@@ -257,7 +291,7 @@ describe('UserProfileController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "firstSyncCompleted": false,
-            "syncQueue": Array [],
+            "syncQueue": Object {},
           }
         `);
       });
@@ -274,7 +308,7 @@ describe('UserProfileController', () => {
         ).toMatchInlineSnapshot(`
           Object {
             "firstSyncCompleted": false,
-            "syncQueue": Array [],
+            "syncQueue": Object {},
           }
         `);
       });
