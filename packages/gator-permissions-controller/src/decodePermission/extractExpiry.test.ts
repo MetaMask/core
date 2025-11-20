@@ -1,10 +1,20 @@
-import { createTimestampTerms } from '@metamask/delegation-core';
-import type { Hex } from '@metamask/utils';
+import {
+  createNativeTokenStreamingTerms,
+  createTimestampTerms,
+  encodeDelegations,
+  ROOT_AUTHORITY,
+} from '@metamask/delegation-core';
+import {
+  CHAIN_ID,
+  DELEGATOR_CONTRACTS,
+} from '@metamask/delegation-deployments';
+import { numberToHex, type Hex } from '@metamask/utils';
 
 import {
   extractExpiryFromCaveatTerms,
   extractExpiryFromPermissionContext,
 } from './decodePermission';
+import { DELEGATION_FRAMEWORK_VERSION } from '../constants';
 
 describe('Expiry Extraction Functions', () => {
   describe('extractExpiryFromCaveatTerms', () => {
@@ -116,24 +126,181 @@ describe('Expiry Extraction Functions', () => {
   });
 
   describe('extractExpiryFromPermissionContext', () => {
+    const chainId = CHAIN_ID.sepolia;
+    const chainIdHex = numberToHex(chainId);
+    const contracts =
+      DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][chainId];
+
+    const delegator = '0x1111111111111111111111111111111111111111' as Hex;
+    const delegate = '0x2222222222222222222222222222222222222222' as Hex;
+
+    it('extracts expiry from valid permission context with timestamp caveat', () => {
+      const expiryTimestamp = 1767225600; // January 1, 2026
+
+      const delegations = [
+        {
+          delegate,
+          delegator,
+          authority: ROOT_AUTHORITY as Hex,
+          caveats: [
+            {
+              enforcer: contracts.TimestampEnforcer,
+              terms: createTimestampTerms({
+                timestampAfterThreshold: 0,
+                timestampBeforeThreshold: expiryTimestamp,
+              }),
+              args: '0x' as Hex,
+            },
+            {
+              enforcer: contracts.NativeTokenStreamingEnforcer,
+              terms: createNativeTokenStreamingTerms(
+                {
+                  initialAmount: 100n,
+                  maxAmount: 1000n,
+                  amountPerSecond: 1n,
+                  startTime: 1640995200,
+                },
+                { out: 'hex' },
+              ),
+              args: '0x' as Hex,
+            },
+          ],
+          salt: 0n,
+          signature: '0x' as Hex,
+        },
+      ];
+
+      const permissionContext = encodeDelegations(delegations);
+      const result = extractExpiryFromPermissionContext(
+        permissionContext,
+        chainIdHex,
+      );
+
+      expect(result).toBe(expiryTimestamp);
+    });
+
+    it('returns null when permission context has no timestamp caveat', () => {
+      const delegations = [
+        {
+          delegate,
+          delegator,
+          authority: ROOT_AUTHORITY as Hex,
+          caveats: [
+            {
+              enforcer: contracts.NativeTokenStreamingEnforcer,
+              terms: createNativeTokenStreamingTerms(
+                {
+                  initialAmount: 100n,
+                  maxAmount: 1000n,
+                  amountPerSecond: 1n,
+                  startTime: 1640995200,
+                },
+                { out: 'hex' },
+              ),
+              args: '0x' as Hex,
+            },
+          ],
+          salt: 0n,
+          signature: '0x' as Hex,
+        },
+      ];
+
+      const permissionContext = encodeDelegations(delegations);
+      const result = extractExpiryFromPermissionContext(
+        permissionContext,
+        chainIdHex,
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null when expiry timestamp is 0', () => {
+      const delegations = [
+        {
+          delegate,
+          delegator,
+          authority: ROOT_AUTHORITY as Hex,
+          caveats: [
+            {
+              enforcer: contracts.TimestampEnforcer,
+              terms: createTimestampTerms({
+                timestampAfterThreshold: 0,
+                timestampBeforeThreshold: 0,
+              }),
+              args: '0x' as Hex,
+            },
+          ],
+          salt: 0n,
+          signature: '0x' as Hex,
+        },
+      ];
+
+      const permissionContext = encodeDelegations(delegations);
+      const result = extractExpiryFromPermissionContext(
+        permissionContext,
+        chainIdHex,
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null when context contains multiple delegations', () => {
+      const delegations = [
+        {
+          delegate,
+          delegator,
+          authority: ROOT_AUTHORITY as Hex,
+          caveats: [],
+          salt: 0n,
+          signature: '0x' as Hex,
+        },
+        {
+          delegate,
+          delegator,
+          authority: ROOT_AUTHORITY as Hex,
+          caveats: [],
+          salt: 1n,
+          signature: '0x' as Hex,
+        },
+      ];
+
+      const permissionContext = encodeDelegations(delegations);
+      const result = extractExpiryFromPermissionContext(
+        permissionContext,
+        chainIdHex,
+      );
+
+      expect(result).toBeNull();
+    });
+
     it('returns null for invalid permission context', () => {
       const invalidContext = '0x00' as Hex;
-      const chainId = '0x1' as Hex;
 
       const result = extractExpiryFromPermissionContext(
         invalidContext,
-        chainId,
+        chainIdHex,
       );
 
       expect(result).toBeNull();
     });
 
     it('returns null for unsupported chain', () => {
-      const mockContext = '0x00000000' as Hex;
+      const delegations = [
+        {
+          delegate,
+          delegator,
+          authority: ROOT_AUTHORITY as Hex,
+          caveats: [],
+          salt: 0n,
+          signature: '0x' as Hex,
+        },
+      ];
+
+      const permissionContext = encodeDelegations(delegations);
       const unsupportedChainId = '0x999999' as Hex;
 
       const result = extractExpiryFromPermissionContext(
-        mockContext,
+        permissionContext,
         unsupportedChainId,
       );
 
@@ -142,11 +309,10 @@ describe('Expiry Extraction Functions', () => {
 
     it('returns null for malformed permission context', () => {
       const malformedContext = '0xdeadbeef' as Hex;
-      const chainId = '0x1' as Hex;
 
       const result = extractExpiryFromPermissionContext(
         malformedContext,
-        chainId,
+        chainIdHex,
       );
 
       expect(result).toBeNull();
@@ -154,9 +320,11 @@ describe('Expiry Extraction Functions', () => {
 
     it('returns null for empty hex string', () => {
       const emptyContext = '0x' as Hex;
-      const chainId = '0x1' as Hex;
 
-      const result = extractExpiryFromPermissionContext(emptyContext, chainId);
+      const result = extractExpiryFromPermissionContext(
+        emptyContext,
+        chainIdHex,
+      );
 
       expect(result).toBeNull();
     });
