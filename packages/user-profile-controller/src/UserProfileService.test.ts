@@ -22,13 +22,17 @@ const defaultBaseEndpoint = getEnvUrl(Env.DEV);
 /**
  * Creates a mock request object for testing purposes.
  *
+ * @param override - Optional properties to override in the mock request.
  * @returns A mock request object.
  */
-function createMockRequest(): UserProfileUpdateRequest {
+function createMockRequest(
+  override?: Partial<UserProfileUpdateRequest>,
+): UserProfileUpdateRequest {
   return {
     metametricsId: 'mock-meta-metrics-id',
     entropySourceId: 'mock-entropy-source-id',
     accounts: ['0xMockAccountAddress1'],
+    ...override,
   };
 }
 
@@ -43,8 +47,22 @@ describe('UserProfileService', () => {
     clock.restore();
   });
 
+  describe('constructor', () => {
+    it('throws when an invalid env is selected', () => {
+      expect(
+        () =>
+          new UserProfileService({
+            fetch,
+            messenger: getMessenger(getRootMessenger()),
+            // @ts-expect-error Testing invalid env
+            env: 'invalid-env',
+          }),
+      ).toThrow('invalid environment configuration');
+    });
+  });
+
   describe('UserProfileService:updateProfile', () => {
-    it('resolves when there is a successful response from the API', async () => {
+    it('resolves when there is a successful response from the API and the accounts have an entropy source id', async () => {
       nock(defaultBaseEndpoint)
         .put('/profile/accounts')
         .reply(200, {
@@ -57,6 +75,26 @@ describe('UserProfileService', () => {
       const updateProfileResponse = await rootMessenger.call(
         'UserProfileService:updateProfile',
         createMockRequest(),
+      );
+
+      expect(updateProfileResponse).toBeUndefined();
+    });
+
+    it('resolves when there is a successful response from the API and the accounts do not have an entropy source id', async () => {
+      nock(defaultBaseEndpoint)
+        .put('/profile/accounts')
+        .reply(200, {
+          data: {
+            success: true,
+          },
+        });
+      const { rootMessenger } = getService();
+
+      const request = createMockRequest({ entropySourceId: null });
+
+      const updateProfileResponse = await rootMessenger.call(
+        'UserProfileService:updateProfile',
+        request,
       );
 
       expect(updateProfileResponse).toBeUndefined();
@@ -82,17 +120,7 @@ describe('UserProfileService', () => {
       );
     });
 
-    it.each([
-      'not an object',
-      { missing: 'data' },
-      { data: 'not an object' },
-      { data: { missing: 'low', average: 2, high: 3 } },
-      { data: { low: 1, missing: 'average', high: 3 } },
-      { data: { low: 1, average: 2, missing: 'high' } },
-      { data: { low: 'not a number', average: 2, high: 3 } },
-      { data: { low: 1, average: 'not a number', high: 3 } },
-      { data: { low: 1, average: 2, high: 'not a number' } },
-    ])(
+    it.each(['not an object', { missing: 'data' }, { data: 'not an object' }])(
       'throws if the API returns a malformed response %o',
       async (response) => {
         nock(defaultBaseEndpoint)
@@ -351,10 +379,15 @@ function getRootMessenger(): RootMessenger {
 function getMessenger(
   rootMessenger: RootMessenger,
 ): UserProfileServiceMessenger {
-  return new Messenger({
+  const serviceMessenger: UserProfileServiceMessenger = new Messenger({
     namespace: 'UserProfileService',
     parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    messenger: serviceMessenger,
+    actions: ['AuthenticationController:getBearerToken'],
+  });
+  return serviceMessenger;
 }
 
 /**
@@ -376,6 +409,11 @@ function getService({
   messenger: UserProfileServiceMessenger;
 } {
   const rootMessenger = getRootMessenger();
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    async () => 'mock-bearer-token',
+  );
+
   const messenger = getMessenger(rootMessenger);
   const service = new UserProfileService({
     fetch,

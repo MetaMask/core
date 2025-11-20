@@ -4,6 +4,7 @@ import type {
 } from '@metamask/controller-utils';
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import { hasProperty, isPlainObject } from '@metamask/utils';
 
 import { type UserProfileServiceMethodActions, Env, getEnvUrl } from '.';
@@ -37,7 +38,8 @@ export type UserProfileServiceActions = UserProfileServiceMethodActions;
 /**
  * Actions from other messengers that {@link UserProfileService} calls.
  */
-type AllowedActions = never;
+type AllowedActions =
+  AuthenticationController.AuthenticationControllerGetBearerToken;
 
 /**
  * Events that {@link UserProfileService} exposes to other consumers.
@@ -88,9 +90,9 @@ export class UserProfileService {
   readonly #policy: ServicePolicy;
 
   /**
-   * The environment to determine the correct API endpoints.
+   * The API base URL environment.
    */
-  readonly #env: Env;
+  readonly #baseURL: string;
 
   /**
    * Constructs a new UserProfileService object.
@@ -120,7 +122,7 @@ export class UserProfileService {
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
     this.#policy = createServicePolicy(policyOptions);
-    this.#env = env;
+    this.#baseURL = getEnvUrl(env);
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -185,14 +187,22 @@ export class UserProfileService {
    * @returns The response from the API.
    */
   async updateProfile(data: UserProfileUpdateRequest): Promise<void> {
+    const authToken = await this.#messenger.call(
+      'AuthenticationController:getBearerToken',
+      data.entropySourceId || undefined,
+    );
     const response = await this.#policy.execute(async () => {
-      const url = new URL(`${getEnvUrl(this.#env)}/profile/accounts`);
+      const url = new URL(`${this.#baseURL}/profile/accounts`);
       const localResponse = await this.#fetch(url, {
         method: 'PUT',
         headers: {
+          Authorization: `Bearer ${authToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          metametrics_id: data.metametricsId,
+          accounts: data.accounts,
+        }),
       });
       if (!localResponse.ok) {
         throw new HttpError(
