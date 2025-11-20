@@ -7,6 +7,7 @@ import type { Messenger } from '@metamask/messenger';
 import { hasProperty, isPlainObject } from '@metamask/utils';
 
 import type { UserProfileServiceMethodActions } from '.';
+import { Env, getEnvUrl } from './constants';
 
 // === GENERAL ===
 
@@ -90,6 +91,11 @@ export class UserProfileService {
   readonly #policy: ServicePolicy;
 
   /**
+   * The environment to determine the correct API endpoints.
+   */
+  readonly #env: Env;
+
+  /**
    * Constructs a new UserProfileService object.
    *
    * @param args - The constructor arguments.
@@ -100,20 +106,24 @@ export class UserProfileService {
    * `node-fetch`).
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
+   * @param args.env - The environment to determine the correct API endpoints.
    */
   constructor({
     messenger,
     fetch: fetchFunction,
     policyOptions = {},
+    env = Env.DEV,
   }: {
     messenger: UserProfileServiceMessenger;
     fetch: typeof fetch;
     policyOptions?: CreateServicePolicyOptions;
+    env?: Env;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
     this.#policy = createServicePolicy(policyOptions);
+    this.#env = env;
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -179,7 +189,7 @@ export class UserProfileService {
    */
   async updateProfile(data: UserProfileUpdateRequest): Promise<void> {
     const response = await this.#policy.execute(async () => {
-      const url = new URL('https://api.example.com/update-profile');
+      const url = new URL(`${getEnvUrl(this.#env)}/profile/accounts`);
       const localResponse = await this.#fetch(url, {
         method: 'PUT',
         headers: {
