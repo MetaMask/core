@@ -20,16 +20,8 @@ import { HttpError } from '../../controller-utils/src/util';
 function createMockRequest(): UserProfileUpdateRequest {
   return {
     metametricsId: 'mock-meta-metrics-id',
-    accounts: [
-      {
-        entropySourceId: 'mock-entropy-source-id',
-        address: '0xMockAccountAddress1',
-      },
-      {
-        entropySourceId: 'mock-entropy-source-id-2',
-        address: '0xMockAccountAddress2',
-      },
-    ],
+    entropySourceId: 'mock-entropy-source-id',
+    accounts: ['0xMockAccountAddress1'],
   };
 }
 

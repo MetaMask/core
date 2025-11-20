@@ -221,7 +221,8 @@ describe('UserProfileController', () => {
           expect(mockUpdateProfile).toHaveBeenCalledTimes(1);
           expect(mockUpdateProfile).toHaveBeenCalledWith({
             metametricsId: getMetaMetricsId(),
-            accounts: [{ address: '0xAccount1', entropySourceId: 'id1' }],
+            entropySourceId: 'id1',
+            accounts: ['0xAccount1'],
           });
           expect(controller.state.syncQueue).toStrictEqual({});
         },
@@ -244,18 +245,18 @@ describe('UserProfileController', () => {
           expect(mockUpdateProfile).toHaveBeenCalledTimes(3);
           expect(mockUpdateProfile).toHaveBeenNthCalledWith(1, {
             metametricsId: getMetaMetricsId(),
-            accounts: [
-              { address: '0xAccount1', entropySourceId: 'id1' },
-              { address: '0xAccount2', entropySourceId: 'id1' },
-            ],
+            entropySourceId: 'id1',
+            accounts: ['0xAccount1', '0xAccount2'],
           });
           expect(mockUpdateProfile).toHaveBeenNthCalledWith(2, {
             metametricsId: getMetaMetricsId(),
-            accounts: [{ address: '0xAccount3', entropySourceId: 'id2' }],
+            entropySourceId: 'id2',
+            accounts: ['0xAccount3'],
           });
           expect(mockUpdateProfile).toHaveBeenNthCalledWith(3, {
             metametricsId: getMetaMetricsId(),
-            accounts: [{ address: '0xAccount4', entropySourceId: null }],
+            entropySourceId: null,
+            accounts: ['0xAccount4'],
           });
           expect(controller.state.syncQueue).toStrictEqual({});
         },
