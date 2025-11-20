@@ -179,11 +179,16 @@ async function submitTransactions(
   parentTransactionId: string,
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex> {
-  const params = quote.original.steps
-    .flatMap((s) => s.items)
-    .map((i) => i.data);
+  const { steps } = quote.original;
+  const params = steps.flatMap((s) => s.items).map((i) => i.data);
+  const invalidKind = steps.find((s) => s.kind !== 'transaction')?.kind;
+
+  if (invalidKind) {
+    throw new Error(`Unsupported step kind: ${invalidKind}`);
+  }
 
   const normalizedParams = params.map(normalizeParams);
+
   const transactionIds: string[] = [];
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
 

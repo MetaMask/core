@@ -34,6 +34,8 @@ const TRANSACTION_HASH_MOCK = '0x1234';
 const ENDPOINT_MOCK = '/test123';
 const ORIGINAL_TRANSACTION_ID_MOCK = '456-789';
 const FROM_MOCK = '0xabcde' as Hex;
+const CHAIN_ID_MOCK = '0x1' as Hex;
+const TOKEN_ADDRESS_MOCK = '0x123' as Hex;
 
 const TRANSACTION_META_MOCK = {
   id: '123-456',
@@ -87,7 +89,15 @@ const STATUS_RESPONSE_MOCK = {
 const REQUEST_MOCK: PayStrategyExecuteRequest<RelayQuote> = {
   quotes: [
     {
+      fees: {
+        sourceNetwork: {},
+      },
       original: ORIGINAL_QUOTE_MOCK,
+      request: {
+        from: FROM_MOCK,
+        sourceChainId: CHAIN_ID_MOCK,
+        sourceTokenAddress: TOKEN_ADDRESS_MOCK,
+      },
     } as TransactionPayQuote<RelayQuote>,
   ],
   messenger: {} as TransactionPayControllerMessenger,
