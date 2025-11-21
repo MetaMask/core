@@ -52,7 +52,7 @@
     "@metamask/controller-utils": "^11.16.0",
     "@metamask/messenger": "^0.3.0",
     "@metamask/polling-controller": "^16.0.0",
-    "@metamask/transaction-controller": "^62.1.0",
+    "@metamask/transaction-controller": "^62.2.0",
     "@metamask/utils": "^11.8.1",
     "bignumber.js": "^9.1.2"
   },

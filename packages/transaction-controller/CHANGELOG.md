@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [62.2.0]
+
 ### Added
 
 - Add `musdConversion` transaction type ([#7218](https://github.com/MetaMask/core/pull/7218))
@@ -1964,7 +1966,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.2.0...HEAD
+[62.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.1.0...@metamask/transaction-controller@62.2.0
 [62.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.0.0...@metamask/transaction-controller@62.1.0
 [62.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.3.0...@metamask/transaction-controller@62.0.0
 [61.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.2.0...@metamask/transaction-controller@61.3.0
