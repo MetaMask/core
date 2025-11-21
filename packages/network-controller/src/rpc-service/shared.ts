@@ -50,17 +50,6 @@ export type CockatielEventToEventListenerWithData<Event, Data> = (
 ) => void;
 
 /**
- * Converts a Cockatiel event type to an event listener type, but removing the
- * requested keys from the data.
- */
-export type CockatielEventToEventListenerWithoutData<
-  Event,
-  Keys extends PropertyKey,
-> = (
-  data: ExcludeCockatielEventData<ExtractCockatielEventData<Event>, Keys>,
-) => void;
-
-/**
  * Converts a Cockatiel event listener type to an event emitter type.
  */
 export type CockatielEventToEventEmitterWithData<Event, Data> =
