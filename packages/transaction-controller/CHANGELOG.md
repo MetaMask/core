@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `musdConversion` transaction type ([#7218](https://github.com/MetaMask/core/pull/7218))
+
 ## [62.1.0]
 
 ### Changed
