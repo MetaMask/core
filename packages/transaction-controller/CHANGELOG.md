@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `musdConversion` transaction type ([#7218](https://github.com/MetaMask/core/pull/7218))
+
+## [62.1.0]
+
+### Changed
+
+- Performance optimisations in `addTransaction` and `addTransactionBatch` methods ([#7205](https://github.com/MetaMask/core/pull/7205))
+  - Add `skipInitialGasEstimate` option to `addTransaction` and `addTransactionBatch` methods.
+  - Add `disableUpgrade` option to `addTransactionBatch` method.
+
+## [62.0.0]
+
+### Added
+
+- Add `TransactionController:getGasFeeTokens` messenger action ([#7197](https://github.com/MetaMask/core/pull/7197))
+  - Add `TransactionControllerGetGasFeeTokensAction` and `GetGasFeeTokensRequest` types.
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/gas-fee-controller` from `^25.0.0` to `^26.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^34.0.0` to `^35.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
+### Fixed
+
+- Always run `beforeSign` hook even if using `gasFeeToken` and `isGasFeeTokenIgnoredIfBalance` ([#7172](https://github.com/MetaMask/core/pull/7172))
+
 ## [61.3.0]
 
 ### Added
@@ -1934,7 +1964,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.1.0...HEAD
+[62.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.0.0...@metamask/transaction-controller@62.1.0
+[62.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.3.0...@metamask/transaction-controller@62.0.0
 [61.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.2.0...@metamask/transaction-controller@61.3.0
 [61.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.1.0...@metamask/transaction-controller@61.2.0
 [61.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.0.0...@metamask/transaction-controller@61.1.0

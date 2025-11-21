@@ -1,6 +1,6 @@
 {
   "name": "@metamask/seedless-onboarding-controller",
-  "version": "6.1.0",
+  "version": "7.0.0",
   "description": "Backup and rehydrate SRP(s) using social login and password",
   "keywords": [
     "MetaMask",
@@ -50,6 +50,7 @@
   "dependencies": {
     "@metamask/auth-network-utils": "^0.3.0",
     "@metamask/base-controller": "^9.0.0",
+    "@metamask/browser-passworder": "^6.0.0",
     "@metamask/messenger": "^0.3.0",
     "@metamask/toprf-secure-backup": "^0.10.0",
     "@metamask/utils": "^11.8.1",
@@ -62,8 +63,7 @@
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/browser-passworder": "^4.3.0",
-    "@metamask/keyring-controller": "^24.0.0",
+    "@metamask/keyring-controller": "^25.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/elliptic": "^6",
     "@types/jest": "^27.4.1",
@@ -78,7 +78,7 @@
     "typescript": "~5.3.3"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^24.0.0"
+    "@metamask/keyring-controller": "^25.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

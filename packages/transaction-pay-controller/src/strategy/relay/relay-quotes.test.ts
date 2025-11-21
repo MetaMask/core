@@ -1,24 +1,35 @@
-import { successfulFetch } from '@metamask/controller-utils';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import { successfulFetch, toHex } from '@metamask/controller-utils';
+import type {
+  GasFeeToken,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
+import { RELAY_URL_QUOTE } from './constants';
+import { getRelayQuotes } from './relay-quotes';
+import type { RelayQuote } from './types';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_POLYGON,
-  RELAY_URL_QUOTE,
-} from './constants';
-import { getRelayQuotes } from './relay-quotes';
-import type { RelayQuote } from './types';
-import { NATIVE_TOKEN_ADDRESS } from '../../constants';
+  NATIVE_TOKEN_ADDRESS,
+} from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   GetDelegationTransactionCallback,
   QuoteRequest,
 } from '../../types';
-import { calculateGasCost, calculateTransactionGasCost } from '../../utils/gas';
-import { getNativeToken, getTokenFiatRate } from '../../utils/token';
+import {
+  calculateGasCost,
+  calculateGasFeeTokenCost,
+  calculateTransactionGasCost,
+} from '../../utils/gas';
+import {
+  getNativeToken,
+  getTokenBalance,
+  getTokenFiatRate,
+} from '../../utils/token';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/gas');
@@ -41,6 +52,9 @@ const QUOTE_REQUEST_MOCK: QuoteRequest = {
 
 const QUOTE_MOCK = {
   details: {
+    currencyIn: {
+      amountUsd: '1.24',
+    },
     currencyOut: {
       amountFormatted: '1.0',
       amountUsd: '1.23',
@@ -97,11 +111,19 @@ const DELEGATION_RESULT_MOCK = {
   value: '0x333' as Hex,
 } as Awaited<ReturnType<GetDelegationTransactionCallback>>;
 
+const GAS_FEE_TOKEN_MOCK = {
+  amount: toHex(1230000),
+  gas: toHex(21000),
+  tokenAddress: '0xabc' as Hex,
+} as GasFeeToken;
+
 describe('Relay Quotes Utils', () => {
   const successfulFetchMock = jest.mocked(successfulFetch);
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
   const calculateGasCostMock = jest.mocked(calculateGasCost);
+  const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
   const getNativeTokenMock = jest.mocked(getNativeToken);
+  const getTokenBalanceMock = jest.mocked(getTokenBalance);
 
   const calculateTransactionGasCostMock = jest.mocked(
     calculateTransactionGasCost,
@@ -110,6 +132,7 @@ describe('Relay Quotes Utils', () => {
   const {
     messenger,
     getDelegationTransactionMock,
+    getGasFeeTokensMock,
     getRemoteFeatureFlagControllerStateMock,
   } = getMessengerMock();
 
@@ -122,13 +145,24 @@ describe('Relay Quotes Utils', () => {
     });
 
     calculateTransactionGasCostMock.mockReturnValue({
-      usd: '1.23',
       fiat: '2.34',
+      human: '0.615',
+      raw: '6150000000000000',
+      usd: '1.23',
     });
 
     calculateGasCostMock.mockReturnValue({
-      usd: '3.45',
       fiat: '4.56',
+      human: '1.725',
+      raw: '1725000000000000',
+      usd: '3.45',
+    });
+
+    calculateGasFeeTokenCostMock.mockReturnValue({
+      fiat: '5.56',
+      human: '2.725',
+      raw: '2725000000000000',
+      usd: '4.45',
     });
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
@@ -137,6 +171,7 @@ describe('Relay Quotes Utils', () => {
     });
 
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
+    getGasFeeTokensMock.mockResolvedValue([]);
   });
 
   describe('getRelayQuotes', () => {
@@ -288,7 +323,7 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].estimatedDuration).toBe(300);
     });
 
-    it('includes provider fee in quote', async () => {
+    it('includes provider fee from relayer fee', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as never);
@@ -302,6 +337,26 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].fees.provider).toStrictEqual({
         usd: '1.11',
         fiat: '2.22',
+      });
+    });
+
+    it('includes provider fee from usd change if greater', async () => {
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.details.currencyIn.amountUsd = '3.00';
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quote,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.provider).toStrictEqual({
+        usd: '1.77',
+        fiat: '3.54',
       });
     });
 
@@ -322,63 +377,274 @@ describe('Relay Quotes Utils', () => {
       });
     });
 
-    it('includes source network fee in quote', async () => {
-      successfulFetchMock.mockResolvedValue({
-        json: async () => QUOTE_MOCK,
-      } as never);
+    describe('includes source network fee', () => {
+      it('in quote', async () => {
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as never);
 
-      const result = await getRelayQuotes({
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
-        transaction: TRANSACTION_META_MOCK,
+        const result = await getRelayQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].fees.sourceNetwork).toStrictEqual({
+          estimate: {
+            fiat: '4.56',
+            human: '1.725',
+            raw: '1725000000000000',
+            usd: '3.45',
+          },
+          max: {
+            fiat: '4.56',
+            human: '1.725',
+            raw: '1725000000000000',
+            usd: '3.45',
+          },
+        });
       });
 
-      expect(result[0].fees.sourceNetwork).toStrictEqual({
-        usd: '3.45',
-        fiat: '4.56',
-      });
-    });
+      it('using fallback if gas missing', async () => {
+        const quoteMock = cloneDeep(QUOTE_MOCK);
+        delete quoteMock.steps[0].items[0].data.gas;
 
-    it('includes source network fee in quote using fallback if gas missing', async () => {
-      const quoteMock = cloneDeep(QUOTE_MOCK);
-      delete quoteMock.steps[0].items[0].data.gas;
+        successfulFetchMock.mockResolvedValue({
+          json: async () => quoteMock,
+        } as never);
 
-      successfulFetchMock.mockResolvedValue({
-        json: async () => quoteMock,
-      } as never);
+        await getRelayQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
 
-      await getRelayQuotes({
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
-        transaction: TRANSACTION_META_MOCK,
-      });
-
-      expect(calculateGasCostMock).toHaveBeenCalledWith(
-        expect.objectContaining({ gas: 900000 }),
-      );
-    });
-
-    it('includes source network fee using gas total from multiple transactions', async () => {
-      const quoteMock = cloneDeep(QUOTE_MOCK);
-      quoteMock.steps[0].items.push({
-        data: {
-          gas: '480000',
-        },
-      } as never);
-
-      successfulFetchMock.mockResolvedValue({
-        json: async () => quoteMock,
-      } as never);
-
-      await getRelayQuotes({
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
-        transaction: TRANSACTION_META_MOCK,
+        expect(calculateGasCostMock).toHaveBeenCalledWith(
+          expect.objectContaining({ gas: 900000 }),
+        );
       });
 
-      expect(calculateGasCostMock).toHaveBeenCalledWith(
-        expect.objectContaining({ gas: 501000 }),
-      );
+      it('using gas total from multiple transactions', async () => {
+        const quoteMock = cloneDeep(QUOTE_MOCK);
+
+        quoteMock.steps[0].items.push({
+          data: {
+            gas: '480000',
+          },
+        } as never);
+
+        quoteMock.steps.push({
+          items: [
+            {
+              data: {
+                gas: '1000',
+              },
+            },
+            {
+              data: {
+                gas: '2000',
+              },
+            },
+          ],
+        } as never);
+
+        successfulFetchMock.mockResolvedValue({
+          json: async () => quoteMock,
+        } as never);
+
+        await getRelayQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(calculateGasCostMock).toHaveBeenCalledWith(
+          expect.objectContaining({ gas: 504000 }),
+        );
+      });
+
+      it('using gas fee token cost if insufficient native balance', async () => {
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        getTokenBalanceMock.mockReturnValue('1724999999999999');
+        getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+        const result = await getRelayQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].fees.isSourceGasFeeToken).toBe(true);
+        expect(result[0].fees.sourceNetwork).toStrictEqual({
+          estimate: {
+            fiat: '5.56',
+            human: '2.725',
+            raw: '2725000000000000',
+            usd: '4.45',
+          },
+          max: {
+            fiat: '5.56',
+            human: '2.725',
+            raw: '2725000000000000',
+            usd: '4.45',
+          },
+        });
+      });
+
+      it('using estimated gas fee token cost if insufficient native balance and batch', async () => {
+        const quote = cloneDeep(QUOTE_MOCK);
+
+        quote.steps[0].items.push({
+          data: {
+            gas: '21000',
+          },
+        } as never);
+
+        successfulFetchMock.mockResolvedValue({
+          json: async () => quote,
+        } as never);
+
+        getTokenBalanceMock.mockReturnValue('1724999999999999');
+        getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+        await getRelayQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(calculateGasFeeTokenCostMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            gasFeeToken: {
+              ...GAS_FEE_TOKEN_MOCK,
+              amount: toHex(1230000 * 2),
+            },
+          }),
+        );
+      });
+
+      it('not using gas fee token if sufficient native balance', async () => {
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        getTokenBalanceMock.mockReturnValue('1725000000000000');
+        getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+        const result = await getRelayQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
+        expect(result[0].fees.sourceNetwork).toStrictEqual({
+          estimate: {
+            fiat: '4.56',
+            human: '1.725',
+            raw: '1725000000000000',
+            usd: '3.45',
+          },
+          max: {
+            fiat: '4.56',
+            human: '1.725',
+            raw: '1725000000000000',
+            usd: '3.45',
+          },
+        });
+      });
+
+      it('not using gas fee token if source token not found', async () => {
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        getTokenBalanceMock.mockReturnValue('1724999999999999');
+        getGasFeeTokensMock.mockResolvedValue([
+          { ...GAS_FEE_TOKEN_MOCK, tokenAddress: '0xdef' as Hex },
+        ]);
+
+        const result = await getRelayQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
+        expect(result[0].fees.sourceNetwork).toStrictEqual({
+          estimate: {
+            fiat: '4.56',
+            human: '1.725',
+            raw: '1725000000000000',
+            usd: '3.45',
+          },
+          max: {
+            fiat: '4.56',
+            human: '1.725',
+            raw: '1725000000000000',
+            usd: '3.45',
+          },
+        });
+      });
+
+      it('not using gas fee token if calculation fails', async () => {
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        getTokenBalanceMock.mockReturnValue('1724999999999999');
+        getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+        calculateGasFeeTokenCostMock.mockReturnValue(undefined);
+
+        const result = await getRelayQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
+        expect(result[0].fees.sourceNetwork).toStrictEqual({
+          estimate: {
+            fiat: '4.56',
+            human: '1.725',
+            raw: '1725000000000000',
+            usd: '3.45',
+          },
+          max: {
+            fiat: '4.56',
+            human: '1.725',
+            raw: '1725000000000000',
+            usd: '3.45',
+          },
+        });
+      });
+
+      it('using gas fee token cost with normalized value', async () => {
+        const quote = cloneDeep(QUOTE_MOCK);
+        quote.steps[0].items[0].data.value = undefined as never;
+
+        successfulFetchMock.mockResolvedValue({
+          json: async () => quote,
+        } as never);
+
+        getTokenBalanceMock.mockReturnValue('1724999999999999');
+        getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+        await getRelayQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(getGasFeeTokensMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            value: '0x0',
+          }),
+        );
+      });
     });
 
     it('includes target network fee in quote', async () => {
