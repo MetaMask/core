@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `musdConversion` transaction type ([#7218](https://github.com/MetaMask/core/pull/7218))
+
+### Changed
+
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
+  - The dependencies moved are:
+    - `@metamask/accounts-controller` (^35.0.0)
+    - `@metamask/approval-controller` (^8.0.0)
+    - `@metamask/gas-fee-controller` (^26.0.0)
+    - `@metamask/network-controller` (^26.0.0)
+    - `@metamask/remote-feature-flag-controller` (^2.0.1)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+
+## [62.1.0]
+
+### Changed
+
+- Performance optimisations in `addTransaction` and `addTransactionBatch` methods ([#7205](https://github.com/MetaMask/core/pull/7205))
+  - Add `skipInitialGasEstimate` option to `addTransaction` and `addTransactionBatch` methods.
+  - Add `disableUpgrade` option to `addTransactionBatch` method.
+
 ## [62.0.0]
 
 ### Added
@@ -1952,7 +1977,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.1.0...HEAD
+[62.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.0.0...@metamask/transaction-controller@62.1.0
 [62.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.3.0...@metamask/transaction-controller@62.0.0
 [61.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.2.0...@metamask/transaction-controller@61.3.0
 [61.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@61.1.0...@metamask/transaction-controller@61.2.0

@@ -52,14 +52,14 @@
     "@metamask/controller-utils": "^11.16.0",
     "@metamask/keyring-api": "^21.0.0",
     "@metamask/messenger": "^0.3.0",
+    "@metamask/multichain-network-controller": "^3.0.0",
+    "@metamask/network-controller": "^26.0.0",
+    "@metamask/transaction-controller": "^62.1.0",
     "@metamask/utils": "^11.8.1",
     "reselect": "^5.1.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/multichain-network-controller": "^3.0.0",
-    "@metamask/network-controller": "^26.0.0",
-    "@metamask/transaction-controller": "^62.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -69,11 +69,6 @@
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
-  },
-  "peerDependencies": {
-    "@metamask/multichain-network-controller": "^3.0.0",
-    "@metamask/network-controller": "^26.0.0",
-    "@metamask/transaction-controller": "^62.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
