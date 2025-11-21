@@ -647,6 +647,44 @@ describe('Batch Utils', () => {
       );
     });
 
+    it('does not use type 4 if not upgraded but disableUpgrade set', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: false,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(
+        CONTRACT_ADDRESS_MOCK,
+      );
+
+      request.request.disableUpgrade = true;
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        {
+          from: FROM_MOCK,
+          to: TO_MOCK,
+          data: DATA_MOCK,
+          value: VALUE_MOCK,
+        },
+        expect.objectContaining({
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          requireApproval: true,
+        }),
+      );
+    });
+
     it('passes nested transactions to add transaction', async () => {
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
