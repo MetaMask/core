@@ -16,6 +16,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - JWT token is included in `Authorization: Bearer <token>` header when provided
   - Backward compatible: token parameter is optional and APIs work without authentication
 
+### Changed
+
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
+  - The dependencies moved are:
+    - `@metamask/account-tree-controller` (^4.0.0)
+    - `@metamask/accounts-controller` (^35.0.0)
+    - `@metamask/approval-controller` (^8.0.0)
+    - `@metamask/core-backend` (^5.0.0)
+    - `@metamask/keyring-controller` (^25.0.0)
+    - `@metamask/multichain-account-service` (^4.0.0)
+    - `@metamask/network-controller` (^26.0.0)
+    - `@metamask/permission-controller` (^12.1.1)
+    - `@metamask/phishing-controller` (^16.1.0)
+    - `@metamask/preferences-controller` (^22.0.0)
+    - `@metamask/profile-sync-controller` (^27.0.0)
+    - `@metamask/snaps-controllers` (^14.0.1)
+    - `@metamask/transaction-controller` (^62.1.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+
 ### Fixed
 
 - `TokenBalancesController`: state inconsistency by ensuring all account addresses are stored in lowercase format ([#7216](https://github.com/MetaMask/core/pull/7216))
