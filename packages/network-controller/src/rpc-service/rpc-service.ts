@@ -353,6 +353,17 @@ export class RpcService implements AbstractRpcService {
    */
   onBreak(listener: Parameters<AbstractRpcService['onBreak']>[0]) {
     return this.#policy.onBreak((data) => {
+      // `{ isolated: true }` is a special object that shows up when `isolate`
+      // is called on the circuit breaker. Usually `isolate` is used to hold the
+      // circuit open, but we (ab)use this method in `createServicePolicy` to
+      // reset the circuit breaker policy. When we do this, we don't want to
+      // call `onBreak` handlers, because then it causes
+      // `NetworkController:rpcEndpointUnavailable` and
+      // `NetworkController:rpcEndpointChainUnavailable` to be published. So we
+      // have to ignore that object here. The consequence is that `isolate`
+      // doesn't function the way it is intended, at least in the context of an
+      // RpcService. However, we are making a bet that we won't need to use it
+      // other than how we are already using it.
       if (!('isolated' in data)) {
         listener({ ...data, endpointUrl: this.endpointUrl.toString() });
       }
