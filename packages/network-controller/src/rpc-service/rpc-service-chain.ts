@@ -20,8 +20,7 @@ import type {
 } from './shared';
 import { projectLogger, createModuleLogger } from '../logger';
 
-// const log = createModuleLogger(projectLogger, 'RpcServiceChain');
-const log = console.log.bind(console);
+const log = createModuleLogger(projectLogger, 'RpcServiceChain');
 
 /**
  * Statuses that the RPC service chain can be in.
