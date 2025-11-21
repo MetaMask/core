@@ -20,7 +20,8 @@ import type {
 } from './shared';
 import { projectLogger, createModuleLogger } from '../logger';
 
-const log = createModuleLogger(projectLogger, 'RpcServiceChain');
+// const log = createModuleLogger(projectLogger, 'RpcServiceChain');
+const log = console.log.bind(console);
 
 /**
  * Statuses that the RPC service chain can be in.
@@ -444,13 +445,12 @@ export class RpcServiceChain {
     }
 
     if (response) {
-      // If one of the services returned a successful response, assume that we
-      // won't need to hit any of the failover services following it and reset
-      // all of the policies of the following services. In particularly this
-      // means that if any of the failover services' circuits was open when
-      // requests were diverted back to the available service, that circuit will
-      // now be reset so that if we start hitting it again we don't get a
-      // "circuit broken" error.
+      // If one of the services is available, reset all of the circuits of the
+      // following services. If we didn't do this and the service became
+      // unavailable in the future, and any of the failovers' circuits were
+      // open (due to previous failures), we would receive a "circuit broken"
+      // error when we attempted to divert traffic to the failovers again.
+      //
       if (availableServiceIndex !== undefined) {
         for (const [i, service] of [...this.#services.entries()].slice(
           availableServiceIndex + 1,
