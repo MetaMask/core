@@ -61,7 +61,6 @@ export type RpcServiceOptions = {
 };
 
 const log = createModuleLogger(projectLogger, 'RpcService');
-// const log = console.log.bind(console);
 
 /**
  * The maximum number of times that a failing service should be re-run before

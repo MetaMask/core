@@ -21,7 +21,6 @@ import type {
 import { projectLogger, createModuleLogger } from '../logger';
 
 const log = createModuleLogger(projectLogger, 'RpcServiceChain');
-// const log = console.log.bind(console);
 
 /**
  * Statuses that the RPC service chain can be in.
