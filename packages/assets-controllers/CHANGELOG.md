@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - JWT token is included in `Authorization: Bearer <token>` header when provided
   - Backward compatible: token parameter is optional and APIs work without authentication
 
+### Fixed
+
+- `TokenBalancesController`: state inconsistency by ensuring all account addresses are stored in lowercase format ([#7216](https://github.com/MetaMask/core/pull/7216))
+
 ## [91.0.0]
 
 ### Changed
