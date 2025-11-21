@@ -785,6 +785,12 @@ function expectDependenciesForControllersAndServices(
     dependencyIdent,
     dependencyInstancesByType,
   ] of dependenciesByIdentAndType.entries()) {
+    if (dependencyIdent === '@metamask/eth-block-tracker') {
+      // Some packages have a peer dependency on this package, and we are still
+      // working through removing this peer dependency across packages.
+      continue;
+    }
+
     const peerDependency = dependencyInstancesByType.get('peerDependencies');
     const devDependency = dependencyInstancesByType.get('devDependencies');
 

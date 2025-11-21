@@ -135,6 +135,10 @@
     "typescript": "~5.3.3",
     "webextension-polyfill": "^0.12.0"
   },
+  "peerDependencies": {
+    "@metamask/providers": "^22.0.0",
+    "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
+  },
   "engines": {
     "node": "^18.18 || >=20"
   },

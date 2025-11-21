@@ -13,7 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The dependencies moved are:
     - `@metamask/accounts-controller` (^35.0.0)
     - `@metamask/approval-controller` (^8.0.0)
-    - `@metamask/eth-block-tracker` (^15.0.0)
     - `@metamask/gas-fee-controller` (^26.0.0)
     - `@metamask/network-controller` (^26.0.0)
     - `@metamask/remote-feature-flag-controller` (^2.0.1)
