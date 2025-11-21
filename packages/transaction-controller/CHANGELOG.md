@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Performance optimisations in `addTransaction` and `addTransactionBatch` methods ([#7205](https://github.com/MetaMask/core/pull/7205))
+  - Add `skipInitialGasEstimate` option to `addTransaction` and `addTransactionBatch` methods.
+  - Add `disableUpgrade` option to `addTransactionBatch` method.
+
 ## [62.0.0]
 
 ### Added
