@@ -437,7 +437,7 @@ export class RpcServiceChain {
         // The service failed, and we throw whatever the error is. The calling
         // code can try again if it so desires.
         log(
-          `${isCircuitOpen ? "This service's circuit is open, but for some reason it wasn't handled above. " : "This service's circuit is closed. "}Re-throwing error.`,
+          `${isCircuitOpen ? '' : "This service's circuit is closed. "}Re-throwing error.`,
         );
         throw error;
       }
