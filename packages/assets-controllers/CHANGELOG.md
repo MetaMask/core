@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add optional JWT token authentication to multi-chain accounts API calls ([#7165](https://github.com/MetaMask/core/pull/7165))
+  - `fetchMultiChainBalances` and `fetchMultiChainBalancesV4` now accept an optional `jwtToken` parameter
+  - `TokenDetectionController` fetches and passes JWT token from `AuthenticationController` when using Accounts API
+  - `TokenBalancesController` fetches and passes JWT token through balance fetcher chain
+  - JWT token is included in `Authorization: Bearer <token>` header when provided
+  - Backward compatible: token parameter is optional and APIs work without authentication
+
 ## [91.0.0]
 
 ### Changed
