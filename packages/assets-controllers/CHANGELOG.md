@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Fix `TokenBalancesController` state that store both lowercase and checksum account addresses ([#7216](https://github.com/MetaMask/core/pull/7216))
-
 ### Added
 
 - **BREAKING:** Add optional JWT token authentication to multi-chain accounts API calls ([#7165](https://github.com/MetaMask/core/pull/7165))
@@ -22,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix `TokenBalancesController` state that store both lowercase and checksum account addresses ([#7216](https://github.com/MetaMask/core/pull/7216))
 - `TokenBalancesController`: state inconsistency by ensuring all account addresses are stored in lowercase format ([#7216](https://github.com/MetaMask/core/pull/7216))
 
 ## [91.0.0]
