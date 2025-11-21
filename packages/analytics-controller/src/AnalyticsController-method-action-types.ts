@@ -10,8 +10,7 @@ import type { AnalyticsController } from './AnalyticsController';
  *
  * Events are only tracked if analytics is enabled.
  *
- * @param eventName - The name of the event
- * @param properties - Event properties
+ * @param event - Analytics event with properties and sensitive properties
  */
 export type AnalyticsControllerTrackEventAction = {
   type: `AnalyticsController:trackEvent`;
@@ -21,7 +20,6 @@ export type AnalyticsControllerTrackEventAction = {
 /**
  * Identify a user for analytics.
  *
- * @param userId - The user identifier (e.g., metametrics ID)
  * @param traits - User traits/properties
  */
 export type AnalyticsControllerIdentifyAction = {
@@ -30,46 +28,50 @@ export type AnalyticsControllerIdentifyAction = {
 };
 
 /**
- * Track a page view.
+ * Track a page or screen view.
  *
- * @param pageName - The name of the page
- * @param properties - Page properties
+ * @param name - The identifier/name of the page or screen being viewed (e.g., "home", "settings", "wallet")
+ * @param properties - Optional properties associated with the view
  */
-export type AnalyticsControllerTrackPageAction = {
-  type: `AnalyticsController:trackPage`;
-  handler: AnalyticsController['trackPage'];
+export type AnalyticsControllerTrackViewAction = {
+  type: `AnalyticsController:trackView`;
+  handler: AnalyticsController['trackView'];
 };
 
 /**
- * Enable analytics tracking.
+ * Opt in to analytics for regular account.
+ * This updates the user's opt-in status for regular account.
  */
-export type AnalyticsControllerEnableAction = {
-  type: `AnalyticsController:enable`;
-  handler: AnalyticsController['enable'];
+export type AnalyticsControllerOptInForRegularAccountAction = {
+  type: `AnalyticsController:optInForRegularAccount`;
+  handler: AnalyticsController['optInForRegularAccount'];
 };
 
 /**
- * Disable analytics tracking.
+ * Opt out of analytics for regular account.
+ * This updates the user's opt-in status for regular account.
  */
-export type AnalyticsControllerDisableAction = {
-  type: `AnalyticsController:disable`;
-  handler: AnalyticsController['disable'];
+export type AnalyticsControllerOptOutForRegularAccountAction = {
+  type: `AnalyticsController:optOutForRegularAccount`;
+  handler: AnalyticsController['optOutForRegularAccount'];
 };
 
 /**
- * Opt in to analytics.
+ * Opt in to analytics for social account.
+ * This updates the user's opt-in status for social account.
  */
-export type AnalyticsControllerOptInAction = {
-  type: `AnalyticsController:optIn`;
-  handler: AnalyticsController['optIn'];
+export type AnalyticsControllerOptInForSocialAccountAction = {
+  type: `AnalyticsController:optInForSocialAccount`;
+  handler: AnalyticsController['optInForSocialAccount'];
 };
 
 /**
- * Opt out of analytics.
+ * Opt out of analytics for social account.
+ * This updates the user's opt-in status for social account.
  */
-export type AnalyticsControllerOptOutAction = {
-  type: `AnalyticsController:optOut`;
-  handler: AnalyticsController['optOut'];
+export type AnalyticsControllerOptOutForSocialAccountAction = {
+  type: `AnalyticsController:optOutForSocialAccount`;
+  handler: AnalyticsController['optOutForSocialAccount'];
 };
 
 /**
@@ -78,8 +80,8 @@ export type AnalyticsControllerOptOutAction = {
 export type AnalyticsControllerMethodActions =
   | AnalyticsControllerTrackEventAction
   | AnalyticsControllerIdentifyAction
-  | AnalyticsControllerTrackPageAction
-  | AnalyticsControllerEnableAction
-  | AnalyticsControllerDisableAction
-  | AnalyticsControllerOptInAction
-  | AnalyticsControllerOptOutAction;
+  | AnalyticsControllerTrackViewAction
+  | AnalyticsControllerOptInForRegularAccountAction
+  | AnalyticsControllerOptOutForRegularAccountAction
+  | AnalyticsControllerOptInForSocialAccountAction
+  | AnalyticsControllerOptOutForSocialAccountAction;

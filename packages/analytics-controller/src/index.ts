@@ -2,15 +2,23 @@
 export { AnalyticsController } from './AnalyticsController';
 export type { AnalyticsControllerOptions } from './AnalyticsController';
 
+// Export errors
+export { AnalyticsPlatformAdapterSetupError } from './AnalyticsPlatformAdapterSetupError';
+
 // Export types
 export type {
   AnalyticsEventProperties,
+  AnalyticsUserTraits,
   AnalyticsPlatformAdapter,
+  AnalyticsTrackingEvent,
 } from './AnalyticsPlatformAdapter.types';
 
 // Export state types and utilities
 export type { AnalyticsControllerState } from './AnalyticsController';
 export { getDefaultAnalyticsControllerState } from './AnalyticsController';
+
+// Export selectors
+export { analyticsControllerSelectors } from './selectors';
 
 // Export messenger types
 export type { AnalyticsControllerMessenger } from './AnalyticsController';
@@ -26,10 +34,10 @@ export type {
 export type {
   AnalyticsControllerTrackEventAction,
   AnalyticsControllerIdentifyAction,
-  AnalyticsControllerTrackPageAction,
-  AnalyticsControllerEnableAction,
-  AnalyticsControllerDisableAction,
-  AnalyticsControllerOptInAction,
-  AnalyticsControllerOptOutAction,
+  AnalyticsControllerTrackViewAction,
+  AnalyticsControllerOptInForRegularAccountAction,
+  AnalyticsControllerOptOutForRegularAccountAction,
+  AnalyticsControllerOptInForSocialAccountAction,
+  AnalyticsControllerOptOutForSocialAccountAction,
   AnalyticsControllerMethodActions,
 } from './AnalyticsController-method-action-types';
