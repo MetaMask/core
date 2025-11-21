@@ -525,27 +525,29 @@ export class RpcService implements AbstractRpcService {
         `[${this.endpointUrl}] Circuit state`,
         this.#policy.getCircuitState(),
       );
-      const jsonDecodedResponse = await this.#policy.execute(async (data) => {
-        log(
-          'REQUEST INITIATED:',
-          this.endpointUrl.toString(),
-          '::',
-          fetchOptions,
-          // @ts-expect-error This property _is_ here, the type of ServicePolicy
-          // is just wrong.
-          `(attempt ${data.attempt + 1})`,
-        );
-        response = await this.#fetch(this.endpointUrl, fetchOptions);
-        if (!response.ok) {
-          throw new HttpError(response.status);
-        }
-        log(
-          'REQUEST SUCCESSFUL:',
-          this.endpointUrl.toString(),
-          response.status,
-        );
-        return await response.json();
-      });
+      const jsonDecodedResponse = await this.#policy.execute(
+        async (context) => {
+          log(
+            'REQUEST INITIATED:',
+            this.endpointUrl.toString(),
+            '::',
+            fetchOptions,
+            // @ts-expect-error This property _is_ here, the type of
+            // ServicePolicy is just wrong.
+            `(attempt ${context.attempt + 1})`,
+          );
+          response = await this.#fetch(this.endpointUrl, fetchOptions);
+          if (!response.ok) {
+            throw new HttpError(response.status);
+          }
+          log(
+            'REQUEST SUCCESSFUL:',
+            this.endpointUrl.toString(),
+            response.status,
+          );
+          return await response.json();
+        },
+      );
       this.lastError = undefined;
       return jsonDecodedResponse;
     } catch (error) {
