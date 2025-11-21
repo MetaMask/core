@@ -1,5 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import { toHex } from '@metamask/controller-utils';
+import { toChecksumHexAddress, toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   Messenger,
@@ -11,9 +11,11 @@ import {
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { CHAIN_IDS } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import { useFakeTimers } from 'sinon';
 
+import { mockAPI_accountsAPI_MultichainAccountBalances } from './__fixtures__/account-api-v4-mocks';
 import * as multicall from './multicall';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
 import type {
@@ -95,6 +97,7 @@ const setupController = ({
       'AccountTrackerController:getState',
       'AccountTrackerController:updateNativeBalances',
       'AccountTrackerController:updateStakedBalances',
+      'AuthenticationController:getBearerToken',
     ],
     events: [
       'NetworkController:stateChange',
@@ -4277,6 +4280,7 @@ describe('TokenBalancesController', () => {
         ok: true,
         json: () => Promise.resolve([]),
       });
+      const originalFetch = global.fetch;
       global.fetch = mockGlobalFetch;
 
       // Create controller with accountsApiChainIds to enable AccountsApi fetcher
@@ -4311,8 +4315,7 @@ describe('TokenBalancesController', () => {
       supportsSpy.mockRestore();
       fetchSpy.mockRestore();
       mockedSafelyExecuteWithTimeout.mockRestore();
-      // @ts-expect-error - deleting global fetch for test cleanup
-      delete global.fetch;
+      global.fetch = originalFetch;
     });
   });
 
@@ -5212,6 +5215,48 @@ describe('TokenBalancesController', () => {
 
       jest.useRealTimers();
       clearTimeoutSpy.mockRestore();
+    });
+  });
+
+  describe('TokenBalancesController - AccountsAPI integration', () => {
+    const accountAddress = '0x393a8d3f7710047324d369a7cb368c0570c335b8';
+    const checksumAccountAddress = toChecksumHexAddress(accountAddress) as Hex;
+    const chainId = '0x89';
+
+    const arrange = () => {
+      const mockAccountsAPI =
+        mockAPI_accountsAPI_MultichainAccountBalances(accountAddress);
+
+      const account = createMockInternalAccount({ address: accountAddress });
+
+      const { controller } = setupController({
+        config: {
+          accountsApiChainIds: () => [chainId], // Enable Accounts API for this chain
+          allowExternalServices: () => true,
+        },
+        listAccounts: [account],
+      });
+
+      return {
+        mockAccountsAPI,
+        controller,
+      };
+    };
+
+    it('calls Accounts API and stores data with lowercased account address', async () => {
+      const { mockAccountsAPI, controller } = arrange();
+
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
+
+      expect(controller.state.tokenBalances[accountAddress]).toBeDefined();
+      expect(
+        controller.state.tokenBalances[checksumAccountAddress],
+      ).toBeUndefined();
+
+      expect(mockAccountsAPI.isDone()).toBe(true);
     });
   });
 

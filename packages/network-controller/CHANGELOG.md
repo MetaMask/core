@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Update `AbstractRpcService`/`RpcServiceRequestable` to remove `{ isolated: true }` from the `onBreak` event data type ([#7166](https://github.com/MetaMask/core/pull/7166))
   - This represented the error produced when `.isolate` is called on a Cockatiel circuit breaker policy, which we never do.
 - Statuses of networks (captured in the NetworkController `networksMetadata` state property) are now kept up to date as requests are made ([#7186](https://github.com/MetaMask/core/pull/7186))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
+  - The dependencies moved are:
+    - `@metamask/error-reporting-service` (^3.0.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
 - Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
 
 ## [26.0.0]
