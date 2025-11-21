@@ -89,7 +89,7 @@ export const identifyPermissionByEnforcers = ({
  * @returns The expiry timestamp in seconds, or null if no valid expiry exists
  * @throws If the terms are not exactly 32 bytes or if the timestampAfterThreshold is non-zero
  */
-export const extractExpiryFromCaveatTerms = (terms: Hex): number | null => {
+const extractExpiryFromCaveatTerms = (terms: Hex): number | null => {
   // Validate terms length: must be exactly 32 bytes (64 hex chars + '0x' prefix = 66 chars)
   if (terms.length !== 66) {
     throw new Error(

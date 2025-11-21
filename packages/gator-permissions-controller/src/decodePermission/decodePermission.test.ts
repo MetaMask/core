@@ -505,6 +505,143 @@ describe('decodePermission', () => {
           }),
         ).toThrow('Value must be a hexadecimal string.');
       });
+
+      it('rejects expiry terms that are too short', () => {
+        const caveats = [
+          {
+            enforcer: TimestampEnforcer,
+            terms: '0x1234' as Hex,
+            args: '0x',
+          } as const,
+          {
+            enforcer: NativeTokenStreamingEnforcer,
+            terms: createNativeTokenStreamingTerms(
+              {
+                initialAmount,
+                maxAmount,
+                amountPerSecond,
+                startTime,
+              },
+              { out: 'hex' },
+            ),
+            args: '0x',
+          } as const,
+        ];
+
+        expect(() =>
+          getPermissionDataAndExpiry({
+            contracts,
+            caveats,
+            permissionType,
+          }),
+        ).toThrow(
+          'Invalid TimestampEnforcer terms length: expected 66 characters (0x + 64 hex), got 6',
+        );
+      });
+
+      it('rejects expiry terms that are too long', () => {
+        const caveats = [
+          {
+            enforcer: TimestampEnforcer,
+            terms: `0x${'0'.repeat(68)}` as Hex,
+            args: '0x',
+          } as const,
+          {
+            enforcer: NativeTokenStreamingEnforcer,
+            terms: createNativeTokenStreamingTerms(
+              {
+                initialAmount,
+                maxAmount,
+                amountPerSecond,
+                startTime,
+              },
+              { out: 'hex' },
+            ),
+            args: '0x',
+          } as const,
+        ];
+
+        expect(() =>
+          getPermissionDataAndExpiry({
+            contracts,
+            caveats,
+            permissionType,
+          }),
+        ).toThrow(
+          'Invalid TimestampEnforcer terms length: expected 66 characters (0x + 64 hex), got 70',
+        );
+      });
+
+      it('rejects expiry timestamp that is not a safe integer', () => {
+        // Use maximum uint128 value which exceeds Number.MAX_SAFE_INTEGER
+        const maxUint128 = 'f'.repeat(32);
+        const termsHex = `0x${'0'.repeat(32)}${maxUint128}` as Hex;
+        const caveats = [
+          {
+            enforcer: TimestampEnforcer,
+            terms: termsHex,
+            args: '0x',
+          } as const,
+          {
+            enforcer: NativeTokenStreamingEnforcer,
+            terms: createNativeTokenStreamingTerms(
+              {
+                initialAmount,
+                maxAmount,
+                amountPerSecond,
+                startTime,
+              },
+              { out: 'hex' },
+            ),
+            args: '0x',
+          } as const,
+        ];
+
+        expect(() =>
+          getPermissionDataAndExpiry({
+            contracts,
+            caveats,
+            permissionType,
+          }),
+        ).toThrow('Value is not a safe integer');
+      });
+
+      it('handles large valid expiry timestamp', () => {
+        // Use a large but valid timestamp (year 9999: 253402300799)
+        const largeTimestamp = 253402300799;
+        const caveats = [
+          {
+            enforcer: TimestampEnforcer,
+            terms: createTimestampTerms({
+              timestampAfterThreshold: 0,
+              timestampBeforeThreshold: largeTimestamp,
+            }),
+            args: '0x',
+          } as const,
+          {
+            enforcer: NativeTokenStreamingEnforcer,
+            terms: createNativeTokenStreamingTerms(
+              {
+                initialAmount,
+                maxAmount,
+                amountPerSecond,
+                startTime,
+              },
+              { out: 'hex' },
+            ),
+            args: '0x',
+          } as const,
+        ];
+
+        const { expiry, data } = getPermissionDataAndExpiry({
+          contracts,
+          caveats,
+          permissionType,
+        });
+
+        expect(expiry).toBe(largeTimestamp);
+        expect(hexToBigInt(data.initialAmount)).toBe(initialAmount);
+      });
     });
 
     describe('native-token-periodic', () => {
