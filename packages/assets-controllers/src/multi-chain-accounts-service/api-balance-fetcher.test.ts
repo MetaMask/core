@@ -358,6 +358,7 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'extension',
+        undefined,
       );
 
       expect(result.balances).toHaveLength(2);
@@ -395,6 +396,7 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'extension',
+        undefined,
       );
 
       expect(result.balances).toHaveLength(3);
@@ -499,7 +501,7 @@ describe('AccountsApiBalanceFetcher', () => {
 
       expect(mockReduceInBatchesSerially).toHaveBeenCalledWith({
         values: caipAddresses,
-        batchSize: 50,
+        batchSize: 20,
         eachBatch: expect.any(Function),
         initialResult: [],
       });
@@ -716,6 +718,7 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'extension',
+        undefined,
       );
     });
 
@@ -737,6 +740,7 @@ describe('AccountsApiBalanceFetcher', () => {
           ],
         },
         'mobile',
+        undefined,
       );
     });
   });

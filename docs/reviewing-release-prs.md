@@ -90,24 +90,9 @@ With that in mind, there are three ways changes can be categorized:
 
 ### Breaking changes
 
-A change is "breaking" if it is included in a version of a package, which, after a consumer upgrades to it and makes no further changes, causes one of the following:
+A change is "breaking" if upgrading a project to a version containing the change would require modifications to source code or configuration in order to avoid user- or developer-facing problems (an inability to use or build the project, a loss of functionality, etc.).
 
-- An error at runtime
-- An error at compile time (e.g., a TypeScript type error)
-- An error at install time (e.g., the consumer's package manager reports a Node version incompatibility)
-- A surprising difference in behavior
-
-Given this, there are many ways a change could be regarded as breaking:
-
-- Changing a function or method to throw an error
-- Adding a required argument to a function or method
-- Adding a required property to a TypeScript type
-- Narrowing the type of a property in a TypeScript type
-- Narrowing the type of an argument in a function
-- Adding or removing a parameter to a TypeScript type
-- Upgrading a runtime dependency to a version which causes any of the above
-- Removing an export from the package
-- Bumping the minimum supported Node.js version
+There are many kinds of breaking changes. You can find a list of examples [here](./breaking-changes.md#what-is-a-breaking-change).
 
 ### Additions
 
