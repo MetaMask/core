@@ -95,6 +95,7 @@ const setupController = ({
       'AccountTrackerController:getState',
       'AccountTrackerController:updateNativeBalances',
       'AccountTrackerController:updateStakedBalances',
+      'AuthenticationController:getBearerToken',
     ],
     events: [
       'NetworkController:stateChange',
