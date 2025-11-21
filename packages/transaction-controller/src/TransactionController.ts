@@ -119,6 +119,7 @@ import type {
   GetSimulationConfig,
   AddTransactionOptions,
   PublishHookResult,
+  GetGasFeeTokensRequest,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -382,6 +383,14 @@ export type TransactionControllerEmulateTransactionUpdate = {
 };
 
 /**
+ * Retrieve available gas fee tokens for a transaction.
+ */
+export type TransactionControllerGetGasFeeTokensAction = {
+  type: `${typeof controllerName}:getGasFeeTokens`;
+  handler: (request: GetGasFeeTokensRequest) => Promise<GasFeeToken[]>;
+};
+
+/**
  * The internal actions available to the TransactionController.
  */
 export type TransactionControllerActions =
@@ -389,6 +398,7 @@ export type TransactionControllerActions =
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerConfirmExternalTransactionAction
   | TransactionControllerEstimateGasAction
+  | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetNonceLockAction
   | TransactionControllerGetStateAction
   | TransactionControllerGetTransactionsAction
@@ -3172,6 +3182,8 @@ export class TransactionController extends BaseController<
         () => this.#signTransaction(transactionMeta),
       );
 
+      transactionMeta = this.#getTransactionOrThrow(transactionId);
+
       if (!(await this.#beforePublish(transactionMeta))) {
         log('Skipping publishing transaction based on hook');
         this.messenger.publish(
@@ -3772,14 +3784,41 @@ export class TransactionController extends BaseController<
   }
 
   async #signTransaction(
-    transactionMeta: TransactionMeta,
+    originalTransactionMeta: TransactionMeta,
   ): Promise<string | undefined> {
-    const {
-      chainId,
-      id: transactionId,
-      isExternalSign,
-      txParams,
-    } = transactionMeta;
+    let transactionMeta = originalTransactionMeta;
+    const { id: transactionId } = transactionMeta;
+
+    log('Calling before sign hook', transactionMeta);
+
+    const { updateTransaction } =
+      (await this.#beforeSign({ transactionMeta })) ?? {};
+
+    if (updateTransaction) {
+      this.#updateTransactionInternal(
+        { transactionId, skipResimulateCheck: true, note: 'beforeSign Hook' },
+        updateTransaction,
+      );
+
+      log('Updated transaction after before sign hook');
+    }
+
+    transactionMeta = this.#getTransactionOrThrow(transactionId);
+
+    const { networkClientId } = transactionMeta;
+    const ethQuery = this.#getEthQuery({ networkClientId });
+
+    await checkGasFeeTokenBeforePublish({
+      ethQuery,
+      fetchGasFeeTokens: async (tx) =>
+        (await this.#getGasFeeTokens(tx)).gasFeeTokens,
+      transaction: transactionMeta,
+      updateTransaction: (txId, fn) =>
+        this.#updateTransactionInternal({ transactionId: txId }, fn),
+    });
+
+    transactionMeta = this.#getTransactionOrThrow(transactionId);
+    const { chainId, isExternalSign, txParams } = transactionMeta;
 
     if (isExternalSign) {
       log('Skipping sign as signed externally');
@@ -3800,19 +3839,7 @@ export class TransactionController extends BaseController<
       });
     }
 
-    log('Calling before sign hook', transactionMeta);
-
-    const { updateTransaction } =
-      (await this.#beforeSign({ transactionMeta })) ?? {};
-
-    if (updateTransaction) {
-      this.#updateTransactionInternal(
-        { transactionId, skipResimulateCheck: true, note: 'beforeSign Hook' },
-        updateTransaction,
-      );
-
-      log('Updated transaction after before sign hook');
-    }
+    transactionMeta = this.#getTransactionOrThrow(transactionId);
 
     const finalTransactionMeta = this.#getTransactionOrThrow(transactionId);
     const { txParams: finalTxParams } = finalTransactionMeta;
@@ -4455,8 +4482,23 @@ export class TransactionController extends BaseController<
     );
 
     this.messenger.registerActionHandler(
+      `${controllerName}:emulateNewTransaction`,
+      this.emulateNewTransaction.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:emulateTransactionUpdate`,
+      this.emulateTransactionUpdate.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
       `${controllerName}:estimateGas`,
       this.estimateGas.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:getGasFeeTokens`,
+      this.#getGasFeeTokensAction.bind(this),
     );
 
     this.messenger.registerActionHandler(
@@ -4477,16 +4519,6 @@ export class TransactionController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:updateTransaction`,
       this.updateTransaction.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:emulateNewTransaction`,
-      this.emulateNewTransaction.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:emulateTransactionUpdate`,
-      this.emulateTransactionUpdate.bind(this),
     );
   }
 
@@ -4660,5 +4692,29 @@ export class TransactionController extends BaseController<
       publicKeyEIP7702: this.#publicKeyEIP7702,
       transactionMeta: transaction,
     });
+  }
+
+  async #getGasFeeTokensAction(
+    request: GetGasFeeTokensRequest,
+  ): Promise<GasFeeToken[]> {
+    const { chainId, data, from, to, value } = request;
+
+    const ethQuery = this.#getEthQuery({ chainId });
+    const delegationAddress = await getDelegationAddress(from, ethQuery);
+
+    const transaction = {
+      chainId,
+      delegationAddress,
+      txParams: {
+        data,
+        from,
+        to,
+        value,
+      },
+    } as TransactionMeta;
+
+    const result = await this.#getGasFeeTokens(transaction);
+
+    return result.gasFeeTokens;
   }
 }

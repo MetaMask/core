@@ -9,11 +9,8 @@ import type {
 } from '..';
 import { TransactionPayStrategy } from '..';
 import type { TransactionMeta } from '../../../transaction-controller/src';
+import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants';
 import { projectLogger } from '../logger';
-import {
-  ARBITRUM_USDC_ADDRESS,
-  CHAIN_ID_ARBITRUM,
-} from '../strategy/relay/constants';
 import type {
   TransactionPaySourceAmount,
   TransactionData,

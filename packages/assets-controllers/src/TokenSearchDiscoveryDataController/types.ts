@@ -1,6 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
-import type { TokenPrice } from '../token-prices-service/abstract-token-prices-service';
+import type { EvmAssetWithMarketData } from '../token-prices-service/abstract-token-prices-service';
 import type { Token } from '../TokenRatesController';
 
 export type NotFoundTokenDisplayData = {
@@ -16,7 +16,7 @@ export type FoundTokenDisplayData = {
   address: string;
   currency: string;
   token: Token;
-  price: TokenPrice<Hex, string> | null;
+  price: EvmAssetWithMarketData<Hex, string> | null;
 };
 
 export type TokenDisplayData = NotFoundTokenDisplayData | FoundTokenDisplayData;

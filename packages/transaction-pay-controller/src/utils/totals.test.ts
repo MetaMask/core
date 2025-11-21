@@ -28,8 +28,18 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
       usd: '2.22',
     },
     sourceNetwork: {
-      fiat: '3.33',
-      usd: '4.44',
+      estimate: {
+        fiat: '3.33',
+        human: '3.33',
+        raw: '333000000000000',
+        usd: '4.44',
+      },
+      max: {
+        fiat: '3.34',
+        human: '3.34',
+        raw: '334000000000000',
+        usd: '4.45',
+      },
     },
     targetNetwork: {
       fiat: '5.55',
@@ -38,6 +48,12 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
   },
   original: undefined,
   request: {} as QuoteRequest,
+  sourceAmount: {
+    human: '7.77',
+    fiat: '7.77',
+    raw: '777000000000000',
+    usd: '8.88',
+  },
   strategy: TransactionPayStrategy.Test,
 };
 
@@ -58,13 +74,24 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
   },
   estimatedDuration: 234,
   fees: {
+    isSourceGasFeeToken: true,
     provider: {
       fiat: '7.77',
       usd: '8.88',
     },
     sourceNetwork: {
-      fiat: '9.99',
-      usd: '10.10',
+      estimate: {
+        fiat: '9.99',
+        human: '9.99',
+        raw: '999000000000000',
+        usd: '10.10',
+      },
+      max: {
+        fiat: '9.999',
+        human: '9.999',
+        raw: '999900000000000',
+        usd: '10.11',
+      },
     },
     targetNetwork: {
       fiat: '11.11',
@@ -73,6 +100,12 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
   },
   original: undefined,
   request: {} as QuoteRequest,
+  sourceAmount: {
+    human: '13.13',
+    fiat: '13.13',
+    raw: '1313000000000000',
+    usd: '14.14',
+  },
   strategy: TransactionPayStrategy.Test,
 };
 
@@ -87,7 +120,10 @@ describe('Totals Utils', () => {
     jest.resetAllMocks();
 
     calculateTransactionGasCostMock.mockReturnValue({
+      isGasFeeToken: true,
       fiat: '1.23',
+      human: '1.23',
+      raw: '1230000000000000',
       usd: '2.34',
     });
   });
@@ -156,8 +192,10 @@ describe('Totals Utils', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result.fees.sourceNetwork.fiat).toBe('13.32');
-      expect(result.fees.sourceNetwork.usd).toBe('14.54');
+      expect(result.fees.sourceNetwork.estimate.fiat).toBe('13.32');
+      expect(result.fees.sourceNetwork.estimate.usd).toBe('14.54');
+      expect(result.fees.sourceNetwork.max.fiat).toBe('13.339');
+      expect(result.fees.sourceNetwork.max.usd).toBe('14.56');
     });
 
     it('returns target network fees', () => {
@@ -182,6 +220,20 @@ describe('Totals Utils', () => {
 
       expect(result.fees.targetNetwork.fiat).toBe('1.23');
       expect(result.fees.targetNetwork.usd).toBe('2.34');
+      expect(result.fees.isTargetGasFeeToken).toBe(true);
+    });
+
+    it('returns source amount', () => {
+      const result = calculateTotals({
+        quotes: [QUOTE_1_MOCK, QUOTE_2_MOCK],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.sourceAmount.fiat).toBe('20.9');
+      expect(result.sourceAmount.usd).toBe('23.02');
+      expect(result.fees.isSourceGasFeeToken).toBe(true);
     });
   });
 });

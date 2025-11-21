@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-backend",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "description": "Core backend services for MetaMask",
   "keywords": [
     "MetaMask",
@@ -48,16 +48,16 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/controller-utils": "^11.15.0",
+    "@metamask/controller-utils": "^11.16.0",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/profile-sync-controller": "^26.0.0",
+    "@metamask/profile-sync-controller": "^27.0.0",
     "@metamask/utils": "^11.8.1",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^34.0.0",
+    "@metamask/accounts-controller": "^35.0.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^24.0.0",
+    "@metamask/keyring-controller": "^25.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -69,8 +69,8 @@
     "typescript": "~5.3.3"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^34.0.0",
-    "@metamask/keyring-controller": "^24.0.0"
+    "@metamask/accounts-controller": "^35.0.0",
+    "@metamask/keyring-controller": "^25.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

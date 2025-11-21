@@ -14,16 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
-  - Providers accessible either via network clients or global proxies no longer emit events (or inherit from EventEmitter, for that matter).
-- **BREAKING:** Make `Provider` type more specific ([#7061](https://github.com/MetaMask/core/pull/7061))
-  - The `Provider` type is now an `InternalProvider` with a context type of `{ origin: string; skipCache: boolean } & Record<string, unknown>`.
-- **BREAKING:** Stop retrying `undefined` results for methods that include a block tag parameter ([#7001](https://github.com/MetaMask/core/pull/7001))
-  - The network client middleware, via `@metamask/eth-json-rpc-middleware`, will now throw an error if it encounters an
-    `undefined` result when dispatching a request with a later block number than the originally requested block number.
-  - In practice, this should happen rarely if ever.
-- **BREAKING:** Migrate `NetworkClient` to `JsonRpcEngineV2` ([#7065](https://github.com/MetaMask/core/pull/7065))
-  - This ought to be unobservable, but we mark it as breaking out of an abundance of caution.
 - **BREAKING:** Split up and update payload data for `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointUnavailable` ([#7166](https://github.com/MetaMask/core/pull/7166))
   - `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointUnavailable` still exist and retain the same behavior as before.
   - New events are `NetworkController:rpcEndpointChainDegraded` and `NetworkController:rpcEndpointChainUnavailable`, and are designed to represent an entire chain of endpoints. They are also guaranteed to not be published multiple times in a row. In particular, `NetworkController:rpcEndpointUnavailable` is published only after trying all of the endpoints for a chain and when the underlying circuit for the last endpoint breaks, not as each primary's or failover's circuit breaks.
@@ -35,6 +25,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This represented the error produced when `.isolate` is called on a Cockatiel circuit breaker policy, which we never do.
 - Statuses of networks (captured in the NetworkController `networksMetadata` state property) are now kept up to date as requests are made ([#7186](https://github.com/MetaMask/core/pull/7186))
 - Bump `@metamask/controller-utils` from `^11.14.1` to `^11.15.0` ([#7003](https://github.com/MetaMask/core/pull/7003))
+
+## [26.0.0]
+
+### Added
+
+- Add infura supported networks ([#6972](https://github.com/MetaMask/core/pull/6972))
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/eth-json-rpc-provider` from `^5.0.1` to `^6.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/eth-json-rpc-middleware` from `^21.0.0` to `^22.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/eth-block-tracker` from `^14.0.0` to `^15.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
+  - Providers accessible either via network clients or global proxies no longer emit events (or inherit from EventEmitter, for that matter).
+- **BREAKING:** Make `Provider` type more specific ([#7061](https://github.com/MetaMask/core/pull/7061))
+  - The `Provider` type is now an `InternalProvider` with a context type of `{ origin: string; skipCache: boolean } & Record<string, unknown>`.
+- **BREAKING:** Stop retrying `undefined` results for methods that include a block tag parameter ([#7001](https://github.com/MetaMask/core/pull/7001))
+  - The network client middleware, via `@metamask/eth-json-rpc-middleware`, will now throw an error if it encounters an
+    `undefined` result when dispatching a request with a later block number than the originally requested block number.
+  - In practice, this should happen rarely if ever.
+- **BREAKING:** Migrate `NetworkClient` to `JsonRpcEngineV2` ([#7065](https://github.com/MetaMask/core/pull/7065))
+  - This ought to be unobservable, but we mark it as breaking out of an abundance of caution.
+- **BREAKING:** Update signature of `request` in `AbstractRpcService` and `RpcServiceRequestable` so that the JSON-RPC request must be frozen ([#7138](https://github.com/MetaMask/core/pull/7138))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7003](https://github.com/MetaMask/core/pull/7003), [#7202](https://github.com/MetaMask/core/pull/7202))
 
 ### Fixed
 
@@ -1019,7 +1034,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@25.0.0...@metamask/network-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.1...@metamask/network-controller@25.0.0
 [24.3.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.0...@metamask/network-controller@24.3.1
 [24.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.2...@metamask/network-controller@24.3.0

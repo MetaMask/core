@@ -16,8 +16,9 @@ import type {
   UserProfile,
   UserProfileLineage,
 } from './types';
+import * as timeUtils from './utils/time';
 import type { MetaMetricsAuth } from '../../shared/types/services';
-import { ValidationError } from '../errors';
+import { ValidationError, RateLimitedError } from '../errors';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
 import {
   MESSAGE_SIGNING_SNAP,
@@ -30,6 +31,10 @@ import { validateLoginResponse } from '../utils/validate-login-response';
 type JwtBearerAuth_SRP_Options = {
   storage: AuthStorageOptions;
   signing?: AuthSigningOptions;
+  rateLimitRetry?: {
+    cooldownDefaultMs?: number; // default cooldown when 429 has no Retry-After
+    maxLoginRetries?: number; // maximum number of login retries on rate limit
+  };
 };
 
 const getDefaultEIP6963Provider = async () => {
@@ -64,12 +69,21 @@ const getDefaultEIP6963SigningOptions = (
 export class SRPJwtBearerAuth implements IBaseAuth {
   readonly #config: AuthConfig;
 
-  readonly #options: Required<JwtBearerAuth_SRP_Options>;
+  readonly #options: {
+    storage: AuthStorageOptions;
+    signing: AuthSigningOptions;
+  };
 
   readonly #metametrics?: MetaMetricsAuth;
 
   // Map to store ongoing login promises by entropySourceId
   readonly #ongoingLogins = new Map<string, Promise<LoginResponse>>();
+
+  // Default cooldown when 429 has no Retry-After header
+  readonly #cooldownDefaultMs: number;
+
+  // Maximum number of login retries on rate limit errors
+  readonly #maxLoginRetries: number;
 
   #customProvider?: Eip1193Provider;
 
@@ -89,6 +103,11 @@ export class SRPJwtBearerAuth implements IBaseAuth {
         getDefaultEIP6963SigningOptions(this.#customProvider),
     };
     this.#metametrics = options.metametrics;
+
+    // Apply rate limit retry config if provided
+    this.#cooldownDefaultMs =
+      options.rateLimitRetry?.cooldownDefaultMs ?? 10000;
+    this.#maxLoginRetries = options.rateLimitRetry?.maxLoginRetries ?? 1;
   }
 
   setCustomProvider(provider: Eip1193Provider) {
@@ -225,7 +244,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     }
 
     // Create a new login promise
-    const loginPromise = this.#performLogin(entropySourceId);
+    const loginPromise = this.#loginWithRetry(entropySourceId);
 
     // Store the promise in the map
     this.#ongoingLogins.set(loginKey, loginPromise);
@@ -238,6 +257,34 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       // Always clean up the ongoing login promise when done
       this.#ongoingLogins.delete(loginKey);
     }
+  }
+
+  async #loginWithRetry(entropySourceId?: string): Promise<LoginResponse> {
+    // Allow max attempts: initial + maxLoginRetries on 429
+    for (let attempt = 0; attempt < 1 + this.#maxLoginRetries; attempt += 1) {
+      try {
+        return await this.#performLogin(entropySourceId);
+      } catch (e) {
+        // Only retry on rate-limit (429) errors
+        if (!RateLimitedError.isRateLimitError(e)) {
+          throw e;
+        }
+
+        // If we've exhausted attempts, rethrow
+        if (attempt >= this.#maxLoginRetries) {
+          throw e;
+        }
+
+        // Wait for Retry-After or default cooldown
+        const waitMs = e.retryAfterMs ?? this.#cooldownDefaultMs;
+        await timeUtils.delay(waitMs);
+
+        // Loop continues to retry
+      }
+    }
+
+    // Should never reach here due to loop logic, but TypeScript needs a return
+    throw new Error('Unexpected: login loop exhausted without result');
   }
 
   #createSrpLoginRawMessage(

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/delegation-controller",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Manages delegations for MetaMask",
   "keywords": [
     "MetaMask",
@@ -53,9 +53,9 @@
     "@metamask/utils": "^11.8.1"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^34.0.0",
+    "@metamask/accounts-controller": "^35.0.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^24.0.0",
+    "@metamask/keyring-controller": "^25.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -66,8 +66,8 @@
     "typescript": "~5.3.3"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^34.0.0",
-    "@metamask/keyring-controller": "^24.0.0"
+    "@metamask/accounts-controller": "^35.0.0",
+    "@metamask/keyring-controller": "^25.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

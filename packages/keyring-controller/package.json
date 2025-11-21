@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "24.0.0",
+  "version": "25.0.0",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
@@ -50,7 +50,7 @@
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/browser-passworder": "^4.3.0",
+    "@metamask/browser-passworder": "^6.0.0",
     "@metamask/eth-hd-keyring": "^13.0.0",
     "@metamask/eth-sig-util": "^8.2.0",
     "@metamask/eth-simple-keyring": "^11.0.0",

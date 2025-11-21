@@ -227,31 +227,40 @@ function createRpcServiceChain({
     ...availableEndpointUrls.slice(1).map(buildRpcServiceConfiguration),
   ]);
 
-  rpcServiceChain.onBreak(({ endpointUrl, ...rest }) => {
-    const error = getError(rest);
-
-    if (error === undefined) {
-      // This error shouldn't happen in practice because we never call `.isolate`
-      // on the circuit breaker policy, but we need to appease TypeScript.
-      throw new Error('Could not make request to endpoint.');
-    }
-
-    messenger.publish('NetworkController:rpcEndpointChainUnavailable', {
-      chainId: configuration.chainId,
-      networkClientId: id,
-      primaryEndpointUrl,
+  rpcServiceChain.onBreak(
+    ({
       endpointUrl,
-      error,
-    });
-  });
+      primaryEndpointUrl: primaryEndpointUrlFromEvent,
+      ...rest
+    }) => {
+      const error = getError(rest);
+
+      if (error === undefined) {
+        // This error shouldn't happen in practice because we never call `.isolate`
+        // on the circuit breaker policy, but we need to appease TypeScript.
+        throw new Error('Could not make request to endpoint.');
+      }
+
+      messenger.publish('NetworkController:rpcEndpointChainUnavailable', {
+        chainId: configuration.chainId,
+        networkClientId: id,
+        primaryEndpointUrl: primaryEndpointUrlFromEvent,
+        error,
+      });
+    },
+  );
 
   rpcServiceChain.onServiceBreak(
-    ({ primaryEndpointUrl: _, endpointUrl, ...rest }) => {
+    ({
+      endpointUrl,
+      primaryEndpointUrl: primaryEndpointUrlFromEvent,
+      ...rest
+    }) => {
       const error = getError(rest);
       messenger.publish('NetworkController:rpcEndpointUnavailable', {
         chainId: configuration.chainId,
         networkClientId: id,
-        primaryEndpointUrl,
+        primaryEndpointUrl: primaryEndpointUrlFromEvent,
         endpointUrl,
         error,
       });
@@ -259,12 +268,16 @@ function createRpcServiceChain({
   );
 
   rpcServiceChain.onDegraded(
-    ({ primaryEndpointUrl: _, endpointUrl, ...rest }) => {
+    ({
+      endpointUrl,
+      primaryEndpointUrl: primaryEndpointUrlFromEvent,
+      ...rest
+    }) => {
       const error = getError(rest);
       messenger.publish('NetworkController:rpcEndpointChainDegraded', {
         chainId: configuration.chainId,
         networkClientId: id,
-        primaryEndpointUrl,
+        primaryEndpointUrl: primaryEndpointUrlFromEvent,
         endpointUrl,
         error,
       });
@@ -272,33 +285,43 @@ function createRpcServiceChain({
   );
 
   rpcServiceChain.onServiceDegraded(
-    ({ primaryEndpointUrl: _, endpointUrl, ...rest }) => {
+    ({
+      endpointUrl,
+      primaryEndpointUrl: primaryEndpointUrlFromEvent,
+      ...rest
+    }) => {
       const error = getError(rest);
       messenger.publish('NetworkController:rpcEndpointDegraded', {
         chainId: configuration.chainId,
         networkClientId: id,
-        primaryEndpointUrl,
+        primaryEndpointUrl: primaryEndpointUrlFromEvent,
         endpointUrl,
         error,
       });
     },
   );
 
-  rpcServiceChain.onAvailable(({ primaryEndpointUrl: _, endpointUrl }) => {
-    messenger.publish('NetworkController:rpcEndpointChainAvailable', {
-      chainId: configuration.chainId,
-      networkClientId: id,
-      primaryEndpointUrl,
-      endpointUrl,
-    });
-  });
+  rpcServiceChain.onAvailable(
+    ({ endpointUrl, primaryEndpointUrl: primaryEndpointUrlFromEvent }) => {
+      messenger.publish('NetworkController:rpcEndpointChainAvailable', {
+        chainId: configuration.chainId,
+        networkClientId: id,
+        primaryEndpointUrl: primaryEndpointUrlFromEvent,
+        endpointUrl,
+      });
+    },
+  );
 
   rpcServiceChain.onServiceRetry(
-    ({ primaryEndpointUrl: _, endpointUrl, attempt }) => {
+    ({
+      attempt,
+      endpointUrl,
+      primaryEndpointUrl: primaryEndpointUrlFromEvent,
+    }) => {
       messenger.publish('NetworkController:rpcEndpointRetried', {
         chainId: configuration.chainId,
         networkClientId: id,
-        primaryEndpointUrl,
+        primaryEndpointUrl: primaryEndpointUrlFromEvent,
         endpointUrl,
         attempt,
       });

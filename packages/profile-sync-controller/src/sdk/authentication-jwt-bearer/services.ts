@@ -8,12 +8,74 @@ import { AuthType } from './types';
 import type { Env, Platform } from '../../shared/env';
 import { getEnvUrls, getOidcClientId } from '../../shared/env';
 import type { MetaMetricsAuth } from '../../shared/types/services';
+import { HTTP_STATUS_CODES } from '../constants';
 import {
   NonceRetrievalError,
   PairError,
   SignInError,
   ValidationError,
+  RateLimitedError,
 } from '../errors';
+
+/**
+ * Parse Retry-After header into milliseconds if possible.
+ * Supports seconds or HTTP-date formats.
+ *
+ * @param retryAfterHeader - The Retry-After header value (seconds or HTTP-date)
+ * @returns The retry delay in milliseconds, or null if parsing fails
+ */
+function parseRetryAfter(retryAfterHeader: string | null): number | null {
+  if (!retryAfterHeader) {
+    return null;
+  }
+  const seconds = Number(retryAfterHeader);
+  if (!Number.isNaN(seconds)) {
+    return seconds * 1000;
+  }
+  const date = Date.parse(retryAfterHeader);
+  if (!Number.isNaN(date)) {
+    const diff = date - Date.now();
+    return diff > 0 ? diff : null;
+  }
+  return null;
+}
+
+/**
+ * Handle HTTP error responses with rate limiting support.
+ *
+ * @param response - The HTTP response object
+ * @param errorPrefix - Optional prefix for the error message
+ * @throws RateLimitedError for 429 responses
+ * @throws Error for other error responses
+ */
+async function handleErrorResponse(
+  response: Response,
+  errorPrefix?: string,
+): Promise<never> {
+  const { status } = response;
+  const retryAfterHeader = response.headers.get('Retry-After');
+  const retryAfterMs = parseRetryAfter(retryAfterHeader);
+
+  const responseBody = (await response.json()) as
+    | ErrorMessage
+    | { error_description: string; error: string };
+
+  const message =
+    'message' in responseBody
+      ? responseBody.message
+      : responseBody.error_description;
+  const { error } = responseBody;
+
+  if (status === HTTP_STATUS_CODES.TOO_MANY_REQUESTS) {
+    throw new RateLimitedError(
+      `HTTP ${HTTP_STATUS_CODES.TOO_MANY_REQUESTS}: ${message} (error: ${error})`,
+      retryAfterMs ?? undefined,
+    );
+  }
+
+  const prefix = errorPrefix ? `${errorPrefix} ` : '';
+  throw new Error(`${prefix}HTTP ${status} error: ${message}, error: ${error}`);
+}
 
 export const NONCE_URL = (env: Env) =>
   `${getEnvUrls(env).authApiUrl}/api/v2/nonce`;
@@ -91,12 +153,13 @@ export async function pairIdentifiers(
     });
 
     if (!response.ok) {
-      const responseBody = (await response.json()) as ErrorMessage;
-      throw new Error(
-        `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
-      );
+      await handleErrorResponse(response);
     }
   } catch (e) {
+    // Re-throw RateLimitedError to preserve 429 status and retry metadata
+    if (RateLimitedError.isRateLimitError(e)) {
+      throw e;
+    }
     /* istanbul ignore next */
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
@@ -118,10 +181,7 @@ export async function getNonce(id: string, env: Env): Promise<NonceResponse> {
   try {
     const nonceResponse = await fetch(nonceUrl.toString());
     if (!nonceResponse.ok) {
-      const responseBody = (await nonceResponse.json()) as ErrorMessage;
-      throw new Error(
-        `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
-      );
+      await handleErrorResponse(nonceResponse);
     }
 
     const nonceJson = await nonceResponse.json();
@@ -131,6 +191,10 @@ export async function getNonce(id: string, env: Env): Promise<NonceResponse> {
       expiresIn: nonceJson.expires_in,
     };
   } catch (e) {
+    // Re-throw RateLimitedError to preserve 429 status and retry metadata
+    if (RateLimitedError.isRateLimitError(e)) {
+      throw e;
+    }
     /* istanbul ignore next */
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
@@ -169,13 +233,7 @@ export async function authorizeOIDC(
     });
 
     if (!response.ok) {
-      const responseBody = (await response.json()) as {
-        error_description: string;
-        error: string;
-      };
-      throw new Error(
-        `HTTP error: ${responseBody.error_description}, error code: ${responseBody.error}`,
-      );
+      await handleErrorResponse(response);
     }
 
     const accessTokenResponse = await response.json();
@@ -185,6 +243,10 @@ export async function authorizeOIDC(
       obtainedAt: Date.now(),
     };
   } catch (e) {
+    // Re-throw RateLimitedError to preserve 429 status and retry metadata
+    if (RateLimitedError.isRateLimitError(e)) {
+      throw e;
+    }
     /* istanbul ignore next */
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
@@ -237,10 +299,7 @@ export async function authenticate(
     });
 
     if (!response.ok) {
-      const responseBody = (await response.json()) as ErrorMessage;
-      throw new Error(
-        `${authType} login HTTP error: ${responseBody.message}, error code: ${responseBody.error}`,
-      );
+      await handleErrorResponse(response, `${authType} login`);
     }
 
     const loginResponse = await response.json();
@@ -254,6 +313,10 @@ export async function authenticate(
       },
     };
   } catch (e) {
+    // Re-throw RateLimitedError to preserve 429 status and retry metadata
+    if (RateLimitedError.isRateLimitError(e)) {
+      throw e;
+    }
     /* istanbul ignore next */
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
@@ -283,16 +346,17 @@ export async function getUserProfileLineage(
     });
 
     if (!response.ok) {
-      const responseBody = (await response.json()) as ErrorMessage;
-      throw new Error(
-        `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
-      );
+      await handleErrorResponse(response, 'profile lineage');
     }
 
     const profileJson: UserProfileLineage = await response.json();
 
     return profileJson;
   } catch (e) {
+    // Re-throw RateLimitedError to preserve 429 status and retry metadata
+    if (RateLimitedError.isRateLimitError(e)) {
+      throw e;
+    }
     /* istanbul ignore next */
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
