@@ -91,20 +91,12 @@
     "@metamask/keyring-controller": "^25.0.0",
     "@metamask/keyring-internal-api": "^9.0.0",
     "@metamask/keyring-snap-client": "^8.0.0",
-<<<<<<< HEAD
-    "@metamask/multichain-account-service": "^3.0.0",
-    "@metamask/network-controller": "^25.0.0",
-    "@metamask/permission-controller": "^12.1.0",
-    "@metamask/phishing-controller": "^15.0.1",
-    "@metamask/preferences-controller": "^21.0.0",
-    "@metamask/profile-sync-controller": "^26.0.0",
-=======
     "@metamask/multichain-account-service": "^4.0.0",
     "@metamask/network-controller": "^26.0.0",
     "@metamask/permission-controller": "^12.1.1",
     "@metamask/phishing-controller": "^16.0.0",
     "@metamask/preferences-controller": "^22.0.0",
->>>>>>> main
+    "@metamask/profile-sync-controller": "^26.0.0",
     "@metamask/providers": "^22.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
     "@metamask/transaction-controller": "^62.0.0",
@@ -131,14 +123,9 @@
     "@metamask/keyring-controller": "^25.0.0",
     "@metamask/network-controller": "^26.0.0",
     "@metamask/permission-controller": "^12.0.0",
-<<<<<<< HEAD
-    "@metamask/phishing-controller": "^15.0.0",
-    "@metamask/preferences-controller": "^21.0.0",
-    "@metamask/profile-sync-controller": "^26.0.0",
-=======
     "@metamask/phishing-controller": "^16.0.0",
     "@metamask/preferences-controller": "^22.0.0",
->>>>>>> main
+    "@metamask/profile-sync-controller": "^26.0.0",
     "@metamask/providers": "^22.0.0",
     "@metamask/snaps-controllers": "^14.0.0",
     "@metamask/transaction-controller": "^62.0.0",
