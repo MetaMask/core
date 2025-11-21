@@ -60,7 +60,7 @@
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/signature-controller": "^37.0.0",
-    "@metamask/transaction-controller": "^62.0.0",
+    "@metamask/transaction-controller": "^62.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
