@@ -1451,6 +1451,31 @@ export class NetworkController extends BaseController<
       `${this.name}:updateNetwork`,
       this.updateNetwork.bind(this),
     );
+
+    this.messenger.subscribe(
+      `${this.name}:rpcEndpointChainUnavailable`,
+      ({ networkClientId }) => {
+        this.#updateMetadataForNetwork(networkClientId, {
+          networkStatus: NetworkStatus.Unavailable,
+        });
+      },
+    );
+    this.messenger.subscribe(
+      `${this.name}:rpcEndpointChainDegraded`,
+      ({ networkClientId }) => {
+        this.#updateMetadataForNetwork(networkClientId, {
+          networkStatus: NetworkStatus.Degraded,
+        });
+      },
+    );
+    this.messenger.subscribe(
+      `${this.name}:rpcEndpointChainAvailable`,
+      ({ networkClientId }) => {
+        this.#updateMetadataForNetwork(networkClientId, {
+          networkStatus: NetworkStatus.Available,
+        });
+      },
+    );
   }
 
   /**
@@ -1858,11 +1883,11 @@ export class NetworkController extends BaseController<
   async #lookupGivenNetwork(networkClientId: NetworkClientId) {
     const { networkStatus, isEIP1559Compatible } =
       await this.#determineNetworkMetadata(networkClientId);
-    this.#updateMetadataForNetwork(
-      networkClientId,
+
+    this.#updateMetadataForNetwork(networkClientId, {
       networkStatus,
       isEIP1559Compatible,
-    );
+    });
   }
 
   /**
@@ -1937,11 +1962,10 @@ export class NetworkController extends BaseController<
       }
     }
 
-    this.#updateMetadataForNetwork(
-      this.state.selectedNetworkClientId,
+    this.#updateMetadataForNetwork(this.state.selectedNetworkClientId, {
       networkStatus,
       isEIP1559Compatible,
-    );
+    });
 
     if (isInfura) {
       if (networkStatus === NetworkStatus.Available) {
@@ -1961,14 +1985,17 @@ export class NetworkController extends BaseController<
    * Updates the metadata for the given network in state.
    *
    * @param networkClientId - The associated network client ID.
-   * @param networkStatus - The network status to store in state.
-   * @param isEIP1559Compatible - The EIP-1559 compatibility status to
+   * @param metadata - The metadata to store in state.
+   * @param metadata.networkStatus - The network status to store in state.
+   * @param metadata.isEIP1559Compatible - The EIP-1559 compatibility status to
    * store in state.
    */
   #updateMetadataForNetwork(
     networkClientId: NetworkClientId,
-    networkStatus: NetworkStatus,
-    isEIP1559Compatible: boolean | undefined,
+    metadata: {
+      networkStatus: NetworkStatus;
+      isEIP1559Compatible?: boolean | undefined;
+    },
   ) {
     this.update((state) => {
       if (state.networksMetadata[networkClientId] === undefined) {
@@ -1977,12 +2004,15 @@ export class NetworkController extends BaseController<
           EIPS: {},
         };
       }
-      const meta = state.networksMetadata[networkClientId];
-      meta.status = networkStatus;
-      if (isEIP1559Compatible === undefined) {
-        delete meta.EIPS[1559];
-      } else {
-        meta.EIPS[1559] = isEIP1559Compatible;
+      const newMetadata = state.networksMetadata[networkClientId];
+      newMetadata.status = metadata.networkStatus;
+
+      if ('isEIP1559Compatible' in metadata) {
+        if (metadata.isEIP1559Compatible === undefined) {
+          delete newMetadata.EIPS[1559];
+        } else {
+          newMetadata.EIPS[1559] = metadata.isEIP1559Compatible;
+        }
       }
     });
   }
