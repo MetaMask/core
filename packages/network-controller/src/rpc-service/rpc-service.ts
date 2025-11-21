@@ -522,7 +522,7 @@ export class RpcService implements AbstractRpcService {
     let response: Response | undefined;
     try {
       log(
-        `[RpcService: ${this.endpointUrl}] Circuit state`,
+        `[${this.endpointUrl}] Circuit state`,
         this.#policy.getCircuitState(),
       );
       const jsonDecodedResponse = await this.#policy.execute(async (data) => {
