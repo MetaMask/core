@@ -1,24 +1,29 @@
 /**
- * Represents the availability state of an RPC endpoint. (Yes, this is a
- * misnomer.)
+ * Represents the availability status of an RPC endpoint. (Regrettably, the
+ * name of this type is a misnomer.)
+ *
+ * The availability status is set both automatically (as requests are made) and
+ * manually (when `lookupNetwork` is called).
  */
 export enum NetworkStatus {
   /**
-   * It is not determined yet whether the RPC endpoint is available.
+   * Either the availability status of the RPC endpoint has not been determined,
+   * or request that `lookupNetwork` performed returned an unknown error.
    */
   Unknown = 'unknown',
   /**
-   * The RPC endpoint is consistently returning successful responses.
+   * The RPC endpoint is consistently returning successful (2xx) responses.
    */
   Available = 'available',
   /**
-   * Requests to the RPC endpoint are either slow or are beginning to
-   * consistently respond with errors.
+   * Either the last request to the RPC endpoint was either too slow, or the
+   * endpoint is consistently returning errors and the number of retries has
+   * been reached.
    */
   Degraded = 'degraded',
   /**
-   * Requests to the RPC endpoint have responded with enough errors that it is
-   * determined to be unavailable.
+   * The RPC endpoint is consistently returning enough 5xx errors that requests
+   * have been paused.
    */
   Unavailable = 'unavailable',
   /**
