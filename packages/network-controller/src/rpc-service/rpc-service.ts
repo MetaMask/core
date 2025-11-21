@@ -240,6 +240,12 @@ export class RpcService implements AbstractRpcService {
   readonly endpointUrl: URL;
 
   /**
+   * The last error that the retry policy captured (or `undefined` if the last
+   * execution of the service was successful).
+   */
+  lastError: Error | undefined;
+
+  /**
    * The function used to make an HTTP request.
    */
   readonly #fetch: typeof fetch;
@@ -248,8 +254,6 @@ export class RpcService implements AbstractRpcService {
    * A common set of options that the request options will extend.
    */
   readonly #fetchOptions: FetchOptions;
-
-  #lastError: unknown;
 
   /**
    * A `loglevel` logger.
@@ -324,16 +328,6 @@ export class RpcService implements AbstractRpcService {
    */
   getCircuitState() {
     return this.#policy.getCircuitState();
-  }
-
-  /**
-   * @returns The last failure reason that the retry policy captured (or
-   * `undefined` if the last execution of the service was successful).
-   */
-  getLastInnerFailureReason(): { error: unknown } | undefined {
-    return this.#lastError === undefined
-      ? undefined
-      : { error: this.#lastError };
   }
 
   /**
@@ -552,12 +546,13 @@ export class RpcService implements AbstractRpcService {
         );
         return await response.json();
       });
-      this.#lastError = undefined;
+      this.lastError = undefined;
       return jsonDecodedResponse;
     } catch (error) {
       log('REQUEST ERROR:', this.endpointUrl.toString(), error);
 
-      this.#lastError = error;
+      this.lastError =
+        error instanceof Error ? error : new Error(getErrorMessage(error));
 
       if (error instanceof HttpError) {
         const status = error.httpStatus;

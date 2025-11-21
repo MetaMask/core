@@ -401,18 +401,10 @@ export class RpcServiceChain {
         // Oops, that didn't work.
         // Capture this error so that we can handle it later.
 
-        const lastFailureReason = service.getLastInnerFailureReason();
+        const { lastError } = service;
         const isCircuitOpen = service.getCircuitState() === CircuitState.Open;
 
-        log('Service failed!', error, lastFailureReason);
-        log(
-          'Circuit state',
-          service.getCircuitState(),
-          'Previous circuit state',
-          previousCircuitState,
-          'state',
-          this.#status,
-        );
+        log('Service failed! error =', error, 'lastError = ', lastError);
 
         if (isCircuitOpen) {
           if (i < this.#services.length - 1) {
@@ -425,7 +417,7 @@ export class RpcServiceChain {
           if (
             previousCircuitState !== CircuitState.Open &&
             this.#status !== STATUSES.Unavailable &&
-            lastFailureReason !== undefined
+            lastError !== undefined
           ) {
             // If the service's circuit just broke and it's the last one in the
             // chain, then trigger the onBreak event. (But if for some reason we
@@ -435,7 +427,7 @@ export class RpcServiceChain {
             );
             this.#status = STATUSES.Unavailable;
             this.#onBreakEventEmitter.emit({
-              ...lastFailureReason,
+              error: lastError,
               primaryEndpointUrl: this.#primaryService.endpointUrl.toString(),
               endpointUrl: service.endpointUrl.toString(),
             });
