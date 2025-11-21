@@ -744,17 +744,18 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       // Update with actual fetched balances only if the value has changed
       aggregated.forEach(({ success, value, account, token, chainId }) => {
         if (success && value !== undefined) {
+          // Ensure all accounts we add/update are in lower-case
+          const lowerCaseAccount = account.toLowerCase() as ChecksumAddress;
           const newBalance = toHex(value);
           const tokenAddress = checksum(token);
           const currentBalance =
-            d.tokenBalances[account as ChecksumAddress]?.[chainId]?.[
-              tokenAddress
-            ];
+            d.tokenBalances[lowerCaseAccount]?.[chainId]?.[tokenAddress];
 
           // Only update if the balance has actually changed
           if (currentBalance !== newBalance) {
-            ((d.tokenBalances[account as ChecksumAddress] ??= {})[chainId] ??=
-              {})[tokenAddress] = newBalance;
+            ((d.tokenBalances[lowerCaseAccount] ??= {})[chainId] ??= {})[
+              tokenAddress
+            ] = newBalance;
           }
         }
       });
