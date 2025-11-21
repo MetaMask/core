@@ -124,7 +124,7 @@ export type PermissionResponse<
 
 /**
  * Represents a sanitized version of the PermissionResponse type.
- * Some fields have been removed but the fields are still present in profile sync.
+ * Internal fields (dependencyInfo, signer) are removed
  *
  * @template Signer - The type of the signer provided, either an AccountSigner or WalletSigner.
  * @template Permission - The type of the permission provided.
@@ -132,10 +132,7 @@ export type PermissionResponse<
 export type PermissionResponseSanitized<
   TSigner extends Signer,
   TPermission extends PermissionTypesWithCustom,
-> = Omit<
-  PermissionResponse<TSigner, TPermission>,
-  'dependencyInfo' | 'signer' | 'rules'
->;
+> = Omit<PermissionResponse<TSigner, TPermission>, 'dependencyInfo' | 'signer'>;
 
 /**
  * Represents a gator ERC-7715 granted(ie. signed by an user account) permission entry that is stored in profile sync.

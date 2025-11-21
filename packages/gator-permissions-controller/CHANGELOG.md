@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `PermissionResponseSanitized` now includes `rules` property for stronger typing support ([#7195](https://github.com/MetaMask/core/pull/7195))
+- Export `DELEGATION_FRAMEWORK_VERSION` constant for version consistency across implementations ([#7195](https://github.com/MetaMask/core/pull/7195))
+
 ## [0.6.0]
 
 ### Changed

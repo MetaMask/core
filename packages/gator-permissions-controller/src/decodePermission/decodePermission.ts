@@ -78,6 +78,37 @@ export const identifyPermissionByEnforcers = ({
 };
 
 /**
+ * Extracts the expiry timestamp from TimestampEnforcer caveat terms.
+ *
+ * Based on the TimestampEnforcer contract encoding:
+ * - Terms are 32 bytes total (64 hex characters without '0x')
+ * - First 16 bytes (32 hex chars): timestampAfterThreshold (uint128) - must be 0
+ * - Last 16 bytes (32 hex chars): timestampBeforeThreshold (uint128) - this is the expiry
+ *
+ * @param terms - The hex-encoded terms from a TimestampEnforcer caveat
+ * @returns The expiry timestamp in seconds, or null if no valid expiry exists
+ * @throws If the terms are not exactly 32 bytes or if the timestampAfterThreshold is non-zero
+ */
+export const extractExpiryFromCaveatTerms = (terms: Hex): number | null => {
+  // Validate terms length: must be exactly 32 bytes (64 hex chars + '0x' prefix = 66 chars)
+  if (terms.length !== 66) {
+    throw new Error(
+      `Invalid TimestampEnforcer terms length: expected 66 characters (0x + 64 hex), got ${terms.length}`,
+    );
+  }
+
+  const [after, before] = splitHex(terms, [16, 16]);
+
+  if (hexToNumber(after) !== 0) {
+    throw new Error('Invalid expiry: timestampAfterThreshold must be 0');
+  }
+
+  const expiry = hexToNumber(before);
+
+  return expiry === 0 ? null : expiry;
+};
+
+/**
  * Extracts the permission-specific data payload and the expiry timestamp from
  * the provided caveats for a given permission type.
  *
@@ -129,12 +160,7 @@ export const getPermissionDataAndExpiry = ({
 
   let expiry: number | null = null;
   if (expiryTerms) {
-    const [after, before] = splitHex(expiryTerms, [16, 16]);
-
-    if (hexToNumber(after) !== 0) {
-      throw new Error('Invalid expiry');
-    }
-    expiry = hexToNumber(before);
+    expiry = extractExpiryFromCaveatTerms(expiryTerms);
   }
 
   let data: DecodedPermission['permission']['data'];

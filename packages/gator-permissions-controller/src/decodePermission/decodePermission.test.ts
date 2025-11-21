@@ -484,7 +484,7 @@ describe('decodePermission', () => {
             caveats,
             permissionType,
           }),
-        ).toThrow('Invalid expiry');
+        ).toThrow('Invalid expiry: timestampAfterThreshold must be 0');
       });
 
       it('rejects invalid nativeTokenStream terms', () => {
@@ -601,7 +601,7 @@ describe('decodePermission', () => {
             caveats,
             permissionType,
           }),
-        ).toThrow('Invalid expiry');
+        ).toThrow('Invalid expiry: timestampAfterThreshold must be 0');
       });
 
       it('rejects invalid nativeTokenPeriodic terms', () => {
@@ -730,7 +730,7 @@ describe('decodePermission', () => {
             caveats,
             permissionType,
           }),
-        ).toThrow('Invalid expiry');
+        ).toThrow('Invalid expiry: timestampAfterThreshold must be 0');
       });
 
       it('rejects invalid erc20-token-stream terms', () => {
@@ -853,7 +853,7 @@ describe('decodePermission', () => {
             caveats,
             permissionType,
           }),
-        ).toThrow('Invalid expiry');
+        ).toThrow('Invalid expiry: timestampAfterThreshold must be 0');
       });
 
       it('rejects invalid erc20-token-periodic terms', () => {
