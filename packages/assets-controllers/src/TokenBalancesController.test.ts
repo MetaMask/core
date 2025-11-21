@@ -297,7 +297,6 @@ describe('TokenBalancesController', () => {
     // Mock safelyExecuteWithTimeout to execute the operation normally by default
     mockedSafelyExecuteWithTimeout.mockImplementation(
       async (operation: () => Promise<unknown>) => {
-        console.log('this mock func was called');
         try {
           return await operation();
         } catch {
