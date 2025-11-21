@@ -501,7 +501,7 @@ describe('AccountsApiBalanceFetcher', () => {
 
       expect(mockReduceInBatchesSerially).toHaveBeenCalledWith({
         values: caipAddresses,
-        batchSize: 50,
+        batchSize: 20,
         eachBatch: expect.any(Function),
         initialResult: [],
       });
