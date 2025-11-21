@@ -6,7 +6,13 @@ import type {
   JsonRpcResponse,
 } from '@metamask/utils';
 
-import type { AddToCockatielEventData, FetchOptions } from './shared';
+import type {
+  CockatielEventToEventListenerWithData,
+  ExcludeCockatielEventData,
+  ExtendCockatielEventData,
+  ExtractCockatielEventData,
+  FetchOptions,
+} from './shared';
 
 /**
  * The interface for a service class responsible for making a request to a
@@ -22,8 +28,8 @@ export type RpcServiceRequestable = {
    * @see {@link createServicePolicy}
    */
   onRetry(
-    listener: AddToCockatielEventData<
-      Parameters<ServicePolicy['onRetry']>[0],
+    listener: CockatielEventToEventListenerWithData<
+      ServicePolicy['onRetry'],
       { endpointUrl: string }
     >,
   ): ReturnType<ServicePolicy['onRetry']>;
@@ -37,10 +43,15 @@ export type RpcServiceRequestable = {
    * @see {@link createServicePolicy}
    */
   onBreak(
-    listener: AddToCockatielEventData<
-      Parameters<ServicePolicy['onBreak']>[0],
-      { endpointUrl: string }
-    >,
+    listener: (
+      data: ExcludeCockatielEventData<
+        ExtendCockatielEventData<
+          ExtractCockatielEventData<ServicePolicy['onBreak']>,
+          { endpointUrl: string }
+        >,
+        'isolated'
+      >,
+    ) => void,
   ): ReturnType<ServicePolicy['onBreak']>;
 
   /**
@@ -52,11 +63,25 @@ export type RpcServiceRequestable = {
    * @see {@link createServicePolicy}
    */
   onDegraded(
-    listener: AddToCockatielEventData<
-      Parameters<ServicePolicy['onDegraded']>[0],
+    listener: CockatielEventToEventListenerWithData<
+      ServicePolicy['onDegraded'],
       { endpointUrl: string }
     >,
   ): ReturnType<ServicePolicy['onDegraded']>;
+
+  /**
+   * Listens for when the policy underlying this RPC service is available.
+   *
+   * @param listener - The callback to be called when the request is available.
+   * @returns What {@link ServicePolicy.onDegraded} returns.
+   * @see {@link createServicePolicy}
+   */
+  onAvailable(
+    listener: CockatielEventToEventListenerWithData<
+      ServicePolicy['onAvailable'],
+      { endpointUrl: string }
+    >,
+  ): ReturnType<ServicePolicy['onAvailable']>;
 
   /**
    * Makes a request to the target.
