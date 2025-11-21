@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [92.0.0]
 
-### Uncategorized
-
-- Release 690.0.0 ([#7215](https://github.com/MetaMask/core/pull/7215))
-- Release/689.0.0 ([#7211](https://github.com/MetaMask/core/pull/7211))
-
 ### Added
 
 - **BREAKING:** Add optional JWT token authentication to multi-chain accounts API calls ([#7165](https://github.com/MetaMask/core/pull/7165))
