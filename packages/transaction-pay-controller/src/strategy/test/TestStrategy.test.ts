@@ -8,7 +8,9 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 
-jest.useFakeTimers();
+jest.useFakeTimers({
+  legacyFakeTimers: true,
+});
 
 const REQUEST_MOCK = {} as QuoteRequest;
 const QUOTE_MOCK = {} as TransactionPayQuote<void>;

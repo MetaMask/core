@@ -11,7 +11,9 @@ import { refreshQuotes } from '../utils/quotes';
 
 jest.mock('../utils/quotes');
 
-jest.useFakeTimers();
+jest.useFakeTimers({
+  legacyFakeTimers: true,
+});
 
 describe('QuoteRefresher', () => {
   const refreshQuotesMock = jest.mocked(refreshQuotes);
