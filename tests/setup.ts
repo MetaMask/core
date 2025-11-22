@@ -1,3 +1,6 @@
+// Export empty object to ensure this file is treated as a module (not a script)
+export {};
+
 // Clear native fetch in Node.js 18+ to ensure isomorphic-fetch uses node-fetch
 // Node.js 18+ has native fetch that uses undici, which nock cannot intercept
 // isomorphic-fetch only sets up node-fetch if global.fetch doesn't exist
