@@ -34,6 +34,8 @@ const TRANSACTION_HASH_MOCK = '0x1234';
 const ENDPOINT_MOCK = '/test123';
 const ORIGINAL_TRANSACTION_ID_MOCK = '456-789';
 const FROM_MOCK = '0xabcde' as Hex;
+const CHAIN_ID_MOCK = '0x1' as Hex;
+const TOKEN_ADDRESS_MOCK = '0x123' as Hex;
 
 const TRANSACTION_META_MOCK = {
   id: '123-456',
@@ -87,7 +89,15 @@ const STATUS_RESPONSE_MOCK = {
 const REQUEST_MOCK: PayStrategyExecuteRequest<RelayQuote> = {
   quotes: [
     {
+      fees: {
+        sourceNetwork: {},
+      },
       original: ORIGINAL_QUOTE_MOCK,
+      request: {
+        from: FROM_MOCK,
+        sourceChainId: CHAIN_ID_MOCK,
+        sourceTokenAddress: TOKEN_ADDRESS_MOCK,
+      },
     } as TransactionPayQuote<RelayQuote>,
   ],
   messenger: {} as TransactionPayControllerMessenger,
@@ -167,7 +177,21 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('adds batch transaction if multiple params', async () => {
+    it('adds transaction with gas fee token if isSourceGasFeeToken', async () => {
+      request.quotes[0].fees.isSourceGasFeeToken = true;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          gasFeeToken: TOKEN_ADDRESS_MOCK,
+        }),
+      );
+    });
+
+    it('adds transaction batch if multiple params', async () => {
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
       });
@@ -200,6 +224,23 @@ describe('Relay Submit Utils', () => {
           },
         ],
       });
+    });
+
+    it('adds transaction batch with gas fee token if isSourceGasFeeToken', async () => {
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      request.quotes[0].fees.isSourceGasFeeToken = true;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gasFeeToken: TOKEN_ADDRESS_MOCK,
+        }),
+      );
     });
 
     it('adds transaction if params missing', async () => {

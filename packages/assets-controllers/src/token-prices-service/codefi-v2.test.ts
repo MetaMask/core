@@ -1,3 +1,4 @@
+import { type Hex, KnownCaipNamespace } from '@metamask/utils';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
@@ -31,10 +32,9 @@ describe('CodefiTokenPricesServiceV2', () => {
       const maximumConsecutiveFailures = (1 + retries) * 3;
       // Initial interceptor for failing requests
       nock('https://price.api.cx.metamask.io')
-        .get('/v2/chains/1/spot-prices')
+        .get('/v3/spot-prices')
         .query({
-          tokenAddresses:
-            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+          assetIds: buildMultipleAssetIds(['0xAAA', '0xBBB', '0xCCC']),
           vsCurrency: 'ETH',
           includeMarketData: 'true',
         })
@@ -42,36 +42,14 @@ describe('CodefiTokenPricesServiceV2', () => {
         .replyWithError('Failed to fetch');
       // This interceptor should not be used
       nock('https://price.api.cx.metamask.io')
-        .get('/v2/chains/1/spot-prices')
+        .get('/v3/spot-prices')
         .query({
-          tokenAddresses:
-            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+          assetIds: buildMultipleAssetIds(['0xAAA', '0xBBB', '0xCCC']),
           vsCurrency: 'ETH',
           includeMarketData: 'true',
         })
         .reply(200, {
-          '0x0000000000000000000000000000000000000000': {
-            price: 14,
-            currency: 'ETH',
-            pricePercentChange1d: 1,
-            priceChange1d: 1,
-            marketCap: 117219.99428314982,
-            allTimeHigh: 0.00060467892389492,
-            allTimeLow: 0.00002303954000865728,
-            totalVolume: 5155.094053542448,
-            high1d: 0.00008020715848194385,
-            low1d: 0.00007792083564549064,
-            circulatingSupply: 1494269733.9526057,
-            dilutedMarketCap: 117669.5125951733,
-            marketCapPercentChange1d: 0.76671,
-            pricePercentChange1h: -1.0736342953259423,
-            pricePercentChange7d: -7.351582573655089,
-            pricePercentChange14d: -1.0799098946709822,
-            pricePercentChange30d: -25.776321124365992,
-            pricePercentChange200d: 46.091571238599165,
-            pricePercentChange1y: -2.2992517267242754,
-          },
-          '0xaaa': {
+          [buildTokenAssetId('0xAAA')]: {
             price: 148.17205755299946,
             currency: 'ETH',
             pricePercentChange1d: 1,
@@ -92,7 +70,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             pricePercentChange200d: 46.091571238599165,
             pricePercentChange1y: -2.2992517267242754,
           },
-          '0xbbb': {
+          [buildTokenAssetId('0xBBB')]: {
             price: 33689.98134554716,
             currency: 'ETH',
             pricePercentChange1d: 1,
@@ -113,7 +91,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             pricePercentChange200d: 46.091571238599165,
             pricePercentChange1y: -2.2992517267242754,
           },
-          '0xccc': {
+          [buildTokenAssetId('0xCCC')]: {
             price: 148.1344197578456,
             currency: 'ETH',
             pricePercentChange1d: 1,
@@ -146,8 +124,20 @@ describe('CodefiTokenPricesServiceV2', () => {
       service.onBreak(onBreakHandler);
       const fetchTokenPrices = () =>
         service.fetchTokenPrices({
-          chainId: '0x1',
-          tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+          assets: [
+            {
+              chainId: '0x1',
+              tokenAddress: '0xAAA',
+            },
+            {
+              chainId: '0x1',
+              tokenAddress: '0xBBB',
+            },
+            {
+              chainId: '0x1',
+              tokenAddress: '0xCCC',
+            },
+          ],
           currency: 'ETH',
         });
       expect(onBreakHandler).not.toHaveBeenCalled();
@@ -184,34 +174,27 @@ describe('CodefiTokenPricesServiceV2', () => {
       const degradedThreshold = 1000;
       const retries = 0;
       nock('https://price.api.cx.metamask.io')
-        .get('/v2/chains/1/spot-prices')
+        .get('/v3/spot-prices')
         .query({
-          tokenAddresses:
-            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+          assetIds: buildMultipleAssetIds(['0xAAA', '0xBBB', '0xCCC']),
           vsCurrency: 'ETH',
           includeMarketData: 'true',
         })
         .delay(degradedThreshold * 2)
         .reply(200, {
-          '0x0000000000000000000000000000000000000000': {
-            price: 14,
-            currency: 'ETH',
-            pricePercentChange1d: 1,
-            priceChange1d: 1,
-          },
-          '0xaaa': {
+          [buildTokenAssetId('0xAAA')]: {
             price: 148.17205755299946,
             currency: 'ETH',
             pricePercentChange1d: 1,
             priceChange1d: 1,
           },
-          '0xbbb': {
+          [buildTokenAssetId('0xBBB')]: {
             price: 33689.98134554716,
             currency: 'ETH',
             pricePercentChange1d: 1,
             priceChange1d: 1,
           },
-          '0xccc': {
+          [buildTokenAssetId('0xCCC')]: {
             price: 148.1344197578456,
             currency: 'ETH',
             pricePercentChange1d: 1,
@@ -229,8 +212,20 @@ describe('CodefiTokenPricesServiceV2', () => {
         clock,
         fetchTokenPrices: () =>
           service.fetchTokenPrices({
-            chainId: '0x1',
-            tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+            assets: [
+              {
+                chainId: '0x1',
+                tokenAddress: '0xAAA',
+              },
+              {
+                chainId: '0x1',
+                tokenAddress: '0xBBB',
+              },
+              {
+                chainId: '0x1',
+                tokenAddress: '0xCCC',
+              },
+            ],
             currency: 'ETH',
           }),
         retries,
@@ -241,37 +236,15 @@ describe('CodefiTokenPricesServiceV2', () => {
   });
 
   describe('fetchTokenPrices', () => {
-    it('uses the /spot-prices endpoint of the Codefi Price API to gather prices for the given tokens', async () => {
+    it('uses the /v2/chains/{chainId}/spot-prices endpoint to gather prices forn chains not supported by v3', async () => {
       nock('https://price.api.cx.metamask.io')
-        .get('/v2/chains/1/spot-prices')
+        .get('/v2/chains/0x52/spot-prices')
         .query({
-          tokenAddresses:
-            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+          tokenAddresses: ['0xAAA', '0xBBB'].join(','),
           vsCurrency: 'ETH',
           includeMarketData: 'true',
         })
         .reply(200, {
-          '0x0000000000000000000000000000000000000000': {
-            price: 14,
-            currency: 'ETH',
-            pricePercentChange1d: 1,
-            priceChange1d: 1,
-            marketCap: 117219.99428314982,
-            allTimeHigh: 0.00060467892389492,
-            allTimeLow: 0.00002303954000865728,
-            totalVolume: 5155.094053542448,
-            high1d: 0.00008020715848194385,
-            low1d: 0.00007792083564549064,
-            circulatingSupply: 1494269733.9526057,
-            dilutedMarketCap: 117669.5125951733,
-            marketCapPercentChange1d: 0.76671,
-            pricePercentChange1h: -1.0736342953259423,
-            pricePercentChange7d: -7.351582573655089,
-            pricePercentChange14d: -1.0799098946709822,
-            pricePercentChange30d: -25.776321124365992,
-            pricePercentChange200d: 46.091571238599165,
-            pricePercentChange1y: -2.2992517267242754,
-          },
           '0xaaa': {
             price: 148.17205755299946,
             currency: 'ETH',
@@ -314,7 +287,125 @@ describe('CodefiTokenPricesServiceV2', () => {
             pricePercentChange200d: 46.091571238599165,
             pricePercentChange1y: -2.2992517267242754,
           },
-          '0xccc': {
+        });
+
+      const marketDataTokensByAddress =
+        await new CodefiTokenPricesServiceV2().fetchTokenPrices({
+          assets: [
+            {
+              chainId: '0x52',
+              tokenAddress: '0xAAA',
+            },
+            {
+              chainId: '0x52',
+              tokenAddress: '0xBBB',
+            },
+          ],
+          currency: 'ETH',
+        });
+
+      expect(marketDataTokensByAddress).toStrictEqual([
+        {
+          allTimeHigh: 0.00060467892389492,
+          allTimeLow: 0.00002303954000865728,
+          chainId: '0x52',
+          circulatingSupply: 1494269733.9526057,
+          currency: 'ETH',
+          dilutedMarketCap: 117669.5125951733,
+          high1d: 0.00008020715848194385,
+          low1d: 0.00007792083564549064,
+          marketCap: 117219.99428314982,
+          marketCapPercentChange1d: 0.76671,
+          price: 148.17205755299946,
+          priceChange1d: 1,
+          pricePercentChange14d: -1.0799098946709822,
+          pricePercentChange1d: 1,
+          pricePercentChange1h: -1.0736342953259423,
+          pricePercentChange1y: -2.2992517267242754,
+          pricePercentChange200d: 46.091571238599165,
+          pricePercentChange30d: -25.776321124365992,
+          pricePercentChange7d: -7.351582573655089,
+          tokenAddress: '0xAAA',
+          totalVolume: 5155.094053542448,
+        },
+        {
+          allTimeHigh: 0.00060467892389492,
+          allTimeLow: 0.00002303954000865728,
+          chainId: '0x52',
+          circulatingSupply: 1494269733.9526057,
+          currency: 'ETH',
+          dilutedMarketCap: 117669.5125951733,
+          high1d: 0.00008020715848194385,
+          low1d: 0.00007792083564549064,
+          marketCap: 117219.99428314982,
+          marketCapPercentChange1d: 0.76671,
+          price: 33689.98134554716,
+          priceChange1d: 1,
+          pricePercentChange14d: -1.0799098946709822,
+          pricePercentChange1d: 1,
+          pricePercentChange1h: -1.0736342953259423,
+          pricePercentChange1y: -2.2992517267242754,
+          pricePercentChange200d: 46.091571238599165,
+          pricePercentChange30d: -25.776321124365992,
+          pricePercentChange7d: -7.351582573655089,
+          tokenAddress: '0xBBB',
+          totalVolume: 5155.094053542448,
+        },
+      ]);
+    });
+
+    it('uses the /spot-prices endpoint of the Codefi Price API to gather prices for the given tokens', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v3/spot-prices')
+        .query({
+          assetIds: buildMultipleAssetIds(['0xAAA', '0xBBB', '0xCCC']),
+          vsCurrency: 'ETH',
+          includeMarketData: 'true',
+        })
+        .reply(200, {
+          [buildTokenAssetId('0xAAA')]: {
+            price: 148.17205755299946,
+            currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
+          },
+          [buildTokenAssetId('0xBBB')]: {
+            price: 33689.98134554716,
+            currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
+          },
+          [buildTokenAssetId('0xCCC')]: {
             price: 148.1344197578456,
             currency: 'ETH',
             pricePercentChange1d: 1,
@@ -339,36 +430,28 @@ describe('CodefiTokenPricesServiceV2', () => {
 
       const marketDataTokensByAddress =
         await new CodefiTokenPricesServiceV2().fetchTokenPrices({
-          chainId: '0x1',
-          tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+          assets: [
+            {
+              chainId: '0x1',
+              tokenAddress: '0xAAA',
+            },
+            {
+              chainId: '0x1',
+              tokenAddress: '0xBBB',
+            },
+            {
+              chainId: '0x1',
+              tokenAddress: '0xCCC',
+            },
+          ],
           currency: 'ETH',
         });
 
-      expect(marketDataTokensByAddress).toStrictEqual({
-        '0x0000000000000000000000000000000000000000': {
-          tokenAddress: '0x0000000000000000000000000000000000000000',
-          currency: 'ETH',
-          pricePercentChange1d: 1,
-          priceChange1d: 1,
-          marketCap: 117219.99428314982,
-          allTimeHigh: 0.00060467892389492,
-          allTimeLow: 0.00002303954000865728,
-          totalVolume: 5155.094053542448,
-          high1d: 0.00008020715848194385,
-          low1d: 0.00007792083564549064,
-          price: 14,
-          circulatingSupply: 1494269733.9526057,
-          dilutedMarketCap: 117669.5125951733,
-          marketCapPercentChange1d: 0.76671,
-          pricePercentChange1h: -1.0736342953259423,
-          pricePercentChange7d: -7.351582573655089,
-          pricePercentChange14d: -1.0799098946709822,
-          pricePercentChange30d: -25.776321124365992,
-          pricePercentChange200d: 46.091571238599165,
-          pricePercentChange1y: -2.2992517267242754,
-        },
-        '0xAAA': {
+      expect(marketDataTokensByAddress).toStrictEqual([
+        {
           tokenAddress: '0xAAA',
+          assetId: buildTokenAssetId('0xAAA'),
+          chainId: '0x1',
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -389,8 +472,10 @@ describe('CodefiTokenPricesServiceV2', () => {
           pricePercentChange200d: 46.091571238599165,
           pricePercentChange1y: -2.2992517267242754,
         },
-        '0xBBB': {
+        {
           tokenAddress: '0xBBB',
+          assetId: buildTokenAssetId('0xBBB'),
+          chainId: '0x1',
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -411,8 +496,10 @@ describe('CodefiTokenPricesServiceV2', () => {
           pricePercentChange200d: 46.091571238599165,
           pricePercentChange1y: -2.2992517267242754,
         },
-        '0xCCC': {
+        {
           tokenAddress: '0xCCC',
+          assetId: buildTokenAssetId('0xCCC'),
+          chainId: '0x1',
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -433,86 +520,55 @@ describe('CodefiTokenPricesServiceV2', () => {
           pricePercentChange200d: 46.091571238599165,
           pricePercentChange1y: -2.2992517267242754,
         },
-      });
+      ]);
     });
 
-    it('calls the /spot-prices endpoint using the correct native token address', async () => {
-      const mockPriceAPI = nock('https://price.api.cx.metamask.io')
-        .get('/v2/chains/137/spot-prices')
+    it('handles native token addresses', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v3/spot-prices')
         .query({
-          tokenAddresses: '0x0000000000000000000000000000000000001010',
+          assetIds: buildMultipleAssetIds([ZERO_ADDRESS]),
           vsCurrency: 'ETH',
           includeMarketData: 'true',
         })
         .reply(200, {
-          '0x0000000000000000000000000000000000001010': {
-            price: 14,
+          [buildTokenAssetId(ZERO_ADDRESS)]: {
+            price: 33689.98134554716,
             currency: 'ETH',
-            pricePercentChange1d: 1,
-            priceChange1d: 1,
-            marketCap: 117219.99428314982,
-            allTimeHigh: 0.00060467892389492,
-            allTimeLow: 0.00002303954000865728,
-            totalVolume: 5155.094053542448,
-            high1d: 0.00008020715848194385,
-            low1d: 0.00007792083564549064,
-            circulatingSupply: 1494269733.9526057,
-            dilutedMarketCap: 117669.5125951733,
-            marketCapPercentChange1d: 0.76671,
-            pricePercentChange1h: -1.0736342953259423,
-            pricePercentChange7d: -7.351582573655089,
-            pricePercentChange14d: -1.0799098946709822,
-            pricePercentChange30d: -25.776321124365992,
-            pricePercentChange200d: 46.091571238599165,
-            pricePercentChange1y: -2.2992517267242754,
           },
         });
 
-      const marketData =
-        await new CodefiTokenPricesServiceV2().fetchTokenPrices({
-          chainId: '0x89',
-          tokenAddresses: [],
-          currency: 'ETH',
-        });
+      const result = await new CodefiTokenPricesServiceV2().fetchTokenPrices({
+        assets: [
+          {
+            chainId: '0x1',
+            tokenAddress: ZERO_ADDRESS,
+          },
+        ],
+        currency: 'ETH',
+      });
 
-      expect(mockPriceAPI.isDone()).toBe(true);
-      expect(
-        marketData['0x0000000000000000000000000000000000001010'],
-      ).toBeDefined();
+      expect(result).toStrictEqual([
+        {
+          tokenAddress: ZERO_ADDRESS,
+          assetId: buildTokenAssetId(ZERO_ADDRESS),
+          chainId: '0x1',
+          currency: 'ETH',
+          price: 33689.98134554716,
+        },
+      ]);
     });
 
     it('should not include token price object for token address when token price in not included the response data', async () => {
       nock('https://price.api.cx.metamask.io')
-        .get('/v2/chains/1/spot-prices')
+        .get('/v3/spot-prices')
         .query({
-          tokenAddresses:
-            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+          assetIds: buildMultipleAssetIds(['0xAAA', '0xBBB', '0xCCC']),
           vsCurrency: 'ETH',
           includeMarketData: 'true',
         })
         .reply(200, {
-          '0x0000000000000000000000000000000000000000': {
-            price: 14,
-            currency: 'ETH',
-            pricePercentChange1d: 1,
-            priceChange1d: 1,
-            marketCap: 117219.99428314982,
-            allTimeHigh: 0.00060467892389492,
-            allTimeLow: 0.00002303954000865728,
-            totalVolume: 5155.094053542448,
-            high1d: 0.00008020715848194385,
-            low1d: 0.00007792083564549064,
-            circulatingSupply: 1494269733.9526057,
-            dilutedMarketCap: 117669.5125951733,
-            marketCapPercentChange1d: 0.76671,
-            pricePercentChange1h: -1.0736342953259423,
-            pricePercentChange7d: -7.351582573655089,
-            pricePercentChange14d: -1.0799098946709822,
-            pricePercentChange30d: -25.776321124365992,
-            pricePercentChange200d: 46.091571238599165,
-            pricePercentChange1y: -2.2992517267242754,
-          },
-          '0xbbb': {
+          [buildTokenAssetId('0xBBB')]: {
             price: 33689.98134554716,
             currency: 'ETH',
             pricePercentChange1d: 1,
@@ -533,7 +589,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             pricePercentChange200d: 46.091571238599165,
             pricePercentChange1y: -2.2992517267242754,
           },
-          '0xccc': {
+          [buildTokenAssetId('0xCCC')]: {
             price: 148.1344197578456,
             currency: 'ETH',
             pricePercentChange1d: 1,
@@ -557,35 +613,27 @@ describe('CodefiTokenPricesServiceV2', () => {
         });
 
       const result = await new CodefiTokenPricesServiceV2().fetchTokenPrices({
-        chainId: '0x1',
-        tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+        assets: [
+          {
+            chainId: '0x1',
+            tokenAddress: '0xAAA',
+          },
+          {
+            chainId: '0x1',
+            tokenAddress: '0xBBB',
+          },
+          {
+            chainId: '0x1',
+            tokenAddress: '0xCCC',
+          },
+        ],
         currency: 'ETH',
       });
-      expect(result).toStrictEqual({
-        '0x0000000000000000000000000000000000000000': {
-          tokenAddress: '0x0000000000000000000000000000000000000000',
-          currency: 'ETH',
-          pricePercentChange1d: 1,
-          priceChange1d: 1,
-          marketCap: 117219.99428314982,
-          allTimeHigh: 0.00060467892389492,
-          allTimeLow: 0.00002303954000865728,
-          totalVolume: 5155.094053542448,
-          high1d: 0.00008020715848194385,
-          low1d: 0.00007792083564549064,
-          price: 14,
-          circulatingSupply: 1494269733.9526057,
-          dilutedMarketCap: 117669.5125951733,
-          marketCapPercentChange1d: 0.76671,
-          pricePercentChange1h: -1.0736342953259423,
-          pricePercentChange7d: -7.351582573655089,
-          pricePercentChange14d: -1.0799098946709822,
-          pricePercentChange30d: -25.776321124365992,
-          pricePercentChange200d: 46.091571238599165,
-          pricePercentChange1y: -2.2992517267242754,
-        },
-        '0xBBB': {
+      expect(result).toStrictEqual([
+        {
           tokenAddress: '0xBBB',
+          assetId: buildTokenAssetId('0xBBB'),
+          chainId: '0x1',
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -606,8 +654,10 @@ describe('CodefiTokenPricesServiceV2', () => {
           pricePercentChange200d: 46.091571238599165,
           pricePercentChange1y: -2.2992517267242754,
         },
-        '0xCCC': {
+        {
           tokenAddress: '0xCCC',
+          assetId: buildTokenAssetId('0xCCC'),
+          chainId: '0x1',
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -628,21 +678,20 @@ describe('CodefiTokenPricesServiceV2', () => {
           pricePercentChange200d: 46.091571238599165,
           pricePercentChange1y: -2.2992517267242754,
         },
-      });
+      ]);
     });
 
     it('should not include token price object for token address when price is undefined for token response data', async () => {
       nock('https://price.api.cx.metamask.io')
-        .get('/v2/chains/1/spot-prices')
+        .get('/v3/spot-prices')
         .query({
-          tokenAddresses:
-            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+          assetIds: buildMultipleAssetIds(['0xAAA', '0xBBB', '0xCCC']),
           vsCurrency: 'ETH',
           includeMarketData: 'true',
         })
         .reply(200, {
-          '0xaaa': {},
-          '0xbbb': {
+          [buildTokenAssetId('0xAAA')]: {},
+          [buildTokenAssetId('0xBBB')]: {
             price: 33689.98134554716,
             pricePercentChange1d: 1,
             priceChange1d: 1,
@@ -662,7 +711,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             pricePercentChange200d: 46.091571238599165,
             pricePercentChange1y: -2.2992517267242754,
           },
-          '0xccc': {
+          [buildTokenAssetId('0xCCC')]: {
             price: 148.1344197578456,
             pricePercentChange1d: 1,
             priceChange1d: 1,
@@ -685,18 +734,34 @@ describe('CodefiTokenPricesServiceV2', () => {
         });
 
       const result = await new CodefiTokenPricesServiceV2().fetchTokenPrices({
-        chainId: '0x1',
-        tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+        assets: [
+          {
+            chainId: '0x1',
+            tokenAddress: '0xAAA',
+          },
+          {
+            chainId: '0x1',
+            tokenAddress: '0xBBB',
+          },
+          {
+            chainId: '0x1',
+            tokenAddress: '0xCCC',
+          },
+        ],
         currency: 'ETH',
       });
 
-      expect(result).toStrictEqual({
-        '0xAAA': {
-          currency: 'ETH',
+      expect(result).toStrictEqual([
+        {
           tokenAddress: '0xAAA',
+          assetId: buildTokenAssetId('0xAAA'),
+          chainId: '0x1',
+          currency: 'ETH',
         },
-        '0xBBB': {
+        {
           tokenAddress: '0xBBB',
+          assetId: buildTokenAssetId('0xBBB'),
+          chainId: '0x1',
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -717,8 +782,10 @@ describe('CodefiTokenPricesServiceV2', () => {
           pricePercentChange200d: 46.091571238599165,
           pricePercentChange1y: -2.2992517267242754,
         },
-        '0xCCC': {
+        {
           tokenAddress: '0xCCC',
+          assetId: buildTokenAssetId('0xCCC'),
+          chainId: '0x1',
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -739,65 +806,70 @@ describe('CodefiTokenPricesServiceV2', () => {
           pricePercentChange200d: 46.091571238599165,
           pricePercentChange1y: -2.2992517267242754,
         },
-      });
+      ]);
     });
 
     it('should correctly handle null market data for a token address', async () => {
       nock('https://price.api.cx.metamask.io')
-        .get('/v2/chains/1/spot-prices')
+        .get('/v3/spot-prices')
         .query({
-          tokenAddresses:
-            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+          assetIds: buildMultipleAssetIds(['0xAAA', '0xBBB', '0xCCC']),
           vsCurrency: 'ETH',
           includeMarketData: 'true',
         })
         .reply(200, {
-          '0x0000000000000000000000000000000000000000': {
-            price: 14,
-            currency: 'ETH',
-          },
-          '0xaaa': null, // Simulating API returning null for market data
-          '0xbbb': {
+          [buildTokenAssetId('0xAAA')]: null, // Simulating API returning null for market data
+          [buildTokenAssetId('0xBBB')]: {
             price: 33689.98134554716,
             currency: 'ETH',
           },
-          '0xccc': {
+          [buildTokenAssetId('0xCCC')]: {
             price: 148.1344197578456,
             currency: 'ETH',
           },
         });
 
       const result = await new CodefiTokenPricesServiceV2().fetchTokenPrices({
-        chainId: '0x1',
-        tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+        assets: [
+          {
+            chainId: '0x1',
+            tokenAddress: '0xAAA',
+          },
+          {
+            chainId: '0x1',
+            tokenAddress: '0xBBB',
+          },
+          {
+            chainId: '0x1',
+            tokenAddress: '0xCCC',
+          },
+        ],
         currency: 'ETH',
       });
 
-      expect(result).toStrictEqual({
-        '0x0000000000000000000000000000000000000000': {
-          tokenAddress: '0x0000000000000000000000000000000000000000',
-          currency: 'ETH',
-          price: 14,
-        },
-        '0xBBB': {
+      expect(result).toStrictEqual([
+        {
           tokenAddress: '0xBBB',
+          assetId: buildTokenAssetId('0xBBB'),
+          chainId: '0x1',
           currency: 'ETH',
           price: 33689.98134554716,
         },
-        '0xCCC': {
+        {
           tokenAddress: '0xCCC',
+          assetId: buildTokenAssetId('0xCCC'),
+          chainId: '0x1',
           currency: 'ETH',
           price: 148.1344197578456,
         },
-      });
+      ]);
     });
 
     it('throws if the request fails consistently', async () => {
       nock('https://price.api.cx.metamask.io')
-        .get('/v2/chains/1/spot-prices')
+        .get('/v3/spot-prices')
         .query({
-          tokenAddresses:
-            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+          assetIds: buildMultipleAssetIds(['0xAAA', '0xBBB', '0xCCC']),
           vsCurrency: 'ETH',
           includeMarketData: 'true',
         })
@@ -806,8 +878,20 @@ describe('CodefiTokenPricesServiceV2', () => {
 
       await expect(
         new CodefiTokenPricesServiceV2().fetchTokenPrices({
-          chainId: '0x1',
-          tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+          assets: [
+            {
+              chainId: '0x1',
+              tokenAddress: '0xAAA',
+            },
+            {
+              chainId: '0x1',
+              tokenAddress: '0xBBB',
+            },
+            {
+              chainId: '0x1',
+              tokenAddress: '0xCCC',
+            },
+          ],
           currency: 'ETH',
         }),
       ).rejects.toThrow('Failed to fetch');
@@ -816,10 +900,9 @@ describe('CodefiTokenPricesServiceV2', () => {
     it('throws if the initial request and all retries fail', async () => {
       const retries = 3;
       nock('https://price.api.cx.metamask.io')
-        .get('/v2/chains/1/spot-prices')
+        .get('/v3/spot-prices')
         .query({
-          tokenAddresses:
-            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+          assetIds: buildMultipleAssetIds(['0xAAA', '0xBBB', '0xCCC']),
           vsCurrency: 'ETH',
           includeMarketData: 'true',
         })
@@ -828,8 +911,20 @@ describe('CodefiTokenPricesServiceV2', () => {
 
       await expect(
         new CodefiTokenPricesServiceV2({ retries }).fetchTokenPrices({
-          chainId: '0x1',
-          tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+          assets: [
+            {
+              chainId: '0x1',
+              tokenAddress: '0xAAA',
+            },
+            {
+              chainId: '0x1',
+              tokenAddress: '0xBBB',
+            },
+            {
+              chainId: '0x1',
+              tokenAddress: '0xCCC',
+            },
+          ],
           currency: 'ETH',
         }),
       ).rejects.toThrow('Failed to fetch');
@@ -839,10 +934,9 @@ describe('CodefiTokenPricesServiceV2', () => {
       const retries = 3;
       // Initial interceptor for failing requests
       nock('https://price.api.cx.metamask.io')
-        .get('/v2/chains/1/spot-prices')
+        .get('/v3/spot-prices')
         .query({
-          tokenAddresses:
-            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+          assetIds: buildMultipleAssetIds(['0xAAA', '0xBBB', '0xCCC']),
           vsCurrency: 'ETH',
           includeMarketData: 'true',
         })
@@ -850,36 +944,14 @@ describe('CodefiTokenPricesServiceV2', () => {
         .replyWithError('Failed to fetch');
       // Interceptor for successful request
       nock('https://price.api.cx.metamask.io')
-        .get('/v2/chains/1/spot-prices')
+        .get('/v3/spot-prices')
         .query({
-          tokenAddresses:
-            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+          assetIds: buildMultipleAssetIds(['0xAAA', '0xBBB', '0xCCC']),
           vsCurrency: 'ETH',
           includeMarketData: 'true',
         })
         .reply(200, {
-          '0x0000000000000000000000000000000000000000': {
-            price: 14,
-            currency: 'ETH',
-            pricePercentChange1d: 1,
-            priceChange1d: 1,
-            marketCap: 117219.99428314982,
-            allTimeHigh: 0.00060467892389492,
-            allTimeLow: 0.00002303954000865728,
-            totalVolume: 5155.094053542448,
-            high1d: 0.00008020715848194385,
-            low1d: 0.00007792083564549064,
-            circulatingSupply: 1494269733.9526057,
-            dilutedMarketCap: 117669.5125951733,
-            marketCapPercentChange1d: 0.76671,
-            pricePercentChange1h: -1.0736342953259423,
-            pricePercentChange7d: -7.351582573655089,
-            pricePercentChange14d: -1.0799098946709822,
-            pricePercentChange30d: -25.776321124365992,
-            pricePercentChange200d: 46.091571238599165,
-            pricePercentChange1y: -2.2992517267242754,
-          },
-          '0xaaa': {
+          [buildTokenAssetId('0xAAA')]: {
             price: 148.17205755299946,
             currency: 'ETH',
             pricePercentChange1d: 1,
@@ -900,7 +972,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             pricePercentChange200d: 46.091571238599165,
             pricePercentChange1y: -2.2992517267242754,
           },
-          '0xbbb': {
+          [buildTokenAssetId('0xBBB')]: {
             price: 33689.98134554716,
             currency: 'ETH',
             pricePercentChange1d: 1,
@@ -921,7 +993,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             pricePercentChange200d: 46.091571238599165,
             pricePercentChange1y: -2.2992517267242754,
           },
-          '0xccc': {
+          [buildTokenAssetId('0xCCC')]: {
             price: 148.1344197578456,
             currency: 'ETH',
             pricePercentChange1d: 1,
@@ -947,36 +1019,28 @@ describe('CodefiTokenPricesServiceV2', () => {
       const marketDataTokensByAddress = await new CodefiTokenPricesServiceV2({
         retries,
       }).fetchTokenPrices({
-        chainId: '0x1',
-        tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+        assets: [
+          {
+            chainId: '0x1',
+            tokenAddress: '0xAAA',
+          },
+          {
+            chainId: '0x1',
+            tokenAddress: '0xBBB',
+          },
+          {
+            chainId: '0x1',
+            tokenAddress: '0xCCC',
+          },
+        ],
         currency: 'ETH',
       });
 
-      expect(marketDataTokensByAddress).toStrictEqual({
-        '0x0000000000000000000000000000000000000000': {
-          tokenAddress: '0x0000000000000000000000000000000000000000',
-          currency: 'ETH',
-          pricePercentChange1d: 1,
-          priceChange1d: 1,
-          marketCap: 117219.99428314982,
-          allTimeHigh: 0.00060467892389492,
-          allTimeLow: 0.00002303954000865728,
-          totalVolume: 5155.094053542448,
-          high1d: 0.00008020715848194385,
-          low1d: 0.00007792083564549064,
-          price: 14,
-          circulatingSupply: 1494269733.9526057,
-          dilutedMarketCap: 117669.5125951733,
-          marketCapPercentChange1d: 0.76671,
-          pricePercentChange1h: -1.0736342953259423,
-          pricePercentChange7d: -7.351582573655089,
-          pricePercentChange14d: -1.0799098946709822,
-          pricePercentChange30d: -25.776321124365992,
-          pricePercentChange200d: 46.091571238599165,
-          pricePercentChange1y: -2.2992517267242754,
-        },
-        '0xAAA': {
+      expect(marketDataTokensByAddress).toStrictEqual([
+        {
           tokenAddress: '0xAAA',
+          assetId: buildTokenAssetId('0xAAA'),
+          chainId: '0x1',
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -997,8 +1061,10 @@ describe('CodefiTokenPricesServiceV2', () => {
           pricePercentChange200d: 46.091571238599165,
           pricePercentChange1y: -2.2992517267242754,
         },
-        '0xBBB': {
+        {
           tokenAddress: '0xBBB',
+          assetId: buildTokenAssetId('0xBBB'),
+          chainId: '0x1',
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -1019,8 +1085,10 @@ describe('CodefiTokenPricesServiceV2', () => {
           pricePercentChange200d: 46.091571238599165,
           pricePercentChange1y: -2.2992517267242754,
         },
-        '0xCCC': {
+        {
           tokenAddress: '0xCCC',
+          assetId: buildTokenAssetId('0xCCC'),
+          chainId: '0x1',
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -1041,7 +1109,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           pricePercentChange200d: 46.091571238599165,
           pricePercentChange1y: -2.2992517267242754,
         },
-      });
+      ]);
     });
 
     describe('before circuit break', () => {
@@ -1059,34 +1127,27 @@ describe('CodefiTokenPricesServiceV2', () => {
         const degradedThreshold = 1000;
         const retries = 0;
         nock('https://price.api.cx.metamask.io')
-          .get('/v2/chains/1/spot-prices')
+          .get('/v3/spot-prices')
           .query({
-            tokenAddresses:
-              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+            assetIds: buildMultipleAssetIds(['0xAAA', '0xBBB', '0xCCC']),
             vsCurrency: 'ETH',
             includeMarketData: 'true',
           })
           .delay(degradedThreshold * 2)
           .reply(200, {
-            '0x0000000000000000000000000000000000000000': {
-              price: 14,
-              currency: 'ETH',
-              pricePercentChange1d: 1,
-              priceChange1d: 1,
-            },
-            '0xaaa': {
+            [buildTokenAssetId('0xAAA')]: {
               price: 148.17205755299946,
               currency: 'ETH',
               pricePercentChange1d: 1,
               priceChange1d: 1,
             },
-            '0xbbb': {
+            [buildTokenAssetId('0xBBB')]: {
               price: 33689.98134554716,
               currency: 'ETH',
               pricePercentChange1d: 1,
               priceChange1d: 1,
             },
-            '0xccc': {
+            [buildTokenAssetId('0xCCC')]: {
               price: 148.1344197578456,
               currency: 'ETH',
               pricePercentChange1d: 1,
@@ -1104,8 +1165,20 @@ describe('CodefiTokenPricesServiceV2', () => {
           clock,
           fetchTokenPrices: () =>
             service.fetchTokenPrices({
-              chainId: '0x1',
-              tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+              assets: [
+                {
+                  chainId: '0x1',
+                  tokenAddress: '0xAAA',
+                },
+                {
+                  chainId: '0x1',
+                  tokenAddress: '0xBBB',
+                },
+                {
+                  chainId: '0x1',
+                  tokenAddress: '0xCCC',
+                },
+              ],
               currency: 'ETH',
             }),
           retries,
@@ -1132,10 +1205,9 @@ describe('CodefiTokenPricesServiceV2', () => {
         const maximumConsecutiveFailures = (1 + retries) * 3;
         // Initial interceptor for failing requests
         nock('https://price.api.cx.metamask.io')
-          .get('/v2/chains/1/spot-prices')
+          .get('/v3/spot-prices')
           .query({
-            tokenAddresses:
-              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+            assetIds: buildMultipleAssetIds(['0xAAA', '0xBBB', '0xCCC']),
             vsCurrency: 'ETH',
             includeMarketData: 'true',
           })
@@ -1143,36 +1215,14 @@ describe('CodefiTokenPricesServiceV2', () => {
           .replyWithError('Failed to fetch');
         // This interceptor should not be used
         nock('https://price.api.cx.metamask.io')
-          .get('/v2/chains/1/spot-prices')
+          .get('/v3/spot-prices')
           .query({
-            tokenAddresses:
-              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+            assetIds: buildMultipleAssetIds(['0xAAA', '0xBBB', '0xCCC']),
             vsCurrency: 'ETH',
             includeMarketData: 'true',
           })
           .reply(200, {
-            '0x0000000000000000000000000000000000000000': {
-              price: 14,
-              currency: 'ETH',
-              pricePercentChange1d: 1,
-              priceChange1d: 1,
-              marketCap: 117219.99428314982,
-              allTimeHigh: 0.00060467892389492,
-              allTimeLow: 0.00002303954000865728,
-              totalVolume: 5155.094053542448,
-              high1d: 0.00008020715848194385,
-              low1d: 0.00007792083564549064,
-              circulatingSupply: 1494269733.9526057,
-              dilutedMarketCap: 117669.5125951733,
-              marketCapPercentChange1d: 0.76671,
-              pricePercentChange1h: -1.0736342953259423,
-              pricePercentChange7d: -7.351582573655089,
-              pricePercentChange14d: -1.0799098946709822,
-              pricePercentChange30d: -25.776321124365992,
-              pricePercentChange200d: 46.091571238599165,
-              pricePercentChange1y: -2.2992517267242754,
-            },
-            '0xaaa': {
+            [buildTokenAssetId('0xAAA')]: {
               price: 148.17205755299946,
               currency: 'ETH',
               pricePercentChange1d: 1,
@@ -1193,7 +1243,7 @@ describe('CodefiTokenPricesServiceV2', () => {
               pricePercentChange200d: 46.091571238599165,
               pricePercentChange1y: -2.2992517267242754,
             },
-            '0xbbb': {
+            [buildTokenAssetId('0xBBB')]: {
               price: 33689.98134554716,
               currency: 'ETH',
               pricePercentChange1d: 1,
@@ -1214,7 +1264,7 @@ describe('CodefiTokenPricesServiceV2', () => {
               pricePercentChange200d: 46.091571238599165,
               pricePercentChange1y: -2.2992517267242754,
             },
-            '0xccc': {
+            [buildTokenAssetId('0xCCC')]: {
               price: 148.1344197578456,
               currency: 'ETH',
               pricePercentChange1d: 1,
@@ -1247,8 +1297,20 @@ describe('CodefiTokenPricesServiceV2', () => {
         });
         const fetchTokenPrices = () =>
           service.fetchTokenPrices({
-            chainId: '0x1',
-            tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+            assets: [
+              {
+                chainId: '0x1',
+                tokenAddress: '0xAAA',
+              },
+              {
+                chainId: '0x1',
+                tokenAddress: '0xBBB',
+              },
+              {
+                chainId: '0x1',
+                tokenAddress: '0xCCC',
+              },
+            ],
             currency: 'ETH',
           });
         expect(onBreakHandler).not.toHaveBeenCalled();
@@ -1891,4 +1953,24 @@ async function fetchExchangeRatesWithFakeTimers({
   }
 
   return await pendingUpdate;
+}
+
+/**
+ *
+ * @param tokenAddress - The token address.
+ * @returns The token asset id.
+ */
+function buildTokenAssetId(tokenAddress: Hex): string {
+  return tokenAddress === ZERO_ADDRESS
+    ? `${KnownCaipNamespace.Eip155}:1/slip44:60`
+    : `${KnownCaipNamespace.Eip155}:1/erc20:${tokenAddress.toLowerCase()}`;
+}
+
+/**
+ *
+ * @param tokenAddresses - The token addresses.
+ * @returns The token asset ids.
+ */
+function buildMultipleAssetIds(tokenAddresses: Hex[]): string {
+  return tokenAddresses.map(buildTokenAssetId).join(',');
 }

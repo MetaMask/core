@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.16.0]
+
+### Added
+
+- Add `getCircuitState` method to `ServicePolicy` ([#7164](https://github.com/MetaMask/core/pull/7164))
+  - This can be used when working with a chain of services to know whether a service's underlying circuit is open or closed.
+- Add `onAvailable` method to `ServicePolicy` ([#7164](https://github.com/MetaMask/core/pull/7164))
+  - This can be used to listen for the initial successful execution of the service, or the first successful execution after the service becomes degraded or the circuit breaks.
+- Add `reset` method to `ServicePolicy` ([#7164](https://github.com/MetaMask/core/pull/7164))
+  - This can be used when working with a chain of services to reset the state of the circuit breaker policy (e.g. if a primary recovers and we want to reset the failovers).
+- Export `CockatielEventEmitter` and `CockatielFailureReason` from Cockatiel ([#7164](https://github.com/MetaMask/core/pull/7164))
+  - These can be used to further transform types for event emitters/listeners.
+
 ## [11.15.0]
 
 ### Added
@@ -596,7 +609,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.15.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.16.0...HEAD
+[11.16.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.15.0...@metamask/controller-utils@11.16.0
 [11.15.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.14.1...@metamask/controller-utils@11.15.0
 [11.14.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.14.0...@metamask/controller-utils@11.14.1
 [11.14.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.13.0...@metamask/controller-utils@11.14.0

@@ -2559,7 +2559,8 @@ describe('BridgeStatusController', () => {
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
 
-    it('should handle smart transactions', async () => {
+    it('should handle smart transactions and publish QuotesReceived event if quotes are still loading', async () => {
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track QuotesReceived event
       setupEventTrackingMocks(mockMessengerCall);
       setupBridgeStxMocks(mockMessengerCall);
       addTransactionBatchFn.mockResolvedValueOnce({
@@ -2573,6 +2574,8 @@ describe('BridgeStatusController', () => {
         (quoteWithoutApproval.trade as TxData).from,
         quoteWithoutApproval,
         true,
+        true,
+        ['low_return'],
       );
       controller.stopAllPolling();
 

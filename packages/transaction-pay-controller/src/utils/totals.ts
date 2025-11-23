@@ -3,6 +3,8 @@ import { BigNumber } from 'bignumber.js';
 
 import { calculateTransactionGasCost } from './gas';
 import type {
+  Amount,
+  FiatValue,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
   TransactionPayRequiredToken,
@@ -30,24 +32,14 @@ export function calculateTotals({
   tokens: TransactionPayRequiredToken[];
   transaction: TransactionMeta;
 }): TransactionPayTotals {
-  const providerFeeFiat = sumProperty(
-    quotes,
-    (quote) => quote.fees.provider.fiat,
+  const providerFee = sumFiat(quotes.map((quote) => quote.fees.provider));
+
+  const sourceNetworkFeeMax = sumAmounts(
+    quotes.map((quote) => quote.fees.sourceNetwork.max),
   );
 
-  const providerFeeUsd = sumProperty(
-    quotes,
-    (quote) => quote.fees.provider.usd,
-  );
-
-  const sourceNetworkFeeFiat = sumProperty(
-    quotes,
-    (quote) => quote.fees.sourceNetwork.fiat,
-  );
-
-  const sourceNetworkFeeUsd = sumProperty(
-    quotes,
-    (quote) => quote.fees.sourceNetwork.usd,
+  const sourceNetworkFeeEstimate = sumAmounts(
+    quotes.map((quote) => quote.fees.sourceNetwork.estimate),
   );
 
   const transactionNetworkFee = calculateTransactionGasCost(
@@ -55,27 +47,27 @@ export function calculateTotals({
     messenger,
   );
 
-  const targetNetworkFeeFiat = quotes?.length
-    ? sumProperty(quotes, (quote) => quote.fees.targetNetwork.fiat)
-    : transactionNetworkFee.fiat;
+  const targetNetworkFee = quotes?.length
+    ? {
+        ...sumFiat(quotes.map((quote) => quote.fees.targetNetwork)),
+        isGasFeeToken: false,
+      }
+    : transactionNetworkFee;
 
-  const targetNetworkFeeUsd = quotes.length
-    ? sumProperty(quotes, (quote) => quote.fees.targetNetwork.usd)
-    : transactionNetworkFee.usd;
-
+  const sourceAmount = sumAmounts(quotes.map((quote) => quote.sourceAmount));
   const quoteTokens = tokens.filter((t) => !t.skipIfBalance);
   const amountFiat = sumProperty(quoteTokens, (token) => token.amountFiat);
   const amountUsd = sumProperty(quoteTokens, (token) => token.amountUsd);
 
-  const totalFiat = new BigNumber(providerFeeFiat)
-    .plus(sourceNetworkFeeFiat)
-    .plus(targetNetworkFeeFiat)
+  const totalFiat = new BigNumber(providerFee.fiat)
+    .plus(sourceNetworkFeeEstimate.fiat)
+    .plus(targetNetworkFee.fiat)
     .plus(amountFiat)
     .toString(10);
 
-  const totalUsd = new BigNumber(providerFeeUsd)
-    .plus(sourceNetworkFeeUsd)
-    .plus(targetNetworkFeeUsd)
+  const totalUsd = new BigNumber(providerFee.usd)
+    .plus(sourceNetworkFeeEstimate.usd)
+    .plus(targetNetworkFee.usd)
     .plus(amountUsd)
     .toString(10);
 
@@ -83,27 +75,62 @@ export function calculateTotals({
     sumProperty(quotes, (quote) => quote.estimatedDuration),
   );
 
+  const isSourceGasFeeToken = quotes.some(
+    (quote) => quote.fees.isSourceGasFeeToken,
+  );
+
+  const isTargetGasFeeToken =
+    targetNetworkFee.isGasFeeToken ||
+    quotes.some((quote) => quote.fees.isTargetGasFeeToken);
+
   return {
     estimatedDuration,
     fees: {
-      provider: {
-        fiat: providerFeeFiat,
-        usd: providerFeeUsd,
-      },
+      isSourceGasFeeToken,
+      isTargetGasFeeToken,
+      provider: providerFee,
       sourceNetwork: {
-        fiat: sourceNetworkFeeFiat,
-        usd: sourceNetworkFeeUsd,
+        estimate: sourceNetworkFeeEstimate,
+        max: sourceNetworkFeeMax,
       },
-      targetNetwork: {
-        fiat: targetNetworkFeeFiat,
-        usd: targetNetworkFeeUsd,
-      },
+      targetNetwork: targetNetworkFee,
     },
+    sourceAmount,
     total: {
       fiat: totalFiat,
       usd: totalUsd,
     },
   };
+}
+
+/**
+ * Sum a list of amounts.
+ *
+ * @param data - List of amounts.
+ * @returns Total amount.
+ */
+function sumAmounts(data: Amount[]): Amount {
+  const fiatValue = sumFiat(data);
+  const human = sumProperty(data, (item) => item.human);
+  const raw = sumProperty(data, (item) => item.raw);
+
+  return {
+    ...fiatValue,
+    human,
+    raw,
+  };
+}
+
+/**
+ * Sum a list of fiat value.
+ *
+ * @param data - List of fiat values.
+ * @returns Total fiat value.
+ */
+function sumFiat(data: FiatValue[]): FiatValue {
+  const fiat = sumProperty(data, (item) => item.fiat);
+  const usd = sumProperty(data, (item) => item.usd);
+  return { fiat, usd };
 }
 
 /**

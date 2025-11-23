@@ -13,6 +13,7 @@ export type {
   RequestMetadata,
   TxStatusData,
   QuoteFetchData,
+  QuoteWarning,
 } from './utils/metrics/types';
 
 export {
@@ -21,6 +22,7 @@ export {
   getSwapType,
   isHardwareWallet,
   isCustomSlippage,
+  getQuotesReceivedProperties,
 } from './utils/metrics/properties';
 
 export type {

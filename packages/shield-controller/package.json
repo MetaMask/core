@@ -1,6 +1,6 @@
 {
   "name": "@metamask/shield-controller",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Controller handling shield transaction coverage logic",
   "keywords": [
     "MetaMask",
@@ -49,8 +49,10 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.15.0",
+    "@metamask/controller-utils": "^11.16.0",
     "@metamask/messenger": "^0.3.0",
+    "@metamask/signature-controller": "^37.0.0",
+    "@metamask/transaction-controller": "^62.2.0",
     "@metamask/utils": "^11.8.1",
     "cockatiel": "^3.1.2"
   },
@@ -59,8 +61,6 @@
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/signature-controller": "^36.0.0",
-    "@metamask/transaction-controller": "^61.3.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -71,10 +71,6 @@
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3",
     "uuid": "^8.3.2"
-  },
-  "peerDependencies": {
-    "@metamask/signature-controller": "^36.0.0",
-    "@metamask/transaction-controller": "^61.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
