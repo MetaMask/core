@@ -59,6 +59,11 @@ export type AllowedEvents =
   | TransactionControllerStateChangeEvent
   | TransactionControllerUnapprovedTransactionAddedEvent;
 
+export type TransactionPayControllerClearQuotesAction = {
+  type: `${typeof CONTROLLER_NAME}:clearQuotes`;
+  handler: (request: ClearQuotesRequest) => void;
+};
+
 export type TransactionPayControllerGetStateAction = ControllerGetStateAction<
   typeof CONTROLLER_NAME,
   TransactionPayControllerState
@@ -88,6 +93,7 @@ export type TransactionPayControllerStateChangeEvent =
   >;
 
 export type TransactionPayControllerActions =
+  | TransactionPayControllerClearQuotesAction
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
@@ -322,6 +328,9 @@ export type TransactionPayQuote<OriginalQuote> = {
 
 /** Request to get quotes for a transaction. */
 export type PayStrategyGetQuotesRequest = {
+  /** Optional abort signal to cancel the quote retrieval. */
+  abortSignal?: AbortSignal;
+
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
@@ -446,4 +455,9 @@ export type Amount = FiatValue & {
 
   /** Amount in atomic format without factoring token decimals. */
   raw: string;
+};
+
+export type ClearQuotesRequest = {
+  reason?: string;
+  transactionId: string;
 };

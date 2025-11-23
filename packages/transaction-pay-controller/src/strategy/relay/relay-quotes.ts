@@ -77,7 +77,7 @@ async function getSingleQuote(
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>> {
-  const { messenger, transaction } = fullRequest;
+  const { abortSignal, messenger, transaction } = fullRequest;
 
   try {
     const body = {
@@ -101,6 +101,7 @@ async function getSingleQuote(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      signal: abortSignal,
     });
 
     const quote = (await response.json()) as RelayQuote;
