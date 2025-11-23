@@ -54,6 +54,7 @@ import {
 import type {
   TokenListCacheUpdate,
   TokenListToken,
+  TokensChainsCache,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
 
@@ -253,7 +254,7 @@ export class TokensController extends BaseController<
 
     this.messenger.subscribe(
       'TokenListController:cacheUpdate',
-      ({ tokensChainsCache }) => {
+      (tokensChainsCache: TokensChainsCache) => {
         const { allTokens } = this.state;
         const selectedAddress = this.#getSelectedAddress();
 
