@@ -319,6 +319,25 @@ describe('Quotes Utils', () => {
       expect(updateTransactionDataMock).not.toHaveBeenCalled();
       expect(result).toBe(false);
     });
+
+    it('skips update if abort signal is aborted', async () => {
+      const abortController = new AbortController();
+      abortController.abort();
+
+      await run({
+        abortSignal: abortController.signal,
+      });
+
+      const transactionDataMock = {};
+
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: undefined,
+      });
+    });
   });
 
   describe('refreshQuotes', () => {
@@ -405,6 +424,38 @@ describe('Quotes Utils', () => {
       await refreshQuotes(messenger, updateTransactionDataMock);
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
+    });
+
+    it('skips update if abort signal is aborted', async () => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_ID_MOCK]: {
+            isLoading: false,
+            paymentToken: TRANSACTION_DATA_MOCK.paymentToken,
+            quotes: [QUOTE_MOCK],
+            quotesLastUpdated: 1,
+          } as TransactionData,
+        },
+      });
+
+      const abortController = new AbortController();
+      abortController.abort();
+
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        abortController.signal,
+      );
+
+      const transactionDataMock = {};
+
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: undefined,
+      });
     });
   });
 });

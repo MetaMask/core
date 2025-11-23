@@ -12,8 +12,10 @@ import type {
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
+import { clearQuotes } from './actions/clear-quotes';
 
 jest.mock('./actions/update-payment-token');
+jest.mock('./actions/clear-quotes');
 jest.mock('./utils/source-amounts');
 jest.mock('./utils/quotes');
 jest.mock('./utils/transaction');
@@ -28,6 +30,7 @@ describe('TransactionPayController', () => {
   const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
   const updateQuotesMock = jest.mocked(updateQuotes);
   const pollTransactionChangesMock = jest.mocked(pollTransactionChanges);
+  const clearQuotesMock = jest.mocked(clearQuotes);
   let messenger: TransactionPayControllerMessenger;
 
   /**
@@ -193,6 +196,23 @@ describe('TransactionPayController', () => {
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK],
       ).toBeUndefined();
+    });
+  });
+
+  describe('messenger', () => {
+    it('clear quotes', () => {
+      createController();
+
+      messenger.call('TransactionPayController:clearQuotes', {
+        transactionId: TRANSACTION_ID_MOCK,
+      });
+
+      expect(clearQuotesMock).toHaveBeenCalledWith(
+        {
+          transactionId: TRANSACTION_ID_MOCK,
+        },
+        expect.anything(),
+      );
     });
   });
 });
