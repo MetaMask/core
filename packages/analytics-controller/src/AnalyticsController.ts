@@ -16,7 +16,7 @@ import type {
   AnalyticsTrackingEvent,
 } from './AnalyticsPlatformAdapter.types';
 import { analyticsControllerSelectors } from './selectors';
-import { validateAnalyticsState } from './analyticsStateValidator';
+import { validateAnalyticsControllerState } from './analyticsControllerStateValidator';
 
 // === GENERAL ===
 
@@ -186,7 +186,7 @@ export class AnalyticsController extends BaseController<
       ...state,
     };
 
-    validateAnalyticsState(initialState);
+    validateAnalyticsControllerState(initialState);
 
     super({
       name: controllerName,

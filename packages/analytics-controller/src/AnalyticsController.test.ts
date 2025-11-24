@@ -197,8 +197,7 @@ describe('AnalyticsController', () => {
       );
     });
 
-    it('returns controller when onSetupCompleted throws error', () => {
-      const mockAdapter = createMockAdapter();
+    it('ignores errors thrown by onSetupCompleted', () => {      const mockAdapter = createMockAdapter();
       const cause = new Error(
         'MetaMetricsPrivacySegmentPlugin configure failed',
       );
