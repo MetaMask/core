@@ -10,6 +10,7 @@ import {
 
 import {
   UserProfileController,
+  getDefaultUserProfileControllerState,
   type UserProfileControllerMessenger,
 } from './UserProfileController';
 import type { UserProfileUpdateRequest } from './UserProfileService';
@@ -166,6 +167,28 @@ describe('UserProfileController', () => {
 
           expect(pollSpy).toHaveBeenCalledTimes(1);
         });
+      });
+    });
+
+    describe('when KeyringController:newVault is published', () => {
+      it('resets the state to initial state', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                firstSyncCompleted: true,
+                syncQueue: { someId: ['0xSomeAccount'] },
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.publish('KeyringController:newVault');
+
+            expect(controller.state).toStrictEqual(
+              getDefaultUserProfileControllerState(),
+            );
+          },
+        );
       });
     });
 
@@ -413,6 +436,7 @@ function getMessenger(
     events: [
       'KeyringController:unlock',
       'KeyringController:lock',
+      'KeyringController:newVault',
       'AccountsController:accountAdded',
     ],
   });
