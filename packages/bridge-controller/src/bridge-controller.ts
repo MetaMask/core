@@ -1,4 +1,4 @@
-import type { BigNumber } from '@ethersproject/bignumber';
+import { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { StateMetadata } from '@metamask/base-controller';
@@ -35,6 +35,7 @@ import { hasSufficientBalance } from './utils/balance';
 import {
   getDefaultBridgeControllerState,
   isCrossChain,
+  isEthUsdt,
   isNonEvmChainId,
   isSolanaChainId,
 } from './utils/bridge';
@@ -299,6 +300,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           )?.configuration;
 
       let insufficientBal: boolean | undefined;
+      let resetApproval: boolean | undefined;
       if (isSrcChainNonEVM) {
         // If the source chain is not an EVM network, use value from params
         insufficientBal = paramsToUpdate.insufficientBal;
@@ -316,6 +318,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           insufficientBal =
             paramsToUpdate.insufficientBal ??
             !(await this.#hasSufficientBalance(updatedQuoteRequest));
+          resetApproval = await this.#shouldResetApproval(updatedQuoteRequest);
         } catch (error) {
           console.warn('Failed to fetch balance', error);
           insufficientBal = true;
@@ -328,6 +331,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         updatedQuoteRequest: {
           ...updatedQuoteRequest,
           insufficientBal,
+          resetApproval,
         },
         context,
       });
@@ -353,12 +357,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const quoteRequestOverrides = featureId
       ? bridgeFeatureFlags.quoteRequestOverrides?.[featureId]
       : undefined;
+    const resetApproval = await this.#shouldResetApproval(quoteRequest);
 
     // If quoteRequestOverrides is specified, merge it with the quoteRequest
     const { quotes: baseQuotes, validationFailures } = await fetchBridgeQuotes(
       quoteRequestOverrides
-        ? { ...quoteRequest, ...quoteRequestOverrides }
-        : quoteRequest,
+        ? { ...quoteRequest, ...quoteRequestOverrides, resetApproval }
+        : { ...quoteRequest, resetApproval },
       abortSignal,
       this.#clientId,
       this.#fetchFn,
@@ -494,6 +499,20 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         srcChainIdInHex,
       ))
     );
+  };
+
+  readonly #shouldResetApproval = async (
+    quoteRequest: GenericQuoteRequest,
+  ) => {
+    const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
+    const normalizedSrcTokenAddress = formatAddressToCaipReference(
+      quoteRequest.srcTokenAddress,
+    );
+    if (isEthUsdt(srcChainIdInHex, normalizedSrcTokenAddress)) {
+      const allowance =  BigNumber.from(await this.getBridgeERC20Allowance(normalizedSrcTokenAddress, srcChainIdInHex));
+      return allowance.lt(quoteRequest.srcTokenAmount) && allowance.gt(0);
+    }
+    return false;
   };
 
   stopPollingForQuotes = (reason?: AbortReason) => {
