@@ -187,6 +187,7 @@ export const calcRelayerFee = (
 
 const calcTotalGasFee = ({
   approvalGasLimit,
+  resetApprovalGasLimit,
   tradeGasLimit,
   l1GasFeesInHexWei,
   feePerGasInDecGwei,
@@ -195,6 +196,7 @@ const calcTotalGasFee = ({
   nativeToUsdExchangeRate,
 }: {
   approvalGasLimit?: number | null;
+  resetApprovalGasLimit?: number | null;
   tradeGasLimit?: number | null;
   l1GasFeesInHexWei?: string | null;
   feePerGasInDecGwei: string;
@@ -204,7 +206,8 @@ const calcTotalGasFee = ({
 }) => {
   const totalGasLimitInDec = new BigNumber(
     tradeGasLimit?.toString() ?? '0',
-  ).plus(approvalGasLimit?.toString() ?? '0');
+  ).plus(approvalGasLimit?.toString() ?? '0')
+    .plus(resetApprovalGasLimit?.toString() ?? '0');
 
   const totalFeePerGasInDecGwei = new BigNumber(feePerGasInDecGwei).plus(
     priorityFeePerGasInDecGwei,
@@ -230,7 +233,7 @@ const calcTotalGasFee = ({
 };
 
 export const calcEstimatedAndMaxTotalGasFee = ({
-  bridgeQuote: { approval, trade, l1GasFeesInHexWei },
+  bridgeQuote: { approval, trade, l1GasFeesInHexWei, resetApproval },
   estimatedBaseFeeInDecGwei,
   maxFeePerGasInDecGwei,
   maxPriorityFeePerGasInDecGwei,
@@ -250,6 +253,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   } = calcTotalGasFee({
     // Fallback to gasLimit if effectiveGas is not available
     approvalGasLimit: approval?.effectiveGas ?? approval?.gasLimit,
+    resetApprovalGasLimit: resetApproval ? approval?.effectiveGas ?? approval?.gasLimit : null,
     tradeGasLimit: trade?.effectiveGas ?? trade?.gasLimit,
     l1GasFeesInHexWei,
     feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
