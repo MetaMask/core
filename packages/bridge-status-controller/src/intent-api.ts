@@ -1,7 +1,7 @@
 import type { FetchFunction } from './types';
 
 export interface IntentSubmissionParams {
-  chainId: string;
+  srcChainId: string;
   quoteId: string;
   signature: string;
   order: any;
@@ -39,9 +39,9 @@ export class IntentApiImpl implements IntentApi {
   async getOrderStatus(
     orderId: string,
     aggregatorId: string,
-    chainId: string,
+    srcChainId: string,
   ): Promise<any> {
-    const endpoint = `${this.baseUrl}/getOrderStatus?orderId=${orderId}&aggregatorId=${encodeURIComponent(aggregatorId)}&chainId=${chainId}`;
+    const endpoint = `${this.baseUrl}/getOrderStatus?orderId=${orderId}&aggregatorId=${encodeURIComponent(aggregatorId)}&srcChainId=${srcChainId}`;
     try {
       const response = await this.fetchFn(endpoint, {
         method: 'GET',
