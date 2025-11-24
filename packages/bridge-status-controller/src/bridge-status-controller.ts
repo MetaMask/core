@@ -933,9 +933,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #handleUSDTAllowanceReset = async (
     quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
   ) => {
-    const resetApproval = await getUSDTAllowanceResetTx(
-      quoteResponse,
-    );
+    const resetApproval = await getUSDTAllowanceResetTx(quoteResponse);
     if (resetApproval) {
       await this.#handleEvmTransaction({
         transactionType: TransactionType.bridgeApproval,

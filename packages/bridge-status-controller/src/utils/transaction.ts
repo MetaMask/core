@@ -6,7 +6,6 @@ import {
   formatChainIdToHex,
   getEthUsdtResetData,
   isCrossChain,
-  isEthUsdt,
   type QuoteMetadata,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
@@ -26,7 +25,6 @@ import {
   type TransactionMeta,
 } from '@metamask/transaction-controller';
 import { createProjectLogger } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
 import { v4 as uuid } from 'uuid';
 
 import { calculateGasFees } from './gas';
@@ -43,10 +41,7 @@ export const generateActionId = () => (Date.now() + Math.random()).toString();
 export const getUSDTAllowanceResetTx = async (
   quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
 ) => {
-  if (
-    quoteResponse.approval &&
-    quoteResponse.resetApproval
-  ){
+  if (quoteResponse.approval && quoteResponse.resetApproval) {
     return { ...quoteResponse.approval, data: getEthUsdtResetData() };
   }
   return undefined;

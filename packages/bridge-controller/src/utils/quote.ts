@@ -204,9 +204,8 @@ const calcTotalGasFee = ({
   nativeToDisplayCurrencyExchangeRate?: string;
   nativeToUsdExchangeRate?: string;
 }) => {
-  const totalGasLimitInDec = new BigNumber(
-    tradeGasLimit?.toString() ?? '0',
-  ).plus(approvalGasLimit?.toString() ?? '0')
+  const totalGasLimitInDec = new BigNumber(tradeGasLimit?.toString() ?? '0')
+    .plus(approvalGasLimit?.toString() ?? '0')
     .plus(resetApprovalGasLimit?.toString() ?? '0');
 
   const totalFeePerGasInDecGwei = new BigNumber(feePerGasInDecGwei).plus(
@@ -253,7 +252,10 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   } = calcTotalGasFee({
     // Fallback to gasLimit if effectiveGas is not available
     approvalGasLimit: approval?.effectiveGas ?? approval?.gasLimit,
-    resetApprovalGasLimit: resetApproval ? approval?.effectiveGas ?? approval?.gasLimit : null,
+    // Double approval gas limit if reset approval is required
+    resetApprovalGasLimit: resetApproval
+      ? (approval?.effectiveGas ?? approval?.gasLimit)
+      : null,
     tradeGasLimit: trade?.effectiveGas ?? trade?.gasLimit,
     l1GasFeesInHexWei,
     feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
