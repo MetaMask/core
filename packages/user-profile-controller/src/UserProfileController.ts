@@ -9,7 +9,6 @@ import type {
 } from '@metamask/base-controller';
 import type {
   KeyringControllerLockEvent,
-  KeyringControllerNewVaultEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -120,7 +119,6 @@ export type UserProfileControllerEvents = UserProfileControllerStateChangeEvent;
 type AllowedEvents =
   | KeyringControllerUnlockEvent
   | KeyringControllerLockEvent
-  | KeyringControllerNewVaultEvent
   | AccountsControllerAccountAddedEvent;
 
 /**
@@ -238,11 +236,6 @@ export class UserProfileController extends StaticIntervalPollingController()<
       this.stopAllPolling();
     });
 
-    this.messenger.subscribe(
-      'KeyringController:newVault',
-      this.#resetState.bind(this),
-    );
-
     this.messenger.subscribe('AccountsController:accountAdded', (account) => {
       this.#queueAccount(account).catch(console.error);
     });
@@ -298,17 +291,6 @@ export class UserProfileController extends StaticIntervalPollingController()<
         }
         state.syncQueue[entropySourceId].push(account.address);
       });
-    });
-  }
-
-  /**
-   * Resets the controller state to its initial values.
-   * All queued accounts are cleared and the first sync flag is reset.
-   */
-  #resetState() {
-    this.update((state) => {
-      state.firstSyncCompleted = false;
-      state.syncQueue = {};
     });
   }
 }
