@@ -253,6 +253,30 @@ describe('UserProfileController', () => {
         );
       });
 
+      it('removes the key from the sync queue if it becomes empty after account removal', async () => {
+        const accounts = {
+          id1: ['0xAccount1'],
+          id2: ['0xAccount2'],
+        };
+        await withController(
+          {
+            options: { state: { syncQueue: accounts } },
+          },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.publish(
+              'AccountsController:accountRemoved',
+              '0xAccount1',
+            );
+            // Wait for async operations to complete.
+            await Promise.resolve();
+
+            expect(controller.state.syncQueue).toStrictEqual({
+              id2: ['0xAccount2'],
+            });
+          },
+        );
+      });
+
       it('does nothing if the account is not in the sync queue', async () => {
         const accounts = {
           id1: ['0xAccount1'],

@@ -308,12 +308,18 @@ export class UserProfileController extends StaticIntervalPollingController()<
   async #removeAccountFromQueue(account: string) {
     await this.#mutex.runExclusive(async () => {
       this.update((state) => {
-        for (const groupedAddresses of Object.values(state.syncQueue)) {
+        for (const [entropySourceId, groupedAddresses] of Object.entries(
+          state.syncQueue,
+        )) {
           const index = groupedAddresses.indexOf(account);
-          if (index !== -1) {
-            groupedAddresses.splice(index, 1);
-            break;
+          if (index === -1) {
+            continue;
           }
+          groupedAddresses.splice(index, 1);
+          if (groupedAddresses.length === 0) {
+            delete state.syncQueue[entropySourceId];
+          }
+          break;
         }
       });
     });
