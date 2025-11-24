@@ -2,8 +2,12 @@ import { toHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { clone, cloneDeep } from 'lodash';
 
-import { calculateGasCost, calculateTransactionGasCost } from './gas';
-import { getTokenBalance, getTokenFiatRate, getTokenInfo } from './token';
+import {
+  calculateGasCost,
+  calculateGasFeeTokenCost,
+  calculateTransactionGasCost,
+} from './gas';
+import { getTokenBalance, getTokenFiatRate } from './token';
 import type { GasFeeEstimates } from '../../../gas-fee-controller/src';
 import type {
   GasFeeToken,
@@ -23,6 +27,7 @@ const TOKEN_ADDRESS_MOCK = '0x789' as Hex;
 
 const GAS_FEE_TOKEN_MOCK = {
   amount: toHex(1230000),
+  decimals: 6,
   tokenAddress: TOKEN_ADDRESS_MOCK,
 } as GasFeeToken;
 
@@ -51,7 +56,6 @@ const GAS_FEE_CONTROLLER_STATE_MOCK = {
 
 describe('Gas Utils', () => {
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
-  const getTokenInfoMock = jest.mocked(getTokenInfo);
   const getTokenBalanceMock = jest.mocked(getTokenBalance);
   const { messenger, getGasFeeControllerStateMock } = getMessengerMock();
 
@@ -64,11 +68,6 @@ describe('Gas Utils', () => {
     getTokenFiatRateMock.mockReturnValue({
       usdRate: '4000',
       fiatRate: '2000',
-    });
-
-    getTokenInfoMock.mockReturnValue({
-      decimals: 6,
-      symbol: 'TST',
     });
   });
 
@@ -322,24 +321,6 @@ describe('Gas Utils', () => {
       });
     });
 
-    it('does not return gas fee token if token info is unavailable', () => {
-      const transactionMeta = clone(TRANSACTION_META_MOCK);
-
-      transactionMeta.gasFeeTokens = [GAS_FEE_TOKEN_MOCK];
-      transactionMeta.selectedGasFeeToken = TOKEN_ADDRESS_MOCK;
-
-      getTokenInfoMock.mockReturnValue(undefined);
-
-      const result = calculateTransactionGasCost(transactionMeta, messenger);
-
-      expect(result).toStrictEqual({
-        fiat: '0.273',
-        human: '0.0001365',
-        raw: '136500000000000',
-        usd: '0.546',
-      });
-    });
-
     it('does not return gas fee token if fiat rate is unavailable', () => {
       const transactionMeta = clone(TRANSACTION_META_MOCK);
 
@@ -382,6 +363,36 @@ describe('Gas Utils', () => {
         raw: '136500000000000',
         usd: '0.546',
       });
+    });
+  });
+
+  describe('calculateGasFeeTokenCost', () => {
+    it('returns gas fee token cost', () => {
+      const result = calculateGasFeeTokenCost({
+        chainId: CHAIN_ID_MOCK,
+        gasFeeToken: GAS_FEE_TOKEN_MOCK,
+        messenger,
+      });
+
+      expect(result).toStrictEqual({
+        isGasFeeToken: true,
+        fiat: '2460',
+        human: '1.23',
+        raw: '1230000',
+        usd: '4920',
+      });
+    });
+
+    it('returns undefined if fiat rate is unavailable', () => {
+      getTokenFiatRateMock.mockReturnValue(undefined);
+
+      const result = calculateGasFeeTokenCost({
+        chainId: CHAIN_ID_MOCK,
+        gasFeeToken: GAS_FEE_TOKEN_MOCK,
+        messenger,
+      });
+
+      expect(result).toBeUndefined();
     });
   });
 });

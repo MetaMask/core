@@ -589,6 +589,17 @@ describe('KeyringController', () => {
       });
     });
 
+    it('should emit the KeyringController:newVault event', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const listener = sinon.spy();
+        messenger.subscribe('KeyringController:newVault', listener);
+
+        await controller.createNewVaultAndRestore(password, uint8ArraySeed);
+
+        expect(listener.called).toBe(true);
+      });
+    });
+
     it('should call encryptor.encrypt with the same keyrings if old seedWord is used', async () => {
       await withController(async ({ controller, encryptor }) => {
         const encryptSpy = jest.spyOn(encryptor, 'encryptWithKey');
@@ -680,6 +691,20 @@ describe('KeyringController', () => {
               ),
             ).toBe(true);
             expect(controller.state.vault).toBeDefined();
+          },
+        );
+      });
+
+      it('should emit the KeyringController:newVault event', async () => {
+        await withController(
+          { skipVaultCreation: true },
+          async ({ controller, messenger }) => {
+            const listener = jest.fn();
+            messenger.subscribe('KeyringController:newVault', listener);
+
+            await controller.createNewVaultAndKeychain(password);
+
+            expect(listener).toHaveBeenCalled();
           },
         );
       });

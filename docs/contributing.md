@@ -11,6 +11,7 @@
 - [Creating pull requests](#creating-pull-requests)
 - [Testing changes to packages in another project](#testing-changes-to-packages-in-another-project)
 - [Releasing changes](#releasing-changes)
+  - [Preparing and releasing breaking changes](./breaking-changes.md)
 - [Performing operations across the monorepo](#performing-operations-across-the-monorepo)
 - [Adding new packages to the monorepo](#adding-new-packages-to-the-monorepo)
 
@@ -201,6 +202,7 @@ Have changes that you need to release? There are a few things to understand:
 - The responsibility of maintenance is not the only thing shared among multiple teams at MetaMask; releases are as well. That means **if you work on a team that has codeownership over a package, you are free to create a new release without needing the Wallet Framework team to do so.**
 - Unlike clients, releases are not issued on a schedule; **anyone may create a release at any time**. Because of this, you may wish to review the Pull Requests tab on GitHub and ensure that no one else has a release candidate already in progress. If not, then you are free to start the process.
 - The release process is a work in progress. Further improvements to simplify the process are planned, but in the meantime, if you encounter any issues, please reach out to the Wallet Framework team.
+- Breaking changes take special consideration. [Read the guide](./breaking-changes.md) on how to prepare and handle them effectively.
 
 Now for the process itself, you have two options: using our interactive UI (recommended for most users) or manual specification.
 

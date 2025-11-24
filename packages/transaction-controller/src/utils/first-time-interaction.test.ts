@@ -106,6 +106,7 @@ describe('updateFirstTimeInteraction', () => {
         const transactionMetaWithData = {
           ...mockTransactionMeta,
           txParams: { ...mockTransactionMeta.txParams, data: '0xabcdef' },
+          type: TransactionType.tokenMethodTransfer,
         };
 
         mockDecodeTransactionData.mockReturnValue({
@@ -136,6 +137,7 @@ describe('updateFirstTimeInteraction', () => {
         const transactionMetaWithData = {
           ...mockTransactionMeta,
           txParams: { ...mockTransactionMeta.txParams, data: '0xabcdef' },
+          type: TransactionType.tokenMethodTransfer,
         };
 
         mockDecodeTransactionData.mockReturnValue({
@@ -165,6 +167,7 @@ describe('updateFirstTimeInteraction', () => {
         const transactionMetaWithData = {
           ...mockTransactionMeta,
           txParams: { ...mockTransactionMeta.txParams, data: '0xabcdef' },
+          type: TransactionType.tokenMethodTransferFrom,
         };
 
         mockDecodeTransactionData.mockReturnValue({
