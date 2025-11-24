@@ -307,6 +307,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         // The bridge-api filters out quotes if the balance on mainnet is insufficient so this override allows quotes to always be returned
         insufficientBal = true;
       } else {
+        // Set loading status if RPC calls are made before the quotes are fetched
+        this.update((state) => {
+          state.quotesLoadingStatus = RequestStatus.LOADING;
+        });
         try {
           // Otherwise query the src token balance from the RPC provider
           insufficientBal =
@@ -678,6 +682,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
      * to determine when to clear the quotes list and set the initial load time
      */
     let validQuotesCounter = 0;
+    /**
+     * Tracks all pending promises from appendFeesToQuotes calls to ensure they complete
+     * before setting quotesLoadingStatus to FETCHED
+     */
+    const pendingFeeAppendPromises = new Set<Promise<void>>();
 
     await fetchBridgeQuoteStream(
       this.#fetchFn,
@@ -688,33 +697,51 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       {
         onValidationFailure: this.#trackResponseValidationFailures,
         onValidQuoteReceived: async (quote: QuoteResponse) => {
-          const quotesWithFees = await appendFeesToQuotes(
-            [quote],
-            this.messenger,
-            this.#getLayer1GasFee,
-            selectedAccount,
-          );
-          if (quotesWithFees.length > 0) {
-            validQuotesCounter += 1;
-          }
-          this.update((state) => {
-            // Clear previous quotes and quotes load time when first quote in the current
-            // polling loop is received
-            // This enables clients to continue showing the previous quotes while new
-            // quotes are loading
-            // Note: If there are no valid quotes until the 2nd fetch, quotesInitialLoadTime will be > refreshRate
-            if (validQuotesCounter === 1) {
-              state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
-              if (!state.quotesInitialLoadTime && this.#quotesFirstFetched) {
-                // Set the initial load time after the first quote is received
-                state.quotesInitialLoadTime =
-                  Date.now() - this.#quotesFirstFetched;
-              }
+          const feeAppendPromise = (async () => {
+            const quotesWithFees = await appendFeesToQuotes(
+              [quote],
+              this.messenger,
+              this.#getLayer1GasFee,
+              selectedAccount,
+            );
+            if (quotesWithFees.length > 0) {
+              validQuotesCounter += 1;
             }
-            state.quotes = [...state.quotes, ...quotesWithFees];
-          });
+            this.update((state) => {
+              // Clear previous quotes and quotes load time when first quote in the current
+              // polling loop is received
+              // This enables clients to continue showing the previous quotes while new
+              // quotes are loading
+              // Note: If there are no valid quotes until the 2nd fetch, quotesInitialLoadTime will be > refreshRate
+              if (validQuotesCounter === 1) {
+                state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
+                if (!state.quotesInitialLoadTime && this.#quotesFirstFetched) {
+                  // Set the initial load time after the first quote is received
+                  state.quotesInitialLoadTime =
+                    Date.now() - this.#quotesFirstFetched;
+                }
+              }
+              state.quotes = [...state.quotes, ...quotesWithFees];
+            });
+          })();
+          pendingFeeAppendPromises.add(feeAppendPromise);
+          feeAppendPromise
+            .catch((error) => {
+              // Catch errors to prevent them from breaking stream processing
+              // If appendFeesToQuotes throws, the state update never happens, so no invalid entry is added
+              console.error('Error appending fees to quote', error);
+            })
+            .finally(() => {
+              pendingFeeAppendPromises.delete(feeAppendPromise);
+            });
+          // Await the promise to ensure errors are caught and handled before continuing
+          // The promise is also tracked in pendingFeeAppendPromises for onClose to wait for
+          await feeAppendPromise;
         },
-        onClose: () => {
+        onClose: async () => {
+          // Wait for all pending appendFeesToQuotes operations to complete
+          // before setting quotesLoadingStatus to FETCHED
+          await Promise.allSettled(Array.from(pendingFeeAppendPromises));
           this.update((state) => {
             // If there are no valid quotes in the current stream, clear the quotes list
             // to remove quotes from the previous stream
