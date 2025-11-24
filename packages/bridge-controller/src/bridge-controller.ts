@@ -18,6 +18,7 @@ import {
   METASWAP_CHAIN_TO_ADDRESS_MAP,
   REFRESH_INTERVAL_MS,
 } from './constants/bridge';
+import { CHAIN_IDS } from './constants/chains';
 import { TraceName } from './constants/traces';
 import { selectIsAssetExchangeRateInState } from './selectors';
 import type { QuoteRequest } from './types';
@@ -498,15 +499,18 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
   };
 
-  readonly #shouldResetApproval = async (
-    quoteRequest: GenericQuoteRequest,
-  ) => {
+  readonly #shouldResetApproval = async (quoteRequest: GenericQuoteRequest) => {
     const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
     const normalizedSrcTokenAddress = formatAddressToCaipReference(
       quoteRequest.srcTokenAddress,
     );
     if (isEthUsdt(srcChainIdInHex, normalizedSrcTokenAddress)) {
-      const allowance = BigNumber.from(await this.#getBridgeERC20Allowance(normalizedSrcTokenAddress, srcChainIdInHex, quoteRequest.destChainId));
+      const allowance = BigNumber.from(
+        await this.#getUSDTMainnetAllowance(
+          normalizedSrcTokenAddress,
+          quoteRequest.destChainId,
+        ),
+      );
       return allowance.lt(quoteRequest.srcTokenAmount) && allowance.gt(0);
     }
     return false;
@@ -996,16 +1000,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   /**
    *
-   * @param contractAddress - The address of the ERC20 token contract
-   * @param chainId - The hex chain ID of the bridge network
+   * @param contractAddress - The address of the ERC20 token contract on mainnet
    * @param destinationChainId - The chain ID of the destination network
    * @returns The atomic allowance of the ERC20 token contract
    */
-  #getBridgeERC20Allowance = async (
+  readonly #getUSDTMainnetAllowance = async (
     contractAddress: string,
-    chainId: Hex,
     destinationChainId: GenericQuoteRequest['destChainId'],
   ): Promise<string> => {
+    const chainId = formatChainIdToHex(CHAIN_IDS.MAINNET);
     const networkClient = this.#getNetworkClientByChainId(chainId);
     const provider = networkClient?.provider;
     if (!provider) {
@@ -1014,7 +1017,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     const ethersProvider = new Web3Provider(provider);
     const contract = new Contract(contractAddress, abiERC20, ethersProvider);
-    const spenderAddress = isCrossChain(chainId, destinationChainId) ? METABRIDGE_CHAIN_TO_ADDRESS_MAP[chainId] : METASWAP_CHAIN_TO_ADDRESS_MAP[chainId];
+    const spenderAddress = isCrossChain(chainId, destinationChainId)
+      ? METABRIDGE_CHAIN_TO_ADDRESS_MAP[chainId]
+      : METASWAP_CHAIN_TO_ADDRESS_MAP[chainId];
     const allowance: BigNumber = await contract.allowance(
       this.state.quoteRequest.walletAddress,
       spenderAddress,
