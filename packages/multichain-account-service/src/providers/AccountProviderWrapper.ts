@@ -27,6 +27,16 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
   }
 
   /**
+   * Forward initialization to the wrapped provider to ensure both
+   * instances share the same visible account IDs.
+   *
+   * @param accounts - Account IDs to initialize with.
+   */
+  override init(accounts: Bip44Account<KeyringAccount>['id'][]): void {
+    this.provider.init(accounts);
+  }
+
+  /**
    * Set the enabled state for this provider.
    *
    * @param enabled - Whether the provider should be enabled.
