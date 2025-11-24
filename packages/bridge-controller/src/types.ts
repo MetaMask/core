@@ -304,7 +304,6 @@ export enum BridgeUserAction {
 export enum BridgeBackgroundAction {
   SET_CHAIN_INTERVAL_LENGTH = 'setChainIntervalLength',
   RESET_STATE = 'resetState',
-  GET_BRIDGE_ERC20_ALLOWANCE = 'getBridgeERC20Allowance',
   TRACK_METAMETRICS_EVENT = 'trackUnifiedSwapBridgeEvent',
   STOP_POLLING_FOR_QUOTES = 'stopPollingForQuotes',
   FETCH_QUOTES = 'fetchQuotes',
@@ -371,7 +370,6 @@ export type BridgeControllerActions =
   | BridgeControllerGetStateAction
   | BridgeControllerAction<BridgeBackgroundAction.SET_CHAIN_INTERVAL_LENGTH>
   | BridgeControllerAction<BridgeBackgroundAction.RESET_STATE>
-  | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
   | BridgeControllerAction<BridgeBackgroundAction.FETCH_QUOTES>

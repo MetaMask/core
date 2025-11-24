@@ -934,7 +934,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
   ) => {
     const resetApproval = await getUSDTAllowanceResetTx(
-      this.messenger,
       quoteResponse,
     );
     if (resetApproval) {
@@ -1187,7 +1186,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               await this.#handleEvmTransactionBatch({
                 isBridgeTx,
                 resetApproval: (await getUSDTAllowanceResetTx(
-                  this.messenger,
                   quoteResponse,
                 )) as TxData,
                 approval: quoteResponse.approval as TxData,

@@ -41,26 +41,13 @@ import type {
 export const generateActionId = () => (Date.now() + Math.random()).toString();
 
 export const getUSDTAllowanceResetTx = async (
-  messenger: BridgeStatusControllerMessenger,
   quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
 ) => {
-  const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
   if (
     quoteResponse.approval &&
     quoteResponse.resetApproval
-  ) {
-    const allowance = new BigNumber(
-      await messenger.call(
-        'BridgeController:getBridgeERC20Allowance',
-        quoteResponse.quote.srcAsset.address,
-        hexChainId,
-      ),
-    );
-    const shouldResetApproval =
-      allowance.lt(quoteResponse.sentAmount?.amount ?? '0') && allowance.gt(0);
-    if (shouldResetApproval) {
-      return { ...quoteResponse.approval, data: getEthUsdtResetData() };
-    }
+  ){
+    return { ...quoteResponse.approval, data: getEthUsdtResetData() };
   }
   return undefined;
 };

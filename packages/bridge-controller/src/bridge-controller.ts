@@ -249,10 +249,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.resetState.bind(this),
     );
     this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:getBridgeERC20Allowance`,
-      this.getBridgeERC20Allowance.bind(this),
-    );
-    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:trackUnifiedSwapBridgeEvent`,
       this.trackUnifiedSwapBridgeEvent.bind(this),
     );
@@ -509,7 +505,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       quoteRequest.srcTokenAddress,
     );
     if (isEthUsdt(srcChainIdInHex, normalizedSrcTokenAddress)) {
-      const allowance =  BigNumber.from(await this.getBridgeERC20Allowance(normalizedSrcTokenAddress, srcChainIdInHex));
+      const allowance = BigNumber.from(await this.#getBridgeERC20Allowance(normalizedSrcTokenAddress, srcChainIdInHex));
       return allowance.lt(quoteRequest.srcTokenAmount) && allowance.gt(0);
     }
     return false;
@@ -1003,7 +999,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * @param chainId - The hex chain ID of the bridge network
    * @returns The atomic allowance of the ERC20 token contract
    */
-  getBridgeERC20Allowance = async (
+  #getBridgeERC20Allowance = async (
     contractAddress: string,
     chainId: Hex,
   ): Promise<string> => {
