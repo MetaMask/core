@@ -288,12 +288,12 @@ export async function fetchBridgeQuoteStream(
 ): Promise<void> {
   const queryParams = formatQueryParams(request);
 
-  const onMessage = (quoteResponse: unknown) => {
+  const onMessage = async (quoteResponse: unknown): Promise<void> => {
     const uniqueValidationFailures: Set<string> = new Set<string>([]);
 
     try {
       if (validateQuoteResponse(quoteResponse)) {
-        return serverEventHandlers.onValidQuoteReceived(quoteResponse)
+        return await serverEventHandlers.onValidQuoteReceived(quoteResponse);
       }
     } catch (error) {
       if (error instanceof StructError) {
@@ -311,12 +311,12 @@ export async function fetchBridgeQuoteStream(
       const validationFailures = Array.from(uniqueValidationFailures);
       if (uniqueValidationFailures.size > 0) {
         console.warn('Quote validation failed', validationFailures);
-        serverEventHandlers.onValidationFailure(validationFailures);
-      } else {
-        // Rethrow any unexpected errors
-        throw error;
+        return serverEventHandlers.onValidationFailure(validationFailures);
       }
+      // Rethrow any unexpected errors
+      throw error;
     }
+    return undefined;
   };
 
   const urlStream = `${bridgeApiBaseUrl}/getQuoteStream?${queryParams}`;

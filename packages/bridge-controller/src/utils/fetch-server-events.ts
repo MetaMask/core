@@ -17,7 +17,10 @@ export const fetchServerEvents = async (
     fetchFn,
     ...requestOptions
   }: RequestInit & {
-    onMessage: (data: Record<string, unknown>, eventName?: string) => void;
+    onMessage: (
+      data: Record<string, unknown>,
+      eventName?: string,
+    ) => Promise<void>;
     onError?: (err: unknown) => void;
     onClose?: () => void | Promise<void>;
     fetchFn: typeof fetch;
@@ -66,7 +69,7 @@ export const fetchServerEvents = async (
         }
         if (dataLines.length > 0) {
           const parsedJSONData = JSON.parse(dataLines.join('\n'));
-          onMessage(parsedJSONData, eventName);
+          await onMessage(parsedJSONData, eventName);
         }
       }
     }
