@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Added `KeyringController:newVault` event ([#7196](https://github.com/MetaMask/core/pull/7196))
-  - This event is emitted whenever a new vault is created via `createNewVaultAndKeychain` or `createNewVaultAndRestore` methods.
-
 ## [25.0.0]
 
 ### Added

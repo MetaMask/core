@@ -1,6 +1,7 @@
 import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerListAccountsAction,
+  AccountsControllerAccountRemovedEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
@@ -9,7 +10,6 @@ import type {
 } from '@metamask/base-controller';
 import type {
   KeyringControllerLockEvent,
-  KeyringControllerNewVaultEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -27,6 +27,11 @@ import type { UserProfileServiceMethodActions } from '.';
  */
 export const controllerName = 'UserProfileController';
 
+export type AccountWithScopes = {
+  address: string;
+  scopes: string[];
+};
+
 /**
  * Describes the shape of the state object for {@link UserProfileController}.
  */
@@ -41,7 +46,7 @@ export type UserProfileControllerState = {
    * addresses associated with that entropy source. Accounts with no entropy
    * source ID are grouped under the key "null".
    */
-  syncQueue: Record<string, { address: CaipAccountId }[]>;
+  syncQueue: Record<string, AccountWithScopes[]>;
 };
 
 /**
@@ -121,8 +126,8 @@ export type UserProfileControllerEvents = UserProfileControllerStateChangeEvent;
 type AllowedEvents =
   | KeyringControllerUnlockEvent
   | KeyringControllerLockEvent
-  | KeyringControllerNewVaultEvent
-  | AccountsControllerAccountAddedEvent;
+  | AccountsControllerAccountAddedEvent
+  | AccountsControllerAccountRemovedEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -213,7 +218,9 @@ export class UserProfileController extends StaticIntervalPollingController()<
         await this.messenger.call('UserProfileService:updateProfile', {
           metametricsId: this.#getMetaMetricsId(),
           entropySourceId: entropySourceId === 'null' ? null : entropySourceId,
-          accounts,
+          accounts: accounts.map((account) => ({
+            address: accountToCaipAccountId(account),
+          })),
         });
         this.update((state) => {
           delete state.syncQueue[entropySourceId];
@@ -239,13 +246,12 @@ export class UserProfileController extends StaticIntervalPollingController()<
       this.stopAllPolling();
     });
 
-    this.messenger.subscribe(
-      'KeyringController:newVault',
-      this.#resetState.bind(this),
-    );
-
     this.messenger.subscribe('AccountsController:accountAdded', (account) => {
-      this.#queueAccount(account).catch(console.error);
+      this.#addAccountToQueue(account).catch(console.error);
+    });
+
+    this.messenger.subscribe('AccountsController:accountRemoved', (account) => {
+      this.#removeAccountFromQueue(account).catch(console.error);
     });
   }
 
@@ -282,7 +288,7 @@ export class UserProfileController extends StaticIntervalPollingController()<
    *
    * @param account - The account to sync.
    */
-  async #queueAccount(account: InternalAccount) {
+  async #addAccountToQueue(account: InternalAccount) {
     await this.#mutex.runExclusive(async () => {
       if (!this.#assertUserOptedIn()) {
         return;
@@ -293,20 +299,31 @@ export class UserProfileController extends StaticIntervalPollingController()<
           state.syncQueue[entropySourceId] = [];
         }
         state.syncQueue[entropySourceId].push({
-          address: accountToCaipAccountId(account),
+          address: account.address,
+          scopes: account.scopes,
         });
       });
     });
   }
 
   /**
-   * Resets the controller state to its initial values.
-   * All queued accounts are cleared and the first sync flag is reset.
+   * Remove the given account from the sync queue.
+   *
+   * @param account - The account to remove.
    */
-  #resetState() {
-    this.update((state) => {
-      state.firstSyncCompleted = false;
-      state.syncQueue = {};
+  async #removeAccountFromQueue(account: string) {
+    await this.#mutex.runExclusive(async () => {
+      this.update((state) => {
+        for (const groupedAddresses of Object.values(state.syncQueue)) {
+          const index = groupedAddresses.findIndex(
+            ({ address }) => address === account,
+          );
+          if (index !== -1) {
+            groupedAddresses.splice(index, 1);
+            break;
+          }
+        }
+      });
     });
   }
 }
@@ -333,15 +350,15 @@ function getAccountEntropySourceId(account: InternalAccount): string | null {
  */
 function groupAccountsByEntropySourceId(
   accounts: InternalAccount[],
-): Record<string, { address: CaipAccountId }[]> {
+): Record<string, AccountWithScopes[]> {
   return accounts.reduce(
-    (result: Record<string, { address: CaipAccountId }[]>, account) => {
+    (result: Record<string, AccountWithScopes[]>, account) => {
       const entropySourceId = getAccountEntropySourceId(account);
       const key = entropySourceId || 'null';
       if (!result[key]) {
         result[key] = [];
       }
-      result[key].push({ address: accountToCaipAccountId(account) });
+      result[key].push({ address: account.address, scopes: account.scopes });
       return result;
     },
     {},
@@ -354,7 +371,7 @@ function groupAccountsByEntropySourceId(
  * @param account - The InternalAccount to convert.
  * @returns The corresponding CaipAccountId.
  */
-function accountToCaipAccountId(account: InternalAccount): CaipAccountId {
+function accountToCaipAccountId(account: AccountWithScopes): CaipAccountId {
   const [scope] = account.scopes;
   const [namespace, reference] = scope.split(':');
   isCaipNamespace(namespace);

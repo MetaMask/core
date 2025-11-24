@@ -219,11 +219,6 @@ export type KeyringControllerUnlockEvent = {
   payload: [];
 };
 
-export type KeyringControllerNewVaultEvent = {
-  type: `${typeof name}:newVault`;
-  payload: [];
-};
-
 export type KeyringControllerActions =
   | KeyringControllerGetStateAction
   | KeyringControllerSignMessageAction
@@ -249,8 +244,7 @@ export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
-  | KeyringControllerAccountRemovedEvent
-  | KeyringControllerNewVaultEvent;
+  | KeyringControllerAccountRemovedEvent;
 
 export type KeyringControllerMessenger = Messenger<
   typeof name,
@@ -1918,7 +1912,6 @@ export class KeyringController<
 
     await this.#clearKeyrings();
     await this.#createKeyringWithFirstAccount(keyring.type, keyring.opts);
-    this.messenger.publish(`${name}:newVault`);
     this.#setUnlocked();
   }
 

@@ -10,8 +10,8 @@ import {
 import type { CaipAccountId } from '@metamask/utils';
 
 import {
+  AccountWithScopes,
   UserProfileController,
-  getDefaultUserProfileControllerState,
   type UserProfileControllerMessenger,
 } from './UserProfileController';
 import type { UserProfileUpdateRequest } from './UserProfileService';
@@ -92,8 +92,10 @@ describe('UserProfileController', () => {
 
               expect(controller.state.firstSyncCompleted).toBe(true);
               expect(controller.state.syncQueue).toStrictEqual({
-                'entropy-0xAccount1': [{ address: 'eip155:1:0xAccount1' }],
-                null: [{ address: 'eip155:1:0xAccount2' }],
+                'entropy-0xAccount1': [
+                  { address: '0xAccount1', scopes: ['eip155:1'] },
+                ],
+                null: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
               });
             },
           );
@@ -171,28 +173,6 @@ describe('UserProfileController', () => {
       });
     });
 
-    describe('when KeyringController:newVault is published', () => {
-      it('resets the state to initial state', async () => {
-        await withController(
-          {
-            options: {
-              state: {
-                firstSyncCompleted: true,
-                syncQueue: { someId: [{ address: 'eip155:1:0xSomeAccount' }] },
-              },
-            },
-          },
-          async ({ controller, rootMessenger }) => {
-            rootMessenger.publish('KeyringController:newVault');
-
-            expect(controller.state).toStrictEqual(
-              getDefaultUserProfileControllerState(),
-            );
-          },
-        );
-      });
-    });
-
     describe('when AccountsController:accountAdded is published', () => {
       it('adds the new account to the sync queue if the user has opted in and the account has an entropy source id', async () => {
         await withController(
@@ -208,7 +188,9 @@ describe('UserProfileController', () => {
             await Promise.resolve();
 
             expect(controller.state.syncQueue).toStrictEqual({
-              'entropy-0xNewAccount': [{ address: 'eip155:1:0xNewAccount' }],
+              'entropy-0xNewAccount': [
+                { address: '0xNewAccount', scopes: ['eip155:1'] },
+              ],
             });
           },
         );
@@ -228,7 +210,7 @@ describe('UserProfileController', () => {
             await Promise.resolve();
 
             expect(controller.state.syncQueue).toStrictEqual({
-              null: [{ address: 'eip155:1:0xNewAccount' }],
+              null: [{ address: '0xNewAccount', scopes: ['eip155:1'] }],
             });
           },
         );
@@ -250,12 +232,61 @@ describe('UserProfileController', () => {
         );
       });
     });
+
+    describe('when AccountsController:accountRemoved is published', () => {
+      it('removes the account from the sync queue if it exists there', async () => {
+        const accounts: Record<string, AccountWithScopes[]> = {
+          id1: [
+            { address: '0xAccount1', scopes: ['eip155:1'] },
+            { address: '0xAccount2', scopes: ['eip155:1'] },
+          ],
+          id2: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
+        };
+        await withController(
+          {
+            options: { state: { syncQueue: accounts } },
+          },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.publish(
+              'AccountsController:accountRemoved',
+              '0xAccount2',
+            );
+            // Wait for async operations to complete.
+            await Promise.resolve();
+
+            expect(controller.state.syncQueue).toStrictEqual({
+              id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+              id2: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
+            });
+          },
+        );
+      });
+
+      it('does nothing if the account is not in the sync queue', async () => {
+        const accounts: Record<string, AccountWithScopes[]> = {
+          id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+        };
+        await withController(
+          {
+            options: { state: { syncQueue: accounts } },
+          },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.publish(
+              'AccountsController:accountRemoved',
+              '0xAccount2',
+            );
+
+            expect(controller.state.syncQueue).toStrictEqual(accounts);
+          },
+        );
+      });
+    });
   });
 
   describe('_executePoll', () => {
     it('processes the sync queue on each poll', async () => {
-      const accounts: Record<string, { address: CaipAccountId }[]> = {
-        id1: [{ address: 'eip155:1:0xAccount1' }],
+      const accounts: Record<string, AccountWithScopes[]> = {
+        id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
       };
       await withController(
         {
@@ -276,13 +307,13 @@ describe('UserProfileController', () => {
     });
 
     it('processes the sync queue in batches grouped by entropySourceId', async () => {
-      const accounts: Record<string, { address: CaipAccountId }[]> = {
+      const accounts: Record<string, AccountWithScopes[]> = {
         id1: [
-          { address: 'eip155:1:0xAccount1' },
-          { address: 'eip155:1:0xAccount2' },
+          { address: '0xAccount1', scopes: ['eip155:1'] },
+          { address: '0xAccount2', scopes: ['eip155:1'] },
         ],
-        id2: [{ address: 'eip155:1:0xAccount3' }],
-        null: [{ address: 'eip155:1:0xAccount4' }],
+        id2: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
+        null: [{ address: '0xAccount4', scopes: ['eip155:1'] }],
       };
       await withController(
         {
@@ -443,8 +474,8 @@ function getMessenger(
     events: [
       'KeyringController:unlock',
       'KeyringController:lock',
-      'KeyringController:newVault',
       'AccountsController:accountAdded',
+      'AccountsController:accountRemoved',
     ],
   });
   return messenger;
