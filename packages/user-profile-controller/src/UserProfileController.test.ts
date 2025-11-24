@@ -59,6 +59,16 @@ describe('UserProfileController', () => {
 
   describe('constructor subscriptions', () => {
     describe('when KeyringController:unlock is published', () => {
+      it('starts polling', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const pollSpy = jest.spyOn(controller, 'startPolling');
+
+          rootMessenger.publish('KeyringController:unlock');
+
+          expect(pollSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
       describe('when `firstSyncCompleted` is false', () => {
         it('adds existing accounts to the queue if the user opted in', async () => {
           await withController(
@@ -144,6 +154,18 @@ describe('UserProfileController', () => {
             );
           },
         );
+      });
+    });
+
+    describe('when KeyringController:lock is published', () => {
+      it('stops polling', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const pollSpy = jest.spyOn(controller, 'stopAllPolling');
+
+          rootMessenger.publish('KeyringController:lock');
+
+          expect(pollSpy).toHaveBeenCalledTimes(1);
+        });
       });
     });
 
@@ -388,7 +410,11 @@ function getMessenger(
       'AccountsController:listAccounts',
       'UserProfileService:updateProfile',
     ],
-    events: ['KeyringController:unlock', 'AccountsController:accountAdded'],
+    events: [
+      'KeyringController:unlock',
+      'KeyringController:lock',
+      'AccountsController:accountAdded',
+    ],
   });
   return messenger;
 }
