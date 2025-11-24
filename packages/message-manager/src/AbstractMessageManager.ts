@@ -46,6 +46,13 @@ export type MessageRequest = {
 };
 
 /**
+ * Represents the request adding a message.
+ *
+ * @deprecated Please use `MessageRequest` instead.
+ */
+export type OriginalRequest = MessageRequest;
+
+/**
  * @type AbstractMessage
  *
  * Represents and contains data about a signing type signature request.

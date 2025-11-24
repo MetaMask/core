@@ -7,7 +7,7 @@ import {
   type MessengerEvents,
   type MockAnyNamespace,
 } from '@metamask/messenger';
-import type { Hex } from '@metamask/utils';
+import { type Hex } from '@metamask/utils';
 import assert from 'assert';
 import { useFakeTimers } from 'sinon';
 
@@ -23,8 +23,7 @@ import type { NotFoundTokenDisplayData, FoundTokenDisplayData } from './types';
 import { advanceTime } from '../../../../tests/helpers';
 import type {
   AbstractTokenPricesService,
-  TokenPrice,
-  TokenPricesByTokenAddress,
+  EvmAssetWithMarketData,
 } from '../token-prices-service/abstract-token-prices-service';
 import { fetchTokenMetadata } from '../token-service';
 import type { Token } from '../TokenRatesController';
@@ -79,10 +78,11 @@ function buildFoundTokenDisplayData(
     name: 'Test Token',
   };
 
-  const priceData: TokenPrice<Hex, string> = {
+  const priceData: EvmAssetWithMarketData<Hex, string> = {
     price: 10.5,
     currency: 'USD',
     tokenAddress: tokenAddress as Hex,
+    chainId: '0x1',
     allTimeHigh: 20,
     allTimeLow: 5,
     circulatingSupply: 1000000,
@@ -151,7 +151,7 @@ function buildMockTokenPricesService(
       return {};
     },
     async fetchTokenPrices() {
-      return {};
+      return [];
     },
     validateChainIdSupported(_chainId: unknown): _chainId is Hex {
       return true;
@@ -492,10 +492,11 @@ describe('TokenSearchDiscoveryDataController', () => {
         Promise.resolve(tokenMetadata),
       );
 
-      const mockPriceData: TokenPrice<Hex, string> = {
+      const mockPriceData: EvmAssetWithMarketData<Hex, string> = {
         price: 10.5,
         currency: 'USD',
         tokenAddress: tokenAddress as Hex,
+        chainId: '0x1',
         allTimeHigh: 20,
         allTimeLow: 5,
         circulatingSupply: 1000000,
@@ -516,9 +517,7 @@ describe('TokenSearchDiscoveryDataController', () => {
       };
 
       const mockTokenPricesService = {
-        fetchTokenPrices: jest.fn().mockResolvedValue({
-          [tokenAddress as Hex]: mockPriceData,
-        }),
+        fetchTokenPrices: jest.fn().mockResolvedValue([mockPriceData]),
       };
 
       await withController(
@@ -643,12 +642,13 @@ describe('TokenSearchDiscoveryDataController', () => {
           currency,
         }: {
           currency: string;
-        }): Promise<TokenPricesByTokenAddress<Hex, string>> {
+        }): Promise<EvmAssetWithMarketData<Hex, string>[]> {
           const basePrice: Omit<
-            TokenPrice<Hex, string>,
+            EvmAssetWithMarketData<Hex, string>,
             'price' | 'currency'
           > = {
             tokenAddress: tokenAddress as Hex,
+            chainId: '0x1',
             allTimeHigh: 20,
             allTimeLow: 5,
             circulatingSupply: 1000000,
@@ -668,13 +668,13 @@ describe('TokenSearchDiscoveryDataController', () => {
             totalVolume: 500000,
           };
 
-          return {
-            [tokenAddress as Hex]: {
+          return [
+            {
               ...basePrice,
               price: currency === 'USD' ? 10.5 : 9.5,
               currency,
             },
-          };
+          ];
         },
       };
 
@@ -713,10 +713,11 @@ describe('TokenSearchDiscoveryDataController', () => {
         decimals: 18,
       });
 
-      const mockTokenPrice: TokenPrice<Hex, string> = {
+      const mockTokenPrice: EvmAssetWithMarketData<Hex, string> = {
         price: 10.5,
         currency: 'USD',
         tokenAddress: tokenAddress as Hex,
+        chainId: '0x1',
         allTimeHigh: 20,
         allTimeLow: 5,
         circulatingSupply: 1000000,

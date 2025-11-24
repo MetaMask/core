@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.0]
+
 ### Changed
 
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/address-book-controller` from `^7.0.0` to `^7.0.1` ([#7202](https://github.com/MetaMask/core/pull/7202))
 - Add rate limit (429) handling with automatic retry in authentication flow ([#6993](https://github.com/MetaMask/core/pull/6993))
   - Update authentication services to throw `RateLimitedError` when encountering 429 responses.
   - Improve Authentication errors by adding the HTTP code in error messages.
@@ -770,7 +774,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@26.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@27.0.0...HEAD
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@26.0.0...@metamask/profile-sync-controller@27.0.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.2...@metamask/profile-sync-controller@26.0.0
 [25.1.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.1...@metamask/profile-sync-controller@25.1.2
 [25.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.0...@metamask/profile-sync-controller@25.1.1

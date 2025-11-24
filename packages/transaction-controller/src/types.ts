@@ -1723,6 +1723,9 @@ export type TransactionBatchRequest = {
   /** Whether to disable batch transaction via sequential transactions. */
   disableSequential?: boolean;
 
+  /** Whether to disable upgrading the account to an EIP-7702. */
+  disableUpgrade?: boolean;
+
   /** Address of the account to submit the transaction batch. */
   from: Hex;
 
@@ -1746,6 +1749,9 @@ export type TransactionBatchRequest = {
 
   /** Security alert ID to persist on the transaction. */
   securityAlertId?: string;
+
+  /** Whether to skip the initial gas calculation and rely only on the polling. */
+  skipInitialGasEstimate?: boolean;
 
   /** Transactions to be submitted as part of the batch. */
   transactions: TransactionBatchSingleRequest[];
@@ -2100,6 +2106,9 @@ export type AddTransactionOptions = {
   /** Entries to add to the `sendFlowHistory`. */
   sendFlowHistory?: SendFlowHistoryEntry[];
 
+  /** Whether to skip the initial gas calculation and rely only on the polling. */
+  skipInitialGasEstimate?: boolean;
+
   /** Options for swaps transactions. */
   swaps?: {
     /** Whether the transaction has an approval transaction. */
@@ -2114,4 +2123,24 @@ export type AddTransactionOptions = {
 
   /** Type of transaction to add, such as 'cancel' or 'swap'. */
   type?: TransactionType;
+};
+
+/**
+ * Request to get gas fee tokens.
+ */
+export type GetGasFeeTokensRequest = {
+  /** ID of the chain. */
+  chainId: Hex;
+
+  /** Data of the transaction. */
+  data?: Hex;
+
+  /** Address of the sender. */
+  from: Hex;
+
+  /** Address of the recipient. */
+  to: Hex;
+
+  /** Value of the transaction. */
+  value?: Hex;
 };
