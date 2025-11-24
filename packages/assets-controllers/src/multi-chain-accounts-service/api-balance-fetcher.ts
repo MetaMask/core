@@ -21,10 +21,10 @@ import {
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants';
 
 // Maximum number of account addresses that can be sent to the accounts API in a single request
-const ACCOUNTS_API_BATCH_SIZE = 50;
+const ACCOUNTS_API_BATCH_SIZE = 20;
 
-// Timeout for accounts API requests (30 seconds)
-const ACCOUNTS_API_TIMEOUT_MS = 30_000;
+// Timeout for accounts API requests (10 seconds)
+const ACCOUNTS_API_TIMEOUT_MS = 10_000;
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
@@ -49,6 +49,7 @@ export type BalanceFetcher = {
     queryAllAccounts: boolean;
     selectedAccount: ChecksumAddress;
     allAccounts: InternalAccount[];
+    jwtToken?: string;
   }): Promise<BalanceFetchResult>;
 };
 
@@ -211,12 +212,13 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     return results;
   }
 
-  async #fetchBalances(addrs: CaipAccountAddress[]) {
+  async #fetchBalances(addrs: CaipAccountAddress[], jwtToken?: string) {
     // If we have fewer than or equal to the batch size, make a single request
     if (addrs.length <= ACCOUNTS_API_BATCH_SIZE) {
       return await fetchMultiChainBalancesV4(
         { accountAddresses: addrs },
         this.#platform,
+        jwtToken,
       );
     }
 
@@ -238,6 +240,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
         const response = await fetchMultiChainBalancesV4(
           { accountAddresses: batch },
           this.#platform,
+          jwtToken,
         );
         // Collect unprocessed networks from each batch
         if (response.unprocessedNetworks) {
@@ -261,6 +264,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     queryAllAccounts,
     selectedAccount,
     allAccounts,
+    jwtToken,
   }: Parameters<BalanceFetcher['fetch']>[0]): Promise<BalanceFetchResult> {
     const caipAddrs: CaipAccountAddress[] = [];
 
@@ -281,7 +285,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     // Let errors propagate to TokenBalancesController for RPC fallback
     // Use timeout to prevent hanging API calls (30 seconds)
     const apiResponse = await safelyExecuteWithTimeout(
-      () => this.#fetchBalances(caipAddrs),
+      () => this.#fetchBalances(caipAddrs, jwtToken),
       false, // don't log error here, let it propagate
       ACCOUNTS_API_TIMEOUT_MS,
     );

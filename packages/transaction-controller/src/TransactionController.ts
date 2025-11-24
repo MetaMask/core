@@ -56,7 +56,7 @@ import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
-import { cloneDeep, mapValues, merge, pickBy, sortBy } from 'lodash';
+import { cloneDeep, mapValues, merge, noop, pickBy, sortBy } from 'lodash';
 import { v1 as random } from 'uuid';
 
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
@@ -119,6 +119,7 @@ import type {
   GetSimulationConfig,
   AddTransactionOptions,
   PublishHookResult,
+  GetGasFeeTokensRequest,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -382,6 +383,14 @@ export type TransactionControllerEmulateTransactionUpdate = {
 };
 
 /**
+ * Retrieve available gas fee tokens for a transaction.
+ */
+export type TransactionControllerGetGasFeeTokensAction = {
+  type: `${typeof controllerName}:getGasFeeTokens`;
+  handler: (request: GetGasFeeTokensRequest) => Promise<GasFeeToken[]>;
+};
+
+/**
  * The internal actions available to the TransactionController.
  */
 export type TransactionControllerActions =
@@ -389,6 +398,7 @@ export type TransactionControllerActions =
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerConfirmExternalTransactionAction
   | TransactionControllerEstimateGasAction
+  | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetNonceLockAction
   | TransactionControllerGetStateAction
   | TransactionControllerGetTransactionsAction
@@ -1229,6 +1239,7 @@ export class TransactionController extends BaseController<
       requireApproval,
       securityAlertResponse,
       sendFlowHistory,
+      skipInitialGasEstimate,
       swaps = {},
       traceContext,
       type,
@@ -1301,8 +1312,6 @@ export class TransactionController extends BaseController<
     const transactionType =
       type ?? (await determineTransactionType(txParams, ethQuery)).type;
 
-    const delegationAddress = await delegationAddressPromise;
-
     const existingTransactionMeta = this.#getTransactionWithActionId(actionId);
 
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
@@ -1315,7 +1324,6 @@ export class TransactionController extends BaseController<
           batchId,
           chainId,
           dappSuggestedGasFees,
-          delegationAddress,
           deviceConfirmedOn,
           disableGasBuffer,
           id: random(),
@@ -1350,13 +1358,40 @@ export class TransactionController extends BaseController<
       updateTransaction(addedTransactionMeta);
     }
 
-    await this.#trace(
-      { name: 'Estimate Gas Properties', parentContext: traceContext },
-      (context) =>
-        this.#updateGasProperties(addedTransactionMeta, {
-          traceContext: context,
-        }),
-    );
+    if (!skipInitialGasEstimate) {
+      await this.#trace(
+        { name: 'Estimate Gas Properties', parentContext: traceContext },
+        (context) =>
+          this.#updateGasProperties(addedTransactionMeta, {
+            traceContext: context,
+          }),
+      );
+    } else {
+      const newTransactionMeta = cloneDeep(addedTransactionMeta);
+
+      this.#updateGasProperties(newTransactionMeta)
+        .then(() => {
+          this.#updateTransactionInternal(
+            {
+              transactionId: newTransactionMeta.id,
+              skipHistory: true,
+              skipResimulateCheck: true,
+              skipValidation: true,
+            },
+            (tx) => {
+              tx.txParams.gas = newTransactionMeta.txParams.gas;
+              tx.txParams.gasPrice = newTransactionMeta.txParams.gasPrice;
+              tx.txParams.maxFeePerGas =
+                newTransactionMeta.txParams.maxFeePerGas;
+              tx.txParams.maxPriorityFeePerGas =
+                newTransactionMeta.txParams.maxPriorityFeePerGas;
+            },
+          );
+
+          return undefined;
+        })
+        .catch(noop);
+    }
 
     // Checks if a transaction already exists with a given actionId
     if (!existingTransactionMeta) {
@@ -1390,6 +1425,24 @@ export class TransactionController extends BaseController<
       );
 
       this.#addMetadata(addedTransactionMeta);
+
+      delegationAddressPromise
+        .then((delegationAddress) => {
+          this.#updateTransactionInternal(
+            {
+              transactionId: addedTransactionMeta.id,
+              skipHistory: true,
+              skipResimulateCheck: true,
+              skipValidation: true,
+            },
+            (tx) => {
+              tx.delegationAddress = delegationAddress;
+            },
+          );
+
+          return undefined;
+        })
+        .catch(noop);
 
       if (requireApproval !== false) {
         this.#updateSimulationData(addedTransactionMeta, {
@@ -4472,8 +4525,23 @@ export class TransactionController extends BaseController<
     );
 
     this.messenger.registerActionHandler(
+      `${controllerName}:emulateNewTransaction`,
+      this.emulateNewTransaction.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:emulateTransactionUpdate`,
+      this.emulateTransactionUpdate.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
       `${controllerName}:estimateGas`,
       this.estimateGas.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:getGasFeeTokens`,
+      this.#getGasFeeTokensAction.bind(this),
     );
 
     this.messenger.registerActionHandler(
@@ -4494,16 +4562,6 @@ export class TransactionController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:updateTransaction`,
       this.updateTransaction.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:emulateNewTransaction`,
-      this.emulateNewTransaction.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:emulateTransactionUpdate`,
-      this.emulateTransactionUpdate.bind(this),
     );
   }
 
@@ -4677,5 +4735,29 @@ export class TransactionController extends BaseController<
       publicKeyEIP7702: this.#publicKeyEIP7702,
       transactionMeta: transaction,
     });
+  }
+
+  async #getGasFeeTokensAction(
+    request: GetGasFeeTokensRequest,
+  ): Promise<GasFeeToken[]> {
+    const { chainId, data, from, to, value } = request;
+
+    const ethQuery = this.#getEthQuery({ chainId });
+    const delegationAddress = await getDelegationAddress(from, ethQuery);
+
+    const transaction = {
+      chainId,
+      delegationAddress,
+      txParams: {
+        data,
+        from,
+        to,
+        value,
+      },
+    } as TransactionMeta;
+
+    const result = await this.#getGasFeeTokens(transaction);
+
+    return result.gasFeeTokens;
   }
 }

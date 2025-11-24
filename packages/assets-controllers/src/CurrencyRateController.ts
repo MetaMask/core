@@ -259,12 +259,15 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
           const nativeTokenAddress = getNativeTokenAddress(chainId);
           // Pass empty array as fetchTokenPrices automatically includes the native token address
           const tokenPrices = await this.#tokenPricesService.fetchTokenPrices({
-            chainId,
-            tokenAddresses: [],
+            assets: [{ chainId, tokenAddress: nativeTokenAddress }],
             currency: currentCurrency,
           });
 
-          const tokenPrice = tokenPrices[nativeTokenAddress];
+          const tokenPrice = tokenPrices.find(
+            (item) =>
+              item.tokenAddress.toLowerCase() ===
+              nativeTokenAddress.toLowerCase(),
+          );
 
           return {
             nativeCurrency,
