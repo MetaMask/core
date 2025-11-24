@@ -7,7 +7,10 @@ import type {
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
-import type { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -115,6 +118,7 @@ export type UserProfileControllerEvents = UserProfileControllerStateChangeEvent;
  */
 type AllowedEvents =
   | KeyringControllerUnlockEvent
+  | KeyringControllerLockEvent
   | AccountsControllerAccountAddedEvent;
 
 /**
@@ -187,7 +191,6 @@ export class UserProfileController extends StaticIntervalPollingController()<
     this.#registerSyncTriggers();
 
     this.setIntervalLength(interval);
-    this.startPolling(null);
   }
 
   /**
@@ -225,7 +228,12 @@ export class UserProfileController extends StaticIntervalPollingController()<
    */
   #registerSyncTriggers() {
     this.messenger.subscribe('KeyringController:unlock', () => {
+      this.startPolling(null);
       this.#queueFirstSyncIfNeeded().catch(console.error);
+    });
+
+    this.messenger.subscribe('KeyringController:lock', () => {
+      this.stopAllPolling();
     });
 
     this.messenger.subscribe('AccountsController:accountAdded', (account) => {
