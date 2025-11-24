@@ -47,7 +47,7 @@ export const getUSDTAllowanceResetTx = async (
   const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
   if (
     quoteResponse.approval &&
-    isEthUsdt(hexChainId, quoteResponse.quote.srcAsset.address)
+    quoteResponse.resetApproval
   ) {
     const allowance = new BigNumber(
       await messenger.call(

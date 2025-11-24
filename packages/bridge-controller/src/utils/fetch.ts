@@ -155,6 +155,7 @@ export async function fetchBridgeQuotes(
     .map((quote) => ({
       ...quote,
       featureId: featureId ?? undefined,
+      resetApproval: Boolean(request.resetApproval),
     }));
 
   const validationFailures = Array.from(uniqueValidationFailures);
@@ -293,7 +294,10 @@ export async function fetchBridgeQuoteStream(
 
     try {
       if (validateQuoteResponse(quoteResponse)) {
-        return await serverEventHandlers.onValidQuoteReceived(quoteResponse);
+        return await serverEventHandlers.onValidQuoteReceived({
+          ...quoteResponse,
+          resetApproval: Boolean(request.resetApproval),
+        });
       }
     } catch (error) {
       if (error instanceof StructError) {

@@ -264,8 +264,15 @@ export type QuoteResponse<
   ApprovalType = TxData | TronTradeData,
 > = Infer<typeof QuoteResponseSchema> & {
   trade: TxDataType;
-  approval?: ApprovalType;
+    approval?: ApprovalType;
+  /**
+   * Appended to the quote response based on the quote request
+   */
   featureId?: FeatureId;
+  /**
+   * Appended to the quote response based on the quote request. If true, gas estimates will include the reset approval gas limit.
+   */
+  resetApproval?: boolean;
 };
 
 export enum ChainId {
