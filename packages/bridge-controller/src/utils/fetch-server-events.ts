@@ -19,7 +19,7 @@ export const fetchServerEvents = async (
   }: RequestInit & {
     onMessage: (data: Record<string, unknown>, eventName?: string) => void;
     onError?: (err: unknown) => void;
-    onClose?: () => void;
+    onClose?: () => void | Promise<void>;
     fetchFn: typeof fetch;
   },
 ) => {
@@ -70,7 +70,7 @@ export const fetchServerEvents = async (
         }
       }
     }
-    onClose?.();
+    await onClose?.();
   } catch (error) {
     onError?.(error);
   } finally {

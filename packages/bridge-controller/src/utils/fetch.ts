@@ -271,7 +271,7 @@ export const fetchAssetPrices = async (
  * @param serverEventHandlers.onValidQuoteReceived - The function to handle valid quotes
  * @param serverEventHandlers.onClose - The function to run when the stream is closed and there are no thrown errors
  * @param clientVersion - The client version for metrics (optional)
- * @returns A list of bridge tx quotes
+ * @returns A list of bridge tx quote promises
  */
 export async function fetchBridgeQuoteStream(
   fetchFn: FetchFunction,
@@ -280,7 +280,7 @@ export async function fetchBridgeQuoteStream(
   clientId: string,
   bridgeApiBaseUrl: string,
   serverEventHandlers: {
-    onClose: () => void;
+    onClose: () => void | Promise<void>;
     onValidationFailure: (validationFailures: string[]) => void;
     onValidQuoteReceived: (quotes: QuoteResponse) => Promise<void>;
   },
@@ -293,10 +293,7 @@ export async function fetchBridgeQuoteStream(
 
     try {
       if (validateQuoteResponse(quoteResponse)) {
-        // eslint-disable-next-line promise/catch-or-return, @typescript-eslint/no-floating-promises
-        serverEventHandlers.onValidQuoteReceived(quoteResponse).then((v) => {
-          return v;
-        });
+        return serverEventHandlers.onValidQuoteReceived(quoteResponse)
       }
     } catch (error) {
       if (error instanceof StructError) {
@@ -334,8 +331,8 @@ export async function fetchBridgeQuoteStream(
       // Rethrow error to prevent silent fetch failures
       throw e;
     },
-    onClose: () => {
-      serverEventHandlers.onClose();
+    onClose: async () => {
+      await serverEventHandlers.onClose();
     },
     fetchFn,
   });
