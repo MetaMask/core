@@ -38,6 +38,8 @@ export enum BridgeClientId {
 export const ETH_USDT_ADDRESS = '0xdac17f958d2ee523a2206206994597c13d831ec7';
 export const METABRIDGE_ETHEREUM_ADDRESS =
   '0x0439e60F02a8900a951603950d8D4527f400C3f1';
+export const METASWAP_ETHEREUM_ADDRESS =
+  '0x881D40237659C251811CEC9c364ef91dC08D300C';
 export const BRIDGE_QUOTE_MAX_ETA_SECONDS = 60 * 60; // 1 hour
 export const BRIDGE_QUOTE_MAX_RETURN_DIFFERENCE_PERCENTAGE = 0.5; // if a quote returns in x times less return than the best quote, ignore it
 
@@ -72,4 +74,8 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
 
 export const METABRIDGE_CHAIN_TO_ADDRESS_MAP: Record<Hex, string> = {
   [CHAIN_IDS.MAINNET]: METABRIDGE_ETHEREUM_ADDRESS,
+};
+
+export const METASWAP_CHAIN_TO_ADDRESS_MAP: Record<Hex, string> = {
+  [CHAIN_IDS.MAINNET]: METASWAP_ETHEREUM_ADDRESS,
 };

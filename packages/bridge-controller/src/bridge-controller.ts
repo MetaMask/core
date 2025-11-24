@@ -15,6 +15,7 @@ import {
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   METABRIDGE_CHAIN_TO_ADDRESS_MAP,
+  METASWAP_CHAIN_TO_ADDRESS_MAP,
   REFRESH_INTERVAL_MS,
 } from './constants/bridge';
 import { TraceName } from './constants/traces';
@@ -505,7 +506,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       quoteRequest.srcTokenAddress,
     );
     if (isEthUsdt(srcChainIdInHex, normalizedSrcTokenAddress)) {
-      const allowance = BigNumber.from(await this.#getBridgeERC20Allowance(normalizedSrcTokenAddress, srcChainIdInHex));
+      const allowance = BigNumber.from(await this.#getBridgeERC20Allowance(normalizedSrcTokenAddress, srcChainIdInHex, quoteRequest.destChainId));
       return allowance.lt(quoteRequest.srcTokenAmount) && allowance.gt(0);
     }
     return false;
@@ -997,11 +998,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    *
    * @param contractAddress - The address of the ERC20 token contract
    * @param chainId - The hex chain ID of the bridge network
+   * @param destinationChainId - The chain ID of the destination network
    * @returns The atomic allowance of the ERC20 token contract
    */
   #getBridgeERC20Allowance = async (
     contractAddress: string,
     chainId: Hex,
+    destinationChainId: GenericQuoteRequest['destChainId'],
   ): Promise<string> => {
     const networkClient = this.#getNetworkClientByChainId(chainId);
     const provider = networkClient?.provider;
@@ -1011,9 +1014,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     const ethersProvider = new Web3Provider(provider);
     const contract = new Contract(contractAddress, abiERC20, ethersProvider);
+    const spenderAddress = isCrossChain(chainId, destinationChainId) ? METABRIDGE_CHAIN_TO_ADDRESS_MAP[chainId] : METASWAP_CHAIN_TO_ADDRESS_MAP[chainId];
     const allowance: BigNumber = await contract.allowance(
       this.state.quoteRequest.walletAddress,
-      METABRIDGE_CHAIN_TO_ADDRESS_MAP[chainId],
+      spenderAddress,
     );
     return allowance.toString();
   };
