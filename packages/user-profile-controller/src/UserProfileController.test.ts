@@ -92,8 +92,8 @@ describe('UserProfileController', () => {
 
               expect(controller.state.firstSyncCompleted).toBe(true);
               expect(controller.state.syncQueue).toStrictEqual({
-                'entropy-0xAccount1': [{ address: 'eip155:_:0xAccount1' }],
-                null: [{ address: 'eip155:_:0xAccount2' }],
+                'entropy-0xAccount1': [{ address: 'eip155:1:0xAccount1' }],
+                null: [{ address: 'eip155:1:0xAccount2' }],
               });
             },
           );
@@ -178,7 +178,7 @@ describe('UserProfileController', () => {
             options: {
               state: {
                 firstSyncCompleted: true,
-                syncQueue: { someId: [{ address: 'eip155:_:0xSomeAccount' }] },
+                syncQueue: { someId: [{ address: 'eip155:1:0xSomeAccount' }] },
               },
             },
           },
@@ -208,7 +208,7 @@ describe('UserProfileController', () => {
             await Promise.resolve();
 
             expect(controller.state.syncQueue).toStrictEqual({
-              'entropy-0xNewAccount': [{ address: 'eip155:_:0xNewAccount' }],
+              'entropy-0xNewAccount': [{ address: 'eip155:1:0xNewAccount' }],
             });
           },
         );
@@ -228,7 +228,7 @@ describe('UserProfileController', () => {
             await Promise.resolve();
 
             expect(controller.state.syncQueue).toStrictEqual({
-              null: [{ address: 'eip155:_:0xNewAccount' }],
+              null: [{ address: 'eip155:1:0xNewAccount' }],
             });
           },
         );
@@ -255,7 +255,7 @@ describe('UserProfileController', () => {
   describe('_executePoll', () => {
     it('processes the sync queue on each poll', async () => {
       const accounts: Record<string, { address: CaipAccountId }[]> = {
-        id1: [{ address: 'eip155:_:0xAccount1' }],
+        id1: [{ address: 'eip155:1:0xAccount1' }],
       };
       await withController(
         {
@@ -268,7 +268,7 @@ describe('UserProfileController', () => {
           expect(mockUpdateProfile).toHaveBeenCalledWith({
             metametricsId: getMetaMetricsId(),
             entropySourceId: 'id1',
-            accounts: [{ address: 'eip155:_:0xAccount1' }],
+            accounts: [{ address: 'eip155:1:0xAccount1' }],
           });
           expect(controller.state.syncQueue).toStrictEqual({});
         },
@@ -278,11 +278,11 @@ describe('UserProfileController', () => {
     it('processes the sync queue in batches grouped by entropySourceId', async () => {
       const accounts: Record<string, { address: CaipAccountId }[]> = {
         id1: [
-          { address: 'eip155:_:0xAccount1' },
-          { address: 'eip155:_:0xAccount2' },
+          { address: 'eip155:1:0xAccount1' },
+          { address: 'eip155:1:0xAccount2' },
         ],
-        id2: [{ address: 'eip155:_:0xAccount3' }],
-        null: [{ address: 'eip155:_:0xAccount4' }],
+        id2: [{ address: 'eip155:1:0xAccount3' }],
+        null: [{ address: 'eip155:1:0xAccount4' }],
       };
       await withController(
         {
@@ -296,19 +296,19 @@ describe('UserProfileController', () => {
             metametricsId: getMetaMetricsId(),
             entropySourceId: 'id1',
             accounts: [
-              { address: 'eip155:_:0xAccount1' },
-              { address: 'eip155:_:0xAccount2' },
+              { address: 'eip155:1:0xAccount1' },
+              { address: 'eip155:1:0xAccount2' },
             ],
           });
           expect(mockUpdateProfile).toHaveBeenNthCalledWith(2, {
             metametricsId: getMetaMetricsId(),
             entropySourceId: 'id2',
-            accounts: [{ address: 'eip155:_:0xAccount3' }],
+            accounts: [{ address: 'eip155:1:0xAccount3' }],
           });
           expect(mockUpdateProfile).toHaveBeenNthCalledWith(3, {
             metametricsId: getMetaMetricsId(),
             entropySourceId: null,
-            accounts: [{ address: 'eip155:_:0xAccount4' }],
+            accounts: [{ address: 'eip155:1:0xAccount4' }],
           });
           expect(controller.state.syncQueue).toStrictEqual({});
         },

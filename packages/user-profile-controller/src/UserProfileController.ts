@@ -356,7 +356,7 @@ function groupAccountsByEntropySourceId(
  */
 function accountToCaipAccountId(account: InternalAccount): CaipAccountId {
   const [scope] = account.scopes;
-  const [namespace] = scope.split(':');
+  const [namespace, reference] = scope.split(':');
   isCaipNamespace(namespace);
-  return `${namespace}:_:${account.address}`;
+  return `${namespace}:${reference}:${account.address}`;
 }
