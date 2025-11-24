@@ -200,7 +200,7 @@ export class UserProfileService {
         },
         body: JSON.stringify({
           metametrics_id: data.metametricsId,
-          accounts: data.accounts,
+          accounts: data.accounts.map((account) => ({ address: account })),
         }),
       });
       if (!localResponse.ok) {
