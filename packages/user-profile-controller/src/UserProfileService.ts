@@ -5,6 +5,7 @@ import type {
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { CaipAccountId } from '@metamask/utils';
 
 import { type UserProfileServiceMethodActions, Env, getEnvUrl } from '.';
 
@@ -22,7 +23,9 @@ export const serviceName = 'UserProfileService';
 export type UserProfileUpdateRequest = {
   metametricsId: string;
   entropySourceId?: string | null;
-  accounts: string[];
+  accounts: {
+    address: CaipAccountId;
+  }[];
 };
 
 // === MESSENGER ===
@@ -200,7 +203,7 @@ export class UserProfileService {
         },
         body: JSON.stringify({
           metametrics_id: data.metametricsId,
-          accounts: data.accounts.map((account) => ({ address: account })),
+          accounts: data.accounts,
         }),
       });
       if (!localResponse.ok) {
