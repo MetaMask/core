@@ -178,7 +178,7 @@ describe('UserProfileController', () => {
             options: {
               state: {
                 firstSyncCompleted: true,
-                syncQueue: { someId: ['0xSomeAccount'] },
+                syncQueue: { someId: [{ address: 'eip155:_:0xSomeAccount' }] },
               },
             },
           },
