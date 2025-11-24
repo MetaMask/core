@@ -263,8 +263,8 @@ describe('UserProfileController', () => {
 
       it('removes the key from the sync queue if it becomes empty after account removal', async () => {
         const accounts = {
-          id1: ['0xAccount1'],
-          id2: ['0xAccount2'],
+          id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+          id2: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
         };
         await withController(
           {
@@ -279,7 +279,7 @@ describe('UserProfileController', () => {
             await Promise.resolve();
 
             expect(controller.state.syncQueue).toStrictEqual({
-              id2: ['0xAccount2'],
+              id2: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
             });
           },
         );
