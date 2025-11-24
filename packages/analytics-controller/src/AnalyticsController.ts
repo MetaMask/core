@@ -255,9 +255,9 @@ export class AnalyticsController extends BaseController<
     // Track sensitive properties in a separate event with isSensitive flag
     if (hasSensitiveProperties) {
       this.#platformAdapter.track(event.name, {
-        isSensitive: true,
         ...event.properties,
         ...event.sensitiveProperties,
+        isSensitive: true,
       });
     }
   }
