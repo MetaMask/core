@@ -157,7 +157,15 @@ export async function searchTokens(
   chainIds: CaipChainId[],
   query: string,
   { limit = 10, includeMarketData = false } = {},
-): Promise<{ count: number; data: unknown[] }> {
+): Promise<{
+  count: number;
+  data: {
+    marketCap: number;
+    totalVolume: number;
+    price: string;
+    pricePercentChange1d: string;
+  }[];
+}> {
   const tokenSearchURL = getTokenSearchURL(
     chainIds,
     query,
