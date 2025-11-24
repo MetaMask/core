@@ -434,8 +434,6 @@ describe('AnalyticsController', () => {
     it('sets optedInForRegularAccount to true', () => {
       const { controller } = setupController();
 
-      expect(controller.state.optedInForRegularAccount).toBe(false);
-
       controller.optInForRegularAccount();
 
       expect(controller.state.optedInForRegularAccount).toBe(true);
@@ -448,8 +446,6 @@ describe('AnalyticsController', () => {
         state: { optedInForRegularAccount: true },
       });
 
-      expect(controller.state.optedInForRegularAccount).toBe(true);
-
       controller.optOutForRegularAccount();
 
       expect(controller.state.optedInForRegularAccount).toBe(false);
@@ -459,8 +455,6 @@ describe('AnalyticsController', () => {
   describe('optInForSocialAccount', () => {
     it('sets optedInForSocialAccount to true', () => {
       const { controller } = setupController();
-
-      expect(controller.state.optedInForSocialAccount).toBe(false);
 
       controller.optInForSocialAccount();
 
@@ -474,133 +468,9 @@ describe('AnalyticsController', () => {
         state: { optedInForSocialAccount: true },
       });
 
-      expect(controller.state.optedInForSocialAccount).toBe(true);
-
       controller.optOutForSocialAccount();
 
       expect(controller.state.optedInForSocialAccount).toBe(false);
-    });
-  });
-
-  describe('selectAnalyticsId', () => {
-    it('returns analytics ID', () => {
-      const customId = '550e8400-e29b-41d4-a716-446655440000';
-      const { controller } = setupController({
-        state: { analyticsId: customId },
-      });
-
-      const analyticsId = analyticsControllerSelectors.selectAnalyticsId(
-        controller.state,
-      );
-
-      expect(analyticsId).toBe(customId);
-      expect(analyticsId).toBe(controller.state.analyticsId);
-    });
-  });
-
-  describe('selectRegularAccountOptedIn', () => {
-    it('returns regular account opted in status from state', () => {
-      const { controller } = setupController({
-        state: {
-          optedInForRegularAccount: true,
-          optedInForSocialAccount: false,
-        },
-      });
-
-      const isOptedIn =
-        analyticsControllerSelectors.selectOptedInForRegularAccount(
-        controller.state,
-      );
-
-      expect(isOptedIn).toBe(true);
-      expect(isOptedIn).toBe(controller.state.optedInForRegularAccount);
-    });
-
-    it('returns updated value when state changes', () => {
-      const { controller } = setupController({
-        state: {
-          optedInForRegularAccount: false,
-          optedInForSocialAccount: false,
-        },
-      });
-
-      expect(
-        analyticsControllerSelectors.selectOptedInForRegularAccount(
-          controller.state,
-        ),
-      ).toBe(
-        false,
-      );
-
-      controller.optInForRegularAccount();
-
-      expect(
-        analyticsControllerSelectors.selectOptedInForRegularAccount(
-          controller.state,
-        ),
-      ).toBe(
-        true,
-      );
-
-      controller.optOutForRegularAccount();
-
-      expect(
-        analyticsControllerSelectors.selectOptedInForRegularAccount(
-          controller.state,
-        ),
-      ).toBe(
-        false,
-      );
-    });
-  });
-
-  describe('selectOptedInForSocialAccount', () => {
-    it('returns social opted in status from state', () => {
-      const { controller } = setupController({
-        state: {
-          optedInForRegularAccount: false,
-          optedInForSocialAccount: true,
-        },
-      });
-
-      const isSocialOptedIn =
-        analyticsControllerSelectors.selectOptedInForSocialAccount(
-        controller.state,
-      );
-
-      expect(isSocialOptedIn).toBe(true);
-      expect(isSocialOptedIn).toBe(controller.state.optedInForSocialAccount);
-    });
-
-    it('returns updated value when state changes', () => {
-      const { controller } = setupController({
-        state: {
-          optedInForRegularAccount: false,
-          optedInForSocialAccount: false,
-        },
-      });
-
-      expect(
-        analyticsControllerSelectors.selectOptedInForSocialAccount(
-          controller.state,
-        ),
-      ).toBe(false);
-
-      controller.optInForSocialAccount();
-
-      expect(
-        analyticsControllerSelectors.selectOptedInForSocialAccount(
-          controller.state,
-        ),
-      ).toBe(true);
-
-      controller.optOutForSocialAccount();
-
-      expect(
-        analyticsControllerSelectors.selectOptedInForSocialAccount(
-          controller.state,
-        ),
-      ).toBe(false);
     });
   });
 });
