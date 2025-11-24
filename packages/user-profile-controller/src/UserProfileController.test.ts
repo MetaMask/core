@@ -226,6 +226,52 @@ describe('UserProfileController', () => {
         );
       });
     });
+
+    describe('when AccountsController:accountRemoved is published', () => {
+      it('removes the account from the sync queue if it exists there', async () => {
+        const accounts = {
+          id1: ['0xAccount1', '0xAccount2'],
+          id2: ['0xAccount3'],
+        };
+        await withController(
+          {
+            options: { state: { syncQueue: accounts } },
+          },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.publish(
+              'AccountsController:accountRemoved',
+              '0xAccount2',
+            );
+            // Wait for async operations to complete.
+            await Promise.resolve();
+
+            expect(controller.state.syncQueue).toStrictEqual({
+              id1: ['0xAccount1'],
+              id2: ['0xAccount3'],
+            });
+          },
+        );
+      });
+
+      it('does nothing if the account is not in the sync queue', async () => {
+        const accounts = {
+          id1: ['0xAccount1'],
+        };
+        await withController(
+          {
+            options: { state: { syncQueue: accounts } },
+          },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.publish(
+              'AccountsController:accountRemoved',
+              '0xAccount2',
+            );
+
+            expect(controller.state.syncQueue).toStrictEqual(accounts);
+          },
+        );
+      });
+    });
   });
 
   describe('_executePoll', () => {
@@ -414,6 +460,7 @@ function getMessenger(
       'KeyringController:unlock',
       'KeyringController:lock',
       'AccountsController:accountAdded',
+      'AccountsController:accountRemoved',
     ],
   });
   return messenger;

@@ -17,6 +17,7 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { Mutex } from 'async-mutex';
 
 import type { UserProfileServiceMethodActions } from '.';
+import { AccountsControllerAccountRemovedEvent } from '@metamask/accounts-controller';
 
 /**
  * The name of the {@link UserProfileController}, used to namespace the
@@ -119,7 +120,8 @@ export type UserProfileControllerEvents = UserProfileControllerStateChangeEvent;
 type AllowedEvents =
   | KeyringControllerUnlockEvent
   | KeyringControllerLockEvent
-  | AccountsControllerAccountAddedEvent;
+  | AccountsControllerAccountAddedEvent
+  | AccountsControllerAccountRemovedEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -237,7 +239,11 @@ export class UserProfileController extends StaticIntervalPollingController()<
     });
 
     this.messenger.subscribe('AccountsController:accountAdded', (account) => {
-      this.#queueAccount(account).catch(console.error);
+      this.#addAccountToQueue(account).catch(console.error);
+    });
+
+    this.messenger.subscribe('AccountsController:accountRemoved', (account) => {
+      this.#removeAccountFromQueue(account).catch(console.error);
     });
   }
 
@@ -279,7 +285,7 @@ export class UserProfileController extends StaticIntervalPollingController()<
    *
    * @param account - The account to sync.
    */
-  async #queueAccount(account: InternalAccount) {
+  async #addAccountToQueue(account: InternalAccount) {
     await this.#mutex.runExclusive(async () => {
       if (!this.#assertUserOptedIn()) {
         return;
@@ -290,6 +296,25 @@ export class UserProfileController extends StaticIntervalPollingController()<
           state.syncQueue[entropySourceId] = [];
         }
         state.syncQueue[entropySourceId].push(account.address);
+      });
+    });
+  }
+
+  /**
+   * Remove the given account from the sync queue.
+   *
+   * @param account - The account to remove.
+   */
+  async #removeAccountFromQueue(account: string) {
+    await this.#mutex.runExclusive(async () => {
+      this.update((state) => {
+        for (const groupedAddresses of Object.values(state.syncQueue)) {
+          const index = groupedAddresses.indexOf(account);
+          if (index !== -1) {
+            groupedAddresses.splice(index, 1);
+            break;
+          }
+        }
       });
     });
   }
