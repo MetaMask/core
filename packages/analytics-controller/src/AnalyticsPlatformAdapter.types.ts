@@ -19,6 +19,11 @@ export type AnalyticsTrackingEvent = {
   readonly name: string;
   properties: AnalyticsEventProperties;
   sensitiveProperties: AnalyticsEventProperties;
+  /**
+   * Legacy property handled by the mobile app.
+   * This property is ignored by the analytics controller and will be removed from the type in the future.
+   * The mobile app will use the future analytics privacy controller to handle this functionality.
+   */
   saveDataRecording: boolean;
   readonly hasProperties: boolean;
 };

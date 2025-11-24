@@ -268,10 +268,8 @@ export class AnalyticsController extends BaseController<
       return;
     }
 
-    // Delegate to platform adapter if supported, using the current analytics ID
-    if (this.#platformAdapter.identify) {
-      this.#platformAdapter.identify(this.state.analyticsId, traits);
-    }
+    // Delegate to platform adapter using the current analytics ID
+    this.#platformAdapter.identify(this.state.analyticsId, traits);
   }
 
   /**
