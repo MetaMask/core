@@ -1,6 +1,7 @@
 import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerListAccountsAction,
+  AccountsControllerAccountRemovedEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
@@ -17,7 +18,6 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { Mutex } from 'async-mutex';
 
 import type { UserProfileServiceMethodActions } from '.';
-import { AccountsControllerAccountRemovedEvent } from '@metamask/accounts-controller';
 
 /**
  * The name of the {@link UserProfileController}, used to namespace the
