@@ -184,6 +184,7 @@ messenger.subscribe('AnalyticsController:stateChange', (state, prevState) => {
 ### Default State
 
 The controller initializes with default state values internally. The default state includes:
+
 - `optedInForRegularAccount`: `false`
 - `optedInForSocialAccount`: `false`
 - `analyticsId`: Auto-generated UUIDv4
