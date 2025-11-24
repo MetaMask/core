@@ -7,11 +7,10 @@ import {
   type MessengerActions,
   type MessengerEvents,
 } from '@metamask/messenger';
-import type { CaipAccountId } from '@metamask/utils';
 
 import {
-  AccountWithScopes,
   UserProfileController,
+  type AccountWithScopes,
   type UserProfileControllerMessenger,
 } from './UserProfileController';
 import type { UserProfileUpdateRequest } from './UserProfileService';
@@ -257,6 +256,30 @@ describe('UserProfileController', () => {
             expect(controller.state.syncQueue).toStrictEqual({
               id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
               id2: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
+            });
+          },
+        );
+      });
+
+      it('removes the key from the sync queue if it becomes empty after account removal', async () => {
+        const accounts = {
+          id1: ['0xAccount1'],
+          id2: ['0xAccount2'],
+        };
+        await withController(
+          {
+            options: { state: { syncQueue: accounts } },
+          },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.publish(
+              'AccountsController:accountRemoved',
+              '0xAccount1',
+            );
+            // Wait for async operations to complete.
+            await Promise.resolve();
+
+            expect(controller.state.syncQueue).toStrictEqual({
+              id2: ['0xAccount2'],
             });
           },
         );

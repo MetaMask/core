@@ -309,19 +309,25 @@ export class UserProfileController extends StaticIntervalPollingController()<
   /**
    * Remove the given account from the sync queue.
    *
-   * @param account - The account to remove.
+   * @param account - The account address to remove.
    */
   async #removeAccountFromQueue(account: string) {
     await this.#mutex.runExclusive(async () => {
       this.update((state) => {
-        for (const groupedAddresses of Object.values(state.syncQueue)) {
+        for (const [entropySourceId, groupedAddresses] of Object.entries(
+          state.syncQueue,
+        )) {
           const index = groupedAddresses.findIndex(
             ({ address }) => address === account,
           );
-          if (index !== -1) {
-            groupedAddresses.splice(index, 1);
-            break;
+          if (index === -1) {
+            continue;
           }
+          groupedAddresses.splice(index, 1);
+          if (groupedAddresses.length === 0) {
+            delete state.syncQueue[entropySourceId];
+          }
+          break;
         }
       });
     });
