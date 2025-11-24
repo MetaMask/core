@@ -90,7 +90,7 @@ const controller = new AnalyticsController({
 });
 ```
 
-**Important:** The `state` parameter is the single source of truth for initial values. Any properties you provide will override the defaults from `getDefaultAnalyticsControllerState()`.
+**Important:** The `state` parameter is the single source of truth for initial values. Any properties you provide will override the controller's internal defaults.
 
 ### 3. Track Events
 
@@ -183,22 +183,14 @@ messenger.subscribe('AnalyticsController:stateChange', (state, prevState) => {
 
 ### Default State
 
-The default state is provided by `getDefaultAnalyticsControllerState()`:
-
-```typescript
-import { getDefaultAnalyticsControllerState } from '@metamask/analytics-controller';
-
-const defaultState = getDefaultAnalyticsControllerState();
-// {
-//   enabled: true,
-//   optedIn: false,
-//   analyticsId: auto-generated UUIDv4
-// }
-```
+The controller initializes with default state values internally. The default state includes:
+- `optedInForRegularAccount`: `false`
+- `optedInForSocialAccount`: `false`
+- `analyticsId`: Auto-generated UUIDv4
 
 ### Initialization Strategy
 
-- **No `state` parameter**: Uses defaults from `getDefaultAnalyticsControllerState()` and auto-generates `analyticsId` as UUIDv4
+- **No `state` parameter**: Uses internal defaults and auto-generates `analyticsId` as UUIDv4
 - **Partial `state`**: Merges with defaults (user-provided values override defaults); `analyticsId` is auto-generated if not provided
 - **Complete `state`**: Full control for migrations and advanced use cases
 
@@ -263,6 +255,20 @@ export DEBUG="metamask:analytics-controller"
 ```
 
 This will enable debug logging for the analytics-controller, allowing you to see detailed logs of analytics events, state changes, and controller operations.
+
+## Development
+
+### Build
+
+```bash
+yarn install && yarn workspace @metamask/analytics-controller build
+```
+
+### Test
+
+```bash
+yarn install && yarn workspace @metamask/analytics-controller test
+```
 
 ## Contributing
 

@@ -1,5 +1,4 @@
 import type { AnalyticsControllerState } from './AnalyticsController';
-import * as analyticsStateComputer from './analyticsStateComputer';
 import { analyticsControllerSelectors } from './selectors';
 
 describe('analyticsControllerSelectors', () => {
@@ -19,7 +18,7 @@ describe('analyticsControllerSelectors', () => {
     });
   });
 
-  describe('selectOptedIn', () => {
+  describe('selectOptedInForRegularAccount', () => {
     it('returns true when optedInForRegularAccount is true', () => {
       const state: AnalyticsControllerState = {
         optedInForRegularAccount: true,
@@ -27,7 +26,8 @@ describe('analyticsControllerSelectors', () => {
         analyticsId: defaultAnalyticsId,
       };
 
-      const result = analyticsControllerSelectors.selectOptedIn(state);
+      const result =
+        analyticsControllerSelectors.selectOptedInForRegularAccount(state);
 
       expect(result).toBe(true);
     });
@@ -39,7 +39,8 @@ describe('analyticsControllerSelectors', () => {
         analyticsId: defaultAnalyticsId,
       };
 
-      const result = analyticsControllerSelectors.selectOptedIn(state);
+      const result =
+        analyticsControllerSelectors.selectOptedInForRegularAccount(state);
 
       expect(result).toBe(false);
     });
@@ -51,13 +52,14 @@ describe('analyticsControllerSelectors', () => {
         analyticsId: defaultAnalyticsId,
       };
 
-      const result = analyticsControllerSelectors.selectOptedIn(state);
+      const result =
+        analyticsControllerSelectors.selectOptedInForRegularAccount(state);
 
       expect(result).toBe(false);
     });
   });
 
-  describe('selectSocialOptedIn', () => {
+  describe('selectOptedInForSocialAccount', () => {
     it.each([[true], [false]])(
       'returns %s when optedInForSocialAccount is %s',
       (optedInForSocialAccount) => {
@@ -67,7 +69,8 @@ describe('analyticsControllerSelectors', () => {
           analyticsId: defaultAnalyticsId,
         };
 
-        const result = analyticsControllerSelectors.selectSocialOptedIn(state);
+        const result =
+          analyticsControllerSelectors.selectOptedInForSocialAccount(state);
 
         expect(result).toBe(optedInForSocialAccount);
       },
@@ -75,25 +78,30 @@ describe('analyticsControllerSelectors', () => {
   });
 
   describe('selectEnabled', () => {
-    it.each([[true], [false]])(
-      'returns %s from computeEnabledState',
-      (expectedValue) => {
-        jest
-          .spyOn(analyticsStateComputer, 'computeEnabledState')
-          .mockReturnValue(expectedValue);
-
+    /**
+     * Tests all combinations of opt-in states:
+     * 1. Neither account opted in -> analytics disabled
+     * 2. Only regular account opted in -> analytics enabled
+     * 3. Only social account opted in -> analytics enabled
+     * 4. Both accounts opted in -> analytics enabled
+     */
+    it.each([
+      [false, false, false],
+      [true, false, true],
+      [false, true, true],
+      [true, true, true],
+    ])(
+      'when optedInForRegularAccount=%s and optedInForSocialAccount=%s, returns %s',
+      (optedInForRegularAccount, optedInForSocialAccount, expected) => {
         const state: AnalyticsControllerState = {
-          optedInForRegularAccount: false,
-          optedInForSocialAccount: false,
+          optedInForRegularAccount,
+          optedInForSocialAccount,
           analyticsId: defaultAnalyticsId,
         };
 
         const result = analyticsControllerSelectors.selectEnabled(state);
 
-        expect(analyticsStateComputer.computeEnabledState).toHaveBeenCalledWith(
-          state,
-        );
-        expect(result).toBe(expectedValue);
+        expect(result).toBe(expected);
       },
     );
   });

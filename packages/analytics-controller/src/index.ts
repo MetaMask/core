@@ -15,7 +15,6 @@ export type {
 
 // Export state types and utilities
 export type { AnalyticsControllerState } from './AnalyticsController';
-export { getDefaultAnalyticsControllerState } from './AnalyticsController';
 
 // Export selectors
 export { analyticsControllerSelectors } from './selectors';

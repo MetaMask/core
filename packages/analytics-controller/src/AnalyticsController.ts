@@ -15,7 +15,7 @@ import type {
   AnalyticsUserTraits,
   AnalyticsTrackingEvent,
 } from './AnalyticsPlatformAdapter.types';
-import { computeEnabledState } from './analyticsStateComputer';
+import { analyticsControllerSelectors } from './selectors';
 import { validateAnalyticsState } from './analyticsStateValidator';
 
 // === GENERAL ===
@@ -72,22 +72,6 @@ const analyticsControllerMetadata = {
     usedInUi: false,
   },
 } satisfies StateMetadata<AnalyticsControllerState>;
-
-/**
- * Constructs the default {@link AnalyticsController} state. This allows
- * consumers to provide a partial state object when initializing the controller
- * and also helps in constructing complete state objects for this controller in
- * tests.
- *
- * @returns The default {@link AnalyticsController} state.
- */
-export function getDefaultAnalyticsControllerState(): AnalyticsControllerState {
-  return {
-    optedInForRegularAccount: false,
-    optedInForSocialAccount: false,
-    analyticsId: uuidv4(),
-  };
-}
 
 // === MESSENGER ===
 
@@ -184,7 +168,8 @@ export class AnalyticsController extends BaseController<
    * Constructs an AnalyticsController instance.
    *
    * @param options - Controller options
-   * @param options.state - Initial controller state (defaults from getDefaultAnalyticsControllerState).
+   * @param options.state - Initial controller state. Defaults: optedInForRegularAccount=false,
+   * optedInForSocialAccount=false, analyticsId=auto-generated UUIDv4.
    * For migration from a previous system, pass the existing analytics ID via state.analyticsId.
    * @param options.messenger - Messenger used to communicate with BaseController
    * @param options.platformAdapter - Platform adapter implementation for tracking
@@ -194,8 +179,10 @@ export class AnalyticsController extends BaseController<
     messenger,
     platformAdapter,
   }: AnalyticsControllerOptions) {
-    const initialState = {
-      ...getDefaultAnalyticsControllerState(),
+    const initialState: AnalyticsControllerState = {
+      optedInForRegularAccount: false,
+      optedInForSocialAccount: false,
+      analyticsId: uuidv4(),
       ...state,
     };
 
@@ -216,7 +203,7 @@ export class AnalyticsController extends BaseController<
     );
 
     projectLogger('AnalyticsController initialized and ready', {
-      enabled: computeEnabledState(this.state),
+      enabled: analyticsControllerSelectors.selectEnabled(this.state),
       optedIn: this.state.optedInForRegularAccount,
       socialOptedIn: this.state.optedInForSocialAccount,
       analyticsId: this.state.analyticsId,
@@ -241,7 +228,7 @@ export class AnalyticsController extends BaseController<
    */
   trackEvent(event: AnalyticsTrackingEvent): void {
     // Don't track if analytics is disabled
-    if (!computeEnabledState(this.state)) {
+    if (!analyticsControllerSelectors.selectEnabled(this.state)) {
       return;
     }
 
@@ -277,7 +264,7 @@ export class AnalyticsController extends BaseController<
    * @param traits - User traits/properties
    */
   identify(traits?: AnalyticsUserTraits): void {
-    if (!computeEnabledState(this.state)) {
+    if (!analyticsControllerSelectors.selectEnabled(this.state)) {
       return;
     }
 
@@ -294,7 +281,7 @@ export class AnalyticsController extends BaseController<
    * @param properties - Optional properties associated with the view
    */
   trackView(name: string, properties?: AnalyticsEventProperties): void {
-    if (!computeEnabledState(this.state)) {
+    if (!analyticsControllerSelectors.selectEnabled(this.state)) {
       return;
     }
 

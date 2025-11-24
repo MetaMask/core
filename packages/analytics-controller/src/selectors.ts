@@ -1,5 +1,4 @@
 import type { AnalyticsControllerState } from './AnalyticsController';
-import { computeEnabledState } from './analyticsStateComputer';
 
 /**
  * Selects the analytics ID from the controller state.
@@ -11,32 +10,34 @@ const selectAnalyticsId = (state: AnalyticsControllerState): string =>
   state.analyticsId;
 
 /**
- * Selects the opted-in status from the controller state.
+ * Selects the opted-in status for regular account from the controller state.
  *
  * @param state - The controller state
  * @returns Whether the user has opted in for regular account
  */
-const selectOptedIn = (state: AnalyticsControllerState): boolean =>
-  state.optedInForRegularAccount;
+const selectOptedInForRegularAccount = (
+  state: AnalyticsControllerState,
+): boolean => state.optedInForRegularAccount;
 
 /**
- * Selects the social opted-in status from the controller state.
+ * Selects the opted-in status for social account from the controller state.
  *
  * @param state - The controller state
  * @returns Whether the user has opted in for social account
  */
-const selectSocialOptedIn = (state: AnalyticsControllerState): boolean =>
-  state.optedInForSocialAccount;
+const selectOptedInForSocialAccount = (
+  state: AnalyticsControllerState,
+): boolean => state.optedInForSocialAccount;
 
 /**
  * Selects the enabled status from the controller state.
- * This is computed from user state via the state computer.
+ * Analytics is enabled if the user has opted in for regular account OR social account.
  *
  * @param state - The controller state
  * @returns Whether analytics tracking is enabled
  */
 const selectEnabled = (state: AnalyticsControllerState): boolean =>
-  computeEnabledState(state);
+  state.optedInForRegularAccount || state.optedInForSocialAccount;
 
 /**
  * Selectors for the AnalyticsController state.
@@ -44,7 +45,7 @@ const selectEnabled = (state: AnalyticsControllerState): boolean =>
  */
 export const analyticsControllerSelectors = {
   selectAnalyticsId,
-  selectOptedIn,
-  selectSocialOptedIn,
+  selectOptedInForRegularAccount,
+  selectOptedInForSocialAccount,
   selectEnabled,
 };
