@@ -272,7 +272,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith('test_event');
     });
 
-    it('tracks sensitive event when sensitiveProperties are present', () => {
+    it('tracks sensitive event when both regular and sensitiveProperties are present', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
         state: {
@@ -296,6 +296,31 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenNthCalledWith(2, 'test_event', {
         isSensitive: true,
         prop: 'value',
+        sensitive_prop: 'sensitive value',
+      });
+    });
+
+    it('tracks two events when only sensitiveProperties are present: one with empty props (user ID) and one with sensitive props (anonymous ID)', () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = setupController({
+        state: {
+          optedInForRegularAccount: true,
+          optedInForSocialAccount: false,
+        },
+        platformAdapter: mockAdapter,
+      });
+
+      const event = createTestEvent(
+        'test_event',
+        {},
+        { sensitive_prop: 'sensitive value' },
+      );
+      controller.trackEvent(event);
+
+      expect(mockAdapter.track).toHaveBeenCalledTimes(2);
+      expect(mockAdapter.track).toHaveBeenNthCalledWith(1, 'test_event', {});
+      expect(mockAdapter.track).toHaveBeenNthCalledWith(2, 'test_event', {
+        isSensitive: true,
         sensitive_prop: 'sensitive value',
       });
     });

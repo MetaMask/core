@@ -244,6 +244,10 @@ export class AnalyticsController extends BaseController<
     }
 
     // Track regular properties (without isSensitive flag - it's the default)
+    // Note: Even if properties object is empty, we still send it to ensure
+    // an event with user ID is tracked. When only sensitiveProperties exist,
+    // this creates two events: one with empty props (user ID) and one with
+    // sensitive props (anonymous ID), which is the expected behavior.
     this.#platformAdapter.track(event.name, {
       ...event.properties,
     });
