@@ -197,7 +197,8 @@ describe('AnalyticsController', () => {
       );
     });
 
-    it('ignores errors thrown by onSetupCompleted', () => {      const mockAdapter = createMockAdapter();
+    it('ignores errors thrown by onSetupCompleted', () => {
+      const mockAdapter = createMockAdapter();
       const cause = new Error(
         'MetaMetricsPrivacySegmentPlugin configure failed',
       );
@@ -220,7 +221,7 @@ describe('AnalyticsController', () => {
   });
 
   describe('trackEvent', () => {
-    it('calls platform adapter to track event when enabled via regular opt-in', () => {  
+    it('calls platform adapter to track event when enabled via regular opt-in', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
         state: {
@@ -238,7 +239,7 @@ describe('AnalyticsController', () => {
       });
     });
 
-    it('tracks event via platform adapter when enabled via social opt-in', () => {  
+    it('tracks event via platform adapter when enabled via social opt-in', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
         state: {
@@ -325,7 +326,7 @@ describe('AnalyticsController', () => {
       });
     });
 
-    it('does not call platform adapter when disabled', () => {  
+    it('does not call platform adapter when disabled', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
         state: {
@@ -343,7 +344,7 @@ describe('AnalyticsController', () => {
   });
 
   describe('identify', () => {
-    it('identifies user via platform adapter with traits using current analytics ID', () => {  
+    it('identifies user via platform adapter with traits using current analytics ID', () => {
       const mockAdapter = createMockAdapter();
       const customId = '550e8400-e29b-41d4-a716-446655440000';
       const { controller } = setupController({
@@ -405,7 +406,7 @@ describe('AnalyticsController', () => {
   });
 
   describe('trackView', () => {
-    it('calls platform adapter to track view when enabled via regular opt-in', () => {  
+    it('calls platform adapter to track view when enabled via regular opt-in', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
         state: {
@@ -422,7 +423,7 @@ describe('AnalyticsController', () => {
       });
     });
 
-    it('calls platform adapter to track view when enabled via social opt-in', () => {  
+    it('calls platform adapter to track view when enabled via social opt-in', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
         state: {
@@ -439,7 +440,7 @@ describe('AnalyticsController', () => {
       });
     });
 
-    it('does not call platform adapter when disabled', () => {  
+    it('does not call platform adapter when disabled', () => {
       const mockAdapter = createMockAdapter();
       const { controller } = setupController({
         state: {

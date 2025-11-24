@@ -8,7 +8,9 @@ import type { AnalyticsControllerState } from './AnalyticsController';
  * @param state - The analytics controller state to validate
  * @throws {Error} If analyticsId is missing, invalid, or not a UUIDv4
  */
-export function validateAnalyticsControllerState(state: AnalyticsControllerState): void {
+export function validateAnalyticsControllerState(
+  state: AnalyticsControllerState,
+): void {
   if (
     !state.analyticsId ||
     !validateUuid(state.analyticsId) ||

@@ -8,6 +8,7 @@ import type { Messenger } from '@metamask/messenger';
 import { v4 as uuidv4 } from 'uuid';
 
 import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types';
+import { validateAnalyticsControllerState } from './analyticsControllerStateValidator';
 import { projectLogger } from './AnalyticsLogger';
 import type {
   AnalyticsPlatformAdapter,
@@ -16,7 +17,6 @@ import type {
   AnalyticsTrackingEvent,
 } from './AnalyticsPlatformAdapter.types';
 import { analyticsControllerSelectors } from './selectors';
-import { validateAnalyticsControllerState } from './analyticsControllerStateValidator';
 
 // === GENERAL ===
 
