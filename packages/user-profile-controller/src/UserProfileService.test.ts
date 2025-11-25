@@ -293,7 +293,7 @@ describe('UserProfileService', () => {
     });
   });
 
-  describe('fetchGasPrices', () => {
+  describe('updateProfile', () => {
     it('does the same thing as the messenger action', async () => {
       nock(defaultBaseEndpoint)
         .put('/profile/accounts')
