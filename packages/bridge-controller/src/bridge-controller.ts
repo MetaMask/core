@@ -298,7 +298,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           )?.configuration;
 
       let insufficientBal: boolean | undefined;
-      let resetApproval: boolean  = Boolean(paramsToUpdate.resetApproval);
+      let resetApproval: boolean = Boolean(paramsToUpdate.resetApproval);
       if (isSrcChainNonEVM) {
         // If the source chain is not an EVM network, use value from params
         insufficientBal = paramsToUpdate.insufficientBal;
