@@ -212,6 +212,7 @@ export const DEFAULT_CHAIN_ID_TO_NAME = {
   '0x2b74': 'abstract-testnet',
   '0x531': 'sei',
   '0x2eb': 'flow-evm',
+  '0x8f': 'monad',
 } as const;
 
 export type ChainIdToNameMap = typeof DEFAULT_CHAIN_ID_TO_NAME;
