@@ -14,7 +14,6 @@ jest.mock('../api/accounts-api');
 jest.mock('../utils/transaction-type');
 
 jest.useFakeTimers({
-  legacyFakeTimers: true,
 });
 
 const ADDRESS_MOCK = '0x123';

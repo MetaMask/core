@@ -21,7 +21,6 @@ import { TransactionType, TransactionStatus } from '../types';
 
 jest.mock('@metamask/controller-utils');
 jest.useFakeTimers({
-  legacyFakeTimers: true,
 });
 
 describe('updateSwapsTransaction', () => {

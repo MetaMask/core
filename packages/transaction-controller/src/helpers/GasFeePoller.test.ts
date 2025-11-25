@@ -33,7 +33,6 @@ jest.mock('../utils/layer1-gas-fee-flow', () => ({
 }));
 
 jest.useFakeTimers({
-  legacyFakeTimers: true,
 });
 
 const CHAIN_ID_MOCK: Hex = '0x123';

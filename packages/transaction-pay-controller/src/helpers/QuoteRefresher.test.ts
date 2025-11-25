@@ -11,9 +11,7 @@ import { refreshQuotes } from '../utils/quotes';
 
 jest.mock('../utils/quotes');
 
-jest.useFakeTimers({
-  legacyFakeTimers: true,
-});
+jest.useFakeTimers();
 
 describe('QuoteRefresher', () => {
   const refreshQuotesMock = jest.mocked(refreshQuotes);
@@ -56,8 +54,12 @@ describe('QuoteRefresher', () => {
     });
 
     publishStateChange({ hasQuotes: true });
+    // Flush promises to ensure state change is processed and setTimeout is set up
+    await flushPromises();
 
-    jest.runAllTimers();
+    // With Jest 28, we need to advance timers by the actual interval (1000ms)
+    // to trigger the setTimeout callback
+    jest.advanceTimersByTime(1000);
     await flushPromises();
 
     expect(refreshQuotesMock).toHaveBeenCalledTimes(1);
@@ -84,11 +86,15 @@ describe('QuoteRefresher', () => {
     });
 
     publishStateChange({ hasQuotes: true });
-
-    jest.runAllTimers();
+    // Flush promises to ensure state change is processed and setTimeout is set up
     await flushPromises();
 
-    jest.runAllTimers();
+    // First poll
+    jest.runOnlyPendingTimers();
+    await flushPromises();
+
+    // Second poll
+    jest.runOnlyPendingTimers();
     await flushPromises();
 
     expect(refreshQuotesMock).toHaveBeenCalledTimes(2);
@@ -102,8 +108,11 @@ describe('QuoteRefresher', () => {
 
     publishStateChange({ hasQuotes: true });
     publishStateChange({ hasQuotes: false });
+    // Flush promises to ensure state changes are processed
+    await flushPromises();
 
-    jest.runAllTimers();
+    // Run timer - should not poll since quotes were removed
+    jest.runOnlyPendingTimers();
     await flushPromises();
 
     expect(refreshQuotesMock).toHaveBeenCalledTimes(0);
@@ -118,13 +127,17 @@ describe('QuoteRefresher', () => {
     });
 
     publishStateChange({ hasQuotes: true });
+    // Flush promises to ensure state change is processed and setTimeout is set up
+    await flushPromises();
 
     refreshQuotesMock.mockRejectedValueOnce(new Error('Test error'));
 
-    jest.runAllTimers();
+    // First poll (will fail)
+    jest.runOnlyPendingTimers();
     await flushPromises();
 
-    jest.runAllTimers();
+    // Second poll (should continue despite error)
+    jest.runOnlyPendingTimers();
     await flushPromises();
 
     expect(refreshQuotesMock).toHaveBeenCalledTimes(2);
@@ -139,17 +152,22 @@ describe('QuoteRefresher', () => {
     });
 
     publishStateChange({ hasQuotes: true });
+    // Flush promises to ensure state change is processed and setTimeout is set up
+    await flushPromises();
 
     const promise = createDeferredPromise();
     refreshQuotesMock.mockReturnValue(promise.promise);
 
-    jest.runAllTimers();
+    // Start first poll (will be pending)
+    jest.runOnlyPendingTimers();
     await flushPromises();
 
     publishStateChange({ hasQuotes: false });
     publishStateChange({ hasQuotes: true });
+    await flushPromises();
 
-    jest.runAllTimers();
+    // Run timer - should not start new poll while first is still pending
+    jest.runOnlyPendingTimers();
     await flushPromises();
 
     expect(refreshQuotesMock).toHaveBeenCalledTimes(1);
@@ -164,14 +182,18 @@ describe('QuoteRefresher', () => {
     });
 
     publishStateChange({ hasQuotes: true });
+    // Flush promises to ensure state change is processed and setTimeout is set up
+    await flushPromises();
 
     const promise = createDeferredPromise();
     refreshQuotesMock.mockReturnValue(promise.promise);
 
-    jest.runAllTimers();
+    // Start poll (will be pending)
+    jest.runOnlyPendingTimers();
     await flushPromises();
 
     publishStateChange({ hasQuotes: false });
+    await flushPromises();
 
     promise.resolve();
     await flushPromises();

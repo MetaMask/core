@@ -24,7 +24,6 @@ jest.mock('../../utils/token');
 jest.mock('../../utils/gas');
 
 jest.useFakeTimers({
-  legacyFakeTimers: true,
 });
 
 const QUOTE_REQUEST_1_MOCK: QuoteRequest = {
