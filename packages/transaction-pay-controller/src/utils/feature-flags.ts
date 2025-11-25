@@ -8,7 +8,7 @@ const log = createModuleLogger(projectLogger, 'feature-flags');
 
 export const DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_RELAY_FALLBACK_GAS_MAX = 1500000;
-export const DEFAULT_RELAY_QUOTE_URL = RELAY_URL_BASE;
+export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
 
 type FeatureFlagsRaw = {
   relayFallbackGas?: {
