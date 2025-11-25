@@ -213,6 +213,23 @@ function createRpcServiceChain({
     logger,
   }));
 
+  /**
+   * Extracts the error from Cockatiel's `FailureReason` type received in
+   * circuit breaker event handlers.
+   *
+   * The `FailureReason` object can have two possible shapes:
+   * - `{ error: Error }` - When the RPC service throws an error (the common
+   * case for RPC failures).
+   * - `{ value: T }` - When the RPC service returns a value that the retry
+   * filter policy considers a failure.
+   *
+   * @param value - The event data object from the circuit breaker event
+   * listener (after destructuring known properties like `endpointUrl` and
+   * `primaryEndpointUrl`). This represents Cockatiel's `FailureReason` type.
+   * @returns The error or failure value, or `undefined` if neither property
+   * exists (which shouldn't happen in practice unless the circuit breaker is
+   * manually isolated).
+   */
   const getError = (value: object) => {
     if ('error' in value) {
       return value.error;
