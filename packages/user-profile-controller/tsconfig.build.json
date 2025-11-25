@@ -7,7 +7,9 @@
   },
   "references": [
     { "path": "../../packages/base-controller/tsconfig.build.json" },
+    { "path": "../../packages/controller-utils/tsconfig.build.json" },
     { "path": "../../packages/messenger/tsconfig.build.json" }
+    { "path": "../../packages/profile-sync-controller/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]
 }
