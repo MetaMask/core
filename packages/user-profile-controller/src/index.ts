@@ -1,16 +1,4 @@
 export type {
-  UserProfileControllerActions,
-  UserProfileControllerEvents,
-  UserProfileControllerGetStateAction,
-  UserProfileControllerMessenger,
-  UserProfileControllerState,
-  UserProfileControllerStateChangeEvent,
-} from './UserProfileController';
-export {
-  UserProfileController,
-  getDefaultUserProfileControllerState,
-} from './UserProfileController';
-export type {
   UserProfileServiceActions,
   UserProfileServiceEvents,
   UserProfileServiceMessenger,
