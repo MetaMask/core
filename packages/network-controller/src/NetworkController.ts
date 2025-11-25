@@ -455,7 +455,6 @@ export type NetworkControllerNetworkRemovedEvent = {
  * @param payload.error - The last error produced by the last failover in the
  * endpoint chain.
  * @param payload.networkClientId - The target network's client ID.
- * @param payload.primaryEndpointUrl - The endpoint chain's primary URL.
  */
 export type NetworkControllerRpcEndpointChainUnavailableEvent = {
   type: 'NetworkController:rpcEndpointChainUnavailable';
@@ -464,7 +463,6 @@ export type NetworkControllerRpcEndpointChainUnavailableEvent = {
       chainId: Hex;
       error: unknown;
       networkClientId: NetworkClientId;
-      primaryEndpointUrl: string;
     },
   ];
 };
@@ -519,7 +517,6 @@ export type NetworkControllerRpcEndpointUnavailableEvent = {
  * @param payload.error - The last error produced by the endpoint (or
  * `undefined` if the request was slow).
  * @param payload.networkClientId - The target network's client ID.
- * @param payload.primaryEndpointUrl - The endpoint chain's primary URL.
  */
 export type NetworkControllerRpcEndpointChainDegradedEvent = {
   type: 'NetworkController:rpcEndpointChainDegraded';
@@ -529,7 +526,6 @@ export type NetworkControllerRpcEndpointChainDegradedEvent = {
       endpointUrl: string;
       error: unknown;
       networkClientId: NetworkClientId;
-      primaryEndpointUrl: string;
     },
   ];
 };
@@ -584,7 +580,6 @@ export type NetworkControllerRpcEndpointDegradedEvent = {
  * @param payload.endpointUrl - The URL of the endpoint which meets either of
  * the above conditions.
  * @param payload.networkClientId - The target network's client ID.
- * @param payload.primaryEndpointUrl - The endpoint chain's primary URL.
  */
 export type NetworkControllerRpcEndpointChainAvailableEvent = {
   type: 'NetworkController:rpcEndpointChainAvailable';
@@ -593,7 +588,6 @@ export type NetworkControllerRpcEndpointChainAvailableEvent = {
       chainId: Hex;
       endpointUrl: string;
       networkClientId: NetworkClientId;
-      primaryEndpointUrl: string;
     },
   ];
 };

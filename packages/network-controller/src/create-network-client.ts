@@ -261,7 +261,6 @@ function createRpcServiceChain({
       messenger.publish('NetworkController:rpcEndpointChainUnavailable', {
         chainId: configuration.chainId,
         networkClientId: id,
-        primaryEndpointUrl: primaryEndpointUrlFromEvent,
         error,
       });
     },
@@ -294,7 +293,6 @@ function createRpcServiceChain({
       messenger.publish('NetworkController:rpcEndpointChainDegraded', {
         chainId: configuration.chainId,
         networkClientId: id,
-        primaryEndpointUrl: primaryEndpointUrlFromEvent,
         endpointUrl,
         error,
       });
@@ -318,16 +316,13 @@ function createRpcServiceChain({
     },
   );
 
-  rpcServiceChain.onAvailable(
-    ({ endpointUrl, primaryEndpointUrl: primaryEndpointUrlFromEvent }) => {
-      messenger.publish('NetworkController:rpcEndpointChainAvailable', {
-        chainId: configuration.chainId,
-        networkClientId: id,
-        primaryEndpointUrl: primaryEndpointUrlFromEvent,
-        endpointUrl,
-      });
-    },
-  );
+  rpcServiceChain.onAvailable(({ endpointUrl }) => {
+    messenger.publish('NetworkController:rpcEndpointChainAvailable', {
+      chainId: configuration.chainId,
+      networkClientId: id,
+      endpointUrl,
+    });
+  });
 
   rpcServiceChain.onServiceRetry(
     ({

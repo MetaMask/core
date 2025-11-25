@@ -84,7 +84,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         },
                       }),
                     },
-                    async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                    async ({ makeRpcCall, clock, chainId }) => {
                       messenger.subscribe(
                         'NetworkController:rpcEndpointRetried',
                         () => {
@@ -127,7 +127,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         chainId,
                         error: expectedUnavailableError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        primaryEndpointUrl: rpcUrl,
                       });
                     },
                   );
@@ -363,7 +362,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         endpointUrl: rpcUrl,
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        primaryEndpointUrl: rpcUrl,
                       });
                     },
                   );
@@ -480,7 +478,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         endpointUrl: rpcUrl,
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        primaryEndpointUrl: rpcUrl,
                       });
                     },
                   );
@@ -829,7 +826,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         },
                       }),
                     },
-                    async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                    async ({ makeRpcCall, clock, chainId }) => {
                       messenger.subscribe(
                         'NetworkController:rpcEndpointRetried',
                         () => {
@@ -860,7 +857,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         chainId,
                         endpointUrl: failoverEndpointUrl,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        primaryEndpointUrl: rpcUrl,
                       });
                     },
                   );
@@ -951,7 +947,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     endpointUrl: rpcUrl,
                     error: expectedDegradedError,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                    primaryEndpointUrl: rpcUrl,
                   });
                 },
               );
@@ -1028,7 +1023,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     endpointUrl: rpcUrl,
                     error: undefined,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                    primaryEndpointUrl: rpcUrl,
                   });
                 },
               );
@@ -1265,7 +1259,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     chainId,
                     endpointUrl: rpcUrl,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                    primaryEndpointUrl: rpcUrl,
                   });
                 },
               );
