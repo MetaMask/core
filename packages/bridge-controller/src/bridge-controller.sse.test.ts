@@ -1,10 +1,14 @@
+import { BigNumber } from '@ethersproject/bignumber';
+import * as ethersContractUtils from '@ethersproject/contracts';
 import { SolScope } from '@metamask/keyring-api';
+import { abiERC20 } from '@metamask/metamask-eth-abis';
 
 import { BridgeController } from './bridge-controller';
 import {
   BridgeClientId,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
+  ETH_USDT_ADDRESS,
 } from './constants/bridge';
 import type { QuoteResponse, TxData } from './types';
 import {
@@ -13,9 +17,11 @@ import {
   type BridgeControllerMessenger,
 } from './types';
 import * as balanceUtils from './utils/balance';
+import { formatChainIdToDec } from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
 import { flushPromises } from '../../../tests/helpers';
+import mockBridgeQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
 import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
 import {
@@ -218,6 +224,265 @@ describe('BridgeController SSE', function () {
     expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(2);
     // eslint-disable-next-line jest/no-restricted-matchers
     expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+  });
+
+  it.each([
+    [
+      'swapping',
+      '1',
+      '0x1',
+      '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
+    ],
+    [
+      'bridging',
+      '1',
+      SolScope.Mainnet,
+      '0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000',
+    ],
+    ['swapping', '0', '0x1', undefined, false, 1],
+  ])(
+    'should append resetApproval when %s USDT on Ethereum',
+    async function (
+      _: string,
+      allowance: string,
+      destChainId: string,
+      tradeData?: string,
+      resetApproval: boolean = true,
+      mockContractCalls: number = 3,
+      srcTokenAddress: string = ETH_USDT_ADDRESS,
+    ) {
+      const mockUSDTQuoteResponse = mockBridgeQuotesErc20Erc20.map((quote) => ({
+        ...quote,
+        quote: {
+          ...quote.quote,
+          srcTokenAddress,
+          srcChainId: 1,
+          destChainId: formatChainIdToDec(destChainId),
+        },
+      }));
+      mockFetchFn.mockImplementationOnce(async () => {
+        return mockSseEventSource(mockUSDTQuoteResponse as QuoteResponse[]);
+      });
+
+      const contractMock = new ethersContractUtils.Contract(
+        ETH_USDT_ADDRESS,
+        abiERC20,
+      );
+      const contractMockSpy = jest
+        .spyOn(ethersContractUtils, 'Contract')
+        .mockImplementation(() => {
+          return {
+            ...jest.requireActual('@ethersproject/contracts').Contract,
+            interface: contractMock.interface,
+            allowance: jest.fn().mockResolvedValue(BigNumber.from(allowance)),
+          };
+        });
+
+      const usdtQuoteRequest = {
+        ...quoteRequest,
+        srcTokenAddress,
+        srcChainId: '0x1',
+        destChainId,
+      };
+
+      await bridgeController.updateBridgeQuoteRequestParams(
+        usdtQuoteRequest,
+        metricsContext,
+      );
+
+      // Before polling starts
+      expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
+      expect(startPollingSpy).toHaveBeenCalledTimes(1);
+      expect(startPollingSpy).toHaveBeenCalledWith({
+        updatedQuoteRequest: {
+          ...usdtQuoteRequest,
+          insufficientBal: false,
+          resetApproval,
+        },
+        context: metricsContext,
+      });
+      const expectedState = {
+        ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+        quoteRequest: usdtQuoteRequest,
+        assetExchangeRates,
+        quotesLoadingStatus: RequestStatus.LOADING,
+      };
+      expect(bridgeController.state).toStrictEqual(expectedState);
+
+      // Loading state
+      jest.advanceTimersByTime(1000);
+      expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
+        mockFetchFn,
+        {
+          ...usdtQuoteRequest,
+          insufficientBal: false,
+          resetApproval,
+        },
+        expect.any(AbortSignal),
+        BridgeClientId.EXTENSION,
+        BRIDGE_PROD_API_BASE_URL,
+        {
+          onValidationFailure: expect.any(Function),
+          onValidQuoteReceived: expect.any(Function),
+          onClose: expect.any(Function),
+        },
+        '13.8.0',
+      );
+      const { quotesLastFetched: t1, quoteRequest: stateQuoteRequest } =
+        bridgeController.state;
+      expect(stateQuoteRequest).toStrictEqual({
+        ...usdtQuoteRequest,
+        insufficientBal: false,
+        resetApproval,
+      });
+      expect(t1).toBeCloseTo(Date.now() - 1000);
+
+      // After first fetch
+      jest.advanceTimersByTime(5000);
+      await flushPromises();
+      expect(bridgeController.state).toStrictEqual({
+        ...expectedState,
+        quotesInitialLoadTime: 6000,
+        quoteRequest: {
+          ...usdtQuoteRequest,
+          insufficientBal: false,
+          resetApproval,
+        },
+        quotes: mockUSDTQuoteResponse.map((quote) => ({
+          ...quote,
+          resetApproval: tradeData
+            ? {
+                ...quote.approval,
+                data: tradeData,
+              }
+            : undefined,
+        })),
+        quotesRefreshCount: 1,
+        quotesLoadingStatus: 1,
+        quotesLastFetched: t1,
+      });
+      expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+      expect(consoleLogSpy).toHaveBeenCalledTimes(0);
+      expect(getLayer1GasFeeMock).not.toHaveBeenCalled();
+      expect(contractMockSpy.mock.calls).toHaveLength(mockContractCalls);
+    },
+  );
+
+  it('should set resetApproval and insufficientBal if provider is not found', async function () {
+    messengerMock.call.mockReturnValue({
+      address: '0x123',
+      provider: undefined,
+      currencyRates: {},
+      marketData: {},
+      conversionRates: {},
+    } as never);
+    const mockUSDTQuoteResponse = mockBridgeQuotesErc20Erc20.map((quote) => ({
+      ...quote,
+      quote: {
+        ...quote.quote,
+        srcTokenAddress: ETH_USDT_ADDRESS,
+        srcChainId: 1,
+      },
+    }));
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSource(mockUSDTQuoteResponse as QuoteResponse[]);
+    });
+
+    const contractMock = new ethersContractUtils.Contract(
+      ETH_USDT_ADDRESS,
+      abiERC20,
+    );
+    const contractMockSpy = jest
+      .spyOn(ethersContractUtils, 'Contract')
+      .mockImplementation(() => {
+        return {
+          ...jest.requireActual('@ethersproject/contracts').Contract,
+          interface: contractMock.interface,
+          allowance: jest.fn().mockResolvedValue(BigNumber.from('1')),
+        };
+      });
+
+    const usdtQuoteRequest = {
+      ...quoteRequest,
+      srcTokenAddress: ETH_USDT_ADDRESS,
+      srcChainId: '0x1',
+    };
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      usdtQuoteRequest,
+      metricsContext,
+    );
+
+    // Before polling starts
+    expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
+    expect(startPollingSpy).toHaveBeenCalledTimes(1);
+    expect(startPollingSpy).toHaveBeenCalledWith({
+      updatedQuoteRequest: {
+        ...usdtQuoteRequest,
+        insufficientBal: true,
+        resetApproval: false,
+      },
+      context: metricsContext,
+    });
+    const expectedState = {
+      ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+      quoteRequest: usdtQuoteRequest,
+      assetExchangeRates,
+      quotesLoadingStatus: RequestStatus.LOADING,
+    };
+    expect(bridgeController.state).toStrictEqual(expectedState);
+
+    // Loading state
+    jest.advanceTimersByTime(1000);
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
+      mockFetchFn,
+      {
+        ...usdtQuoteRequest,
+        insufficientBal: true,
+        resetApproval: false,
+      },
+      expect.any(AbortSignal),
+      BridgeClientId.EXTENSION,
+      BRIDGE_PROD_API_BASE_URL,
+      {
+        onValidationFailure: expect.any(Function),
+        onValidQuoteReceived: expect.any(Function),
+        onClose: expect.any(Function),
+      },
+      '13.8.0',
+    );
+    const { quotesLastFetched: t1, quoteRequest: stateQuoteRequest } =
+      bridgeController.state;
+    expect(stateQuoteRequest).toStrictEqual({
+      ...usdtQuoteRequest,
+      insufficientBal: true,
+      resetApproval: false,
+    });
+    expect(t1).toBeCloseTo(Date.now() - 1000);
+
+    // After first fetch
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+    expect(bridgeController.state).toStrictEqual({
+      ...expectedState,
+      quotesInitialLoadTime: 6000,
+      quoteRequest: {
+        ...usdtQuoteRequest,
+        insufficientBal: true,
+        resetApproval: false,
+      },
+      quotes: mockUSDTQuoteResponse.map((quote) => ({
+        ...quote,
+        resetApproval: undefined,
+      })),
+      quotesRefreshCount: 1,
+      quotesLoadingStatus: 1,
+      quotesLastFetched: t1,
+    });
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+    expect(consoleLogSpy).toHaveBeenCalledTimes(0);
+    expect(getLayer1GasFeeMock).not.toHaveBeenCalled();
+    expect(contractMockSpy.mock.calls).toHaveLength(0);
   });
 
   it('should replace all stale quotes after a refresh and first quote is received', async function () {

@@ -311,14 +311,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         this.update((state) => {
           state.quotesLoadingStatus = RequestStatus.LOADING;
         });
-        resetApproval = await this.#shouldResetApproval(updatedQuoteRequest);
         try {
+          resetApproval = await this.#shouldResetApproval(updatedQuoteRequest);
           // Otherwise query the src token balance from the RPC provider
           insufficientBal =
             paramsToUpdate.insufficientBal ??
             !(await this.#hasSufficientBalance(updatedQuoteRequest));
         } catch (error) {
-          console.warn('Failed to fetch balance', error);
+          console.warn('Failed to set insufficientBal or resetApproval', error);
           insufficientBal = true;
         }
       }
@@ -500,28 +500,22 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   readonly #shouldResetApproval = async (quoteRequest: GenericQuoteRequest) => {
-    try {
-      if (isNonEvmChainId(quoteRequest.srcChainId)) {
-        return false;
-      }
-      const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
-      const normalizedSrcTokenAddress = formatAddressToCaipReference(
-        quoteRequest.srcTokenAddress,
-      );
-      if (isEthUsdt(srcChainIdInHex, normalizedSrcTokenAddress)) {
-        const allowance = BigNumber.from(
-          await this.#getUSDTMainnetAllowance(
-            normalizedSrcTokenAddress,
-            quoteRequest.destChainId,
-          ),
-        );
-        return allowance.lt(quoteRequest.srcTokenAmount) && allowance.gt(0);
-      }
-      return false;
-    } catch (error) {
-      console.warn('Failed to check if approval is needed', error);
+    if (isNonEvmChainId(quoteRequest.srcChainId)) {
       return false;
     }
+    const normalizedSrcTokenAddress = formatAddressToCaipReference(
+      quoteRequest.srcTokenAddress,
+    );
+    if (isEthUsdt(quoteRequest.srcChainId, normalizedSrcTokenAddress)) {
+      const allowance = BigNumber.from(
+        await this.#getUSDTMainnetAllowance(
+          normalizedSrcTokenAddress,
+          quoteRequest.destChainId,
+        ),
+      );
+      return allowance.lt(quoteRequest.srcTokenAmount) && allowance.gt(0);
+    }
+    return false;
   };
 
   stopPollingForQuotes = (reason?: AbortReason) => {
@@ -612,7 +606,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           this.#setMinimumBalanceForRentExemptionInLamports(
             updatedQuoteRequest.srcChainId,
-            selectedAccount.metadata?.snap?.id,
+            selectedAccount?.metadata?.snap?.id,
           );
           // Use SSE if enabled and return early
           if (shouldStream) {
@@ -703,7 +697,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #handleQuoteStreaming = async (
     updatedQuoteRequest: GenericQuoteRequest,
-    selectedAccount: InternalAccount,
+    selectedAccount?: InternalAccount,
   ) => {
     /**
      * Tracks the number of valid quotes received from the current stream, which is used
@@ -810,9 +804,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       'AccountsController:getAccountByAddress',
       addressToUse,
     );
-    if (!selectedAccount) {
-      throw new Error('Account not found');
-    }
     return selectedAccount;
   }
 
@@ -1016,8 +1007,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     contractAddress: string,
     destinationChainId: GenericQuoteRequest['destChainId'],
   ): Promise<string> => {
-    const chainId = formatChainIdToHex(CHAIN_IDS.MAINNET);
-    const networkClient = this.#getNetworkClientByChainId(chainId);
+    const networkClient = this.#getNetworkClientByChainId(CHAIN_IDS.MAINNET);
     const provider = networkClient?.provider;
     if (!provider) {
       throw new Error('No provider found');
@@ -1025,7 +1015,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     const ethersProvider = new Web3Provider(provider);
     const contract = new Contract(contractAddress, abiERC20, ethersProvider);
-    const spenderAddress = isCrossChain(chainId, destinationChainId)
+    const spenderAddress = isCrossChain(CHAIN_IDS.MAINNET, destinationChainId)
       ? METABRIDGE_ETHEREUM_ADDRESS
       : METASWAP_ETHEREUM_ADDRESS;
     const allowance: BigNumber = await contract.allowance(

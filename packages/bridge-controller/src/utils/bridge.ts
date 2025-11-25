@@ -129,8 +129,11 @@ export const getEthUsdtResetData = (
   return data;
 };
 
-export const isEthUsdt = (chainId: Hex, address: string) =>
-  chainId === CHAIN_IDS.MAINNET &&
+export const isEthUsdt = (
+  chainId: GenericQuoteRequest['srcChainId'],
+  address: string,
+) =>
+  formatChainIdToDec(chainId) === ChainId.ETH &&
   address.toLowerCase() === ETH_USDT_ADDRESS.toLowerCase();
 
 export const sumHexes = (...hexStrings: string[]): Hex => {

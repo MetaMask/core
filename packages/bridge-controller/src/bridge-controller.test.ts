@@ -2019,7 +2019,7 @@ describe('BridgeController', function () {
               return setTimeout(() => {
                 resolve([
                   {
-                    type: 'base',
+                    type: 'priority',
                     asset: {
                       unit: 'BTC',
                       type: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
