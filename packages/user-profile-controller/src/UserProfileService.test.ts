@@ -31,7 +31,7 @@ function createMockRequest(
   return {
     metametricsId: 'mock-meta-metrics-id',
     entropySourceId: 'mock-entropy-source-id',
-    accounts: [{ address: 'eip155:_:0xMockAccountAddress1' }],
+    accounts: [{ address: '0xMockAccountAddress1', scopes: ['eip155:1'] }],
     ...override,
   };
 }
@@ -293,7 +293,7 @@ describe('UserProfileService', () => {
     });
   });
 
-  describe('fetchGasPrices', () => {
+  describe('updateProfile', () => {
     it('does the same thing as the messenger action', async () => {
       nock(defaultBaseEndpoint)
         .put('/profile/accounts')

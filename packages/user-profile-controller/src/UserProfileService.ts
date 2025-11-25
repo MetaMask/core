@@ -5,7 +5,6 @@ import type {
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import type { CaipAccountId } from '@metamask/utils';
 
 import { type UserProfileServiceMethodActions, Env, getEnvUrl } from '.';
 
@@ -24,7 +23,8 @@ export type UserProfileUpdateRequest = {
   metametricsId: string;
   entropySourceId?: string | null;
   accounts: {
-    address: CaipAccountId;
+    address: string;
+    scopes: `${string}:${string}`[];
   }[];
 };
 
