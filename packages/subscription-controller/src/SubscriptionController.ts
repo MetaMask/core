@@ -515,6 +515,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       lastSelectedPaymentMethodShield.plan,
     );
     const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
+    // get the latest subscriptions state to check if the user has an active shield subscription
+    await this.getSubscriptions();
     const currentSubscription = this.state.subscriptions.find((subscription) =>
       subscription.products.some((p) => p.name === PRODUCT_TYPES.SHIELD),
     );

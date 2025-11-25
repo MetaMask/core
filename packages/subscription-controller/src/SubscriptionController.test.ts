@@ -1891,9 +1891,12 @@ describe('SubscriptionController', () => {
             status: SUBSCRIPTION_STATUSES.trialing,
           });
 
-          mockService.getSubscriptions.mockResolvedValue(
-            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
-          );
+          mockService.getSubscriptions
+            .mockResolvedValueOnce({
+              subscriptions: [],
+              trialedProducts: [],
+            })
+            .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
 
           // Create a shield subscription approval transaction
           const txMeta = {
