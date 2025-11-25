@@ -6,9 +6,11 @@
   "references": [
     { "path": "../../packages/accounts-controller" },
     { "path": "../../packages/base-controller" },
+    { "path": "../../packages/controller-utils" },
     { "path": "../../packages/keyring-controller" },
     { "path": "../../packages/messenger" },
-    { "path": "../../packages/polling-controller" }
+    { "path": "../../packages/polling-controller" },
+    { "path": "../../packages/profile-sync-controller" }
   ],
   "include": ["../../types", "./src"],
   /**
