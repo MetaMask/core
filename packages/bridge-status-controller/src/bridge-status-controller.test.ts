@@ -2611,6 +2611,61 @@ describe('BridgeStatusController', () => {
       expect(addTransactionFn).not.toHaveBeenCalled();
     });
 
+    it('should throw an error if EVM trade data is not valid', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(undefined);
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+
+      await expect(
+        controller.submitTx(
+          (quoteWithoutApproval.trade as TxData).from,
+          {
+            ...quoteWithoutApproval,
+            trade: (quoteWithoutApproval.trade as TxData).data,
+          },
+          false,
+        ),
+      ).rejects.toThrow(
+        'Failed to submit cross-chain swap transaction: trade is not an EVM transaction',
+      );
+      controller.stopAllPolling();
+
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(addTransactionFn).not.toHaveBeenCalled();
+    });
+
+    it('should throw an error if Solana trade data is not valid', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(undefined);
+
+      const { controller, startPollingForBridgeTxStatusSpy } =
+        getController(mockMessengerCall);
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+
+      await expect(
+        controller.submitTx(
+          (quoteWithoutApproval.trade as TxData).from,
+          {
+            ...quoteWithoutApproval,
+            quote: {
+              ...quoteWithoutApproval.quote,
+              srcChainId: ChainId.SOLANA,
+            },
+          },
+          false,
+        ),
+      ).rejects.toThrow(
+        'Failed to submit cross-chain swap transaction: trade is not a non-EVM transaction',
+      );
+      controller.stopAllPolling();
+
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(addTransactionFn).not.toHaveBeenCalled();
+    });
+
     it('should reset USDT allowance', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockIsEthUsdt.mockReturnValueOnce(true);
