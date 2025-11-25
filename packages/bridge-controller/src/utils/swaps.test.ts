@@ -1,0 +1,123 @@
+import { CHAIN_IDS } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
+
+import { getSwapsContractAddress, isValidSwapsContractAddress } from './swaps';
+import {
+  ALLOWED_CONTRACT_ADDRESSES,
+  SWAPS_CONTRACT_ADDRESSES,
+} from '../constants/swaps';
+
+describe('Swaps utils', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('isValidSwapsContractAddress', () => {
+    it('returns true for valid swaps contract address', () => {
+      const contract = SWAPS_CONTRACT_ADDRESSES[CHAIN_IDS.MAINNET];
+      expect(isValidSwapsContractAddress(CHAIN_IDS.MAINNET, contract)).toBe(
+        true,
+      );
+    });
+
+    it('returns true for any allowed contract address', () => {
+      const allowedAddresses = ALLOWED_CONTRACT_ADDRESSES[CHAIN_IDS.MAINNET];
+      allowedAddresses.forEach((address) => {
+        expect(isValidSwapsContractAddress(CHAIN_IDS.MAINNET, address)).toBe(
+          true,
+        );
+      });
+    });
+
+    it('returns true for contract address with different case', () => {
+      const contract = SWAPS_CONTRACT_ADDRESSES[CHAIN_IDS.MAINNET];
+      const upperCaseContract = contract.toUpperCase() as Hex;
+      const mixedCaseContract =
+        '0x881D40237659C251811CEC9C364EF91DC08D300C' as Hex;
+
+      expect(
+        isValidSwapsContractAddress(CHAIN_IDS.MAINNET, upperCaseContract),
+      ).toBe(true);
+      expect(
+        isValidSwapsContractAddress(CHAIN_IDS.MAINNET, mixedCaseContract),
+      ).toBe(true);
+    });
+
+    it('returns false for invalid contract address', () => {
+      const invalidContract =
+        '0x1234567890123456789012345678901234567890' as Hex;
+      expect(
+        isValidSwapsContractAddress(CHAIN_IDS.MAINNET, invalidContract),
+      ).toBe(false);
+    });
+
+    it('returns false when contract is undefined', () => {
+      expect(isValidSwapsContractAddress(CHAIN_IDS.MAINNET, undefined)).toBe(
+        false,
+      );
+    });
+
+    it('returns false for unsupported chain ID', () => {
+      const contract = SWAPS_CONTRACT_ADDRESSES[CHAIN_IDS.MAINNET];
+      const unsupportedChainId = '0x999' as Hex;
+      expect(isValidSwapsContractAddress(unsupportedChainId, contract)).toBe(
+        false,
+      );
+    });
+
+    it('returns false when chain ID is not in ALLOWED_CONTRACT_ADDRESSES', () => {
+      const contract = '0x881d40237659c251811cec9c364ef91dc08d300c' as Hex;
+      const unknownChainId = '0xabc' as Hex;
+      expect(isValidSwapsContractAddress(unknownChainId, contract)).toBe(false);
+    });
+
+    it('returns false for empty contract address', () => {
+      expect(isValidSwapsContractAddress(CHAIN_IDS.MAINNET, '' as Hex)).toBe(
+        false,
+      );
+    });
+
+    it('returns false for contract address on wrong chain', () => {
+      const mainnetContract = SWAPS_CONTRACT_ADDRESSES[CHAIN_IDS.MAINNET];
+      expect(isValidSwapsContractAddress(CHAIN_IDS.BSC, mainnetContract)).toBe(
+        false,
+      );
+    });
+
+    it('validates all wrapped token addresses', () => {
+      // Test that wrapped token addresses are also in the allowed list
+      Object.keys(ALLOWED_CONTRACT_ADDRESSES).forEach((chainId) => {
+        const allowedAddresses = ALLOWED_CONTRACT_ADDRESSES[chainId as Hex];
+        // Each chain should have at least the swaps contract and wrapped token
+        expect(allowedAddresses.length).toBeGreaterThanOrEqual(2);
+
+        // Verify each allowed address validates correctly
+        allowedAddresses.forEach((address) => {
+          expect(isValidSwapsContractAddress(chainId as Hex, address)).toBe(
+            true,
+          );
+        });
+      });
+    });
+  });
+
+  describe('getSwapsContractAddress', () => {
+    it('returns correct swaps contract address', () => {
+      expect(getSwapsContractAddress(CHAIN_IDS.MAINNET)).toBe(
+        '0x881d40237659c251811cec9c364ef91dc08d300c',
+      );
+    });
+
+    it('returns undefined for unsupported chain ID', () => {
+      const unsupportedChainId = '0x999' as Hex;
+      expect(getSwapsContractAddress(unsupportedChainId)).toBeUndefined();
+    });
+
+    it('returns addresses that match the SWAPS_CONTRACT_ADDRESSES constant', () => {
+      Object.keys(SWAPS_CONTRACT_ADDRESSES).forEach((chainId) => {
+        const address = getSwapsContractAddress(chainId as Hex);
+        expect(address).toBe(SWAPS_CONTRACT_ADDRESSES[chainId as Hex]);
+      });
+    });
+  });
+});
