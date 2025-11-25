@@ -5,15 +5,15 @@ A platform-agnostic service for storing large, infrequently accessed controller 
 ## Problem
 
 Controllers store large, infrequently-accessed data in Redux state, causing:
-- **State bloat**: 10.79 MB total, with 10.18 MB (92%) in just 2 controllers
+- **State bloat**: 10.79 MB total, with 9.94 MB (92%) in just 2 controllers
 - **Slow app startup**: Parsing 10.79 MB on every launch
 - **High memory usage**: All data loaded, even if rarely accessed
-- **Slow persist operations**: Up to 6.26 MB written per controller change
+- **Slow persist operations**: Up to 5.95 MB written per controller change
 
 **Production measurements** (MetaMask Mobile):
-- SnapController sourceCode: 6.09 MB (55% of state)
-- TokenListController cache: 4.09 MB (37% of state)
-- **Combined**: 10.18 MB in just 2 controllers
+- SnapController sourceCode: 5.95 MB (55% of state)
+- TokenListController cache: 3.99 MB (37% of state)
+- **Combined**: 9.94 MB in just 2 controllers
 
 ## Solution
 
@@ -123,19 +123,38 @@ class SnapController extends BaseController<
 import {
   StorageService,
   type StorageAdapter,
+  STORAGE_KEY_PREFIX,
 } from '@metamask/storage-service';
 import FilesystemStorage from 'redux-persist-filesystem-storage';
 
-// Create platform-specific adapter
+// Adapters handle key building and serialization
 const mobileStorageAdapter: StorageAdapter = {
-  async getItem(key: string) {
-    return await FilesystemStorage.getItem(key);
+  async getItem(namespace: string, key: string) {
+    const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
+    const serialized = await FilesystemStorage.getItem(fullKey);
+    if (!serialized) return null;
+    const wrapper = JSON.parse(serialized);
+    return wrapper.data;
   },
-  async setItem(key: string, value: string) {
-    await FilesystemStorage.setItem(key, value, Device.isIos());
+  async setItem(namespace: string, key: string, value: unknown) {
+    const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
+    const wrapper = { timestamp: Date.now(), data: value };
+    await FilesystemStorage.setItem(fullKey, JSON.stringify(wrapper), Device.isIos());
   },
-  async removeItem(key: string) {
-    await FilesystemStorage.removeItem(key);
+  async removeItem(namespace: string, key: string) {
+    const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
+    await FilesystemStorage.removeItem(fullKey);
+  },
+  async getAllKeys(namespace: string) {
+    const prefix = `${STORAGE_KEY_PREFIX}${namespace}:`;
+    const allKeys = await FilesystemStorage.getAllKeys();
+    return allKeys
+      .filter((k: string) => k.startsWith(prefix))
+      .map((k: string) => k.slice(prefix.length));
+  },
+  async clear(namespace: string) {
+    const keys = await this.getAllKeys(namespace);
+    await Promise.all(keys.map((k) => this.removeItem(namespace, k)));
   },
 };
 
@@ -149,25 +168,44 @@ const service = new StorageService({
 **Extension:**
 
 ```typescript
-import { StorageService, type StorageAdapter } from '@metamask/storage-service';
+import {
+  StorageService,
+  type StorageAdapter,
+  STORAGE_KEY_PREFIX,
+} from '@metamask/storage-service';
 
-// Create IndexedDB adapter
+// Adapters handle key building and serialization
 const extensionStorageAdapter: StorageAdapter = {
-  async getItem(key: string) {
+  async getItem(namespace: string, key: string) {
+    const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
     const db = await openDB();
-    return await db.get('storage-service', key);
+    const serialized = await db.get('storage-service', fullKey);
+    if (!serialized) return null;
+    const wrapper = JSON.parse(serialized);
+    return wrapper.data;
   },
-  async setItem(key: string, value: string) {
+  async setItem(namespace: string, key: string, value: unknown) {
+    const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
+    const wrapper = { timestamp: Date.now(), data: value };
     const db = await openDB();
-    await db.put('storage-service', value, key);
+    await db.put('storage-service', JSON.stringify(wrapper), fullKey);
   },
-  async removeItem(key: string) {
+  async removeItem(namespace: string, key: string) {
+    const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
     const db = await openDB();
-    await db.delete('storage-service', key);
+    await db.delete('storage-service', fullKey);
   },
-  async getAllKeys() {
+  async getAllKeys(namespace: string) {
+    const prefix = `${STORAGE_KEY_PREFIX}${namespace}:`;
     const db = await openDB();
-    return await db.getAllKeys('storage-service');
+    const allKeys = await db.getAllKeys('storage-service');
+    return allKeys
+      .filter((k: string) => k.startsWith(prefix))
+      .map((k: string) => k.slice(prefix.length));
+  },
+  async clear(namespace: string) {
+    const keys = await this.getAllKeys(namespace);
+    await Promise.all(keys.map((k) => this.removeItem(namespace, k)));
   },
 };
 
@@ -267,26 +305,29 @@ const keys = await service.getAllKeys('SnapController');
 // Returns: ['snap-id-1:sourceCode', 'snap-id-2:sourceCode', ...]
 ```
 
-#### `clearNamespace(namespace: string): Promise<void>`
+#### `clear(namespace: string): Promise<void>`
 
 Clear all data for a namespace.
 
 ```typescript
-await service.clearNamespace('SnapController');
+await service.clear('SnapController');
 ```
 
 ## StorageAdapter Interface
 
-Implement this interface to provide platform-specific storage:
+Implement this interface to provide platform-specific storage. Adapters are responsible for:
+- Building the full storage key (e.g., `storageService:namespace:key`)
+- Wrapping data with metadata (timestamp) before serialization
+- Serializing/deserializing data (JSON.stringify/parse)
 
 ```typescript
-export interface StorageAdapter {
-  getItem(key: string): Promise<string | null>;
-  setItem(key: string, value: string): Promise<void>;
-  removeItem(key: string): Promise<void>;
-  getAllKeys?(): Promise<string[]>; // Optional
-  clear?(): Promise<void>; // Optional
-}
+export type StorageAdapter = {
+  getItem(namespace: string, key: string): Promise<unknown>;
+  setItem(namespace: string, key: string, value: unknown): Promise<void>;
+  removeItem(namespace: string, key: string): Promise<void>;
+  getAllKeys(namespace: string): Promise<string[]>;
+  clear(namespace: string): Promise<void>;
+};
 ```
 
 ## When to Use
@@ -305,30 +346,30 @@ export interface StorageAdapter {
 
 ## Storage Key Format
 
-Keys are automatically prefixed: `storage:{namespace}:{key}`
+Adapters build keys with prefix: `storageService:{namespace}:{key}`
 
 Examples:
-- `storage:SnapController:npm:@metamask/bitcoin-wallet-snap:sourceCode`
-- `storage:TokenListController:tokensChainsCache`
+- `storageService:SnapController:npm:@metamask/bitcoin-wallet-snap:sourceCode`
+- `storageService:TokenListController:cache:0x1`
 
 This provides:
 - Namespace isolation (prevents collisions)
 - Easy debugging (clear key format)
-- Scoped clearing (clearNamespace removes all keys for controller)
+- Scoped clearing (clear removes all keys for controller)
 
 ## Real-World Impact
 
 **Production measurements** (MetaMask Mobile):
 
 **Per-controller**:
-- SnapController: 6.09 MB → 170 KB (98% reduction)
-- TokenListController: 4.09 MB → 5 bytes (99.9% reduction)
+- SnapController: 5.95 MB sourceCode → 166 KB metadata (97% reduction)
+- TokenListController: 3.99 MB cache → 61 bytes metadata (99.9% reduction)
 
 **Combined**:
 - Total state: 10.79 MB → 0.85 MB (**92% reduction**)
 - App startup: 92% less data to parse
-- Memory freed: 10.18 MB
-- Disk I/O: Up to 10.18 MB less per persist operation
+- Memory freed: 9.94 MB
+- Disk I/O: Up to 9.94 MB less per persist operation
 
 ## Contributing
 

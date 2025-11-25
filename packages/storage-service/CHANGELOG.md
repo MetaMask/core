@@ -19,5 +19,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `STORAGE_KEY_PREFIX` constant for consistent key prefixing across adapters
 - Add comprehensive test coverage
 
-[Unreleased]: https://github.com/MetaMask/core/tree/main/packages/storage-service
-
+[Unreleased]: https://github.com/MetaMask/core/
