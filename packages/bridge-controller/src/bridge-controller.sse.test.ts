@@ -368,7 +368,7 @@ describe('BridgeController SSE', function () {
     },
   );
 
-  it('should set resetApproval and insufficientBal if provider is not found', async function () {
+  it('should use resetApproval and insufficientBal fallback values if provider is not found', async function () {
     messengerMock.call.mockReturnValue({
       address: '0x123',
       provider: undefined,
@@ -420,7 +420,7 @@ describe('BridgeController SSE', function () {
       updatedQuoteRequest: {
         ...usdtQuoteRequest,
         insufficientBal: true,
-        resetApproval: false,
+        resetApproval: true,
       },
       context: metricsContext,
     });
@@ -439,7 +439,7 @@ describe('BridgeController SSE', function () {
       {
         ...usdtQuoteRequest,
         insufficientBal: true,
-        resetApproval: false,
+        resetApproval: true,
       },
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
@@ -456,7 +456,7 @@ describe('BridgeController SSE', function () {
     expect(stateQuoteRequest).toStrictEqual({
       ...usdtQuoteRequest,
       insufficientBal: true,
-      resetApproval: false,
+      resetApproval: true,
     });
     expect(t1).toBeCloseTo(Date.now() - 1000);
 
@@ -469,11 +469,14 @@ describe('BridgeController SSE', function () {
       quoteRequest: {
         ...usdtQuoteRequest,
         insufficientBal: true,
-        resetApproval: false,
+        resetApproval: true,
       },
       quotes: mockUSDTQuoteResponse.map((quote) => ({
         ...quote,
-        resetApproval: undefined,
+        resetApproval: {
+          ...quote.approval,
+          data: '0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000',
+        },
       })),
       quotesRefreshCount: 1,
       quotesLoadingStatus: 1,
@@ -482,7 +485,7 @@ describe('BridgeController SSE', function () {
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy).toHaveBeenCalledTimes(0);
     expect(getLayer1GasFeeMock).not.toHaveBeenCalled();
-    expect(contractMockSpy.mock.calls).toHaveLength(0);
+    expect(contractMockSpy.mock.calls).toHaveLength(2);
   });
 
   it('should replace all stale quotes after a refresh and first quote is received', async function () {

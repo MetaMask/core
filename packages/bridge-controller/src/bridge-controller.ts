@@ -311,16 +311,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         this.update((state) => {
           state.quotesLoadingStatus = RequestStatus.LOADING;
         });
-        try {
-          resetApproval = await this.#shouldResetApproval(updatedQuoteRequest);
-          // Otherwise query the src token balance from the RPC provider
-          insufficientBal =
-            paramsToUpdate.insufficientBal ??
-            !(await this.#hasSufficientBalance(updatedQuoteRequest));
-        } catch (error) {
-          console.warn('Failed to set insufficientBal or resetApproval', error);
-          insufficientBal = true;
-        }
+        resetApproval = await this.#shouldResetApproval(updatedQuoteRequest);
+        // Otherwise query the src token balance from the RPC provider
+        insufficientBal =
+          paramsToUpdate.insufficientBal ??
+          (await this.#hasInsufficientBalance(updatedQuoteRequest));
       }
 
       // Set refresh rate based on the source chain before starting polling
@@ -475,48 +470,61 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     });
   };
 
-  readonly #hasSufficientBalance = async (
+  readonly #hasInsufficientBalance = async (
     quoteRequest: GenericQuoteRequest,
   ) => {
-    const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
-    const provider = this.#getNetworkClientByChainId(srcChainIdInHex)?.provider;
-    const normalizedSrcTokenAddress = formatAddressToCaipReference(
-      quoteRequest.srcTokenAddress,
-    );
+    try {
+      const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
+      const provider =
+        this.#getNetworkClientByChainId(srcChainIdInHex)?.provider;
+      const normalizedSrcTokenAddress = formatAddressToCaipReference(
+        quoteRequest.srcTokenAddress,
+      );
 
-    return (
-      provider &&
-      normalizedSrcTokenAddress &&
-      quoteRequest.srcTokenAmount &&
-      srcChainIdInHex &&
-      (await hasSufficientBalance(
-        provider,
-        quoteRequest.walletAddress,
-        normalizedSrcTokenAddress,
-        quoteRequest.srcTokenAmount,
-        srcChainIdInHex,
-      ))
-    );
+      return !(
+        provider &&
+        normalizedSrcTokenAddress &&
+        quoteRequest.srcTokenAmount &&
+        srcChainIdInHex &&
+        (await hasSufficientBalance(
+          provider,
+          quoteRequest.walletAddress,
+          normalizedSrcTokenAddress,
+          quoteRequest.srcTokenAmount,
+          srcChainIdInHex,
+        ))
+      );
+    } catch (error) {
+      console.warn('Failed to set insufficientBal', error);
+      // Fall back to true so the backend returns quotes
+      return true;
+    }
   };
 
   readonly #shouldResetApproval = async (quoteRequest: GenericQuoteRequest) => {
     if (isNonEvmChainId(quoteRequest.srcChainId)) {
       return false;
     }
-    const normalizedSrcTokenAddress = formatAddressToCaipReference(
-      quoteRequest.srcTokenAddress,
-    );
-    if (isEthUsdt(quoteRequest.srcChainId, normalizedSrcTokenAddress)) {
-      const allowance = BigNumber.from(
-        await this.#getUSDTMainnetAllowance(
-          quoteRequest.walletAddress,
-          normalizedSrcTokenAddress,
-          quoteRequest.destChainId,
-        ),
+    try {
+      const normalizedSrcTokenAddress = formatAddressToCaipReference(
+        quoteRequest.srcTokenAddress,
       );
-      return allowance.lt(quoteRequest.srcTokenAmount) && allowance.gt(0);
+      if (isEthUsdt(quoteRequest.srcChainId, normalizedSrcTokenAddress)) {
+        const allowance = BigNumber.from(
+          await this.#getUSDTMainnetAllowance(
+            quoteRequest.walletAddress,
+            normalizedSrcTokenAddress,
+            quoteRequest.destChainId,
+          ),
+        );
+        return allowance.lt(quoteRequest.srcTokenAmount) && allowance.gt(0);
+      }
+      return false;
+    } catch (error) {
+      console.warn('Failed to set resetApproval', error);
+      // Fall back to true so the backend returns quotes
+      return true;
     }
-    return false;
   };
 
   stopPollingForQuotes = (reason?: AbortReason) => {
