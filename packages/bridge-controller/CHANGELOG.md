@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Handle edge case in which the user has insufficient USDT allowance on mainnet ([#7228](https://github.com/MetaMask/core/pull/7228))
+- Handle edge case in which approvals fail if an EVM account has an insufficient non-zero USDT allowance on mainnet ([#7228](https://github.com/MetaMask/core/pull/7228))
   - Set quoteRequest `resetApproval` parameter by calculating the wallet's USDT allowance on mainnet for the swap or bridge spender
   - When a valid quote is received, append the `resetApproval` trade data to set the wallet's USDT allowance to `0`
   - Include the `resetApproval` tx in network fee calculations
