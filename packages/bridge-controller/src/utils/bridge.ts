@@ -14,6 +14,7 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
+  METASWAP_ETHEREUM_ADDRESS,
 } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
 import {
@@ -29,6 +30,27 @@ import type {
   TxData,
 } from '../types';
 import { ChainId } from '../types';
+
+/**
+ * Checks whether the transaction is a cross-chain transaction by comparing the source and destination chainIds
+ *
+ * @param srcChainId - The source chainId
+ * @param destChainId - The destination chainId
+ * @returns Whether the transaction is a cross-chain transaction
+ */
+export const isCrossChain = (
+  srcChainId: GenericQuoteRequest['srcChainId'],
+  destChainId?: GenericQuoteRequest['destChainId'],
+) => {
+  try {
+    if (!destChainId) {
+      return false;
+    }
+    return formatChainIdToCaip(srcChainId) !== formatChainIdToCaip(destChainId);
+  } catch {
+    return false;
+  }
+};
 
 export const getDefaultBridgeControllerState = (): BridgeControllerState => {
   return DEFAULT_BRIDGE_CONTROLLER_STATE;
@@ -88,13 +110,19 @@ export const getNativeAssetForChainId = (
 /**
  * A function to return the txParam data for setting allowance to 0 for USDT on Ethereum
  *
+ * @param destChainId - The destination chain ID
  * @returns The txParam data that will reset allowance to 0, combine it with the approval tx params received from Bridge API
  */
-export const getEthUsdtResetData = () => {
+export const getEthUsdtResetData = (
+  destChainId?: GenericQuoteRequest['destChainId'],
+) => {
+  const spenderAddress = isCrossChain(CHAIN_IDS.MAINNET, destChainId)
+    ? METABRIDGE_ETHEREUM_ADDRESS
+    : METASWAP_ETHEREUM_ADDRESS;
   const UsdtContractInterface = new Contract(ETH_USDT_ADDRESS, abiERC20)
     .interface;
   const data = UsdtContractInterface.encodeFunctionData('approve', [
-    METABRIDGE_ETHEREUM_ADDRESS,
+    spenderAddress,
     '0',
   ]);
 
@@ -220,25 +248,4 @@ export const isEvmQuoteResponse = (
   quoteResponse: QuoteResponse,
 ): quoteResponse is QuoteResponse<TxData, TxData> => {
   return !isNonEvmChainId(quoteResponse.quote.srcChainId);
-};
-
-/**
- * Checks whether the transaction is a cross-chain transaction by comparing the source and destination chainIds
- *
- * @param srcChainId - The source chainId
- * @param destChainId - The destination chainId
- * @returns Whether the transaction is a cross-chain transaction
- */
-export const isCrossChain = (
-  srcChainId: GenericQuoteRequest['srcChainId'],
-  destChainId?: GenericQuoteRequest['destChainId'],
-) => {
-  try {
-    if (!destChainId) {
-      return false;
-    }
-    return formatChainIdToCaip(srcChainId) !== formatChainIdToCaip(destChainId);
-  } catch {
-    return false;
-  }
 };

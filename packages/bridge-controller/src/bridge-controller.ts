@@ -14,8 +14,8 @@ import {
   BRIDGE_CONTROLLER_NAME,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
-  METABRIDGE_CHAIN_TO_ADDRESS_MAP,
-  METASWAP_CHAIN_TO_ADDRESS_MAP,
+  METABRIDGE_ETHEREUM_ADDRESS,
+  METASWAP_ETHEREUM_ADDRESS,
   REFRESH_INTERVAL_MS,
 } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
@@ -1026,8 +1026,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const ethersProvider = new Web3Provider(provider);
     const contract = new Contract(contractAddress, abiERC20, ethersProvider);
     const spenderAddress = isCrossChain(chainId, destinationChainId)
-      ? METABRIDGE_CHAIN_TO_ADDRESS_MAP[chainId]
-      : METASWAP_CHAIN_TO_ADDRESS_MAP[chainId];
+      ? METABRIDGE_ETHEREUM_ADDRESS
+      : METASWAP_ETHEREUM_ADDRESS;
     const allowance: BigNumber = await contract.allowance(
       this.state.quoteRequest.walletAddress,
       spenderAddress,

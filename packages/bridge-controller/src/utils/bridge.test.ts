@@ -18,6 +18,7 @@ import {
 import {
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
+  METASWAP_ETHEREUM_ADDRESS,
 } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
@@ -62,11 +63,22 @@ describe('Bridge utils', () => {
   });
 
   describe('getEthUsdtResetData', () => {
-    it('returns correct encoded function data for USDT approval reset', () => {
+    it('returns correct encoded function data for USDT bridge approval reset', () => {
       const expectedInterface = new Contract(ETH_USDT_ADDRESS, abiERC20)
         .interface;
       const expectedData = expectedInterface.encodeFunctionData('approve', [
         METABRIDGE_ETHEREUM_ADDRESS,
+        '0',
+      ]);
+
+      expect(getEthUsdtResetData(CHAIN_IDS.POLYGON)).toBe(expectedData);
+    });
+
+    it('returns correct encoded function data for USDT swap approval reset', () => {
+      const expectedInterface = new Contract(ETH_USDT_ADDRESS, abiERC20)
+        .interface;
+      const expectedData = expectedInterface.encodeFunctionData('approve', [
+        METASWAP_ETHEREUM_ADDRESS,
         '0',
       ]);
 
