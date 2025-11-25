@@ -188,6 +188,7 @@ describe('fetch', () => {
         mockBridgeQuotesNativeErc20.map((quote) => ({
           ...quote,
           featureId: undefined,
+          resetApproval: false,
         })),
       );
       expect(result.validationFailures).toStrictEqual([]);
@@ -246,6 +247,7 @@ describe('fetch', () => {
         mockBridgeQuotesErc20Erc20.map((quote) => ({
           ...quote,
           featureId: undefined,
+          resetApproval: false,
         })),
       );
       expect(result.validationFailures).toStrictEqual([
@@ -322,6 +324,7 @@ describe('fetch', () => {
         mockBridgeQuotesErc20Erc20.map((quote) => ({
           ...quote,
           featureId: undefined,
+          resetApproval: false,
         })),
       );
       expect(result.validationFailures).toMatchInlineSnapshot(`
@@ -393,6 +396,7 @@ describe('fetch', () => {
         mockBridgeQuotesNativeErc20.map((quote) => ({
           ...quote,
           featureId: FeatureId.PERPS,
+          resetApproval: false,
         })),
       );
       expect(result.validationFailures).toStrictEqual([]);

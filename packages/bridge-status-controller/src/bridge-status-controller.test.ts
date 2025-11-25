@@ -2616,7 +2616,6 @@ describe('BridgeStatusController', () => {
       mockIsEthUsdt.mockReturnValueOnce(true);
 
       // USDT approval reset
-      mockMessengerCall.mockReturnValueOnce('1');
       setupApprovalMocks(mockMessengerCall);
 
       // Approval tx
@@ -2629,7 +2628,7 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
       const result = await controller.submitTx(
         (mockEvmQuoteResponse.trade as TxData).from,
-        mockEvmQuoteResponse,
+        { ...mockEvmQuoteResponse, resetApproval: true },
         false,
       );
       controller.stopAllPolling();
@@ -2644,10 +2643,6 @@ describe('BridgeStatusController', () => {
 
     it('should handle smart transactions with USDT reset', async () => {
       setupEventTrackingMocks(mockMessengerCall);
-      // USDT approval reset
-      mockIsEthUsdt.mockReturnValueOnce(true);
-      mockMessengerCall.mockReturnValueOnce('1');
-
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
       mockMessengerCall.mockReturnValueOnce({
@@ -2674,7 +2669,7 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
       const result = await controller.submitTx(
         (mockEvmQuoteResponse.trade as TxData).from,
-        mockEvmQuoteResponse,
+        { ...mockEvmQuoteResponse, resetApproval: true },
         true,
       );
       controller.stopAllPolling();
@@ -2688,7 +2683,7 @@ describe('BridgeStatusController', () => {
       expect(estimateGasFeeFn).toHaveBeenCalledTimes(3);
       expect(addTransactionFn).not.toHaveBeenCalled();
       expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(10);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(9);
     });
 
     it('should throw an error if approval tx fails', async () => {

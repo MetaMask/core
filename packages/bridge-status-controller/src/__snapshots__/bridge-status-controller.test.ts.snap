@@ -2106,11 +2106,6 @@ Array [
     },
   ],
   Array [
-    "BridgeController:getBridgeERC20Allowance",
-    "0x0000000000000000000000000000000000000000",
-    "0xa4b1",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],

@@ -298,7 +298,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           )?.configuration;
 
       let insufficientBal: boolean | undefined;
-      let resetApproval: boolean | undefined;
+      let resetApproval: boolean  = Boolean(paramsToUpdate.resetApproval);
       if (isSrcChainNonEVM) {
         // If the source chain is not an EVM network, use value from params
         insufficientBal = paramsToUpdate.insufficientBal;
@@ -311,12 +311,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         this.update((state) => {
           state.quotesLoadingStatus = RequestStatus.LOADING;
         });
+        resetApproval = await this.#shouldResetApproval(updatedQuoteRequest);
         try {
           // Otherwise query the src token balance from the RPC provider
           insufficientBal =
             paramsToUpdate.insufficientBal ??
             !(await this.#hasSufficientBalance(updatedQuoteRequest));
-          resetApproval = await this.#shouldResetApproval(updatedQuoteRequest);
         } catch (error) {
           console.warn('Failed to fetch balance', error);
           insufficientBal = true;
@@ -500,20 +500,28 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   readonly #shouldResetApproval = async (quoteRequest: GenericQuoteRequest) => {
-    const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
-    const normalizedSrcTokenAddress = formatAddressToCaipReference(
-      quoteRequest.srcTokenAddress,
-    );
-    if (isEthUsdt(srcChainIdInHex, normalizedSrcTokenAddress)) {
-      const allowance = BigNumber.from(
-        await this.#getUSDTMainnetAllowance(
-          normalizedSrcTokenAddress,
-          quoteRequest.destChainId,
-        ),
+    try {
+      if (isNonEvmChainId(quoteRequest.srcChainId)) {
+        return false;
+      }
+      const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
+      const normalizedSrcTokenAddress = formatAddressToCaipReference(
+        quoteRequest.srcTokenAddress,
       );
-      return allowance.lt(quoteRequest.srcTokenAmount) && allowance.gt(0);
+      if (isEthUsdt(srcChainIdInHex, normalizedSrcTokenAddress)) {
+        const allowance = BigNumber.from(
+          await this.#getUSDTMainnetAllowance(
+            normalizedSrcTokenAddress,
+            quoteRequest.destChainId,
+          ),
+        );
+        return allowance.lt(quoteRequest.srcTokenAmount) && allowance.gt(0);
+      }
+      return false;
+    } catch (error) {
+      console.warn('Failed to check if approval is needed', error);
+      return false;
     }
-    return false;
   };
 
   stopPollingForQuotes = (reason?: AbortReason) => {

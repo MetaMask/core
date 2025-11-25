@@ -40,6 +40,7 @@ const quoteRequest = {
   slippage: 0.5,
   walletAddress: '0x30E8ccaD5A980BDF30447f8c2C48e70989D9d294',
   destWalletAddress: 'SolanaWalletAddres1234',
+  resetApproval: false,
 };
 const metricsContext = {
   token_symbol_source: 'ETH',
@@ -153,6 +154,7 @@ describe('BridgeController SSE', function () {
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: false,
+        resetApproval: false,
       },
       context: metricsContext,
     });
@@ -172,6 +174,7 @@ describe('BridgeController SSE', function () {
       {
         ...quoteRequest,
         insufficientBal: false,
+        resetApproval: false,
       },
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
@@ -195,10 +198,11 @@ describe('BridgeController SSE', function () {
     expect(bridgeController.state).toStrictEqual({
       ...expectedState,
       quotesInitialLoadTime: 6000,
-      quoteRequest: { ...quoteRequest, insufficientBal: false },
+      quoteRequest: { ...quoteRequest, insufficientBal: false, resetApproval: false },
       quotes: mockBridgeQuotesNativeErc20.map((quote) => ({
         ...quote,
         l1GasFeesInHexWei: '0x1',
+        resetApproval: false,
       })),
       quotesRefreshCount: 1,
       quotesLoadingStatus: 1,
@@ -236,6 +240,7 @@ describe('BridgeController SSE', function () {
       mockBridgeQuotesNativeErc20.map((quote) => ({
         ...quote,
         l1GasFeesInHexWei: '0x1',
+        resetApproval: false,
       })),
     );
     const t1 = bridgeController.state.quotesLastFetched;
@@ -249,8 +254,8 @@ describe('BridgeController SSE', function () {
     const expectedState = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
       quotesInitialLoadTime: FIRST_FETCH_DELAY,
-      quoteRequest: { ...quoteRequest, insufficientBal: false },
-      quotes: [mockBridgeQuotesNativeErc20Eth[0]],
+      quoteRequest: { ...quoteRequest, insufficientBal: false, resetApproval: false },
+      quotes: [mockBridgeQuotesNativeErc20Eth[0]].map(quote => ({...quote, resetApproval: false})),
       quotesLoadingStatus: RequestStatus.LOADING,
       quotesRefreshCount: 1,
       assetExchangeRates,
@@ -273,7 +278,7 @@ describe('BridgeController SSE', function () {
     await advanceToNthTimerThenFlush();
     expect(bridgeController.state).toStrictEqual({
       ...expectedState,
-      quotes: mockBridgeQuotesNativeErc20Eth,
+      quotes: mockBridgeQuotesNativeErc20Eth.map(quote => ({...quote, resetApproval: false})),
       quotesLastFetched: t2,
       quotesRefreshCount: 2,
       quotesLoadingStatus: RequestStatus.FETCHED,
@@ -324,7 +329,7 @@ describe('BridgeController SSE', function () {
       FIRST_FETCH_DELAY,
     );
     expect(bridgeController.state.quotes).toStrictEqual(
-      mockBridgeQuotesNativeErc20Eth,
+      mockBridgeQuotesNativeErc20Eth.map(quote => ({...quote, resetApproval: false})),
     );
     const t2 = bridgeController.state.quotesLastFetched;
 
@@ -334,7 +339,7 @@ describe('BridgeController SSE', function () {
     expect(bridgeController.state).toStrictEqual({
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
       quotesInitialLoadTime: FIRST_FETCH_DELAY,
-      quoteRequest: { ...quoteRequest, insufficientBal: false },
+      quoteRequest: { ...quoteRequest, insufficientBal: false, resetApproval: false },
       quotes: [],
       quotesLoadingStatus: 2,
       quoteFetchError: 'Network error',
@@ -445,6 +450,7 @@ describe('BridgeController SSE', function () {
         ...quoteRequest,
         srcTokenAmount: '10',
         insufficientBal: true,
+        resetApproval: false,
       },
       quotesLastFetched: Date.now(),
       quotesLoadingStatus: RequestStatus.LOADING,
@@ -455,13 +461,14 @@ describe('BridgeController SSE', function () {
     const expectedStateAfterFirstQuote = {
       ...expectedState,
       quotesInitialLoadTime: THIRD_FETCH_DELAY,
-      quotes: [{ ...mockBridgeQuotesNativeErc20[0], l1GasFeesInHexWei: '0x1' }],
+      quotes: [{ ...mockBridgeQuotesNativeErc20[0], l1GasFeesInHexWei: '0x1' , resetApproval: false }],
       quotesRefreshCount: 0,
       quotesLoadingStatus: RequestStatus.LOADING,
       quoteRequest: {
         ...quoteRequest,
         srcTokenAmount: '10',
         insufficientBal: true,
+        resetApproval: false,
       },
       quotesLastFetched: t1,
     };
@@ -486,6 +493,7 @@ describe('BridgeController SSE', function () {
       ].map((quote) => ({
         ...quote,
         l1GasFeesInHexWei: '0x1',
+        resetApproval: false,
       })),
     });
     expect(
@@ -602,6 +610,7 @@ describe('BridgeController SSE', function () {
         (quote) => ({
           ...quote,
           l1GasFeesInHexWei: '0x1',
+          resetApproval: false,
         }),
       ),
     );
@@ -623,8 +632,9 @@ describe('BridgeController SSE', function () {
         ...quoteRequest,
         srcTokenAmount: '10',
         insufficientBal: false,
+        resetApproval: false,
       },
-      quotes: [mockBridgeQuotesNativeErc20Eth[0]],
+      quotes: [mockBridgeQuotesNativeErc20Eth[0]].map(quote => ({...quote, resetApproval: false})),
       quotesRefreshCount: 1,
       quoteFetchError: null,
       quotesLoadingStatus: RequestStatus.LOADING,
@@ -718,6 +728,7 @@ describe('BridgeController SSE', function () {
       updatedQuoteRequest: {
         ...quoteRequest,
         insufficientBal: false,
+        resetApproval: false,
       },
       context: metricsContext,
     });
@@ -737,6 +748,7 @@ describe('BridgeController SSE', function () {
       {
         ...quoteRequest,
         insufficientBal: false,
+        resetApproval: false,
       },
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
@@ -759,7 +771,7 @@ describe('BridgeController SSE', function () {
     await flushPromises();
     expect(bridgeController.state).toStrictEqual({
       ...expectedState,
-      quoteRequest: { ...quoteRequest, insufficientBal: false },
+      quoteRequest: { ...quoteRequest, insufficientBal: false, resetApproval: false },
       quotesRefreshCount: 1,
       quotesLoadingStatus: 2,
       quoteFetchError: 'Bridge-api error: timeout from server',
