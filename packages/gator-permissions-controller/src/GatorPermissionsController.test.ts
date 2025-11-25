@@ -908,7 +908,7 @@ describe('GatorPermissionsController', () => {
       expect(controller.pendingRevocations).toStrictEqual([]);
     });
 
-    it('should cleanup without submitting revocation when transaction fails', async () => {
+    it('should cleanup and refresh permissions without submitting revocation when transaction fails', async () => {
       const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
@@ -954,7 +954,7 @@ describe('GatorPermissionsController', () => {
       expect(controller.pendingRevocations).toStrictEqual([]);
     });
 
-    it('should cleanup without submitting revocation when transaction is dropped', async () => {
+    it('should cleanup and refresh permissions without submitting revocation when transaction is dropped', async () => {
       const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
