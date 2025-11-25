@@ -509,6 +509,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     if (isEthUsdt(quoteRequest.srcChainId, normalizedSrcTokenAddress)) {
       const allowance = BigNumber.from(
         await this.#getUSDTMainnetAllowance(
+          quoteRequest.walletAddress,
           normalizedSrcTokenAddress,
           quoteRequest.destChainId,
         ),
@@ -999,11 +1000,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   /**
    *
+   * @param walletAddress - The address of the account to get the allowance for
    * @param contractAddress - The address of the ERC20 token contract on mainnet
    * @param destinationChainId - The chain ID of the destination network
    * @returns The atomic allowance of the ERC20 token contract
    */
   readonly #getUSDTMainnetAllowance = async (
+    walletAddress: string,
     contractAddress: string,
     destinationChainId: GenericQuoteRequest['destChainId'],
   ): Promise<string> => {
@@ -1019,7 +1022,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       ? METABRIDGE_ETHEREUM_ADDRESS
       : METASWAP_ETHEREUM_ADDRESS;
     const allowance: BigNumber = await contract.allowance(
-      this.state.quoteRequest.walletAddress,
+      walletAddress,
       spenderAddress,
     );
     return allowance.toString();
