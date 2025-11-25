@@ -320,7 +320,7 @@ describe('UserProfileController', () => {
 
           expect(mockUpdateProfile).toHaveBeenCalledTimes(1);
           expect(mockUpdateProfile).toHaveBeenCalledWith({
-            metametricsId: await getMetaMetricsId(),
+            metametricsId: getMetaMetricsId(),
             entropySourceId: 'id1',
             accounts: [{ address: 'eip155:1:0xAccount1' }],
           });
@@ -343,13 +343,11 @@ describe('UserProfileController', () => {
           options: { state: { syncQueue: accounts } },
         },
         async ({ controller, getMetaMetricsId, mockUpdateProfile }) => {
-          const metametricsId = await getMetaMetricsId();
-
           await controller._executePoll();
 
           expect(mockUpdateProfile).toHaveBeenCalledTimes(3);
           expect(mockUpdateProfile).toHaveBeenNthCalledWith(1, {
-            metametricsId,
+            metametricsId: getMetaMetricsId(),
             entropySourceId: 'id1',
             accounts: [
               { address: 'eip155:1:0xAccount1' },
@@ -357,12 +355,12 @@ describe('UserProfileController', () => {
             ],
           });
           expect(mockUpdateProfile).toHaveBeenNthCalledWith(2, {
-            metametricsId,
+            metametricsId: getMetaMetricsId(),
             entropySourceId: 'id2',
             accounts: [{ address: 'eip155:1:0xAccount3' }],
           });
           expect(mockUpdateProfile).toHaveBeenNthCalledWith(3, {
-            metametricsId,
+            metametricsId: getMetaMetricsId(),
             entropySourceId: null,
             accounts: [{ address: 'eip155:1:0xAccount4' }],
           });
@@ -455,7 +453,7 @@ type WithControllerCallback<ReturnValue> = (payload: {
   rootMessenger: RootMessenger;
   messenger: UserProfileControllerMessenger;
   assertUserOptedIn: jest.Mock<boolean, []>;
-  getMetaMetricsId: jest.Mock<Promise<string>, []>;
+  getMetaMetricsId: jest.Mock<string, []>;
   mockUpdateProfile: jest.Mock<Promise<void>, [UserProfileUpdateRequest]>;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -526,7 +524,7 @@ async function withController<ReturnValue>(
     args.length === 2 ? args : [{}, args[0]];
   const mockUpdateProfile = jest.fn();
   const mockAssertUserOptedIn = jest.fn().mockReturnValue(true);
-  const mockGetMetaMetricsId = jest.fn().mockResolvedValue('test-metrics-id');
+  const mockGetMetaMetricsId = jest.fn().mockReturnValue('test-metrics-id');
 
   const rootMessenger = getRootMessenger();
   rootMessenger.registerActionHandler(

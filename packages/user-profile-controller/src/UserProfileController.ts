@@ -151,7 +151,7 @@ export class UserProfileController extends StaticIntervalPollingController()<
 
   readonly #assertUserOptedIn: () => boolean;
 
-  readonly #getMetaMetricsId: () => Promise<string>;
+  readonly #getMetaMetricsId: () => string;
 
   /**
    * Constructs a new {@link UserProfileController}.
@@ -179,7 +179,7 @@ export class UserProfileController extends StaticIntervalPollingController()<
     state?: Partial<UserProfileControllerState>;
     interval?: number;
     assertUserOptedIn: () => boolean;
-    getMetaMetricsId: () => Promise<string>;
+    getMetaMetricsId: () => string;
   }) {
     super({
       messenger,
@@ -234,7 +234,7 @@ export class UserProfileController extends StaticIntervalPollingController()<
         this.state.syncQueue,
       )) {
         await this.messenger.call('UserProfileService:updateProfile', {
-          metametricsId: await this.#getMetaMetricsId(),
+          metametricsId: this.#getMetaMetricsId(),
           entropySourceId: entropySourceId === 'null' ? null : entropySourceId,
           accounts: accounts.map((account) => ({
             address: accountToCaipAccountId(account),
