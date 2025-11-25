@@ -533,7 +533,7 @@ describe('BridgeController', function () {
     );
 
     // After first fetch
-    jest.advanceTimersByTime(10000);
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
@@ -551,7 +551,9 @@ describe('BridgeController', function () {
 
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
     // After 2nd fetch
-    jest.advanceTimersByTime(50000);
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
@@ -575,12 +577,18 @@ describe('BridgeController', function () {
     expect(secondFetchTime).toBeGreaterThan(firstFetchTime!);
 
     // After 3nd fetch throws an error
-    jest.advanceTimersByTime(50000);
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
-        quoteRequest: { ...quoteRequest, insufficientBal: false },
+        quoteRequest: {
+          ...quoteRequest,
+          insufficientBal: false,
+          resetApproval: false,
+        },
         quotes: [],
         quotesLoadingStatus: 2,
         quoteFetchError: 'Network error',
@@ -594,7 +602,7 @@ describe('BridgeController', function () {
     const thirdFetchTime = bridgeController.state.quotesLastFetched;
 
     // Incoming request update aborts current polling
-    jest.advanceTimersByTime(10000);
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     await bridgeController.updateBridgeQuoteRequestParams(
       { ...quoteRequest, srcTokenAmount: '10', insufficientBal: false },
@@ -609,14 +617,16 @@ describe('BridgeController', function () {
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
 
     expect(bridgeController.state).toMatchSnapshot();
-    // expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+    expect(consoleLogSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy).toHaveBeenCalledWith(
       'Failed to fetch bridge quotes',
       new Error('Network error'),
     );
 
     // Next fetch succeeds
-    jest.advanceTimersByTime(15000);
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(4);
     const { quotesLastFetched, quotes, ...stateWithoutTimestamp } =
@@ -779,7 +789,9 @@ describe('BridgeController', function () {
     );
 
     // Advance timers and check loading state
-    jest.advanceTimersByTime(200);
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
     expect(bridgeController.state).toStrictEqual(
@@ -791,9 +803,9 @@ describe('BridgeController', function () {
     );
 
     // Advance timers and check final state
-    jest.advanceTimersByTime(2600);
+    jest.advanceTimersToNextTimer();
     await flushPromises();
-    jest.advanceTimersByTime(100);
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
@@ -803,11 +815,15 @@ describe('BridgeController', function () {
           nonEvmFeesInNative: '0.000000014',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
-        quoteRequest: { ...quoteParams, resetApproval: false },
+        quoteRequest: {
+          ...quoteParams,
+          resetApproval: false,
+          insufficientBal: undefined,
+        },
         quoteFetchError: null,
         assetExchangeRates: {},
         quotesRefreshCount: 1,
-        quotesInitialLoadTime: 2900,
+        quotesInitialLoadTime: 2100,
         quotesLastFetched: expect.any(Number),
       }),
     );
@@ -854,7 +870,13 @@ describe('BridgeController', function () {
       quoteParams,
       metricsContext,
     );
-    jest.advanceTimersByTime(3510);
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
     expect(bridgeController.state).toStrictEqual(
@@ -894,7 +916,13 @@ describe('BridgeController', function () {
     );
 
     // Check states during failure scenario
-    jest.advanceTimersByTime(2210);
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(4);
     expect(bridgeController.state).toStrictEqual(
@@ -905,11 +933,16 @@ describe('BridgeController', function () {
           nonEvmFeesInNative: '0.000000014',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
-        quoteRequest: { ...quoteParams, srcTokenAmount: '11111' },
+        quoteRequest: {
+          ...quoteParams,
+          srcTokenAmount: '11111',
+          insufficientBal: undefined,
+          resetApproval: false,
+        },
         quoteFetchError: null,
         assetExchangeRates: {},
-        quotesRefreshCount: expect.any(Number),
-        quotesInitialLoadTime: expect.any(Number),
+        quotesRefreshCount: 1,
+        quotesInitialLoadTime: 2100,
         quotesLastFetched: expect.any(Number),
       }),
     );
@@ -1582,9 +1615,10 @@ describe('BridgeController', function () {
     );
 
     // Advance timers to trigger fetch
-    jest.advanceTimersByTime(1000);
+    jest.advanceTimersToNextTimer();
     await flushPromises();
-
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
     // Verify state wasn't updated due to abort
     expect(bridgeController.state.quoteFetchError).toBe('Other error');
     expect(bridgeController.state.quotesLoadingStatus).toBe(
@@ -1592,10 +1626,8 @@ describe('BridgeController', function () {
     );
     expect(bridgeController.state.quotes).toStrictEqual([]);
 
-    // Verify state wasn't updated due to reset
+    // Verify state is reset
     bridgeController.resetState();
-    jest.advanceTimersByTime(1000);
-    await flushPromises();
     expect(bridgeController.state.quoteFetchError).toBeNull();
     expect(bridgeController.state.quotesLoadingStatus).toBeNull();
     expect(bridgeController.state.quotes).toStrictEqual([]);
@@ -1605,6 +1637,9 @@ describe('BridgeController', function () {
       quoteParams,
       metricsContext,
     );
+
+    jest.advanceTimersToNextTimer();
+    await flushPromises();
     jest.advanceTimersByTime(10000);
     await flushPromises();
     const { quotes, quotesLastFetched, ...stateWithoutQuotes } =
@@ -2061,6 +2096,10 @@ describe('BridgeController', function () {
       },
     })) as unknown as QuoteResponse[];
 
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(jest.fn());
+
     messengerMock.call.mockImplementation(
       (
         ...args: Parameters<BridgeControllerMessenger['call']>
@@ -2141,6 +2180,15 @@ describe('BridgeController', function () {
     expect(quotes).toHaveLength(2); // mockBridgeQuotesSolErc20 has 2 quotes
     expect(quotes[0].nonEvmFeesInNative).toBeUndefined();
     expect(quotes[1].nonEvmFeesInNative).toBeUndefined();
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Failed to compute non-EVM fees for quote 5cb5a527-d4e4-4b5e-b753-136afc3986d3:',
+      new Error('Failed to compute fees'),
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Failed to compute non-EVM fees for quote 12c94d29-4b5c-4aee-92de-76eee4172d3d:',
+      new Error('Failed to compute fees'),
+    );
   });
 
   describe('trackUnifiedSwapBridgeEvent client-side calls', () => {
