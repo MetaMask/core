@@ -15,10 +15,10 @@ import type {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import { isCaipNamespace, type CaipAccountId } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
 import type { UserProfileServiceMethodActions } from '.';
+import type { AccountWithScopes } from './UserProfileService';
 
 /**
  * The name of the {@link UserProfileController}, used to namespace the
@@ -26,14 +26,6 @@ import type { UserProfileServiceMethodActions } from '.';
  * when composed with other controllers.
  */
 export const controllerName = 'UserProfileController';
-
-/**
- * An account address along with its associated scopes.
- */
-export type AccountWithScopes = {
-  address: string;
-  scopes: string[];
-};
 
 /**
  * Describes the shape of the state object for {@link UserProfileController}.
@@ -236,9 +228,7 @@ export class UserProfileController extends StaticIntervalPollingController()<
         await this.messenger.call('UserProfileService:updateProfile', {
           metametricsId: this.#getMetaMetricsId(),
           entropySourceId: entropySourceId === 'null' ? null : entropySourceId,
-          accounts: accounts.map((account) => ({
-            address: accountToCaipAccountId(account),
-          })),
+          accounts,
         });
         this.update((state) => {
           delete state.syncQueue[entropySourceId];
@@ -361,17 +351,4 @@ function groupAccountsByEntropySourceId(
     },
     {},
   );
-}
-
-/**
- * Converts an InternalAccount to a CaipAccountId.
- *
- * @param account - The InternalAccount to convert.
- * @returns The corresponding CaipAccountId.
- */
-function accountToCaipAccountId(account: AccountWithScopes): CaipAccountId {
-  const [scope] = account.scopes;
-  const [namespace, reference] = scope.split(':');
-  isCaipNamespace(namespace);
-  return `${namespace}:${reference}:${account.address}`;
 }
