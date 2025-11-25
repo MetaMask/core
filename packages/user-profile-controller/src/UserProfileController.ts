@@ -27,6 +27,9 @@ import type { UserProfileServiceMethodActions } from '.';
  */
 export const controllerName = 'UserProfileController';
 
+/**
+ * An account address along with its associated scopes.
+ */
 export type AccountWithScopes = {
   address: string;
   scopes: string[];
@@ -196,7 +199,22 @@ export class UserProfileController extends StaticIntervalPollingController()<
       MESSENGER_EXPOSED_METHODS,
     );
 
-    this.#registerSyncTriggers();
+    this.messenger.subscribe('KeyringController:unlock', () => {
+      this.startPolling(null);
+      this.#queueFirstSyncIfNeeded().catch(console.error);
+    });
+
+    this.messenger.subscribe('KeyringController:lock', () => {
+      this.stopAllPolling();
+    });
+
+    this.messenger.subscribe('AccountsController:accountAdded', (account) => {
+      this.#addAccountToQueue(account).catch(console.error);
+    });
+
+    this.messenger.subscribe('AccountsController:accountRemoved', (account) => {
+      this.#removeAccountFromQueue(account).catch(console.error);
+    });
 
     this.setIntervalLength(interval);
   }
@@ -226,32 +244,6 @@ export class UserProfileController extends StaticIntervalPollingController()<
           delete state.syncQueue[entropySourceId];
         });
       }
-    });
-  }
-
-  /**
-   * Register triggers to initiate user profile sync.
-   *
-   * These triggers guarantee that the user profile is synced at least
-   * once per user after the first wallet unlock, and recurringly
-   * whenever a new account is added.
-   */
-  #registerSyncTriggers() {
-    this.messenger.subscribe('KeyringController:unlock', () => {
-      this.startPolling(null);
-      this.#queueFirstSyncIfNeeded().catch(console.error);
-    });
-
-    this.messenger.subscribe('KeyringController:lock', () => {
-      this.stopAllPolling();
-    });
-
-    this.messenger.subscribe('AccountsController:accountAdded', (account) => {
-      this.#addAccountToQueue(account).catch(console.error);
-    });
-
-    this.messenger.subscribe('AccountsController:accountRemoved', (account) => {
-      this.#removeAccountFromQueue(account).catch(console.error);
     });
   }
 
