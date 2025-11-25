@@ -22,4 +22,3 @@ export type {
 
 // Export service name and storage key prefix constants
 export { SERVICE_NAME, STORAGE_KEY_PREFIX } from './types';
-
