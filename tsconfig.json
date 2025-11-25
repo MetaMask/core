@@ -65,7 +65,7 @@
     { "path": "./packages/token-search-discovery-controller" },
     { "path": "./packages/transaction-controller" },
     { "path": "./packages/transaction-pay-controller" },
-    { "path": "./packages/user-operation-controller" },
+    { "path": "./packages/user-operation-controller" }
   ],
   "files": [],
   "include": ["./types", "./scripts"]
