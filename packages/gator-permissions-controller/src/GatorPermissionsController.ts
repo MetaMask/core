@@ -911,16 +911,20 @@ export default class GatorPermissionsController extends BaseController<
           permissionContext,
         });
 
-        this.submitRevocation({ permissionContext }).catch((error) => {
-          controllerLog(
-            'Failed to submit revocation after transaction confirmed',
-            {
-              txId,
-              permissionContext,
-              error,
-            },
-          );
-        });
+        this.submitRevocation({ permissionContext })
+          .then(() => {
+            return this.fetchAndUpdateGatorPermissions({ isRevoked: false });
+          })
+          .catch((error) => {
+            controllerLog(
+              'Failed to submit revocation after transaction confirmed',
+              {
+                txId,
+                permissionContext,
+                error,
+              },
+            );
+          });
 
         cleanup(transactionMeta.id);
       }
@@ -936,6 +940,14 @@ export default class GatorPermissionsController extends BaseController<
         });
 
         cleanup(payload.transactionMeta.id);
+
+        this.fetchAndUpdateGatorPermissions({ isRevoked: false }).catch((error) => {
+          controllerLog('Failed to refresh permissions after transaction failed', {
+            txId,
+            permissionContext,
+            error,
+          });
+        });
       }
     };
 
@@ -948,6 +960,14 @@ export default class GatorPermissionsController extends BaseController<
         });
 
         cleanup(payload.transactionMeta.id);
+
+        this.fetchAndUpdateGatorPermissions({ isRevoked: false }).catch((error) => {
+          controllerLog('Failed to refresh permissions after transaction dropped', {
+            txId,
+            permissionContext,
+            error,
+          });
+        });
       }
     };
 
