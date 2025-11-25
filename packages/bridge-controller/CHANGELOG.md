@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Port the following constants from `SwapsController` and export them:  `SWAPS_TESTNET_CHAIN_ID`, `SWAPS_CONTRACT_ADDRESSES`, `SWAPS_WRAPPED_TOKENS_ADDRESSES`, `ALLOWED_CONTRACT_ADDRESSES` ([#7233](https://github.com/MetaMask/core/pull/7233))
 - Port the following utils from `SwapsController` and export them: `isValidSwapsContractAddress`, `getSwapsContractAddress` ([#7233](https://github.com/MetaMask/core/pull/7233))
 
+### Fixed
+
+- Update `quotesLoadingStatus` to "LOADING" if a balance fetch is needed before fetching quotes ((https://github.com/MetaMask/core/pull/7227)[#7227])
+- Wait for async SSE message handlers before updating `quotesLoadingStatus` to prevent clients from displaying "No quotes" warnings ((https://github.com/MetaMask/core/pull/7227)[#7227])
+
 ## [63.0.0]
 
 ### Changed
