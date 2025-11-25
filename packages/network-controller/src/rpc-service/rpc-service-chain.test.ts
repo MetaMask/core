@@ -1279,7 +1279,7 @@ describe('RpcServiceChain', () => {
       });
     });
 
-    it('calls onDegraded again when the service chain becomes unavailable, and then after waiting, the failover service responds successfully but slowly', async () => {
+    it("calls onDegraded again when a service's underlying circuit breaks, and then after waiting, the service responds successfully but slowly", async () => {
       const endpointUrl = 'https://some.endpoint';
       nock(endpointUrl)
         .post('/', {
