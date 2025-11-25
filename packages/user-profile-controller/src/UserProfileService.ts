@@ -17,15 +17,20 @@ import { type UserProfileServiceMethodActions, Env, getEnvUrl } from '.';
 export const serviceName = 'UserProfileService';
 
 /**
+ * An account address along with its associated scopes.
+ */
+export type AccountWithScopes = {
+  address: string;
+  scopes: `${string}:${string}`[];
+};
+
+/**
  * The shape of the request object for updating the user profile.
  */
 export type UserProfileUpdateRequest = {
   metametricsId: string;
   entropySourceId?: string | null;
-  accounts: {
-    address: string;
-    scopes: `${string}:${string}`[];
-  }[];
+  accounts: AccountWithScopes[];
 };
 
 // === MESSENGER ===
