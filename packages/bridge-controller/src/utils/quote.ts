@@ -267,6 +267,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   // Estimated total gas fee, including refunded fees (medium)
   const { amount, valueInCurrency, usd } = calcTotalGasFee({
     approvalGasLimit: approval?.gasLimit,
+    resetApprovalGasLimit: resetApproval ? approval?.gasLimit : null,
     tradeGasLimit: trade?.gasLimit,
     l1GasFeesInHexWei,
     feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
@@ -282,6 +283,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     usd: usdMax,
   } = calcTotalGasFee({
     approvalGasLimit: approval?.gasLimit,
+    resetApprovalGasLimit: resetApproval ? approval?.gasLimit : null,
     tradeGasLimit: trade?.gasLimit,
     l1GasFeesInHexWei,
     feePerGasInDecGwei: maxFeePerGasInDecGwei,
