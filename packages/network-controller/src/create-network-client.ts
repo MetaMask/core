@@ -207,11 +207,11 @@ function createRpcServiceChain({
   const availableEndpointUrls: [string, ...string[]] = isRpcFailoverEnabled
     ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
     : [primaryEndpointUrl];
-  const buildRpcServiceConfiguration = (endpointUrl: string) => ({
+  const rpcServiceConfigurations = availableEndpointUrls.map((endpointUrl) => ({
     ...getRpcServiceOptions(endpointUrl),
     endpointUrl,
     logger,
-  });
+  }));
 
   const getError = (value: object) => {
     if ('error' in value) {
@@ -223,8 +223,8 @@ function createRpcServiceChain({
   };
 
   const rpcServiceChain = new RpcServiceChain([
-    buildRpcServiceConfiguration(availableEndpointUrls[0]),
-    ...availableEndpointUrls.slice(1).map(buildRpcServiceConfiguration),
+    rpcServiceConfigurations[0],
+    ...rpcServiceConfigurations.slice(1),
   ]);
 
   rpcServiceChain.onBreak(

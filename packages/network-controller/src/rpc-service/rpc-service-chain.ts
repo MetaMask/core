@@ -37,8 +37,6 @@ const STATUSES = {
  */
 type Status = (typeof STATUSES)[keyof typeof STATUSES];
 
-type RpcServiceConfiguration = Omit<RpcServiceOptions, 'failoverService'>;
-
 /**
  * This class constructs and manages requests to a chain of RpcService objects
  * which represent RPC endpoints with which to access a particular network. The
@@ -93,10 +91,7 @@ export class RpcServiceChain {
    * {@link RpcServiceOptions}.
    */
   constructor(
-    rpcServiceConfigurations: [
-      RpcServiceConfiguration,
-      ...RpcServiceConfiguration[],
-    ],
+    rpcServiceConfigurations: [RpcServiceOptions, ...RpcServiceOptions[]],
   ) {
     this.#services = rpcServiceConfigurations.map(
       (rpcServiceConfiguration) => new RpcService(rpcServiceConfiguration),

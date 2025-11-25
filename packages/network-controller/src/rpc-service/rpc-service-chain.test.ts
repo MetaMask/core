@@ -975,7 +975,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expectedError,
       );
-      // Retry the second endpoint for a third time, until max retries is hit.
+      // Retry the third endpoint for a third time, until max retries is hit.
       // The circuit will break on the last time.
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expectedError,
@@ -1251,7 +1251,7 @@ describe('RpcServiceChain', () => {
       });
     });
 
-    it("calls onDegraded again when a service's underlying circuit breaks, and then after waiting, the service responds successfully but slowly", async () => {
+    it('calls onDegraded again when the service chain becomes unavailable, and then after waiting, the failover service responds successfully but slowly', async () => {
       const endpointUrl = 'https://some.endpoint';
       nock(endpointUrl)
         .post('/', {
