@@ -524,12 +524,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       currentSubscription?.status !== SUBSCRIPTION_STATUSES.canceled;
 
     if (isChangePaymentMethod) {
-      if (!currentSubscription) {
-        throw new Error('Current subscription not found');
-      }
       await this.updatePaymentMethod({
         paymentType: PAYMENT_TYPES.byCrypto,
-        subscriptionId: currentSubscription.id,
+        subscriptionId: (currentSubscription as Subscription).id,
         chainId,
         payerAddress: txMeta.txParams.from as Hex,
         tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
