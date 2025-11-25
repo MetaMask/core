@@ -6,15 +6,15 @@ import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
-import { type UserProfileServiceMethodActions, Env, getEnvUrl } from '.';
+import { type ProfileMetricsServiceMethodActions, Env, getEnvUrl } from '.';
 
 // === GENERAL ===
 
 /**
- * The name of the {@link UserProfileService}, used to namespace the
+ * The name of the {@link ProfileMetricsService}, used to namespace the
  * service's actions and events.
  */
-export const serviceName = 'UserProfileService';
+export const serviceName = 'ProfileMetricsService';
 
 /**
  * An account address along with its associated scopes.
@@ -27,7 +27,7 @@ export type AccountWithScopes = {
 /**
  * The shape of the request object for updating the user profile.
  */
-export type UserProfileUpdateRequest = {
+export type ProfileMetricsUpdateRequest = {
   metametricsId: string;
   entropySourceId?: string | null;
   accounts: AccountWithScopes[];
@@ -38,40 +38,40 @@ export type UserProfileUpdateRequest = {
 const MESSENGER_EXPOSED_METHODS = ['updateProfile'] as const;
 
 /**
- * Actions that {@link UserProfileService} exposes to other consumers.
+ * Actions that {@link ProfileMetricsService} exposes to other consumers.
  */
-export type UserProfileServiceActions = UserProfileServiceMethodActions;
+export type ProfileMetricsServiceActions = ProfileMetricsServiceMethodActions;
 
 /**
- * Actions from other messengers that {@link UserProfileService} calls.
+ * Actions from other messengers that {@link ProfileMetricsService} calls.
  */
 type AllowedActions =
   AuthenticationController.AuthenticationControllerGetBearerToken;
 
 /**
- * Events that {@link UserProfileService} exposes to other consumers.
+ * Events that {@link ProfileMetricsService} exposes to other consumers.
  */
-export type UserProfileServiceEvents = never;
+export type ProfileMetricsServiceEvents = never;
 
 /**
- * Events from other messengers that {@link UserProfileService} subscribes
+ * Events from other messengers that {@link ProfileMetricsService} subscribes
  * to.
  */
 type AllowedEvents = never;
 
 /**
  * The messenger which is restricted to actions and events accessed by
- * {@link UserProfileService}.
+ * {@link ProfileMetricsService}.
  */
-export type UserProfileServiceMessenger = Messenger<
+export type ProfileMetricsServiceMessenger = Messenger<
   typeof serviceName,
-  UserProfileServiceActions | AllowedActions,
-  UserProfileServiceEvents | AllowedEvents
+  ProfileMetricsServiceActions | AllowedActions,
+  ProfileMetricsServiceEvents | AllowedEvents
 >;
 
 // === SERVICE DEFINITION ===
 
-export class UserProfileService {
+export class ProfileMetricsService {
   /**
    * The name of the service.
    */
@@ -81,13 +81,15 @@ export class UserProfileService {
    * The messenger suited for this service.
    */
   readonly #messenger: ConstructorParameters<
-    typeof UserProfileService
+    typeof ProfileMetricsService
   >[0]['messenger'];
 
   /**
    * A function that can be used to make an HTTP request.
    */
-  readonly #fetch: ConstructorParameters<typeof UserProfileService>[0]['fetch'];
+  readonly #fetch: ConstructorParameters<
+    typeof ProfileMetricsService
+  >[0]['fetch'];
 
   /**
    * The policy that wraps the request.
@@ -102,7 +104,7 @@ export class UserProfileService {
   readonly #baseURL: string;
 
   /**
-   * Constructs a new UserProfileService object.
+   * Constructs a new ProfileMetricsService object.
    *
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this service.
@@ -120,7 +122,7 @@ export class UserProfileService {
     policyOptions = {},
     env = Env.DEV,
   }: {
-    messenger: UserProfileServiceMessenger;
+    messenger: ProfileMetricsServiceMessenger;
     fetch: typeof fetch;
     policyOptions?: CreateServicePolicyOptions;
     env?: Env;
@@ -193,7 +195,7 @@ export class UserProfileService {
    * @param data - The data to send in the profile update request.
    * @returns The response from the API.
    */
-  async updateProfile(data: UserProfileUpdateRequest): Promise<void> {
+  async updateProfile(data: ProfileMetricsUpdateRequest): Promise<void> {
     const authToken = await this.#messenger.call(
       'AuthenticationController:getBearerToken',
       data.entropySourceId || undefined,
