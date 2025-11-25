@@ -1,10 +1,10 @@
+import { InMemoryStorageAdapter } from './InMemoryStorageAdapter';
 import type {
   StorageAdapter,
   StorageServiceMessenger,
   StorageServiceOptions,
 } from './types';
-import { SERVICE_NAME, STORAGE_KEY_PREFIX } from './types';
-import { InMemoryStorageAdapter } from './InMemoryStorageAdapter';
+import { SERVICE_NAME } from './types';
 
 /**
  * StorageService provides a platform-agnostic way for controllers to store
@@ -146,9 +146,8 @@ export class StorageService {
    * @template T - The type of the value being stored.
    */
   async setItem<T>(namespace: string, key: string, value: T): Promise<void> {
-    const serialized = JSON.stringify(value);
-    // Adapter builds full storage key (e.g., mobile: 'storageService:namespace:key')
-    await this.#storage.setItem(namespace, key, serialized);
+    // Adapter handles serialization and wrapping with metadata
+    await this.#storage.setItem(namespace, key, value as never);
 
     // Publish event so other controllers can react to changes
     // Event type: StorageService:itemSet:namespace
@@ -169,22 +168,9 @@ export class StorageService {
    * @template T - The type of the value being retrieved.
    */
   async getItem<T>(namespace: string, key: string): Promise<T | null> {
-    // Adapter builds full storage key (e.g., mobile: 'storageService:namespace:key')
-    const serialized = await this.#storage.getItem(namespace, key);
-
-    if (serialized === null) {
-      return null;
-    }
-
-    try {
-      return JSON.parse(serialized) as T;
-    } catch (error) {
-      console.error(
-        `${SERVICE_NAME}: Failed to parse storage value for ${namespace}:${key}:`,
-        error,
-      );
-      return null;
-    }
+    // Adapter handles deserialization and unwrapping
+    const result = await this.#storage.getItem(namespace, key);
+    return result as T | null;
   }
 
   /**
@@ -227,4 +213,3 @@ export class StorageService {
     await this.#storage.clear(namespace);
   }
 }
-

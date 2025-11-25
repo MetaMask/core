@@ -5,9 +5,9 @@ import {
   type MessengerActions,
   type MessengerEvents,
 } from '@metamask/messenger';
-import type { StorageServiceMessenger, StorageAdapter } from './types';
+
 import { StorageService } from './StorageService';
-import { InMemoryStorageAdapter } from './InMemoryStorageAdapter';
+import type { StorageServiceMessenger, StorageAdapter } from './types';
 
 describe('StorageService', () => {
   let consoleWarnSpy: jest.SpyInstance;
@@ -54,7 +54,7 @@ describe('StorageService', () => {
   });
 
   describe('setItem', () => {
-    it('stores data with proper key format', async () => {
+    it('delegates to adapter with namespace and key', async () => {
       const mockStorage: StorageAdapter = {
         getItem: jest.fn(),
         setItem: jest.fn(),
@@ -66,13 +66,15 @@ describe('StorageService', () => {
 
       await service.setItem('TestController', 'testKey', 'testValue');
 
+      // Adapter receives namespace and key separately (adapter handles key building)
       expect(mockStorage.setItem).toHaveBeenCalledWith(
-        'storageService:TestController:testKey',
-        JSON.stringify('testValue'),
+        'TestController',
+        'testKey',
+        'testValue',
       );
     });
 
-    it('JSON stringifies complex objects', async () => {
+    it('passes complex objects to adapter', async () => {
       const mockStorage: StorageAdapter = {
         getItem: jest.fn(),
         setItem: jest.fn(),
@@ -85,9 +87,11 @@ describe('StorageService', () => {
 
       await service.setItem('TestController', 'complex', complexObject);
 
+      // Adapter handles serialization
       expect(mockStorage.setItem).toHaveBeenCalledWith(
-        'storageService:TestController:complex',
-        JSON.stringify(complexObject),
+        'TestController',
+        'complex',
+        complexObject,
       );
     });
 
@@ -130,30 +134,20 @@ describe('StorageService', () => {
       expect(result).toBeNull();
     });
 
-    it('handles corrupted data gracefully', async () => {
+    it('returns what adapter returns (adapter handles parsing)', async () => {
+      // Adapter now handles parsing internally and returns null for corrupt data
       const mockStorage: StorageAdapter = {
-        getItem: jest
-          .fn()
-          .mockResolvedValue('{ invalid json syntax }'),
+        getItem: jest.fn().mockResolvedValue(null), // Adapter returns null for corrupt data
         setItem: jest.fn(),
         removeItem: jest.fn(),
         getAllKeys: jest.fn().mockResolvedValue([]),
         clear: jest.fn().mockResolvedValue(undefined),
       };
-      const consoleErrorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation();
       const { service } = getService({ storage: mockStorage });
 
       const result = await service.getItem('TestController', 'corrupt');
 
       expect(result).toBeNull();
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to parse storage value'),
-        expect.any(SyntaxError),
-      );
-
-      consoleErrorSpy.mockRestore();
     });
 
     it('handles storage returning null', async () => {
@@ -169,8 +163,10 @@ describe('StorageService', () => {
       const result = await service.getItem('TestController', 'missing');
 
       expect(result).toBeNull();
+      // Adapter receives namespace and key separately
       expect(mockStorage.getItem).toHaveBeenCalledWith(
-        'storageService:TestController:missing',
+        'TestController',
+        'missing',
       );
     });
 
@@ -197,10 +193,7 @@ describe('StorageService', () => {
       const array = [1, 2, 3];
 
       await service.setItem('TestController', 'array', array);
-      const result = await service.getItem<number[]>(
-        'TestController',
-        'array',
-      );
+      const result = await service.getItem<number[]>('TestController', 'array');
 
       expect(result).toStrictEqual(array);
     });
@@ -267,7 +260,7 @@ describe('StorageService', () => {
       expect(keys).toStrictEqual([]);
     });
 
-    it('returns empty array for namespace with no keys', async () => {
+    it('delegates to adapter for namespace filtering', async () => {
       const mockStorage: StorageAdapter = {
         getItem: jest.fn(),
         setItem: jest.fn(),
@@ -279,7 +272,9 @@ describe('StorageService', () => {
 
       const keys = await service.getAllKeys('NonExistentController');
 
-      expect(mockStorage.getAllKeys).toHaveBeenCalledWith('NonExistentController');
+      expect(mockStorage.getAllKeys).toHaveBeenCalledWith(
+        'NonExistentController',
+      );
       expect(keys).toStrictEqual([]);
     });
   });
@@ -355,7 +350,9 @@ describe('StorageService', () => {
       const snapKeys = await service.getAllKeys('SnapController');
       const tokenKeys = await service.getAllKeys('TokensController');
 
-      expect(snapKeys).toStrictEqual(expect.arrayContaining(['snap1', 'snap2']));
+      expect(snapKeys).toStrictEqual(
+        expect.arrayContaining(['snap1', 'snap2']),
+      );
       expect(snapKeys).toHaveLength(2);
       expect(tokenKeys).toStrictEqual(['token1']);
     });
@@ -430,10 +427,7 @@ describe('StorageService', () => {
       await service.setItem('TestController', 'key1', 'value1');
       await service.setItem('TestController', 'key2', 'value2');
 
-      await rootMessenger.call(
-        'StorageService:clear',
-        'TestController',
-      );
+      await rootMessenger.call('StorageService:clear', 'TestController');
 
       const keys = await service.getAllKeys('TestController');
 
@@ -447,11 +441,15 @@ describe('StorageService', () => {
 
       // Simulate storing 5 snap source codes (like production)
       const snaps = {
-        'npm:@metamask/bitcoin-wallet-snap': { sourceCode: 'a'.repeat(3864960) }, // ~3.86 MB
+        'npm:@metamask/bitcoin-wallet-snap': {
+          sourceCode: 'a'.repeat(3864960),
+        }, // ~3.86 MB
         'npm:@metamask/tron-wallet-snap': { sourceCode: 'b'.repeat(1089930) }, // ~1.09 MB
         'npm:@metamask/solana-wallet-snap': { sourceCode: 'c'.repeat(603890) }, // ~603 KB
         'npm:@metamask/ens-resolver-snap': { sourceCode: 'd'.repeat(371590) }, // ~371 KB
-        'npm:@metamask/message-signing-snap': { sourceCode: 'e'.repeat(159030) }, // ~159 KB
+        'npm:@metamask/message-signing-snap': {
+          sourceCode: 'e'.repeat(159030),
+        }, // ~159 KB
       };
 
       // Store all source codes
@@ -473,7 +471,9 @@ describe('StorageService', () => {
         'npm:@metamask/bitcoin-wallet-snap:sourceCode',
       );
 
-      expect(bitcoinSource).toBe(snaps['npm:@metamask/bitcoin-wallet-snap'].sourceCode);
+      expect(bitcoinSource).toBe(
+        snaps['npm:@metamask/bitcoin-wallet-snap'].sourceCode,
+      );
 
       // Clear all snap data
       await service.clear('SnapController');
@@ -487,7 +487,9 @@ describe('StorageService', () => {
         getItem: jest.fn().mockResolvedValue(null),
         setItem: jest.fn(),
         removeItem: jest.fn(),
-        getAllKeys: jest.fn().mockResolvedValue(['snap1:sourceCode', 'snap2:sourceCode']),
+        getAllKeys: jest
+          .fn()
+          .mockResolvedValue(['snap1:sourceCode', 'snap2:sourceCode']),
         clear: jest.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
@@ -552,9 +554,7 @@ function getRootMessenger(): RootMessenger {
  * events required by the service's messenger.
  * @returns The service-specific messenger.
  */
-function getMessenger(
-  rootMessenger: RootMessenger,
-): StorageServiceMessenger {
+function getMessenger(rootMessenger: RootMessenger): StorageServiceMessenger {
   return new Messenger({
     namespace: 'StorageService',
     parent: rootMessenger,
@@ -586,4 +586,3 @@ function getService({
 
   return { service, rootMessenger, messenger };
 }
-

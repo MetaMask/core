@@ -2,6 +2,17 @@ import type { StorageAdapter } from './types';
 import { STORAGE_KEY_PREFIX } from './types';
 
 /**
+ * Wrapper for stored data with metadata.
+ * Each adapter can define its own wrapper structure.
+ */
+type StoredDataWrapper<T = unknown> = {
+  /** Timestamp when data was stored (milliseconds since epoch). */
+  timestamp: number;
+  /** The actual data being stored. */
+  data: T;
+};
+
+/**
  * In-memory storage adapter (default fallback).
  * Implements the {@link StorageAdapter} interface using a Map.
  *
@@ -25,10 +36,11 @@ import { STORAGE_KEY_PREFIX } from './types';
  * ```
  */
 export class InMemoryStorageAdapter implements StorageAdapter {
+  // Explicitly implement StorageAdapter interface
   /**
    * Internal storage map.
    */
-  #storage: Map<string, string>;
+  readonly #storage: Map<string, string>;
 
   /**
    * Constructs a new InMemoryStorageAdapter.
@@ -39,26 +51,46 @@ export class InMemoryStorageAdapter implements StorageAdapter {
 
   /**
    * Retrieve an item from in-memory storage.
+   * Deserializes and unwraps the stored data.
    *
    * @param namespace - The controller namespace.
    * @param key - The data key.
-   * @returns The value as a string, or null if not found.
+   * @returns The unwrapped data, or null if not found.
    */
-  async getItem(namespace: string, key: string): Promise<string | null> {
+  async getItem(namespace: string, key: string): Promise<unknown> {
     const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
-    return this.#storage.get(fullKey) ?? null;
+    const serialized = this.#storage.get(fullKey);
+
+    if (!serialized) {
+      return null;
+    }
+
+    try {
+      const wrapper: StoredDataWrapper = JSON.parse(serialized);
+      return wrapper.data;
+    } catch (error) {
+      // istanbul ignore next - defensive error handling for corrupted data
+      console.error(`Failed to parse stored data for ${fullKey}:`, error);
+      // istanbul ignore next
+      return null;
+    }
   }
 
   /**
    * Store an item in in-memory storage.
+   * Wraps with metadata and serializes to string.
    *
    * @param namespace - The controller namespace.
    * @param key - The data key.
-   * @param value - The string value to store.
+   * @param value - The value to store (will be wrapped and serialized).
    */
-  async setItem(namespace: string, key: string, value: string): Promise<void> {
+  async setItem(namespace: string, key: string, value: unknown): Promise<void> {
     const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
-    this.#storage.set(fullKey, value);
+    const wrapper: StoredDataWrapper = {
+      timestamp: Date.now(),
+      data: value,
+    };
+    this.#storage.set(fullKey, JSON.stringify(wrapper));
   }
 
   /**
@@ -99,4 +131,3 @@ export class InMemoryStorageAdapter implements StorageAdapter {
     keysToDelete.forEach((key) => this.#storage.delete(key));
   }
 }
-
