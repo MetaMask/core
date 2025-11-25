@@ -31,7 +31,7 @@ function createMockRequest(
   return {
     metametricsId: 'mock-meta-metrics-id',
     entropySourceId: 'mock-entropy-source-id',
-    accounts: [{ address: 'eip155:_:0xMockAccountAddress1' }],
+    accounts: [{ address: '0xMockAccountAddress1', scopes: ['eip155:1'] }],
     ...override,
   };
 }
