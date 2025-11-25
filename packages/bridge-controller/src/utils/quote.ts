@@ -252,7 +252,6 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   } = calcTotalGasFee({
     // Fallback to gasLimit if effectiveGas is not available
     approvalGasLimit: approval?.effectiveGas ?? approval?.gasLimit,
-    // Double approval gas limit if reset approval is required
     resetApprovalGasLimit:
       resetApproval?.effectiveGas ?? resetApproval?.gasLimit,
     tradeGasLimit: trade?.effectiveGas ?? trade?.gasLimit,
