@@ -1,10 +1,7 @@
-import { Contract } from '@ethersproject/contracts';
 import { BtcScope, SolScope } from '@metamask/keyring-api';
-import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 
 import {
-  getEthUsdtResetData,
   getNativeAssetForChainId,
   isBitcoinChainId,
   isCrossChain,
@@ -18,7 +15,6 @@ import {
 import {
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
-  METASWAP_ETHEREUM_ADDRESS,
 } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
@@ -59,30 +55,6 @@ describe('Bridge utils', () => {
 
     it('throws for invalid hex strings', () => {
       expect(() => sumHexes('0xg')).toThrow('Cannot convert 0xg to a BigInt');
-    });
-  });
-
-  describe('getEthUsdtResetData', () => {
-    it('returns correct encoded function data for USDT bridge approval reset', () => {
-      const expectedInterface = new Contract(ETH_USDT_ADDRESS, abiERC20)
-        .interface;
-      const expectedData = expectedInterface.encodeFunctionData('approve', [
-        METABRIDGE_ETHEREUM_ADDRESS,
-        '0',
-      ]);
-
-      expect(getEthUsdtResetData(CHAIN_IDS.POLYGON)).toBe(expectedData);
-    });
-
-    it('returns correct encoded function data for USDT swap approval reset', () => {
-      const expectedInterface = new Contract(ETH_USDT_ADDRESS, abiERC20)
-        .interface;
-      const expectedData = expectedInterface.encodeFunctionData('approve', [
-        METASWAP_ETHEREUM_ADDRESS,
-        '0',
-      ]);
-
-      expect(getEthUsdtResetData()).toBe(expectedData);
     });
   });
 

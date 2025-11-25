@@ -4,7 +4,6 @@ import {
   ChainId,
   formatChainIdToCaip,
   formatChainIdToHex,
-  getEthUsdtResetData,
   isCrossChain,
   type QuoteMetadata,
   type QuoteResponse,
@@ -37,15 +36,6 @@ import type {
 } from '../types';
 
 export const generateActionId = () => (Date.now() + Math.random()).toString();
-
-export const getUSDTAllowanceResetTx = async (
-  quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
-) => {
-  if (quoteResponse.approval && quoteResponse.resetApproval) {
-    return { ...quoteResponse.approval, data: getEthUsdtResetData() };
-  }
-  return undefined;
-};
 
 export const getStatusRequestParams = (quoteResponse: QuoteResponse) => {
   return {
@@ -178,8 +168,10 @@ export const handleNonEvmTxResponse = (
   };
 };
 
-export const handleApprovalDelay = async (quoteResponse: QuoteResponse) => {
-  if ([ChainId.LINEA, ChainId.BASE].includes(quoteResponse.quote.srcChainId)) {
+export const handleApprovalDelay = async (
+  srcChainId: QuoteResponse['quote']['srcChainId'],
+) => {
+  if ([ChainId.LINEA, ChainId.BASE].includes(srcChainId)) {
     const debugLog = createProjectLogger('bridge');
     debugLog(
       'Delaying submitting bridge tx to make Linea and Base confirmation more likely',

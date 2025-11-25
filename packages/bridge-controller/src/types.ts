@@ -272,7 +272,7 @@ export type QuoteResponse<
   /**
    * Appended to the quote response based on the quote request. If true, gas estimates will include the reset approval gas limit.
    */
-  resetApproval?: boolean;
+  resetApproval?: TxData;
 };
 
 export enum ChainId {

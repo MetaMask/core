@@ -253,9 +253,8 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     // Fallback to gasLimit if effectiveGas is not available
     approvalGasLimit: approval?.effectiveGas ?? approval?.gasLimit,
     // Double approval gas limit if reset approval is required
-    resetApprovalGasLimit: resetApproval
-      ? (approval?.effectiveGas ?? approval?.gasLimit)
-      : null,
+    resetApprovalGasLimit:
+      resetApproval?.effectiveGas ?? resetApproval?.gasLimit,
     tradeGasLimit: trade?.effectiveGas ?? trade?.gasLimit,
     l1GasFeesInHexWei,
     feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
@@ -267,7 +266,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   // Estimated total gas fee, including refunded fees (medium)
   const { amount, valueInCurrency, usd } = calcTotalGasFee({
     approvalGasLimit: approval?.gasLimit,
-    resetApprovalGasLimit: resetApproval ? approval?.gasLimit : null,
+    resetApprovalGasLimit: resetApproval?.gasLimit,
     tradeGasLimit: trade?.gasLimit,
     l1GasFeesInHexWei,
     feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
@@ -283,7 +282,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     usd: usdMax,
   } = calcTotalGasFee({
     approvalGasLimit: approval?.gasLimit,
-    resetApprovalGasLimit: resetApproval ? approval?.gasLimit : null,
+    resetApprovalGasLimit: resetApproval?.gasLimit,
     tradeGasLimit: trade?.gasLimit,
     l1GasFeesInHexWei,
     feePerGasInDecGwei: maxFeePerGasInDecGwei,

@@ -2628,7 +2628,17 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
       const result = await controller.submitTx(
         (mockEvmQuoteResponse.trade as TxData).from,
-        { ...mockEvmQuoteResponse, resetApproval: true },
+        {
+          ...mockEvmQuoteResponse,
+          resetApproval: {
+            chainId: 1,
+            data: '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
+            from: '0xaccount1',
+            gasLimit: 21000,
+            to: '0xtokenContract',
+            value: '0x0',
+          },
+        },
         false,
       );
       controller.stopAllPolling();
@@ -2669,7 +2679,17 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
       const result = await controller.submitTx(
         (mockEvmQuoteResponse.trade as TxData).from,
-        { ...mockEvmQuoteResponse, resetApproval: true },
+        {
+          ...mockEvmQuoteResponse,
+          resetApproval: {
+            chainId: 1,
+            data: '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
+            from: '0xaccount1',
+            gasLimit: 21000,
+            to: '0xtokenContract',
+            value: '0x0',
+          },
+        },
         true,
       );
       controller.stopAllPolling();

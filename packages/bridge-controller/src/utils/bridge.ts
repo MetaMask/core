@@ -114,7 +114,7 @@ export const getNativeAssetForChainId = (
  * @returns The txParam data that will reset allowance to 0, combine it with the approval tx params received from Bridge API
  */
 export const getEthUsdtResetData = (
-  destChainId?: GenericQuoteRequest['destChainId'],
+  destChainId: GenericQuoteRequest['destChainId'],
 ) => {
   const spenderAddress = isCrossChain(CHAIN_IDS.MAINNET, destChainId)
     ? METABRIDGE_ETHEREUM_ADDRESS

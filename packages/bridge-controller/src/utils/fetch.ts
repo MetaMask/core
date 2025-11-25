@@ -1,11 +1,13 @@
 import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
+import { getEthUsdtResetData } from './bridge';
 import {
   formatAddressToCaipReference,
   formatChainIdToDec,
 } from './caip-formatters';
 import { fetchServerEvents } from './fetch-server-events';
+import { isEvmTxData } from './trade-utils';
 import type { FeatureId } from './validators';
 import { validateQuoteResponse, validateSwapsTokenObject } from './validators';
 import type {
@@ -155,7 +157,15 @@ export async function fetchBridgeQuotes(
     .map((quote) => ({
       ...quote,
       featureId: featureId ?? undefined,
-      resetApproval: Boolean(request.resetApproval),
+      // Append the reset approval data to the quote response if the request
+      // has resetApproval set to true and the quote has an approval
+      resetApproval:
+        request.resetApproval && quote.approval && isEvmTxData(quote.approval)
+          ? {
+              ...quote.approval,
+              data: getEthUsdtResetData(request.destChainId),
+            }
+          : undefined,
     }));
 
   const validationFailures = Array.from(uniqueValidationFailures);
@@ -296,7 +306,16 @@ export async function fetchBridgeQuoteStream(
       if (validateQuoteResponse(quoteResponse)) {
         return await serverEventHandlers.onValidQuoteReceived({
           ...quoteResponse,
-          resetApproval: Boolean(request.resetApproval),
+          // Append the reset approval data to the quote response if the request has resetApproval set to true and the quote has an approval
+          resetApproval:
+            request.resetApproval &&
+            quoteResponse.approval &&
+            isEvmTxData(quoteResponse.approval)
+              ? {
+                  ...quoteResponse.approval,
+                  data: getEthUsdtResetData(request.destChainId),
+                }
+              : undefined,
         });
       }
     } catch (error) {

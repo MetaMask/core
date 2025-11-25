@@ -206,7 +206,7 @@ describe('BridgeController SSE', function () {
       quotes: mockBridgeQuotesNativeErc20.map((quote) => ({
         ...quote,
         l1GasFeesInHexWei: '0x1',
-        resetApproval: false,
+        resetApproval: undefined,
       })),
       quotesRefreshCount: 1,
       quotesLoadingStatus: 1,
@@ -244,7 +244,7 @@ describe('BridgeController SSE', function () {
       mockBridgeQuotesNativeErc20.map((quote) => ({
         ...quote,
         l1GasFeesInHexWei: '0x1',
-        resetApproval: false,
+        resetApproval: undefined,
       })),
     );
     const t1 = bridgeController.state.quotesLastFetched;
@@ -265,7 +265,7 @@ describe('BridgeController SSE', function () {
       },
       quotes: [mockBridgeQuotesNativeErc20Eth[0]].map((quote) => ({
         ...quote,
-        resetApproval: false,
+        resetApproval: undefined,
       })),
       quotesLoadingStatus: RequestStatus.LOADING,
       quotesRefreshCount: 1,
@@ -291,7 +291,7 @@ describe('BridgeController SSE', function () {
       ...expectedState,
       quotes: mockBridgeQuotesNativeErc20Eth.map((quote) => ({
         ...quote,
-        resetApproval: false,
+        resetApproval: undefined,
       })),
       quotesLastFetched: t2,
       quotesRefreshCount: 2,
@@ -345,7 +345,7 @@ describe('BridgeController SSE', function () {
     expect(bridgeController.state.quotes).toStrictEqual(
       mockBridgeQuotesNativeErc20Eth.map((quote) => ({
         ...quote,
-        resetApproval: false,
+        resetApproval: undefined,
       })),
     );
     const t2 = bridgeController.state.quotesLastFetched;
@@ -486,7 +486,7 @@ describe('BridgeController SSE', function () {
         {
           ...mockBridgeQuotesNativeErc20[0],
           l1GasFeesInHexWei: '0x1',
-          resetApproval: false,
+          resetApproval: undefined,
         },
       ],
       quotesRefreshCount: 0,
@@ -520,7 +520,7 @@ describe('BridgeController SSE', function () {
       ].map((quote) => ({
         ...quote,
         l1GasFeesInHexWei: '0x1',
-        resetApproval: false,
+        resetApproval: undefined,
       })),
     });
     expect(
@@ -637,7 +637,7 @@ describe('BridgeController SSE', function () {
         (quote) => ({
           ...quote,
           l1GasFeesInHexWei: '0x1',
-          resetApproval: false,
+          resetApproval: undefined,
         }),
       ),
     );
@@ -663,7 +663,7 @@ describe('BridgeController SSE', function () {
       },
       quotes: [mockBridgeQuotesNativeErc20Eth[0]].map((quote) => ({
         ...quote,
-        resetApproval: false,
+        resetApproval: undefined,
       })),
       quotesRefreshCount: 1,
       quoteFetchError: null,

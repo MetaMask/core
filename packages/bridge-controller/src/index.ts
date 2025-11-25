@@ -106,7 +106,6 @@ export { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 export { MetricsActionType, MetricsSwapType } from './utils/metrics/constants';
 
 export {
-  getEthUsdtResetData,
   isEthUsdt,
   isNativeAddress,
   isSolanaChainId,
@@ -138,6 +137,7 @@ export {
   extractTradeData,
   isBitcoinTrade,
   isTronTrade,
+  isEvmTxData,
   type Trade,
 } from './utils/trade-utils';
 
