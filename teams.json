@@ -42,7 +42,7 @@
   "metamask/polling-controller": "team-core-platform",
   "metamask/preferences-controller": "team-core-platform",
   "metamask/rate-limit-controller": "team-core-platform",
-  "metamask/user-profile-controller": "team-core-platform",
+  "metamask/profile-metrics-controller": "team-core-platform",
   "metamask/seedless-onboarding-controller": "team-web3auth",
   "metamask/shield-controller": "team-web3auth",
   "metamask/subscription-controller": "team-web3auth",

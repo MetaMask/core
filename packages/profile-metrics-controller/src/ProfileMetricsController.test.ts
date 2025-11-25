@@ -9,13 +9,13 @@ import {
 } from '@metamask/messenger';
 
 import {
-  UserProfileController,
-  type UserProfileControllerMessenger,
-} from './UserProfileController';
+  ProfileMetricsController,
+  type ProfileMetricsControllerMessenger,
+} from './ProfileMetricsController';
 import type {
-  UserProfileUpdateRequest,
+  ProfileMetricsUpdateRequest,
   AccountWithScopes,
-} from './UserProfileService';
+} from './ProfileMetricsService';
 
 /**
  * Creates a mock InternalAccount object for testing purposes.
@@ -54,7 +54,7 @@ function createMockAccount(
   };
 }
 
-describe('UserProfileController', () => {
+describe('ProfileMetricsController', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
@@ -443,27 +443,27 @@ describe('UserProfileController', () => {
  */
 type RootMessenger = Messenger<
   MockAnyNamespace,
-  MessengerActions<UserProfileControllerMessenger>,
-  MessengerEvents<UserProfileControllerMessenger>
+  MessengerActions<ProfileMetricsControllerMessenger>,
+  MessengerEvents<ProfileMetricsControllerMessenger>
 >;
 
 /**
  * The callback that `withController` calls.
  */
 type WithControllerCallback<ReturnValue> = (payload: {
-  controller: UserProfileController;
+  controller: ProfileMetricsController;
   rootMessenger: RootMessenger;
-  messenger: UserProfileControllerMessenger;
+  messenger: ProfileMetricsControllerMessenger;
   assertUserOptedIn: jest.Mock<boolean, []>;
   getMetaMetricsId: jest.Mock<string, []>;
-  mockUpdateProfile: jest.Mock<Promise<void>, [UserProfileUpdateRequest]>;
+  mockUpdateProfile: jest.Mock<Promise<void>, [ProfileMetricsUpdateRequest]>;
 }) => Promise<ReturnValue> | ReturnValue;
 
 /**
  * The options bag that `withController` takes.
  */
 type WithControllerOptions = {
-  options: Partial<ConstructorParameters<typeof UserProfileController>[0]>;
+  options: Partial<ConstructorParameters<typeof ProfileMetricsController>[0]>;
 };
 
 /**
@@ -485,16 +485,16 @@ function getRootMessenger(): RootMessenger {
  */
 function getMessenger(
   rootMessenger: RootMessenger,
-): UserProfileControllerMessenger {
-  const messenger: UserProfileControllerMessenger = new Messenger({
-    namespace: 'UserProfileController',
+): ProfileMetricsControllerMessenger {
+  const messenger: ProfileMetricsControllerMessenger = new Messenger({
+    namespace: 'ProfileMetricsController',
     parent: rootMessenger,
   });
   rootMessenger.delegate({
     messenger,
     actions: [
       'AccountsController:listAccounts',
-      'UserProfileService:updateProfile',
+      'ProfileMetricsService:updateProfile',
     ],
     events: [
       'KeyringController:unlock',
@@ -530,12 +530,12 @@ async function withController<ReturnValue>(
 
   const rootMessenger = getRootMessenger();
   rootMessenger.registerActionHandler(
-    'UserProfileService:updateProfile',
+    'ProfileMetricsService:updateProfile',
     mockUpdateProfile,
   );
 
   const messenger = getMessenger(rootMessenger);
-  const controller = new UserProfileController({
+  const controller = new ProfileMetricsController({
     messenger,
     assertUserOptedIn: mockAssertUserOptedIn,
     getMetaMetricsId: mockGetMetaMetricsId,

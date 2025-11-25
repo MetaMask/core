@@ -4489,6 +4489,34 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/profile-metrics-controller@workspace:packages/profile-metrics-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/profile-metrics-controller@workspace:packages/profile-metrics-controller"
+  dependencies:
+    "@metamask/accounts-controller": "npm:^35.0.0"
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^9.0.0"
+    "@metamask/controller-utils": "npm:^11.16.0"
+    "@metamask/keyring-controller": "npm:^25.0.0"
+    "@metamask/keyring-internal-api": "npm:^9.0.0"
+    "@metamask/messenger": "npm:^0.3.0"
+    "@metamask/polling-controller": "npm:^16.0.0"
+    "@metamask/profile-sync-controller": "npm:^27.0.0"
+    "@metamask/utils": "npm:^11.8.1"
+    "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/jest": "npm:^27.4.1"
+    async-mutex: "npm:^0.5.0"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    nock: "npm:^13.3.1"
+    sinon: "npm:^9.2.4"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.3.3"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/profile-sync-controller@npm:^27.0.0, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/profile-sync-controller@workspace:packages/profile-sync-controller"
@@ -5089,34 +5117,6 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/eth-block-tracker": ">=9"
-  languageName: unknown
-  linkType: soft
-
-"@metamask/user-profile-controller@workspace:packages/user-profile-controller":
-  version: 0.0.0-use.local
-  resolution: "@metamask/user-profile-controller@workspace:packages/user-profile-controller"
-  dependencies:
-    "@metamask/accounts-controller": "npm:^35.0.0"
-    "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/base-controller": "npm:^9.0.0"
-    "@metamask/controller-utils": "npm:^11.16.0"
-    "@metamask/keyring-controller": "npm:^25.0.0"
-    "@metamask/keyring-internal-api": "npm:^9.0.0"
-    "@metamask/messenger": "npm:^0.3.0"
-    "@metamask/polling-controller": "npm:^16.0.0"
-    "@metamask/profile-sync-controller": "npm:^27.0.0"
-    "@metamask/utils": "npm:^11.8.1"
-    "@ts-bridge/cli": "npm:^0.6.4"
-    "@types/jest": "npm:^27.4.1"
-    async-mutex: "npm:^0.5.0"
-    deepmerge: "npm:^4.2.2"
-    jest: "npm:^27.5.1"
-    nock: "npm:^13.3.1"
-    sinon: "npm:^9.2.4"
-    ts-jest: "npm:^27.1.4"
-    typedoc: "npm:^0.24.8"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
 

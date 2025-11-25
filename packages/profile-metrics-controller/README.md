@@ -1,12 +1,12 @@
-# `@metamask/user-profile-controller`
+# `@metamask/profile-metrics-controller`
 
 ## Installation
 
-`yarn add @metamask/user-profile-controller`
+`yarn add @metamask/profile-metrics-controller`
 
 or
 
-`npm install @metamask/user-profile-controller`
+`npm install @metamask/profile-metrics-controller`
 
 ## Contributing
 

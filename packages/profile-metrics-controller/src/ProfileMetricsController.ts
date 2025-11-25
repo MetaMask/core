@@ -17,20 +17,20 @@ import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { Mutex } from 'async-mutex';
 
-import type { UserProfileServiceMethodActions } from '.';
-import type { AccountWithScopes } from './UserProfileService';
+import type { ProfileMetricsServiceMethodActions } from '.';
+import type { AccountWithScopes } from './ProfileMetricsService';
 
 /**
- * The name of the {@link UserProfileController}, used to namespace the
+ * The name of the {@link ProfileMetricsController}, used to namespace the
  * controller's actions and events and to namespace the controller's state data
  * when composed with other controllers.
  */
-export const controllerName = 'UserProfileController';
+export const controllerName = 'ProfileMetricsController';
 
 /**
- * Describes the shape of the state object for {@link UserProfileController}.
+ * Describes the shape of the state object for {@link ProfileMetricsController}.
  */
-export type UserProfileControllerState = {
+export type ProfileMetricsControllerState = {
   /**
    * Whether the first sync has been completed.
    */
@@ -45,7 +45,7 @@ export type UserProfileControllerState = {
 };
 
 /**
- * The metadata for each property in {@link UserProfileControllerState}.
+ * The metadata for each property in {@link ProfileMetricsControllerState}.
  */
 const userProfileControllerMetadata = {
   firstSyncCompleted: {
@@ -60,17 +60,17 @@ const userProfileControllerMetadata = {
     includeInStateLogs: true,
     usedInUi: false,
   },
-} satisfies StateMetadata<UserProfileControllerState>;
+} satisfies StateMetadata<ProfileMetricsControllerState>;
 
 /**
- * Constructs the default {@link UserProfileController} state. This allows
+ * Constructs the default {@link ProfileMetricsController} state. This allows
  * consumers to provide a partial state object when initializing the controller
  * and also helps in constructing complete state objects for this controller in
  * tests.
  *
- * @returns The default {@link UserProfileController} state.
+ * @returns The default {@link ProfileMetricsController} state.
  */
-export function getDefaultUserProfileControllerState(): UserProfileControllerState {
+export function getDefaultProfileMetricsControllerState(): ProfileMetricsControllerState {
   return {
     firstSyncCompleted: false,
     syncQueue: {},
@@ -80,42 +80,44 @@ export function getDefaultUserProfileControllerState(): UserProfileControllerSta
 const MESSENGER_EXPOSED_METHODS = [] as const;
 
 /**
- * Retrieves the state of the {@link UserProfileController}.
+ * Retrieves the state of the {@link ProfileMetricsController}.
  */
-export type UserProfileControllerGetStateAction = ControllerGetStateAction<
+export type ProfileMetricsControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
-  UserProfileControllerState
+  ProfileMetricsControllerState
 >;
 
 /**
- * Actions that {@link UserProfileControllerMessenger} exposes to other consumers.
+ * Actions that {@link ProfileMetricsControllerMessenger} exposes to other consumers.
  */
-export type UserProfileControllerActions =
-  | UserProfileControllerGetStateAction
-  | UserProfileServiceMethodActions;
+export type ProfileMetricsControllerActions =
+  | ProfileMetricsControllerGetStateAction
+  | ProfileMetricsServiceMethodActions;
 
 /**
- * Actions from other messengers that {@link UserProfileControllerMessenger} calls.
+ * Actions from other messengers that {@link ProfileMetricsControllerMessenger} calls.
  */
 type AllowedActions =
-  | UserProfileServiceMethodActions
+  | ProfileMetricsServiceMethodActions
   | AccountsControllerListAccountsAction;
 
 /**
- * Published when the state of {@link UserProfileController} changes.
+ * Published when the state of {@link ProfileMetricsController} changes.
  */
-export type UserProfileControllerStateChangeEvent = ControllerStateChangeEvent<
-  typeof controllerName,
-  UserProfileControllerState
->;
+export type ProfileMetricsControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    ProfileMetricsControllerState
+  >;
 
 /**
- * Events that {@link UserProfileControllerMessenger} exposes to other consumers.
+ * Events that {@link ProfileMetricsControllerMessenger} exposes to other consumers.
  */
-export type UserProfileControllerEvents = UserProfileControllerStateChangeEvent;
+export type ProfileMetricsControllerEvents =
+  ProfileMetricsControllerStateChangeEvent;
 
 /**
- * Events from other messengers that {@link UserProfileControllerMessenger} subscribes
+ * Events from other messengers that {@link ProfileMetricsControllerMessenger} subscribes
  * to.
  */
 type AllowedEvents =
@@ -126,18 +128,18 @@ type AllowedEvents =
 
 /**
  * The messenger restricted to actions and events accessed by
- * {@link UserProfileController}.
+ * {@link ProfileMetricsController}.
  */
-export type UserProfileControllerMessenger = Messenger<
+export type ProfileMetricsControllerMessenger = Messenger<
   typeof controllerName,
-  UserProfileControllerActions | AllowedActions,
-  UserProfileControllerEvents | AllowedEvents
+  ProfileMetricsControllerActions | AllowedActions,
+  ProfileMetricsControllerEvents | AllowedEvents
 >;
 
-export class UserProfileController extends StaticIntervalPollingController()<
+export class ProfileMetricsController extends StaticIntervalPollingController()<
   typeof controllerName,
-  UserProfileControllerState,
-  UserProfileControllerMessenger
+  ProfileMetricsControllerState,
+  ProfileMetricsControllerMessenger
 > {
   readonly #mutex = new Mutex();
 
@@ -146,7 +148,7 @@ export class UserProfileController extends StaticIntervalPollingController()<
   readonly #getMetaMetricsId: () => string;
 
   /**
-   * Constructs a new {@link UserProfileController}.
+   * Constructs a new {@link ProfileMetricsController}.
    *
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this controller.
@@ -167,8 +169,8 @@ export class UserProfileController extends StaticIntervalPollingController()<
     getMetaMetricsId,
     interval = 10 * 1000,
   }: {
-    messenger: UserProfileControllerMessenger;
-    state?: Partial<UserProfileControllerState>;
+    messenger: ProfileMetricsControllerMessenger;
+    state?: Partial<ProfileMetricsControllerState>;
     interval?: number;
     assertUserOptedIn: () => boolean;
     getMetaMetricsId: () => string;
@@ -178,7 +180,7 @@ export class UserProfileController extends StaticIntervalPollingController()<
       metadata: userProfileControllerMetadata,
       name: controllerName,
       state: {
-        ...getDefaultUserProfileControllerState(),
+        ...getDefaultProfileMetricsControllerState(),
         ...state,
       },
     });
@@ -214,7 +216,7 @@ export class UserProfileController extends StaticIntervalPollingController()<
   /**
    * Execute a single poll to sync user profile data.
    *
-   * The queued accounts are sent to the UserProfileService, and the sync
+   * The queued accounts are sent to the ProfileMetricsService, and the sync
    * queue is cleared. This operation is mutexed to prevent concurrent
    * executions.
    *
@@ -225,7 +227,7 @@ export class UserProfileController extends StaticIntervalPollingController()<
       for (const [entropySourceId, accounts] of Object.entries(
         this.state.syncQueue,
       )) {
-        await this.messenger.call('UserProfileService:updateProfile', {
+        await this.messenger.call('ProfileMetricsService:updateProfile', {
           metametricsId: this.#getMetaMetricsId(),
           entropySourceId: entropySourceId === 'null' ? null : entropySourceId,
           accounts,

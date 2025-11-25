@@ -9,9 +9,9 @@ import nock from 'nock';
 import { type SinonFakeTimers, useFakeTimers } from 'sinon';
 
 import {
-  UserProfileService,
-  type UserProfileUpdateRequest,
-  type UserProfileServiceMessenger,
+  ProfileMetricsService,
+  type ProfileMetricsUpdateRequest,
+  type ProfileMetricsServiceMessenger,
   Env,
   getEnvUrl,
 } from '.';
@@ -26,8 +26,8 @@ const defaultBaseEndpoint = getEnvUrl(Env.DEV);
  * @returns A mock request object.
  */
 function createMockRequest(
-  override?: Partial<UserProfileUpdateRequest>,
-): UserProfileUpdateRequest {
+  override?: Partial<ProfileMetricsUpdateRequest>,
+): ProfileMetricsUpdateRequest {
   return {
     metametricsId: 'mock-meta-metrics-id',
     entropySourceId: 'mock-entropy-source-id',
@@ -36,7 +36,7 @@ function createMockRequest(
   };
 }
 
-describe('UserProfileService', () => {
+describe('ProfileMetricsService', () => {
   let clock: SinonFakeTimers;
 
   beforeEach(() => {
@@ -51,7 +51,7 @@ describe('UserProfileService', () => {
     it('throws when an invalid env is selected', () => {
       expect(
         () =>
-          new UserProfileService({
+          new ProfileMetricsService({
             fetch,
             messenger: getMessenger(getRootMessenger()),
             // @ts-expect-error Testing invalid env
@@ -61,7 +61,7 @@ describe('UserProfileService', () => {
     });
   });
 
-  describe('UserProfileService:updateProfile', () => {
+  describe('ProfileMetricsService:updateProfile', () => {
     it('resolves when there is a successful response from the API and the accounts have an entropy source id', async () => {
       nock(defaultBaseEndpoint)
         .put('/profile/accounts')
@@ -73,7 +73,7 @@ describe('UserProfileService', () => {
       const { rootMessenger } = getService();
 
       const updateProfileResponse = await rootMessenger.call(
-        'UserProfileService:updateProfile',
+        'ProfileMetricsService:updateProfile',
         createMockRequest(),
       );
 
@@ -93,7 +93,7 @@ describe('UserProfileService', () => {
       const request = createMockRequest({ entropySourceId: null });
 
       const updateProfileResponse = await rootMessenger.call(
-        'UserProfileService:updateProfile',
+        'ProfileMetricsService:updateProfile',
         request,
       );
 
@@ -116,7 +116,7 @@ describe('UserProfileService', () => {
       service.onDegraded(onDegradedListener);
 
       await rootMessenger.call(
-        'UserProfileService:updateProfile',
+        'ProfileMetricsService:updateProfile',
         createMockRequest(),
       );
 
@@ -143,7 +143,7 @@ describe('UserProfileService', () => {
       service.onDegraded(onDegradedListener);
 
       await rootMessenger.call(
-        'UserProfileService:updateProfile',
+        'ProfileMetricsService:updateProfile',
         createMockRequest(),
       );
 
@@ -157,7 +157,7 @@ describe('UserProfileService', () => {
 
       await expect(
         rootMessenger.call(
-          'UserProfileService:updateProfile',
+          'ProfileMetricsService:updateProfile',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -174,7 +174,7 @@ describe('UserProfileService', () => {
 
       await expect(
         rootMessenger.call(
-          'UserProfileService:updateProfile',
+          'ProfileMetricsService:updateProfile',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -193,7 +193,7 @@ describe('UserProfileService', () => {
       // Should make 4 requests
       await expect(
         rootMessenger.call(
-          'UserProfileService:updateProfile',
+          'ProfileMetricsService:updateProfile',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -202,7 +202,7 @@ describe('UserProfileService', () => {
       // Should make 4 requests
       await expect(
         rootMessenger.call(
-          'UserProfileService:updateProfile',
+          'ProfileMetricsService:updateProfile',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -211,7 +211,7 @@ describe('UserProfileService', () => {
       // Should make 4 requests
       await expect(
         rootMessenger.call(
-          'UserProfileService:updateProfile',
+          'ProfileMetricsService:updateProfile',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -221,7 +221,7 @@ describe('UserProfileService', () => {
       // above)
       await expect(
         rootMessenger.call(
-          'UserProfileService:updateProfile',
+          'ProfileMetricsService:updateProfile',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -256,7 +256,7 @@ describe('UserProfileService', () => {
 
       await expect(
         rootMessenger.call(
-          'UserProfileService:updateProfile',
+          'ProfileMetricsService:updateProfile',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -264,7 +264,7 @@ describe('UserProfileService', () => {
       );
       await expect(
         rootMessenger.call(
-          'UserProfileService:updateProfile',
+          'ProfileMetricsService:updateProfile',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -272,7 +272,7 @@ describe('UserProfileService', () => {
       );
       await expect(
         rootMessenger.call(
-          'UserProfileService:updateProfile',
+          'ProfileMetricsService:updateProfile',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -280,7 +280,7 @@ describe('UserProfileService', () => {
       );
       await expect(
         rootMessenger.call(
-          'UserProfileService:updateProfile',
+          'ProfileMetricsService:updateProfile',
           createMockRequest(),
         ),
       ).rejects.toThrow(
@@ -318,8 +318,8 @@ describe('UserProfileService', () => {
  */
 type RootMessenger = Messenger<
   MockAnyNamespace,
-  MessengerActions<UserProfileServiceMessenger>,
-  MessengerEvents<UserProfileServiceMessenger>
+  MessengerActions<ProfileMetricsServiceMessenger>,
+  MessengerEvents<ProfileMetricsServiceMessenger>
 >;
 
 /**
@@ -341,9 +341,9 @@ function getRootMessenger(): RootMessenger {
  */
 function getMessenger(
   rootMessenger: RootMessenger,
-): UserProfileServiceMessenger {
-  const serviceMessenger: UserProfileServiceMessenger = new Messenger({
-    namespace: 'UserProfileService',
+): ProfileMetricsServiceMessenger {
+  const serviceMessenger: ProfileMetricsServiceMessenger = new Messenger({
+    namespace: 'ProfileMetricsService',
     parent: rootMessenger,
   });
   rootMessenger.delegate({
@@ -365,11 +365,11 @@ function getMessenger(
 function getService({
   options = {},
 }: {
-  options?: Partial<ConstructorParameters<typeof UserProfileService>[0]>;
+  options?: Partial<ConstructorParameters<typeof ProfileMetricsService>[0]>;
 } = {}): {
-  service: UserProfileService;
+  service: ProfileMetricsService;
   rootMessenger: RootMessenger;
-  messenger: UserProfileServiceMessenger;
+  messenger: ProfileMetricsServiceMessenger;
 } {
   const rootMessenger = getRootMessenger();
   rootMessenger.registerActionHandler(
@@ -378,7 +378,7 @@ function getService({
   );
 
   const messenger = getMessenger(rootMessenger);
-  const service = new UserProfileService({
+  const service = new ProfileMetricsService({
     fetch,
     messenger,
     ...options,
