@@ -8,6 +8,7 @@
   "references": [
     { "path": "../../packages/accounts-controller/tsconfig.build.json" },
     { "path": "../../packages/base-controller/tsconfig.build.json" },
+    { "path": "../../packages/controller-utils/tsconfig.build.json" },
     { "path": "../../packages/keyring-controller/tsconfig.build.json" },
     { "path": "../../packages/messenger/tsconfig.build.json" },
     { "path": "../../packages/polling-controller/tsconfig.build.json" },
