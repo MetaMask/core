@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.1.0]
 
-### Uncategorized
-
-- Release 690.0.0 ([#7215](https://github.com/MetaMask/core/pull/7215))
-
 ### Added
 
 - Use new feature flags to configure gas limit fallback for Relay quotes ([#7229](https://github.com/MetaMask/core/pull/7229))
