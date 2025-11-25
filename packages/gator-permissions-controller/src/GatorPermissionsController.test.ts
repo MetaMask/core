@@ -938,8 +938,20 @@ describe('GatorPermissionsController', () => {
       // Wait for async operations
       await Promise.resolve();
 
-      // Should not call submitRevocation
-      expect(mockHandleRequestHandler).not.toHaveBeenCalled();
+      // Should refresh permissions with isRevoked: false
+      expect(mockHandleRequestHandler).toHaveBeenCalledWith({
+        handler: 'onRpcRequest',
+        origin: 'metamask',
+        request: {
+          jsonrpc: '2.0',
+          method: 'permissionsProvider_getGrantedPermissions',
+          params: { isRevoked: false },
+        },
+        snapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+      });
+
+      // Should not be in pending revocations
+      expect(controller.pendingRevocations).toStrictEqual([]);
     });
 
     it('should cleanup without submitting revocation when transaction is dropped', async () => {
@@ -971,8 +983,97 @@ describe('GatorPermissionsController', () => {
       // Wait for async operations
       await Promise.resolve();
 
-      // Should not call submitRevocation
-      expect(mockHandleRequestHandler).not.toHaveBeenCalled();
+      // Should refresh permissions with isRevoked: false
+      expect(mockHandleRequestHandler).toHaveBeenCalledWith({
+        handler: 'onRpcRequest',
+        origin: 'metamask',
+        request: {
+          jsonrpc: '2.0',
+          method: 'permissionsProvider_getGrantedPermissions',
+          params: { isRevoked: false },
+        },
+        snapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+      });
+
+      // Should not be in pending revocations
+      expect(controller.pendingRevocations).toStrictEqual([]);
+    });
+
+    it('should handle error when refreshing permissions after transaction fails', async () => {
+      const mockError = new Error('Failed to fetch permissions');
+      const mockHandleRequestHandler = jest.fn().mockRejectedValue(mockError);
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+      const messenger = getMessenger(rootMessenger);
+
+      const controller = new GatorPermissionsController({
+        messenger,
+        state: {
+          isGatorPermissionsEnabled: true,
+          gatorPermissionsProviderSnapId:
+            MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        },
+      });
+
+      const txId = 'test-tx-id';
+      const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
+
+      await controller.addPendingRevocation({ txId, permissionContext });
+
+      // Emit transaction failed event
+      rootMessenger.publish('TransactionController:transactionFailed', {
+        transactionMeta: { id: txId } as TransactionMeta,
+        error: 'Transaction failed',
+      });
+
+      // Wait for async operations and catch blocks to execute
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // Should have attempted to refresh permissions
+      expect(mockHandleRequestHandler).toHaveBeenCalled();
+
+      // Should not be in pending revocations
+      expect(controller.pendingRevocations).toStrictEqual([]);
+    });
+
+    it('should handle error when refreshing permissions after transaction is dropped', async () => {
+      const mockError = new Error('Failed to fetch permissions');
+      const mockHandleRequestHandler = jest.fn().mockRejectedValue(mockError);
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+      const messenger = getMessenger(rootMessenger);
+
+      const controller = new GatorPermissionsController({
+        messenger,
+        state: {
+          isGatorPermissionsEnabled: true,
+          gatorPermissionsProviderSnapId:
+            MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        },
+      });
+
+      const txId = 'test-tx-id';
+      const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
+
+      await controller.addPendingRevocation({ txId, permissionContext });
+
+      // Emit transaction dropped event
+      rootMessenger.publish('TransactionController:transactionDropped', {
+        transactionMeta: { id: txId } as TransactionMeta,
+      });
+
+      // Wait for async operations and catch blocks to execute
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // Should have attempted to refresh permissions
+      expect(mockHandleRequestHandler).toHaveBeenCalled();
+
+      // Should not be in pending revocations
+      expect(controller.pendingRevocations).toStrictEqual([]);
     });
 
     it('should cleanup without submitting revocation when timeout is reached', async () => {

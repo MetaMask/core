@@ -941,13 +941,18 @@ export default class GatorPermissionsController extends BaseController<
 
         cleanup(payload.transactionMeta.id);
 
-        this.fetchAndUpdateGatorPermissions({ isRevoked: false }).catch((error) => {
-          controllerLog('Failed to refresh permissions after transaction failed', {
-            txId,
-            permissionContext,
-            error,
-          });
-        });
+        this.fetchAndUpdateGatorPermissions({ isRevoked: false }).catch(
+          (error) => {
+            controllerLog(
+              'Failed to refresh permissions after transaction failed',
+              {
+                txId,
+                permissionContext,
+                error,
+              },
+            );
+          },
+        );
       }
     };
 
@@ -961,13 +966,18 @@ export default class GatorPermissionsController extends BaseController<
 
         cleanup(payload.transactionMeta.id);
 
-        this.fetchAndUpdateGatorPermissions({ isRevoked: false }).catch((error) => {
-          controllerLog('Failed to refresh permissions after transaction dropped', {
-            txId,
-            permissionContext,
-            error,
-          });
-        });
+        this.fetchAndUpdateGatorPermissions({ isRevoked: false }).catch(
+          (error) => {
+            controllerLog(
+              'Failed to refresh permissions after transaction dropped',
+              {
+                txId,
+                permissionContext,
+                error,
+              },
+            );
+          },
+        );
       }
     };
 
