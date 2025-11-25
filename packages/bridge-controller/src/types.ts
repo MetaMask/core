@@ -270,7 +270,8 @@ export type QuoteResponse<
    */
   featureId?: FeatureId;
   /**
-   * Appended to the quote response based on the quote request. If true, gas estimates will include the reset approval gas limit.
+   * Appended to the quote response based on the quote request resetApproval flag
+   * If defined, the quote's total network fee will include the reset approval's gas limit.
    */
   resetApproval?: TxData;
 };
