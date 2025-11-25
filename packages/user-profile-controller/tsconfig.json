@@ -6,7 +6,7 @@
   "references": [
     { "path": "../../packages/base-controller" },
     { "path": "../../packages/controller-utils" },
-    { "path": "../../packages/messenger" }
+    { "path": "../../packages/messenger" },
     { "path": "../../packages/profile-sync-controller" }
   ],
   "include": ["../../types", "./src"],
