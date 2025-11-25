@@ -55,6 +55,8 @@ export class MultichainAccountGroup<
 
   readonly #log: Logger;
 
+  #initialized = false;
+
   constructor({
     groupIndex,
     wallet,
@@ -78,6 +80,19 @@ export class MultichainAccountGroup<
   }
 
   /**
+   * Clear the account to provider state for a given provider.
+   *
+   * @param provider - The provider to clear the account to provider state for.
+   */
+  #clearAccountToProviderState(provider: Bip44AccountProvider<Account>) {
+    this.#accountToProvider.forEach((p, id) => {
+      if (p === provider) {
+        this.#accountToProvider.delete(id);
+      }
+    });
+  }
+
+  /**
    * Update the internal representation of accounts with the given group state.
    *
    * @param groupState - The group state.
@@ -85,6 +100,7 @@ export class MultichainAccountGroup<
   #setState(groupState: GroupState) {
     for (const provider of this.#providers) {
       const accountIds = groupState[provider.getName()];
+      this.#clearAccountToProviderState(provider);
 
       if (accountIds) {
         this.#providerToAccounts.set(provider, accountIds);
@@ -95,10 +111,14 @@ export class MultichainAccountGroup<
       }
     }
 
-    this.#messenger.publish(
-      'MultichainAccountService:multichainAccountGroupUpdated',
-      this,
-    );
+    if (!this.#initialized) {
+      this.#initialized = true;
+    } else {
+      this.#messenger.publish(
+        'MultichainAccountService:multichainAccountGroupUpdated',
+        this,
+      );
+    }
   }
 
   /**

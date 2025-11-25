@@ -63,7 +63,7 @@ export type Bip44AccountProvider<
    * @param options - The options for aligning the accounts.
    * @param options.entropySource - The entropy source.
    * @param options.groupIndex - The group index.
-   * @returns A tuple containing a boolean indicating if the accounts were aligned and the accounts IDs.
+   * @returns The already and newly aligned accounts IDs.
    */
   alignAccounts({
     entropySource,
@@ -96,6 +96,8 @@ export abstract class BaseBip44AccountProvider<
 
   /**
    * Add accounts to the provider.
+   *
+   * Note: There's an implicit assumption that the accounts are BIP-44 compatible.
    *
    * @param accounts - The accounts to add.
    */
@@ -143,6 +145,8 @@ export abstract class BaseBip44AccountProvider<
       throw new Error(`Unable to find account: ${id}`);
     }
 
+    // We need to upcast here since InternalAccounts are not always BIP-44 compatible
+    // but we know that the account is BIP-44 compatible here so it is safe to do so
     return this.messenger.call(
       'AccountsController:getAccount',
       id,

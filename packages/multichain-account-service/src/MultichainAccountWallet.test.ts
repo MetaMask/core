@@ -287,32 +287,6 @@ describe('MultichainAccountWallet', () => {
       expect(internalAccounts[0]).toStrictEqual(mockNextEvmAccount);
     });
 
-    it('fails to create an account group if all providers fail to create their accounts (waitForAllProvidersToFinishCreatingAccounts = true)', async () => {
-      const { wallet, providers } = setup({
-        accounts: [[], []],
-      });
-
-      const [failingProvider1, failingProvider2] = providers;
-
-      failingProvider1.createAccounts.mockRejectedValueOnce(
-        new Error('Unable to create accounts'),
-      );
-
-      failingProvider2.createAccounts.mockRejectedValueOnce(
-        new Error('Unable to create accounts'),
-      );
-
-      await expect(
-        wallet.createMultichainAccountGroup(0, {
-          waitForAllProvidersToFinishCreatingAccounts: true,
-        }),
-      ).rejects.toThrow(
-        'Unable to create multichain account group for index: 0 due to provider failures:\n- Mocked Provider 0: Unable to create accounts\n- Mocked Provider 1: Unable to create accounts',
-      );
-
-      expect(wallet.getAccountGroups()).toHaveLength(0);
-    });
-
     it('captures an error when a provider fails to create its account', async () => {
       const groupIndex = 1;
       const { wallet, providers, messenger } = setup({
@@ -322,7 +296,9 @@ describe('MultichainAccountWallet', () => {
       const providerError = new Error('Unable to create accounts');
       provider.createAccounts.mockRejectedValueOnce(providerError);
       const callSpy = jest.spyOn(messenger, 'call');
-      await wallet.createMultichainAccountGroup(groupIndex);
+      await expect(
+        wallet.createMultichainAccountGroup(groupIndex),
+      ).rejects.toThrow(providerError);
       expect(callSpy).toHaveBeenCalledWith(
         'ErrorReportingService:captureException',
         new Error('Unable to create account with provider "Mocked Provider 0"'),
