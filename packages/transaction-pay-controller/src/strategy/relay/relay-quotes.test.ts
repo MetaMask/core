@@ -6,7 +6,6 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { RELAY_URL_QUOTE } from './constants';
 import { getRelayQuotes } from './relay-quotes';
 import type { RelayQuote } from './types';
 import {
@@ -20,6 +19,7 @@ import type {
   GetDelegationTransactionCallback,
   QuoteRequest,
 } from '../../types';
+import { DEFAULT_RELAY_QUOTE_URL } from '../../utils/feature-flags';
 import {
   calculateGasCost,
   calculateGasFeeTokenCost,
@@ -205,7 +205,7 @@ describe('Relay Quotes Utils', () => {
       });
 
       expect(successfulFetchMock).toHaveBeenCalledWith(
-        RELAY_URL_QUOTE,
+        DEFAULT_RELAY_QUOTE_URL,
         expect.objectContaining({
           body: JSON.stringify({
             amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
