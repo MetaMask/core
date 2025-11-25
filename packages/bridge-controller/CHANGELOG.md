@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
   - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
 
+### Fixed
+
+- Update `quotesLoadingStatus` to "LOADING" if a balance fetch is needed before fetching quotes ((https://github.com/MetaMask/core/pull/7227)[#7227])
+- Wait for async SSE message handlers before updating `quotesLoadingStatus` to prevent clients from displaying "No quotes" warnings ((https://github.com/MetaMask/core/pull/7227)[#7227])
+
 ## [63.0.0]
 
 ### Changed

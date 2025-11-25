@@ -8,20 +8,31 @@ import {
 import nock from 'nock';
 import { type SinonFakeTimers, useFakeTimers } from 'sinon';
 
-import { UserProfileService, type UserProfileServiceMessenger } from '.';
-import type { UserProfileUpdateRequest } from './UserProfileService';
+import {
+  UserProfileService,
+  type UserProfileUpdateRequest,
+  type UserProfileServiceMessenger,
+  Env,
+  getEnvUrl,
+} from '.';
 import { HttpError } from '../../controller-utils/src/util';
+
+const defaultBaseEndpoint = getEnvUrl(Env.DEV);
 
 /**
  * Creates a mock request object for testing purposes.
  *
+ * @param override - Optional properties to override in the mock request.
  * @returns A mock request object.
  */
-function createMockRequest(): UserProfileUpdateRequest {
+function createMockRequest(
+  override?: Partial<UserProfileUpdateRequest>,
+): UserProfileUpdateRequest {
   return {
     metametricsId: 'mock-meta-metrics-id',
     entropySourceId: 'mock-entropy-source-id',
-    accounts: ['0xMockAccountAddress1'],
+    accounts: [{ address: 'eip155:_:0xMockAccountAddress1' }],
+    ...override,
   };
 }
 
@@ -36,10 +47,24 @@ describe('UserProfileService', () => {
     clock.restore();
   });
 
+  describe('constructor', () => {
+    it('throws when an invalid env is selected', () => {
+      expect(
+        () =>
+          new UserProfileService({
+            fetch,
+            messenger: getMessenger(getRootMessenger()),
+            // @ts-expect-error Testing invalid env
+            env: 'invalid-env',
+          }),
+      ).toThrow('invalid environment configuration');
+    });
+  });
+
   describe('UserProfileService:updateProfile', () => {
-    it('resolves when there is a successful response from the API', async () => {
-      nock('https://api.example.com')
-        .put('/update-profile')
+    it('resolves when there is a successful response from the API and the accounts have an entropy source id', async () => {
+      nock(defaultBaseEndpoint)
+        .put('/profile/accounts')
         .reply(200, {
           data: {
             success: true,
@@ -55,56 +80,29 @@ describe('UserProfileService', () => {
       expect(updateProfileResponse).toBeUndefined();
     });
 
-    it('throws if there is an unsuccessful response from the API', async () => {
-      nock('https://api.example.com')
-        .put('/update-profile')
+    it('resolves when there is a successful response from the API and the accounts do not have an entropy source id', async () => {
+      nock(defaultBaseEndpoint)
+        .put('/profile/accounts')
         .reply(200, {
           data: {
-            success: false,
+            success: true,
           },
         });
       const { rootMessenger } = getService();
 
-      await expect(
-        rootMessenger.call(
-          'UserProfileService:updateProfile',
-          createMockRequest(),
-        ),
-      ).rejects.toThrow(
-        'API indicated that the profile update was unsuccessfu',
+      const request = createMockRequest({ entropySourceId: null });
+
+      const updateProfileResponse = await rootMessenger.call(
+        'UserProfileService:updateProfile',
+        request,
       );
+
+      expect(updateProfileResponse).toBeUndefined();
     });
 
-    it.each([
-      'not an object',
-      { missing: 'data' },
-      { data: 'not an object' },
-      { data: { missing: 'low', average: 2, high: 3 } },
-      { data: { low: 1, missing: 'average', high: 3 } },
-      { data: { low: 1, average: 2, missing: 'high' } },
-      { data: { low: 'not a number', average: 2, high: 3 } },
-      { data: { low: 1, average: 'not a number', high: 3 } },
-      { data: { low: 1, average: 2, high: 'not a number' } },
-    ])(
-      'throws if the API returns a malformed response %o',
-      async (response) => {
-        nock('https://api.example.com')
-          .put('/update-profile')
-          .reply(200, JSON.stringify(response));
-        const { rootMessenger } = getService();
-
-        await expect(
-          rootMessenger.call(
-            'UserProfileService:updateProfile',
-            createMockRequest(),
-          ),
-        ).rejects.toThrow('Malformed response received from gas prices API');
-      },
-    );
-
     it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
-      nock('https://api.example.com')
-        .put('/update-profile')
+      nock(defaultBaseEndpoint)
+        .put('/profile/accounts')
         .reply(200, () => {
           clock.tick(6000);
           return {
@@ -126,8 +124,8 @@ describe('UserProfileService', () => {
     });
 
     it('allows the degradedThreshold to be changed', async () => {
-      nock('https://api.example.com')
-        .put('/update-profile')
+      nock(defaultBaseEndpoint)
+        .put('/profile/accounts')
         .reply(200, () => {
           clock.tick(1000);
           return {
@@ -153,10 +151,7 @@ describe('UserProfileService', () => {
     });
 
     it('attempts a request that responds with non-200 up to 4 times, throwing if it never succeeds', async () => {
-      nock('https://api.example.com')
-        .put('/update-profile')
-        .times(4)
-        .reply(500);
+      nock(defaultBaseEndpoint).put('/profile/accounts').times(4).reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(clock.next);
 
@@ -166,15 +161,12 @@ describe('UserProfileService', () => {
           createMockRequest(),
         ),
       ).rejects.toThrow(
-        "Fetching 'https://api.example.com/update-profile' failed with status '500'",
+        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
       );
     });
 
     it('calls onDegraded listeners when the maximum number of retries is exceeded', async () => {
-      nock('https://api.example.com')
-        .put('/update-profile')
-        .times(4)
-        .reply(500);
+      nock(defaultBaseEndpoint).put('/profile/accounts').times(4).reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(clock.next);
       const onDegradedListener = jest.fn();
@@ -186,16 +178,13 @@ describe('UserProfileService', () => {
           createMockRequest(),
         ),
       ).rejects.toThrow(
-        "Fetching 'https://api.example.com/update-profile' failed with status '500'",
+        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
       );
       expect(onDegradedListener).toHaveBeenCalled();
     });
 
     it('intercepts requests and throws a circuit break error after the 4th failed attempt, running onBreak listeners', async () => {
-      nock('https://api.example.com')
-        .put('/update-profile')
-        .times(12)
-        .reply(500);
+      nock(defaultBaseEndpoint).put('/profile/accounts').times(12).reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(clock.next);
       const onBreakListener = jest.fn();
@@ -208,7 +197,7 @@ describe('UserProfileService', () => {
           createMockRequest(),
         ),
       ).rejects.toThrow(
-        "Fetching 'https://api.example.com/update-profile' failed with status '500'",
+        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
       );
       // Should make 4 requests
       await expect(
@@ -217,7 +206,7 @@ describe('UserProfileService', () => {
           createMockRequest(),
         ),
       ).rejects.toThrow(
-        "Fetching 'https://api.example.com/update-profile' failed with status '500'",
+        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
       );
       // Should make 4 requests
       await expect(
@@ -226,7 +215,7 @@ describe('UserProfileService', () => {
           createMockRequest(),
         ),
       ).rejects.toThrow(
-        "Fetching 'https://api.example.com/update-profile' failed with status '500'",
+        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
       );
       // Should not make an additional request (we only mocked 12 requests
       // above)
@@ -241,18 +230,18 @@ describe('UserProfileService', () => {
       expect(onBreakListener).toHaveBeenCalledWith({
         error: new HttpError(
           500,
-          "Fetching 'https://api.example.com/update-profile' failed with status '500'",
+          `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
         ),
       });
     });
 
     it('resumes requests after the circuit break duration passes, returning the API response if the request ultimately succeeds', async () => {
       const circuitBreakDuration = 5_000;
-      nock('https://api.example.com')
-        .put('/update-profile')
+      nock(defaultBaseEndpoint)
+        .put('/profile/accounts')
         .times(12)
         .reply(500)
-        .put('/update-profile')
+        .put('/profile/accounts')
         .reply(200, {
           data: {
             success: true,
@@ -271,7 +260,7 @@ describe('UserProfileService', () => {
           createMockRequest(),
         ),
       ).rejects.toThrow(
-        "Fetching 'https://api.example.com/update-profile' failed with status '500'",
+        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
       );
       await expect(
         rootMessenger.call(
@@ -279,7 +268,7 @@ describe('UserProfileService', () => {
           createMockRequest(),
         ),
       ).rejects.toThrow(
-        "Fetching 'https://api.example.com/update-profile' failed with status '500'",
+        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
       );
       await expect(
         rootMessenger.call(
@@ -287,7 +276,7 @@ describe('UserProfileService', () => {
           createMockRequest(),
         ),
       ).rejects.toThrow(
-        "Fetching 'https://api.example.com/update-profile' failed with status '500'",
+        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
       );
       await expect(
         rootMessenger.call(
@@ -306,8 +295,8 @@ describe('UserProfileService', () => {
 
   describe('fetchGasPrices', () => {
     it('does the same thing as the messenger action', async () => {
-      nock('https://api.example.com')
-        .put('/update-profile')
+      nock(defaultBaseEndpoint)
+        .put('/profile/accounts')
         .reply(200, {
           data: {
             success: true,
@@ -353,10 +342,15 @@ function getRootMessenger(): RootMessenger {
 function getMessenger(
   rootMessenger: RootMessenger,
 ): UserProfileServiceMessenger {
-  return new Messenger({
+  const serviceMessenger: UserProfileServiceMessenger = new Messenger({
     namespace: 'UserProfileService',
     parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    messenger: serviceMessenger,
+    actions: ['AuthenticationController:getBearerToken'],
+  });
+  return serviceMessenger;
 }
 
 /**
@@ -378,6 +372,11 @@ function getService({
   messenger: UserProfileServiceMessenger;
 } {
   const rootMessenger = getRootMessenger();
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    async () => 'mock-bearer-token',
+  );
+
   const messenger = getMessenger(rootMessenger);
   const service = new UserProfileService({
     fetch,

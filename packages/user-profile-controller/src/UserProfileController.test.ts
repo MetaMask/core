@@ -10,6 +10,7 @@ import {
 
 import {
   UserProfileController,
+  type AccountWithScopes,
   type UserProfileControllerMessenger,
 } from './UserProfileController';
 import type { UserProfileUpdateRequest } from './UserProfileService';
@@ -39,7 +40,7 @@ function createMockAccount(
         }
       : {},
     methods: [],
-    scopes: [],
+    scopes: ['eip155:1'],
     type: 'any:account',
     metadata: {
       keyring: {
@@ -90,8 +91,10 @@ describe('UserProfileController', () => {
 
               expect(controller.state.firstSyncCompleted).toBe(true);
               expect(controller.state.syncQueue).toStrictEqual({
-                'entropy-0xAccount1': ['0xAccount1'],
-                null: ['0xAccount2'],
+                'entropy-0xAccount1': [
+                  { address: '0xAccount1', scopes: ['eip155:1'] },
+                ],
+                null: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
               });
             },
           );
@@ -184,7 +187,9 @@ describe('UserProfileController', () => {
             await Promise.resolve();
 
             expect(controller.state.syncQueue).toStrictEqual({
-              'entropy-0xNewAccount': ['0xNewAccount'],
+              'entropy-0xNewAccount': [
+                { address: '0xNewAccount', scopes: ['eip155:1'] },
+              ],
             });
           },
         );
@@ -204,7 +209,7 @@ describe('UserProfileController', () => {
             await Promise.resolve();
 
             expect(controller.state.syncQueue).toStrictEqual({
-              null: ['0xNewAccount'],
+              null: [{ address: '0xNewAccount', scopes: ['eip155:1'] }],
             });
           },
         );
@@ -229,9 +234,12 @@ describe('UserProfileController', () => {
 
     describe('when AccountsController:accountRemoved is published', () => {
       it('removes the account from the sync queue if it exists there', async () => {
-        const accounts = {
-          id1: ['0xAccount1', '0xAccount2'],
-          id2: ['0xAccount3'],
+        const accounts: Record<string, AccountWithScopes[]> = {
+          id1: [
+            { address: '0xAccount1', scopes: ['eip155:1'] },
+            { address: '0xAccount2', scopes: ['eip155:1'] },
+          ],
+          id2: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
         };
         await withController(
           {
@@ -246,8 +254,8 @@ describe('UserProfileController', () => {
             await Promise.resolve();
 
             expect(controller.state.syncQueue).toStrictEqual({
-              id1: ['0xAccount1'],
-              id2: ['0xAccount3'],
+              id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+              id2: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
             });
           },
         );
@@ -255,8 +263,8 @@ describe('UserProfileController', () => {
 
       it('removes the key from the sync queue if it becomes empty after account removal', async () => {
         const accounts = {
-          id1: ['0xAccount1'],
-          id2: ['0xAccount2'],
+          id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+          id2: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
         };
         await withController(
           {
@@ -271,15 +279,15 @@ describe('UserProfileController', () => {
             await Promise.resolve();
 
             expect(controller.state.syncQueue).toStrictEqual({
-              id2: ['0xAccount2'],
+              id2: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
             });
           },
         );
       });
 
       it('does nothing if the account is not in the sync queue', async () => {
-        const accounts = {
-          id1: ['0xAccount1'],
+        const accounts: Record<string, AccountWithScopes[]> = {
+          id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
         };
         await withController(
           {
@@ -300,8 +308,8 @@ describe('UserProfileController', () => {
 
   describe('_executePoll', () => {
     it('processes the sync queue on each poll', async () => {
-      const accounts = {
-        id1: ['0xAccount1'],
+      const accounts: Record<string, AccountWithScopes[]> = {
+        id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
       };
       await withController(
         {
@@ -314,7 +322,7 @@ describe('UserProfileController', () => {
           expect(mockUpdateProfile).toHaveBeenCalledWith({
             metametricsId: getMetaMetricsId(),
             entropySourceId: 'id1',
-            accounts: ['0xAccount1'],
+            accounts: [{ address: 'eip155:1:0xAccount1' }],
           });
           expect(controller.state.syncQueue).toStrictEqual({});
         },
@@ -322,10 +330,13 @@ describe('UserProfileController', () => {
     });
 
     it('processes the sync queue in batches grouped by entropySourceId', async () => {
-      const accounts = {
-        id1: ['0xAccount1', '0xAccount2'],
-        id2: ['0xAccount3'],
-        null: ['0xAccount4'],
+      const accounts: Record<string, AccountWithScopes[]> = {
+        id1: [
+          { address: '0xAccount1', scopes: ['eip155:1'] },
+          { address: '0xAccount2', scopes: ['eip155:1'] },
+        ],
+        id2: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
+        null: [{ address: '0xAccount4', scopes: ['eip155:1'] }],
       };
       await withController(
         {
@@ -338,17 +349,20 @@ describe('UserProfileController', () => {
           expect(mockUpdateProfile).toHaveBeenNthCalledWith(1, {
             metametricsId: getMetaMetricsId(),
             entropySourceId: 'id1',
-            accounts: ['0xAccount1', '0xAccount2'],
+            accounts: [
+              { address: 'eip155:1:0xAccount1' },
+              { address: 'eip155:1:0xAccount2' },
+            ],
           });
           expect(mockUpdateProfile).toHaveBeenNthCalledWith(2, {
             metametricsId: getMetaMetricsId(),
             entropySourceId: 'id2',
-            accounts: ['0xAccount3'],
+            accounts: [{ address: 'eip155:1:0xAccount3' }],
           });
           expect(mockUpdateProfile).toHaveBeenNthCalledWith(3, {
             metametricsId: getMetaMetricsId(),
             entropySourceId: null,
-            accounts: ['0xAccount4'],
+            accounts: [{ address: 'eip155:1:0xAccount4' }],
           });
           expect(controller.state.syncQueue).toStrictEqual({});
         },

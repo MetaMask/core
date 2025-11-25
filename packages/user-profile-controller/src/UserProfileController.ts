@@ -15,6 +15,7 @@ import type {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import { isCaipNamespace, type CaipAccountId } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
 import type { UserProfileServiceMethodActions } from '.';
@@ -25,6 +26,11 @@ import type { UserProfileServiceMethodActions } from '.';
  * when composed with other controllers.
  */
 export const controllerName = 'UserProfileController';
+
+export type AccountWithScopes = {
+  address: string;
+  scopes: string[];
+};
 
 /**
  * Describes the shape of the state object for {@link UserProfileController}.
@@ -40,7 +46,7 @@ export type UserProfileControllerState = {
    * addresses associated with that entropy source. Accounts with no entropy
    * source ID are grouped under the key "null".
    */
-  syncQueue: Record<string, string[]>;
+  syncQueue: Record<string, AccountWithScopes[]>;
 };
 
 /**
@@ -212,7 +218,9 @@ export class UserProfileController extends StaticIntervalPollingController()<
         await this.messenger.call('UserProfileService:updateProfile', {
           metametricsId: this.#getMetaMetricsId(),
           entropySourceId: entropySourceId === 'null' ? null : entropySourceId,
-          accounts,
+          accounts: accounts.map((account) => ({
+            address: accountToCaipAccountId(account),
+          })),
         });
         this.update((state) => {
           delete state.syncQueue[entropySourceId];
@@ -259,12 +267,7 @@ export class UserProfileController extends StaticIntervalPollingController()<
         return;
       }
       const newGroupedAccounts = groupAccountsByEntropySourceId(
-        this.messenger
-          .call('AccountsController:listAccounts')
-          .map((account) => ({
-            entropySourceId: getAccountEntropySourceId(account),
-            address: account.address,
-          })),
+        this.messenger.call('AccountsController:listAccounts'),
       );
       const queuedAddresses = { ...this.state.syncQueue };
       for (const key of Object.keys(newGroupedAccounts)) {
@@ -295,7 +298,10 @@ export class UserProfileController extends StaticIntervalPollingController()<
         if (!state.syncQueue[entropySourceId]) {
           state.syncQueue[entropySourceId] = [];
         }
-        state.syncQueue[entropySourceId].push(account.address);
+        state.syncQueue[entropySourceId].push({
+          address: account.address,
+          scopes: account.scopes,
+        });
       });
     });
   }
@@ -303,7 +309,7 @@ export class UserProfileController extends StaticIntervalPollingController()<
   /**
    * Remove the given account from the sync queue.
    *
-   * @param account - The account to remove.
+   * @param account - The account address to remove.
    */
   async #removeAccountFromQueue(account: string) {
     await this.#mutex.runExclusive(async () => {
@@ -311,7 +317,9 @@ export class UserProfileController extends StaticIntervalPollingController()<
         for (const [entropySourceId, groupedAddresses] of Object.entries(
           state.syncQueue,
         )) {
-          const index = groupedAddresses.indexOf(account);
+          const index = groupedAddresses.findIndex(
+            ({ address }) => address === account,
+          );
           if (index === -1) {
             continue;
           }
@@ -347,14 +355,31 @@ function getAccountEntropySourceId(account: InternalAccount): string | null {
  * an array of account addresses associated with that entropy source ID.
  */
 function groupAccountsByEntropySourceId(
-  accounts: { address: string; entropySourceId?: string | null }[],
-): Record<string, string[]> {
-  return accounts.reduce((result: Record<string, string[]>, account) => {
-    const key = account.entropySourceId ?? 'null';
-    if (!result[key]) {
-      result[key] = [];
-    }
-    result[key].push(account.address);
-    return result;
-  }, {});
+  accounts: InternalAccount[],
+): Record<string, AccountWithScopes[]> {
+  return accounts.reduce(
+    (result: Record<string, AccountWithScopes[]>, account) => {
+      const entropySourceId = getAccountEntropySourceId(account);
+      const key = entropySourceId || 'null';
+      if (!result[key]) {
+        result[key] = [];
+      }
+      result[key].push({ address: account.address, scopes: account.scopes });
+      return result;
+    },
+    {},
+  );
+}
+
+/**
+ * Converts an InternalAccount to a CaipAccountId.
+ *
+ * @param account - The InternalAccount to convert.
+ * @returns The corresponding CaipAccountId.
+ */
+function accountToCaipAccountId(account: AccountWithScopes): CaipAccountId {
+  const [scope] = account.scopes;
+  const [namespace, reference] = scope.split(':');
+  isCaipNamespace(namespace);
+  return `${namespace}:${reference}:${account.address}`;
 }

@@ -8,6 +8,7 @@ import type { UserProfileService } from './UserProfileService';
 /**
  * Makes a request to the API in order to update the user profile.
  *
+ * @param data - The data to send in the profile update request.
  * @returns The response from the API.
  */
 export type UserProfileServiceUpdateProfileAction = {
