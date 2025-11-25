@@ -534,7 +534,7 @@ describe('BridgeController', function () {
     await flushPromises();
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
-        quoteRequest: { ...quoteRequest, insufficientBal: false },
+        quoteRequest: { ...quoteRequest, insufficientBal: false, resetApproval: false },
         quotes: mockBridgeQuotesNativeErc20Eth,
         quotesLoadingStatus: 1,
       }),
@@ -548,7 +548,7 @@ describe('BridgeController', function () {
     await flushPromises();
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
-        quoteRequest: { ...quoteRequest, insufficientBal: false, resetApproval: undefined },
+        quoteRequest: { ...quoteRequest, insufficientBal: false, resetApproval: false },
         quotes: [
           ...mockBridgeQuotesNativeErc20Eth,
           ...mockBridgeQuotesNativeErc20Eth,
@@ -1012,6 +1012,7 @@ describe('BridgeController', function () {
       {
         ...quoteRequest,
         insufficientBal: true,
+        resetApproval: false,
       },
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
@@ -1027,7 +1028,7 @@ describe('BridgeController', function () {
 
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
-        quoteRequest: { ...quoteRequest, insufficientBal: true },
+        quoteRequest: { ...quoteRequest, insufficientBal: true, resetApproval: false },
         quotes: [],
         quotesLoadingStatus: 0,
         quotesLastFetched: t1,
@@ -1039,7 +1040,7 @@ describe('BridgeController', function () {
     await flushPromises();
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
-        quoteRequest: { ...quoteRequest, insufficientBal: true },
+        quoteRequest: { ...quoteRequest, insufficientBal: true, resetApproval: false },
         quotes: mockBridgeQuotesNativeErc20Eth,
         quotesLoadingStatus: 1,
         quotesRefreshCount: 1,
@@ -1072,7 +1073,7 @@ describe('BridgeController', function () {
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
-        quoteRequest: { ...quoteRequest, insufficientBal: true },
+        quoteRequest: { ...quoteRequest, insufficientBal: true, resetApproval: false },
         quotes: mockBridgeQuotesNativeErc20Eth,
         quotesLoadingStatus: 1,
         quotesRefreshCount: 1,
@@ -1444,7 +1445,7 @@ describe('BridgeController', function () {
 
       expect(bridgeController.state).toStrictEqual(
         expect.objectContaining({
-          quoteRequest: { ...quoteRequest, insufficientBal: true },
+          quoteRequest: { ...quoteRequest, insufficientBal: true, resetApproval: false },
           quotes: [],
           quotesLoadingStatus: 0,
         }),
@@ -1457,7 +1458,7 @@ describe('BridgeController', function () {
       expect(quotes).toHaveLength(expectedQuotesLength);
       expect(bridgeController.state).toStrictEqual(
         expect.objectContaining({
-          quoteRequest: { ...quoteRequest, insufficientBal: true },
+          quoteRequest: { ...quoteRequest, insufficientBal: true, resetApproval: false },
           quotesLoadingStatus: 1,
           quotesRefreshCount: 1,
         }),
