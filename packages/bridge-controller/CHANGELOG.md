@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [63.1.0]
+
 ### Added
 
 - Port the following constants from `SwapsController` and export them: `SWAPS_TESTNET_CHAIN_ID`, `SWAPS_CONTRACT_ADDRESSES`, `SWAPS_WRAPPED_TOKENS_ADDRESSES`, `ALLOWED_CONTRACT_ADDRESSES` ([#7233](https://github.com/MetaMask/core/pull/7233))
@@ -894,7 +896,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.1.0...HEAD
+[63.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@63.0.0...@metamask/bridge-controller@63.1.0
 [63.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@62.0.0...@metamask/bridge-controller@63.0.0
 [62.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@61.0.0...@metamask/bridge-controller@62.0.0
 [61.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@60.1.0...@metamask/bridge-controller@61.0.0
