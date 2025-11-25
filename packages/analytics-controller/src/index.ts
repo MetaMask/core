@@ -1,5 +1,8 @@
-// Export controller class
-export { AnalyticsController } from './AnalyticsController';
+// Export controller class and state utilities
+export {
+  AnalyticsController,
+  getDefaultAnalyticsControllerState,
+} from './AnalyticsController';
 export type { AnalyticsControllerOptions } from './AnalyticsController';
 
 // Export errors
@@ -13,7 +16,7 @@ export type {
   AnalyticsTrackingEvent,
 } from './AnalyticsPlatformAdapter.types';
 
-// Export state types and utilities
+// Export state types
 export type { AnalyticsControllerState } from './AnalyticsController';
 
 // Export selectors

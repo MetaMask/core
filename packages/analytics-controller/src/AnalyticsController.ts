@@ -5,7 +5,6 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import { v4 as uuidv4 } from 'uuid';
 
 import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types';
 import { validateAnalyticsControllerState } from './analyticsControllerStateValidator';
@@ -45,29 +44,52 @@ export type AnalyticsControllerState = {
 
   /**
    * User's UUIDv4 analytics identifier.
+   * This is an identity (unique per user), not a preference.
+   * Must be provided by the platform - the controller does not generate it.
    */
   analyticsId: string;
 };
 
 /**
+ * Returns default values for AnalyticsController state.
+ *
+ * Note: analyticsId is NOT included - it's an identity that must be
+ * provided by the platform (generated once on first run, then persisted).
+ *
+ * @returns Default state without analyticsId
+ */
+export function getDefaultAnalyticsControllerState(): Omit<
+  AnalyticsControllerState,
+  'analyticsId'
+> {
+  return {
+    optedInForRegularAccount: false,
+    optedInForSocialAccount: false,
+  };
+}
+
+/**
  * The metadata for each property in {@link AnalyticsControllerState}.
+ *
+ * Note: `persist` is set to `false` for all fields because the platform
+ * is responsible for persistence via the `stateChange` event listener.
  */
 const analyticsControllerMetadata = {
   optedInForRegularAccount: {
     includeInStateLogs: true,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
   optedInForSocialAccount: {
     includeInStateLogs: true,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
   analyticsId: {
     includeInStateLogs: true,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     usedInUi: false,
   },
@@ -139,10 +161,17 @@ export type AnalyticsControllerMessenger = Messenger<
  * The options that AnalyticsController takes.
  */
 export type AnalyticsControllerOptions = {
-  state?: Partial<AnalyticsControllerState>;
+  /**
+   * Initial controller state. Must include a valid UUIDv4 `analyticsId`.
+   * The platform is responsible for generating and persisting the analyticsId.
+   */
+  state: AnalyticsControllerState;
+  /**
+   * Messenger used to communicate with BaseController and other controllers.
+   */
   messenger: AnalyticsControllerMessenger;
   /**
-   * Platform adapter implementation for tracking events
+   * Platform adapter implementation for tracking events.
    */
   platformAdapter: AnalyticsPlatformAdapter;
 };
@@ -156,6 +185,11 @@ export type AnalyticsControllerOptions = {
  * This controller follows the MetaMask controller pattern and integrates with the
  * messenger system to allow other controllers and components to track analytics events.
  * It delegates platform-specific implementation to an {@link AnalyticsPlatformAdapter}.
+ *
+ * Note: This controller does not persist state internally (`persist: false` in metadata).
+ * The platform is responsible for:
+ * - Providing the initial state (including a valid UUIDv4 analyticsId)
+ * - Subscribing to `AnalyticsController:stateChange` event to persist changes
  */
 export class AnalyticsController extends BaseController<
   'AnalyticsController',
@@ -168,21 +202,19 @@ export class AnalyticsController extends BaseController<
    * Constructs an AnalyticsController instance.
    *
    * @param options - Controller options
-   * @param options.state - Initial controller state. Defaults: optedInForRegularAccount=false,
-   * optedInForSocialAccount=false, analyticsId=auto-generated UUIDv4.
-   * For migration from a previous system, pass the existing analytics ID via state.analyticsId.
+   * @param options.state - Initial controller state. Must include a valid UUIDv4 `analyticsId`.
+   * Use `getDefaultAnalyticsControllerState()` for default opt-in preferences.
    * @param options.messenger - Messenger used to communicate with BaseController
    * @param options.platformAdapter - Platform adapter implementation for tracking
+   * @throws Error if state.analyticsId is missing or not a valid UUIDv4
    */
   constructor({
-    state = {},
+    state,
     messenger,
     platformAdapter,
   }: AnalyticsControllerOptions) {
     const initialState: AnalyticsControllerState = {
-      optedInForRegularAccount: false,
-      optedInForSocialAccount: false,
-      analyticsId: uuidv4(),
+      ...getDefaultAnalyticsControllerState(),
       ...state,
     };
 
