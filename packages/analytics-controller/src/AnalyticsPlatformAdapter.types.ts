@@ -81,7 +81,7 @@ export type AnalyticsPlatformAdapter = {
    *
    * @example
    * ```typescript
-   * onSetupCompleted(analyticsId: string): void {
+   * async onSetupCompleted(analyticsId: string): Promise<void> {
    *   // Add platform-specific plugins that require analyticsId
    *   client.add({
    *     plugin: new PrivacyPlugin(analyticsId),
@@ -89,5 +89,5 @@ export type AnalyticsPlatformAdapter = {
    * }
    * ```
    */
-  onSetupCompleted(analyticsId: string): void;
+  onSetupCompleted(analyticsId: string): Promise<void>;
 };

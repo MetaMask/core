@@ -45,7 +45,7 @@ function setupController(
       track: jest.fn(),
       identify: jest.fn(),
       view: jest.fn(),
-      onSetupCompleted: jest.fn(),
+      onSetupCompleted: jest.fn().mockResolvedValue(undefined),
     } satisfies AnalyticsPlatformAdapter);
 
   const rootMessenger = new Messenger<
@@ -120,7 +120,7 @@ describe('AnalyticsController', () => {
     track: jest.fn(),
     identify: jest.fn(),
     view: jest.fn(),
-    onSetupCompleted: jest.fn(),
+    onSetupCompleted: jest.fn().mockResolvedValue(undefined),
   });
 
   describe('constructor', () => {
@@ -182,7 +182,7 @@ describe('AnalyticsController', () => {
   });
 
   describe('onSetupCompleted lifecycle hook', () => {
-    it('calls onSetupCompleted with analyticsId after initialization', () => {
+    it('calls onSetupCompleted with analyticsId after initialization', async () => {
       const mockAdapter = createMockAdapter();
       const customId = '550e8400-e29b-41d4-a716-446655440000';
 
@@ -195,20 +195,25 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.onSetupCompleted).toHaveBeenCalledWith(
         controller.state.analyticsId,
       );
+
+      // Verify the promise resolves successfully
+      const mockFn = mockAdapter.onSetupCompleted as jest.MockedFunction<
+        (analyticsId: string) => Promise<void>
+      >;
+      const promise = mockFn.mock.results[0]?.value;
+      await expect(promise).resolves.toBeUndefined();
     });
 
-    it('ignores errors thrown by onSetupCompleted', () => {
-      const mockAdapter = createMockAdapter();
-      const cause = new Error(
-        'MetaMetricsPrivacySegmentPlugin configure failed',
-      );
-      const error = new AnalyticsPlatformAdapterSetupError(
-        'Failed to add privacy plugin to Segment client',
-        cause,
-      );
-      jest.spyOn(mockAdapter, 'onSetupCompleted').mockImplementation(() => {
-        throw error;
+    it('waits for onSetupCompleted promise to resolve', async () => {
+      let resolvePromise: (() => void) | undefined;
+      const promise = new Promise<void>((resolve) => {
+        resolvePromise = resolve;
       });
+
+      const mockAdapter = createMockAdapter();
+      jest
+        .spyOn(mockAdapter, 'onSetupCompleted')
+        .mockReturnValue(promise);
 
       const { controller } = setupController({
         state: { analyticsId: '550e8400-e29b-41d4-a716-446655440000' },
@@ -217,6 +222,44 @@ describe('AnalyticsController', () => {
 
       expect(controller).toBeDefined();
       expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
+
+      // Verify controller is initialized even before promise resolves
+      expect(controller.state.analyticsId).toBeDefined();
+
+      // Resolve the promise and verify it completes
+      if (resolvePromise) {
+        resolvePromise();
+      }
+      await promise;
+    });
+
+    it('ignores errors thrown by onSetupCompleted', async () => {
+      const mockAdapter = createMockAdapter();
+      const cause = new Error(
+        'MetaMetricsPrivacySegmentPlugin configure failed',
+      );
+      const error = new AnalyticsPlatformAdapterSetupError(
+        'Failed to add privacy plugin to Segment client',
+        cause,
+      );
+      const rejectedPromise = Promise.reject(error);
+      jest
+        .spyOn(mockAdapter, 'onSetupCompleted')
+        .mockReturnValue(rejectedPromise);
+
+      const { controller } = setupController({
+        state: { analyticsId: '550e8400-e29b-41d4-a716-446655440000' },
+        platformAdapter: mockAdapter,
+      });
+
+      expect(controller).toBeDefined();
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
+
+      // Wait for the promise to settle and verify it rejects
+      await expect(rejectedPromise).rejects.toThrow(error);
+
+      // Verify controller is still functional despite the error
+      expect(controller.state.analyticsId).toBeDefined();
     });
   });
 

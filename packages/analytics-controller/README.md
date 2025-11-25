@@ -40,7 +40,7 @@ const platformAdapter: AnalyticsPlatformAdapter = {
   view: (name: string, properties?: Record<string, unknown>) => {
     segment.page(name, properties);
   },
-  onSetupCompleted: (analyticsId: string) => {
+  onSetupCompleted: async (analyticsId: string) => {
     // Lifecycle hook called after controller initialization
     // The analyticsId is guaranteed to be set when this method is called
     // Use this for platform-specific setup that requires the analytics ID
@@ -221,7 +221,7 @@ Any initialization that depends on the controller being ready
 ```typescript
 const platformAdapter: AnalyticsPlatformAdapter = {
   // ... other methods ...
-  onSetupCompleted: (analyticsId: string) => {
+  onSetupCompleted: async (analyticsId: string) => {
     // Add platform-specific plugins that require analyticsId
     client.add({
       plugin: new PrivacyPlugin(analyticsId),
@@ -232,7 +232,7 @@ const platformAdapter: AnalyticsPlatformAdapter = {
 
 **Error handling:**
 
-- Errors thrown in `onSetupCompleted` are caught and logged
+- Errors thrown or rejected in `onSetupCompleted` are caught and logged
 
 **Best practices:**
 
@@ -242,7 +242,7 @@ const platformAdapter: AnalyticsPlatformAdapter = {
 - If you don't need setup, provide a no-op implementation:
 
 ```typescript
-onSetupCompleted: (_analyticsId: string) => {
+onSetupCompleted: async (_analyticsId: string) => {
   // No-op: this adapter doesn't need setup
 },
 ```
