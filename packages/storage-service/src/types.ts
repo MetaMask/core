@@ -12,26 +12,32 @@ import type { Messenger } from '@metamask/messenger';
 export interface StorageAdapter {
   /**
    * Retrieve an item from storage.
+   * Adapter is responsible for building the full storage key.
    *
-   * @param key - The storage key.
+   * @param namespace - The controller namespace (e.g., 'SnapController').
+   * @param key - The data key (e.g., 'snap-id:sourceCode').
    * @returns The value as a string, or null if not found.
    */
-  getItem(key: string): Promise<string | null>;
+  getItem(namespace: string, key: string): Promise<string | null>;
 
   /**
    * Store an item in storage.
+   * Adapter is responsible for building the full storage key.
    *
-   * @param key - The storage key.
+   * @param namespace - The controller namespace (e.g., 'SnapController').
+   * @param key - The data key (e.g., 'snap-id:sourceCode').
    * @param value - The string value to store.
    */
-  setItem(key: string, value: string): Promise<void>;
+  setItem(namespace: string, key: string, value: string): Promise<void>;
 
   /**
    * Remove an item from storage.
+   * Adapter is responsible for building the full storage key.
    *
-   * @param key - The storage key.
+   * @param namespace - The controller namespace (e.g., 'SnapController').
+   * @param key - The data key (e.g., 'snap-id:sourceCode').
    */
-  removeItem(key: string): Promise<void>;
+  removeItem(namespace: string, key: string): Promise<void>;
 
   /**
    * Get all keys for a specific namespace.

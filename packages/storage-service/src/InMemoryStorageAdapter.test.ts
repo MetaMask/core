@@ -5,7 +5,7 @@ describe('InMemoryStorageAdapter', () => {
     it('returns null for non-existent keys', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      const result = await adapter.getItem('nonExistent');
+      const result = await adapter.getItem('TestNamespace', 'nonExistent');
 
       expect(result).toBeNull();
     });
@@ -13,8 +13,8 @@ describe('InMemoryStorageAdapter', () => {
     it('retrieves previously stored values', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      await adapter.setItem('testKey', 'testValue');
-      const result = await adapter.getItem('testKey');
+      await adapter.setItem('TestNamespace', 'testKey', 'testValue');
+      const result = await adapter.getItem('TestNamespace', 'testKey');
 
       expect(result).toBe('testValue');
     });
@@ -24,8 +24,8 @@ describe('InMemoryStorageAdapter', () => {
     it('stores a value', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      await adapter.setItem('key', 'value');
-      const result = await adapter.getItem('key');
+      await adapter.setItem('TestNamespace', 'key', 'value');
+      const result = await adapter.getItem('TestNamespace', 'key');
 
       expect(result).toBe('value');
     });
@@ -33,9 +33,9 @@ describe('InMemoryStorageAdapter', () => {
     it('overwrites existing values', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      await adapter.setItem('key', 'oldValue');
-      await adapter.setItem('key', 'newValue');
-      const result = await adapter.getItem('key');
+      await adapter.setItem('TestNamespace', 'key', 'oldValue');
+      await adapter.setItem('TestNamespace', 'key', 'newValue');
+      const result = await adapter.getItem('TestNamespace', 'key');
 
       expect(result).toBe('newValue');
     });
@@ -44,8 +44,8 @@ describe('InMemoryStorageAdapter', () => {
       const adapter = new InMemoryStorageAdapter();
       const largeString = 'x'.repeat(1000000); // 1 MB
 
-      await adapter.setItem('large', largeString);
-      const result = await adapter.getItem('large');
+      await adapter.setItem('TestNamespace', 'large', largeString);
+      const result = await adapter.getItem('TestNamespace', 'large');
 
       expect(result).toBe(largeString);
     });
@@ -55,9 +55,9 @@ describe('InMemoryStorageAdapter', () => {
     it('removes a stored item', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      await adapter.setItem('key', 'value');
-      await adapter.removeItem('key');
-      const result = await adapter.getItem('key');
+      await adapter.setItem('TestNamespace', 'key', 'value');
+      await adapter.removeItem('TestNamespace', 'key');
+      const result = await adapter.getItem('TestNamespace', 'key');
 
       expect(result).toBeNull();
     });
@@ -65,7 +65,7 @@ describe('InMemoryStorageAdapter', () => {
     it('does not throw when removing non-existent key', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      await expect(adapter.removeItem('nonExistent')).resolves.toBeUndefined();
+      await expect(adapter.removeItem('TestNamespace', 'nonExistent')).resolves.toBeUndefined();
     });
   });
 
@@ -73,9 +73,9 @@ describe('InMemoryStorageAdapter', () => {
     it('returns keys for a namespace', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      await adapter.setItem('storageService:TestController:key1', 'value1');
-      await adapter.setItem('storageService:TestController:key2', 'value2');
-      await adapter.setItem('storageService:OtherController:key3', 'value3');
+      await adapter.setItem('TestNamespace', 'storageService:TestController:key1', 'value1');
+      await adapter.setItem('TestNamespace', 'storageService:TestController:key2', 'value2');
+      await adapter.setItem('TestNamespace', 'storageService:OtherController:key3', 'value3');
 
       const keys = await adapter.getAllKeys('TestController');
 
@@ -94,7 +94,7 @@ describe('InMemoryStorageAdapter', () => {
     it('strips prefix from returned keys', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      await adapter.setItem('storageService:TestController:my-key', 'value');
+      await adapter.setItem('TestNamespace', 'storageService:TestController:my-key', 'value');
 
       const keys = await adapter.getAllKeys('TestController');
 
@@ -108,9 +108,9 @@ describe('InMemoryStorageAdapter', () => {
     it('removes all items for a namespace', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      await adapter.setItem('storageService:TestController:key1', 'value1');
-      await adapter.setItem('storageService:TestController:key2', 'value2');
-      await adapter.setItem('storageService:OtherController:key3', 'value3');
+      await adapter.setItem('TestNamespace', 'storageService:TestController:key1', 'value1');
+      await adapter.setItem('TestNamespace', 'storageService:TestController:key2', 'value2');
+      await adapter.setItem('TestNamespace', 'storageService:OtherController:key3', 'value3');
 
       await adapter.clear('TestController');
 
@@ -124,13 +124,13 @@ describe('InMemoryStorageAdapter', () => {
     it('does not affect other namespaces', async () => {
       const adapter = new InMemoryStorageAdapter();
 
-      await adapter.setItem('storageService:Controller1:key', 'value1');
-      await adapter.setItem('storageService:Controller2:key', 'value2');
+      await adapter.setItem('TestNamespace', 'storageService:Controller1:key', 'value1');
+      await adapter.setItem('TestNamespace', 'storageService:Controller2:key', 'value2');
 
       await adapter.clear('Controller1');
 
-      expect(await adapter.getItem('storageService:Controller1:key')).toBeNull();
-      expect(await adapter.getItem('storageService:Controller2:key')).toBe('value2');
+      expect(await adapter.getItem('TestNamespace', 'storageService:Controller1:key')).toBeNull();
+      expect(await adapter.getItem('TestNamespace', 'storageService:Controller2:key')).toBe('value2');
     });
   });
 

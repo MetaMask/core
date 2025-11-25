@@ -146,9 +146,9 @@ export class StorageService {
    * @template T - The type of the value being stored.
    */
   async setItem<T>(namespace: string, key: string, value: T): Promise<void> {
-    const fullKey = this.#buildKey(namespace, key);
     const serialized = JSON.stringify(value);
-    await this.#storage.setItem(fullKey, serialized);
+    // Adapter builds full storage key (e.g., mobile: 'storageService:namespace:key')
+    await this.#storage.setItem(namespace, key, serialized);
 
     // Publish event so other controllers can react to changes
     // Event type: StorageService:itemSet:namespace
@@ -169,8 +169,8 @@ export class StorageService {
    * @template T - The type of the value being retrieved.
    */
   async getItem<T>(namespace: string, key: string): Promise<T | null> {
-    const fullKey = this.#buildKey(namespace, key);
-    const serialized = await this.#storage.getItem(fullKey);
+    // Adapter builds full storage key (e.g., mobile: 'storageService:namespace:key')
+    const serialized = await this.#storage.getItem(namespace, key);
 
     if (serialized === null) {
       return null;
@@ -180,7 +180,7 @@ export class StorageService {
       return JSON.parse(serialized) as T;
     } catch (error) {
       console.error(
-        `${SERVICE_NAME}: Failed to parse storage value for ${fullKey}:`,
+        `${SERVICE_NAME}: Failed to parse storage value for ${namespace}:${key}:`,
         error,
       );
       return null;
@@ -194,8 +194,8 @@ export class StorageService {
    * @param key - Storage key (e.g., 'npm:@metamask/example-snap:sourceCode').
    */
   async removeItem(namespace: string, key: string): Promise<void> {
-    const fullKey = this.#buildKey(namespace, key);
-    await this.#storage.removeItem(fullKey);
+    // Adapter builds full storage key (e.g., mobile: 'storageService:namespace:key')
+    await this.#storage.removeItem(namespace, key);
 
     // Publish event so other controllers can react to removal
     // Event type: StorageService:itemRemoved:namespace
@@ -225,17 +225,6 @@ export class StorageService {
    */
   async clear(namespace: string): Promise<void> {
     await this.#storage.clear(namespace);
-  }
-
-  /**
-   * Build the full storage key from namespace and key.
-   *
-   * @param namespace - The namespace.
-   * @param key - The key.
-   * @returns The full key in format: storageService:{namespace}:{key}
-   */
-  #buildKey(namespace: string, key: string): string {
-    return `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
   }
 }
 

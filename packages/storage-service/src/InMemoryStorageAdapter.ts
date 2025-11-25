@@ -40,30 +40,36 @@ export class InMemoryStorageAdapter implements StorageAdapter {
   /**
    * Retrieve an item from in-memory storage.
    *
-   * @param key - The storage key.
+   * @param namespace - The controller namespace.
+   * @param key - The data key.
    * @returns The value as a string, or null if not found.
    */
-  async getItem(key: string): Promise<string | null> {
-    return this.#storage.get(key) ?? null;
+  async getItem(namespace: string, key: string): Promise<string | null> {
+    const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
+    return this.#storage.get(fullKey) ?? null;
   }
 
   /**
    * Store an item in in-memory storage.
    *
-   * @param key - The storage key.
+   * @param namespace - The controller namespace.
+   * @param key - The data key.
    * @param value - The string value to store.
    */
-  async setItem(key: string, value: string): Promise<void> {
-    this.#storage.set(key, value);
+  async setItem(namespace: string, key: string, value: string): Promise<void> {
+    const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
+    this.#storage.set(fullKey, value);
   }
 
   /**
    * Remove an item from in-memory storage.
    *
-   * @param key - The storage key.
+   * @param namespace - The controller namespace.
+   * @param key - The data key.
    */
-  async removeItem(key: string): Promise<void> {
-    this.#storage.delete(key);
+  async removeItem(namespace: string, key: string): Promise<void> {
+    const fullKey = `${STORAGE_KEY_PREFIX}${namespace}:${key}`;
+    this.#storage.delete(fullKey);
   }
 
   /**
