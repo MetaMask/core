@@ -3176,17 +3176,6 @@ export class TransactionController extends BaseController<
       const { networkClientId } = transactionMeta;
       const ethQuery = this.#getEthQuery({ networkClientId });
 
-      await checkGasFeeTokenBeforePublish({
-        ethQuery,
-        fetchGasFeeTokens: async (tx) =>
-          (await this.#getGasFeeTokens(tx)).gasFeeTokens,
-        transaction: transactionMeta,
-        updateTransaction: (txId, fn) =>
-          this.#updateTransactionInternal({ transactionId: txId }, fn),
-      });
-
-      transactionMeta = this.#getTransactionOrThrow(transactionId);
-
       const [nonce, releaseNonce] = await getNextNonce(
         transactionMeta,
         (address: string) =>
