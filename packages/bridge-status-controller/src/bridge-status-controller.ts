@@ -768,15 +768,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
     selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
   ) => {
-    if (
-      !isTronTrade(quoteResponse.trade) &&
-      !isBitcoinTrade(quoteResponse.trade) &&
-      typeof quoteResponse.trade !== 'string'
-    ) {
-      throw new Error(
-        'Failed to submit cross-chain swap transaction: trade is not a non-EVM transaction',
-      );
-    }
     if (!selectedAccount.metadata?.snap?.id) {
       throw new Error(
         'Failed to submit cross-chain swap transaction: undefined snap id',
