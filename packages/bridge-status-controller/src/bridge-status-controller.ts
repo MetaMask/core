@@ -1079,15 +1079,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
 
     // Submit non-EVM tx (Solana, BTC, Tron)
-    const isNonEvmTrade =
-      isNonEvmChainId(quoteResponse.quote.srcChainId) &&
-      (typeof quoteResponse.trade === 'string' ||
-        isBitcoinTrade(quoteResponse.trade) ||
-        isTronTrade(quoteResponse.trade));
-
-    if (isNonEvmTrade) {
+    if (isNonEvmChainId(quoteResponse.quote.srcChainId)) {
       // Handle non-EVM approval if present (e.g., Tron token approvals)
-      if (quoteResponse.approval) {
+      if (quoteResponse.approval && isTronTrade(quoteResponse.approval)) {
         const approvalTxMeta = await this.#trace(
           {
             name: isBridgeTx
@@ -1141,6 +1135,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         },
         async () => {
           try {
+            if (
+              !(
+                isTronTrade(quoteResponse.trade) ||
+                isBitcoinTrade(quoteResponse.trade) ||
+                typeof quoteResponse.trade === 'string'
+              )
+            ) {
+              throw new Error(
+                'Failed to submit cross-chain swap transaction: trade is not a non-EVM transaction',
+              );
+            }
             return await this.#handleNonEvmTx(
               quoteResponse.trade,
               quoteResponse,
