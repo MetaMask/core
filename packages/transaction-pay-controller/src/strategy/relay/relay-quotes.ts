@@ -1,14 +1,10 @@
 import { Interface } from '@ethersproject/abi';
-import { successfulFetch } from '@metamask/controller-utils';
+import { successfulFetch, toHex } from '@metamask/controller-utils';
 import type { Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  CHAIN_ID_HYPERCORE,
-  RELAY_FALLBACK_GAS_LIMIT,
-  RELAY_URL_QUOTE,
-} from './constants';
+import { CHAIN_ID_HYPERCORE } from './constants';
 import type { RelayQuote } from './types';
 import { TransactionPayStrategy } from '../..';
 import type { TransactionMeta } from '../../../../transaction-controller/src';
@@ -27,8 +23,13 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
-import { calculateGasCost } from '../../utils/gas';
-import { getNativeToken, getTokenFiatRate } from '../../utils/token';
+import { getFeatureFlags } from '../../utils/feature-flags';
+import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
+import {
+  getNativeToken,
+  getTokenBalance,
+  getTokenFiatRate,
+} from '../../utils/token';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
@@ -225,11 +226,11 @@ function normalizeRequest(request: QuoteRequest) {
  * @param fullRequest - Full quotes request.
  * @returns Normalized quote.
  */
-function normalizeQuote(
+async function normalizeQuote(
   quote: RelayQuote,
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
-): TransactionPayQuote<RelayQuote> {
+): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger } = fullRequest;
   const { details } = quote;
   const { currencyIn } = details;
@@ -246,7 +247,8 @@ function normalizeQuote(
     usdToFiatRate,
   );
 
-  const sourceNetwork = calculateSourceNetworkCost(quote, messenger);
+  const { isGasFeeToken: isSourceGasFeeToken, ...sourceNetwork } =
+    await calculateSourceNetworkCost(quote, messenger, request);
 
   const targetNetwork = {
     usd: '0',
@@ -263,6 +265,7 @@ function normalizeQuote(
     dust,
     estimatedDuration: details.timeEstimate,
     fees: {
+      isSourceGasFeeToken,
       provider,
       sourceNetwork,
       targetNetwork,
@@ -351,65 +354,158 @@ function getFiatRates(
 }
 
 /**
- * Gets feature flags for Relay quotes.
- *
- * @param messenger - Controller messenger.
- * @returns Feature flags.
- */
-function getFeatureFlags(messenger: TransactionPayControllerMessenger) {
-  const featureFlagState = messenger.call(
-    'RemoteFeatureFlagController:getState',
-  );
-
-  const featureFlags = featureFlagState.remoteFeatureFlags
-    ?.confirmations_pay as Record<string, string> | undefined;
-
-  const relayQuoteUrl = featureFlags?.relayQuoteUrl ?? RELAY_URL_QUOTE;
-
-  return {
-    relayQuoteUrl,
-  };
-}
-
-/**
  * Calculates source network cost from a Relay quote.
  *
  * @param quote - Relay quote.
  * @param messenger - Controller messenger.
+ * @param request - Quote request.
  * @returns Total source network cost in USD and fiat.
  */
-function calculateSourceNetworkCost(
+async function calculateSourceNetworkCost(
   quote: RelayQuote,
   messenger: TransactionPayControllerMessenger,
-): TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] {
-  const allParams = quote.steps[0].items.map((i) => i.data);
-  const { chainId } = allParams[0];
-  const totalGasLimit = calculateSourceNetworkGasLimit(allParams);
+  request: QuoteRequest,
+): Promise<
+  TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
+    isGasFeeToken?: boolean;
+  }
+> {
+  const { from, sourceChainId, sourceTokenAddress } = request;
+  const allParams = quote.steps.flatMap((s) => s.items).map((i) => i.data);
+
+  const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
+    allParams[0];
+
+  const totalGasLimitEstimate = calculateSourceNetworkGasLimit(
+    allParams,
+    messenger,
+    {
+      isMax: false,
+    },
+  );
+
+  const totalGasLimitMax = calculateSourceNetworkGasLimit(
+    allParams,
+    messenger,
+    {
+      isMax: true,
+    },
+  );
 
   const estimate = calculateGasCost({
     chainId,
-    gas: totalGasLimit,
+    gas: totalGasLimitEstimate,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
     messenger,
   });
 
   const max = calculateGasCost({
     chainId,
-    gas: totalGasLimit,
+    gas: totalGasLimitMax,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
     messenger,
     isMax: true,
   });
 
-  return { estimate, max };
+  const nativeBalance = getTokenBalance(
+    messenger,
+    from,
+    sourceChainId,
+    getNativeToken(sourceChainId),
+  );
+
+  if (new BigNumber(nativeBalance).isGreaterThanOrEqualTo(max.raw)) {
+    return { estimate, max };
+  }
+
+  log('Checking gas fee tokens as insufficient native balance', {
+    nativeBalance,
+    max: max.raw,
+  });
+
+  const gasFeeTokens = await messenger.call(
+    'TransactionController:getGasFeeTokens',
+    {
+      chainId: sourceChainId,
+      data,
+      from,
+      to,
+      value: toHex(value ?? '0'),
+    },
+  );
+
+  log('Source gas fee tokens', { gasFeeTokens });
+
+  const gasFeeToken = gasFeeTokens.find(
+    (t) => t.tokenAddress.toLowerCase() === sourceTokenAddress.toLowerCase(),
+  );
+
+  if (!gasFeeToken) {
+    log('No matching gas fee token found', {
+      sourceTokenAddress,
+      gasFeeTokens,
+    });
+
+    return { estimate, max };
+  }
+
+  let finalAmount = gasFeeToken.amount;
+
+  if (allParams.length > 1) {
+    const gasRate = new BigNumber(gasFeeToken.amount, 16).dividedBy(
+      gasFeeToken.gas,
+      16,
+    );
+
+    const finalAmountValue = gasRate.multipliedBy(totalGasLimitEstimate);
+
+    finalAmount = toHex(finalAmountValue.toFixed(0));
+
+    log('Estimated gas fee token amount for batch', {
+      finalAmount: finalAmountValue.toString(10),
+      gasRate: gasRate.toString(10),
+      totalGasLimitEstimate,
+    });
+  }
+
+  const finalGasFeeToken = { ...gasFeeToken, amount: finalAmount };
+
+  const gasFeeTokenCost = calculateGasFeeTokenCost({
+    chainId: sourceChainId,
+    gasFeeToken: finalGasFeeToken,
+    messenger,
+  });
+
+  if (!gasFeeTokenCost) {
+    return { estimate, max };
+  }
+
+  log('Using gas fee token for source network', {
+    gasFeeTokenCost,
+  });
+
+  return {
+    isGasFeeToken: true,
+    estimate: gasFeeTokenCost,
+    max: gasFeeTokenCost,
+  };
 }
 
 /**
  * Calculate the total gas limit for the source network transactions.
  *
  * @param params - Array of transaction parameters.
+ * @param messenger - Controller messenger.
+ * @param options - Options.
+ * @param options.isMax - Whether to calculate the maximum gas limit.
  * @returns - Total gas limit.
  */
 function calculateSourceNetworkGasLimit(
   params: RelayQuote['steps'][0]['items'][0]['data'][],
+  messenger: TransactionPayControllerMessenger,
+  { isMax }: { isMax: boolean },
 ): number {
   const allParamsHasGas = params.every((p) => p.gas !== undefined);
 
@@ -423,11 +519,14 @@ function calculateSourceNetworkGasLimit(
   // In future, call `TransactionController:estimateGas`
   // or `TransactionController:estimateGasBatch` based on params length.
 
-  return params.reduce(
-    (total, p) =>
-      total + new BigNumber(p.gas ?? RELAY_FALLBACK_GAS_LIMIT).toNumber(),
-    0,
-  );
+  const fallbackGas = getFeatureFlags(messenger).relayFallbackGas;
+
+  return params.reduce((total, p) => {
+    const fallback = isMax ? fallbackGas.max : fallbackGas.estimate;
+    const gas = p.gas ?? fallback;
+
+    return total + new BigNumber(gas).toNumber();
+  }, 0);
 }
 
 /**

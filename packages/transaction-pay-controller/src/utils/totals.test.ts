@@ -74,6 +74,7 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
   },
   estimatedDuration: 234,
   fees: {
+    isSourceGasFeeToken: true,
     provider: {
       fiat: '7.77',
       usd: '8.88',
@@ -232,6 +233,7 @@ describe('Totals Utils', () => {
 
       expect(result.sourceAmount.fiat).toBe('20.9');
       expect(result.sourceAmount.usd).toBe('23.02');
+      expect(result.fees.isSourceGasFeeToken).toBe(true);
     });
   });
 });

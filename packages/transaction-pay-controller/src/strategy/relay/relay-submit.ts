@@ -11,17 +11,15 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import {
-  RELAY_FALLBACK_GAS_LIMIT,
-  RELAY_POLLING_INTERVAL,
-  RELAY_URL_BASE,
-} from './constants';
+import { RELAY_POLLING_INTERVAL, RELAY_URL_BASE } from './constants';
 import type { RelayQuote, RelayStatus } from './types';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
+  TransactionPayQuote,
 } from '../../types';
+import { getFeatureFlags } from '../../utils/feature-flags';
 import {
   collectTransactionIds,
   getTransaction,
@@ -50,7 +48,7 @@ export async function submitRelayQuotes(
 
   for (const quote of quotes) {
     ({ transactionHash } = await executeSingleQuote(
-      quote.original,
+      quote,
       messenger,
       transaction,
     ));
@@ -68,21 +66,11 @@ export async function submitRelayQuotes(
  * @returns An object containing the transaction hash if available.
  */
 async function executeSingleQuote(
-  quote: RelayQuote,
+  quote: TransactionPayQuote<RelayQuote>,
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
 ) {
   log('Executing single quote', quote);
-
-  const { kind } = quote.steps[0];
-
-  if (kind !== 'transaction') {
-    throw new Error(`Unsupported step kind: ${kind as string}`);
-  }
-
-  const transactionParams = quote.steps[0].items[0].data;
-  const chainId = toHex(transactionParams.chainId);
-  const from = transactionParams.from as Hex;
 
   updateTransaction(
     {
@@ -95,9 +83,9 @@ async function executeSingleQuote(
     },
   );
 
-  await submitTransactions(quote, chainId, from, transaction.id, messenger);
+  await submitTransactions(quote, transaction.id, messenger);
 
-  const targetHash = await waitForRelayCompletion(quote);
+  const targetHash = await waitForRelayCompletion(quote.original);
 
   log('Relay request completed', targetHash);
 
@@ -159,15 +147,19 @@ async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
  * Normalize the parameters from a relay quote step to match TransactionParams.
  *
  * @param params - Parameters from a relay quote step.
+ * @param messenger - Controller messenger.
  * @returns Normalized transaction parameters.
  */
 function normalizeParams(
   params: RelayQuote['steps'][0]['items'][0]['data'],
+  messenger: TransactionPayControllerMessenger,
 ): TransactionParams {
+  const featureFlags = getFeatureFlags(messenger);
+
   return {
     data: params.data,
     from: params.from,
-    gas: toHex(params.gas ?? RELAY_FALLBACK_GAS_LIMIT),
+    gas: toHex(params.gas ?? featureFlags.relayFallbackGas.max),
     maxFeePerGas: toHex(params.maxFeePerGas),
     maxPriorityFeePerGas: toHex(params.maxPriorityFeePerGas),
     to: params.to,
@@ -179,37 +171,42 @@ function normalizeParams(
  * Submit transactions for a relay quote.
  *
  * @param quote - Relay quote.
- * @param chainId - ID of the chain.
- * @param from - Address of the sender.
  * @param parentTransactionId - ID of the parent transaction.
  * @param messenger - Controller messenger.
  * @returns Hash of the last submitted transaction.
  */
 async function submitTransactions(
-  quote: RelayQuote,
-  chainId: Hex,
-  from: Hex,
+  quote: TransactionPayQuote<RelayQuote>,
   parentTransactionId: string,
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex> {
-  const params = quote.steps.flatMap((s) => s.items).map((i) => i.data);
-  const normalizedParams = params.map(normalizeParams);
+  const { steps } = quote.original;
+  const params = steps.flatMap((s) => s.items).map((i) => i.data);
+  const invalidKind = steps.find((s) => s.kind !== 'transaction')?.kind;
+
+  if (invalidKind) {
+    throw new Error(`Unsupported step kind: ${invalidKind}`);
+  }
+
+  const normalizedParams = params.map((p) => normalizeParams(p, messenger));
+
   const transactionIds: string[] = [];
+  const { from, sourceChainId, sourceTokenAddress } = quote.request;
 
   const networkClientId = messenger.call(
     'NetworkController:findNetworkClientIdByChainId',
-    chainId,
+    sourceChainId,
   );
 
   log('Adding transactions', {
     normalizedParams,
-    chainId,
+    sourceChainId,
     from,
     networkClientId,
   });
 
   const { end } = collectTransactionIds(
-    chainId,
+    sourceChainId,
     from,
     messenger,
     (transactionId) => {
@@ -234,11 +231,16 @@ async function submitTransactions(
 
   let result: { result: Promise<string> } | undefined;
 
+  const gasFeeToken = quote.fees.isSourceGasFeeToken
+    ? sourceTokenAddress
+    : undefined;
+
   if (params.length === 1) {
     result = await messenger.call(
       'TransactionController:addTransaction',
       normalizedParams[0],
       {
+        gasFeeToken,
         networkClientId,
         origin: ORIGIN_METAMASK,
         requireApproval: false,
@@ -247,6 +249,7 @@ async function submitTransactions(
   } else {
     await messenger.call('TransactionController:addTransactionBatch', {
       from,
+      gasFeeToken,
       networkClientId,
       origin: ORIGIN_METAMASK,
       requireApproval: false,

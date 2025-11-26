@@ -55,6 +55,7 @@
     { "path": "./packages/phishing-controller/tsconfig.build.json" },
     { "path": "./packages/polling-controller/tsconfig.build.json" },
     { "path": "./packages/preferences-controller/tsconfig.build.json" },
+    { "path": "./packages/profile-metrics-controller/tsconfig.build.json" },
     { "path": "./packages/profile-sync-controller/tsconfig.build.json" },
     { "path": "./packages/rate-limit-controller/tsconfig.build.json" },
     { "path": "./packages/remote-feature-flag-controller/tsconfig.build.json" },

@@ -1,6 +1,7 @@
 export {
   BrokenCircuitError,
   CircuitState,
+  CockatielEventEmitter,
   ConstantBackoff,
   DEFAULT_CIRCUIT_BREAK_DURATION,
   DEFAULT_DEGRADED_THRESHOLD,
@@ -14,6 +15,7 @@ export {
 export type {
   CockatielEvent,
   CreateServicePolicyOptions,
+  CockatielFailureReason,
   ServicePolicy,
 } from './create-service-policy';
 export {

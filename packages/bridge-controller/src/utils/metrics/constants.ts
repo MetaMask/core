@@ -26,6 +26,7 @@ export enum AbortReason {
   NewQuoteRequest = 'New Quote Request',
   QuoteRequestUpdated = 'Quote Request Updated',
   ResetState = 'Reset controller state',
+  TransactionSubmitted = 'Transaction submitted',
 }
 
 /**

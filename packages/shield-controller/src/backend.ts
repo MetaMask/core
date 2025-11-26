@@ -177,8 +177,10 @@ export class ShieldRemoteBackend implements ShieldBackend {
 
   async logTransaction(req: LogTransactionRequest): Promise<void> {
     const initBody = makeInitCoverageCheckBody(req.txMeta);
+
     const body = {
       transactionHash: req.transactionHash,
+      rawTransactionHex: req.rawTransactionHex,
       status: req.status,
       ...initBody,
     };

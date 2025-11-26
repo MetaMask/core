@@ -21,12 +21,15 @@ import type {
   TransactionControllerAddTransactionBatchAction,
   TransactionControllerUnapprovedTransactionAddedEvent,
 } from '@metamask/transaction-controller';
-import type { TransactionControllerGetStateAction } from '@metamask/transaction-controller';
-import type { TransactionControllerStateChangeEvent } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { TransactionControllerAddTransactionAction } from '@metamask/transaction-controller';
-import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
-import type { BatchTransaction } from '@metamask/transaction-controller';
+import type {
+  BatchTransaction,
+  TransactionControllerAddTransactionAction,
+  TransactionControllerGetGasFeeTokensAction,
+  TransactionControllerGetStateAction,
+  TransactionControllerStateChangeEvent,
+  TransactionControllerUpdateTransactionAction,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
@@ -47,6 +50,7 @@ export type AllowedActions =
   | TokensControllerGetStateAction
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
+  | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction;
 
@@ -273,6 +277,9 @@ export type QuoteRequest = {
 
 /** Fees associated with a transaction pay quote. */
 export type TransactionPayFees = {
+  /** Whether a gas fee token is used to pay source network fees. */
+  isSourceGasFeeToken?: boolean;
+
   /** Whether a gas fee token is used to pay target network fees. */
   isTargetGasFeeToken?: boolean;
 
