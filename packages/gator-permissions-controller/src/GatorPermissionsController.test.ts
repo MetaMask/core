@@ -39,6 +39,7 @@ import type {
   PermissionTypesWithCustom,
   RevocationParams,
 } from './types';
+import { flushPromises } from '../../../tests/helpers';
 
 const MOCK_CHAIN_ID_1: Hex = '0xaa36a7';
 const MOCK_CHAIN_ID_2: Hex = '0x1';
@@ -855,9 +856,9 @@ describe('GatorPermissionsController', () => {
         id: txId,
       } as TransactionMeta);
 
-      // Wait for async operations
-      await Promise.resolve();
+      await flushPromises();
 
+      // Verify submitRevocation was called
       expect(mockHandleRequestHandler).toHaveBeenCalledWith({
         snapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
         origin: 'metamask',
@@ -866,6 +867,18 @@ describe('GatorPermissionsController', () => {
           jsonrpc: '2.0',
           method: 'permissionsProvider_submitRevocation',
           params: { permissionContext },
+        },
+      });
+
+      // Verify that permissions are refreshed after revocation (getGrantedPermissions is called)
+      expect(mockHandleRequestHandler).toHaveBeenCalledWith({
+        snapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        origin: 'metamask',
+        handler: 'onRpcRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: 'permissionsProvider_getGrantedPermissions',
+          params: { isRevoked: false },
         },
       });
     });
