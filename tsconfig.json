@@ -52,6 +52,7 @@
     { "path": "./packages/phishing-controller" },
     { "path": "./packages/polling-controller" },
     { "path": "./packages/preferences-controller" },
+    { "path": "./packages/profile-metrics-controller" },
     { "path": "./packages/profile-sync-controller" },
     { "path": "./packages/rate-limit-controller" },
     { "path": "./packages/remote-feature-flag-controller" },
