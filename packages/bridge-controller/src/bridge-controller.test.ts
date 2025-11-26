@@ -2673,7 +2673,7 @@ describe('BridgeController', function () {
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
       expect(errorSpy).toHaveBeenCalledTimes(1);
       expect(errorSpy).toHaveBeenCalledWith(
-        'Error tracking cross-chain swaps MetaMetrics event',
+        'Error tracking cross-chain swaps MetaMetrics event Unified SwapBridge Quotes Received',
         new TypeError("Cannot read properties of undefined (reading 'type')"),
       );
     });
