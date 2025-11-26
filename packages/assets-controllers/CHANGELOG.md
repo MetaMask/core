@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 690.0.0 ([#7215](https://github.com/MetaMask/core/pull/7215))
+- Release/689.0.0 ([#7211](https://github.com/MetaMask/core/pull/7211))
+
 ### Added
 
 - Support for optionally fetching market data when calling searchTokens ([#7226](https://github.com/MetaMask/core/pull/7226))
