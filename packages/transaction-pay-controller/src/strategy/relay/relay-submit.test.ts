@@ -1,4 +1,8 @@
-import { ORIGIN_METAMASK, successfulFetch } from '@metamask/controller-utils';
+import {
+  ORIGIN_METAMASK,
+  successfulFetch,
+  toHex,
+} from '@metamask/controller-utils';
 import {
   TransactionType,
   type TransactionMeta,
@@ -15,6 +19,8 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import type { FeatureFlags } from '../../utils/feature-flags';
+import { getFeatureFlags } from '../../utils/feature-flags';
 import {
   collectTransactionIds,
   getTransaction,
@@ -23,6 +29,7 @@ import {
 } from '../../utils/transaction';
 
 jest.mock('../../utils/transaction');
+jest.mock('../../utils/feature-flags');
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -112,6 +119,7 @@ describe('Relay Submit Utils', () => {
   const successfulFetchMock = jest.mocked(successfulFetch);
   const getTransactionMock = jest.mocked(getTransaction);
   const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
+  const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
 
   const {
     addTransactionMock,
@@ -138,6 +146,12 @@ describe('Relay Submit Utils', () => {
 
     waitForTransactionConfirmedMock.mockResolvedValue();
     getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
+
+    getFeatureFlagsMock.mockReturnValue({
+      relayFallbackGas: {
+        max: 123,
+      },
+    } as FeatureFlags);
 
     collectTransactionIdsMock.mockImplementation(
       (_chainId, _from, _messenger, fn) => {
@@ -255,7 +269,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionMock).toHaveBeenCalledTimes(1);
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          gas: '0xdbba0',
+          gas: toHex(123),
           value: '0x0',
         }),
         expect.anything(),
