@@ -5,6 +5,18 @@ import type { Messenger } from '@metamask/messenger';
  * Each client (mobile, extension) implements this interface
  * with their preferred storage mechanism.
  *
+ * ⚠️ **Designed for large, infrequently accessed data (100KB+)**
+ *
+ * ✅ **Use for:**
+ * - Snap source code (~6 MB per snap)
+ * - Token metadata caches (~4 MB)
+ * - Large API response caches
+ *
+ * ❌ **Avoid for:**
+ * - Small values (< 10 KB) - use controller state instead
+ * - Frequently accessed data - use controller state instead
+ * - Many small key-value pairs - use a single large object instead
+ *
  * @example Mobile implementation using FilesystemStorage
  * @example Extension implementation using IndexedDB
  * @example Tests using InMemoryStorageAdapter
@@ -21,7 +33,13 @@ export type StorageAdapter = {
   getItem(namespace: string, key: string): Promise<unknown>;
 
   /**
-   * Store an item in storage.
+   * Store a large value in storage.
+   *
+   * ⚠️ **Store large values, not many small ones.**
+   * Each storage operation has I/O overhead. For best performance:
+   * - Store one large object rather than many small key-value pairs
+   * - Minimum recommended size: 100 KB per value
+   *
    * Adapter is responsible for:
    * - Building the full storage key
    * - Wrapping value with metadata (timestamp, etc.)

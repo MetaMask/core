@@ -138,11 +138,27 @@ export class StorageService {
   }
 
   /**
-   * Store data in storage.
+   * Store large data in storage.
+   *
+   * ⚠️ **Designed for large values (100KB+), not many small ones.**
+   * Each storage operation has I/O overhead. For best performance,
+   * store one large object rather than many small key-value pairs.
+   *
+   * @example Good: Store entire cache as one value
+   * ```typescript
+   * await service.setItem('TokenList', 'cache', { '0x1': [...], '0x38': [...] });
+   * ```
+   *
+   * @example Avoid: Many small values
+   * ```typescript
+   * // ❌ Don't do this - too many small writes
+   * await service.setItem('TokenList', 'cache:0x1', [...]);
+   * await service.setItem('TokenList', 'cache:0x38', [...]);
+   * ```
    *
    * @param namespace - Controller namespace (e.g., 'SnapController').
    * @param key - Storage key (e.g., 'npm:@metamask/example-snap:sourceCode').
-   * @param value - Data to store (will be JSON stringified).
+   * @param value - Data to store (should be 100KB+ for optimal use).
    * @template T - The type of the value being stored.
    */
   async setItem<T>(namespace: string, key: string, value: T): Promise<void> {
