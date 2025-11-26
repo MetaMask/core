@@ -76,6 +76,7 @@
 /packages/polling-controller           @MetaMask/core-platform
 /packages/preferences-controller       @MetaMask/core-platform
 /packages/rate-limit-controller        @MetaMask/core-platform
+/packages/profile-metrics-controller   @MetaMask/core-platform
 
 ## Web3Auth Team
 /packages/seedless-onboarding-controller @MetaMask/web3auth
