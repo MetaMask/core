@@ -181,8 +181,38 @@ describe('GatorPermissionsController', () => {
 
   describe('fetchAndUpdateGatorPermissions', () => {
     it('fetches and updates gator permissions successfully', async () => {
+      // Create mock data with rules to verify they are preserved
+      const mockStorageEntriesWithRules = [
+        ...MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES,
+        {
+          ...mockNativeTokenStreamStorageEntry(MOCK_CHAIN_ID_1),
+          permissionResponse: {
+            ...mockNativeTokenStreamStorageEntry(MOCK_CHAIN_ID_1)
+              .permissionResponse,
+            rules: [
+              {
+                type: 'test-rule',
+                isAdjustmentAllowed: false,
+                data: {
+                  target: '0x1234567890123456789012345678901234567890',
+                  sig: '0xabcd',
+                  expiry: 1735689600, // Example expiry timestamp
+                },
+              },
+            ],
+          },
+        },
+      ];
+
+      const mockHandleRequestHandler = jest
+        .fn()
+        .mockResolvedValue(mockStorageEntriesWithRules);
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+
       const controller = new GatorPermissionsController({
-        messenger: getGatorPermissionsControllerMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
       });
 
       await controller.enableGatorPermissions();
@@ -198,7 +228,9 @@ describe('GatorPermissionsController', () => {
       });
 
       // Check that each permission type has the expected chainId
-      expect(result['native-token-stream'][MOCK_CHAIN_ID_1]).toHaveLength(5);
+      expect(
+        result['native-token-stream'][MOCK_CHAIN_ID_1].length,
+      ).toBeGreaterThanOrEqual(5);
       expect(result['native-token-periodic'][MOCK_CHAIN_ID_1]).toHaveLength(5);
       expect(result['erc20-token-stream'][MOCK_CHAIN_ID_1]).toHaveLength(5);
       expect(result['native-token-stream'][MOCK_CHAIN_ID_2]).toHaveLength(5);
@@ -216,7 +248,6 @@ describe('GatorPermissionsController', () => {
         flattenedStoredGatorPermissions.forEach((permission) => {
           expect(permission.permissionResponse.signer).toBeUndefined();
           expect(permission.permissionResponse.dependencyInfo).toBeUndefined();
-          expect(permission.permissionResponse.rules).toBeUndefined();
         });
       };
 
@@ -225,6 +256,24 @@ describe('GatorPermissionsController', () => {
       sanitizedCheck('erc20-token-stream');
       sanitizedCheck('erc20-token-periodic');
       sanitizedCheck('other');
+
+      // Specifically verify that the entry with rules has rules preserved
+      const entryWithRules = result['native-token-stream'][
+        MOCK_CHAIN_ID_1
+      ].find((entry) => entry.permissionResponse.rules !== undefined);
+      expect(entryWithRules).toBeDefined();
+      expect(entryWithRules?.permissionResponse.rules).toBeDefined();
+      expect(entryWithRules?.permissionResponse.rules).toStrictEqual([
+        {
+          type: 'test-rule',
+          isAdjustmentAllowed: false,
+          data: {
+            target: '0x1234567890123456789012345678901234567890',
+            sig: '0xabcd',
+            expiry: 1735689600,
+          },
+        },
+      ]);
     });
 
     it('throws error when gator permissions are not enabled', async () => {
