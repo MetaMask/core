@@ -497,7 +497,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   stopPollingForQuotes = (
-    reason: AbortReason,
+    reason?: AbortReason,
     context?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
   ) => {
     this.stopAllPolling();
