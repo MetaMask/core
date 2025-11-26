@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `submitDirectRevocation` method for already-disabled delegations that don't require an on-chain transaction ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - This method adds a pending revocation to state and immediately submits the revocation
+  - Includes `isPendingRevocation` helper method to check if a permission context is pending revocation
+  - Pending revocations are automatically cleared in a `finally` block to prevent stuck states
+
 ### Changed
 
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236))

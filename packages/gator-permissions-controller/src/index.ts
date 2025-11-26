@@ -13,6 +13,8 @@ export type {
   GatorPermissionsControllerDisableGatorPermissionsAction,
   GatorPermissionsControllerSubmitRevocationAction,
   GatorPermissionsControllerAddPendingRevocationAction,
+  GatorPermissionsControllerSubmitDirectRevocationAction,
+  GatorPermissionsControllerIsPendingRevocationAction,
   GatorPermissionsControllerActions,
   GatorPermissionsControllerEvents,
   GatorPermissionsControllerStateChangeEvent,

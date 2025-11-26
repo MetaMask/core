@@ -228,6 +228,23 @@ export type GatorPermissionsControllerAddPendingRevocationAction = {
 };
 
 /**
+ * The action which can be used to submit a revocation directly without requiring
+ * an on-chain transaction (for already-disabled delegations).
+ */
+export type GatorPermissionsControllerSubmitDirectRevocationAction = {
+  type: `${typeof controllerName}:submitDirectRevocation`;
+  handler: GatorPermissionsController['submitDirectRevocation'];
+};
+
+/**
+ * The action which can be used to check if a permission context is pending revocation.
+ */
+export type GatorPermissionsControllerIsPendingRevocationAction = {
+  type: `${typeof controllerName}:isPendingRevocation`;
+  handler: GatorPermissionsController['isPendingRevocation'];
+};
+
+/**
  * All actions that {@link GatorPermissionsController} registers, to be called
  * externally.
  */
@@ -238,7 +255,9 @@ export type GatorPermissionsControllerActions =
   | GatorPermissionsControllerDisableGatorPermissionsAction
   | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction
   | GatorPermissionsControllerSubmitRevocationAction
-  | GatorPermissionsControllerAddPendingRevocationAction;
+  | GatorPermissionsControllerAddPendingRevocationAction
+  | GatorPermissionsControllerSubmitDirectRevocationAction
+  | GatorPermissionsControllerIsPendingRevocationAction;
 
 /**
  * All actions that {@link GatorPermissionsController} calls internally.
@@ -389,6 +408,16 @@ export default class GatorPermissionsController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:addPendingRevocation`,
       this.addPendingRevocation.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:submitDirectRevocation`,
+      this.submitDirectRevocation.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:isPendingRevocation`,
+      this.isPendingRevocation.bind(this),
     );
   }
 
@@ -743,9 +772,8 @@ export default class GatorPermissionsController extends BaseController<
         snapRequest,
       );
 
-      this.#removePendingRevocationFromStateByPermissionContext(
-        revocationParams.permissionContext,
-      );
+      // Refresh list first (permission removed from list)
+      await this.fetchAndUpdateGatorPermissions({ isRevoked: false });
 
       controllerLog('Successfully submitted revocation', {
         permissionContext: revocationParams.permissionContext,
@@ -762,6 +790,10 @@ export default class GatorPermissionsController extends BaseController<
           GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
         cause: error as Error,
       });
+    } finally {
+      this.#removePendingRevocationFromStateByPermissionContext(
+        revocationParams.permissionContext,
+      );
     }
   }
 
@@ -983,5 +1015,50 @@ export default class GatorPermissionsController extends BaseController<
       });
       cleanup(txId);
     }, PENDING_REVOCATION_TIMEOUT);
+  }
+
+  /**
+   * Submits a revocation directly without requiring an on-chain transaction.
+   * Used for already-disabled delegations that don't require an on-chain transaction.
+   *
+   * This method:
+   * 1. Adds the permission context to pending revocations state (disables UI button)
+   * 2. Immediately calls submitRevocation to remove from snap storage
+   * 3. On success, removes from pending revocations state (re-enables UI button)
+   * 4. On failure, keeps in pending revocations so UI can show error/retry state
+   *
+   * @param params - The revocation parameters containing the permission context.
+   * @returns A promise that resolves when the revocation is submitted successfully.
+   * @throws {GatorPermissionsNotEnabledError} If the gator permissions are not enabled.
+   * @throws {GatorPermissionsProviderError} If the snap request fails.
+   */
+  public async submitDirectRevocation(params: RevocationParams): Promise<void> {
+    this.#assertGatorPermissionsEnabled();
+
+    // Use a placeholder txId that doesn't conflict with real transaction IDs
+    const placeholderTxId = `no-tx-${params.permissionContext}`;
+
+    // Add to pending revocations state first (disables UI button immediately)
+    this.#addPendingRevocationToState(
+      placeholderTxId,
+      params.permissionContext,
+    );
+
+    // Immediately submit the revocation (will remove from pending on success)
+    await this.submitRevocation(params);
+  }
+
+  /**
+   * Checks if a permission context is in the pending revocations list.
+   *
+   * @param permissionContext - The permission context to check.
+   * @returns `true` if the permission context is pending revocation, `false` otherwise.
+   */
+  public isPendingRevocation(permissionContext: Hex): boolean {
+    return this.state.pendingRevocations.some(
+      (pendingRevocation) =>
+        pendingRevocation.permissionContext.toLowerCase() ===
+        permissionContext.toLowerCase(),
+    );
   }
 }
