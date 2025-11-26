@@ -11,7 +11,7 @@ import { type SinonFakeTimers, useFakeTimers } from 'sinon';
 
 import {
   ProfileMetricsService,
-  type ProfileMetricsSubmitRequest,
+  type ProfileMetricsSubmitMetricsRequest,
   type ProfileMetricsServiceMessenger,
 } from '.';
 import { getAuthUrl } from './ProfileMetricsService';
@@ -26,8 +26,8 @@ const defaultBaseEndpoint = getAuthUrl(SDK.Env.DEV);
  * @returns A mock request object.
  */
 function createMockRequest(
-  override?: Partial<ProfileMetricsSubmitRequest>,
-): ProfileMetricsSubmitRequest {
+  override?: Partial<ProfileMetricsSubmitMetricsRequest>,
+): ProfileMetricsSubmitMetricsRequest {
   return {
     metametricsId: 'mock-meta-metrics-id',
     entropySourceId: 'mock-entropy-source-id',
