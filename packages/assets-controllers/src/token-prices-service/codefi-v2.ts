@@ -244,7 +244,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x6a': 'eip155:106/erc20:0x0000000000000000000000000000000000000000', // 'eip155:106/slip44:5655640', // Velas EVM Mainnet - Native symbol: VLX
   '0x80': 'eip155:128/erc20:0x0000000000000000000000000000000000000000', // 'eip155:128/slip44:1010', // Huobi ECO Chain Mainnet - Native symbol: HT
   '0x89': 'eip155:137/slip44:966', // Polygon Mainnet - Native symbol: POL
-  '0x8f': null, // 'eip155:143/slip44:268435779', // Monad Mainnet - Native symbol: MON
+  '0x8f': 'eip155:143/slip44:268435779', // Monad Mainnet - Native symbol: MON
   '0x92': 'eip155:146/slip44:10007', // Sonic Mainnet - Native symbol: S
   '0xfa': 'eip155:250/slip44:1007', // Fantom Opera - Native symbol: FTM
   '0x141': 'eip155:321/erc20:0x0000000000000000000000000000000000000000', // 'eip155:321/slip44:641', // KCC Mainnet - Native symbol: KCS
