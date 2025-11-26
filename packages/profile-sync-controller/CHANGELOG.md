@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `authApiVersion` option to `getEnvUrls` function to support versioned authentication API endpoints ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Add `authApiVersion` option to `getEnvUrls` function to support versioned authentication API endpoints ([#7243](https://github.com/MetaMask/core/pull/7243))
 
 ### Changed
 
