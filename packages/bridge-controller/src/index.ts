@@ -52,6 +52,8 @@ export type {
   FeatureFlagsPlatformConfig,
 } from './types';
 
+export { AbortReason } from './utils/metrics/constants';
+
 export { StatusTypes } from './types';
 
 export {

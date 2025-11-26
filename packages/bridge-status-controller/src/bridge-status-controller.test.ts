@@ -12,6 +12,7 @@ import {
   BridgeController,
   getNativeAssetForChainId,
   FeatureId,
+  getQuotesReceivedProperties,
 } from '@metamask/bridge-controller';
 import { ChainId } from '@metamask/bridge-controller';
 import { ActionTypes, FeeType } from '@metamask/bridge-controller';
@@ -2559,8 +2560,7 @@ describe('BridgeStatusController', () => {
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
 
-    it('should handle smart transactions and publish QuotesReceived event if quotes are still loading', async () => {
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // track QuotesReceived event
+    it('should handle smart transactions and include quotesReceivedContext', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       setupBridgeStxMocks(mockMessengerCall);
       addTransactionBatchFn.mockResolvedValueOnce({
@@ -2574,8 +2574,7 @@ describe('BridgeStatusController', () => {
         (quoteWithoutApproval.trade as TxData).from,
         quoteWithoutApproval,
         true,
-        true,
-        ['low_return'],
+        getQuotesReceivedProperties(quoteWithoutApproval, ['low_return'], true),
       );
       controller.stopAllPolling();
 

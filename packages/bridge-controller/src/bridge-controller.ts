@@ -527,8 +527,19 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     }
   };
 
-  stopPollingForQuotes = (reason?: AbortReason) => {
+  stopPollingForQuotes = (
+    reason?: AbortReason,
+    context?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
+  ) => {
     this.stopAllPolling();
+    // If polling is stopped before quotes finish loading, track QuotesReceived
+    if (this.state.quotesLoadingStatus === RequestStatus.LOADING && context) {
+      this.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.QuotesReceived,
+        context,
+      );
+    }
+    // Clears quotes list in state
     this.#abortController?.abort(reason);
   };
 
@@ -658,6 +669,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           AbortReason.ResetState,
           AbortReason.NewQuoteRequest,
           AbortReason.QuoteRequestUpdated,
+          AbortReason.TransactionSubmitted,
         ].includes(error as AbortReason)
       ) {
         // Exit the function early to prevent other state updates
@@ -1000,7 +1012,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#trackMetaMetricsFn(eventName, combinedPropertiesForEvent);
     } catch (error) {
       console.error(
-        'Error tracking cross-chain swaps MetaMetrics event',
+        `Error tracking cross-chain swaps MetaMetrics event ${eventName}`,
         error,
       );
     }

@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
 - Bump `@metamask/bridge-controller` from `^63.0.0` to `^63.1.0` ([#7238](https://github.com/MetaMask/core/pull/7238))
 
+### Removed
+
+- Remove direct QuotesReceived event publishing to avoid race conditions that can happen when clients navigate and reset state. Update `submitTx` to accept quotesReceivedContext (replace isLoading/warnings) and propagate context to the BridgeController through the `stopPollingForQuotes call ([#7242](https://github.com/MetaMask/core/pull/7242))
+
 ## [63.0.0]
 
 ### Changed

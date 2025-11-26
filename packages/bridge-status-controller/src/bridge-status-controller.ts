@@ -1,13 +1,11 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
-import type { QuoteWarning } from '@metamask/bridge-controller';
 import {
   type QuoteMetadata,
   type RequiredEventContextFromClient,
   type TxData,
   type QuoteResponse,
   type Trade,
-  getQuotesReceivedProperties,
   isEvmTxData,
 } from '@metamask/bridge-controller';
 import {
@@ -21,6 +19,7 @@ import {
   MetricsActionType,
   isBitcoinTrade,
   isTronTrade,
+  AbortReason,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
@@ -1027,26 +1026,22 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param accountAddress - The address of the account to submit the transaction for
    * @param quoteResponse - The quote response
    * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
-   * @param isLoading - Whether the trade is submitted before all quotes are loaded, publish QuotesReceived event if true
-   * @param warnings - The warnings to publish with the QuotesReceived event
+   * @param quotesReceivedContext - The context for the QuotesReceived event
    * @returns The transaction meta
    */
   submitTx = async (
     accountAddress: string,
     quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
-    isLoading: boolean = false,
-    warnings: QuoteWarning[] = [],
+    quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
-    // If trade is submitted before all quotes are loaded, publish QuotesReceived event
-    if (isLoading) {
-      this.#trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.QuotesReceived,
-        undefined,
-        getQuotesReceivedProperties(quoteResponse, warnings),
-      );
-    }
-    this.messenger.call('BridgeController:stopPollingForQuotes');
+    this.messenger.call(
+      'BridgeController:stopPollingForQuotes',
+      AbortReason.TransactionSubmitted,
+      // If trade is submitted before all quotes are loaded, the QuotesReceived event is published
+      // If the trade has a featureId, it means it was submitted outside of the Unified Swap and Bridge experience, so no QuotesReceived event is published
+      quoteResponse.featureId ? undefined : quotesReceivedContext,
+    );
 
     const selectedAccount = this.#getMultichainSelectedAccount(accountAddress);
     if (!selectedAccount) {
@@ -1280,8 +1275,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | typeof UnifiedSwapBridgeEventName.Submitted
       | typeof UnifiedSwapBridgeEventName.Failed
       | typeof UnifiedSwapBridgeEventName.Completed
-      | typeof UnifiedSwapBridgeEventName.StatusValidationFailed
-      | typeof UnifiedSwapBridgeEventName.QuotesReceived,
+      | typeof UnifiedSwapBridgeEventName.StatusValidationFailed,
   >(
     eventName: T,
     txMetaId?: string,
