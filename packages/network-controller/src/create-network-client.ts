@@ -1,4 +1,7 @@
-import type { InfuraNetworkType } from '@metamask/controller-utils';
+import type {
+  CockatielFailureReason,
+  InfuraNetworkType,
+} from '@metamask/controller-utils';
 import { ChainId } from '@metamask/controller-utils';
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
@@ -230,7 +233,9 @@ function createRpcServiceChain({
    * exists (which shouldn't happen in practice unless the circuit breaker is
    * manually isolated).
    */
-  const getError = (value: object) => {
+  const getError = (
+    value: CockatielFailureReason<unknown> | Record<never, never>,
+  ) => {
     if ('error' in value) {
       return value.error;
     } else if ('value' in value) {
