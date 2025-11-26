@@ -642,6 +642,41 @@ describe('decodePermission', () => {
         expect(expiry).toBe(largeTimestamp);
         expect(hexToBigInt(data.initialAmount)).toBe(initialAmount);
       });
+
+      it('returns null when expiry timestamp is 0', () => {
+        const caveats = [
+          {
+            enforcer: TimestampEnforcer,
+            terms: createTimestampTerms({
+              timestampAfterThreshold: 0,
+              timestampBeforeThreshold: 0,
+            }),
+            args: '0x',
+          } as const,
+          {
+            enforcer: NativeTokenStreamingEnforcer,
+            terms: createNativeTokenStreamingTerms(
+              {
+                initialAmount,
+                maxAmount,
+                amountPerSecond,
+                startTime,
+              },
+              { out: 'hex' },
+            ),
+            args: '0x',
+          } as const,
+        ];
+
+        const { expiry, data } = getPermissionDataAndExpiry({
+          contracts,
+          caveats,
+          permissionType,
+        });
+
+        expect(expiry).toBeNull();
+        expect(hexToBigInt(data.initialAmount)).toBe(initialAmount);
+      });
     });
 
     describe('native-token-periodic', () => {
