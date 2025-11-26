@@ -52,6 +52,8 @@ export type {
   FeatureFlagsPlatformConfig,
 } from './types';
 
+export { AbortReason } from './utils/metrics/constants';
+
 export { StatusTypes } from './types';
 
 export {
@@ -101,7 +103,13 @@ export {
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
 } from './constants/tokens';
 
-export { SWAPS_API_V2_BASE_URL } from './constants/swaps';
+export {
+  SWAPS_API_V2_BASE_URL,
+  SWAPS_TESTNET_CHAIN_ID,
+  SWAPS_CONTRACT_ADDRESSES,
+  SWAPS_WRAPPED_TOKENS_ADDRESSES,
+  ALLOWED_CONTRACT_ADDRESSES,
+} from './constants/swaps';
 
 export { MetricsActionType, MetricsSwapType } from './utils/metrics/constants';
 
@@ -156,3 +164,8 @@ export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge';
 export { getBridgeFeatureFlags } from './utils/feature-flags';
 
 export { BRIDGE_DEFAULT_SLIPPAGE } from './utils/slippage';
+
+export {
+  isValidSwapsContractAddress,
+  getSwapsContractAddress,
+} from './utils/swaps';
