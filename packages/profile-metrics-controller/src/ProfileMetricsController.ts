@@ -227,7 +227,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       for (const [entropySourceId, accounts] of Object.entries(
         this.state.syncQueue,
       )) {
-        await this.messenger.call('ProfileMetricsService:updateProfile', {
+        await this.messenger.call('ProfileMetricsService:submitMetrics', {
           metametricsId: this.#getMetaMetricsId(),
           entropySourceId: entropySourceId === 'null' ? null : entropySourceId,
           accounts,

@@ -13,7 +13,7 @@ import {
   type ProfileMetricsControllerMessenger,
 } from './ProfileMetricsController';
 import type {
-  ProfileMetricsUpdateRequest,
+  ProfileMetricsSubmitMetricsRequest,
   AccountWithScopes,
 } from './ProfileMetricsService';
 
@@ -456,7 +456,10 @@ type WithControllerCallback<ReturnValue> = (payload: {
   messenger: ProfileMetricsControllerMessenger;
   assertUserOptedIn: jest.Mock<boolean, []>;
   getMetaMetricsId: jest.Mock<string, []>;
-  mockUpdateProfile: jest.Mock<Promise<void>, [ProfileMetricsUpdateRequest]>;
+  mockUpdateProfile: jest.Mock<
+    Promise<void>,
+    [ProfileMetricsSubmitMetricsRequest]
+  >;
 }) => Promise<ReturnValue> | ReturnValue;
 
 /**
@@ -494,7 +497,7 @@ function getMessenger(
     messenger,
     actions: [
       'AccountsController:listAccounts',
-      'ProfileMetricsService:updateProfile',
+      'ProfileMetricsService:submitMetrics',
     ],
     events: [
       'KeyringController:unlock',
@@ -530,7 +533,7 @@ async function withController<ReturnValue>(
 
   const rootMessenger = getRootMessenger();
   rootMessenger.registerActionHandler(
-    'ProfileMetricsService:updateProfile',
+    'ProfileMetricsService:submitMetrics',
     mockUpdateProfile,
   );
 
