@@ -5,6 +5,7 @@ import {
   type MessengerActions,
   type MessengerEvents,
 } from '@metamask/messenger';
+import { SDK } from '@metamask/profile-sync-controller';
 import nock from 'nock';
 import { type SinonFakeTimers, useFakeTimers } from 'sinon';
 
@@ -12,12 +13,11 @@ import {
   ProfileMetricsService,
   type ProfileMetricsSubmitRequest,
   type ProfileMetricsServiceMessenger,
-  Env,
-  getEnvUrl,
 } from '.';
+import { getAuthUrl } from './ProfileMetricsService';
 import { HttpError } from '../../controller-utils/src/util';
 
-const defaultBaseEndpoint = getEnvUrl(Env.DEV);
+const defaultBaseEndpoint = getAuthUrl(SDK.Env.DEV);
 
 /**
  * Creates a mock request object for testing purposes.

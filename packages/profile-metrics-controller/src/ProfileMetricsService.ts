@@ -4,9 +4,12 @@ import type {
 } from '@metamask/controller-utils';
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import {
+  type AuthenticationController,
+  SDK,
+} from '@metamask/profile-sync-controller';
 
-import { type ProfileMetricsServiceMethodActions, Env, getEnvUrl } from '.';
+import { type ProfileMetricsServiceMethodActions } from '.';
 
 // === GENERAL ===
 
@@ -120,18 +123,18 @@ export class ProfileMetricsService {
     messenger,
     fetch: fetchFunction,
     policyOptions = {},
-    env = Env.DEV,
+    env = SDK.Env.DEV,
   }: {
     messenger: ProfileMetricsServiceMessenger;
     fetch: typeof fetch;
     policyOptions?: CreateServicePolicyOptions;
-    env?: Env;
+    env?: SDK.Env;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
     this.#policy = createServicePolicy(policyOptions);
-    this.#baseURL = getEnvUrl(env);
+    this.#baseURL = getAuthUrl(env);
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -222,4 +225,14 @@ export class ProfileMetricsService {
       return localResponse;
     });
   }
+}
+
+/**
+ * Returns the base URL for the given environment.
+ *
+ * @param env - The environment to get the URL for.
+ * @returns The base URL for the environment.
+ */
+export function getAuthUrl(env: SDK.Env): string {
+  return `${SDK.getEnvUrls(env).authApiUrl}/v2`;
 }
