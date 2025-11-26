@@ -14,11 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - When a valid quote is received, append the `resetApproval` trade data to set the wallet's USDT allowance to `0`
   - Include the `resetApproval` tx in network fee calculations
 
-## [63.2.0]
-
 ### Removed
 
 - **BREAKING** Remove public `getBridgeERC20Allowance` action to prevent consumers from using it. This handler is only applicable to Swap and Bridge txs involving USDT on mainnet ([#7228](https://github.com/MetaMask/core/pull/7228))
+
+## [63.2.0]
+
 ### Changed
 
 - Update `stopPollingForQuotes` to accept metrics context for the QuotesReceived event. If context is provided and quotes are still loading when the handler is called, the `Unified SwapBridge Quotes Received` is published before the poll is cancelled ([#7242](https://github.com/MetaMask/core/pull/7242))
