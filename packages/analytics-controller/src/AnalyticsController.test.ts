@@ -362,7 +362,7 @@ describe('AnalyticsController', () => {
         (analyticsId: string) => Promise<void>
       >;
       const promise = mockFn.mock.results[0]?.value;
-      await expect(promise).resolves.toBeUndefined();
+      expect(await promise).toBeUndefined();
     });
 
     it('waits for onSetupCompleted promise to resolve', async () => {
