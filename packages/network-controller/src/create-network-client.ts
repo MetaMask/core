@@ -273,6 +273,13 @@ function createRpcServiceChain({
       ...rest
     }) => {
       const error = getError(rest);
+
+      if (error === undefined) {
+        // This error shouldn't happen in practice because we never call `.isolate`
+        // on the circuit breaker policy, but we need to appease TypeScript.
+        throw new Error('Could not make request to endpoint.');
+      }
+
       messenger.publish('NetworkController:rpcEndpointUnavailable', {
         chainId: configuration.chainId,
         networkClientId: id,
