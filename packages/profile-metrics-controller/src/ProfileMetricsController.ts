@@ -227,14 +227,23 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       for (const [entropySourceId, accounts] of Object.entries(
         this.state.syncQueue,
       )) {
-        await this.messenger.call('ProfileMetricsService:submitMetrics', {
-          metametricsId: this.#getMetaMetricsId(),
-          entropySourceId: entropySourceId === 'null' ? null : entropySourceId,
-          accounts,
-        });
-        this.update((state) => {
-          delete state.syncQueue[entropySourceId];
-        });
+        try {
+          await this.messenger.call('ProfileMetricsService:submitMetrics', {
+            metametricsId: this.#getMetaMetricsId(),
+            entropySourceId:
+              entropySourceId === 'null' ? null : entropySourceId,
+            accounts,
+          });
+          this.update((state) => {
+            delete state.syncQueue[entropySourceId];
+          });
+        } catch (error) {
+          // We want to log the error but continue processing other batches.
+          console.error(
+            `Failed to submit profile metrics for entropy source ID ${entropySourceId}:`,
+            error,
+          );
+        }
       }
     });
   }

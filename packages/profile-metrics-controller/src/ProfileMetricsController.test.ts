@@ -370,6 +370,45 @@ describe('ProfileMetricsController', () => {
         },
       );
     });
+
+    it('skips one of the batches if the :submitMetrics call fails, but continues processing the rest', async () => {
+      const accounts: Record<string, AccountWithScopes[]> = {
+        id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+        id2: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
+      };
+      await withController(
+        {
+          options: { state: { syncQueue: accounts } },
+        },
+        async ({ controller, getMetaMetricsId, mockUpdateProfile }) => {
+          const consoleErrorSpy = jest.spyOn(console, 'error');
+          mockUpdateProfile.mockImplementationOnce(() => {
+            throw new Error('Network error');
+          });
+
+          await controller._executePoll();
+
+          expect(mockUpdateProfile).toHaveBeenCalledTimes(2);
+          expect(mockUpdateProfile).toHaveBeenNthCalledWith(1, {
+            metametricsId: getMetaMetricsId(),
+            entropySourceId: 'id1',
+            accounts: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+          });
+          expect(mockUpdateProfile).toHaveBeenNthCalledWith(2, {
+            metametricsId: getMetaMetricsId(),
+            entropySourceId: 'id2',
+            accounts: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
+          });
+          expect(controller.state.syncQueue).toStrictEqual({
+            id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+          });
+          expect(consoleErrorSpy).toHaveBeenCalledWith(
+            'Failed to submit profile metrics for entropy source ID id1:',
+            expect.any(Error),
+          );
+        },
+      );
+    });
   });
 
   describe('metadata', () => {
