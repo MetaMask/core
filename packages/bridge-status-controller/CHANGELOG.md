@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [63.1.0]
+
 ### Changed
 
+- Bump `@metamask/bridge-controller` from `^63.1.0` to `^63.2.0` ([#7245](https://github.com/MetaMask/core/pull/7245))
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236))
   - The dependencies moved are:
     - `@metamask/accounts-controller` (^35.0.0)
@@ -796,7 +799,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@63.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@63.1.0...HEAD
+[63.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@63.0.0...@metamask/bridge-status-controller@63.1.0
 [63.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@62.0.0...@metamask/bridge-status-controller@63.0.0
 [62.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@61.0.0...@metamask/bridge-status-controller@62.0.0
 [61.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@60.1.0...@metamask/bridge-status-controller@61.0.0
