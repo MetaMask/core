@@ -203,7 +203,7 @@ export class StorageService {
     // Event type: StorageService:itemRemoved:namespace
     // Payload: [key]
     this.#messenger.publish(
-      `${SERVICE_NAME}:itemRemoved:${namespace}` as `${typeof SERVICE_NAME}:itemRemoved:${string}`,
+      `${SERVICE_NAME}:itemRemoved:${namespace}` as const,
       key,
     );
   }
