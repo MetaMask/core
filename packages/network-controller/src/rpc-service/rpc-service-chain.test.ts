@@ -907,7 +907,7 @@ describe('RpcServiceChain', () => {
     it('calls onServiceBreak each time the circuit of an RPC service in the chain breaks', async () => {
       const primaryEndpointUrl = 'https://first.endpoint';
       const secondaryEndpointUrl = 'https://second.endpoint';
-      const tertiaryEndpointUrl = 'https://second.endpoint';
+      const tertiaryEndpointUrl = 'https://third.endpoint';
       nock(primaryEndpointUrl)
         .post('/', {
           id: 1,
