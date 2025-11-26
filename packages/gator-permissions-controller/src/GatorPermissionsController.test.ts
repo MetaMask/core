@@ -21,6 +21,7 @@ import type { SnapId } from '@metamask/snaps-sdk';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { hexToBigInt, numberToHex, type Hex } from '@metamask/utils';
 
+import { GatorPermissionsFetchError } from './errors';
 import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController';
 import GatorPermissionsController, {
   DELEGATION_FRAMEWORK_VERSION,
@@ -837,8 +838,12 @@ describe('GatorPermissionsController', () => {
         },
       });
 
-      // Mock fetchAndUpdateGatorPermissions to fail
-      const fetchError = new Error('Refresh failed');
+      // Mock fetchAndUpdateGatorPermissions to fail with GatorPermissionsFetchError
+      // (which is what it actually throws in real scenarios)
+      const fetchError = new GatorPermissionsFetchError({
+        message: 'Failed to fetch gator permissions',
+        cause: new Error('Refresh failed'),
+      });
       jest
         .spyOn(controller, 'fetchAndUpdateGatorPermissions')
         .mockRejectedValue(fetchError);
@@ -847,9 +852,18 @@ describe('GatorPermissionsController', () => {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
       };
 
+      // Should throw GatorPermissionsFetchError (not GatorPermissionsProviderError)
+      // because revocation succeeded but refresh failed
       await expect(
         controller.submitRevocation(revocationParams),
-      ).rejects.toThrow();
+      ).rejects.toThrow(GatorPermissionsFetchError);
+
+      // Verify the error message indicates refresh failure, not revocation failure
+      await expect(
+        controller.submitRevocation(revocationParams),
+      ).rejects.toThrow(
+        'Failed to refresh permissions list after successful revocation',
+      );
 
       // Pending revocation should still be cleared despite refresh failure
       expect(controller.pendingRevocations).toStrictEqual([]);

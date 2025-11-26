@@ -754,19 +754,19 @@ export default class GatorPermissionsController extends BaseController<
 
     this.#assertGatorPermissionsEnabled();
 
-    try {
-      const snapRequest = {
-        snapId: this.state.gatorPermissionsProviderSnapId,
-        origin: 'metamask',
-        handler: HandlerType.OnRpcRequest,
-        request: {
-          jsonrpc: '2.0',
-          method:
-            GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
-          params: revocationParams,
-        },
-      };
+    const snapRequest = {
+      snapId: this.state.gatorPermissionsProviderSnapId,
+      origin: 'metamask',
+      handler: HandlerType.OnRpcRequest,
+      request: {
+        jsonrpc: '2.0',
+        method:
+          GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
+        params: revocationParams,
+      },
+    };
 
+    try {
       const result = await this.messenger.call(
         'SnapController:handleRequest',
         snapRequest,
@@ -780,6 +780,24 @@ export default class GatorPermissionsController extends BaseController<
         result,
       });
     } catch (error) {
+      // If it's a GatorPermissionsFetchError, revocation succeeded but refresh failed
+      if (error instanceof GatorPermissionsFetchError) {
+        controllerLog(
+          'Revocation submitted successfully but failed to refresh permissions list',
+          {
+            error,
+            permissionContext: revocationParams.permissionContext,
+          },
+        );
+        // Wrap with a more specific message indicating revocation succeeded
+        throw new GatorPermissionsFetchError({
+          message:
+            'Failed to refresh permissions list after successful revocation',
+          cause: error as Error,
+        });
+      }
+
+      // Otherwise, revocation failed - wrap in provider error
       controllerLog('Failed to submit revocation', {
         error,
         permissionContext: revocationParams.permissionContext,
