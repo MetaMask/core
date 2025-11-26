@@ -9,12 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [63.1.0]
 
-### Uncategorized
-
-- Release 690.0.0 ([#7215](https://github.com/MetaMask/core/pull/7215))
-
 ### Changed
 
+- Bump `@metamask/bridge-controller` from `^63.1.0` to `^63.2.0` ([#7245](https://github.com/MetaMask/core/pull/7245))
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236))
   - The dependencies moved are:
     - `@metamask/accounts-controller` (^35.0.0)
